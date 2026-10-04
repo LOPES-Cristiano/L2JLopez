@@ -16,6 +16,7 @@ public record ServerProperties(
 		@NotBlank String serverName,
 		@Valid @NotNull Rates rates,
 		@Valid @NotNull Network network,
+		@Valid @NotNull Login login,
 		@Valid @NotNull Features features) {
 
 	public record Rates(
@@ -32,6 +33,14 @@ public record ServerProperties(
 			@Min(1) int loginInternalPort,
 			@Min(1) int protocolMin,
 			@Min(1) int protocolMax) {
+	}
+
+	public record Login(
+			boolean autoCreateAccounts,
+			@Min(1) int maxAccountCreationsPerIp,
+			@NotBlank String gameServerHost,
+			@Min(1) int maxPlayers,
+			boolean showLicence) {
 	}
 
 	public record Features(
