@@ -1,5 +1,7 @@
 package com.lopez.l2j.game.model;
 
+import com.lopez.l2j.game.item.Inventory;
+
 /**
  * Personagem persistido na tabela legada {@code characters}. Mutavel apenas no que muda durante o jogo
  * (posicao, HP/MP/CP, flags de sessao); o resto e imutavel por enquanto. Acesso sempre pela thread da
@@ -41,6 +43,7 @@ public final class PlayerCharacter {
 	private double currentCp;
 	private boolean running = true;
 	private boolean sitting;
+	private Inventory inventory;
 
 	public PlayerCharacter(int objectId, String account, String name, int level, long exp, int sp, int race,
 			int classId, int baseClassId, boolean female, int face, int hairStyle, int hairColor, int maxHp,
@@ -117,6 +120,16 @@ public final class PlayerCharacter {
 	public void running(boolean value) { this.running = value; }
 	public boolean sitting() { return sitting; }
 	public void sitting(boolean value) { this.sitting = value; }
+
+	/** Inventario carregado ao entrar no jogo (vazio enquanto o personagem esta so na lista). */
+	public Inventory inventory() {
+		if (inventory == null) {
+			inventory = new Inventory(objectId);
+		}
+		return inventory;
+	}
+
+	public void inventory(Inventory value) { this.inventory = value; }
 
 	public void moveTo(int x, int y, int z) {
 		this.x = x;

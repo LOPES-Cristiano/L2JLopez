@@ -40,11 +40,14 @@ public class CharacterService {
 
 	private final CharacterRepository repository;
 	private final CharTemplateTable templates;
+	private final InventoryService inventories;
 	private final Object createLock = new Object();
 
-	public CharacterService(CharacterRepository repository, CharTemplateTable templates) {
+	public CharacterService(CharacterRepository repository, CharTemplateTable templates,
+			InventoryService inventories) {
 		this.repository = repository;
 		this.templates = templates;
+		this.inventories = inventories;
 	}
 
 	public List<PlayerCharacter> list(String account) {
@@ -78,7 +81,9 @@ public class CharacterService {
 				var created = repository.create(new NewCharacter(r.account(), r.name(), t.raceId(), t.classId(),
 						r.sex() == 1, r.face(), r.hairStyle(), r.hairColor(), (int) t.hpBase(), (int) t.mpBase(),
 						(int) t.cpBase(), t.spawnX(), t.spawnY(), t.spawnZ(), t.canCraft()));
-				log.info("Personagem criado: {} ({}) na conta {}", created.name(), t.className(), r.account());
+				var inv = inventories.giveStarterItems(created.objectId(), created.classId());
+				log.info("Personagem criado: {} ({}) na conta {} com {} itens", created.name(), t.className(),
+						r.account(), inv.size());
 				return new CreateResult(created, null);
 			} catch (DataIntegrityViolationException e) {
 				return CreateResult.fail(CharCreateFailReason.NAME_ALREADY_EXISTS);
@@ -89,6 +94,7 @@ public class CharacterService {
 	/** Remocao imediata (DeleteCharAfterDays = 0 no legado). */
 	public void delete(PlayerCharacter c) {
 		repository.delete(c.objectId());
+		inventories.deleteAll(c.objectId());
 		log.info("Personagem removido: {} da conta {}", c.name(), c.account());
 	}
 

@@ -2,6 +2,7 @@ package com.lopez.l2j.network.game.net;
 
 import com.lopez.l2j.config.ServerProperties;
 import com.lopez.l2j.game.service.CharacterService;
+import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.crypt.GameCrypt;
@@ -42,9 +43,9 @@ public class GameServer implements SmartLifecycle {
 
 	@Autowired
 	public GameServer(ServerProperties p, SessionKeyRegistry sessionKeys, CharacterService characters,
-			GameWorld world) {
+			InventoryService inventories, GameWorld world) {
 		this(p.network().gamePort(), new GameSession.Context(p.network().protocolMin(), p.network().protocolMax(),
-				sessionKeys, characters, world, p.serverName()));
+				sessionKeys, characters, inventories, world, p.serverName()));
 	}
 
 	/** Porta 0 = efemera (testes); use {@link #port()} depois de iniciar. */

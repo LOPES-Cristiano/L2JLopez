@@ -6,8 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.lopez.l2j.config.ServerProperties;
+import com.lopez.l2j.game.item.InMemoryItemRepository;
+import com.lopez.l2j.game.item.TestItems;
 import com.lopez.l2j.game.model.InMemoryCharacterRepository;
+import com.lopez.l2j.game.model.ObjectIdFactory;
 import com.lopez.l2j.game.service.CharacterService;
+import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.game.template.CharTemplateTable;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.GameSession;
@@ -38,6 +42,7 @@ class GameServerEndToEndTest {
 	static final int PROTOCOL = 746;
 
 	InMemoryCharacterRepository repo;
+	InMemoryItemRepository items;
 	LoginAccountService accounts;
 	SessionKeyRegistry registry;
 	GameWorld world;
@@ -64,9 +69,13 @@ class GameServerEndToEndTest {
 		accounts = new LoginAccountService(store, new ServerProperties.Login(true, 10, "127.0.0.1", 100, true));
 		registry = new SessionKeyRegistry(accounts, true, Clock.systemUTC());
 		repo = new InMemoryCharacterRepository();
+		items = new InMemoryItemRepository();
 		world = new GameWorld();
-		var characters = new CharacterService(repo, new CharTemplateTable());
-		server = new GameServer(0, new GameSession.Context(730, 746, registry, characters, world, "L2JLopez"));
+		var inventories = new InventoryService(TestItems.table(), items, ObjectIdFactory.sequential(0x20000000),
+				5000);
+		var characters = new CharacterService(repo, new CharTemplateTable(), inventories);
+		server = new GameServer(0,
+				new GameSession.Context(730, 746, registry, characters, inventories, world, "L2JLopez"));
 		server.start();
 	}
 
@@ -254,6 +263,147 @@ class GameServerEndToEndTest {
 			assertEquals(1, list.readD());
 			assertEquals(0, world.online());
 			assertTrue(accounts.isOnline("tester"), "restart mantem a conta logada");
+		}
+	}
+
+	/** Le uma linha do ItemList/InventoryUpdate: devolve {objectId, itemId, count, equipped, bodyPart}. */
+	static int[] readItem(PacketReader r) {
+		r.readH(); // type1
+		int objectId = r.readD();
+		int itemId = r.readD();
+		int count = r.readD();
+		r.readH(); // type2
+		r.readH(); // custom type1
+		int equipped = r.readH();
+		int bodyPart = r.readD();
+		r.readH(); // enchant
+		r.readH(); // custom type2
+		r.readD(); // augmentation
+		r.readD(); // mana
+		return new int[] { objectId, itemId, count, equipped, bodyPart };
+	}
+
+	@Test
+	void starterItemsAppearInLobbyAndCanBeEquipped() throws Exception {
+		SessionKey key = loginAs("tester");
+		try (Client c = new Client()) {
+			c.handshake();
+			c.authLogin("tester", key);
+			c.read();
+			c.send(characterCreate("Squire", 0, 0, 0));
+			c.read();
+
+			// CharSelectionInfo ja mostra a espada (paperdoll RHAND = 8o slot visivel)
+			PacketReader list = new PacketReader(c.read());
+			assertEquals(0x13, list.readC());
+			assertEquals(1, list.readD());
+			list.readS();
+			list.readD();
+			list.readS();
+			for (int i = 0; i < 10; i++) { // sessionId, clan, 0, sex, race, baseClass, 1, 0, 0, 0
+				list.readD();
+			}
+			list.readB(16); // hp, mp
+			list.readD();
+			list.readB(8); // exp
+			for (int i = 0; i < 11; i++) {
+				list.readD();
+			}
+			int[] objectIds = new int[17];
+			int[] itemIds = new int[17];
+			for (int i = 0; i < 17; i++) {
+				objectIds[i] = list.readD();
+			}
+			for (int i = 0; i < 17; i++) {
+				itemIds[i] = list.readD();
+			}
+			assertEquals(TestItems.SQUIRE_SWORD, itemIds[7], "RHAND");
+			assertEquals(TestItems.SQUIRE_SHIRT, itemIds[10], "CHEST");
+			assertEquals(TestItems.SQUIRE_PANTS, itemIds[11], "LEGS");
+			assertTrue(objectIds[7] != 0);
+
+			c.send(new PacketWriter().writeC(0x0d).writeD(0).writeH(0).writeD(0).writeD(0).writeD(0).toByteArray());
+			c.readUntil(0x15);
+			c.send(new PacketWriter().writeC(0x03).writeB(new byte[104]).toByteArray());
+			PacketReader itemList = new PacketReader(c.readUntil(0x1b));
+			itemList.readC();
+			assertEquals(0, itemList.readH(), "EnterWorld nao abre a janela");
+			int count = itemList.readH();
+			assertEquals(6, count, "guia + dagger + shirt + pants + espada + adena");
+			int daggerObject = 0;
+			int equippedCount = 0;
+			for (int i = 0; i < count; i++) {
+				int[] item = readItem(itemList);
+				equippedCount += item[3];
+				if (item[1] == TestItems.DAGGER) {
+					daggerObject = item[0];
+				}
+				if (item[1] == TestItems.ADENA) {
+					assertEquals(5000, item[2]);
+				}
+			}
+			assertEquals(3, equippedCount);
+			c.readUntil(0x4a);
+
+			// UseItem na dagger: mensagem, InventoryUpdate (dagger + espada) e UserInfo
+			c.send(new PacketWriter().writeC(0x14).writeD(daggerObject).writeD(0).toByteArray());
+			PacketReader msg = new PacketReader(c.read());
+			assertEquals(0x64, msg.readC());
+			assertEquals(49, msg.readD(), "S1_EQUIPPED");
+			assertEquals(1, msg.readD());
+			assertEquals(3, msg.readD());
+			assertEquals(TestItems.DAGGER, msg.readD());
+			PacketReader update = new PacketReader(c.read());
+			assertEquals(0x27, update.readC());
+			int changes = update.readH();
+			assertEquals(2, changes);
+			boolean daggerOn = false;
+			for (int i = 0; i < changes; i++) {
+				assertEquals(2, update.readH(), "modificado");
+				int[] item = readItem(update);
+				if (item[1] == TestItems.DAGGER) {
+					daggerOn = item[3] == 1;
+				} else {
+					assertEquals(TestItems.SQUIRE_SWORD, item[1]);
+					assertEquals(0, item[3]);
+				}
+			}
+			assertTrue(daggerOn);
+			assertEquals(0x04, c.read()[0], "UserInfo com o novo paperdoll");
+			assertEquals("PAPERDOLL", items.rows.get(daggerObject).loc());
+
+			// RequestUnEquipItem(SLOT_R_HAND)
+			c.send(new PacketWriter().writeC(0x11).writeD(0x0080).toByteArray());
+			msg = new PacketReader(c.read());
+			msg.readC();
+			assertEquals(417, msg.readD(), "S1_DISARMED");
+			assertEquals(0x27, c.read()[0]);
+			assertEquals(0x04, c.read()[0]);
+			assertEquals("INVENTORY", items.rows.get(daggerObject).loc());
+
+			// RequestItemList abre a janela
+			c.send(new byte[] { 0x0f });
+			PacketReader open = new PacketReader(c.read());
+			assertEquals(0x1b, open.readC());
+			assertEquals(1, open.readH());
+		}
+	}
+
+	@Test
+	void deletingCharacterRemovesItems() throws Exception {
+		SessionKey key = loginAs("tester");
+		try (Client c = new Client()) {
+			c.handshake();
+			c.authLogin("tester", key);
+			c.read();
+			c.send(characterCreate("Doomed", 0, 0, 0));
+			c.read();
+			c.read();
+			assertEquals(6, items.rows.size());
+			c.send(new PacketWriter().writeC(0x0c).writeD(0).toByteArray());
+			assertEquals(0x23, c.read()[0]);
+			c.read();
+			assertTrue(items.rows.isEmpty());
 		}
 	}
 

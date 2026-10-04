@@ -3,18 +3,17 @@ package com.lopez.l2j.game.model;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 /**
- * JDBC sobre a tabela legada {@code characters}. Object ids seguem a faixa do IdFactory legado
- * (a partir de 0x10000000) e continuam do maior id ja usado por personagens ou itens.
+ * JDBC sobre a tabela legada {@code characters}. Object ids vem do {@link ObjectIdFactory} (faixa do IdFactory
+ * legado, compartilhada com itens).
  */
 @Repository
 class JdbcCharacterRepository implements CharacterRepository {
 
-	static final int FIRST_OBJECT_ID = 0x10000000;
+	static final int FIRST_OBJECT_ID = ObjectIdFactory.FIRST_OBJECT_ID;
 
 	private static final String COLUMNS = """
 			account_name, charId, char_name, level, exp, sp, race, classid, base_class, sex, face, hairStyle,
@@ -22,10 +21,11 @@ class JdbcCharacterRepository implements CharacterRepository {
 			accesslevel, lastAccess, deletetime, x, y, z, heading""";
 
 	private final JdbcClient jdbc;
-	private volatile AtomicInteger nextId;
+	private final ObjectIdFactory ids;
 
-	JdbcCharacterRepository(JdbcClient jdbc) {
+	JdbcCharacterRepository(JdbcClient jdbc, ObjectIdFactory ids) {
 		this.jdbc = jdbc;
+		this.ids = ids;
 	}
 
 	@Override
@@ -46,7 +46,7 @@ class JdbcCharacterRepository implements CharacterRepository {
 
 	@Override
 	public PlayerCharacter create(NewCharacter c) {
-		int id = allocateObjectId();
+		int id = ids.nextId();
 		long now = System.currentTimeMillis();
 		jdbc.sql("""
 				INSERT INTO characters (account_name, charId, char_name, level, maxHp, curHp, maxCp, curCp, maxMp,
@@ -109,30 +109,6 @@ class JdbcCharacterRepository implements CharacterRepository {
 				.param("now", System.currentTimeMillis())
 				.param("id", c.objectId())
 				.update();
-	}
-
-	private int allocateObjectId() {
-		AtomicInteger n = nextId;
-		if (n == null) {
-			synchronized (this) {
-				n = nextId;
-				if (n == null) {
-					int max = Math.max(maxOf("SELECT MAX(charId) FROM characters"),
-							maxOf("SELECT MAX(object_id) FROM items"));
-					nextId = n = new AtomicInteger(Math.max(FIRST_OBJECT_ID, max + 1));
-				}
-			}
-		}
-		return n.getAndIncrement();
-	}
-
-	private int maxOf(String sql) {
-		try {
-			Integer v = jdbc.sql(sql).query(Integer.class).optional().orElse(null);
-			return v == null ? 0 : v;
-		} catch (RuntimeException e) {
-			return 0; // tabela ausente (ex.: testes com schema reduzido)
-		}
 	}
 
 	private static PlayerCharacter map(ResultSet rs, int row) throws SQLException {

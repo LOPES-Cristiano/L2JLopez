@@ -63,6 +63,13 @@ public sealed interface GameClientPacket {
 	record RequestItemList() implements GameClientPacket {
 	}
 
+	record UseItem(int objectId) implements GameClientPacket {
+	}
+
+	/** {@code bodyPart} = mascara L2Item.SLOT_* do slot clicado. */
+	record RequestUnEquipItem(int bodyPart) implements GameClientPacket {
+	}
+
 	record RequestSkillList() implements GameClientPacket {
 	}
 
@@ -111,6 +118,8 @@ public sealed interface GameClientPacket {
 					case 0x37 -> new RequestTargetCancel();
 					case 0x45 -> new RequestActionUse(r.readD(), r.readD() == 1, r.readC() == 1);
 					case 0x0f -> new RequestItemList();
+					case 0x14 -> new UseItem(r.readD());
+					case 0x11 -> new RequestUnEquipItem(r.readD());
 					case 0x3f -> new RequestSkillList();
 					case 0x63 -> new RequestQuestList();
 					case 0x09 -> new Logout();

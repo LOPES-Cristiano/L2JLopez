@@ -17,7 +17,15 @@ public record ServerProperties(
 		@Valid @NotNull Rates rates,
 		@Valid @NotNull Network network,
 		@Valid @NotNull Login login,
+		@Valid Game game,
 		@Valid @NotNull Features features) {
+
+	/** Configuracoes do game server (Config.java/custom.properties do legado). */
+	public record Game(
+			boolean listen,
+			/** StartingAdena: adena entregue na criacao do personagem. */
+			@Min(0) int startingAdena) {
+	}
 
 	public record Rates(
 			@DecimalMin("0.0") double xp,

@@ -49,6 +49,8 @@ l2:
     show-licence: true
   game:
     listen: true
+    # StartingAdena do custom.properties do L2JDream (o padrao do L2J puro e 0).
+    starting-adena: ${L2_STARTING_ADENA:10000000}
   features:
     autofarm: { enabled: true }
     dressme: { enabled: true }

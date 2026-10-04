@@ -1,8 +1,12 @@
 package com.lopez.l2j.network.game.packet;
 
+import com.lopez.l2j.game.item.ItemInstance;
+import com.lopez.l2j.game.item.ItemSlots;
+import com.lopez.l2j.game.item.Paperdoll;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.template.CharTemplate;
 import com.lopez.l2j.network.login.packet.PacketWriter;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -27,15 +31,20 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0x13 CharSelectionInfo: lista de personagens da conta. */
-	record CharSelectionInfo(String account, int sessionId, List<PlayerCharacter> characters, int activeIndex)
-			implements GameServerPacket {
+	/** 0x13 CharSelectionInfo: lista de personagens da conta (paperdolls paralelos a characters). */
+	record CharSelectionInfo(String account, int sessionId, List<PlayerCharacter> characters, List<Paperdoll> paperdolls,
+			int activeIndex) implements GameServerPacket {
 		public CharSelectionInfo {
 			characters = List.copyOf(characters);
+			paperdolls = List.copyOf(paperdolls);
+			if (paperdolls.size() != characters.size()) {
+				throw new IllegalArgumentException("um paperdoll por personagem");
+			}
 		}
 
 		/** Ativo = o de lastAccess mais recente, como no legado. */
-		public static CharSelectionInfo of(String account, int sessionId, List<PlayerCharacter> characters) {
+		public static CharSelectionInfo of(String account, int sessionId, List<PlayerCharacter> characters,
+				List<Paperdoll> paperdolls) {
 			int active = -1;
 			long last = 0;
 			for (int i = 0; i < characters.size(); i++) {
@@ -44,7 +53,7 @@ public sealed interface GameServerPacket {
 					active = i;
 				}
 			}
-			return new CharSelectionInfo(account, sessionId, characters, active);
+			return new CharSelectionInfo(account, sessionId, characters, paperdolls, active);
 		}
 
 		@Override
@@ -62,9 +71,7 @@ public sealed interface GameServerPacket {
 				for (int k = 0; k < 9; k++) {
 					w.writeD(0x00);
 				}
-				for (int k = 0; k < 17 * 2; k++) { // paperdoll: 17 object ids + 17 item ids
-					w.writeD(0x00);
-				}
+				writePaperdoll(w, paperdolls.get(i), ItemSlots.LRHAND);
 				w.writeD(c.hairStyle()).writeD(c.hairColor()).writeD(c.face());
 				w.writeF(c.maxHp()).writeF(c.maxMp());
 				int deleteSeconds = c.deleteTime() > 0 ? (int) Math.max(0, (c.deleteTime() - now) / 1000) : 0;
@@ -72,6 +79,19 @@ public sealed interface GameServerPacket {
 				w.writeC(0x00).writeD(0x00); // enchant effect, augmentation
 			}
 			return w.toByteArray();
+		}
+	}
+
+	/**
+	 * 17 object ids + 17 item ids na ordem {@link ItemSlots#VISIBLE_ORDER}; o 15o slot usa {@code twoHandSlot}
+	 * (UserInfo manda RHAND, CharSelectionInfo manda LRHAND).
+	 */
+	private static void writePaperdoll(PacketWriter w, Paperdoll p, int twoHandSlot) {
+		for (int slot : ItemSlots.VISIBLE_ORDER) {
+			w.writeD(p.objectId(slot == ItemSlots.LRHAND ? twoHandSlot : slot));
+		}
+		for (int slot : ItemSlots.VISIBLE_ORDER) {
+			w.writeD(p.itemId(slot == ItemSlots.LRHAND ? twoHandSlot : slot));
 		}
 	}
 
@@ -170,11 +190,16 @@ public sealed interface GameServerPacket {
 	}
 
 	/** 0x04 UserInfo: estado completo do proprio personagem (o cliente so "entra" no mundo apos recebe-lo). */
-	record UserInfo(PlayerCharacter c, CharTemplate t) implements GameServerPacket {
+	record UserInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll, int currentLoad)
+			implements GameServerPacket {
 		static final int WALK_SPEED = 80;
 		static final int INVENTORY_LIMIT = 80;
 		static final int NAME_COLOR = 0xFFFFFF;
 		static final int TITLE_COLOR = 0xFFFF77;
+
+		public UserInfo(PlayerCharacter c, CharTemplate t) {
+			this(c, t, c.inventory().paperdollView(), c.inventory().currentLoad());
+		}
 
 		@Override
 		public byte[] encode() {
@@ -184,11 +209,9 @@ public sealed interface GameServerPacket {
 			w.writeD(c.level()).writeQ(c.exp());
 			w.writeD(t.str()).writeD(t.dex()).writeD(t.con()).writeD(t.intel()).writeD(t.wit()).writeD(t.men());
 			w.writeD(c.maxHp()).writeD((int) c.currentHp()).writeD(c.maxMp()).writeD((int) c.currentMp());
-			w.writeD(c.sp()).writeD(0).writeD(t.maxLoad());
+			w.writeD(c.sp()).writeD(currentLoad).writeD(t.maxLoad());
 			w.writeD(0x28); // valor fixo do legado (posicao 0x28 do paperdoll)
-			for (int i = 0; i < 17 * 2; i++) { // paperdoll: 17 object ids + 17 item ids
-				w.writeD(0x00);
-			}
+			writePaperdoll(w, paperdoll, ItemSlots.RHAND);
 			for (int i = 0; i < 14; i++) {
 				w.writeH(0x00);
 			}
@@ -240,11 +263,112 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0x1b ItemList (vazio enquanto inventario nao for migrado). */
-	record ItemList(boolean showWindow) implements GameServerPacket {
+	/** Linha de item dos pacotes ItemList/InventoryUpdate (foto imutavel do ItemInstance). */
+	record ItemInfo(int change, int type1, int objectId, int displayId, int count, int type2, int customType1,
+			boolean equipped, int bodyPart, int enchant, int customType2, int augmentation, int mana) {
+		public static final int ADDED = 1;
+		public static final int MODIFIED = 2;
+		public static final int REMOVED = 3;
+
+		public static ItemInfo of(ItemInstance i, int change) {
+			var t = i.template();
+			return new ItemInfo(change, t.type1(), i.objectId(), t.displayId(), i.count(), t.type2(),
+					i.customType1(), i.isEquipped(), t.bodyPart(), i.enchant(), i.customType2(), 0, i.mana());
+		}
+
+		void write(PacketWriter w) {
+			w.writeH(type1).writeD(objectId).writeD(displayId).writeD(count).writeH(type2).writeH(customType1)
+					.writeH(equipped ? 1 : 0).writeD(bodyPart).writeH(enchant).writeH(customType2)
+					.writeD(augmentation).writeD(mana);
+		}
+	}
+
+	/** 0x1b ItemList: inventario completo (o legado limita a 400 linhas). */
+	record ItemList(List<ItemInfo> items, boolean showWindow) implements GameServerPacket {
+		static final int MAX_ITEMS = 400;
+
+		public ItemList {
+			items = List.copyOf(items.size() > MAX_ITEMS ? items.subList(0, MAX_ITEMS) : items);
+		}
+
+		public static ItemList of(Collection<ItemInstance> items, boolean showWindow) {
+			return new ItemList(items.stream().map(i -> ItemInfo.of(i, 0)).toList(), showWindow);
+		}
+
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0x1b).writeH(showWindow ? 1 : 0).writeH(0).toByteArray();
+			PacketWriter w = new PacketWriter().writeC(0x1b).writeH(showWindow ? 1 : 0).writeH(items.size());
+			items.forEach(i -> i.write(w));
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x27 InventoryUpdate: so os itens que mudaram (1 = novo, 2 = modificado, 3 = removido). */
+	record InventoryUpdate(List<ItemInfo> items) implements GameServerPacket {
+		public InventoryUpdate {
+			items = List.copyOf(items);
+		}
+
+		public static InventoryUpdate modified(Collection<ItemInstance> items) {
+			return new InventoryUpdate(items.stream().map(i -> ItemInfo.of(i, ItemInfo.MODIFIED)).toList());
+		}
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x27).writeH(items.size());
+			for (ItemInfo i : items) {
+				w.writeH(i.change());
+				i.write(w);
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x64 SystemMessage: mensagem do systemmsg.dat do cliente com parametros tipados. */
+	record SystemMessage(int id, List<Param> params) implements GameServerPacket {
+		public static final int YOU_PICKED_UP_S1_S2 = 29;
+		public static final int S1_EQUIPPED = 49;
+		public static final int EARNED_S2_S1_S = 53;
+		public static final int S1_CANNOT_BE_USED = 113;
+		public static final int S1_S2_EQUIPPED = 368;
+		public static final int S1_DISARMED = 417;
+		public static final int EQUIPMENT_S1_S2_REMOVED = 1064;
+
+		public sealed interface Param {
+		}
+
+		public record Text(String value) implements Param {
+		}
+
+		public record Number(int value) implements Param {
+		}
+
+		public record ItemName(int itemId) implements Param {
+		}
+
+		public record NpcName(int npcId) implements Param {
+		}
+
+		public SystemMessage {
+			params = List.copyOf(params);
+		}
+
+		public static SystemMessage of(int id, Param... params) {
+			return new SystemMessage(id, List.of(params));
+		}
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x64).writeD(id).writeD(params.size());
+			for (Param p : params) {
+				switch (p) {
+					case Text t -> w.writeD(0).writeS(t.value());
+					case Number n -> w.writeD(1).writeD(n.value());
+					case NpcName n -> w.writeD(2).writeD(1_000_000 + n.npcId());
+					case ItemName i -> w.writeD(3).writeD(i.itemId());
+				}
+			}
+			return w.toByteArray();
 		}
 	}
 

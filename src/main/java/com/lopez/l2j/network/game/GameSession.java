@@ -3,6 +3,8 @@ package com.lopez.l2j.network.game;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.service.CharacterService;
 import com.lopez.l2j.game.service.CharacterService.CreateRequest;
+import com.lopez.l2j.game.service.InventoryService;
+import com.lopez.l2j.game.service.InventoryService.EquipResult;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameClientPacket;
 import com.lopez.l2j.network.game.packet.GameClientPacket.Action;
@@ -23,9 +25,11 @@ import com.lopez.l2j.network.game.packet.GameClientPacket.RequestQuestList;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestRestart;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestSkillList;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestTargetCancel;
+import com.lopez.l2j.network.game.packet.GameClientPacket.RequestUnEquipItem;
 import com.lopez.l2j.network.game.packet.GameClientPacket.Say2;
 import com.lopez.l2j.network.game.packet.GameClientPacket.State;
 import com.lopez.l2j.network.game.packet.GameClientPacket.Unknown;
+import com.lopez.l2j.network.game.packet.GameClientPacket.UseItem;
 import com.lopez.l2j.network.game.packet.GameClientPacket.ValidatePosition;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ActionFailed;
@@ -43,6 +47,7 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.ExSendManorList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ExStorageMaxCount;
 import com.lopez.l2j.network.game.packet.GameServerPacket.FriendList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.HennaInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ItemList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.KeyPacket;
 import com.lopez.l2j.network.game.packet.GameServerPacket.LeaveWorld;
@@ -55,6 +60,7 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.ShortCutInit;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SkillList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SsqInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.StopMove;
+import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.TargetUnselected;
 import com.lopez.l2j.network.game.packet.GameServerPacket.UserInfo;
 import com.lopez.l2j.network.session.SessionKey;
@@ -77,7 +83,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	/** Configuracao/servicos compartilhados por todas as sessoes. */
 	public record Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
-			CharacterService characters, GameWorld world, String serverName) {
+			CharacterService characters, InventoryService inventories, GameWorld world, String serverName) {
 	}
 
 	private final Context ctx;
@@ -136,7 +142,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case Action p -> onAction(p);
 			case RequestTargetCancel p -> send(new TargetUnselected(active.objectId(), x(), y(), z()));
 			case RequestActionUse p -> onActionUse(p);
-			case RequestItemList p -> send(new ItemList(true));
+			case RequestItemList p -> send(ItemList.of(active.inventory().items(), true));
+			case UseItem p -> onUseItem(p);
+			case RequestUnEquipItem p -> onUnEquip(p);
 			case RequestSkillList p -> send(new SkillList());
 			case RequestQuestList p -> send(new QuestList());
 			case Logout p -> onLogout();
@@ -193,7 +201,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	private void sendCharacterList() {
 		characterList = ctx.characters().list(account);
-		send(CharSelectionInfo.of(account, sessionId, characterList));
+		var paperdolls = characterList.stream().map(c -> ctx.inventories().paperdoll(c.objectId())).toList();
+		send(CharSelectionInfo.of(account, sessionId, characterList, paperdolls));
 	}
 
 	private void onCharacterCreate(CharacterCreate p) {
@@ -235,6 +244,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		active = c;
+		c.inventory(ctx.inventories().load(c.objectId()));
 		state = State.IN_GAME;
 		send(new SsqInfo(0));
 		send(new CharSelected(c, ctx.characters().template(c), sessionId, GameTime.now()));
@@ -248,7 +258,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		inWorld = true;
 		var t = ctx.characters().template(active);
-		send(new ItemList(false));
+		send(ItemList.of(active.inventory().items(), false));
 		send(new ShortCutInit());
 		send(new HennaInfo());
 		send(new QuestList());
@@ -334,6 +344,56 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 			default -> send(new ActionFailed());
 		}
+	}
+
+	/** UseItem: por enquanto so equipaveis; consumiveis chegam com os item handlers. */
+	private void onUseItem(UseItem p) {
+		if (!inWorld) {
+			return;
+		}
+		var item = active.inventory().byObjectId(p.objectId()).orElse(null);
+		if (item == null) {
+			send(new ActionFailed());
+			return;
+		}
+		if (!item.template().isEquipable()) {
+			send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(item.itemId())));
+			send(new ActionFailed());
+			return;
+		}
+		if (active.sitting()) {
+			send(new ActionFailed());
+			return;
+		}
+		afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), item.objectId()));
+	}
+
+	private void onUnEquip(RequestUnEquipItem p) {
+		if (!inWorld) {
+			return;
+		}
+		afterEquipChange(ctx.inventories().unequipBodyPart(active.inventory(), p.bodyPart()));
+	}
+
+	private void afterEquipChange(EquipResult r) {
+		if (!r.ok()) {
+			send(new ActionFailed());
+			return;
+		}
+		var item = r.item();
+		var name = new SystemMessage.ItemName(item.itemId());
+		if (r.equipped()) {
+			send(item.enchant() > 0
+					? SystemMessage.of(SystemMessage.S1_S2_EQUIPPED, new SystemMessage.Number(item.enchant()), name)
+					: SystemMessage.of(SystemMessage.S1_EQUIPPED, name));
+		} else {
+			send(item.enchant() > 0
+					? SystemMessage.of(SystemMessage.EQUIPMENT_S1_S2_REMOVED, new SystemMessage.Number(item.enchant()),
+							name)
+					: SystemMessage.of(SystemMessage.S1_DISARMED, name));
+		}
+		send(InventoryUpdate.modified(r.changed()));
+		send(new UserInfo(active, ctx.characters().template(active)));
 	}
 
 	private void onLogout() {
