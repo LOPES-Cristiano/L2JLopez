@@ -331,9 +331,16 @@ public sealed interface GameServerPacket {
 		public static final int S1_EQUIPPED = 49;
 		public static final int EARNED_S2_S1_S = 53;
 		public static final int S1_CANNOT_BE_USED = 113;
+		public static final int SLOTS_FULL = 129;
+		public static final int YOU_NOT_ENOUGH_ADENA = 279;
 		public static final int S1_S2_EQUIPPED = 368;
 		public static final int S1_DISARMED = 417;
+		public static final int WEIGHT_LIMIT_EXCEEDED = 422;
 		public static final int EQUIPMENT_S1_S2_REMOVED = 1064;
+
+		public static SystemMessage id(int id) {
+			return new SystemMessage(id, List.of());
+		}
 
 		public sealed interface Param {
 		}
@@ -373,11 +380,26 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0x58 SkillList (vazia). */
-	record SkillList() implements GameServerPacket {
+	/** 0x58 SkillList: lista de habilidades aprendidas pelo jogador. */
+	record SkillList(List<com.lopez.l2j.game.skill.Skill> skills) implements GameServerPacket {
+		public SkillList() {
+			this(List.of());
+		}
+
+		public SkillList {
+			skills = List.copyOf(skills);
+		}
+
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0x58).writeD(0).toByteArray();
+			PacketWriter w = new PacketWriter().writeC(0x58).writeD(skills.size());
+			for (var s : skills) {
+				w.writeD(s.passive() ? 1 : 0);
+				w.writeD(s.level());
+				w.writeD(s.id());
+				w.writeC(0);
+			}
+			return w.toByteArray();
 		}
 	}
 
@@ -389,11 +411,100 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0x45 ShortCutInit (vazio). */
-	record ShortCutInit() implements GameServerPacket {
+	/** 0x45 ShortCutInit: atalhos da barra rapida do jogador. */
+	record ShortCutInit(List<com.lopez.l2j.game.shortcut.ShortCut> shortcuts) implements GameServerPacket {
+		public ShortCutInit() {
+			this(List.of());
+		}
+
+		public ShortCutInit {
+			shortcuts = List.copyOf(shortcuts);
+		}
+
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0x45).writeD(0).toByteArray();
+			PacketWriter w = new PacketWriter().writeC(0x45).writeD(shortcuts.size());
+			for (var sc : shortcuts) {
+				w.writeD(sc.type());
+				w.writeD(sc.globalSlot());
+				switch (sc.type()) {
+					case 1 -> {
+						w.writeD(sc.id());
+						w.writeD(0x01);
+						w.writeD(-1);
+						w.writeD(0x00);
+						w.writeD(0x00);
+						w.writeH(0x00);
+						w.writeH(0x00);
+					}
+					case 2 -> {
+						w.writeD(sc.id());
+						w.writeD(sc.level());
+						w.writeC(0x00);
+						w.writeD(0x01);
+					}
+					default -> {
+						w.writeD(sc.id());
+						w.writeD(0x01);
+					}
+				}
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x44 ShortCutRegister: confirmacao de registro de atalho. */
+	record ShortCutRegister(com.lopez.l2j.game.shortcut.ShortCut shortcut) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x44);
+			w.writeD(shortcut.type());
+			w.writeD(shortcut.globalSlot());
+			switch (shortcut.type()) {
+				case 1 -> {
+					w.writeD(shortcut.id());
+					w.writeD(shortcut.characterType());
+					w.writeD(-1);
+					w.writeD(0x00);
+					w.writeD(0x00);
+					w.writeD(0x00);
+				}
+				case 2 -> {
+					w.writeD(shortcut.id());
+					w.writeD(shortcut.level());
+					w.writeC(0x00);
+					w.writeD(shortcut.characterType());
+				}
+				default -> {
+					w.writeD(shortcut.id());
+					w.writeD(shortcut.characterType());
+				}
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x48 MagicSkillUse: animacao e efeito de conjuracao de habilidade. */
+	record MagicSkillUse(int charObjId, int targetObjId, int skillId, int skillLevel, int hitTime, int reuseDelay,
+			int x, int y, int z, int targetX, int targetY, int targetZ) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter()
+					.writeC(0x48)
+					.writeD(charObjId)
+					.writeD(targetObjId)
+					.writeD(skillId)
+					.writeD(skillLevel)
+					.writeD(hitTime)
+					.writeD(reuseDelay)
+					.writeD(x)
+					.writeD(y)
+					.writeD(z)
+					.writeD(0)
+					.writeD(targetX)
+					.writeD(targetY)
+					.writeD(targetZ)
+					.toByteArray();
 		}
 	}
 
@@ -701,6 +812,130 @@ public sealed interface GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter().writeC(0x0f).writeD(npcObjectId).writeS(html).writeD(itemId).toByteArray();
+		}
+	}
+
+	/** 0x28 TeleportToLocation: atualiza posicao instantanea do objeto no cliente. */
+	record TeleportToLocation(int objectId, int x, int y, int z) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x28).writeD(objectId).writeD(x).writeD(y).writeD(z).toByteArray();
+		}
+	}
+
+	/** 0x11 BuyList: lista de produtos a venda no NPC mercador. */
+	record BuyList(int money, int listId, List<BuyProductView> products) implements GameServerPacket {
+		public record BuyProductView(int itemId, int price, int count, int type1, int type2, int bodyPart) {
+		}
+
+		public BuyList {
+			products = List.copyOf(products);
+		}
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x11).writeD(money).writeD(listId).writeH(products.size());
+			for (BuyProductView p : products) {
+				w.writeH(p.type1());
+				w.writeD(p.itemId());
+				w.writeD(p.itemId());
+				w.writeD(p.count() < 0 ? 0 : p.count());
+				w.writeH(p.type2());
+				w.writeH(0);
+				w.writeD(p.bodyPart());
+				w.writeH(0);
+				w.writeH(0);
+				w.writeH(0);
+				w.writeD(p.price());
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x05 Attack: animacao de ataque e dano aplicado ao alvo. */
+	record Attack(int attackerObjId, int targetObjId, int damage, int flags, int x, int y, int z)
+			implements GameServerPacket {
+		public static final int HITFLAG_USESS = 0x10;
+		public static final int HITFLAG_CRIT = 0x20;
+		public static final int HITFLAG_SHLD = 0x40;
+		public static final int HITFLAG_MISS = 0x80;
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x05);
+			w.writeD(attackerObjId);
+			w.writeD(targetObjId);
+			w.writeD(damage);
+			w.writeC(flags);
+			w.writeD(x);
+			w.writeD(y);
+			w.writeD(z);
+			w.writeH(0); // hits extras = 0
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x0e StatusUpdate: atualiza atributos e HP/MP/CP em tempo real. */
+	record StatusUpdate(int objectId, List<Attribute> attributes) implements GameServerPacket {
+		public record Attribute(int id, int value) {
+		}
+
+		public static final int LEVEL = 0x01;
+		public static final int EXP = 0x02;
+		public static final int STR = 0x03;
+		public static final int DEX = 0x04;
+		public static final int CON = 0x05;
+		public static final int INT = 0x06;
+		public static final int WIT = 0x07;
+		public static final int MEN = 0x08;
+		public static final int CUR_HP = 0x09;
+		public static final int MAX_HP = 0x0a;
+		public static final int CUR_MP = 0x0b;
+		public static final int MAX_MP = 0x0c;
+		public static final int SP = 0x0d;
+		public static final int CUR_CP = 0x21;
+		public static final int MAX_CP = 0x22;
+
+		public static StatusUpdate hp(int objectId, int curHp, int maxHp) {
+			return new StatusUpdate(objectId, List.of(new Attribute(CUR_HP, curHp), new Attribute(MAX_HP, maxHp)));
+		}
+
+		public StatusUpdate {
+			attributes = List.copyOf(attributes);
+		}
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x0e).writeD(objectId).writeD(attributes.size());
+			for (Attribute a : attributes) {
+				w.writeD(a.id());
+				w.writeD(a.value());
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x06 Die: objeto morreu. */
+	record Die(int charObjId, boolean toVillage) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x06);
+			w.writeD(charObjId);
+			w.writeD(toVillage ? 1 : 0);
+			w.writeD(0); // clanhall
+			w.writeD(0); // castle
+			w.writeD(0); // flag
+			w.writeD(0); // sweepable
+			w.writeD(0); // fixedres
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x07 Revive: objeto renasce. */
+	record Revive(int charObjId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x07).writeD(charObjId).toByteArray();
 		}
 	}
 }

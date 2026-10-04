@@ -4,6 +4,8 @@ import com.lopez.l2j.config.ServerProperties;
 import com.lopez.l2j.game.service.CharacterService;
 import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.game.html.HtmCache;
+import com.lopez.l2j.game.teleport.TeleportLocationTable;
+import com.lopez.l2j.game.trade.BuyListTable;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.crypt.GameCrypt;
@@ -44,9 +46,13 @@ public class GameServer implements SmartLifecycle {
 
 	@Autowired
 	public GameServer(ServerProperties p, SessionKeyRegistry sessionKeys, CharacterService characters,
-			InventoryService inventories, GameWorld world, HtmCache htmls) {
+			InventoryService inventories, GameWorld world, HtmCache htmls, TeleportLocationTable teleports,
+			BuyListTable buylists, com.lopez.l2j.game.combat.CombatService combat,
+			com.lopez.l2j.game.drop.DropService drops,
+			com.lopez.l2j.game.shortcut.ShortCutRepository shortcuts,
+			com.lopez.l2j.game.skill.SkillRepository skills) {
 		this(p.network().gamePort(), new GameSession.Context(p.network().protocolMin(), p.network().protocolMax(),
-				sessionKeys, characters, inventories, world, htmls, p.serverName()));
+				sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, p.serverName()));
 	}
 
 	/** Porta 0 = efemera (testes); use {@link #port()} depois de iniciar. */

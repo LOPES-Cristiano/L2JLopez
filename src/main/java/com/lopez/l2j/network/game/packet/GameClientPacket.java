@@ -85,6 +85,24 @@ public sealed interface GameClientPacket {
 	record RequestBypassToServer(String command) implements GameClientPacket {
 	}
 
+	record ItemRequest(int itemId, int count) {
+	}
+
+	record RequestBuyItem(int listId, java.util.List<ItemRequest> items) implements GameClientPacket {
+		public RequestBuyItem {
+			items = java.util.List.copyOf(items);
+		}
+	}
+
+	record RequestShortCutReg(int type, int slot, int id, int characterType) implements GameClientPacket {
+	}
+
+	record RequestShortCutDel(int id) implements GameClientPacket {
+	}
+
+	record RequestMagicSkillUse(int magicId, boolean ctrlPressed, boolean shiftPressed) implements GameClientPacket {
+	}
+
 	record Unknown(int opcode, int subOpcode) implements GameClientPacket {
 	}
 
@@ -119,6 +137,10 @@ public sealed interface GameClientPacket {
 					case 0x38 -> say2(r);
 					case 0x04 -> new Action(r.readD(), r.readD(), r.readD(), r.readD(), r.readC());
 					case 0x21 -> new RequestBypassToServer(r.readS());
+					case 0x1f -> readBuyItem(r);
+					case 0x2f -> new RequestMagicSkillUse(r.readD(), r.readD() != 0, r.readC() != 0);
+					case 0x33 -> new RequestShortCutReg(r.readD(), r.readD(), r.readD(), r.readD());
+					case 0x35 -> new RequestShortCutDel(r.readD());
 					case 0x37 -> new RequestTargetCancel();
 					case 0x45 -> new RequestActionUse(r.readD(), r.readD() == 1, r.readC() == 1);
 					case 0x0f -> new RequestItemList();
@@ -135,6 +157,19 @@ public sealed interface GameClientPacket {
 		} catch (IllegalArgumentException e) {
 			return Optional.empty();
 		}
+	}
+
+	private static RequestBuyItem readBuyItem(PacketReader r) {
+		int listId = r.readD();
+		int count = r.readD();
+		if (count <= 0 || count > 100 || r.remaining() < count * 8) {
+			return new RequestBuyItem(listId, java.util.List.of());
+		}
+		java.util.List<ItemRequest> items = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			items.add(new ItemRequest(r.readD(), r.readD()));
+		}
+		return new RequestBuyItem(listId, items);
 	}
 
 	private static GameClientPacket extended(PacketReader r) {

@@ -57,22 +57,46 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.NewCharacterSuccess;
 import com.lopez.l2j.network.game.packet.GameServerPacket.QuestList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.RestartResponse;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ShortCutInit;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ShortCutRegister;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SkillList;
+import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse;
+import com.lopez.l2j.network.game.packet.GameClientPacket.RequestShortCutReg;
+import com.lopez.l2j.network.game.packet.GameClientPacket.RequestShortCutDel;
+import com.lopez.l2j.network.game.packet.GameClientPacket.RequestMagicSkillUse;
+import com.lopez.l2j.game.shortcut.ShortCut;
+import com.lopez.l2j.game.shortcut.ShortCutRepository;
+import com.lopez.l2j.game.skill.Skill;
+import com.lopez.l2j.game.skill.SkillRepository;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SsqInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.StopMove;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.TargetUnselected;
+import com.lopez.l2j.game.combat.CombatService;
 import com.lopez.l2j.game.html.HtmCache;
+import com.lopez.l2j.network.game.packet.GameServerPacket.Attack;
+import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
+import com.lopez.l2j.game.item.ItemTemplate;
 import com.lopez.l2j.game.npc.NpcInstance;
+import com.lopez.l2j.game.teleport.TeleportLocation;
+import com.lopez.l2j.game.teleport.TeleportLocationTable;
+import com.lopez.l2j.game.trade.BuyListTable;
+import com.lopez.l2j.game.trade.NpcBuyList;
+import com.lopez.l2j.network.game.packet.GameClientPacket.RequestBuyItem;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestBypassToServer;
+import com.lopez.l2j.network.game.packet.GameServerPacket.BuyList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CharInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.Revive;
+import com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation;
 import com.lopez.l2j.network.game.packet.GameServerPacket.UserInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ValidateLocation;
 import com.lopez.l2j.network.session.SessionKey;
 import com.lopez.l2j.network.session.SessionKeyRegistry;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -96,10 +120,37 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	/** Configuracao/servicos compartilhados por todas as sessoes. */
 	public record Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 			CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
-			String serverName) {
+			TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+			com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+			SkillRepository skills, String serverName) {
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, null, null, null, null, null, null, null, serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, null, null, null, null, null, null, serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, null, null, null, null, serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, null, null, null, serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, null, null, serverName);
 		}
 	}
 
@@ -160,12 +211,16 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case Say2 p -> onSay(p);
 			case Action p -> onAction(p);
 			case RequestBypassToServer p -> onBypass(p);
+			case RequestBuyItem p -> onBuyItem(p);
 			case RequestTargetCancel p -> onCancelTarget();
 			case RequestActionUse p -> onActionUse(p);
 			case RequestItemList p -> send(ItemList.of(active.inventory().items(), true));
 			case UseItem p -> onUseItem(p);
 			case RequestUnEquipItem p -> onUnEquip(p);
-			case RequestSkillList p -> send(new SkillList());
+			case RequestShortCutReg p -> onShortCutReg(p);
+			case RequestShortCutDel p -> onShortCutDel(p);
+			case RequestMagicSkillUse p -> onMagicSkillUse(p);
+			case RequestSkillList p -> send(new SkillList(ctx.skills() != null ? ctx.skills().findByCharId(active.objectId(), 0) : List.of()));
 			case RequestQuestList p -> send(new QuestList());
 			case Logout p -> onLogout();
 			case RequestRestart p -> onRestart();
@@ -279,14 +334,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		inWorld = true;
 		var t = ctx.characters().template(active);
 		send(ItemList.of(active.inventory().items(), false));
-		send(new ShortCutInit());
+		send(new ShortCutInit(ctx.shortcuts() != null ? ctx.shortcuts().findByCharId(active.objectId(), 0) : List.of()));
 		send(new HennaInfo());
 		send(new QuestList());
 		send(new EtcStatusUpdate());
 		send(ExStorageMaxCount.defaults());
 		send(new FriendList());
 		send(new UserInfo(active, t));
-		send(new SkillList());
+		send(new SkillList(ctx.skills() != null ? ctx.skills().findByCharId(active.objectId(), 0) : List.of()));
 		send(new ClientSetTime(GameTime.now()));
 		ctx.world().add(this);
 		ctx.characters().save(active, true);
@@ -415,9 +470,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		var npcOpt = ctx.world().npc(p.objectId());
 		if (npcOpt.isPresent()) {
 			var npc = npcOpt.get();
-			if (targetObjectId == npc.objectId() && !npc.template().isMonster()) {
-				// 2º clique: abre diálogo do NPC
-				showNpcHtml(npc, 0);
+			if (targetObjectId == npc.objectId()) {
+				// 2º clique: se atacavel, ataca; senao abre dialogo
+				if (npc.template().isAttackable()) {
+					onAttackNpc(npc);
+				} else {
+					showNpcHtml(npc, 0);
+				}
 			} else {
 				// 1º clique: seleciona NPC como alvo
 				targetObjectId = npc.objectId();
@@ -442,6 +501,50 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		targetObjectId = 0;
 		if (active != null) {
 			send(new TargetUnselected(active.objectId(), x(), y(), z()));
+		}
+	}
+
+	private void onAttackNpc(NpcInstance npc) {
+		if (npc.isDead()) {
+			send(new ActionFailed());
+			return;
+		}
+		if (ctx.combat() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var t = ctx.characters().template(active);
+		var hit = ctx.combat().attackNpc(active, t, npc);
+
+		var atk = new Attack(active.objectId(), npc.objectId(), hit.damage(), hit.flags(), active.x(), active.y(),
+				active.z());
+		send(atk);
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, atk, false);
+
+		var su = StatusUpdate.hp(npc.objectId(), hit.remainingHp(), hit.maxHp());
+		send(su);
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, su, false);
+
+		if (hit.isDead()) {
+			var die = new Die(npc.objectId(), false);
+			send(die);
+			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, die, false);
+
+			active.exp(active.exp() + hit.expReward());
+			active.sp(active.sp() + hit.spReward());
+			send(new StatusUpdate(active.objectId(),
+					List.of(new StatusUpdate.Attribute(StatusUpdate.EXP, (int) active.exp()),
+							new StatusUpdate.Attribute(StatusUpdate.SP, active.sp()))));
+			send(new UserInfo(active, t));
+
+			if (ctx.drops() != null) {
+				var rewarded = ctx.drops().rewardMonsterDeath(active, npc.npcId(), ctx.inventories(), this::send);
+				if (!rewarded.isEmpty()) {
+					send(ItemList.of(active.inventory().items(), false));
+				}
+			}
+
+			ctx.characters().save(active, true);
 		}
 	}
 
@@ -483,6 +586,20 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						} else if (action.startsWith("Quest")) {
 							showNpcHtml(npc, 0);
 							return;
+						} else if (action.startsWith("goto")) {
+							try {
+								int teleId = Integer.parseInt(action.substring(4).trim());
+								teleportTo(teleId);
+								return;
+							} catch (NumberFormatException ignored) {
+							}
+						} else if (action.startsWith("Buy")) {
+							try {
+								int listId = Integer.parseInt(action.substring(3).trim());
+								showBuyList(npc, listId);
+								return;
+							} catch (NumberFormatException ignored) {
+							}
 						}
 					}
 				} catch (NumberFormatException ignored) {
@@ -490,6 +607,139 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 		}
 		send(new ActionFailed());
+	}
+
+	private void teleportTo(int teleId) {
+		if (ctx.teleports() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var locOpt = ctx.teleports().get(teleId);
+		if (locOpt.isEmpty()) {
+			log.warn("Teleport id {} nao encontrado", teleId);
+			send(new ActionFailed());
+			return;
+		}
+		var loc = locOpt.get();
+		int price = loc.price();
+		int costItem = loc.forNoble() ? 6651 : ItemTemplate.ADENA_ID;
+
+		if (price > 0) {
+			var consumed = ctx.inventories().consumeItem(active.inventory(), costItem, price, "Teleport");
+			if (consumed == null) {
+				send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
+				send(new ActionFailed());
+				return;
+			}
+			send(new InventoryUpdate(List.of(consumed.removed()
+					? ItemInfo.of(consumed.item(), ItemInfo.REMOVED)
+					: ItemInfo.of(consumed.item(), ItemInfo.MODIFIED))));
+		}
+
+		active.moveTo(loc.locX(), loc.locY(), loc.locZ());
+		ctx.characters().save(active, true);
+		send(new TeleportToLocation(active.objectId(), loc.locX(), loc.locY(), loc.locZ()));
+		updateKnownObjects();
+	}
+
+	private void showBuyList(NpcInstance npc, int listId) {
+		if (ctx.buylists() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var buyListOpt = ctx.buylists().get(listId);
+		if (buyListOpt.isEmpty()) {
+			log.warn("BuyList id {} nao encontrada", listId);
+			send(new ActionFailed());
+			return;
+		}
+		var bl = buyListOpt.get();
+		List<BuyList.BuyProductView> views = new ArrayList<>();
+		for (var prod : bl.products()) {
+			var t = ctx.inventories().templates().get(prod.itemId()).orElse(null);
+			if (t != null) {
+				views.add(new BuyList.BuyProductView(prod.itemId(), prod.price(), prod.count(), t.type1(), t.type2(),
+						t.bodyPart()));
+			}
+		}
+		send(new BuyList((int) active.inventory().adena(), listId, views));
+	}
+
+	private void onBuyItem(RequestBuyItem p) {
+		if (!inWorld || p.items().isEmpty()) {
+			send(new ActionFailed());
+			return;
+		}
+		if (ctx.buylists() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var blOpt = ctx.buylists().get(p.listId());
+		if (blOpt.isEmpty()) {
+			send(new ActionFailed());
+			return;
+		}
+		var bl = blOpt.get();
+		long totalCost = 0;
+		int slots = 0;
+
+		for (var itemReq : p.items()) {
+			var prodOpt = bl.getProduct(itemReq.itemId());
+			if (prodOpt.isEmpty()) {
+				send(new ActionFailed());
+				return;
+			}
+			var prod = prodOpt.get();
+			var template = ctx.inventories().templates().get(prod.itemId()).orElse(null);
+			if (template == null) {
+				send(new ActionFailed());
+				return;
+			}
+			totalCost += (long) prod.price() * itemReq.count();
+			if (!template.stackable()) {
+				slots += itemReq.count();
+			} else if (active.inventory().byItemId(prod.itemId()).isEmpty()) {
+				slots++;
+			}
+		}
+
+		if (totalCost > Integer.MAX_VALUE || totalCost < 0) {
+			send(new ActionFailed());
+			return;
+		}
+
+		if (active.inventory().adena() < totalCost) {
+			send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
+			send(new ActionFailed());
+			return;
+		}
+
+		if (active.inventory().size() + slots > 80) {
+			send(SystemMessage.id(SystemMessage.SLOTS_FULL));
+			send(new ActionFailed());
+			return;
+		}
+
+		List<ItemInfo> updates = new ArrayList<>();
+		if (totalCost > 0) {
+			var consumed = ctx.inventories().consumeItem(active.inventory(), ItemTemplate.ADENA_ID, (int) totalCost,
+					"Buy");
+			if (consumed != null) {
+				updates.add(consumed.removed()
+						? ItemInfo.of(consumed.item(), ItemInfo.REMOVED)
+						: ItemInfo.of(consumed.item(), ItemInfo.MODIFIED));
+			}
+		}
+
+		for (var itemReq : p.items()) {
+			var added = ctx.inventories().addItem(active.inventory(), itemReq.itemId(), itemReq.count(), "Buy");
+			if (added != null) {
+				updates.add(ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+			}
+		}
+
+		send(new InventoryUpdate(updates));
+		send(new UserInfo(active, ctx.characters().template(active)));
 	}
 
 	private void onActionUse(RequestActionUse p) {
@@ -586,6 +836,82 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		inWorld = false;
 		active = null;
+	}
+
+	private void onShortCutReg(RequestShortCutReg p) {
+		if (!inWorld) {
+			send(new ActionFailed());
+			return;
+		}
+		int slot = p.slot() % 12;
+		int page = p.slot() / 12;
+		var sc = new ShortCut(slot, page, p.type(), p.id(), -1, p.characterType());
+		if (ctx.shortcuts() != null) {
+			ctx.shortcuts().save(active.objectId(), 0, sc);
+		}
+		send(new ShortCutRegister(sc));
+	}
+
+	private void onShortCutDel(RequestShortCutDel p) {
+		if (!inWorld) {
+			send(new ActionFailed());
+			return;
+		}
+		int slot = p.id() % 12;
+		int page = p.id() / 12;
+		if (ctx.shortcuts() != null) {
+			ctx.shortcuts().delete(active.objectId(), 0, slot, page);
+		}
+	}
+
+	private void onMagicSkillUse(RequestMagicSkillUse p) {
+		if (!inWorld) {
+			send(new ActionFailed());
+			return;
+		}
+		int targetId = targetObjectId != 0 ? targetObjectId : active.objectId();
+		int tx = active.x(), ty = active.y(), tz = active.z();
+
+		var targetNpc = ctx.world().npc(targetId).orElse(null);
+		if (targetNpc != null) {
+			tx = targetNpc.x();
+			ty = targetNpc.y();
+			tz = targetNpc.z();
+		}
+
+		var msu = new MagicSkillUse(active.objectId(), targetId, p.magicId(), 1, 1000, 2000,
+				active.x(), active.y(), active.z(), tx, ty, tz);
+		send(msu);
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msu, false);
+
+		if (targetNpc != null && targetNpc.isAttackable() && !targetNpc.isDead() && ctx.combat() != null) {
+			var t = ctx.characters().template(active);
+			var hit = ctx.combat().attackNpc(active, t, targetNpc);
+			var su = StatusUpdate.hp(targetNpc.objectId(), hit.remainingHp(), hit.maxHp());
+			send(su);
+			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, su, false);
+
+			if (hit.isDead()) {
+				var die = new Die(targetNpc.objectId(), false);
+				send(die);
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, die, false);
+
+				active.exp(active.exp() + hit.expReward());
+				active.sp(active.sp() + hit.spReward());
+				send(new StatusUpdate(active.objectId(),
+						List.of(new StatusUpdate.Attribute(StatusUpdate.EXP, (int) active.exp()),
+								new StatusUpdate.Attribute(StatusUpdate.SP, active.sp()))));
+				send(new UserInfo(active, t));
+
+				if (ctx.drops() != null) {
+					var rewarded = ctx.drops().rewardMonsterDeath(active, targetNpc.npcId(), ctx.inventories(), this::send);
+					if (!rewarded.isEmpty()) {
+						send(ItemList.of(active.inventory().items(), false));
+					}
+				}
+				ctx.characters().save(active, true);
+			}
+		}
 	}
 
 	/** Envia um pacote a este cliente; seguro para chamar de outras threads (o sink sincroniza). */

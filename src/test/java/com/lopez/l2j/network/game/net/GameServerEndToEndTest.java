@@ -76,9 +76,12 @@ class GameServerEndToEndTest {
 		var inventories = new InventoryService(TestItems.table(), items, ObjectIdFactory.sequential(0x20000000),
 				5000);
 		var characters = new CharacterService(repo, new CharTemplateTable(), inventories);
-		var htmls = new com.lopez.l2j.game.html.HtmCache("D:/Cristiano/Lineage/L2JDreamV2/game/data/html");
+		var htmls = new com.lopez.l2j.game.html.HtmCache("data/html");
+		var teleports = new com.lopez.l2j.game.teleport.TeleportLocationTable("data/xml/world/teleports.xml");
+		var buylists = new com.lopez.l2j.game.trade.BuyListTable("data/xml/world/buylists.xml");
+		var combat = new com.lopez.l2j.game.combat.CombatService();
 		server = new GameServer(0,
-				new GameSession.Context(730, 746, registry, characters, inventories, world, htmls, "L2JLopez"));
+				new GameSession.Context(730, 746, registry, characters, inventories, world, htmls, teleports, buylists, combat, "L2JLopez"));
 		server.start();
 	}
 
@@ -631,6 +634,92 @@ class GameServerEndToEndTest {
 			String subHtml = subR.readS();
 			assertTrue(subHtml.contains("Gludin") || subHtml.contains("goto") || subHtml.contains("Adena"),
 					"sub-pagina de teleporte carregada: " + subHtml);
+
+			// Executa teleporte via bypass goto (id 40 = Gludin Village, 1000 adena)
+			c.send(new PacketWriter().writeC(0x21).writeS("npc_" + npc.objectId() + "_goto 40").toByteArray());
+
+			// Deve receber TeleportToLocation (0x28)
+			byte[] teleBytes = c.readUntil(0x28);
+			PacketReader tr = new PacketReader(teleBytes);
+			assertEquals(0x28, tr.readC());
+			assertEquals(0x10000000, tr.readD()); // objectId do player
+			assertTrue(tr.remaining() >= 12); // x, y, z
+
+			// Testa abertura de loja (Buy 1)
+			c.send(new PacketWriter().writeC(0x21).writeS("npc_" + npc.objectId() + "_Buy 1").toByteArray());
+			byte[] buyListBytes = c.readUntil(0x11);
+			PacketReader blr = new PacketReader(buyListBytes);
+			assertEquals(0x11, blr.readC());
+			int currentMoney = blr.readD();
+			assertEquals(4000, currentMoney); // 5000 inicial - 1000 teleporte = 4000
+			assertEquals(1, blr.readD()); // listId
+
+			// Compra item 1 (preço 883) usando RequestBuyItem (0x1f)
+			c.send(new PacketWriter().writeC(0x1f).writeD(1).writeD(1).writeD(1).writeD(1).toByteArray());
+			byte[] buyUpdateBytes = c.readUntil(0x27);
+			assertEquals(0x27, buyUpdateBytes[0] & 0xff);
+		}
+	}
+
+	@Test
+	void playerAttackMonsterFlow() throws Exception {
+		var t = new NpcTemplate(20001, 20001, "Gremlin", false, "", false, 10.0, 15.0, 1, "male",
+				"L2Monster", 40, 20, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
+		NpcInstance monster = new NpcInstance(0x30000003, t, -71300, 258200, -3104, 0);
+		world.addNpc(monster);
+
+		SessionKey key = loginAs("fighter");
+		try (Client c = new Client()) {
+			c.handshake();
+			c.authLogin("fighter", key);
+			c.read(); // CharSelectionInfo
+
+			c.send(characterCreate("Slayer", 0, 0, 0));
+			c.read(); // CharCreateOk
+			c.read(); // CharSelectionInfo
+
+			// Seleciona personagem
+			c.send(new PacketWriter().writeC(0x0d).writeD(0).writeH(0).writeD(0).writeD(0).writeD(0).toByteArray());
+			c.read(); // SSQInfo
+			c.read(); // CharSelected
+
+			// Manor list
+			c.send(new PacketWriter().writeC(0xd0).writeH(0x08).toByteArray());
+			c.read(); // ExSendManorList
+
+			// EnterWorld (0x03)
+			c.send(new PacketWriter().writeC(0x03).writeB(new byte[104]).toByteArray());
+			c.readUntil(0x16); // NpcInfo
+
+			// 1º clique: Seleciona o Monstro (Action 0x04)
+			c.send(new PacketWriter().writeC(0x04).writeD(monster.objectId()).writeD(-71338).writeD(258271)
+					.writeD(-3104).writeC(0).toByteArray());
+			byte[] targetBytes = c.readUntil(0xa6);
+			assertEquals(0xa6, targetBytes[0] & 0xff);
+
+			// 2º clique: Com o Monstro selecionado, inicia o ataque! (Action 0x04)
+			c.send(new PacketWriter().writeC(0x04).writeD(monster.objectId()).writeD(-71338).writeD(258271)
+					.writeD(-3104).writeC(0).toByteArray());
+
+			// Deve receber o pacote Attack (0x05)
+			byte[] atkBytes = c.readUntil(0x05);
+			PacketReader ar = new PacketReader(atkBytes);
+			assertEquals(0x05, ar.readC());
+			assertEquals(0x10000000, ar.readD()); // atacante
+			assertEquals(monster.objectId(), ar.readD()); // alvo
+			int damage = ar.readD();
+			int flags = ar.readC();
+			if ((flags & 0x80) != 0) {
+				assertEquals(0, damage, "Dano de miss deve ser 0");
+			} else {
+				assertTrue(damage > 0, "Dano aplicado deve ser positivo: " + damage);
+			}
+
+			// Deve receber StatusUpdate (0x0e) com o HP do monstro
+			byte[] suBytes = c.readUntil(0x0e);
+			PacketReader sur = new PacketReader(suBytes);
+			assertEquals(0x0e, sur.readC());
+			assertEquals(monster.objectId(), sur.readD());
 		}
 	}
 }
