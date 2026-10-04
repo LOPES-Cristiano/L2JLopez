@@ -23,6 +23,7 @@ public class HtmCache {
 
 	private final Path datapackHtmlDir;
 	private final Map<String, String> cache = new ConcurrentHashMap<>();
+	private final Map<String, String> indexedFiles = new ConcurrentHashMap<>();
 
 	public HtmCache(@Value("${l2.datapack.html-dir:data/html}") String htmlDirPath) {
 		Path p = Path.of(htmlDirPath);
@@ -31,7 +32,26 @@ public class HtmCache {
 			p = Files.isDirectory(local) ? local : p;
 		}
 		this.datapackHtmlDir = p;
-		log.info("HtmCache inicializado com diretorio: {}", datapackHtmlDir.toAbsolutePath());
+		indexHtmlFiles(this.datapackHtmlDir);
+		log.info("HtmCache inicializado com diretorio: {} ({} arquivos indexados)",
+				datapackHtmlDir.toAbsolutePath(), indexedFiles.size());
+	}
+
+	private void indexHtmlFiles(Path dir) {
+		if (!Files.isDirectory(dir)) {
+			return;
+		}
+		try (var stream = Files.walk(dir)) {
+			stream.filter(Files::isRegularFile).forEach(file -> {
+				String name = file.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+				if (name.endsWith(".htm") || name.endsWith(".html")) {
+					String rel = normalize(datapackHtmlDir.relativize(file).toString());
+					indexedFiles.putIfAbsent(name, rel);
+				}
+			});
+		} catch (IOException e) {
+			log.warn("Erro ao indexar arquivos HTML em {}: {}", dir, e.getMessage());
+		}
 	}
 
 	public String getHtml(String relativePath) {
@@ -58,13 +78,28 @@ public class HtmCache {
 			}
 		}
 
-		// 3. Fallback para npcdefault.htm
+		// 3. Busca no indice global de arquivos HTML para encontrar o dialogo oficial retail em qualquer subpasta
+		String[] candidates = val > 0
+				? new String[] { npcId + "-" + val + ".htm", npcId + "-0" + val + ".htm", npcId + "-" + val + ".html" }
+				: new String[] { npcId + ".htm", npcId + "-1.htm", npcId + "-01.htm", npcId + ".html" };
+
+		for (String cand : candidates) {
+			String indexedPath = indexedFiles.get(cand.toLowerCase(java.util.Locale.ROOT));
+			if (indexedPath != null) {
+				html = getHtml(indexedPath);
+				if (html != null && !html.isBlank()) {
+					return html;
+				}
+			}
+		}
+
+		// 4. Fallback para npcdefault.htm
 		String defaultHtml = getHtml("npcdefault.htm");
 		if (defaultHtml != null && !defaultHtml.isBlank()) {
 			return defaultHtml;
 		}
 
-		// 4. Fallback sintetico inteligente baseado no tipo do NPC
+		// 5. Fallback sintetico inteligente baseado no tipo do NPC
 		StringBuilder sb = new StringBuilder();
 		sb.append("<html><body><font color=\"LEVEL\">%npc_name%</font>:<br><br>");
 		sb.append("Hello, %name%! How may I assist you today?<br><br>");
@@ -72,7 +107,8 @@ public class HtmCache {
 		String lowerType = npcType != null ? npcType.toLowerCase(java.util.Locale.ROOT) : "";
 		if (lowerType.contains("teleport")) {
 			sb.append("<a action=\"bypass -h npc_%objectId%_Chat 1\">Teleport</a><br>");
-		} else if (lowerType.contains("merchant") || lowerType.contains("trader") || lowerType.contains("grocer")) {
+		} else if (lowerType.contains("merchant") || lowerType.contains("trader") || lowerType.contains("grocer")
+				|| lowerType.contains("blacksmith")) {
 			sb.append("<a action=\"bypass -h npc_%objectId%_Buy 1\">Buy items</a><br>");
 		} else if (lowerType.contains("trainer") || lowerType.contains("master") || lowerType.contains("teacher")) {
 			sb.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn skills</a><br>");
@@ -92,7 +128,10 @@ public class HtmCache {
 		return rawHtml
 				.replace("%objectId%", String.valueOf(npcObjectId))
 				.replace("%npc_name%", npcName != null ? npcName : "")
-				.replace("%name%", playerName != null ? playerName : "");
+				.replace("%npc_name", npcName != null ? npcName : "")
+				.replace("%name%", playerName != null ? playerName : "")
+				.replace("%name", playerName != null ? playerName : "")
+				.replace("%player_name%", playerName != null ? playerName : "");
 	}
 
 	private String folderForType(String npcType) {
@@ -110,12 +149,21 @@ public class HtmCache {
 			case "teleporter", "castleteleporter" -> "teleporter";
 			case "merchant" -> "merchant";
 			case "guard", "guardnohtml", "fortguard", "siegeguard" -> "guard";
-			case "warehouse" -> "warehouse";
+			case "warehouse", "castlewarehouse" -> "warehouse";
 			case "trainer" -> "trainer";
 			case "villagemaster" -> "villagemaster";
 			case "fisherman" -> "fisherman";
 			case "symbolmaker" -> "symbolmaker";
 			case "doormen", "doorman" -> "doormen";
+			case "newbiehelper" -> "newbiehelper";
+			case "adventurer_guildsman" -> "adventurer_guildsman";
+			case "blacksmith", "castleblacksmith" -> "castleblacksmith";
+			case "magician", "castlemagician" -> "castlemagician";
+			case "chamberlain" -> "chamberlain";
+			case "clanhallmanager" -> "clanHallManager";
+			case "classmaster" -> "classmaster";
+			case "olympiad" -> "olympiad";
+			case "seven_signs", "sevensigns" -> "seven_signs";
 			default -> "default";
 		};
 	}

@@ -149,6 +149,10 @@ public sealed interface GameClientPacket {
 	record RequestAnswerJoinParty(int response) implements GameClientPacket {
 	}
 
+	/** 0xa7 - selecao e compra de item em janela MultiSell. */
+	record MultiSellChoose(int listId, int entryId, int amount) implements GameClientPacket {
+	}
+
 	record Unknown(int opcode, int subOpcode) implements GameClientPacket {
 	}
 
@@ -205,6 +209,7 @@ public sealed interface GameClientPacket {
 					case 0x09 -> new Logout();
 					case 0x46 -> new RequestRestart();
 					case 0xaa -> new RequestUserCommand(r.readD());
+					case 0xa7 -> readMultiSellChoose(r);
 					case 0xcd -> new RequestShowMiniMap();
 					case 0xd0 -> extended(r);
 					default -> new Unknown(op, -1);
@@ -213,6 +218,17 @@ public sealed interface GameClientPacket {
 		} catch (IllegalArgumentException e) {
 			return Optional.empty();
 		}
+	}
+
+	private static MultiSellChoose readMultiSellChoose(PacketReader r) {
+		if (r.remaining() < 12) {
+			return new MultiSellChoose(0, 0, 0);
+		}
+		int listId = r.readD();
+		int entryId = r.readD();
+		int amount = r.readD();
+		int realEntryId = entryId >= 100000 ? entryId / 100000 : entryId;
+		return new MultiSellChoose(listId, realEntryId, Math.max(1, amount));
 	}
 
 	private static RequestBuyItem readBuyItem(PacketReader r) {

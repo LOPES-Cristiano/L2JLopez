@@ -72,7 +72,11 @@ public final class TestItems {
 				ItemTemplate.etc(2509, 2509, "Spiritshot: No Grade", "spiritshot", "stackable", 5, "none", 0, true,
 						true, true, true),
 				ItemTemplate.etc(736, 736, "Scroll of Escape", "scroll", "none", 100, "none", 0, false, true,
-						true, true));
+						true, true),
+				ItemTemplate.etc(7562, 7562, "Dimension Diamond", "none", "stackable", 0, "none", 0, true, true,
+						true, true),
+				ItemTemplate.etc(7117, 7117, "Scroll of Escape: Talking Island", "scroll", "none", 100, "none", 0,
+						false, true, true, true));
 	}
 
 	/** Recorte de char_creation_items (guerreiro humano e mago humano). */

@@ -58,6 +58,7 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.KeyPacket;
 import com.lopez.l2j.network.game.packet.GameServerPacket.LeaveWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToLocation;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToPawn;
+import com.lopez.l2j.network.game.packet.GameServerPacket.MultiSellList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MyTargetSelected;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NewCharacterSuccess;
 import com.lopez.l2j.network.game.packet.GameServerPacket.QuestList;
@@ -150,35 +151,36 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 			com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 			SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+			com.lopez.l2j.game.multisell.MultiSellTable multisell,
 			com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, null, null, null, null, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, null, null, null, null, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, null, null, null, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, null, null, null, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				TeleportLocationTable teleports, BuyListTable buylists, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, null, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, null, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 				com.lopez.l2j.game.drop.DropService drops, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -186,7 +188,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 				SkillRepository skills, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -194,7 +196,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -203,7 +205,16 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
 				String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, skillService, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, skillService, null, null, serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, skillService, null, rates, serverName);
 		}
 	}
 
@@ -336,6 +347,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case GameClientPacket.RequestShowMiniMap p -> onShowMiniMap();
 			case GameClientPacket.RequestRestartPoint p -> onRestartPoint(p);
 			case GameClientPacket.RequestUserCommand p -> onUserCommand(p.commandId());
+			case GameClientPacket.MultiSellChoose p -> onMultiSellChoose(p);
 			case Unknown p -> log.debug("Opcode ignorado 0x{}{} no estado {}", Integer.toHexString(p.opcode()),
 					p.subOpcode() >= 0 ? ":" + Integer.toHexString(p.subOpcode()) : "", state);
 		}
@@ -1024,6 +1036,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 								return;
 							} catch (NumberFormatException ignored) {
 							}
+						} else if (action.startsWith("multisell")) {
+							try {
+								int listId = Integer.parseInt(action.substring(9).trim());
+								showMultiSell(npc, listId);
+								return;
+							} catch (NumberFormatException ignored) {
+							}
 						} else if (action.startsWith("Deposit") || action.startsWith("Withdraw")) {
 							send(ItemList.of(active.inventory().items(), true));
 							return;
@@ -1167,6 +1186,91 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		send(new InventoryUpdate(updates));
 		send(new UserInfo(active, ctx.characters().template(active)));
+	}
+
+	private void showMultiSell(NpcInstance npc, int listId) {
+		if (ctx.multisell() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var containerOpt = ctx.multisell().get(listId);
+		if (containerOpt.isEmpty()) {
+			log.warn("MultiSell id {} nao encontrada", listId);
+			send(new ActionFailed());
+			return;
+		}
+		var container = containerOpt.get();
+		List<MultiSellList.MultiSellEntryView> views = new ArrayList<>();
+		for (var entry : container.entries()) {
+			List<MultiSellList.ItemView> ingredients = new ArrayList<>();
+			for (var ing : entry.ingredients()) {
+				var t = ctx.inventories().templates().get(ing.itemId()).orElse(null);
+				int type2 = t != null ? t.type2() : 0;
+				ingredients.add(new MultiSellList.ItemView(ing.itemId(), 0, type2, ing.count(), ing.enchantLevel()));
+			}
+			List<MultiSellList.ItemView> products = new ArrayList<>();
+			for (var prod : entry.products()) {
+				var t = ctx.inventories().templates().get(prod.itemId()).orElse(null);
+				int bodyPart = t != null ? t.bodyPart() : 0;
+				int type2 = t != null ? t.type2() : 0;
+				products.add(new MultiSellList.ItemView(prod.itemId(), bodyPart, type2, prod.count(), prod.enchantLevel()));
+			}
+			views.add(new MultiSellList.MultiSellEntryView(entry.entryId(), ingredients, products));
+		}
+		send(new MultiSellList(listId, 1, 1, 40, views));
+	}
+
+	private void onMultiSellChoose(GameClientPacket.MultiSellChoose p) {
+		if (!inWorld || active == null || p.amount() <= 0 || ctx.multisell() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var containerOpt = ctx.multisell().get(p.listId());
+		if (containerOpt.isEmpty()) {
+			send(new ActionFailed());
+			return;
+		}
+		var container = containerOpt.get();
+		var entryOpt = container.entries().stream().filter(e -> e.entryId() == p.entryId()).findFirst();
+		if (entryOpt.isEmpty()) {
+			send(new ActionFailed());
+			return;
+		}
+		var entry = entryOpt.get();
+		int amount = Math.min(5000, p.amount());
+
+		// 1. Verifica se o jogador possui todos os ingredientes na quantidade necessaria
+		for (var ing : entry.ingredients()) {
+			long needed = ing.count() * amount;
+			long count = active.inventory().byItemId(ing.itemId()).map(i -> (long) i.count()).orElse(0L);
+			if (count < needed) {
+				send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
+				send(new ActionFailed());
+				return;
+			}
+		}
+
+		// 2. Consome os ingredientes
+		for (var ing : entry.ingredients()) {
+			long needed = ing.count() * amount;
+			ctx.inventories().consumeItem(active.inventory(), ing.itemId(), (int) needed, "MultiSell");
+		}
+
+		// 3. Adiciona os produtos
+		for (var prod : entry.products()) {
+			long totalAdd = prod.count() * amount;
+			ctx.inventories().addItem(active.inventory(), prod.itemId(), (int) totalAdd, "MultiSell");
+			send(SystemMessage.of(SystemMessage.YOU_PICKED_UP_S1_S2,
+					new SystemMessage.ItemName(prod.itemId()),
+					new SystemMessage.Number((int) totalAdd)));
+		}
+
+		// 4. Atualiza o inventario do jogador
+		send(ItemList.of(active.inventory().items(), false));
+		var t = ctx.characters() != null ? ctx.characters().template(active) : null;
+		if (t != null) {
+			send(new UserInfo(active, t));
+		}
 	}
 
 	private void onActionUse(RequestActionUse p) {
@@ -2679,6 +2783,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				send(new GameServerPacket.JoinParty(1));
 			}
 		}
+	}
+
 	private void startVitalsRegenTask() {
 		stopVitalsRegenTask();
 		PlayerCharacter owner = active;

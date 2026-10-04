@@ -55,8 +55,9 @@ class GameSessionFeaturesTest {
 		var combat = new CombatService();
 
 		var htmls = new com.lopez.l2j.game.html.HtmCache("data/html");
+		var multisell = new com.lopez.l2j.game.multisell.MultiSellTable("data/xml/multisell");
 		var ctx = new GameSession.Context(746, 746, null, charService, inventoryService, world, htmls,
-				null, null, combat, null, null, null, null, null, null, "TestServer");
+				null, null, combat, null, null, null, null, null, multisell, null, "TestServer");
 
 		player = new PlayerCharacter(1001, "Archer", "Hero", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
 				200, 100, 100, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 200.0, 100.0, 100.0);
@@ -309,6 +310,40 @@ class GameSessionFeaturesTest {
 		assertEquals(9, player.inventory().byItemId(2509).orElseThrow().count(), "Deve ter consumido 1 spiritshot");
 		assertTrue(sent.stream().anyMatch(p -> p instanceof SystemMessage sm && sm.id() == SystemMessage.ENABLED_SOULSHOT),
 				"Deve notificar que o shot foi ativado na arma");
+	}
+
+	@Test
+	void multiSellShowsWindowAndExchangesItems() {
+		// Adiciona 10 Dimension Diamonds (item 7562)
+		inventoryService.addItem(player.inventory(), 7562, 10, "Test");
+
+		// Abre o multisell 002 via bypass do NPC
+		invokeMethod(session, "onBypass", new Class<?>[] { GameClientPacket.RequestBypassToServer.class },
+				new GameClientPacket.RequestBypassToServer("npc_30001_multisell 002"));
+
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.MultiSellList msl && msl.listId() == 2),
+				"Deve enviar o pacote MultiSellList com id 2");
+
+		// Executa troca do entry 1 no multisell 2 (5 Dimension Diamonds -> 1 SoE Talking Island 7117)
+		session.handle(new byte[] {
+				(byte) 0xa7,
+				0x02, 0x00, 0x00, 0x00, // listId = 2
+				0x01, 0x00, 0x00, 0x00, // entryId = 1
+				0x01, 0x00, 0x00, 0x00  // amount = 1
+		});
+
+		assertEquals(5, player.inventory().byItemId(7562).orElseThrow().count(), "Deve ter consumido 5 Dimension Diamonds");
+		assertEquals(1, player.inventory().byItemId(7117).orElseThrow().count(), "Deve ter entregue 1 SoE Talking Island");
+	}
+
+	@Test
+	void htmCacheResolvesAcrossAllDatapackFolders() {
+		var htmls = new com.lopez.l2j.game.html.HtmCache("data/html");
+
+		// NPC 30005 (Warehouse Keeper Wilford) com tipo generico "L2Npc"
+		String html = htmls.getNpcHtml(30005, "L2Npc", 0);
+		assertNotNull(html);
+		assertTrue(html.contains("Warehouse Keeper Wilford"), "Deve encontrar o arquivo retail em warehouse/30005.htm mesmo com tipo L2Npc");
 	}
 
 	private static void invokeMethod(Object target, String name, Class<?>[] paramTypes, Object... args) {

@@ -1280,4 +1280,47 @@ public sealed interface GameServerPacket {
 					.writeD(member.level()).writeD(member.classId()).toByteArray();
 		}
 	}
+
+	/** 0xd0 MultiSellList: janela de troca/compra de itens combinados (MultiSell). */
+	record MultiSellList(int listId, int page, int finished, int pageSize, List<MultiSellEntryView> entries)
+			implements GameServerPacket {
+
+		public record MultiSellEntryView(int entryId, List<ItemView> ingredients, List<ItemView> products) {
+		}
+
+		public record ItemView(int itemId, int bodyPart, int type2, long count, int enchant) {
+		}
+
+		@Override
+		public byte[] encode() {
+			var w = new PacketWriter(512).writeC(0xd0);
+			w.writeD(listId).writeD(page).writeD(finished).writeD(pageSize).writeD(entries.size());
+			for (var ent : entries) {
+				w.writeD(ent.entryId());
+				w.writeD(0);
+				w.writeD(0);
+				w.writeC(1);
+				w.writeH(ent.products().size());
+				w.writeH(ent.ingredients().size());
+				for (var p : ent.products()) {
+					w.writeH(p.itemId());
+					w.writeD(p.bodyPart());
+					w.writeH(p.type2());
+					w.writeD((int) p.count());
+					w.writeH(p.enchant());
+					w.writeD(0);
+					w.writeD(0);
+				}
+				for (var i : ent.ingredients()) {
+					w.writeH(i.itemId());
+					w.writeH(i.type2());
+					w.writeD((int) i.count());
+					w.writeH(i.enchant());
+					w.writeD(0);
+					w.writeD(0);
+				}
+			}
+			return w.toByteArray();
+		}
+	}
 }

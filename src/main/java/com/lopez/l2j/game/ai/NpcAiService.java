@@ -11,6 +11,7 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToLocation;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToPawn;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.SocialAction;
 import com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.UserInfo;
@@ -196,20 +197,29 @@ public class NpcAiService {
 		for (var player : world.players()) {
 			var nearbyNpcs = world.findNpcsAround(player.x(), player.y(), 1200);
 			for (var npc : nearbyNpcs) {
-				if (npc.isDead() || npc.inCombat() || !npc.isMonster()) {
+				if (npc.isDead() || npc.inCombat()) {
 					continue;
 				}
-				// 25% de chance de caminhar um pouco
-				if (rnd.nextInt(100) < 25) {
-					int maxOffset = 150;
-					int targetX = npc.spawnX() + rnd.nextInt(-maxOffset, maxOffset + 1);
-					int targetY = npc.spawnY() + rnd.nextInt(-maxOffset, maxOffset + 1);
-					int heading = (int) Math.round(Math.atan2(targetY - npc.y(), targetX - npc.x()) * 10430.378);
+				if (npc.isMonster()) {
+					// 25% de chance de caminhar um pouco
+					if (rnd.nextInt(100) < 25) {
+						int maxOffset = 150;
+						int targetX = npc.spawnX() + rnd.nextInt(-maxOffset, maxOffset + 1);
+						int targetY = npc.spawnY() + rnd.nextInt(-maxOffset, maxOffset + 1);
+						int heading = (int) Math.round(Math.atan2(targetY - npc.y(), targetX - npc.x()) * 10430.378);
 
-					var movePkt = new MoveToLocation(npc.objectId(), targetX, targetY, npc.spawnZ(),
-							npc.x(), npc.y(), npc.z());
-					npc.moveTo(targetX, targetY, npc.spawnZ(), heading);
-					world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, movePkt);
+						var movePkt = new MoveToLocation(npc.objectId(), targetX, targetY, npc.spawnZ(),
+								npc.x(), npc.y(), npc.z());
+						npc.moveTo(targetX, targetY, npc.spawnZ(), heading);
+						world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, movePkt);
+					}
+				} else {
+					// NPCs de cidade / Guardas / Mestres: 20% de chance de animacao social (respirar, olhar em volta)
+					if (rnd.nextInt(100) < 20) {
+						int actionId = rnd.nextInt(2, 4); // SocialAction 2 ou 3
+						var social = new SocialAction(npc.objectId(), actionId);
+						world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, social);
+					}
 				}
 			}
 		}
