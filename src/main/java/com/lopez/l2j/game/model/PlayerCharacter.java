@@ -12,9 +12,9 @@ public final class PlayerCharacter {
 	private final int objectId;
 	private final String account;
 	private final String name;
-	private final int level;
-	private final long exp;
-	private final int sp;
+	private int level;
+	private long exp;
+	private int sp;
 	private final int race;
 	private final int classId;
 	private final int baseClassId;
@@ -114,8 +114,15 @@ public final class PlayerCharacter {
 	public int z() { return z; }
 	public int heading() { return heading; }
 	public double currentHp() { return currentHp; }
+	public void currentHp(double value) { this.currentHp = Math.max(0, Math.min(maxHp, value)); }
 	public double currentMp() { return currentMp; }
+	public void currentMp(double value) { this.currentMp = Math.max(0, Math.min(maxMp, value)); }
 	public double currentCp() { return currentCp; }
+	public void currentCp(double value) { this.currentCp = Math.max(0, Math.min(maxCp, value)); }
+	public void exp(long value) { this.exp = value; }
+	public void sp(int value) { this.sp = value; }
+	public void level(int value) { this.level = value; }
+	public boolean isDead() { return currentHp <= 0; }
 	public boolean running() { return running; }
 	public void running(boolean value) { this.running = value; }
 	public boolean sitting() { return sitting; }
