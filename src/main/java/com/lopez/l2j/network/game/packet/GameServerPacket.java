@@ -1,0 +1,441 @@
+package com.lopez.l2j.network.game.packet;
+
+import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.template.CharTemplate;
+import com.lopez.l2j.network.login.packet.PacketWriter;
+import java.util.List;
+
+/**
+ * Pacotes enviados pelo game server ao cliente Interlude. Layouts portados 1:1 de
+ * com.dream.game.network.serverpackets; campos de sistemas ainda nao migrados (inventario, clan, skills,
+ * cubics...) saem zerados, como o legado faria para um personagem novo sem esses dados.
+ */
+public sealed interface GameServerPacket {
+
+	byte[] encode();
+
+	/** 0x00 KeyPacket: resposta ao ProtocolVersion; entrega a chave e liga a cifra. */
+	record KeyPacket(byte[] key, boolean protocolOk) implements GameServerPacket {
+		public KeyPacket {
+			key = key.clone();
+		}
+
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x00).writeC(protocolOk ? 0x01 : 0x00).writeB(key).writeD(0x01)
+					.writeC(0x01).toByteArray();
+		}
+	}
+
+	/** 0x13 CharSelectionInfo: lista de personagens da conta. */
+	record CharSelectionInfo(String account, int sessionId, List<PlayerCharacter> characters, int activeIndex)
+			implements GameServerPacket {
+		public CharSelectionInfo {
+			characters = List.copyOf(characters);
+		}
+
+		/** Ativo = o de lastAccess mais recente, como no legado. */
+		public static CharSelectionInfo of(String account, int sessionId, List<PlayerCharacter> characters) {
+			int active = -1;
+			long last = 0;
+			for (int i = 0; i < characters.size(); i++) {
+				if (characters.get(i).lastAccess() > last) {
+					last = characters.get(i).lastAccess();
+					active = i;
+				}
+			}
+			return new CharSelectionInfo(account, sessionId, characters, active);
+		}
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x13).writeD(characters.size());
+			long now = System.currentTimeMillis();
+			for (int i = 0; i < characters.size(); i++) {
+				PlayerCharacter c = characters.get(i);
+				w.writeS(c.name()).writeD(c.objectId()).writeS(account).writeD(sessionId).writeD(c.clanId())
+						.writeD(0x00);
+				w.writeD(c.female() ? 1 : 0).writeD(c.race()).writeD(c.baseClassId()).writeD(0x01);
+				w.writeD(0x00).writeD(0x00).writeD(0x00);
+				w.writeF(c.currentHp()).writeF(c.currentMp());
+				w.writeD(c.sp()).writeQ(c.exp()).writeD(c.level()).writeD(c.karma());
+				for (int k = 0; k < 9; k++) {
+					w.writeD(0x00);
+				}
+				for (int k = 0; k < 17 * 2; k++) { // paperdoll: 17 object ids + 17 item ids
+					w.writeD(0x00);
+				}
+				w.writeD(c.hairStyle()).writeD(c.hairColor()).writeD(c.face());
+				w.writeF(c.maxHp()).writeF(c.maxMp());
+				int deleteSeconds = c.deleteTime() > 0 ? (int) Math.max(0, (c.deleteTime() - now) / 1000) : 0;
+				w.writeD(deleteSeconds).writeD(c.classId()).writeD(i == activeIndex ? 0x01 : 0x00);
+				w.writeC(0x00).writeD(0x00); // enchant effect, augmentation
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x17 NewCharacterSuccess (CharTemplates): classes oferecidas na criacao. */
+	record NewCharacterSuccess(List<CharTemplate> templates) implements GameServerPacket {
+		public NewCharacterSuccess {
+			templates = List.copyOf(templates);
+		}
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x17).writeD(templates.size());
+			for (CharTemplate t : templates) {
+				w.writeD(t.raceId()).writeD(t.classId());
+				for (int stat : new int[] { t.str(), t.dex(), t.con(), t.intel(), t.wit(), t.men() }) {
+					w.writeD(0x46).writeD(stat).writeD(0x0a);
+				}
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x19 CharCreateOk. */
+	record CharCreateOk() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x19).writeD(0x01).toByteArray();
+		}
+	}
+
+	enum CharCreateFailReason {
+		CREATION_FAILED(0x00), TOO_MANY_CHARACTERS(0x01), NAME_ALREADY_EXISTS(0x02), ENG_CHARS_16(0x03),
+		INCORRECT_NAME(0x04), CREATE_NOT_ALLOWED(0x05), CHOOSE_ANOTHER_SERVER(0x06);
+
+		public final int code;
+
+		CharCreateFailReason(int code) {
+			this.code = code;
+		}
+	}
+
+	/** 0x1a CharCreateFail. */
+	record CharCreateFail(CharCreateFailReason reason) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x1a).writeD(reason.code).toByteArray();
+		}
+	}
+
+	/** 0x23 CharDeleteSuccess. */
+	record CharDeleteSuccess() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x23).toByteArray();
+		}
+	}
+
+	/** 0x24 CharDeleteFail (1 = membro de clan, 2 = lider de clan). */
+	record CharDeleteFail(int reason) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x24).writeD(reason).toByteArray();
+		}
+	}
+
+	/** 0xF8 SSQInfo (ceu dos Seven Signs): 256 = neutro. */
+	record SsqInfo(int state) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xf8).writeH(256 + state).toByteArray();
+		}
+	}
+
+	/** 0x15 CharSelected: personagem escolhido; o cliente carrega o mapa e responde EnterWorld. */
+	record CharSelected(PlayerCharacter c, CharTemplate t, int sessionId, int gameTime) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x15);
+			w.writeS(c.name()).writeD(c.objectId()).writeS(c.title()).writeD(sessionId).writeD(c.clanId())
+					.writeD(0x00);
+			w.writeD(c.female() ? 1 : 0).writeD(c.race()).writeD(c.classId()).writeD(0x01);
+			w.writeD(c.x()).writeD(c.y()).writeD(c.z());
+			w.writeF(c.currentHp()).writeF(c.currentMp()).writeD(c.sp()).writeQ(c.exp()).writeD(c.level());
+			w.writeD(c.karma()).writeD(c.pkKills());
+			w.writeD(t.intel()).writeD(t.str()).writeD(t.con()).writeD(t.men()).writeD(t.dex()).writeD(t.wit());
+			for (int i = 0; i < 30; i++) {
+				w.writeD(0x00);
+			}
+			w.writeD(0x00).writeD(0x00);
+			w.writeD(gameTime);
+			w.writeD(0x00);
+			w.writeD(c.classId());
+			w.writeD(0x00).writeD(0x00).writeD(0x00).writeD(0x00);
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x04 UserInfo: estado completo do proprio personagem (o cliente so "entra" no mundo apos recebe-lo). */
+	record UserInfo(PlayerCharacter c, CharTemplate t) implements GameServerPacket {
+		static final int WALK_SPEED = 80;
+		static final int INVENTORY_LIMIT = 80;
+		static final int NAME_COLOR = 0xFFFFFF;
+		static final int TITLE_COLOR = 0xFFFF77;
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x04);
+			w.writeD(c.x()).writeD(c.y()).writeD(c.z()).writeD(c.heading()).writeD(c.objectId());
+			w.writeS(c.name()).writeD(c.race()).writeD(c.female() ? 1 : 0).writeD(c.classId());
+			w.writeD(c.level()).writeQ(c.exp());
+			w.writeD(t.str()).writeD(t.dex()).writeD(t.con()).writeD(t.intel()).writeD(t.wit()).writeD(t.men());
+			w.writeD(c.maxHp()).writeD((int) c.currentHp()).writeD(c.maxMp()).writeD((int) c.currentMp());
+			w.writeD(c.sp()).writeD(0).writeD(t.maxLoad());
+			w.writeD(0x28); // valor fixo do legado (posicao 0x28 do paperdoll)
+			for (int i = 0; i < 17 * 2; i++) { // paperdoll: 17 object ids + 17 item ids
+				w.writeD(0x00);
+			}
+			for (int i = 0; i < 14; i++) {
+				w.writeH(0x00);
+			}
+			w.writeD(0x00); // augmentation RHAND
+			for (int i = 0; i < 12; i++) {
+				w.writeH(0x00);
+			}
+			w.writeD(0x00); // augmentation LRHAND
+			for (int i = 0; i < 4; i++) {
+				w.writeH(0x00);
+			}
+			w.writeD(t.pAtk()).writeD(t.pAtkSpd()).writeD(t.pDef()).writeD(t.evasion()).writeD(t.accuracy())
+					.writeD(t.critical()).writeD(t.mAtk());
+			w.writeD(t.mAtkSpd()).writeD(t.pAtkSpd());
+			w.writeD(t.mDef());
+			w.writeD(0x00).writeD(c.karma()); // pvp flag, karma
+			int run = t.runSpeed();
+			w.writeD(run).writeD(WALK_SPEED).writeD(run).writeD(WALK_SPEED).writeD(run).writeD(WALK_SPEED);
+			w.writeD(0).writeD(0); // fly speeds
+			w.writeF(1.0).writeF(1.0); // move / attack speed multipliers
+			w.writeF(t.collisionRadius(c.female())).writeF(t.collisionHeight(c.female()));
+			w.writeD(c.hairStyle()).writeD(c.hairColor()).writeD(c.face()).writeD(c.isGm() ? 1 : 0);
+			w.writeS(c.title());
+			w.writeD(c.clanId()).writeD(0).writeD(0).writeD(0); // clan crest, ally, ally crest
+			w.writeD(0); // relation
+			w.writeC(0).writeC(0).writeC(t.canCraft() ? 1 : 0); // mount, private store, dwarven craft
+			w.writeD(c.pkKills()).writeD(c.pvpKills());
+			w.writeH(0); // cubics
+			w.writeC(0);
+			w.writeD(0); // abnormal effect
+			w.writeC(0);
+			w.writeD(0); // clan privileges
+			w.writeH(0).writeH(0); // recom left/have
+			w.writeD(0);
+			w.writeH(INVENTORY_LIMIT);
+			w.writeD(c.classId()).writeD(0);
+			w.writeD(c.maxCp()).writeD((int) c.currentCp());
+			w.writeC(0); // enchant effect
+			w.writeC(0); // team
+			w.writeD(0); // large clan crest
+			w.writeC(0).writeC(0); // noble, hero
+			w.writeC(0).writeD(0).writeD(0).writeD(0); // fishing
+			w.writeD(NAME_COLOR);
+			w.writeC(c.running() ? 1 : 0);
+			w.writeD(0).writeD(0); // pledge class (x2)
+			w.writeD(TITLE_COLOR);
+			w.writeD(0); // cursed weapon level
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x1b ItemList (vazio enquanto inventario nao for migrado). */
+	record ItemList(boolean showWindow) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x1b).writeH(showWindow ? 1 : 0).writeH(0).toByteArray();
+		}
+	}
+
+	/** 0x58 SkillList (vazia). */
+	record SkillList() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x58).writeD(0).toByteArray();
+		}
+	}
+
+	/** 0x80 QuestList (vazia). */
+	record QuestList() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x80).writeH(0).toByteArray();
+		}
+	}
+
+	/** 0x45 ShortCutInit (vazio). */
+	record ShortCutInit() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x45).writeD(0).toByteArray();
+		}
+	}
+
+	/** 0xe4 HennaInfo (sem tatuagens). */
+	record HennaInfo() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xe4).writeC(0).writeC(0).writeC(0).writeC(0).writeC(0).writeC(0)
+					.writeD(3).writeD(0).toByteArray();
+		}
+	}
+
+	/** 0xF3 EtcStatusUpdate (sem penalidades). */
+	record EtcStatusUpdate() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0xf3);
+			for (int i = 0; i < 7; i++) {
+				w.writeD(0);
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xFE:0x2E ExStorageMaxCount. */
+	record ExStorageMaxCount(int inventory, int warehouse, int freight, int privateSell, int privateBuy,
+			int dwarfRecipe, int commonRecipe) implements GameServerPacket {
+		public static ExStorageMaxCount defaults() {
+			return new ExStorageMaxCount(80, 100, 20, 4, 4, 100, 100);
+		}
+
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x2e).writeD(inventory).writeD(warehouse)
+					.writeD(freight).writeD(privateSell).writeD(privateBuy).writeD(dwarfRecipe)
+					.writeD(commonRecipe).toByteArray();
+		}
+	}
+
+	/** 0xfa FriendList (vazia). */
+	record FriendList() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfa).writeD(0).toByteArray();
+		}
+	}
+
+	/** 0xEC ClientSetTime: hora do mundo em minutos do dia de jogo e velocidade (6). */
+	record ClientSetTime(int gameTime) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xec).writeD(gameTime).writeD(6).toByteArray();
+		}
+	}
+
+	/** 0xFE:0x1B ExSendManorList: castelos com manor (o cliente pede logo apos CharSelected). */
+	record ExSendManorList(List<String> manors) implements GameServerPacket {
+		public static final List<String> CASTLES = List.of("gludio", "dion", "giran", "oren", "aden",
+				"innadril", "goddard", "rune", "schuttgart");
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0xfe).writeH(0x1b).writeD(manors.size());
+			for (int i = 0; i < manors.size(); i++) {
+				w.writeD(i + 1).writeS(manors.get(i));
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x01 MoveToLocation. */
+	record MoveToLocation(int objectId, int toX, int toY, int toZ, int fromX, int fromY, int fromZ)
+			implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x01).writeD(objectId).writeD(toX).writeD(toY).writeD(toZ)
+					.writeD(fromX).writeD(fromY).writeD(fromZ).toByteArray();
+		}
+	}
+
+	/** 0x47 StopMove. */
+	record StopMove(int objectId, int x, int y, int z, int heading) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x47).writeD(objectId).writeD(x).writeD(y).writeD(z).writeD(heading)
+					.toByteArray();
+		}
+	}
+
+	/** 0x61 ValidateLocation. */
+	record ValidateLocation(int objectId, int x, int y, int z, int heading) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x61).writeD(objectId).writeD(x).writeD(y).writeD(z).writeD(heading)
+					.toByteArray();
+		}
+	}
+
+	/** 0x4a CreatureSay: mensagem de chat (tipo = canal do SystemChatChannelId). */
+	record CreatureSay(int objectId, int channel, String name, String text) implements GameServerPacket {
+		public static final int ALL = 0;
+		public static final int SHOUT = 1;
+		public static final int TELL = 2;
+		public static final int ANNOUNCEMENT = 10;
+
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x4a).writeD(objectId).writeD(channel).writeS(name).writeS(text)
+					.toByteArray();
+		}
+	}
+
+	/** 0x25 ActionFailed: destrava o cliente apos uma acao recusada/ignorada. */
+	record ActionFailed() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new byte[] { 0x25 };
+		}
+	}
+
+	/** 0x2f ChangeWaitType: 0 = sentar, 1 = levantar. */
+	record ChangeWaitType(int objectId, int type, int x, int y, int z) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x2f).writeD(objectId).writeD(type).writeD(x).writeD(y).writeD(z)
+					.toByteArray();
+		}
+	}
+
+	/** 0x2e ChangeMoveType: 1 = correr, 0 = andar. */
+	record ChangeMoveType(int objectId, boolean running) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x2e).writeD(objectId).writeD(running ? 1 : 0).writeD(0)
+					.toByteArray();
+		}
+	}
+
+	/** 0xa6 MyTargetSelected. */
+	record MyTargetSelected(int objectId, int color) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xa6).writeD(objectId).writeH(color).toByteArray();
+		}
+	}
+
+	/** 0x2a TargetUnselected. */
+	record TargetUnselected(int objectId, int x, int y, int z) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x2a).writeD(objectId).writeD(x).writeD(y).writeD(z).toByteArray();
+		}
+	}
+
+	/** 0x5f RestartResponse. */
+	record RestartResponse(boolean ok) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x5f).writeD(ok ? 1 : 0).toByteArray();
+		}
+	}
+
+	/** 0x7e LeaveWorld: o cliente volta a tela de login. */
+	record LeaveWorld() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new byte[] { 0x7e };
+		}
+	}
+}

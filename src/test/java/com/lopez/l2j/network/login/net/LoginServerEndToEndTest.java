@@ -43,6 +43,7 @@ class LoginServerEndToEndTest {
 			(byte) 0xcc, (byte) 0x2b, (byte) 0x6c, (byte) 0x55, (byte) 0x6c, (byte) 0x6c, (byte) 0x6c, (byte) 0x6c };
 
 	final Map<String, Account> accounts = new HashMap<>();
+	final Map<String, com.lopez.l2j.network.session.SessionKey> published = new java.util.concurrent.ConcurrentHashMap<>();
 	LoginServer server;
 
 	@BeforeEach
@@ -63,7 +64,7 @@ class LoginServerEndToEndTest {
 			}
 		}, login);
 		GameServerDirectory directory = () -> java.util.List.of(new ServerEntry(1, "127.0.0.1", 7777, true, 0, 10, true, false, false, false));
-		var factory = new LoginSessionFactory(props, service, directory);
+		var factory = new LoginSessionFactory(props, service, directory, published::put);
 		server = new LoginServer(0, factory);
 		server.start();
 	}
@@ -187,6 +188,10 @@ class LoginServerEndToEndTest {
 			c.send(new PacketWriter().writeC(0x02).writeD(k1).writeD(k2).writeC(1).toByteArray());
 			PacketReader play = new PacketReader(c.receive());
 			assertEquals(0x07, play.readC());
+			int p1 = play.readD();
+			int p2 = play.readD();
+			// o game server validara exatamente esta chave no AuthLogin
+			assertEquals(new com.lopez.l2j.network.session.SessionKey(k1, k2, p1, p2), published.get("alice"));
 		}
 	}
 

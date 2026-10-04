@@ -35,6 +35,26 @@ public final class PacketReader {
 		return v;
 	}
 
+	public int readH() {
+		require(2);
+		int v = (data[pos] & 0xff) | (data[pos + 1] & 0xff) << 8;
+		pos += 2;
+		return v;
+	}
+
+	/** String UTF-16LE terminada por 0x0000; se o terminador faltar, le ate o fim do pacote. */
+	public String readS() {
+		StringBuilder sb = new StringBuilder();
+		while (remaining() >= 2) {
+			int c = readH();
+			if (c == 0) {
+				break;
+			}
+			sb.append((char) c);
+		}
+		return sb.toString();
+	}
+
 	public byte[] readB(int n) {
 		require(n);
 		byte[] b = Arrays.copyOfRange(data, pos, pos + n);

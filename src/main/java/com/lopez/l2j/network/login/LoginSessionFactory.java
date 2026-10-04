@@ -5,9 +5,13 @@ import com.lopez.l2j.network.login.crypt.LoginCrypt;
 import com.lopez.l2j.network.login.crypt.ScrambledRsaKeyPair;
 import com.lopez.l2j.network.login.service.GameServerDirectory;
 import com.lopez.l2j.network.login.service.LoginAccountService;
+import com.lopez.l2j.network.session.SessionKey;
+import com.lopez.l2j.network.session.SessionKeyRegistry;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,20 +27,34 @@ public class LoginSessionFactory {
 	private final ServerProperties properties;
 	private final LoginAccountService accounts;
 	private final GameServerDirectory servers;
+	private final BiConsumer<String, SessionKey> onPlayOk;
 	private volatile List<ScrambledRsaKeyPair> pool;
 
 	public LoginSessionFactory(ServerProperties properties, LoginAccountService accounts,
 			GameServerDirectory servers) {
+		this(properties, accounts, servers, (a, k) -> {
+		});
+	}
+
+	@Autowired
+	public LoginSessionFactory(ServerProperties properties, LoginAccountService accounts,
+			GameServerDirectory servers, SessionKeyRegistry sessionKeys) {
+		this(properties, accounts, servers, sessionKeys::register);
+	}
+
+	public LoginSessionFactory(ServerProperties properties, LoginAccountService accounts,
+			GameServerDirectory servers, BiConsumer<String, SessionKey> onPlayOk) {
 		this.properties = properties;
 		this.accounts = accounts;
 		this.servers = servers;
+		this.onPlayOk = onPlayOk;
 	}
 
 	public LoginSession create(String clientIp) {
 		List<ScrambledRsaKeyPair> keys = pool();
 		ScrambledRsaKeyPair rsa = keys.get(random.nextInt(keys.size()));
 		return new LoginSession(rsa, LoginCrypt.newSessionKey(random), properties.login().showLicence(), clientIp,
-				accounts, servers, random);
+				accounts, servers, random, onPlayOk);
 	}
 
 	private List<ScrambledRsaKeyPair> pool() {

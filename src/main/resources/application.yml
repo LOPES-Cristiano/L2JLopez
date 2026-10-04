@@ -37,11 +37,14 @@ l2:
     protocol-max: 746
   login:
     listen: true
-    auto-create-accounts: false
+    # Igual ao legado (AutoCreateAccounts=True): qualquer login novo cria a conta. Desligue em producao.
+    auto-create-accounts: ${L2_AUTO_CREATE_ACCOUNTS:true}
     max-account-creations-per-ip: 2
-    game-server-host: 127.0.0.1
+    game-server-host: ${L2_GAME_HOST:127.0.0.1}
     max-players: 500
     show-licence: true
+  game:
+    listen: true
   features:
     autofarm: { enabled: true }
     dressme: { enabled: true }

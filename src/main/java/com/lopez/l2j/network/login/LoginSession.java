@@ -20,8 +20,10 @@ import com.lopez.l2j.network.login.packet.LoginServerPacket.PlayOk;
 import com.lopez.l2j.network.login.packet.LoginServerPacket.ServerList;
 import com.lopez.l2j.network.login.service.GameServerDirectory;
 import com.lopez.l2j.network.login.service.LoginAccountService;
+import com.lopez.l2j.network.session.SessionKey;
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 /**
  * Maquina de estados de UMA conexao de login (porta de L2AuthClient + L2AuthPacketHandler + os
@@ -57,6 +59,8 @@ public final class LoginSession {
 	private final int playOk1;
 	private final int playOk2;
 
+	private final BiConsumer<String, SessionKey> onPlayOk;
+
 	private LoginClientPacket.State state = LoginClientPacket.State.CONNECTED;
 	private String account;
 	private int lastServerId;
@@ -64,12 +68,21 @@ public final class LoginSession {
 
 	public LoginSession(ScrambledRsaKeyPair rsa, byte[] blowfishKey, boolean showLicence, String ip,
 			LoginAccountService accounts, GameServerDirectory servers, SecureRandom random) {
+		this(rsa, blowfishKey, showLicence, ip, accounts, servers, random, (a, k) -> {
+		});
+	}
+
+	/** @param onPlayOk recebe conta e chave completa quando o cliente e liberado para o game server */
+	public LoginSession(ScrambledRsaKeyPair rsa, byte[] blowfishKey, boolean showLicence, String ip,
+			LoginAccountService accounts, GameServerDirectory servers, SecureRandom random,
+			BiConsumer<String, SessionKey> onPlayOk) {
 		this.rsa = rsa;
 		this.blowfishKey = blowfishKey.clone();
 		this.showLicence = showLicence;
 		this.ip = ip;
 		this.accounts = accounts;
 		this.servers = servers;
+		this.onPlayOk = onPlayOk;
 		this.sessionId = random.nextInt();
 		this.loginOk1 = random.nextInt();
 		this.loginOk2 = random.nextInt();
@@ -168,6 +181,7 @@ public final class LoginSession {
 		lastServerId = p.serverId();
 		accounts.recordLastServer(account, ip, lastServerId);
 		joinedGameServer = true;
+		onPlayOk.accept(account, new SessionKey(loginOk1, loginOk2, playOk1, playOk2));
 		return Reply.send(new PlayOk(playOk1, playOk2));
 	}
 

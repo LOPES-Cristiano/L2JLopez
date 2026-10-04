@@ -26,6 +26,27 @@ public final class PacketWriter {
 		return this;
 	}
 
+	public PacketWriter writeQ(long v) {
+		writeD((int) v);
+		writeD((int) (v >>> 32));
+		return this;
+	}
+
+	/** Double IEEE-754 little-endian ("F" no protocolo). */
+	public PacketWriter writeF(double v) {
+		return writeQ(Double.doubleToRawLongBits(v));
+	}
+
+	/** String UTF-16LE terminada por 0x0000 ("S" no protocolo); null vira string vazia. */
+	public PacketWriter writeS(String s) {
+		if (s != null) {
+			for (int i = 0; i < s.length(); i++) {
+				writeH(s.charAt(i));
+			}
+		}
+		return writeH(0);
+	}
+
 	public PacketWriter writeB(byte[] bytes) {
 		out.write(bytes, 0, bytes.length);
 		return this;

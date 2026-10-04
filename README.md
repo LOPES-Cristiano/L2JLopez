@@ -53,6 +53,26 @@ API de teste: `GET http://localhost:8080/api/status` e `/actuator/health`.
   30 s, fecha em checksum/tamanho/opcode invalido) sobe na porta `l2.network.login-port` com `l2.login.listen=true`.
   Falta: registro dinamico de game servers (hoje `l2.login.*` descreve um unico servidor), kick de login duplicado,
   limite de tentativas por IP e a porta interna (9014) game<->login.
+- **Ponte login -> game** (`network.session`): login e game rodam no mesmo processo; o `SessionKeyRegistry` substitui
+  o protocolo interno do legado. A chave do PlayOk e consumida no `AuthLogin`; se o cliente nao chegar ao game em 60 s
+  a conta e liberada.
+- **Game server** (`network.game`, `game.*`): `GameCrypt` (XOR encadeado do Interlude), `GameServer` TCP na porta
+  `l2.network.game-port` (`l2.game.listen=true`), `GameSession` com handshake (ProtocolVersion/KeyPacket/AuthLogin),
+  lista/criacao/remocao/restauracao/selecao de personagem (tabela legada `characters`, templates de
+  `data/player/char_template.xml`, 7 por conta), EnterWorld com `UserInfo` completo, movimento (sem geodata: confia no
+  cliente + ValidatePosition), sentar/levantar, andar/correr, chat (geral por distancia, shout, PM), alvo em si mesmo,
+  restart e logout (salva posicao). Opcodes desconhecidos sao ignorados (como no legado).
+  Ainda nao existe: NPCs/spawns, inventario/itens iniciais, skills, outros jogadores visiveis (`CharInfo`), combate.
+
+## Testando com o cliente Interlude real
+1. `.\scripts\run-dev.ps1` (pergunta a senha do MySQL; ou defina `L2_DB_USER`/`L2_DB_PASSWORD`). Espere
+   `Game server escutando na porta 7777` e `Login server escutando na porta 2106`.
+2. O cliente em `Lineage II - Chronicle Interlude` ja aponta para `127.0.0.1` (`system\l2.ini`, `ServerAddr`).
+   Abra `system\l2.exe`.
+3. Digite qualquer login novo (2-14 caracteres, minusculos/numeros) e uma senha: a conta e criada automaticamente
+   (`l2.login.auto-create-accounts`, ligado por padrao em dev; desligue com `L2_AUTO_CREATE_ACCOUNTS=false`).
+4. Aceite a licenca, escolha o servidor, crie um personagem e entre. O mundo esta vazio (sem NPCs) por enquanto.
+   Os logs mostram cada etapa (`entrou no game server`, `Personagem criado`, `entrou no mundo`).
 
 ## Roadmap
 Ver `REVISAO_BACKLOG_MELHORIAS.md` no repositorio L2JDreamV2.
