@@ -3,8 +3,8 @@ spring:
     name: l2jlopez
   datasource:
     url: ${L2_DB_URL:jdbc:mysql://localhost:3306/l2jlopez}
-    username: ${L2_DB_USER:l2jlopez}
-    password: ${L2_DB_PASSWORD:change-me}
+    username: ${L2_DB_USER:root}
+    password: ${L2_DB_PASSWORD:159753}
   jpa:
     open-in-view: false
     hibernate:
