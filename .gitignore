@@ -55,6 +55,9 @@ secrets/
 geodata/
 data/geodata/
 **/geodata/**
+pathnode/
+data/pathnode/
+**/pathnode/**
 
 ### Logs / SO ###
 *.log

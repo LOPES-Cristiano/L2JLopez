@@ -27,6 +27,13 @@ management:
 
 l2:
   server-name: L2JLopez
+  datapack:
+    root-dir: ${L2_DATAPACK_DIR:data}
+    html-dir: ${L2_DATAPACK_HTML_DIR:data/html}
+    xml-dir: ${L2_DATAPACK_XML_DIR:data/xml}
+    scripts-dir: ${L2_DATAPACK_SCRIPTS_DIR:data/scripts}
+    teleports-file: ${L2_DATAPACK_TELEPORTS_FILE:data/xml/world/teleports.xml}
+    buylists-file: ${L2_DATAPACK_BUYLISTS_FILE:data/xml/world/buylists.xml}
   rates:
     xp: 1.0
     sp: 1.0

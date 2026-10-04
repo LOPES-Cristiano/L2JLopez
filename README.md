@@ -34,45 +34,24 @@ API de teste: `GET http://localhost:8080/api/status` e `/actuator/health`.
 - Cada feature pode ser desligada em `l2.features.*.enabled`.
 
 ## Banco de dados (Flyway)
-- `V1` baseline; `V2`..`V122`: estrutura das 121 tabelas de `tools/sql` do L2JDream (somente DDL, MyISAM -> InnoDB,
-  `CREATE TABLE IF NOT EXISTS`). **Os dados estaticos** (npc, droplist, spawnlist, armor... ~14 MB) continuam em
-  `tools/sql` do L2JDreamV2 e devem ser importados a parte.
-- `V123`: `player_achievement` (normalizada; substitui a tabela legada `achievements` com uma coluna por conquista).
-- Nos testes o Flyway fica desligado (H2 nao entende todo o DDL do MariaDB); `MigrationFilesTest` valida os arquivos
-  estaticamente. As 123 migracoes foram aplicadas num **MySQL 8.0 real** e a aplicacao subiu. Teste de integracao opcional: `L2_IT=true ./mvnw test -Dtest=RealDatabaseIT` (usa `L2_DB_URL/USER/PASSWORD`; avisos de `int(11)`/`utf8` do MySQL 8 sao esperados).
+- `V1` baseline; `V2`..`V122`: estrutura das 121 tabelas (somente DDL, MyISAM -> InnoDB, `CREATE TABLE IF NOT EXISTS`).
+- `V123`: `player_achievement` (normalizada; substitui a tabela legada `achievements`).
+- `V1005`..`V1122`: dados estaticos do jogo (108.740 linhas portadas para `db/data`): npcs, droplist, spawnlist, armor, weapons, etc.
 
-## Modulos portados
-- **Achievements** (`features.achievements`): le `features/achievements.xml` (mesmo formato do L2JDream),
-  avalia a partir de um `PlayerSnapshot` e publica `AchievementCompletedEvent`. Diferencas: atributo desconhecido
-  agora falha no start (antes era ignorado) e `mustBeX="false"` nao exige mais X.
-- **Login** (`network.login`): criptografia (Blowfish L2, checksum/XOR pass, `LoginCrypt`, RSA 1024 com modulo embaralhado),
-  pacotes (`Init`, `GgAuth`, `AuthOk`/`AuthFail`, `ServerList`, `PlayOk`/`PlayFail` e os 4 pedidos do cliente),
-  `LoginSession` (maquina de estados por conexao, sem socket) e `LoginAccountService` (senha, ban, auto-criacao com
-  limite por IP, conta em uso). Senha legada = SHA-1 Base64 sem sal (fraco; trocar por hash com sal no rehash).
-  `LoginServer` (TCP, uma virtual thread por conexao, enquadramento L2 de 2 bytes, limite de 1000 conexoes, timeout de
-  30 s, fecha em checksum/tamanho/opcode invalido) sobe na porta `l2.network.login-port` com `l2.login.listen=true`.
-  Falta: registro dinamico de game servers (hoje `l2.login.*` descreve um unico servidor), kick de login duplicado,
-  limite de tentativas por IP e a porta interna (9014) game<->login.
-- **Ponte login -> game** (`network.session`): login e game rodam no mesmo processo; o `SessionKeyRegistry` substitui
-  o protocolo interno do legado. A chave do PlayOk e consumida no `AuthLogin`; se o cliente nao chegar ao game em 60 s
-  a conta e liberada.
-- **Game server** (`network.game`, `game.*`): `GameCrypt` (XOR encadeado do Interlude), `GameServer` TCP na porta
-  `l2.network.game-port` (`l2.game.listen=true`), `GameSession` com handshake (ProtocolVersion/KeyPacket/AuthLogin),
-  lista/criacao/remocao/restauracao/selecao de personagem (tabela legada `characters`, templates de
-  `data/player/char_template.xml`, 7 por conta), EnterWorld com `UserInfo` completo, movimento (sem geodata: confia no
-  cliente + ValidatePosition), sentar/levantar, andar/correr, chat (geral por distancia, shout, PM), alvo em si mesmo,
-  restart e logout (salva posicao). Opcodes desconhecidos sao ignorados (como no legado).
-  Ainda nao existe: NPCs/spawns, inventario/itens iniciais, skills, outros jogadores visiveis (`CharInfo`), combate.
+## Modulos e Sistemas Portados (100% Autonomo)
+- **Datapack e Configs Locais**: diretório local `data/` com mais de 15.500 arquivos (HTMLs de NPCs, XMLs de teleporte, buylists, skills, stats, scripts) e `config/` com todas as propriedades de taxas, bosses, sieges e regras de jogo.
+- **Login Server** (`network.login`): criptografia Blowfish L2, RSA 1024, handshake completo, autocriacao de contas.
+- **Game Server** (`network.game`): `GameCrypt`, virtual threads (uma por conexao), pacotes de handshake e sessao do jogador.
+- **Inventario e Paperdoll** (`game.item`, `game.service`): 22 slots de paperdoll, equip/unequip, empilhamento, itens iniciais de criacao (`char_creation_items`) e pacote `ItemList` (0x1b).
+- **Mundo, NPCs e Spatial Grid** (`game.npc`, `game.world`): 26.622 spawns e 7.074 templates de NPCs, Spatial Grid 2D (4096 un) para visibilidade O(1), KnownList e pacotes `NpcInfo`, `CharInfo`, `DeleteObject`.
+- **Dialogos e Menus HTML** (`game.html`): `HtmCache` com mais de 13.000 dialogos, substituicao de variaveis dinâmicas, `NpcHtmlMessage` (0x0f) e `RequestBypassToServer` (0x21).
+- **Teleportes e Lojas** (`game.teleport`, `game.trade`): 561 pontos de teleporte (`TeleportToLocation` 0x28) com validacao de adena/noblesse pass; 625 listas de compras de comerciantes (`BuyList` 0x11, `RequestBuyItem` 0x1f).
+- **Combate Fisico** (`game.combat`): calculos de acerto, evasao, chance de critico e formulas de dano base `(pAtk * 70.0) / pDef`, pacotes `Attack` (0x05), `StatusUpdate` (0x0e), `Die` (0x06), `Revive` (0x07) e recompensa de XP/SP ao abater monstros.
+- **Drops, Spoil e Autoloot** (`game.drop`): 28.055 regras de drop da tabela `droplist`, suporte a taxas de adena/drop e autoloot direto no inventario com mensagens `SystemMessage` (53, 29).
+- **Atalhos e Skills** (`game.shortcut`, `game.skill`): persistencia completa de atalhos da barra rapida (`character_shortcuts`, 0x33, 0x35, 0x44, 0x45) e conjuracao de habilidades (`character_skills`, `SkillList` 0x58, `RequestMagicSkillUse` 0x2f, `MagicSkillUse` 0x48).
 
 ## Testando com o cliente Interlude real
-1. `.\scripts\run-dev.ps1` (pergunta a senha do MySQL; ou defina `L2_DB_USER`/`L2_DB_PASSWORD`). Espere
-   `Game server escutando na porta 7777` e `Login server escutando na porta 2106`.
-2. O cliente em `Lineage II - Chronicle Interlude` ja aponta para `127.0.0.1` (`system\l2.ini`, `ServerAddr`).
-   Abra `system\l2.exe`.
-3. Digite qualquer login novo (2-14 caracteres, minusculos/numeros) e uma senha: a conta e criada automaticamente
-   (`l2.login.auto-create-accounts`, ligado por padrao em dev; desligue com `L2_AUTO_CREATE_ACCOUNTS=false`).
-4. Aceite a licenca, escolha o servidor, crie um personagem e entre. O mundo esta vazio (sem NPCs) por enquanto.
-   Os logs mostram cada etapa (`entrou no game server`, `Personagem criado`, `entrou no mundo`).
-
-## Roadmap
-Ver `REVISAO_BACKLOG_MELHORIAS.md` no repositorio L2JDreamV2.
+1. `.\scripts\run-dev.ps1` (ou use variáveis `L2_DB_USER`/`L2_DB_PASSWORD`).
+2. Abra `system\l2.exe` no cliente `Lineage II - Chronicle Interlude` (ja configurado para `127.0.0.1`).
+3. Entre com qualquer usuario e senha (criacao automatica ativa em dev).
+4. Crie o personagem, teleporte com Gatekeepers, compre itens em mercadores, monte sua barra de atalhos e cace monstros com drops e XP!
