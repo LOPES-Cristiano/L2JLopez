@@ -82,6 +82,9 @@ public sealed interface GameClientPacket {
 	record RequestRestart() implements GameClientPacket {
 	}
 
+	record RequestBypassToServer(String command) implements GameClientPacket {
+	}
+
 	record Unknown(int opcode, int subOpcode) implements GameClientPacket {
 	}
 
@@ -115,6 +118,7 @@ public sealed interface GameClientPacket {
 					case 0x48 -> new ValidatePosition(r.readD(), r.readD(), r.readD(), r.readD());
 					case 0x38 -> say2(r);
 					case 0x04 -> new Action(r.readD(), r.readD(), r.readD(), r.readD(), r.readC());
+					case 0x21 -> new RequestBypassToServer(r.readS());
 					case 0x37 -> new RequestTargetCancel();
 					case 0x45 -> new RequestActionUse(r.readD(), r.readD() == 1, r.readC() == 1);
 					case 0x0f -> new RequestItemList();

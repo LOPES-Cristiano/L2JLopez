@@ -62,9 +62,12 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.SsqInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.StopMove;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.TargetUnselected;
+import com.lopez.l2j.game.html.HtmCache;
 import com.lopez.l2j.game.npc.NpcInstance;
+import com.lopez.l2j.network.game.packet.GameClientPacket.RequestBypassToServer;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CharInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
+import com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.UserInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ValidateLocation;
@@ -92,7 +95,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	/** Configuracao/servicos compartilhados por todas as sessoes. */
 	public record Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
-			CharacterService characters, InventoryService inventories, GameWorld world, String serverName) {
+			CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+			String serverName) {
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, null, serverName);
+		}
 	}
 
 	private final Context ctx;
@@ -108,6 +116,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private List<PlayerCharacter> characterList = List.of();
 	private PlayerCharacter active;
 	private boolean inWorld;
+	private int targetObjectId;
 	private final Set<Integer> knownObjects = ConcurrentHashMap.newKeySet();
 
 	public GameSession(Context ctx, byte[] cryptKey, String ip, Consumer<GameServerPacket> sink) {
@@ -150,7 +159,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case ValidatePosition p -> onValidatePosition(p);
 			case Say2 p -> onSay(p);
 			case Action p -> onAction(p);
-			case RequestTargetCancel p -> send(new TargetUnselected(active.objectId(), x(), y(), z()));
+			case RequestBypassToServer p -> onBypass(p);
+			case RequestTargetCancel p -> onCancelTarget();
 			case RequestActionUse p -> onActionUse(p);
 			case RequestItemList p -> send(ItemList.of(active.inventory().items(), true));
 			case UseItem p -> onUseItem(p);
@@ -398,22 +408,86 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		if (p.objectId() == active.objectId()) {
+			targetObjectId = active.objectId();
 			send(new MyTargetSelected(active.objectId(), 0));
 			return;
 		}
 		var npcOpt = ctx.world().npc(p.objectId());
 		if (npcOpt.isPresent()) {
 			var npc = npcOpt.get();
-			send(new MyTargetSelected(npc.objectId(), 0));
-			send(new ValidateLocation(npc.objectId(), npc.x(), npc.y(), npc.z(), npc.heading()));
+			if (targetObjectId == npc.objectId() && !npc.template().isMonster()) {
+				// 2º clique: abre diálogo do NPC
+				showNpcHtml(npc, 0);
+			} else {
+				// 1º clique: seleciona NPC como alvo
+				targetObjectId = npc.objectId();
+				send(new MyTargetSelected(npc.objectId(), 0));
+				send(new ValidateLocation(npc.objectId(), npc.x(), npc.y(), npc.z(), npc.heading()));
+			}
 			return;
 		}
 		var playerOpt = ctx.world().player(p.objectId());
 		if (playerOpt.isPresent()) {
 			var other = playerOpt.get();
+			targetObjectId = other.objectId();
 			send(new MyTargetSelected(other.objectId(), 0));
 			send(new ValidateLocation(other.objectId(), other.x(), other.y(), other.z(), 0));
 			return;
+		}
+		targetObjectId = 0;
+		send(new ActionFailed());
+	}
+
+	private void onCancelTarget() {
+		targetObjectId = 0;
+		if (active != null) {
+			send(new TargetUnselected(active.objectId(), x(), y(), z()));
+		}
+	}
+
+	private void showNpcHtml(NpcInstance npc, int val) {
+		if (ctx.htmls() == null) {
+			return;
+		}
+		String raw = ctx.htmls().getNpcHtml(npc.npcId(), npc.template().type(), val);
+		String rendered = ctx.htmls().render(raw, npc.objectId(), npc.name(), active.name());
+		send(new NpcHtmlMessage(npc.objectId(), rendered));
+	}
+
+	private void onBypass(RequestBypassToServer p) {
+		if (!inWorld || p.command() == null || p.command().isBlank()) {
+			send(new ActionFailed());
+			return;
+		}
+		String cmd = p.command().trim();
+		if (cmd.startsWith("npc_")) {
+			// Formato: npc_%objectId%_Chat 1 ou npc_%objectId%_Quest etc
+			String[] parts = cmd.split("_", 3);
+			if (parts.length >= 3) {
+				try {
+					int npcObjId = Integer.parseInt(parts[1]);
+					var npcOpt = ctx.world().npc(npcObjId);
+					if (npcOpt.isPresent()) {
+						var npc = npcOpt.get();
+						String action = parts[2];
+						if (action.startsWith("Chat")) {
+							int val = 0;
+							if (action.length() > 5) {
+								try {
+									val = Integer.parseInt(action.substring(5).trim());
+								} catch (NumberFormatException ignored) {
+								}
+							}
+							showNpcHtml(npc, val);
+							return;
+						} else if (action.startsWith("Quest")) {
+							showNpcHtml(npc, 0);
+							return;
+						}
+					}
+				} catch (NumberFormatException ignored) {
+				}
+			}
 		}
 		send(new ActionFailed());
 	}
@@ -499,6 +573,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	private void leaveWorld() {
+		targetObjectId = 0;
 		if (active == null) {
 			return;
 		}

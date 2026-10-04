@@ -76,8 +76,9 @@ class GameServerEndToEndTest {
 		var inventories = new InventoryService(TestItems.table(), items, ObjectIdFactory.sequential(0x20000000),
 				5000);
 		var characters = new CharacterService(repo, new CharTemplateTable(), inventories);
+		var htmls = new com.lopez.l2j.game.html.HtmCache("D:/Cristiano/Lineage/L2JDreamV2/game/data/html");
 		server = new GameServer(0,
-				new GameSession.Context(730, 746, registry, characters, inventories, world, "L2JLopez"));
+				new GameSession.Context(730, 746, registry, characters, inventories, world, htmls, "L2JLopez"));
 		server.start();
 	}
 
@@ -564,6 +565,72 @@ class GameServerEndToEndTest {
 			PacketReader vr = new PacketReader(valBytes);
 			assertEquals(0x61, vr.readC());
 			assertEquals(npc.objectId(), vr.readD());
+		}
+	}
+
+	@Test
+	void npcDialogAndBypassFlow() throws Exception {
+		// Gatekeeper Roxxy (npcId 30006, tipo L2Teleporter)
+		NpcTemplate t = new NpcTemplate(
+				30006, 30006, "Roxxy", true, "Gatekeeper", true,
+				8.0, 16.0, 1, "female", "L2Teleporter",
+				40, 50, 20, 10, 10, 5, 5, 250, 333,
+				0, 0, 0, 50, 100, 0, false);
+		NpcInstance npc = new NpcInstance(0x30000002, t, -71300, 258200, -3104, 0);
+		world.addNpc(npc);
+
+		SessionKey key = loginAs("dialogtester");
+		try (Client c = new Client()) {
+			c.handshake();
+			c.authLogin("dialogtester", key);
+			c.read(); // CharSelectionInfo
+
+			c.send(characterCreate("Talker", 0, 0, 0));
+			c.read(); // CharCreateOk
+			c.read(); // CharSelectionInfo
+
+			// Seleciona personagem
+			c.send(new PacketWriter().writeC(0x0d).writeD(0).writeH(0).writeD(0).writeD(0).writeD(0).toByteArray());
+			c.read(); // SSQInfo
+			c.read(); // CharSelected
+
+			// Manor list
+			c.send(new PacketWriter().writeC(0xd0).writeH(0x08).toByteArray());
+			c.read(); // ExSendManorList
+
+			// EnterWorld (0x03)
+			c.send(new PacketWriter().writeC(0x03).writeB(new byte[104]).toByteArray());
+			c.readUntil(0x16); // NpcInfo
+
+			// 1º clique: Seleciona o NPC (Action 0x04)
+			c.send(new PacketWriter().writeC(0x04).writeD(npc.objectId()).writeD(-71338).writeD(258271)
+					.writeD(-3104).writeC(0).toByteArray());
+			byte[] targetBytes = c.readUntil(0xa6);
+			assertEquals(0xa6, targetBytes[0] & 0xff);
+
+			// 2º clique: Com o NPC selecionado, abre o diálogo (Action 0x04)!
+			c.send(new PacketWriter().writeC(0x04).writeD(npc.objectId()).writeD(-71338).writeD(258271)
+					.writeD(-3104).writeC(0).toByteArray());
+
+			// Deve receber NpcHtmlMessage (0x0f)
+			byte[] htmlBytes = c.readUntil(0x0f);
+			PacketReader hr = new PacketReader(htmlBytes);
+			assertEquals(0x0f, hr.readC());
+			assertEquals(npc.objectId(), hr.readD());
+			String html = hr.readS();
+			assertTrue(html.contains("Roxxy") || html.contains("Quest"), "html contem texto do NPC: " + html);
+
+			// Clica no botao de Teleport (bypass npc_%objectId%_Chat 1)
+			c.send(new PacketWriter().writeC(0x21).writeS("npc_" + npc.objectId() + "_Chat 1").toByteArray());
+
+			// Deve receber novo NpcHtmlMessage (0x0f) com a subpagina de teleporte!
+			byte[] subPageBytes = c.readUntil(0x0f);
+			PacketReader subR = new PacketReader(subPageBytes);
+			assertEquals(0x0f, subR.readC());
+			assertEquals(npc.objectId(), subR.readD());
+			String subHtml = subR.readS();
+			assertTrue(subHtml.contains("Gludin") || subHtml.contains("goto") || subHtml.contains("Adena"),
+					"sub-pagina de teleporte carregada: " + subHtml);
 		}
 	}
 }

@@ -691,4 +691,16 @@ public sealed interface GameServerPacket {
 			return w.toByteArray();
 		}
 	}
+
+	/** 0x0f NpcHtmlMessage: janela de dialogo de NPC com HTML do L2 e bypasses. */
+	record NpcHtmlMessage(int npcObjectId, String html, int itemId) implements GameServerPacket {
+		public NpcHtmlMessage(int npcObjectId, String html) {
+			this(npcObjectId, html, 0);
+		}
+
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x0f).writeD(npcObjectId).writeS(html).writeD(itemId).toByteArray();
+		}
+	}
 }
