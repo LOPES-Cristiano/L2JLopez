@@ -54,7 +54,8 @@ class GameSessionFeaturesTest {
 		var charService = new com.lopez.l2j.game.service.CharacterService(null, charTemplates, inventoryService);
 		var combat = new CombatService();
 
-		var ctx = new GameSession.Context(746, 746, null, charService, inventoryService, world, null,
+		var htmls = new com.lopez.l2j.game.html.HtmCache("data/html");
+		var ctx = new GameSession.Context(746, 746, null, charService, inventoryService, world, htmls,
 				null, null, combat, null, null, null, null, null, null, "TestServer");
 
 		player = new PlayerCharacter(1001, "Archer", "Hero", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
@@ -220,6 +221,94 @@ class GameSessionFeaturesTest {
 		assertTrue(player.currentHp() > 0, "HP deve ser restaurado");
 		assertTrue(sent.stream().anyMatch(p -> p instanceof Revive), "Deve enviar pacote Revive");
 		assertTrue(sent.stream().anyMatch(p -> p instanceof TeleportToLocation), "Deve enviar TeleportToLocation para a vila");
+	}
+
+	@Test
+	void userCommandLocSendsCoordinates() {
+		// Envia opcode 0xaa (RequestUserCommand, id = 0 -> /loc)
+		session.handle(new byte[] { (byte) 0xaa, 0x00, 0x00, 0x00, 0x00 });
+
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.CreatureSay cs && cs.text().contains("Location:")),
+				"Comando /loc deve enviar as coordenadas atuais no chat");
+	}
+
+	@Test
+	void userCommandUnstuckStartsCastAndGauge() {
+		// Envia opcode 0xaa (RequestUserCommand, id = 52 -> /unstuck)
+		session.handle(new byte[] { (byte) 0xaa, 0x34, 0x00, 0x00, 0x00 });
+
+		assertTrue(sent.stream().anyMatch(p -> p instanceof SetupGauge),
+				"Comando /unstuck deve enviar barra de progresso (SetupGauge)");
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.MagicSkillUse msu && msu.skillId() == 2099),
+				"Comando /unstuck deve disparar o skill 2099 de fuga");
+	}
+
+	@Test
+	void chatSlashCommandTargetSelectsNearestMob() {
+		// Envia Say2 com "/target Gremlin"
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("/target Gremlin", 0, null));
+
+		assertTrue(sent.stream().anyMatch(p -> p instanceof MyTargetSelected mts && mts.objectId() == monster.objectId()),
+				"Comando /target deve selecionar o mob mais proximo pelo nome");
+	}
+
+	@Test
+	void bypassWithHyphenHPrefixIsProperlyHandled() {
+		// Cliente envia bypass com prefixo retail "-h npc_%objectId%_Chat 1"
+		invokeMethod(session, "onBypass", new Class<?>[] { GameClientPacket.RequestBypassToServer.class },
+				new GameClientPacket.RequestBypassToServer("-h npc_30001_Chat 1"));
+
+		// Deve responder com NpcHtmlMessage em vez de falhar com ActionFailed
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.NpcHtmlMessage),
+				"Bypass com prefixo retail -h deve abrir o dialogo do NPC com sucesso");
+	}
+
+	@Test
+	void chatDotOnlineCommandReturnsOnlineCount() {
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2(".online", 0, null));
+
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.CreatureSay cs && cs.text().contains("Jogadores online:")),
+				"Comando .online deve informar a quantidade de jogadores");
+	}
+
+	@Test
+	void spiritshotBoostsMagicDamage() {
+		var charTemplates = new CharTemplateTable();
+		var template = charTemplates.get(player.classId()).orElseThrow();
+		var combat = new CombatService();
+		monster.currentHp(1000.0);
+		monster.dead(false);
+		var normalHit = combat.skillMagicNpc(player, template, monster, 40.0, false, false);
+
+		monster.currentHp(1000.0);
+		monster.dead(false);
+		var spsHit = combat.skillMagicNpc(player, template, monster, 40.0, true, false);
+
+		monster.currentHp(1000.0);
+		monster.dead(false);
+		var bssHit = combat.skillMagicNpc(player, template, monster, 40.0, false, true);
+
+		assertTrue(spsHit.damage() > normalHit.damage(), "Spiritshot normal deve causar mais dano magico que sem shot");
+		assertTrue(bssHit.damage() > spsHit.damage(), "Blessed Spiritshot deve causar mais dano magico que Spiritshot normal");
+	}
+
+	@Test
+	void chargeSpiritShotConsumesItemAndSetsCharged() {
+		// Adiciona Spiritshot No-Grade (item 2509) e equipa arma No-Grade (item 14)
+		var weapon = inventoryService.addItem(player.inventory(), 14, 1, "Test").item();
+		inventoryService.toggleEquip(player.inventory(), weapon.objectId());
+		inventoryService.addItem(player.inventory(), 2509, 10, "Test");
+
+		// Usa o consumivel Spiritshot No-Grade
+		var shot = com.lopez.l2j.game.effect.ConsumableTable.get(2509).orElseThrow();
+		invokeMethod(session, "useConsumable", new Class<?>[] { com.lopez.l2j.game.effect.ConsumableTable.Consumable.class }, shot);
+
+		// Verifica que consumiu 1 unidade e enviou ENABLED_SOULSHOT
+		assertEquals(9, player.inventory().byItemId(2509).orElseThrow().count(), "Deve ter consumido 1 spiritshot");
+		assertTrue(sent.stream().anyMatch(p -> p instanceof SystemMessage sm && sm.id() == SystemMessage.ENABLED_SOULSHOT),
+				"Deve notificar que o shot foi ativado na arma");
 	}
 
 	private static void invokeMethod(Object target, String name, Class<?>[] paramTypes, Object... args) {

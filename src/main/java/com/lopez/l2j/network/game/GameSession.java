@@ -227,6 +227,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private final Set<Integer> autoSoulShots = ConcurrentHashMap.newKeySet();
 	private volatile boolean soulshotCharged;
 	private volatile int chargedGrade = -1;
+	private volatile boolean spiritshotCharged;
+	private volatile boolean blessedSpiritshot;
+	private volatile int chargedSpSGrade = -1;
+	private ScheduledFuture<?> regenTask;
 	/** Reuse por skillId do consumivel (epoch ms em que libera). */
 	private final Map<Integer, Long> consumableReuse = new ConcurrentHashMap<>();
 	/** Curas ao longo do tempo ativas por stackType (HpRecover/MpRecover). */
@@ -331,6 +335,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case GameClientPacket.RequestOustPartyMember p -> onExpelPartyMember(p.name());
 			case GameClientPacket.RequestShowMiniMap p -> onShowMiniMap();
 			case GameClientPacket.RequestRestartPoint p -> onRestartPoint(p);
+			case GameClientPacket.RequestUserCommand p -> onUserCommand(p.commandId());
 			case Unknown p -> log.debug("Opcode ignorado 0x{}{} no estado {}", Integer.toHexString(p.opcode()),
 					p.subOpcode() >= 0 ? ":" + Integer.toHexString(p.subOpcode()) : "", state);
 		}
@@ -462,6 +467,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new ClientSetTime(GameTime.now()));
 		ctx.world().add(this);
 		ctx.characters().save(active, true);
+		startVitalsRegenTask();
 		updateKnownObjects();
 		send(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, ctx.serverName(),
 				"Bem-vindo ao " + ctx.serverName() + ", " + active.name() + "!"));
@@ -523,6 +529,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			currentAround.add(id);
 			if (knownObjects.add(id)) {
 				send(new NpcInfo(npc));
+				if (npc.isDead()) {
+					send(new Die(npc.objectId(), false));
+				}
 			}
 		}
 
@@ -566,6 +575,15 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		String raw = p.text().length() > MAX_CHAT_LENGTH ? p.text().substring(0, MAX_CHAT_LENGTH) : p.text();
 		raw = raw.trim();
+
+		if (raw.startsWith("/")) {
+			handleSlashCommand(raw);
+			return;
+		}
+		if (raw.startsWith(".")) {
+			handleDotCommand(raw);
+			return;
+		}
 
 		int channel = p.channel();
 		String text = raw;
@@ -837,6 +855,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}, timeToHit, TimeUnit.MILLISECONDS);
 	}
 
+	private void schedulePlayerAutoAttack(NpcInstance npc) {
+		schedulePlayerAutoAttack(npc, 100);
+	}
+
 	private void schedulePlayerAutoAttack(NpcInstance npc, long delayMs) {
 		if (!autoAttacking || active == null || npc == null || npc.isDead()) {
 			return;
@@ -946,6 +968,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		String cmd = p.command().trim();
+		if (cmd.startsWith("-h ")) {
+			cmd = cmd.substring(3).trim();
+		} else if (cmd.startsWith("-h")) {
+			cmd = cmd.substring(2).trim();
+		}
 		if (cmd.startsWith("npc_")) {
 			// Formato: npc_%objectId%_Chat 1 ou npc_%objectId%_Quest etc
 			String[] parts = cmd.split("_", 3);
@@ -967,6 +994,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 							showNpcHtml(npc, val);
 							return;
 						} else if (action.startsWith("Quest")) {
+							String questArg = action.length() > 5 ? action.substring(5).trim() : "";
+							if (!questArg.isEmpty() && ctx.htmls() != null) {
+								String qHtml = ctx.htmls().getHtml("teleporter/" + questArg + ".htm");
+								if (qHtml == null) {
+									qHtml = ctx.htmls().getHtml("default/" + questArg + ".htm");
+								}
+								if (qHtml != null) {
+									send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(qHtml, npc.objectId(), npc.name(), active.name())));
+									return;
+								}
+							}
 							showNpcHtml(npc, 0);
 							return;
 						} else if (action.startsWith("SkillList")) {
@@ -986,6 +1024,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 								return;
 							} catch (NumberFormatException ignored) {
 							}
+						} else if (action.startsWith("Deposit") || action.startsWith("Withdraw")) {
+							send(ItemList.of(active.inventory().items(), true));
+							return;
 						}
 					}
 				} catch (NumberFormatException ignored) {
@@ -1363,6 +1404,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			chargeSoulShot(c.itemId(), false);
 			return;
 		}
+		if (c.type() == ConsumableTable.Type.SPIRITSHOT || c.type() == ConsumableTable.Type.BLESSED_SPIRITSHOT) {
+			chargeSpiritShot(c.itemId(), false, c.type() == ConsumableTable.Type.BLESSED_SPIRITSHOT);
+			return;
+		}
 		long now = System.currentTimeMillis();
 		Long readyAt = consumableReuse.get(c.skillId());
 		if (readyAt != null && readyAt > now) {
@@ -1573,8 +1618,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (!inWorld || active.isDead()) {
 			return;
 		}
-		if (!ConsumableTable.isSoulshot(p.itemId())) {
-			// spiritshots/beast shots ainda sem sistema de magia: so garante o icone apagado
+		if (!ConsumableTable.isShot(p.itemId())) {
 			send(new ExAutoSoulShot(p.itemId(), 0));
 			return;
 		}
@@ -1586,7 +1630,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			autoSoulShots.add(p.itemId());
 			send(new ExAutoSoulShot(p.itemId(), 1));
 			send(SystemMessage.of(SystemMessage.USE_OF_S1_WILL_BE_AUTO, name));
-			chargeSoulShot(p.itemId(), false);
+			if (ConsumableTable.isSoulshot(p.itemId())) {
+				chargeSoulShot(p.itemId(), false);
+			} else {
+				chargeSpiritShot(p.itemId(), false, ConsumableTable.isBlessedSpiritshot(p.itemId()));
+			}
 		} else {
 			autoSoulShots.remove(p.itemId());
 			send(new ExAutoSoulShot(p.itemId(), 0));
@@ -1596,8 +1644,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	private void rechargeAutoSoulShots() {
 		for (int itemId : autoSoulShots) {
-			if (chargeSoulShot(itemId, true)) {
-				return;
+			if (ConsumableTable.isSoulshot(itemId)) {
+				if (!soulshotCharged && chargeSoulShot(itemId, true)) {
+					// soulshot carregado
+				}
+			} else if (ConsumableTable.isSpiritshot(itemId)) {
+				if (!spiritshotCharged && chargeSpiritShot(itemId, true, ConsumableTable.isBlessedSpiritshot(itemId))) {
+					// spiritshot carregado
+				}
 			}
 		}
 	}
@@ -1648,6 +1702,45 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		chargedGrade = weaponGrade;
 		soulshotCharged = true;
+		send(SystemMessage.id(SystemMessage.ENABLED_SOULSHOT));
+		broadcastSelfSkill(c.skillId(), 1);
+		return true;
+	}
+
+	private boolean chargeSpiritShot(int itemId, boolean quiet, boolean blessed) {
+		if (spiritshotCharged) {
+			return true;
+		}
+		var c = ConsumableTable.get(itemId).orElse(null);
+		if (c == null) {
+			return false;
+		}
+		var weapon = activeWeapon();
+		if (weapon == null) {
+			if (!quiet) {
+				send(SystemMessage.id(SystemMessage.CANNOT_USE_SOULSHOTS));
+			}
+			return false;
+		}
+		int weaponGrade = ConsumableTable.gradeIndex(weapon.template().crystalType());
+		if (weaponGrade != ConsumableTable.gradeIndex(c.grade())) {
+			if (!quiet) {
+				send(SystemMessage.id(SystemMessage.SOULSHOTS_GRADE_MISMATCH));
+			}
+			return false;
+		}
+		if (!consumeItem(itemId, 1)) {
+			if (autoSoulShots.remove(itemId)) {
+				send(new ExAutoSoulShot(itemId, 0));
+				send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, new SystemMessage.ItemName(itemId)));
+			} else {
+				send(SystemMessage.id(SystemMessage.NOT_ENOUGH_SOULSHOTS));
+			}
+			return false;
+		}
+		chargedSpSGrade = weaponGrade;
+		blessedSpiritshot = blessed;
+		spiritshotCharged = true;
 		send(SystemMessage.id(SystemMessage.ENABLED_SOULSHOT));
 		broadcastSelfSkill(c.skillId(), 1);
 		return true;
@@ -1720,6 +1813,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		hotTasks.clear();
 		autoSoulShots.clear();
 		soulshotCharged = false;
+		spiritshotCharged = false;
+		stopVitalsRegenTask();
 		consumableReuse.clear();
 		skillReuse.clear();
 		var cast = castTask;
@@ -1871,8 +1966,18 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		// Inicio da conjuracao
 		var t = ctx.characters().template(active);
 		var stats = PlayerStats.calculate(active, t);
+		if (sk.magic() && !spiritshotCharged) {
+			rechargeAutoSoulShots();
+		}
+		boolean sps = sk.magic() && spiritshotCharged && !blessedSpiritshot;
+		boolean bss = sk.magic() && spiritshotCharged && blessedSpiritshot;
+		spiritshotCharged = false;
+
 		double speedFactor = 333.0 / Math.max(1, sk.magic() ? stats.mAtkSpd() : stats.pAtkSpd());
-		int hitTime = sk.hitTime() > 0 ? Math.max(300, (int) (sk.hitTime() * speedFactor)) : 0;
+		if (bss) {
+			speedFactor *= 0.65;
+		}
+		int hitTime = sk.hitTime() > 0 ? Math.max(150, (int) (sk.hitTime() * speedFactor)) : 0;
 		int reuse = (int) (sk.reuseDelay() * speedFactor);
 		active.currentMp(active.currentMp() - sk.mpInitialConsume());
 		if (reuse > 0) {
@@ -1905,7 +2010,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				return;
 			}
 			try {
-				finishCast(sk, npc, friend, resumeAttack);
+				finishCast(sk, npc, friend, resumeAttack, sps, bss);
 			} catch (RuntimeException e) {
 				log.warn("Erro ao finalizar skill {} de {}: {}", sk.id(), owner.name(), e.toString());
 			}
@@ -1918,7 +2023,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	/** onMagicHitTimer: gasta MP, dispara o skill e aplica nos alvos. */
-	private void finishCast(SkillTemplate sk, NpcInstance mainNpc, GameSession friend, boolean resumeAttack) {
+	private void finishCast(SkillTemplate sk, NpcInstance mainNpc, GameSession friend, boolean resumeAttack,
+			boolean sps, boolean bss) {
 		if (active.currentMp() < sk.mpConsume()) {
 			send(SystemMessage.id(SystemMessage.NOT_ENOUGH_MP));
 			return;
@@ -1955,7 +2061,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				soulshotCharged = false;
 			}
 			for (NpcInstance n : targets) {
-				applyOffensive(sk, n, t, ss);
+				applyOffensive(sk, n, t, ss, sps, bss);
 			}
 			sendVitals();
 			if (resumeAttack && mainNpc != null && !mainNpc.isDead() && targetObjectId == mainNpc.objectId()) {
@@ -1978,7 +2084,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	/** Dano + debuffs de um skill ofensivo num monstro. */
-	private void applyOffensive(SkillTemplate sk, NpcInstance npc, CharTemplate t, boolean soulshot) {
+	private void applyOffensive(SkillTemplate sk, NpcInstance npc, CharTemplate t, boolean soulshot,
+			boolean sps, boolean bss) {
 		var combat = ctx.combat();
 		if (combat == null) {
 			return;
@@ -1987,7 +2094,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (sk.isPhysicalDamage()) {
 			hit = combat.skillPhysicalNpc(active, t, npc, sk.power(), soulshot, sk.skillType().equals("BLOW"));
 		} else if (sk.isMagicDamage() && sk.power() > 0) {
-			hit = combat.skillMagicNpc(active, t, npc, sk.power());
+			hit = combat.skillMagicNpc(active, t, npc, sk.power(), sps, bss);
 			if (sk.skillType().equals("DRAIN") && hit.damage() > 0) {
 				double absorb = sk.absorbPart() > 0 ? sk.absorbPart() : 0.2;
 				active.currentHp(active.currentHp() + hit.damage() * absorb);
@@ -2040,6 +2147,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (hit.isDead()) {
 			if (ctx.npcAi() != null) {
 				ctx.npcAi().stopCombat(npc);
+				ctx.npcAi().scheduleDecayAndRespawn(npc);
 			}
 			if (targetObjectId == npc.objectId() && autoAttacking) {
 				autoAttacking = false;
@@ -2049,7 +2157,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			var die = new Die(npc.objectId(), false);
 			send(die);
 			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, die, false);
-			applyExpAndSp(hit.expReward(), hit.spReward(), t);
+			if (party != null) {
+				double ratePartyXp = ctx.rates() != null ? ctx.rates().partyXp() : 1.0;
+				double ratePartySp = ctx.rates() != null ? ctx.rates().partySp() : 1.0;
+				party.distributeExpAndSp(hit.expReward(), hit.spReward(), active, ratePartyXp, ratePartySp);
+			} else {
+				applyExpAndSp(hit.expReward(), hit.spReward(), t);
+			}
 			if (ctx.drops() != null) {
 				ctx.drops().rewardMonsterDeath(active, npc.npcId(), ctx.inventories(), this::send);
 			}
@@ -2565,7 +2679,200 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				send(new GameServerPacket.JoinParty(1));
 			}
 		}
+	private void startVitalsRegenTask() {
+		stopVitalsRegenTask();
+		PlayerCharacter owner = active;
+		regenTask = autoAttackScheduler.scheduleAtFixedRate(() -> {
+			try {
+				if (active != owner || !inWorld || owner == null || owner.isDead()) {
+					return;
+				}
+				boolean updated = false;
+				double maxHp = owner.maxHp();
+				double maxMp = owner.maxMp();
+				double maxCp = owner.maxCp();
+
+				// Multiplicador de postura (sentado recupera muito mais rapido)
+				double stanceMod = owner.sitting() ? 1.5 : (owner.running() ? 0.7 : 1.1);
+
+				// Bonus de atributos
+				var t = ctx.characters() != null ? ctx.characters().template(owner) : null;
+				int con = t != null ? t.con() : 25;
+				int men = t != null ? t.men() : 25;
+				double conBonus = Math.max(0.5, con / 25.0);
+				double menBonus = Math.max(0.5, men / 25.0);
+
+				// 1. HP Regen: base ~ 1.5 + level/10
+				if (owner.currentHp() < maxHp) {
+					double baseHpRegen = (1.5 + (owner.level() / 10.0)) * conBonus * stanceMod;
+					double newHp = Math.min(maxHp, owner.currentHp() + baseHpRegen);
+					if (newHp != owner.currentHp()) {
+						owner.currentHp(newHp);
+						updated = true;
+					}
+				}
+
+				// 2. MP Regen: base ~ 0.9 + level/12
+				if (owner.currentMp() < maxMp) {
+					double baseMpRegen = (0.9 + (owner.level() / 12.0)) * menBonus * stanceMod;
+					double newMp = Math.min(maxMp, owner.currentMp() + baseMpRegen);
+					if (newMp != owner.currentMp()) {
+						owner.currentMp(newMp);
+						updated = true;
+					}
+				}
+
+				// 3. CP Regen: base ~ 1.0 + level/15
+				if (owner.currentCp() < maxCp) {
+					double baseCpRegen = (1.0 + (owner.level() / 15.0)) * conBonus * stanceMod;
+					double newCp = Math.min(maxCp, owner.currentCp() + baseCpRegen);
+					if (newCp != owner.currentCp()) {
+						owner.currentCp(newCp);
+						updated = true;
+					}
+				}
+
+				if (updated) {
+					sendVitals();
+				}
+			} catch (Exception e) {
+				log.debug("Erro no tick de regeneracao: {}", e.getMessage());
+			}
+		}, 3000, 3000, TimeUnit.MILLISECONDS);
 	}
+
+	private void stopVitalsRegenTask() {
+		if (regenTask != null) {
+			regenTask.cancel(false);
+			regenTask = null;
+		}
+	}
+
+	private void onUserCommand(int commandId) {
+		if (!inWorld || active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		switch (commandId) {
+			case 0 -> { // /loc
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						String.format("Location: %d, %d, %d", active.x(), active.y(), active.z())));
+			}
+			case 52 -> { // /unstuck
+				if (active.isDead() || casting) {
+					send(new ActionFailed());
+					return;
+				}
+				int hitTime = 30_000; // 30 segundos
+				send(new GameServerPacket.SetupGauge(GameServerPacket.SetupGauge.BLUE, hitTime));
+				var msu = new MagicSkillUse(active.objectId(), active.objectId(), 2099, 1, hitTime, 0,
+						active.x(), active.y(), active.z(), active.x(), active.y(), active.z());
+				send(msu);
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msu, false);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Transporting to the nearest village in 30 seconds..."));
+
+				casting = true;
+				castTask = autoAttackScheduler.schedule(() -> {
+					casting = false;
+					if (!inWorld || active == null || active.isDead()) {
+						return;
+					}
+					int[] dest = findNearestTown(active.x(), active.y());
+					active.moveTo(dest[0], dest[1], dest[2]);
+					ctx.characters().save(active, true);
+					var tele = new TeleportToLocation(active.objectId(), dest[0], dest[1], dest[2]);
+					send(tele);
+					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, tele, false);
+					updateKnownObjects();
+				}, hitTime, TimeUnit.MILLISECONDS);
+			}
+			case 77 -> { // /time
+				int now = GameTime.now();
+				int h = (now / 60) % 24;
+				int m = now % 60;
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", String.format("Game time: %02d:%02d", h, m)));
+			}
+			default -> log.debug("UserCommand {} nao tratado", commandId);
+		}
+	}
+
+	private void handleSlashCommand(String cmd) {
+		String lower = cmd.toLowerCase(java.util.Locale.ROOT).trim();
+		if (lower.equals("/loc")) {
+			onUserCommand(0);
+		} else if (lower.equals("/unstuck")) {
+			onUserCommand(52);
+		} else if (lower.equals("/time")) {
+			onUserCommand(77);
+		} else if (lower.startsWith("/target ")) {
+			String name = cmd.substring(8).trim().toLowerCase(java.util.Locale.ROOT);
+			if (!name.isEmpty()) {
+				targetByName(name);
+			}
+		} else if (lower.equals("/sit") || lower.equals("/stand")) {
+			onActionUse(new GameClientPacket.RequestActionUse(0, false, false));
+		} else if (lower.equals("/attack")) {
+			onActionUse(new GameClientPacket.RequestActionUse(2, false, false));
+		} else if (lower.equals("/leave") || lower.equals("/partyleave")) {
+			onLeaveParty();
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Comando: " + cmd));
+		}
+	}
+
+	private void targetByName(String query) {
+		NpcInstance bestNpc = null;
+		double bestNpcDistSq = Double.MAX_VALUE;
+		for (var npc : ctx.world().findNpcsAround(active.x(), active.y(), GameWorld.VISIBILITY_RADIUS)) {
+			if (npc.name().toLowerCase(java.util.Locale.ROOT).startsWith(query)) {
+				double dx = active.x() - npc.x();
+				double dy = active.y() - npc.y();
+				double distSq = dx * dx + dy * dy;
+				if (distSq < bestNpcDistSq) {
+					bestNpcDistSq = distSq;
+					bestNpc = npc;
+				}
+			}
+		}
+		if (bestNpc != null) {
+			targetObjectId = bestNpc.objectId();
+			int levelDiff = active.level() - bestNpc.template().level();
+			send(new MyTargetSelected(bestNpc.objectId(), levelDiff));
+			send(StatusUpdate.hp(bestNpc.objectId(), (int) bestNpc.currentHp(), bestNpc.template().maxHp()));
+			send(new ValidateLocation(bestNpc.objectId(), bestNpc.x(), bestNpc.y(), bestNpc.z(), bestNpc.heading()));
+			return;
+		}
+
+		for (var other : ctx.world().players()) {
+			if (other.objectId() != active.objectId() && other.name().toLowerCase(java.util.Locale.ROOT).startsWith(query)) {
+				targetObjectId = other.objectId();
+				send(new MyTargetSelected(other.objectId(), 0));
+				if (other.character() != null) {
+					send(StatusUpdate.hp(other.objectId(), (int) other.character().currentHp(), other.character().maxHp()));
+				}
+				send(new ValidateLocation(other.objectId(), other.x(), other.y(), other.z(), 0));
+				return;
+			}
+		}
+		send(new ActionFailed());
+	}
+
+	private void handleDotCommand(String cmd) {
+		String lower = cmd.toLowerCase(java.util.Locale.ROOT).trim();
+		if (lower.equals(".online")) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Jogadores online: " + ctx.world().players().size()));
+		} else if (lower.equals(".stats") || lower.equals(".menu")) {
+			var t = ctx.characters() != null ? ctx.characters().template(active) : null;
+			var stats = PlayerStats.calculate(active, t);
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					String.format("%s (Nv %d): P.Atk %d, M.Atk %d, P.Def %d, M.Def %d, AtkSpd %d, CastSpd %d",
+							active.name(), active.level(), stats.pAtk(), stats.mAtk(), stats.pDef(), stats.mDef(),
+							stats.pAtkSpd(), stats.mAtkSpd())));
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Comandos de voz: .online, .stats"));
+		}
+	}
+
 	@Override
 	public void send(GameServerPacket packet) {
 		sink.accept(packet);

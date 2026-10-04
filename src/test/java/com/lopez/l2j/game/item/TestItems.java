@@ -69,6 +69,8 @@ public final class TestItems {
 						true, true, true, true),
 				ItemTemplate.etc(HEALING_POTION, HEALING_POTION, "Lesser Healing Potion", "potion", "stackable", 5,
 						"none", 0, true, true, true, true),
+				ItemTemplate.etc(2509, 2509, "Spiritshot: No Grade", "spiritshot", "stackable", 5, "none", 0, true,
+						true, true, true),
 				ItemTemplate.etc(736, 736, "Scroll of Escape", "scroll", "none", 100, "none", 0, false, true,
 						true, true));
 	}
