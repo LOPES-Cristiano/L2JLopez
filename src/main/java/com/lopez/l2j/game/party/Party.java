@@ -117,6 +117,7 @@ public final class Party {
 		if (!members.remove(session)) {
 			return;
 		}
+		session.party(null);
 		var leavingChar = session.character();
 		session.send(new PartySmallWindowDeleteAll());
 
@@ -133,6 +134,27 @@ public final class Party {
 			if (newLeader != null) {
 				leaderObjectId = newLeader.objectId();
 				refreshPartyWindow();
+			}
+		} else {
+			refreshPartyWindow();
+		}
+	}
+
+	public synchronized void oust(String name) {
+		for (var s : members) {
+			if (s.character() != null && s.character().name().equalsIgnoreCase(name)) {
+				removeMember(s);
+				return;
+			}
+		}
+	}
+
+	public synchronized void changeLeader(int newLeaderObjId) {
+		for (var s : members) {
+			if (s.character() != null && s.character().objectId() == newLeaderObjId) {
+				leaderObjectId = newLeaderObjId;
+				refreshPartyWindow();
+				return;
 			}
 		}
 	}

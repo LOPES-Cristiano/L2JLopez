@@ -20,7 +20,10 @@ import com.lopez.l2j.network.game.packet.GameClientPacket;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ActionFailed;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Attack;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ChangeWaitType;
+import com.lopez.l2j.network.game.packet.GameServerPacket.MyTargetSelected;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SetupGauge;
+import com.lopez.l2j.network.game.packet.GameServerPacket.SocialAction;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import java.util.ArrayList;
 import java.util.List;
@@ -155,6 +158,41 @@ class GameSessionFeaturesTest {
 
 		// Deve ter enviado SetupGauge da barra de conjuracao
 		assertTrue(sent.stream().anyMatch(p -> p instanceof SetupGauge), "Deve exibir a barra de conjuracao");
+	}
+
+	@Test
+	void socialActionSendsSocialPacket() {
+		// Envia opcode 0x1b com actionId 8 (Danca)
+		session.handle(new byte[] { 0x1b, 0x08, 0x00, 0x00, 0x00 });
+
+		assertTrue(sent.stream().anyMatch(p -> p instanceof SocialAction sa && sa.actionId() == 8),
+				"Deve emitir pacote SocialAction correspondente a acao social clicada");
+	}
+
+	@Test
+	void sitStandTogglesSittingAndSendsChangeWaitType() {
+		assertFalse(player.sitting());
+
+		// Envia Action 0 (Sit)
+		session.handle(new byte[] { 0x45, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 });
+		assertTrue(player.sitting(), "Personagem deve estar sentado");
+		assertTrue(sent.stream().anyMatch(p -> p instanceof ChangeWaitType cwt && cwt.type() == 0),
+				"Deve enviar ChangeWaitType tipo 0 (sentado)");
+
+		// Envia Action 0 (Stand)
+		session.handle(new byte[] { 0x45, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 });
+		assertFalse(player.sitting(), "Personagem deve estar em pe");
+		assertTrue(sent.stream().anyMatch(p -> p instanceof ChangeWaitType cwt && cwt.type() == 1),
+				"Deve enviar ChangeWaitType tipo 1 (em pe)");
+	}
+
+	@Test
+	void nextTargetSelectsNearestAttackableMob() {
+		// Dispara Action 4 (Target Next)
+		session.handle(new byte[] { 0x45, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 });
+
+		assertTrue(sent.stream().anyMatch(p -> p instanceof MyTargetSelected mts && mts.objectId() == monster.objectId()),
+				"Target Next deve selecionar o monstro mais proximo");
 	}
 
 	private static void invokeMethod(Object target, String name, Class<?>[] paramTypes, Object... args) {

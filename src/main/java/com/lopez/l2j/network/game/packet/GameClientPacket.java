@@ -60,6 +60,15 @@ public sealed interface GameClientPacket {
 	record RequestActionUse(int actionId, boolean ctrl, boolean shift) implements GameClientPacket {
 	}
 
+	record RequestSocialAction(int actionId) implements GameClientPacket {
+	}
+
+	record RequestWithDrawalParty() implements GameClientPacket {
+	}
+
+	record RequestOustPartyMember(String name) implements GameClientPacket {
+	}
+
 	record RequestItemList() implements GameClientPacket {
 	}
 
@@ -165,9 +174,12 @@ public sealed interface GameClientPacket {
 					case 0x38 -> say2(r);
 					case 0x04 -> new Action(r.readD(), r.readD(), r.readD(), r.readD(), r.readC());
 					case 0x21 -> new RequestBypassToServer(r.readS());
+					case 0x1b -> new RequestSocialAction(r.readD());
 					case 0x1f -> readBuyItem(r);
 					case 0x29 -> new RequestJoinParty(r.readS(), r.readD());
 					case 0x2a -> new RequestAnswerJoinParty(r.readD());
+					case 0x2b -> new RequestWithDrawalParty();
+					case 0x2c -> new RequestOustPartyMember(r.readS());
 					case 0x2f -> new RequestMagicSkillUse(r.readD(), r.readD() != 0, r.readC() != 0);
 					case 0x33 -> new RequestShortCutReg(r.readD(), r.readD(), r.readD(), r.readD());
 					case 0x35 -> new RequestShortCutDel(r.readD());

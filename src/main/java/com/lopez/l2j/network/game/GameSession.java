@@ -7,6 +7,7 @@ import com.lopez.l2j.game.service.CharacterService;
 import com.lopez.l2j.game.service.CharacterService.CreateRequest;
 import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.game.service.InventoryService.EquipResult;
+import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameClientPacket;
 import com.lopez.l2j.network.game.packet.GameClientPacket.Action;
@@ -322,6 +323,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case GameClientPacket.RequestExEnchantSkill p -> log.debug("RequestExEnchantSkill recebido: {}", p);
 			case GameClientPacket.RequestJoinParty p -> onJoinParty(p);
 			case GameClientPacket.RequestAnswerJoinParty p -> onAnswerJoinParty(p);
+			case GameClientPacket.RequestSocialAction p -> onSocialAction(p);
+			case GameClientPacket.RequestWithDrawalParty p -> onLeaveParty();
+			case GameClientPacket.RequestOustPartyMember p -> onExpelPartyMember(p.name());
 			case Unknown p -> log.debug("Opcode ignorado 0x{}{} no estado {}", Integer.toHexString(p.opcode()),
 					p.subOpcode() >= 0 ? ":" + Integer.toHexString(p.subOpcode()) : "", state);
 		}
@@ -1120,19 +1124,24 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	private void onActionUse(RequestActionUse p) {
-		if (!inWorld || active == null) {
+		if (!inWorld || active == null || active.isDead()) {
+			send(new ActionFailed());
 			return;
 		}
 		switch (p.actionId()) {
-			case 0 -> {
+			case 0 -> { // Sit / Stand
 				active.sitting(!active.sitting());
-				send(new ChangeWaitType(active.objectId(), active.sitting() ? 0 : 1, x(), y(), z()));
+				var wait = new ChangeWaitType(active.objectId(), active.sitting() ? 0 : 1, x(), y(), z());
+				send(wait);
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, wait, false);
 			}
-			case 1 -> {
+			case 1 -> { // Walk / Run
 				active.running(!active.running());
-				send(new ChangeMoveType(active.objectId(), active.running()));
+				var move = new ChangeMoveType(active.objectId(), active.running());
+				send(move);
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, move, false);
 			}
-			case 2 -> { // Acao de Ataque (icone de espada na barra de acoes / atalhos)
+			case 2 -> { // Acao de Ataque (icone de espada)
 				if (targetObjectId != 0) {
 					var npcOpt = ctx.world().npc(targetObjectId);
 					if (npcOpt.isPresent()) {
@@ -1158,7 +1167,118 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				}
 				send(new ActionFailed());
 			}
+			case 3 -> { // Trade com alvo selecionado
+				if (targetObjectId != 0) {
+					var targetPlayerOpt = ctx.world().player(targetObjectId);
+					if (targetPlayerOpt.isPresent() && targetPlayerOpt.get() instanceof GameSession targetSession && targetSession != this) {
+						send(SystemMessage.of(SystemMessage.YOU_INVITED_S1_TO_PARTY, new SystemMessage.Text(targetSession.character().name())));
+						return;
+					}
+				}
+				send(new ActionFailed());
+			}
+			case 4 -> { // Target Next (proximo alvo / mob atacavel mais proximo)
+				double bestDistSq = 900.0 * 900.0;
+				NpcInstance bestNpc = null;
+				for (var npc : ctx.world().findNpcsAround(active.x(), active.y(), 900)) {
+					if (npc.template().isAttackable() && !npc.isDead()) {
+						double dx = active.x() - npc.x();
+						double dy = active.y() - npc.y();
+						double d2 = dx * dx + dy * dy;
+						if (d2 < bestDistSq) {
+							bestDistSq = d2;
+							bestNpc = npc;
+						}
+					}
+				}
+				if (bestNpc != null) {
+					targetObjectId = bestNpc.objectId();
+					send(new MyTargetSelected(bestNpc.objectId(), 0));
+					send(new ValidateLocation(bestNpc.objectId(), bestNpc.x(), bestNpc.y(), bestNpc.z(), bestNpc.heading()));
+				} else {
+					send(new ActionFailed());
+				}
+			}
+			case 5 -> { // Pickup
+				send(new ActionFailed());
+			}
+			case 6 -> { // Assist
+				if (targetObjectId != 0) {
+					var targetPlayerOpt = ctx.world().player(targetObjectId);
+					if (targetPlayerOpt.isPresent() && targetPlayerOpt.get() instanceof GameSession targetSession) {
+						if (targetSession.targetObjectId != 0) {
+							targetObjectId = targetSession.targetObjectId;
+							send(new MyTargetSelected(targetObjectId, 0));
+							return;
+						}
+					}
+				}
+				send(new ActionFailed());
+			}
+			case 15 -> { // Party Invite via icone
+				if (targetObjectId != 0) {
+					var targetPlayerOpt = ctx.world().player(targetObjectId);
+					if (targetPlayerOpt.isPresent() && targetPlayerOpt.get() instanceof GameSession targetSession && targetSession != this) {
+						onJoinParty(new GameClientPacket.RequestJoinParty(targetSession.character().name(), 0));
+						return;
+					}
+				}
+				send(new ActionFailed());
+			}
+			case 16 -> onLeaveParty(); // Party Leave
+			case 17 -> { // Party Dismiss / Expel
+				if (party != null && party.isLeader(active.objectId()) && targetObjectId != 0) {
+					var targetPlayerOpt = ctx.world().player(targetObjectId);
+					if (targetPlayerOpt.isPresent() && targetPlayerOpt.get() instanceof GameSession targetSession) {
+						party.oust(targetSession.character().name());
+						return;
+					}
+				}
+				send(new ActionFailed());
+			}
+			case 18 -> { // Change Party Leader
+				if (party != null && party.isLeader(active.objectId()) && targetObjectId != 0) {
+					party.changeLeader(targetObjectId);
+					return;
+				}
+				send(new ActionFailed());
+			}
 			default -> send(new ActionFailed());
+		}
+	}
+
+	private void onSocialAction(GameClientPacket.RequestSocialAction p) {
+		if (!inWorld || active == null || active.isDead() || active.sitting()) {
+			send(new ActionFailed());
+			return;
+		}
+		var pkt = new SocialAction(active.objectId(), p.actionId());
+		send(pkt);
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, pkt, false);
+	}
+
+	private void onLeaveParty() {
+		if (!inWorld || active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		if (party != null) {
+			party.removeMember(this);
+			this.party = null;
+		} else {
+			send(new ActionFailed());
+		}
+	}
+
+	private void onExpelPartyMember(String name) {
+		if (!inWorld || active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		if (party != null && party.isLeader(active.objectId())) {
+			party.oust(name);
+		} else {
+			send(new ActionFailed());
 		}
 	}
 
