@@ -46,6 +46,8 @@ public final class NpcInstance {
 	public void inCombat(boolean value) { this.inCombat = value; }
 	public boolean isRunning() { return running; }
 	public void running(boolean value) { this.running = value; }
+	public boolean isAttackable() { return template.isAttackable(); }
+	public boolean isMonster() { return template.isMonster(); }
 
 	public void moveTo(int x, int y, int z, int heading) {
 		this.x = x;
