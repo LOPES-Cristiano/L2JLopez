@@ -42,6 +42,10 @@ public class InventoryService {
 	public record AddResult(ItemInstance item, boolean created) {
 	}
 
+	/** Resultado de consumeItem: o item alterado/removido e se foi totalmente removido. */
+	public record ConsumeResult(ItemInstance item, boolean removed) {
+	}
+
 	private final ItemTemplateTable templates;
 	private final ItemRepository repository;
 	private final ObjectIdFactory ids;
@@ -150,6 +154,27 @@ public class InventoryService {
 			}
 		}
 		return new AddResult(first, true);
+	}
+
+	/** Consome ou remove uma quantidade de item/adena. Devolve null se saldo insuficiente ou contagem invalida. */
+	public ConsumeResult consumeItem(Inventory inv, int itemId, int count, String process) {
+		if (count <= 0) {
+			return null;
+		}
+		var opt = inv.byItemId(itemId);
+		if (opt.isEmpty() || opt.get().count() < count) {
+			return null;
+		}
+		ItemInstance item = opt.get();
+		if (item.count() == count) {
+			inv.remove(item);
+			repository.delete(item.objectId());
+			return new ConsumeResult(item, true);
+		} else {
+			item.count(item.count() - count);
+			repository.update(item);
+			return new ConsumeResult(item, false);
+		}
 	}
 
 	/** UseItem para equipaveis: alterna equipar/desequipar. */
