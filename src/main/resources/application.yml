@@ -11,6 +11,10 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+    # db/migration = schema (V1..V999); db/data = dados estaticos do legado (V1xxx). out-of-order permite novas
+    # migracoes de schema (V124+) depois que os dados ja foram aplicados.
+    locations: classpath:db/migration,classpath:db/data
+    out-of-order: true
 
 server:
   port: 8080

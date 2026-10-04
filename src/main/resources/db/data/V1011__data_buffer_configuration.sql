@@ -1,0 +1,36 @@
+-- Dados de tools/sql/buffer_configuration.sql do L2JDreamV2 (31 linhas). Gerado por GenDataMigrations; nao editar a mao.
+-- Valores legados ('' em colunas numericas etc.) exigem modo SQL nao estrito nesta sessao.
+SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION';
+INSERT INTO `buffer_configuration` VALUES
+('1', 'Window Title', 'Seperate new words with \',\' ! Example: My,buffer', 'title', 'test', 'string,3,36', '1'),
+('2', 'Window Style', 'Select a value from box and hit update', 'style', 'Icons+Buttons', 'custom,0,0', '1'),
+('3', 'Consumable ID', 'Enter a valid item ID', 'consumableId', '57', 'range,1,10000', '1'),
+('4', 'Minimum level', 'Enter a value from 1 to 85', 'minLevel', '2', 'range,1,85', '1'),
+('5', 'Buff player with karma', 'Select a value from box and hit update', 'buffWithKarma', 'True', 'bool,True,False', '1'),
+('6', 'Buffs for free', 'Select a value from box and hit update', 'freeBuffs', 'False', 'bool,True,False', '1'),
+('7', 'Enable healing option', 'Select a value from box and hit update', 'enableHeal', 'True', 'bool,True,False', '1'),
+('8', 'Healing price', 'Enter a value from 1 to 2000000000', 'healPrice', '1000', 'range,1,2000000000', '1'),
+('9', 'Enable removing buffs option', 'Select a value from box and hit update', 'enableBuffRemove', 'True', 'bool,True,False', '1'),
+('10', 'Buff removing price', 'Enter a value from 1 to 2000000000', 'buffRemovePrice', '5000', 'range,1,2000000000', '1'),
+('11', 'Enable Buffs', 'Select a value from box and hit update', 'enableBuffs', 'True', 'bool,True,False', '1'),
+('12', 'Enable Songs', 'Select a value from box and hit update', 'enableSongs', 'True', 'bool,True,False', '1'),
+('13', 'Enable Dances', 'Select a value from box and hit update', 'enableDances', 'False', 'bool,True,False', '1'),
+('14', 'Enable Chants', 'Select a value from box and hit update', 'enableChants', 'True', 'bool,True,False', '1'),
+('15', 'Enable Kamael buffs', 'Select a value from box and hit update', 'enableKamael', 'True', 'bool,True,False', '1'),
+('16', 'Enable Special buffs', 'Select a value from box and hit update', 'enableSpecial', 'True', 'bool,True,False', '1'),
+('17', 'Buff price', 'Enter a value from 1 to 2000000000', 'buffPrice', '2500', 'range,1,2000000000', '1'),
+('18', 'Song price', 'Enter a value from 1 to 2000000000', 'songPrice', '10000', 'range,1,2000000000', '1'),
+('19', 'Dance price', 'Enter a value from 1 to 2000000000', 'dancePrice', '10000', 'range,1,2000000000', '1'),
+('20', 'Chant price', 'Enter a value from 1 to 2000000000', 'chantPrice', '10000', 'range,1,2000000000', '1'),
+('21', 'Kamael buff price', 'Enter a value from 1 to 2000000000', 'kamaelPrice', '10000', 'range,1,2000000000', '1'),
+('22', 'Special buff price', 'Enter a value from 1 to 2000000000', 'specialPrice', '100000', 'range,1,2000000000', '1'),
+('23', 'Enable time out', 'Select a value from box and hit update', 'timeOut', 'True', 'bool,True,False', '1'),
+('24', 'Time out time', 'Enter a value from 1 to 10', 'timeOutTime', '2', 'range,1,10', '1'),
+('25', 'GM minimum access level', 'Enter a value from 0 to 200', 'gmAccessLevel', '100', 'range,0,200', '1'),
+('26', 'Enable online editing', 'Select a value from box and hit update', 'enableOnlineEditing', 'True', 'bool,True,False', '0'),
+('27', 'Enable VIP players', 'Select a value from box and hit update', 'enableVipSystem', 'True', 'bool,True,False', '1'),
+('28', 'Vip Buff Price (SP)', 'Enter a value from 0 to 2000000000', 'vipBuffPrice', '1000000', 'range,0,2000000000', '1'),
+('29', 'Sort Buffs', 'Select a value from box and hit update', 'sortBuffs', 'True', 'bool,True,False', '1'),
+('30', 'Enable Buff Set', 'Select a value from box and hit update', 'enableBuffSet', 'True', 'bool,True,False', '1'),
+('31', 'Buff Set Price', 'Enter a value from 0 to 2000000000', 'buffSetPrice', '1000000', 'range,0,2000000000', '1');
+SET SESSION sql_mode = DEFAULT;

@@ -1,0 +1,38 @@
+-- Dados de tools/sql/char_creation_items.sql do L2JDreamV2 (33 linhas). Gerado por GenDataMigrations; nao editar a mao.
+-- Valores legados ('' em colunas numericas etc.) exigem modo SQL nao estrito nesta sessao.
+SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION';
+INSERT INTO `char_creation_items` VALUES
+('-1', '5588', '1', 'false'),
+('0', '10', '1', 'false'),
+('0', '1146', '1', 'true'),
+('0', '1147', '1', 'true'),
+('0', '2369', '1', 'true'),
+('10', '6', '1', 'true'),
+('10', '425', '1', 'true'),
+('10', '461', '1', 'true'),
+('18', '10', '1', 'false'),
+('18', '1146', '1', 'true'),
+('18', '1147', '1', 'true'),
+('18', '2369', '1', 'true'),
+('25', '6', '1', 'true'),
+('25', '425', '1', 'true'),
+('25', '461', '1', 'true'),
+('31', '10', '1', 'false'),
+('31', '1146', '1', 'true'),
+('31', '1147', '1', 'true'),
+('31', '2369', '1', 'true'),
+('38', '6', '1', 'true'),
+('38', '425', '1', 'true'),
+('38', '461', '1', 'true'),
+('44', '1146', '1', 'true'),
+('44', '1147', '1', 'true'),
+('44', '2368', '1', 'true'),
+('44', '2369', '1', 'false'),
+('49', '425', '1', 'true'),
+('49', '461', '1', 'true'),
+('49', '2368', '1', 'true'),
+('53', '10', '1', 'false'),
+('53', '1146', '1', 'true'),
+('53', '1147', '1', 'true'),
+('53', '2370', '1', 'true');
+SET SESSION sql_mode = DEFAULT;
