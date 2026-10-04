@@ -10,3 +10,7 @@ spring:
   flyway:
     # DDL das migracoes e do MariaDB; validado estaticamente por MigrationFilesTest.
     enabled: false
+
+l2:
+  login:
+    listen: false

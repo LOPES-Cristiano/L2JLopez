@@ -24,11 +24,11 @@ management:
 l2:
   server-name: L2JLopez
   rates:
-    xp: 50.0
-    sp: 50.0
-    adena: 20.0
-    drop: 10.0
-    spoil: 10.0
+    xp: 1.0
+    sp: 1.0
+    adena: 1.0
+    drop: 1.0
+    spoil: 1.0
   network:
     login-port: 2106
     game-port: 7777
@@ -36,6 +36,7 @@ l2:
     protocol-min: 730
     protocol-max: 746
   login:
+    listen: true
     auto-create-accounts: false
     max-account-creations-per-ip: 2
     game-server-host: 127.0.0.1

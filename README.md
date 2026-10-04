@@ -49,8 +49,10 @@ API de teste: `GET http://localhost:8080/api/status` e `/actuator/health`.
   pacotes (`Init`, `GgAuth`, `AuthOk`/`AuthFail`, `ServerList`, `PlayOk`/`PlayFail` e os 4 pedidos do cliente),
   `LoginSession` (maquina de estados por conexao, sem socket) e `LoginAccountService` (senha, ban, auto-criacao com
   limite por IP, conta em uso). Senha legada = SHA-1 Base64 sem sal (fraco; trocar por hash com sal no rehash).
-  **Ainda nao ha socket TCP** que ligue `LoginSession` + `LoginCrypt` a rede, nem registro dinamico de game servers
-  (hoje `l2.login.*` descreve um unico servidor). `l2.login.auto-create-accounts` vem desligado.
+  `LoginServer` (TCP, uma virtual thread por conexao, enquadramento L2 de 2 bytes, limite de 1000 conexoes, timeout de
+  30 s, fecha em checksum/tamanho/opcode invalido) sobe na porta `l2.network.login-port` com `l2.login.listen=true`.
+  Falta: registro dinamico de game servers (hoje `l2.login.*` descreve um unico servidor), kick de login duplicado,
+  limite de tentativas por IP e a porta interna (9014) game<->login.
 
 ## Roadmap
 Ver `REVISAO_BACKLOG_MELHORIAS.md` no repositorio L2JDreamV2.

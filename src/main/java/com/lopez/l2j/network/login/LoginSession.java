@@ -86,6 +86,11 @@ public final class LoginSession {
 		return new Init(sessionId, rsa.scrambledModulus(), blowfishKey);
 	}
 
+	/** Chave Blowfish desta sessao; o LoginCrypt da conexao deve ser criado com ela. */
+	public byte[] blowfishKey() {
+		return blowfishKey.clone();
+	}
+
 	public boolean authenticated() {
 		return account != null;
 	}

@@ -75,8 +75,8 @@ public final class ScrambledRsaKeyPair {
 		return m;
 	}
 
-	/** Inverso de {@link #scramble}: o que o cliente faz. Usado nos testes. */
-	static byte[] unscramble(byte[] scrambled) {
+	/** Inverso de {@link #scramble}: o que o cliente faz. Util para clientes de teste. */
+	public static byte[] unscramble(byte[] scrambled) {
 		byte[] m = scrambled.clone();
 		for (int i = 0; i < 0x40; i++) {
 			m[0x40 + i] = (byte) (m[0x40 + i] ^ m[i]);
