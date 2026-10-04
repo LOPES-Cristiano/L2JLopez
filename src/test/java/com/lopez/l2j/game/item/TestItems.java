@@ -9,6 +9,7 @@ public final class TestItems {
 	private TestItems() {
 	}
 
+	public static final int SHORT_SWORD = 1;
 	public static final int DAGGER = 10;
 	public static final int APPRENTICE_WAND = 6;
 	public static final int SQUIRE_SWORD = 2369;
@@ -31,6 +32,8 @@ public final class TestItems {
 
 	public static List<ItemTemplate> templates() {
 		return List.of(
+				ItemTemplate.weapon(SHORT_SWORD, SHORT_SWORD, "Short Sword", "rhand", "sword", 1600, "none", 8, 6,
+						379, 8, 0, 0, true, true, true, true),
 				ItemTemplate.weapon(DAGGER, DAGGER, "Dagger", "rhand", "dagger", 1160, "none", 5, 5, 433, 12, 0, 0,
 						true, true, true, true),
 				ItemTemplate.weapon(APPRENTICE_WAND, APPRENTICE_WAND, "Apprentice's Wand", "rhand", "blunt", 1350,

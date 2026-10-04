@@ -24,10 +24,9 @@ public class HtmCache {
 	private final Path datapackHtmlDir;
 	private final Map<String, String> cache = new ConcurrentHashMap<>();
 
-	public HtmCache(@Value("${l2.datapack.html-dir:../L2JDreamV2/game/data/html}") String htmlDirPath) {
+	public HtmCache(@Value("${l2.datapack.html-dir:data/html}") String htmlDirPath) {
 		Path p = Path.of(htmlDirPath);
 		if (!Files.isDirectory(p)) {
-			// Tenta relativo ao diretorio de trabalho atual
 			Path local = Path.of("data/html");
 			p = Files.isDirectory(local) ? local : p;
 		}

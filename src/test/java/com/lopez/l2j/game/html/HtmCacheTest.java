@@ -11,7 +11,7 @@ class HtmCacheTest {
 
 	@BeforeEach
 	void setUp() {
-		cache = new HtmCache("D:/Cristiano/Lineage/L2JDreamV2/game/data/html");
+		cache = new HtmCache("data/html");
 	}
 
 	@Test
