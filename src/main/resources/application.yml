@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: l2jlopez
+  datasource:
+    url: ${L2_DB_URL:jdbc:mariadb://localhost:3306/l2jlopez}
+    username: ${L2_DB_USER:l2jlopez}
+    password: ${L2_DB_PASSWORD:change-me}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+l2:
+  server-name: L2JLopez
+  rates:
+    xp: 50.0
+    sp: 50.0
+    adena: 20.0
+    drop: 10.0
+    spoil: 10.0
+  network:
+    login-port: 2106
+    game-port: 7777
+    login-internal-port: 9014
+    protocol-min: 730
+    protocol-max: 746
+  features:
+    autofarm: { enabled: true }
+    dressme: { enabled: true }
+    pvp-rank: { enabled: true }
+    reset: { enabled: true }
+    roulette: { enabled: true }
+    aio: { enabled: true }
+    vip: { enabled: true }
+    achievements: { enabled: true }
+    vote: { enabled: false }
+    quake: { enabled: true }
