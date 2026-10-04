@@ -146,35 +146,35 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 			com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 			SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
-			String serverName) {
+			ServerProperties.Rates rates, String serverName) {
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, null, null, null, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, null, null, null, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, null, null, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, null, null, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				TeleportLocationTable teleports, BuyListTable buylists, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 				com.lopez.l2j.game.drop.DropService drops, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -182,7 +182,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 				SkillRepository skills, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -190,7 +190,16 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, null, null, serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+				String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, skillService, null, serverName);
 		}
 	}
 
