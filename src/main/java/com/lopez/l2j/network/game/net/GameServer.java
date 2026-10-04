@@ -55,7 +55,7 @@ public class GameServer implements SmartLifecycle {
 			com.lopez.l2j.game.skill.SkillService skillService) {
 		this(p.network().gamePort(), new GameSession.Context(p.network().protocolMin(), p.network().protocolMax(),
 				sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi,
-				skillService, p.serverName()));
+				skillService, p.rates(), p.serverName()));
 	}
 
 	/** Porta 0 = efemera (testes); use {@link #port()} depois de iniciar. */
