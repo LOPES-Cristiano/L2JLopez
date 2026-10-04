@@ -146,7 +146,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 			com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 			SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
-			ServerProperties.Rates rates, String serverName) {
+			com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, String serverName) {
 			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, null, null, null, null, null, null, null, null, null, null, serverName);
@@ -227,6 +227,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private final Map<Integer, Long> consumableReuse = new ConcurrentHashMap<>();
 	/** Curas ao longo do tempo ativas por stackType (HpRecover/MpRecover). */
 	private final Map<String, ScheduledFuture<?>> hotTasks = new ConcurrentHashMap<>();
+
+	private com.lopez.l2j.game.party.Party party;
+	private RequestPartyPending pendingPartyInvite;
+	private volatile long attackEndTime;
+	private volatile int pendingNpcInteractObjectId;
+
+	record RequestPartyPending(GameSession requester, int itemDistribution) {}
+
 	private static final ScheduledExecutorService autoAttackScheduler = Executors.newScheduledThreadPool(4, r -> {
 		Thread th = new Thread(r, "PlayerAutoAttack");
 		th.setDaemon(true);
@@ -244,12 +252,32 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return state;
 	}
 
+	public boolean inWorld() {
+		return inWorld;
+	}
+
 	public String account() {
 		return account;
 	}
 
 	public PlayerCharacter activeCharacter() {
 		return active;
+	}
+
+	public com.lopez.l2j.game.party.Party party() {
+		return party;
+	}
+
+	public void party(com.lopez.l2j.game.party.Party party) {
+		this.party = party;
+	}
+
+	public RequestPartyPending pendingPartyInvite() {
+		return pendingPartyInvite;
+	}
+
+	public void setPendingPartyInvite(RequestPartyPending pendingPartyInvite) {
+		this.pendingPartyInvite = pendingPartyInvite;
 	}
 
 	/** Processa um pacote; devolve false quando a conexao deve ser fechada. */
@@ -292,8 +320,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case RequestRestart p -> onRestart();
 			case GameClientPacket.RequestExEnchantSkillInfo p -> log.debug("RequestExEnchantSkillInfo recebido: {}", p);
 			case GameClientPacket.RequestExEnchantSkill p -> log.debug("RequestExEnchantSkill recebido: {}", p);
-			case GameClientPacket.RequestJoinParty p -> log.debug("RequestJoinParty recebido: {}", p);
-			case GameClientPacket.RequestAnswerJoinParty p -> log.debug("RequestAnswerJoinParty recebido: {}", p);
+			case GameClientPacket.RequestJoinParty p -> onJoinParty(p);
+			case GameClientPacket.RequestAnswerJoinParty p -> onAnswerJoinParty(p);
 			case Unknown p -> log.debug("Opcode ignorado 0x{}{} no estado {}", Integer.toHexString(p.opcode()),
 					p.subOpcode() >= 0 ? ":" + Integer.toHexString(p.subOpcode()) : "", state);
 		}
@@ -436,6 +464,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			send(new ActionFailed());
 			return;
 		}
+		pendingNpcInteractObjectId = 0;
 		// Cancela auto-attack ao se movimentar manualmente se estava atacando
 		if (autoAttacking) {
 			autoAttacking = false;
@@ -465,6 +494,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS,
 				new ValidateLocation(active.objectId(), p.x(), p.y(), p.z(), p.heading()), false);
 		updateKnownObjects();
+		checkPendingNpcInteract();
 	}
 
 	private void updateKnownObjects() {
@@ -563,8 +593,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					new CreatureSay(active.objectId(), CreatureSay.TRADE, active.name(), text), x -> true);
 			case CreatureSay.HERO -> ctx.world().broadcast(
 					new CreatureSay(active.objectId(), CreatureSay.HERO, active.name(), text), x -> true);
-			case CreatureSay.PARTY -> ctx.world().broadcastAround(this, GameWorld.LOCAL_CHAT_RANGE,
-					new CreatureSay(active.objectId(), CreatureSay.PARTY, active.name(), text));
+			case CreatureSay.PARTY -> {
+				if (party != null) {
+					party.broadcast(new CreatureSay(active.objectId(), CreatureSay.PARTY, active.name(), text));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "System", "Voce nao esta em uma party."));
+				}
+			}
 			case CreatureSay.CLAN -> {
 				if (active.clanId() > 0) {
 					ctx.world().broadcast(
@@ -633,20 +668,24 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					int attackRange = getPhysicalAttackRange(active);
 					double maxDist = attackRange + 50.0;
 					if (distSq > maxDist * maxDist) {
+						autoAttacking = true;
 						var movePawn = new MoveToPawn(active.objectId(), npc.objectId(), attackRange, active.x(), active.y(), active.z());
 						send(movePawn);
 						ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, movePawn, false);
+						schedulePlayerAutoAttack(npc, 500);
 						return;
 					}
 					onAttackNpc(npc);
 				} else {
 					double interactDist = 150.0;
 					if (distSq > interactDist * interactDist) {
+						pendingNpcInteractObjectId = npc.objectId();
 						var movePawn = new MoveToPawn(active.objectId(), npc.objectId(), 60, active.x(), active.y(), active.z());
 						send(movePawn);
 						ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, movePawn, false);
 						return;
 					}
+					pendingNpcInteractObjectId = 0;
 					showNpcHtml(npc, 0);
 				}
 			} else {
@@ -696,7 +735,24 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			send(new ActionFailed());
 			return;
 		}
+		long now = System.currentTimeMillis();
+		if (now < attackEndTime) {
+			send(new ActionFailed());
+			return;
+		}
 		var t = ctx.characters().template(active);
+
+		// Flechas para arco: checa e consome antes do disparo
+		if (!checkAndConsumeArrow()) {
+			return;
+		}
+
+		var stats = PlayerStats.calculate(active, t);
+		int pAtkSpd = Math.max(100, stats.pAtkSpd());
+		int timeAtk = (int) (500_000L / pAtkSpd);
+		boolean bow = isBow(activeWeapon());
+		int timeToHit = bow ? (int) (timeAtk * 0.70) : (int) (timeAtk * 0.50);
+		attackEndTime = now + timeAtk;
 
 		// Ativa postura de combate no cliente se ainda nao estiver
 		if (!autoAttacking) {
@@ -714,57 +770,68 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		var hit = ctx.combat().attackNpc(active, t, npc, ssGrade);
 
+		// 1. Envia a animacao de ataque imediatamente para o cliente iniciar o swing/tiro
 		var atk = new Attack(active.objectId(), npc.objectId(), hit.damage(), hit.flags(), active.x(), active.y(),
 				active.z());
 		send(atk);
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, atk, false);
 
-		if (hit.damage() > 0) {
-			send(SystemMessage.of(SystemMessage.YOU_DID_S1_DMG, new SystemMessage.Number(hit.damage())));
-		}
-
-		var su = StatusUpdate.hp(npc.objectId(), hit.remainingHp(), hit.maxHp());
-		send(su);
-		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, su, false);
-
-		if (hit.isDead()) {
-			// Finaliza postura de combate
-			autoAttacking = false;
-			send(new AutoAttackStop(active.objectId()));
-			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new AutoAttackStop(active.objectId()), false);
-
-			if (ctx.npcAi() != null) {
-				ctx.npcAi().stopCombat(npc);
+		// 2. Agenda a aplicacao do dano e atualizacoes no momento exato do impacto (timeToHit)
+		autoAttackScheduler.schedule(() -> {
+			if (!inWorld || active == null || npc == null) {
+				return;
 			}
 
-			var die = new Die(npc.objectId(), false);
-			send(die);
-			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, die, false);
-
-			applyExpAndSp(hit.expReward(), hit.spReward(), t);
-
-			if (ctx.drops() != null) {
-				ctx.drops().rewardMonsterDeath(active, npc.npcId(), ctx.inventories(), this::send);
+			if (hit.damage() > 0) {
+				send(SystemMessage.of(SystemMessage.YOU_DID_S1_DMG, new SystemMessage.Number(hit.damage())));
 			}
 
-			ctx.characters().save(active, true);
-		} else {
-			// Monstro entra em combate continuo e persegue o jogador via NpcAiService
-			if (ctx.npcAi() != null) {
-				ctx.npcAi().startCombat(npc, active.objectId());
+			var su = StatusUpdate.hp(npc.objectId(), hit.remainingHp(), hit.maxHp());
+			send(su);
+			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, su, false);
+
+			if (hit.isDead()) {
+				// Finaliza postura de combate
+				autoAttacking = false;
+				send(new AutoAttackStop(active.objectId()));
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new AutoAttackStop(active.objectId()), false);
+
+				if (ctx.npcAi() != null) {
+					ctx.npcAi().stopCombat(npc);
+					ctx.npcAi().scheduleDecayAndRespawn(npc);
+				}
+
+				var die = new Die(npc.objectId(), false);
+				send(die);
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, die, false);
+
+				if (party != null) {
+					double ratePartyXp = ctx.rates() != null ? ctx.rates().partyXp() : 1.0;
+					double ratePartySp = ctx.rates() != null ? ctx.rates().partySp() : 1.0;
+					party.distributeExpAndSp(hit.expReward(), hit.spReward(), active, ratePartyXp, ratePartySp);
+				} else {
+					applyExpAndSp(hit.expReward(), hit.spReward(), t);
+				}
+
+				if (ctx.drops() != null) {
+					ctx.drops().rewardMonsterDeath(active, npc.npcId(), ctx.inventories(), this::send);
+				}
+
+				ctx.characters().save(active, true);
+			} else {
+				// Monstro entra em combate continuo e persegue o jogador via NpcAiService
+				if (ctx.npcAi() != null) {
+					ctx.npcAi().startCombat(npc, active.objectId());
+				}
+				schedulePlayerAutoAttack(npc, Math.max(50, timeAtk - timeToHit));
 			}
-			schedulePlayerAutoAttack(npc);
-		}
+		}, timeToHit, TimeUnit.MILLISECONDS);
 	}
 
-	private void schedulePlayerAutoAttack(NpcInstance npc) {
+	private void schedulePlayerAutoAttack(NpcInstance npc, long delayMs) {
 		if (!autoAttacking || active == null || npc == null || npc.isDead()) {
 			return;
 		}
-		var stats = PlayerStats.calculate(active, ctx.characters().template(active));
-		int pAtkSpd = Math.max(100, stats.pAtkSpd());
-		long cooldownMs = 500_000L / pAtkSpd;
-
 		autoAttackScheduler.schedule(() -> {
 			if (!autoAttacking || active == null || !inWorld || targetObjectId != npc.objectId() || npc.isDead()) {
 				return;
@@ -778,11 +845,18 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				var movePawn = new MoveToPawn(active.objectId(), npc.objectId(), attackRange, active.x(), active.y(), active.z());
 				send(movePawn);
 				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, movePawn, false);
-				schedulePlayerAutoAttack(npc);
+				schedulePlayerAutoAttack(npc, 500);
 			} else {
 				onAttackNpc(npc);
 			}
-		}, cooldownMs, TimeUnit.MILLISECONDS);
+		}, delayMs, TimeUnit.MILLISECONDS);
+	}
+
+	public void applyExpAndSp(long expReward, int spReward) {
+		if (active != null) {
+			var t = ctx.characters() != null ? ctx.characters().template(active) : null;
+			applyExpAndSp(expReward, spReward, t);
+		}
 	}
 
 	private void applyExpAndSp(long expReward, int spReward, CharTemplate t) {
@@ -810,11 +884,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		if (newLevel > oldLevel) {
 			active.level(newLevel);
-			rewardSkills(t, true); // novos skills (AutoLearn/Expertise) + max HP/MP/CP com passivas
-			if (ctx.skillService() == null) {
-				active.maxHp(t.calculateMaxHp(newLevel));
-				active.maxMp(t.calculateMaxMp(newLevel));
-				active.maxCp(t.calculateMaxCp(newLevel));
+			if (t != null) {
+				rewardSkills(t, true); // novos skills (AutoLearn/Expertise) + max HP/MP/CP com passivas
+				if (ctx.skillService() == null) {
+					active.maxHp(t.calculateMaxHp(newLevel));
+					active.maxMp(t.calculateMaxMp(newLevel));
+					active.maxCp(t.calculateMaxCp(newLevel));
+				}
 			}
 			active.currentHp(active.maxHp());
 			active.currentMp(active.maxMp());
@@ -841,7 +917,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					new StatusUpdate.Attribute(StatusUpdate.SP, active.sp())
 			)));
 		}
-		send(new UserInfo(active, t));
+		if (t != null) {
+			send(new UserInfo(active, t));
+		}
 	}
 
 	private void showNpcHtml(NpcInstance npc, int val) {
@@ -1042,7 +1120,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	private void onActionUse(RequestActionUse p) {
-		if (!inWorld) {
+		if (!inWorld || active == null) {
 			return;
 		}
 		switch (p.actionId()) {
@@ -1054,13 +1132,39 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				active.running(!active.running());
 				send(new ChangeMoveType(active.objectId(), active.running()));
 			}
+			case 2 -> { // Acao de Ataque (icone de espada na barra de acoes / atalhos)
+				if (targetObjectId != 0) {
+					var npcOpt = ctx.world().npc(targetObjectId);
+					if (npcOpt.isPresent()) {
+						var npc = npcOpt.get();
+						if (npc.template().isAttackable() && !npc.isDead()) {
+							double dx = active.x() - npc.x();
+							double dy = active.y() - npc.y();
+							double distSq = dx * dx + dy * dy;
+							int attackRange = getPhysicalAttackRange(active);
+							double maxDist = attackRange + 50.0;
+							if (distSq > maxDist * maxDist) {
+								autoAttacking = true;
+								var movePawn = new MoveToPawn(active.objectId(), npc.objectId(), attackRange, active.x(), active.y(), active.z());
+								send(movePawn);
+								ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, movePawn, false);
+								schedulePlayerAutoAttack(npc, 500);
+							} else {
+								onAttackNpc(npc);
+							}
+							return;
+						}
+					}
+				}
+				send(new ActionFailed());
+			}
 			default -> send(new ActionFailed());
 		}
 	}
 
-	/** UseItem: equipaveis alternam equipar; consumiveis (pocoes, soulshots) passam pelos handlers. */
+	/** UseItem: equipaveis alternam equipar; consumiveis (pocoes, soulshots, scrolls) passam pelos handlers. */
 	private void onUseItem(UseItem p) {
-		if (!inWorld) {
+		if (!inWorld || active == null) {
 			return;
 		}
 		var item = active.inventory().byObjectId(p.objectId()).orElse(null);
@@ -1069,6 +1173,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		if (!item.template().isEquipable()) {
+			if (isScrollOfEscape(item.itemId())) {
+				useScrollOfEscape(item);
+				return;
+			}
 			var consumable = ConsumableTable.get(item.itemId());
 			if (consumable.isPresent()) {
 				useConsumable(consumable.get());
@@ -1435,6 +1543,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		targetObjectId = 0;
 		if (active == null) {
 			return;
+		}
+		if (party != null) {
+			party.removeMember(this);
+			party = null;
 		}
 		if (inWorld) {
 			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new DeleteObject(active.objectId()), false);
@@ -2052,7 +2164,248 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
-	/** Envia um pacote a este cliente; seguro para chamar de outras threads (o sink sincroniza). */
+	private boolean isBow(com.lopez.l2j.game.item.ItemInstance weapon) {
+		return weapon != null && weapon.template() != null && "bow".equalsIgnoreCase(weapon.template().subType());
+	}
+
+	private int getArrowIdForGrade(String crystalType) {
+		if (crystalType == null) {
+			return 17;
+		}
+		return switch (crystalType.toLowerCase(java.util.Locale.ROOT)) {
+			case "d" -> 1341;
+			case "c" -> 1342;
+			case "b" -> 1343;
+			case "a" -> 1344;
+			case "s" -> 1345;
+			default -> 17;
+		};
+	}
+
+	private boolean checkAndConsumeArrow() {
+		var weapon = activeWeapon();
+		if (!isBow(weapon)) {
+			return true;
+		}
+		int arrowId = getArrowIdForGrade(weapon.template().crystalType());
+		var arrow = active.inventory().byItemId(arrowId).orElse(null);
+		if (arrow == null || arrow.count() < 1) {
+			send(SystemMessage.id(SystemMessage.NOT_ENOUGH_ARROWS));
+			send(new ActionFailed());
+			autoAttacking = false;
+			send(new AutoAttackStop(active.objectId()));
+			return false;
+		}
+		return consumeItem(arrowId, 1);
+	}
+
+	private void checkPendingNpcInteract() {
+		int npcId = pendingNpcInteractObjectId;
+		if (npcId == 0 || active == null) {
+			return;
+		}
+		var npc = ctx.world().npc(npcId).orElse(null);
+		if (npc == null || npc.template().isAttackable() || npc.isDead()) {
+			pendingNpcInteractObjectId = 0;
+			return;
+		}
+		double distSq = Math.pow(active.x() - npc.x(), 2) + Math.pow(active.y() - npc.y(), 2);
+		if (distSq <= 180.0 * 180.0) {
+			pendingNpcInteractObjectId = 0;
+			showNpcHtml(npc, 0);
+		}
+	}
+
+	private static final int[][] MAJOR_TOWNS = {
+			{ -84318, 244579, -3730 }, // Talking Island
+			{ 46934, 51467, -2977 },   // Elven Village
+			{ 9745, 15606, -4574 },    // Dark Elven Village
+			{ -44836, -112524, -235 }, // Orc Village
+			{ 115113, -178212, -901 }, // Dwarven Village
+			{ -80826, 149775, -3043 }, // Gludin
+			{ -12678, 122776, -3116 }, // Gludio
+			{ 15670, 142983, -2705 },  // Dion
+			{ 83400, 147943, -3404 },  // Giran
+			{ 111409, 219364, -3545 }, // Heine
+			{ 82956, 53162, -1495 },   // Oren
+			{ 116819, 76994, -2714 },  // Hunters Village
+			{ 146331, 25762, -2018 },  // Aden
+			{ 147928, -55273, -2734 }, // Goddard
+			{ 43799, -47727, -798 },   // Rune
+			{ 87331, -142842, -1317 }  // Schuttgart
+	};
+
+	private static final Map<Integer, int[]> TOWN_SCROLL_COORDINATES = Map.ofEntries(
+			Map.entry(7117, new int[] { -84318, 244579, -3730 }),
+			Map.entry(7554, new int[] { -84318, 244579, -3730 }),
+			Map.entry(7118, new int[] { 46934, 51467, -2977 }),
+			Map.entry(7555, new int[] { 46934, 51467, -2977 }),
+			Map.entry(7119, new int[] { 9745, 15606, -4574 }),
+			Map.entry(7556, new int[] { 9745, 15606, -4574 }),
+			Map.entry(7120, new int[] { -44836, -112524, -235 }),
+			Map.entry(7557, new int[] { -44836, -112524, -235 }),
+			Map.entry(7121, new int[] { 115113, -178212, -901 }),
+			Map.entry(7558, new int[] { 115113, -178212, -901 }),
+			Map.entry(7122, new int[] { -80826, 149775, -3043 }),
+			Map.entry(7123, new int[] { -12678, 122776, -3116 }),
+			Map.entry(7124, new int[] { 15670, 142983, -2705 }),
+			Map.entry(7125, new int[] { 17836, 170178, -3507 }),
+			Map.entry(7126, new int[] { 83400, 147943, -3404 }),
+			Map.entry(7559, new int[] { 83400, 147943, -3404 }),
+			Map.entry(7127, new int[] { 105918, 109759, -3207 }),
+			Map.entry(7128, new int[] { 111409, 219364, -3545 }),
+			Map.entry(7129, new int[] { 82956, 53162, -1495 }),
+			Map.entry(7130, new int[] { 85348, 16142, -3699 }),
+			Map.entry(7131, new int[] { 116819, 76994, -2714 }),
+			Map.entry(7132, new int[] { 146331, 25762, -2018 }),
+			Map.entry(7133, new int[] { 147928, -55273, -2734 }),
+			Map.entry(7134, new int[] { 43799, -47727, -798 }),
+			Map.entry(7135, new int[] { 87331, -142842, -1317 })
+	);
+
+	private boolean isScrollOfEscape(int itemId) {
+		return itemId == 736 || itemId == 1538 || itemId == 3958 || itemId == 5858 || itemId == 5859
+				|| TOWN_SCROLL_COORDINATES.containsKey(itemId);
+	}
+
+	private void useScrollOfEscape(com.lopez.l2j.game.item.ItemInstance item) {
+		if (active == null || active.isDead() || casting) {
+			send(new ActionFailed());
+			return;
+		}
+		int itemId = item.itemId();
+		int[] dest = TOWN_SCROLL_COORDINATES.get(itemId);
+		if (dest == null) {
+			dest = findNearestTown(active.x(), active.y());
+		}
+
+		int hitTime = (itemId == 1538 || itemId == 3958) ? 200 : 20000;
+		if (!consumeItem(itemId, 1)) {
+			send(new ActionFailed());
+			return;
+		}
+		send(SystemMessage.of(SystemMessage.USE_S1, new SystemMessage.ItemName(itemId)));
+		send(new GameServerPacket.SetupGauge(GameServerPacket.SetupGauge.BLUE, hitTime));
+
+		var msu = new MagicSkillUse(active.objectId(), active.objectId(), 2014, 1, hitTime, 0,
+				active.x(), active.y(), active.z(), active.x(), active.y(), active.z());
+		send(msu);
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msu, false);
+
+		casting = true;
+		int[] targetLoc = dest;
+		castTask = autoAttackScheduler.schedule(() -> {
+			casting = false;
+			if (!inWorld || active == null || active.isDead()) {
+				return;
+			}
+			active.moveTo(targetLoc[0], targetLoc[1], targetLoc[2]);
+			ctx.characters().save(active, true);
+			var tele = new TeleportToLocation(active.objectId(), targetLoc[0], targetLoc[1], targetLoc[2]);
+			send(tele);
+			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, tele, false);
+			updateKnownObjects();
+		}, hitTime, TimeUnit.MILLISECONDS);
+	}
+
+	private int[] findNearestTown(int px, int py) {
+		int[] nearest = MAJOR_TOWNS[0];
+		long minSq = Long.MAX_VALUE;
+		for (int[] t : MAJOR_TOWNS) {
+			long dx = (long) px - t[0];
+			long dy = (long) py - t[1];
+			long sq = dx * dx + dy * dy;
+			if (sq < minSq) {
+				minSq = sq;
+				nearest = t;
+			}
+		}
+		return nearest;
+	}
+
+	private void onJoinParty(GameClientPacket.RequestJoinParty p) {
+		if (!inWorld || active == null || active.isDead()) {
+			send(new ActionFailed());
+			return;
+		}
+		var target = ctx.world().byName(p.name());
+		if (target.isEmpty() || target.get().character() == null) {
+			send(SystemMessage.id(SystemMessage.TARGET_CANT_FOUND));
+			send(new ActionFailed());
+			return;
+		}
+		if (!(target.get() instanceof GameSession targetSession)) {
+			send(new ActionFailed());
+			return;
+		}
+		if (targetSession == this || targetSession.character().objectId() == active.objectId()) {
+			send(SystemMessage.id(SystemMessage.CANT_INVITE_YOURSELF));
+			send(new ActionFailed());
+			return;
+		}
+		if (targetSession.party() != null) {
+			send(SystemMessage.of(SystemMessage.PLAYER_ALREADY_IN_PARTY, new SystemMessage.Text(targetSession.character().name())));
+			send(new ActionFailed());
+			return;
+		}
+		if (party != null) {
+			if (!party.isLeader(active.objectId())) {
+				send(SystemMessage.id(SystemMessage.ONLY_LEADER_CAN_INVITE));
+				send(new ActionFailed());
+				return;
+			}
+			if (party.isFull()) {
+				send(SystemMessage.id(SystemMessage.PARTY_FULL));
+				send(new ActionFailed());
+				return;
+			}
+		}
+		if (targetSession.pendingPartyInvite() != null) {
+			send(SystemMessage.id(SystemMessage.WAITING_FOR_REPLY));
+			send(new ActionFailed());
+			return;
+		}
+		targetSession.setPendingPartyInvite(new RequestPartyPending(this, p.itemDistribution()));
+		targetSession.send(new GameServerPacket.AskJoinParty(active.name(), p.itemDistribution()));
+		send(SystemMessage.of(SystemMessage.YOU_INVITED_S1_TO_PARTY, new SystemMessage.Text(targetSession.character().name())));
+	}
+
+	private void onAnswerJoinParty(GameClientPacket.RequestAnswerJoinParty p) {
+		if (!inWorld || active == null || pendingPartyInvite == null) {
+			return;
+		}
+		var pending = pendingPartyInvite;
+		pendingPartyInvite = null;
+		var requester = pending.requester();
+		if (requester == null || requester.character() == null || !requester.inWorld()) {
+			return;
+		}
+		if (p.response() == 0) {
+			requester.send(SystemMessage.of(SystemMessage.S1_REFUSED_PARTY, new SystemMessage.Text(active.name())));
+			return;
+		}
+		// Aceitou o convite (response == 1)
+		if (requester.party() == null) {
+			var newParty = new com.lopez.l2j.game.party.Party(requester, this, pending.itemDistribution());
+			requester.party(newParty);
+			this.party = newParty;
+			send(new GameServerPacket.JoinParty(1));
+			requester.send(new GameServerPacket.PartySmallWindowAll(requester.character().objectId(), pending.itemDistribution(), newParty.characters(), requester.character().objectId()));
+			send(new GameServerPacket.PartySmallWindowAll(requester.character().objectId(), pending.itemDistribution(), newParty.characters(), active.objectId()));
+			requester.send(SystemMessage.of(SystemMessage.S1_JOINED_PARTY, new SystemMessage.Text(active.name())));
+			send(SystemMessage.of(SystemMessage.YOU_JOINED_PARTY, new SystemMessage.Text(requester.character().name())));
+		} else {
+			var existingParty = requester.party();
+			if (existingParty.isFull()) {
+				send(SystemMessage.id(SystemMessage.PARTY_FULL));
+				return;
+			}
+			if (existingParty.addMember(this)) {
+				this.party = existingParty;
+				send(new GameServerPacket.JoinParty(1));
+			}
+		}
+	}
 	@Override
 	public void send(GameServerPacket packet) {
 		sink.accept(packet);

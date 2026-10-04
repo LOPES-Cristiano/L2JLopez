@@ -400,7 +400,11 @@ public sealed interface GameServerPacket {
 		public static final int S1_LEFT_PARTY = 108;
 		public static final int CANT_INVITE_YOURSELF = 159;
 		public static final int PLAYER_ALREADY_IN_PARTY = 160;
+		public static final int ONLY_LEADER_CAN_INVITE = 161;
+		public static final int PARTY_FULL = 162;
 		public static final int S1_REFUSED_PARTY = 163;
+		public static final int WAITING_FOR_REPLY = 164;
+		public static final int TARGET_CANT_FOUND = 165;
 		public static final int PARTY_DISPERSED = 203;
 		public static final int NOT_ENOUGH_ARROWS = 726;
 

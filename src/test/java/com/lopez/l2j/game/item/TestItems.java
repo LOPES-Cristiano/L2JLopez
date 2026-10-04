@@ -68,7 +68,9 @@ public final class TestItems {
 				ItemTemplate.etc(TUTORIAL_GUIDE, TUTORIAL_GUIDE, "Tutorial Guide", "none", "normal", 10, "none", 0,
 						true, true, true, true),
 				ItemTemplate.etc(HEALING_POTION, HEALING_POTION, "Lesser Healing Potion", "potion", "stackable", 5,
-						"none", 0, true, true, true, true));
+						"none", 0, true, true, true, true),
+				ItemTemplate.etc(736, 736, "Scroll of Escape", "scroll", "none", 100, "none", 0, false, true,
+						true, true));
 	}
 
 	/** Recorte de char_creation_items (guerreiro humano e mago humano). */
