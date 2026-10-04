@@ -149,12 +149,19 @@ Jython esta morto (sem Python 3); quests devem ser reescritas em Java (`scriptin
 Estrategia: um record por dominio em `ServerProperties` (ja existem `rates`, `network`, `login`, `features`),
 migrando chave a chave junto com o sistema que a usa (sem portar chave morta).
 
-## 6. Plano de migracao (ordem sugerida)
-1. **Dados estaticos no banco** (feito nesta etapa): 40 tabelas via Flyway `db/data`.
-2. **Itens**: `ItemTemplateTable` (weapon/armor/etcitem), inventario persistido em `items`, itens iniciais
-   (`char_template.xml`), `ItemList`/paperdoll em `UserInfo`/`CharSelectionInfo`.
-3. **NPCs no mundo**: `NpcTemplateTable` (npc), spawns (`spawnlist`), regioes + knownlist, `NpcInfo`/`DeleteObject`.
-4. **HTML + dialogos**: `HtmCache` de `data/html`, `Action` em NPC -> `NpcHtmlMessage`, bypass basico.
+## 6. Plano de migracao (ordem e status)
+1. **Dados estaticos no banco** (**CONCLUIDO**): 40 tabelas via Flyway `db/data` (108k linhas).
+2. **Itens e Inventario** (**CONCLUIDO**):
+   - `ItemTemplate`, `ItemTemplateTable`, `JdbcItemTemplateTable` (weapon, armor, etcitem).
+   - Inventario com 22 slots de paperdoll, regras de equip/unequip portadas do legado.
+   - Itens iniciais da criacao (`char_creation_items`), `ItemList` (0x1b), `InventoryUpdate` (0x27), `SystemMessage` (0x64), `UseItem` (0x14), `RequestUnEquipItem` (0x11).
+   - `ObjectIdFactory` compartilhada entre personagens, itens e NPCs (`0x10000000+`).
+3. **NPCs no mundo e Visibilidade** (**CONCLUIDO**):
+   - `NpcTemplate`, `NpcTemplateTable`, `JdbcNpcTemplateTable` (carrega 7.074 NPCs em ~100ms).
+   - `NpcInstance` e `SpawnService` (carrega 26.622 spawns de `spawnlist` e `custom_spawnlist` em ~300ms).
+   - Spatial Grid 2D em `GameWorld` (celulas de 4096 unidades, lookup O(1) com raio euclidiano de 3500).
+   - KnownList na `GameSession`: `NpcInfo` (0x16), `CharInfo` (0x03), `DeleteObject` (0x12), broadcast de movimento `MoveToLocation` e selecao de alvo `MyTargetSelected` + `ValidateLocation`.
+4. **HTML + dialogos**: `HtmCache` de `data/html`, `Action` em NPC -> `NpcHtmlMessage` (0x0f / 0x19 / `NpcHtmlMessage`), bypass basico.
 5. **Teleporte e lojas**: teleports.xml/`custom_teleports`, buylists.xml, multisell.
 6. **Combate base**: stats (statBonus, lvl_up_data), ataque fisico, morte/respawn, drops (`droplist`), XP.
 7. **Skills**: XML de skills + skill_tree, efeitos/condicoes mais usados, buffs.

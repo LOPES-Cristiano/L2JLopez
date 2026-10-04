@@ -4,6 +4,7 @@ import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.item.ItemSlots;
 import com.lopez.l2j.game.item.Paperdoll;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.template.CharTemplate;
 import com.lopez.l2j.network.login.packet.PacketWriter;
 import java.util.Collection;
@@ -560,6 +561,134 @@ public sealed interface GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new byte[] { 0x7e };
+		}
+	}
+
+	/** 0x16 NpcInfo: visualizacao de NPC/monstro no mundo. */
+	record NpcInfo(NpcInstance npc) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			var t = npc.template();
+			PacketWriter w = new PacketWriter().writeC(0x16);
+			w.writeD(npc.objectId());
+			w.writeD(t.idTemplate() + 1000000);
+			w.writeD(t.isAttackable() ? 1 : 0);
+			w.writeD(npc.x()).writeD(npc.y()).writeD(npc.z()).writeD(npc.heading());
+			w.writeD(0x00);
+			w.writeD(t.mAtkSpd()).writeD(t.pAtkSpd());
+			w.writeD(t.runSpd()).writeD(t.walkSpd());
+			w.writeD(t.runSpd()).writeD(t.walkSpd()); // swim run/walk
+			w.writeD(t.runSpd()).writeD(t.walkSpd()); // fl run/walk
+			w.writeD(t.runSpd()).writeD(t.walkSpd()); // fly run/walk
+			w.writeF(1.1);
+			w.writeF(t.pAtkSpd() / 277.478340719);
+			w.writeF(t.collisionRadius()).writeF(t.collisionHeight());
+			w.writeD(t.rhand()).writeD(t.armor()).writeD(t.lhand());
+			w.writeC(1); // name above char
+			w.writeC(npc.isRunning() ? 1 : 0);
+			w.writeC(npc.isInCombat() ? 1 : 0);
+			w.writeC(npc.isDead() ? 1 : 0);
+			w.writeC(0); // isSummoned
+			w.writeS(t.serverSideName() ? t.name() : "");
+			w.writeS(t.serverSideTitle() ? t.title() : "");
+			w.writeD(0x00).writeD(0x00).writeD(0x00);
+			w.writeD(0); // abnormal effect
+			w.writeD(0).writeD(0).writeD(0).writeD(0); // clan / ally
+			w.writeC(0); // fly / water
+			w.writeC(0); // team
+			w.writeF(t.collisionRadius()).writeF(t.collisionHeight());
+			w.writeD(0x00).writeD(0x00);
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x12 DeleteObject: remove um objeto visivel (NPC ou player que saiu do alcance). */
+	record DeleteObject(int objectId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x12).writeD(objectId).writeD(0x00).toByteArray();
+		}
+	}
+
+	/** 0x03 CharInfo: visualizacao de outro jogador no mundo. */
+	record CharInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll) implements GameServerPacket {
+		public CharInfo(PlayerCharacter c, CharTemplate t) {
+			this(c, t, c.inventory().paperdollView());
+		}
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x03);
+			w.writeD(c.x()).writeD(c.y()).writeD(c.z()).writeD(c.heading());
+			w.writeD(c.objectId());
+			w.writeS(c.name());
+			w.writeD(c.race());
+			w.writeD(c.female() ? 1 : 0);
+			w.writeD(c.classId());
+
+			// 12 slots visiveis de paperdoll (item IDs)
+			w.writeD(paperdoll.itemId(ItemSlots.HAIRALL));
+			w.writeD(paperdoll.itemId(ItemSlots.HEAD));
+			w.writeD(paperdoll.itemId(ItemSlots.RHAND));
+			w.writeD(paperdoll.itemId(ItemSlots.LHAND));
+			w.writeD(paperdoll.itemId(ItemSlots.GLOVES));
+			w.writeD(paperdoll.itemId(ItemSlots.CHEST));
+			w.writeD(paperdoll.itemId(ItemSlots.LEGS));
+			w.writeD(paperdoll.itemId(ItemSlots.FEET));
+			w.writeD(paperdoll.itemId(ItemSlots.BACK));
+			w.writeD(paperdoll.itemId(ItemSlots.RHAND));
+			w.writeD(paperdoll.itemId(ItemSlots.HAIR));
+			w.writeD(paperdoll.itemId(ItemSlots.FACE));
+
+			// Augmentation e enchant info (20 shorts + 2 ints = 48 bytes)
+			for (int i = 0; i < 4; i++) w.writeH(0x00);
+			w.writeD(0x00);
+			for (int i = 0; i < 12; i++) w.writeH(0x00);
+			w.writeD(0x00);
+			for (int i = 0; i < 4; i++) w.writeH(0x00);
+
+			w.writeD(0x00); // pvp flag
+			w.writeD(c.karma());
+			w.writeD(t.mAtkSpd()).writeD(t.pAtkSpd());
+			w.writeD(0x00).writeD(c.karma());
+
+			int run = t.runSpeed();
+			int walk = 80;
+			w.writeD(run).writeD(walk).writeD(run).writeD(walk).writeD(run).writeD(walk).writeD(run).writeD(walk);
+			w.writeF(1.0).writeF(1.0);
+			w.writeF(t.collisionRadius(c.female())).writeF(t.collisionHeight(c.female()));
+
+			w.writeD(c.hairStyle()).writeD(c.hairColor()).writeD(c.face());
+			w.writeS(c.title());
+			w.writeD(c.clanId()).writeD(0).writeD(0).writeD(0);
+
+			w.writeD(0);
+			w.writeC(c.sitting() ? 0 : 1);
+			w.writeC(c.running() ? 1 : 0);
+			w.writeC(0);
+			w.writeC(0);
+			w.writeC(0);
+			w.writeC(0);
+			w.writeC(0);
+
+			w.writeH(0);
+			w.writeC(0);
+			w.writeD(0);
+			w.writeC(0);
+			w.writeH(0);
+			w.writeD(c.classId());
+			w.writeD(c.maxCp()).writeD((int) c.currentCp());
+			w.writeC(0);
+			w.writeC(0);
+			w.writeD(0);
+			w.writeC(0).writeC(0);
+			w.writeC(0).writeD(0).writeD(0).writeD(0);
+			w.writeD(0xFFFFFF);
+			w.writeD(0x00);
+			w.writeD(0).writeD(0);
+			w.writeD(0xFFFF77);
+			w.writeD(0x00);
+			return w.toByteArray();
 		}
 	}
 }

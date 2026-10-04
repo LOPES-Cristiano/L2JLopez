@@ -1,6 +1,7 @@
 package com.lopez.l2j;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.lopez.l2j.features.achievements.AchievementProgressStore;
@@ -75,6 +76,11 @@ class RealDatabaseIT {
 		assertEquals(AuthResult.INVALID_CREDENTIALS, login.authenticate(user, "bad", "127.0.0.1").status());
 	}
 
+	@Autowired
+	com.lopez.l2j.game.npc.NpcTemplateTable npcTemplates;
+	@Autowired
+	com.lopez.l2j.game.world.GameWorld world;
+
 	@Test
 	void achievementProgressPersistsAndCountsRepeats() {
 		achievements.recordCompletion(OWNER, 1);
@@ -84,5 +90,19 @@ class RealDatabaseIT {
 		int times = jdbc.sql("SELECT times_completed FROM player_achievement WHERE owner_id=:o AND achievement_id=1")
 				.param("o", OWNER).query(Integer.class).single();
 		assertEquals(2, times);
+	}
+
+	@Test
+	void npcTemplatesAreLoadedFromRealDatabase() {
+		assertTrue(npcTemplates.size() >= 7000, "deve ter mais de 7000 NPCs carregados da tabela npc");
+		var gremlin = npcTemplates.get(20001); // Gremlin ou Wolf
+		assertTrue(gremlin.isPresent());
+	}
+
+	@Test
+	void spawnsAreLoadedIntoGameWorld() {
+		assertTrue(world.totalNpcs() >= 20000, "deve ter mais de 20.000 spawns ativos no GameWorld");
+		var nearby = world.findNpcsAround(-71338, 258271, 10000);
+		assertFalse(nearby.isEmpty(), "deve encontrar monstros ao redor da area inicial de Talking Island");
 	}
 }

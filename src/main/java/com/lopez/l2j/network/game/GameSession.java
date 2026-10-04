@@ -62,10 +62,19 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.SsqInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.StopMove;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.TargetUnselected;
+import com.lopez.l2j.game.npc.NpcInstance;
+import com.lopez.l2j.network.game.packet.GameServerPacket.CharInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
+import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.UserInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ValidateLocation;
 import com.lopez.l2j.network.session.SessionKey;
 import com.lopez.l2j.network.session.SessionKeyRegistry;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,6 +108,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private List<PlayerCharacter> characterList = List.of();
 	private PlayerCharacter active;
 	private boolean inWorld;
+	private final Set<Integer> knownObjects = ConcurrentHashMap.newKeySet();
 
 	public GameSession(Context ctx, byte[] cryptKey, String ip, Consumer<GameServerPacket> sink) {
 		this.ctx = ctx;
@@ -270,6 +280,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new ClientSetTime(GameTime.now()));
 		ctx.world().add(this);
 		ctx.characters().save(active, true);
+		updateKnownObjects();
 		send(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, ctx.serverName(),
 				"Bem-vindo ao " + ctx.serverName() + ", " + active.name() + "!"));
 		log.info("{} ({}) entrou no mundo em {},{},{}", active.name(), account, x(), y(), z());
@@ -286,8 +297,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		// Sem geodata/simulacao de movimento ainda: confiamos na origem do cliente e no ValidatePosition.
 		active.moveTo(p.originX(), p.originY(), p.originZ());
-		send(new MoveToLocation(active.objectId(), p.targetX(), p.targetY(), p.targetZ(), p.originX(),
-				p.originY(), p.originZ()));
+		var move = new MoveToLocation(active.objectId(), p.targetX(), p.targetY(), p.targetZ(), p.originX(),
+				p.originY(), p.originZ());
+		send(move);
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, move, false);
+		updateKnownObjects();
 	}
 
 	private void onValidatePosition(ValidatePosition p) {
@@ -296,6 +310,63 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		active.moveTo(p.x(), p.y(), p.z());
 		active.heading(p.heading());
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS,
+				new ValidateLocation(active.objectId(), p.x(), p.y(), p.z(), p.heading()), false);
+		updateKnownObjects();
+	}
+
+	private void updateKnownObjects() {
+		if (!inWorld || active == null) {
+			return;
+		}
+		int myX = x();
+		int myY = y();
+		int range = GameWorld.VISIBILITY_RADIUS;
+		long r2 = (long) range * range;
+
+		Set<Integer> currentAround = new HashSet<>();
+
+		// 1. NPCs ao redor
+		for (NpcInstance npc : ctx.world().findNpcsAround(myX, myY, range)) {
+			int id = npc.objectId();
+			currentAround.add(id);
+			if (knownObjects.add(id)) {
+				send(new NpcInfo(npc));
+			}
+		}
+
+		// 2. Outros jogadores ao redor
+		for (GameWorld.OnlinePlayer other : ctx.world().players()) {
+			if (other.objectId() == active.objectId()) {
+				continue;
+			}
+			long dx = other.x() - myX;
+			long dy = other.y() - myY;
+			if (dx * dx + dy * dy <= r2) {
+				int id = other.objectId();
+				currentAround.add(id);
+				if (knownObjects.add(id)) {
+					var otherInfo = other.charInfo();
+					if (otherInfo != null) {
+						send(otherInfo);
+					}
+					var myInfo = charInfo();
+					if (myInfo != null) {
+						other.send(myInfo);
+					}
+				}
+			}
+		}
+
+		// 3. Remove objetos que sairam do alcance
+		Iterator<Integer> it = knownObjects.iterator();
+		while (it.hasNext()) {
+			int id = it.next();
+			if (!currentAround.contains(id)) {
+				it.remove();
+				send(new DeleteObject(id));
+			}
+		}
 	}
 
 	private void onSay(Say2 p) {
@@ -322,11 +393,29 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	private void onAction(Action p) {
-		if (inWorld && p.objectId() == active.objectId()) {
-			send(new MyTargetSelected(active.objectId(), 0));
-		} else {
+		if (!inWorld) {
 			send(new ActionFailed());
+			return;
 		}
+		if (p.objectId() == active.objectId()) {
+			send(new MyTargetSelected(active.objectId(), 0));
+			return;
+		}
+		var npcOpt = ctx.world().npc(p.objectId());
+		if (npcOpt.isPresent()) {
+			var npc = npcOpt.get();
+			send(new MyTargetSelected(npc.objectId(), 0));
+			send(new ValidateLocation(npc.objectId(), npc.x(), npc.y(), npc.z(), npc.heading()));
+			return;
+		}
+		var playerOpt = ctx.world().player(p.objectId());
+		if (playerOpt.isPresent()) {
+			var other = playerOpt.get();
+			send(new MyTargetSelected(other.objectId(), 0));
+			send(new ValidateLocation(other.objectId(), other.x(), other.y(), other.z(), 0));
+			return;
+		}
+		send(new ActionFailed());
 	}
 
 	private void onActionUse(RequestActionUse p) {
@@ -414,8 +503,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		if (inWorld) {
+			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new DeleteObject(active.objectId()), false);
 			ctx.world().remove(this);
 			ctx.characters().save(active, false);
+			knownObjects.clear();
 			log.info("{} saiu do mundo", active.name());
 		}
 		inWorld = false;
@@ -429,6 +520,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	// ---- OnlinePlayer ----
+
+	@Override
+	public GameServerPacket charInfo() {
+		return active == null ? null : new CharInfo(active, ctx.characters().template(active));
+	}
 
 	@Override
 	public int objectId() {

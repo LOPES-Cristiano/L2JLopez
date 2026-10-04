@@ -14,6 +14,8 @@ import com.lopez.l2j.game.service.CharacterService;
 import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.game.template.CharTemplateTable;
 import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.game.npc.NpcInstance;
+import com.lopez.l2j.game.npc.NpcTemplate;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.crypt.GameCrypt;
 import com.lopez.l2j.network.login.packet.PacketReader;
@@ -502,5 +504,66 @@ class GameServerEndToEndTest {
 		reg.expirePending();
 		assertFalse(accounts.isOnline("late"));
 		assertFalse(reg.claim("late", new SessionKey(1, 2, 3, 4)));
+	}
+
+	@Test
+	void npcVisibilityAndTargetingFlow() throws Exception {
+		NpcTemplate t = new NpcTemplate(
+				20001, 20001, "Wolf", true, "Predator", true,
+				8.0, 16.0, 1, "male", "L2Monster",
+				40, 50, 20, 10, 10, 5, 5, 250, 333,
+				0, 0, 0, 50, 100, 0, false);
+		NpcInstance npc = new NpcInstance(0x30000001, t, -71300, 258200, -3104, 0);
+		world.addNpc(npc);
+
+		SessionKey key = loginAs("npctester");
+		try (Client c = new Client()) {
+			c.handshake();
+			c.authLogin("npctester", key);
+			c.read(); // CharSelectionInfo (vazio)
+
+			c.send(characterCreate("NpcHunter", 0, 0, 0));
+			c.read(); // CharCreateOk
+			c.read(); // CharSelectionInfo
+
+			// Seleciona personagem
+			c.send(new PacketWriter().writeC(0x0d).writeD(0).writeH(0).writeD(0).writeD(0).writeD(0).toByteArray());
+			c.read(); // SSQInfo
+			c.read(); // CharSelected
+
+			// Manor list
+			c.send(new PacketWriter().writeC(0xd0).writeH(0x08).toByteArray());
+			c.read(); // ExSendManorList
+
+			// EnterWorld (0x03)
+			c.send(new PacketWriter().writeC(0x03).writeB(new byte[104]).toByteArray());
+
+			// O jogador deve receber NpcInfo (0x16) do Wolf proximo!
+			byte[] npcInfoBytes = c.readUntil(0x16);
+			PacketReader r = new PacketReader(npcInfoBytes);
+			assertEquals(0x16, r.readC());
+			assertEquals(0x30000001, r.readD(), "objectId do NPC");
+			assertEquals(20001 + 1000000, r.readD(), "idTemplate + 1000000");
+			assertEquals(1, r.readD(), "isAttackable (L2Monster)");
+			assertEquals(-71300, r.readD(), "x");
+			assertEquals(258200, r.readD(), "y");
+			assertEquals(-3104, r.readD(), "z");
+
+			// Clica no NPC (Action 0x04)
+			c.send(new PacketWriter().writeC(0x04).writeD(npc.objectId()).writeD(-71338).writeD(258271)
+					.writeD(-3104).writeC(0).toByteArray());
+
+			// Deve receber MyTargetSelected (0xa6)
+			byte[] targetBytes = c.readUntil(0xa6);
+			PacketReader tr = new PacketReader(targetBytes);
+			assertEquals(0xa6, tr.readC());
+			assertEquals(npc.objectId(), tr.readD());
+
+			// E ValidateLocation (0x61)
+			byte[] valBytes = c.readUntil(0x61);
+			PacketReader vr = new PacketReader(valBytes);
+			assertEquals(0x61, vr.readC());
+			assertEquals(npc.objectId(), vr.readD());
+		}
 	}
 }
