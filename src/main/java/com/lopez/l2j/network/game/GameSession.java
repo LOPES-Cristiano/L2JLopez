@@ -64,6 +64,7 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.QuestList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.RestartResponse;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ShortCutInit;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ShortCutRegister;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ShowMiniMap;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SkillList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestShortCutReg;
@@ -326,6 +327,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case GameClientPacket.RequestSocialAction p -> onSocialAction(p);
 			case GameClientPacket.RequestWithDrawalParty p -> onLeaveParty();
 			case GameClientPacket.RequestOustPartyMember p -> onExpelPartyMember(p.name());
+			case GameClientPacket.RequestShowMiniMap p -> onShowMiniMap();
 			case Unknown p -> log.debug("Opcode ignorado 0x{}{} no estado {}", Integer.toHexString(p.opcode()),
 					p.subOpcode() >= 0 ? ":" + Integer.toHexString(p.subOpcode()) : "", state);
 		}
@@ -1282,6 +1284,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
+	private void onShowMiniMap() {
+		if (!inWorld || active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		send(new ShowMiniMap(0, 0));
+	}
+
 	/** UseItem: equipaveis alternam equipar; consumiveis (pocoes, soulshots, scrolls) passam pelos handlers. */
 	private void onUseItem(UseItem p) {
 		if (!inWorld || active == null) {
@@ -1295,6 +1305,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (!item.template().isEquipable()) {
 			if (isScrollOfEscape(item.itemId())) {
 				useScrollOfEscape(item);
+				return;
+			}
+			if (item.itemId() == 1665 || item.itemId() == 1863) {
+				onShowMiniMap();
 				return;
 			}
 			var consumable = ConsumableTable.get(item.itemId());

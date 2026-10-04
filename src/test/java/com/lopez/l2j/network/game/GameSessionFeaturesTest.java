@@ -23,6 +23,7 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.Attack;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ChangeWaitType;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MyTargetSelected;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SetupGauge;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ShowMiniMap;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SocialAction;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import java.util.ArrayList;
@@ -193,6 +194,15 @@ class GameSessionFeaturesTest {
 
 		assertTrue(sent.stream().anyMatch(p -> p instanceof MyTargetSelected mts && mts.objectId() == monster.objectId()),
 				"Target Next deve selecionar o monstro mais proximo");
+	}
+
+	@Test
+	void altMRequestShowMiniMapSendsShowMiniMap() {
+		// Envia opcode 0xcd (RequestShowMiniMap - disparado ao apertar Alt+M ou clicar no icone de mapa)
+		session.handle(new byte[] { (byte) 0xcd });
+
+		assertTrue(sent.stream().anyMatch(p -> p instanceof ShowMiniMap),
+				"Pressionar Alt+M ou clicar no mapa deve enviar pacote ShowMiniMap (0x9d) para abrir a janela de mapa mundi");
 	}
 
 	private static void invokeMethod(Object target, String name, Class<?>[] paramTypes, Object... args) {

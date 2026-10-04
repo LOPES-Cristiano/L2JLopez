@@ -69,6 +69,9 @@ public sealed interface GameClientPacket {
 	record RequestOustPartyMember(String name) implements GameClientPacket {
 	}
 
+	record RequestShowMiniMap() implements GameClientPacket {
+	}
+
 	record RequestItemList() implements GameClientPacket {
 	}
 
@@ -194,6 +197,7 @@ public sealed interface GameClientPacket {
 					case 0x63 -> new RequestQuestList();
 					case 0x09 -> new Logout();
 					case 0x46 -> new RequestRestart();
+					case 0xcd -> new RequestShowMiniMap();
 					case 0xd0 -> extended(r);
 					default -> new Unknown(op, -1);
 				};

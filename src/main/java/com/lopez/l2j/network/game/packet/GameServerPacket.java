@@ -1159,6 +1159,14 @@ public sealed interface GameServerPacket {
 		}
 	}
 
+	/** 0x9d ShowMiniMap: abre a janela do mapa mundi (Alt+M / radar). */
+	record ShowMiniMap(int mapId, int sevenSignsPeriod) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x9d).writeD(mapId).writeD(sevenSignsPeriod).toByteArray();
+		}
+	}
+
 	/** 0xfe:0x17 ExEnchantSkillList: lista de skills que podem ser encantados no trainer. */
 	record ExEnchantSkillList(List<SkillEntry> skills) implements GameServerPacket {
 		public record SkillEntry(int id, int nextLevel, int sp, int exp) {
