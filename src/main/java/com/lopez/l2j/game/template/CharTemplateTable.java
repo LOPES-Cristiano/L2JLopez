@@ -74,6 +74,9 @@ public class CharTemplateTable {
 						i(s, "canCraft") == 1,
 						d(s, "m_col_r"), d(s, "m_col_h"), d(s, "f_col_r"), d(s, "f_col_h"),
 						d(l, "hpbase"), d(l, "mpbase"), d(l, "cpbase"),
+						d(l, "hpadd"), d(l, "hpmod"),
+						d(l, "cpadd"), d(l, "cpmod"),
+						d(l, "mpadd"), d(l, "mpmod"),
 						i(l, "class_lvl"));
 				if (result.put(t.classId(), t) != null) {
 					throw new IllegalStateException("classId duplicado em char_template.xml: " + t.classId());

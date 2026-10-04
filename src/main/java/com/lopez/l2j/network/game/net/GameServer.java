@@ -50,9 +50,12 @@ public class GameServer implements SmartLifecycle {
 			BuyListTable buylists, com.lopez.l2j.game.combat.CombatService combat,
 			com.lopez.l2j.game.drop.DropService drops,
 			com.lopez.l2j.game.shortcut.ShortCutRepository shortcuts,
-			com.lopez.l2j.game.skill.SkillRepository skills) {
+			com.lopez.l2j.game.skill.SkillRepository skills,
+			com.lopez.l2j.game.ai.NpcAiService npcAi,
+			com.lopez.l2j.game.skill.SkillService skillService) {
 		this(p.network().gamePort(), new GameSession.Context(p.network().protocolMin(), p.network().protocolMax(),
-				sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, p.serverName()));
+				sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi,
+				skillService, p.serverName()));
 	}
 
 	/** Porta 0 = efemera (testes); use {@link #port()} depois de iniciar. */

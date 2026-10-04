@@ -95,16 +95,27 @@ class JdbcCharacterRepository implements CharacterRepository {
 	@Override
 	public void saveState(PlayerCharacter c, boolean online) {
 		jdbc.sql("""
-				UPDATE characters SET x = :x, y = :y, z = :z, heading = :heading, curHp = :hp, curMp = :mp,
-				  curCp = :cp, online = :online, lastAccess = :now WHERE charId = :id
+				UPDATE characters SET x = :x, y = :y, z = :z, heading = :heading, level = :level,
+				  exp = :exp, sp = :sp, maxHp = :maxHp, maxMp = :maxMp, maxCp = :maxCp, curHp = :hp,
+				  curMp = :mp, curCp = :cp, face = :face, hairStyle = :hairStyle, hairColor = :hairColor,
+				  online = :online, lastAccess = :now WHERE charId = :id
 				""")
 				.param("x", c.x())
 				.param("y", c.y())
 				.param("z", c.z())
 				.param("heading", c.heading())
+				.param("level", c.level())
+				.param("exp", c.exp())
+				.param("sp", c.sp())
+				.param("maxHp", c.maxHp())
+				.param("maxMp", c.maxMp())
+				.param("maxCp", c.maxCp())
 				.param("hp", (int) c.currentHp())
 				.param("mp", (int) c.currentMp())
 				.param("cp", (int) c.currentCp())
+				.param("face", c.face())
+				.param("hairStyle", c.hairStyle())
+				.param("hairColor", c.hairColor())
 				.param("online", online ? 1 : 0)
 				.param("now", System.currentTimeMillis())
 				.param("id", c.objectId())

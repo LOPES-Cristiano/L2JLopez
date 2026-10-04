@@ -3,6 +3,9 @@ package com.lopez.l2j.game.drop;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
+import com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import java.util.ArrayList;
 import java.util.List;
@@ -101,19 +104,29 @@ public class DropService {
 			return List.of();
 		}
 
+		List<ItemInfo> itemUpdates = new ArrayList<>();
+
 		for (DropReward reward : rewards) {
 			if (autoLoot && inventoryService != null) {
 				try {
-					inventoryService.addItem(player.inventory(), reward.itemId(), reward.count(), "Drop");
+					var addResult = inventoryService.addItem(player.inventory(), reward.itemId(), reward.count(), "Drop");
+					if (addResult != null) {
+						int change = addResult.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED;
+						itemUpdates.add(ItemInfo.of(addResult.item(), change));
+					}
 					if (packetSender != null) {
 						if (reward.isAdena()) {
 							packetSender.accept(SystemMessage.of(
-									SystemMessage.EARNED_S2_S1_S,
+									SystemMessage.YOU_PICKED_UP_S1_ADENA,
+									new SystemMessage.Number(reward.count())));
+						} else if (reward.count() > 1) {
+							packetSender.accept(SystemMessage.of(
+									SystemMessage.YOU_PICKED_UP_S1_S2,
+									new SystemMessage.ItemName(reward.itemId()),
 									new SystemMessage.Number(reward.count())));
 						} else {
 							packetSender.accept(SystemMessage.of(
-									SystemMessage.YOU_PICKED_UP_S1_S2,
-									new SystemMessage.Number(reward.count()),
+									SystemMessage.YOU_PICKED_UP_S1,
 									new SystemMessage.ItemName(reward.itemId())));
 						}
 					}
@@ -121,6 +134,16 @@ public class DropService {
 					log.warn("Falha ao entregar drop {} x{} para {}: {}",
 							reward.itemId(), reward.count(), player.name(), e.getMessage());
 				}
+			}
+		}
+
+		if (packetSender != null) {
+			if (!itemUpdates.isEmpty()) {
+				packetSender.accept(new InventoryUpdate(itemUpdates));
+			}
+			if (player.inventory() != null) {
+				packetSender.accept(new StatusUpdate(player.objectId(),
+						List.of(new StatusUpdate.Attribute(StatusUpdate.CUR_LOAD, player.inventory().currentLoad()))));
 			}
 		}
 

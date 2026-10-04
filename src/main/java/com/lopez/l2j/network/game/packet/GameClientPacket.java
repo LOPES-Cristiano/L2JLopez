@@ -103,6 +103,34 @@ public sealed interface GameClientPacket {
 	record RequestMagicSkillUse(int magicId, boolean ctrlPressed, boolean shiftPressed) implements GameClientPacket {
 	}
 
+	/** 0xD0:0x05 - liga (type 1) ou desliga (type 0) o uso automatico de um soulshot/spiritshot. */
+	record RequestAutoSoulShot(int itemId, int type) implements GameClientPacket {
+	}
+
+	/** 0x6b - detalhes (custo/livros) de um skill da janela do treinador. */
+	record RequestAcquireSkillInfo(int skillId, int level, int skillType) implements GameClientPacket {
+	}
+
+	/** 0x6c - aprender o skill selecionado na janela do treinador. */
+	record RequestAcquireSkill(int skillId, int level, int skillType) implements GameClientPacket {
+	}
+
+	/** 0xD0:0x06 - detalhes de encantamento do skill. */
+	record RequestExEnchantSkillInfo(int skillId, int level) implements GameClientPacket {
+	}
+
+	/** 0xD0:0x07 - executa o encantamento do skill. */
+	record RequestExEnchantSkill(int skillId, int level) implements GameClientPacket {
+	}
+
+	/** 0x29 - convite para grupo (party). */
+	record RequestJoinParty(String name, int itemDistribution) implements GameClientPacket {
+	}
+
+	/** 0x2a - resposta ao convite de grupo (1 = aceitar, 0 = recusar). */
+	record RequestAnswerJoinParty(int response) implements GameClientPacket {
+	}
+
 	record Unknown(int opcode, int subOpcode) implements GameClientPacket {
 	}
 
@@ -138,6 +166,8 @@ public sealed interface GameClientPacket {
 					case 0x04 -> new Action(r.readD(), r.readD(), r.readD(), r.readD(), r.readC());
 					case 0x21 -> new RequestBypassToServer(r.readS());
 					case 0x1f -> readBuyItem(r);
+					case 0x29 -> new RequestJoinParty(r.readS(), r.readD());
+					case 0x2a -> new RequestAnswerJoinParty(r.readD());
 					case 0x2f -> new RequestMagicSkillUse(r.readD(), r.readD() != 0, r.readC() != 0);
 					case 0x33 -> new RequestShortCutReg(r.readD(), r.readD(), r.readD(), r.readD());
 					case 0x35 -> new RequestShortCutDel(r.readD());
@@ -147,6 +177,8 @@ public sealed interface GameClientPacket {
 					case 0x14 -> new UseItem(r.readD());
 					case 0x11 -> new RequestUnEquipItem(r.readD());
 					case 0x3f -> new RequestSkillList();
+					case 0x6b -> new RequestAcquireSkillInfo(r.readD(), r.readD(), r.readD());
+					case 0x6c -> new RequestAcquireSkill(r.readD(), r.readD(), r.readD());
 					case 0x63 -> new RequestQuestList();
 					case 0x09 -> new Logout();
 					case 0x46 -> new RequestRestart();
@@ -177,7 +209,13 @@ public sealed interface GameClientPacket {
 			return new Unknown(0xd0, -1);
 		}
 		int sub = r.readH();
-		return sub == 0x08 ? new RequestManorList() : new Unknown(0xd0, sub);
+		return switch (sub) {
+			case 0x08 -> new RequestManorList();
+			case 0x05 -> r.remaining() >= 8 ? new RequestAutoSoulShot(r.readD(), r.readD()) : new Unknown(0xd0, sub);
+			case 0x06 -> r.remaining() >= 8 ? new RequestExEnchantSkillInfo(r.readD(), r.readD()) : new Unknown(0xd0, sub);
+			case 0x07 -> r.remaining() >= 8 ? new RequestExEnchantSkill(r.readD(), r.readD()) : new Unknown(0xd0, sub);
+			default -> new Unknown(0xd0, sub);
+		};
 	}
 
 	private static Say2 say2(PacketReader r) {

@@ -4,6 +4,7 @@ import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.item.ItemSlots;
 import com.lopez.l2j.game.item.Paperdoll;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.model.PlayerStats;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.template.CharTemplate;
 import com.lopez.l2j.network.login.packet.PacketWriter;
@@ -191,7 +192,7 @@ public sealed interface GameServerPacket {
 	}
 
 	/** 0x04 UserInfo: estado completo do proprio personagem (o cliente so "entra" no mundo apos recebe-lo). */
-	record UserInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll, int currentLoad)
+	record UserInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll, int currentLoad, PlayerStats stats)
 			implements GameServerPacket {
 		static final int WALK_SPEED = 80;
 		static final int INVENTORY_LIMIT = 80;
@@ -199,7 +200,11 @@ public sealed interface GameServerPacket {
 		static final int TITLE_COLOR = 0xFFFF77;
 
 		public UserInfo(PlayerCharacter c, CharTemplate t) {
-			this(c, t, c.inventory().paperdollView(), c.inventory().currentLoad());
+			this(c, t, c.inventory().paperdollView(), c.inventory().currentLoad(), PlayerStats.calculate(c, t));
+		}
+
+		public UserInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll, int currentLoad) {
+			this(c, t, paperdoll, currentLoad, PlayerStats.calculate(c, t));
 		}
 
 		@Override
@@ -224,12 +229,12 @@ public sealed interface GameServerPacket {
 			for (int i = 0; i < 4; i++) {
 				w.writeH(0x00);
 			}
-			w.writeD(t.pAtk()).writeD(t.pAtkSpd()).writeD(t.pDef()).writeD(t.evasion()).writeD(t.accuracy())
-					.writeD(t.critical()).writeD(t.mAtk());
-			w.writeD(t.mAtkSpd()).writeD(t.pAtkSpd());
-			w.writeD(t.mDef());
+			w.writeD(stats.pAtk()).writeD(stats.pAtkSpd()).writeD(stats.pDef()).writeD(stats.evasion()).writeD(stats.accuracy())
+					.writeD(stats.critical()).writeD(stats.mAtk());
+			w.writeD(stats.mAtkSpd()).writeD(stats.pAtkSpd());
+			w.writeD(stats.mDef());
 			w.writeD(0x00).writeD(c.karma()); // pvp flag, karma
-			int run = t.runSpeed();
+			int run = stats.runSpeed();
 			w.writeD(run).writeD(WALK_SPEED).writeD(run).writeD(WALK_SPEED).writeD(run).writeD(WALK_SPEED);
 			w.writeD(0).writeD(0); // fly speeds
 			w.writeF(1.0).writeF(1.0); // move / attack speed multipliers
@@ -242,7 +247,7 @@ public sealed interface GameServerPacket {
 			w.writeD(c.pkKills()).writeD(c.pvpKills());
 			w.writeH(0); // cubics
 			w.writeC(0);
-			w.writeD(0); // abnormal effect
+			w.writeD(c.abnormalEffect()); // abnormal effect
 			w.writeC(0);
 			w.writeD(0); // clan privileges
 			w.writeH(0).writeH(0); // recom left/have
@@ -327,16 +332,68 @@ public sealed interface GameServerPacket {
 
 	/** 0x64 SystemMessage: mensagem do systemmsg.dat do cliente com parametros tipados. */
 	record SystemMessage(int id, List<Param> params) implements GameServerPacket {
+		public static final int YOU_PICKED_UP_S1_ADENA = 28;
 		public static final int YOU_PICKED_UP_S1_S2 = 29;
+		public static final int YOU_PICKED_UP_S1 = 30;
+		public static final int YOU_DID_S1_DMG = 35;
+		public static final int S1_GAVE_YOU_S2_DMG = 36;
+		public static final int EARNED_S1_EXPERIENCE = 45;
+		public static final int USE_S1 = 46;
+		public static final int S1_PREPARED_FOR_REUSE = 48;
+		public static final int S1_HAS_WORN_OFF = 92;
+		public static final int YOU_FEEL_S1_EFFECT = 110;
+		public static final int SOULSHOTS_GRADE_MISMATCH = 337;
+		public static final int NOT_ENOUGH_SOULSHOTS = 338;
+		public static final int CANNOT_USE_SOULSHOTS = 339;
+		public static final int ENABLED_SOULSHOT = 342;
+		public static final int S1_HP_RESTORED = 1066;
+		public static final int S1_MP_RESTORED = 1068;
+		public static final int S1_CP_WILL_BE_RESTORED = 1405;
+		public static final int USE_OF_S1_WILL_BE_AUTO = 1433;
+		public static final int AUTO_USE_OF_S1_CANCELLED = 1434;
 		public static final int S1_EQUIPPED = 49;
+		public static final int EARNED_S1_ADENA = 52;
 		public static final int EARNED_S2_S1_S = 53;
+		public static final int EARNED_S1 = 54;
+		public static final int YOU_EARNED_S1_EXP_AND_S2_SP = 95;
+		public static final int YOU_INCREASED_YOUR_LEVEL = 96;
 		public static final int S1_CANNOT_BE_USED = 113;
 		public static final int SLOTS_FULL = 129;
 		public static final int YOU_NOT_ENOUGH_ADENA = 279;
+		public static final int ACQUIRED_S1_SP = 331;
 		public static final int S1_S2_EQUIPPED = 368;
 		public static final int S1_DISARMED = 417;
 		public static final int WEIGHT_LIMIT_EXCEEDED = 422;
 		public static final int EQUIPMENT_S1_S2_REMOVED = 1064;
+		public static final int TARGET_TOO_FAR = 22;
+		public static final int NOT_ENOUGH_MP = 24;
+		public static final int NOT_ENOUGH_HP = 23;
+		public static final int CASTING_INTERRUPTED = 27;
+		public static final int TARGET_IS_INCORRECT = 144;
+		public static final int ITEM_MISSING_TO_LEARN_SKILL = 276;
+		public static final int LEARNED_SKILL_S1 = 277;
+		public static final int NOT_ENOUGH_SP_TO_LEARN_SKILL = 278;
+		public static final int S1_DISAPPEARED = 302;
+		public static final int DO_NOT_HAVE_FURTHER_SKILLS_TO_LEARN = 607;
+		public static final int EFFECT_S1_DISAPPEARED = 749;
+		public static final int NO_MORE_SKILLS_TO_LEARN = 750;
+		public static final int S2_HP_RESTORED_BY_S1 = 1067;
+		public static final int CRITICAL_HIT_MAGIC = 1280;
+		public static final int CRITICAL_HIT = 44;
+		public static final int S1_WAS_UNAFFECTED_BY_S2 = 139;
+		public static final int SPIRITSHOTS_GRADE_MISMATCH = 530;
+		public static final int NOT_ENOUGH_SPIRITSHOTS = 531;
+		public static final int CANNOT_USE_SPIRITSHOTS = 532;
+		public static final int ENABLED_SPIRITSHOT = 533;
+		public static final int DISABLED_SPIRITSHOT = 534;
+		public static final int SKILL_REMOVED_DUE_LACK_MP = 140;
+		public static final int YOU_DONT_HAVE_ALL_OF_THE_ITEMS_NEEDED_TO_ENCHANT_THAT_SKILL = 1439;
+		public static final int YOU_HAVE_SUCCEEDED_IN_ENCHANTING_THE_SKILL_S1 = 1440;
+		public static final int YOU_HAVE_FAILED_TO_ENCHANT_THE_SKILL = 1441;
+		public static final int YOU_DONT_HAVE_ENOUGH_SP_TO_ENCHANT_THAT_SKILL = 1443;
+		public static final int YOU_DONT_HAVE_ENOUGH_EXP_TO_ENCHANT_THAT_SKILL = 1444;
+		public static final int ADD_NEW_SUBCLASS = 1269;
+		public static final int SUBCLASS_TRANSFER_COMPLETED = 1270;
 
 		public static SystemMessage id(int id) {
 			return new SystemMessage(id, List.of());
@@ -357,6 +414,9 @@ public sealed interface GameServerPacket {
 		public record NpcName(int npcId) implements Param {
 		}
 
+		public record SkillName(int skillId, int level) implements Param {
+		}
+
 		public SystemMessage {
 			params = List.copyOf(params);
 		}
@@ -374,6 +434,7 @@ public sealed interface GameServerPacket {
 					case Number n -> w.writeD(1).writeD(n.value());
 					case NpcName n -> w.writeD(2).writeD(1_000_000 + n.npcId());
 					case ItemName i -> w.writeD(3).writeD(i.itemId());
+					case SkillName s -> w.writeD(4).writeD(s.skillId()).writeD(s.level());
 				}
 			}
 			return w.toByteArray();
@@ -508,6 +569,113 @@ public sealed interface GameServerPacket {
 		}
 	}
 
+	/** 0xFE:0x12 ExAutoSoulShot: acende/apaga o icone de uso automatico do shot (type 1 = on, 0 = off). */
+	record ExAutoSoulShot(int itemId, int type) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x12).writeD(itemId).writeD(type).toByteArray();
+		}
+	}
+
+	/** 0x7f MagicEffectIcons: icones de buffs na barra (duracao restante em segundos). */
+	record MagicEffectIcons(List<Icon> icons) implements GameServerPacket {
+		public record Icon(int skillId, int level, int durationSeconds) {
+		}
+
+		public MagicEffectIcons {
+			icons = List.copyOf(icons);
+		}
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x7f).writeH(icons.size());
+			for (Icon i : icons) {
+				w.writeD(i.skillId()).writeH(i.level()).writeD(i.durationSeconds());
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x8a AcquireSkillList: janela de aprendizado do treinador (type 0 = skills de classe). */
+	record AcquireSkillList(int type, List<Entry> skills) implements GameServerPacket {
+		public record Entry(int id, int nextLevel, int maxLevel, int spCost, int requirements) {
+		}
+
+		public AcquireSkillList {
+			skills = List.copyOf(skills);
+		}
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x8a).writeD(type).writeD(skills.size());
+			for (Entry e : skills) {
+				w.writeD(e.id()).writeD(e.nextLevel()).writeD(e.maxLevel()).writeD(e.spCost()).writeD(e.requirements());
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x8b AcquireSkillInfo: custo e requisitos (livros) do skill selecionado na janela do treinador. */
+	record AcquireSkillInfo(int id, int level, int spCost, int mode, List<Requirement> requirements)
+			implements GameServerPacket {
+		/** type 99 = item (livro), unk 50 como no L2J. */
+		public record Requirement(int type, int itemId, int count, int unk) {
+		}
+
+		public AcquireSkillInfo {
+			requirements = List.copyOf(requirements);
+		}
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x8b).writeD(id).writeD(level).writeD(spCost).writeD(mode)
+					.writeD(requirements.size());
+			for (Requirement r : requirements) {
+				w.writeD(r.type()).writeD(r.itemId()).writeD(r.count()).writeD(r.unk());
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x25 AcquireSkillDone: fecha/atualiza a janela de aprendizado. */
+	record AcquireSkillDone() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x25).toByteArray();
+		}
+	}
+
+	/** 0x76 MagicSkillLaunched: momento em que o skill e disparado sobre os alvos. */
+	record MagicSkillLaunched(int charObjId, int skillId, int skillLevel, List<Integer> targets)
+			implements GameServerPacket {
+		public MagicSkillLaunched {
+			targets = List.copyOf(targets);
+		}
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x76).writeD(charObjId).writeD(skillId).writeD(skillLevel)
+					.writeD(targets.size());
+			if (targets.isEmpty()) {
+				w.writeD(0);
+			}
+			for (int t : targets) {
+				w.writeD(t);
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x6d SetupGauge: barra de conjuracao (0 = azul). */
+	record SetupGauge(int color, int time) implements GameServerPacket {
+		public static final int BLUE = 0;
+
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x6d).writeD(color).writeD(time).writeD(time).toByteArray();
+		}
+	}
+
 	/** 0xe4 HennaInfo (sem tatuagens). */
 	record HennaInfo() implements GameServerPacket {
 		@Override
@@ -608,7 +776,12 @@ public sealed interface GameServerPacket {
 		public static final int ALL = 0;
 		public static final int SHOUT = 1;
 		public static final int TELL = 2;
+		public static final int PARTY = 3;
+		public static final int CLAN = 4;
+		public static final int TRADE = 8;
+		public static final int ALLIANCE = 9;
 		public static final int ANNOUNCEMENT = 10;
+		public static final int HERO = 17;
 
 		@Override
 		public byte[] encode() {
@@ -784,7 +957,7 @@ public sealed interface GameServerPacket {
 
 			w.writeH(0);
 			w.writeC(0);
-			w.writeD(0);
+			w.writeD(c.abnormalEffect()); // abnormal effect
 			w.writeC(0);
 			w.writeH(0);
 			w.writeD(c.classId());
@@ -893,6 +1066,7 @@ public sealed interface GameServerPacket {
 		public static final int CUR_MP = 0x0b;
 		public static final int MAX_MP = 0x0c;
 		public static final int SP = 0x0d;
+		public static final int CUR_LOAD = 0x0e;
 		public static final int CUR_CP = 0x21;
 		public static final int MAX_CP = 0x22;
 
@@ -936,6 +1110,71 @@ public sealed interface GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter().writeC(0x07).writeD(charObjId).toByteArray();
+		}
+	}
+
+	/** 0x60 MoveToPawn: move o personagem ate alcancar o alvo com offset. */
+	record MoveToPawn(int charObjId, int targetId, int distance, int x, int y, int z) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x60).writeD(charObjId).writeD(targetId).writeD(distance).writeD(x)
+					.writeD(y).writeD(z).toByteArray();
+		}
+	}
+
+	/** 0x2b AutoAttackStart: inicia a postura de combate/auto-attack. */
+	record AutoAttackStart(int targetObjId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x2b).writeD(targetObjId).toByteArray();
+		}
+	}
+
+	/** 0x2c AutoAttackStop: finaliza a postura de combate. */
+	record AutoAttackStop(int targetObjId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x2c).writeD(targetObjId).toByteArray();
+		}
+	}
+
+	/** 0x2d SocialAction: animacao de acao social (15 = Level Up). */
+	record SocialAction(int charObjId, int actionId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x2d).writeD(charObjId).writeD(actionId).toByteArray();
+		}
+	}
+
+	/** 0xfe:0x17 ExEnchantSkillList: lista de skills que podem ser encantados no trainer. */
+	record ExEnchantSkillList(List<SkillEntry> skills) implements GameServerPacket {
+		public record SkillEntry(int id, int nextLevel, int sp, int exp) {
+		}
+
+		@Override
+		public byte[] encode() {
+			var w = new PacketWriter().writeC(0xfe).writeH(0x17).writeD(skills.size());
+			for (var s : skills) {
+				w.writeD(s.id()).writeD(s.nextLevel()).writeD(s.sp()).writeD(s.exp());
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xfe:0x18 ExEnchantSkillInfo: detalhes de custo em SP/EXP e taxa de sucesso do proximo nivel. */
+	record ExEnchantSkillInfo(int id, int level, int spCost, long expCost, int rate, List<Req> reqs)
+			implements GameServerPacket {
+		public record Req(int type, int id, int count, int unk) {
+		}
+
+		@Override
+		public byte[] encode() {
+			var w = new PacketWriter().writeC(0xfe).writeH(0x18).writeD(id).writeD(level).writeD(spCost)
+					.writeQ(expCost).writeD(rate).writeD(reqs.size());
+			for (var r : reqs) {
+				w.writeD(r.type()).writeD(r.id()).writeD(r.count()).writeD(r.unk());
+			}
+			return w.toByteArray();
 		}
 	}
 }

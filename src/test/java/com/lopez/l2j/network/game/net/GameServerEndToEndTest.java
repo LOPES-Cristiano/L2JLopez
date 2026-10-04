@@ -722,4 +722,103 @@ class GameServerEndToEndTest {
 			assertEquals(monster.objectId(), sur.readD());
 		}
 	}
+
+	@Test
+	void chatPrefixesRouteToCorrectChannels() throws Exception {
+		SessionKey key = loginAs("chattester");
+		try (Client c = new Client()) {
+			c.handshake();
+			c.authLogin("chattester", key);
+			c.read(); // CharSelectionInfo
+			c.send(characterCreate("Speaker", 0, 0, 0));
+			c.read();
+			c.read();
+
+			c.send(new PacketWriter().writeC(0x0d).writeD(0).writeH(0).writeD(0).writeD(0).writeD(0).toByteArray());
+			c.read();
+			c.read();
+			c.send(new PacketWriter().writeC(0xd0).writeH(0x08).toByteArray());
+			c.read();
+			c.send(new PacketWriter().writeC(0x03).writeB(new byte[104]).toByteArray());
+			c.readUntil(0x4a); // Bem-vindo
+
+			// Testa chat shout com prefixo !
+			c.send(new PacketWriter().writeC(0x38).writeS("!grito global").writeD(0).toByteArray());
+			byte[] shoutBytes = c.readUntil(0x4a);
+			PacketReader sr = new PacketReader(shoutBytes);
+			assertEquals(0x4a, sr.readC());
+			sr.readD(); // objectId
+			assertEquals(1, sr.readD(), "Canal deve ser SHOUT (1)");
+			assertEquals("Speaker", sr.readS());
+			assertEquals("grito global", sr.readS(), "Texto nao deve conter o prefixo !");
+
+			// Testa chat trade com prefixo +
+			c.send(new PacketWriter().writeC(0x38).writeS("+vendo espada").writeD(0).toByteArray());
+			byte[] tradeBytes = c.readUntil(0x4a);
+			PacketReader tr = new PacketReader(tradeBytes);
+			assertEquals(0x4a, tr.readC());
+			tr.readD();
+			assertEquals(8, tr.readD(), "Canal deve ser TRADE (8)");
+			assertEquals("Speaker", tr.readS());
+			assertEquals("vendo espada", tr.readS());
+
+			// Testa chat hero com prefixo %
+			c.send(new PacketWriter().writeC(0x38).writeS("%aviso hero").writeD(0).toByteArray());
+			byte[] heroBytes = c.readUntil(0x4a);
+			PacketReader hr = new PacketReader(heroBytes);
+			assertEquals(0x4a, hr.readC());
+			hr.readD();
+			assertEquals(17, hr.readD(), "Canal deve ser HERO (17)");
+			assertEquals("Speaker", hr.readS());
+			assertEquals("aviso hero", hr.readS());
+		}
+	}
+
+	@Test
+	void attackingFarMonsterTriggersMoveToPawnNotInstantDamage() throws Exception {
+		// Monstro muito longe do ponto inicial (-71338, 258271)
+		var t = new NpcTemplate(20001, 20001, "FarGremlin", false, "", false, 10.0, 15.0, 1, "male",
+				"L2Monster", 40, 20, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
+		NpcInstance farMonster = new NpcInstance(0x30000004, t, -50000, 258271, -3104, 0);
+		world.addNpc(farMonster);
+
+		SessionKey key = loginAs("distancetester");
+		try (Client c = new Client()) {
+			c.handshake();
+			c.authLogin("distancetester", key);
+			c.read();
+			c.send(characterCreate("Runner", 0, 0, 0));
+			c.read();
+			c.read();
+
+			c.send(new PacketWriter().writeC(0x0d).writeD(0).writeH(0).writeD(0).writeD(0).writeD(0).toByteArray());
+			c.read();
+			c.read();
+			c.send(new PacketWriter().writeC(0xd0).writeH(0x08).toByteArray());
+			c.read();
+			c.send(new PacketWriter().writeC(0x03).writeB(new byte[104]).toByteArray());
+			c.readUntil(0x4a);
+
+			// 1º clique: Seleciona o monstro distante
+			c.send(new PacketWriter().writeC(0x04).writeD(farMonster.objectId()).writeD(-71338).writeD(258271)
+					.writeD(-3104).writeC(0).toByteArray());
+			c.readUntil(0xa6); // MyTargetSelected
+			// Deve receber StatusUpdate com HP do alvo no 1º clique
+			byte[] suBytes = c.readUntil(0x0e);
+			PacketReader sur = new PacketReader(suBytes);
+			assertEquals(0x0e, sur.readC());
+			assertEquals(farMonster.objectId(), sur.readD());
+
+			// 2º clique: Tenta atacar de longe! Nao deve desferir Attack instantaneo, e sim MoveToPawn (0x60)!
+			c.send(new PacketWriter().writeC(0x04).writeD(farMonster.objectId()).writeD(-71338).writeD(258271)
+					.writeD(-3104).writeC(0).toByteArray());
+
+			byte[] movePawnBytes = c.readUntil(0x60);
+			PacketReader mpr = new PacketReader(movePawnBytes);
+			assertEquals(0x60, mpr.readC());
+			assertEquals(0x10000000, mpr.readD(), "charObjId do player");
+			assertEquals(farMonster.objectId(), mpr.readD(), "targetObjId do monstro");
+			assertEquals(40, mpr.readD(), "distance offset de ataque");
+		}
+	}
 }

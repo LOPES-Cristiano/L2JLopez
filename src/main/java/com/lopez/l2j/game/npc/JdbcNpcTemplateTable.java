@@ -100,6 +100,8 @@ class JdbcNpcTemplateTable implements NpcTemplateTable {
 				rs.getInt("walkspd"),
 				rs.getInt("runspd"),
 				rs.getInt("aggro"),
-				rs.getInt("isUndead") == 1);
+				rs.getInt("isUndead") == 1,
+				rs.getLong("exp"),
+				rs.getInt("sp"));
 	}
 }

@@ -36,6 +36,10 @@ public class GameWorld {
 		default GameServerPacket charInfo() {
 			return null;
 		}
+
+		default com.lopez.l2j.game.model.PlayerCharacter character() {
+			return null;
+		}
 	}
 
 	public static final int LOCAL_CHAT_RANGE = 1250;

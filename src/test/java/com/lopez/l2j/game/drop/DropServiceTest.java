@@ -93,7 +93,12 @@ class DropServiceTest {
 		assertTrue(player.inventory().items().stream().anyMatch(i -> i.itemId() == ITEM_SWORD_ID));
 
 		// Foram enviadas mensagens de sistema (Adena e Item)
-		assertTrue(sentPackets.stream().anyMatch(p -> p instanceof SystemMessage sm && sm.id() == SystemMessage.EARNED_S2_S1_S));
-		assertTrue(sentPackets.stream().anyMatch(p -> p instanceof SystemMessage sm && sm.id() == SystemMessage.YOU_PICKED_UP_S1_S2));
+		assertTrue(sentPackets.stream().anyMatch(p -> p instanceof SystemMessage sm && sm.id() == SystemMessage.YOU_PICKED_UP_S1_ADENA));
+		assertTrue(sentPackets.stream().anyMatch(p -> p instanceof SystemMessage sm && sm.id() == SystemMessage.YOU_PICKED_UP_S1));
+
+		// Foram enviados InventoryUpdate e StatusUpdate de peso
+		assertTrue(sentPackets.stream().anyMatch(p -> p instanceof GameServerPacket.InventoryUpdate iu && !iu.items().isEmpty()));
+		assertTrue(sentPackets.stream().anyMatch(p -> p instanceof GameServerPacket.StatusUpdate su
+				&& su.attributes().stream().anyMatch(a -> a.id() == GameServerPacket.StatusUpdate.CUR_LOAD)));
 	}
 }

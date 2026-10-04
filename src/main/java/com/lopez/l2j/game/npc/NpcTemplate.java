@@ -30,7 +30,21 @@ public record NpcTemplate(
 		int walkSpd,
 		int runSpd,
 		int aggroRange,
-		boolean isUndead) {
+		boolean isUndead,
+		long exp,
+		int sp) {
+
+	public NpcTemplate(
+			int id, int idTemplate, String name, boolean serverSideName, String title,
+			boolean serverSideTitle, double collisionRadius, double collisionHeight, int level,
+			String sex, String type, int attackRange, int maxHp, int maxMp, int pAtk,
+			int pDef, int mAtk, int mDef, int pAtkSpd, int mAtkSpd, int rhand,
+			int lhand, int armor, int walkSpd, int runSpd, int aggroRange, boolean isUndead) {
+		this(id, idTemplate, name, serverSideName, title, serverSideTitle, collisionRadius,
+				collisionHeight, level, sex, type, attackRange, maxHp, maxMp, pAtk, pDef,
+				mAtk, mDef, pAtkSpd, mAtkSpd, rhand, lhand, armor, walkSpd, runSpd,
+				aggroRange, isUndead, 0L, 0);
+	}
 
 	public NpcTemplate {
 		name = name == null ? "" : name;

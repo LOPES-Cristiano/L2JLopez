@@ -16,6 +16,8 @@ public final class NpcInstance {
 	private boolean dead;
 	private boolean inCombat;
 	private boolean running;
+	private volatile int targetPlayerId;
+	private volatile long lastAttackTime;
 
 	public NpcInstance(int objectId, NpcTemplate template, int x, int y, int z, int heading) {
 		this.objectId = objectId;
@@ -48,12 +50,48 @@ public final class NpcInstance {
 	public void running(boolean value) { this.running = value; }
 	public boolean isAttackable() { return template.isAttackable(); }
 	public boolean isMonster() { return template.isMonster(); }
+	public int targetPlayerId() { return targetPlayerId; }
+	public void targetPlayerId(int value) { this.targetPlayerId = value; }
+	public long lastAttackTime() { return lastAttackTime; }
+	public void lastAttackTime(long value) { this.lastAttackTime = value; }
 
 	public void moveTo(int x, int y, int z, int heading) {
 		this.x = x;
 		this.y = y;
 		this.z = z;
 		this.heading = heading;
+	}
+
+	// ---- controle de debuffs de skills (Stun/Sleep/Paralyze/Root) ----
+
+	private volatile long disabledUntil;
+	private volatile boolean sleeping;
+	private volatile long rootedUntil;
+
+	/** Stun/Paralyze/Sleep: nao anda nem ataca ate {@code until}. Sleep quebra ao tomar dano. */
+	public void disable(long until, boolean sleep) {
+		this.disabledUntil = Math.max(disabledUntil, until);
+		this.sleeping = sleep;
+	}
+
+	public void root(long until) {
+		this.rootedUntil = Math.max(rootedUntil, until);
+	}
+
+	public boolean isDisabled() {
+		return System.currentTimeMillis() < disabledUntil;
+	}
+
+	public boolean isRooted() {
+		return System.currentTimeMillis() < rootedUntil;
+	}
+
+	/** Chamado quando o monstro toma dano: acorda do Sleep. */
+	public void onDamaged() {
+		if (sleeping) {
+			sleeping = false;
+			disabledUntil = 0;
+		}
 	}
 
 	@Override

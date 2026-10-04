@@ -1,6 +1,11 @@
 package com.lopez.l2j.game.model;
 
+import com.lopez.l2j.game.effect.PlayerEffects;
 import com.lopez.l2j.game.item.Inventory;
+import com.lopez.l2j.game.skill.StatFunc;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Personagem persistido na tabela legada {@code characters}. Mutavel apenas no que muda durante o jogo
@@ -19,12 +24,12 @@ public final class PlayerCharacter {
 	private final int classId;
 	private final int baseClassId;
 	private final boolean female;
-	private final int face;
-	private final int hairStyle;
-	private final int hairColor;
-	private final int maxHp;
-	private final int maxMp;
-	private final int maxCp;
+	private int face;
+	private int hairStyle;
+	private int hairColor;
+	private int maxHp;
+	private int maxMp;
+	private int maxCp;
 	private final int karma;
 	private final int pvpKills;
 	private final int pkKills;
@@ -44,6 +49,11 @@ public final class PlayerCharacter {
 	private boolean running = true;
 	private boolean sitting;
 	private Inventory inventory;
+
+	private final Map<Integer, Integer> skills = new ConcurrentHashMap<>();
+	private final PlayerEffects effects = new PlayerEffects();
+	private List<StatFunc> passiveFuncs = List.of();
+	private int abnormalEffect;
 
 	public PlayerCharacter(int objectId, String account, String name, int level, long exp, int sp, int race,
 			int classId, int baseClassId, boolean female, int face, int hairStyle, int hairColor, int maxHp,
@@ -94,11 +104,17 @@ public final class PlayerCharacter {
 	public int baseClassId() { return baseClassId; }
 	public boolean female() { return female; }
 	public int face() { return face; }
+	public void face(int value) { this.face = value; }
 	public int hairStyle() { return hairStyle; }
+	public void hairStyle(int value) { this.hairStyle = value; }
 	public int hairColor() { return hairColor; }
+	public void hairColor(int value) { this.hairColor = value; }
 	public int maxHp() { return maxHp; }
+	public void maxHp(int value) { this.maxHp = value; }
 	public int maxMp() { return maxMp; }
+	public void maxMp(int value) { this.maxMp = value; }
 	public int maxCp() { return maxCp; }
+	public void maxCp(int value) { this.maxCp = value; }
 	public int karma() { return karma; }
 	public int pvpKills() { return pvpKills; }
 	public int pkKills() { return pkKills; }
@@ -127,6 +143,16 @@ public final class PlayerCharacter {
 	public void running(boolean value) { this.running = value; }
 	public boolean sitting() { return sitting; }
 	public void sitting(boolean value) { this.sitting = value; }
+
+	public Map<Integer, Integer> skills() { return skills; }
+	public int skillLevel(int skillId) { return skills.getOrDefault(skillId, 0); }
+	public PlayerEffects effects() { return effects; }
+	public List<StatFunc> passiveFuncs() { return passiveFuncs; }
+	public void passiveFuncs(List<StatFunc> funcs) { this.passiveFuncs = funcs == null ? List.of() : List.copyOf(funcs); }
+
+	public int abnormalEffect() { return abnormalEffect; }
+	public void startAbnormalEffect(int mask) { this.abnormalEffect |= mask; }
+	public void stopAbnormalEffect(int mask) { this.abnormalEffect &= ~mask; }
 
 	/** Inventario carregado ao entrar no jogo (vazio enquanto o personagem esta so na lista). */
 	public Inventory inventory() {
