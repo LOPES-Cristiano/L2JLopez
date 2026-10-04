@@ -22,10 +22,12 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.ActionFailed;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Attack;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ChangeWaitType;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MyTargetSelected;
+import com.lopez.l2j.network.game.packet.GameServerPacket.Revive;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SetupGauge;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ShowMiniMap;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SocialAction;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
+import com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -203,6 +205,21 @@ class GameSessionFeaturesTest {
 
 		assertTrue(sent.stream().anyMatch(p -> p instanceof ShowMiniMap),
 				"Pressionar Alt+M ou clicar no mapa deve enviar pacote ShowMiniMap (0x9d) para abrir a janela de mapa mundi");
+	}
+
+	@Test
+	void restartPointRevivesPlayerAndTeleportsToTown() {
+		// Mata o player (HP zerado)
+		player.currentHp(0.0);
+		assertTrue(player.isDead());
+
+		// Envia opcode 0x6d (RequestRestartPoint, tipo 0 = To Village)
+		session.handle(new byte[] { 0x6d, 0x00, 0x00, 0x00, 0x00 });
+
+		assertFalse(player.isDead(), "Player deve estar vivo apos clicar To Village");
+		assertTrue(player.currentHp() > 0, "HP deve ser restaurado");
+		assertTrue(sent.stream().anyMatch(p -> p instanceof Revive), "Deve enviar pacote Revive");
+		assertTrue(sent.stream().anyMatch(p -> p instanceof TeleportToLocation), "Deve enviar TeleportToLocation para a vila");
 	}
 
 	private static void invokeMethod(Object target, String name, Class<?>[] paramTypes, Object... args) {

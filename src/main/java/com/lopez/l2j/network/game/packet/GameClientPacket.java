@@ -72,6 +72,9 @@ public sealed interface GameClientPacket {
 	record RequestShowMiniMap() implements GameClientPacket {
 	}
 
+	record RequestRestartPoint(int requestedPointType) implements GameClientPacket {
+	}
+
 	record RequestItemList() implements GameClientPacket {
 	}
 
@@ -194,6 +197,7 @@ public sealed interface GameClientPacket {
 					case 0x3f -> new RequestSkillList();
 					case 0x6b -> new RequestAcquireSkillInfo(r.readD(), r.readD(), r.readD());
 					case 0x6c -> new RequestAcquireSkill(r.readD(), r.readD(), r.readD());
+					case 0x6d -> new RequestRestartPoint(r.readD());
 					case 0x63 -> new RequestQuestList();
 					case 0x09 -> new Logout();
 					case 0x46 -> new RequestRestart();

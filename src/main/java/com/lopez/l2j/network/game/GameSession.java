@@ -62,10 +62,12 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.MyTargetSelected;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NewCharacterSuccess;
 import com.lopez.l2j.network.game.packet.GameServerPacket.QuestList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.RestartResponse;
+import com.lopez.l2j.network.game.packet.GameServerPacket.Revive;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ShortCutInit;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ShortCutRegister;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ShowMiniMap;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SkillList;
+import com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestShortCutReg;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestShortCutDel;
@@ -328,6 +330,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case GameClientPacket.RequestWithDrawalParty p -> onLeaveParty();
 			case GameClientPacket.RequestOustPartyMember p -> onExpelPartyMember(p.name());
 			case GameClientPacket.RequestShowMiniMap p -> onShowMiniMap();
+			case GameClientPacket.RequestRestartPoint p -> onRestartPoint(p);
 			case Unknown p -> log.debug("Opcode ignorado 0x{}{} no estado {}", Integer.toHexString(p.opcode()),
 					p.subOpcode() >= 0 ? ":" + Integer.toHexString(p.subOpcode()) : "", state);
 		}
@@ -1290,6 +1293,29 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		send(new ShowMiniMap(0, 0));
+	}
+
+	private void onRestartPoint(GameClientPacket.RequestRestartPoint p) {
+		if (!inWorld || active == null || !active.isDead()) {
+			send(new ActionFailed());
+			return;
+		}
+		int[] townLoc = findNearestTown(active.x(), active.y());
+		active.sitting(false);
+		active.currentHp(active.maxHp() * 0.70);
+		active.currentMp(active.maxMp() * 0.30);
+		active.currentCp(0.0);
+		active.moveTo(townLoc[0], townLoc[1], townLoc[2]);
+
+		var revive = new Revive(active.objectId());
+		send(revive);
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, revive, false);
+
+		var tele = new TeleportToLocation(active.objectId(), townLoc[0], townLoc[1], townLoc[2]);
+		send(tele);
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, tele, false);
+
+		send(new UserInfo(active, ctx.characters().template(active)));
 	}
 
 	/** UseItem: equipaveis alternam equipar; consumiveis (pocoes, soulshots, scrolls) passam pelos handlers. */
