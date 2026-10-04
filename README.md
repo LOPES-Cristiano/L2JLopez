@@ -33,5 +33,21 @@ API de teste: `GET http://localhost:8080/api/status` e `/actuator/health`.
 - Mods se comunicam por eventos, nunca chamando uns aos outros.
 - Cada feature pode ser desligada em `l2.features.*.enabled`.
 
+## Banco de dados (Flyway)
+- `V1` baseline; `V2`..`V122`: estrutura das 121 tabelas de `tools/sql` do L2JDream (somente DDL, MyISAM -> InnoDB,
+  `CREATE TABLE IF NOT EXISTS`). **Os dados estaticos** (npc, droplist, spawnlist, armor... ~14 MB) continuam em
+  `tools/sql` do L2JDreamV2 e devem ser importados a parte.
+- `V123`: `player_achievement` (normalizada; substitui a tabela legada `achievements` com uma coluna por conquista).
+- Nos testes o Flyway fica desligado (H2 nao entende todo o DDL do MariaDB); `MigrationFilesTest` valida os arquivos
+  estaticamente. **Falta rodar as migracoes contra um MariaDB real** (`./mvnw spring-boot:run` com as variaveis acima).
+
+## Modulos portados
+- **Achievements** (`features.achievements`): le `features/achievements.xml` (mesmo formato do L2JDream),
+  avalia a partir de um `PlayerSnapshot` e publica `AchievementCompletedEvent`. Diferencas: atributo desconhecido
+  agora falha no start (antes era ignorado) e `mustBeX="false"` nao exige mais X.
+- **Login / criptografia** (`network.login.crypt`): Blowfish L2 (JCE), checksum/XOR pass, `LoginCrypt`, RSA 1024 com
+  modulo embaralhado, decodificacao de credenciais e verificacao do hash legado (SHA-1 Base64, fraco: trocar por hash
+  com sal no rehash do primeiro login). Ainda **nao ha socket nem pacotes** (Init, RequestAuthLogin...).
+
 ## Roadmap
 Ver `REVISAO_BACKLOG_MELHORIAS.md` no repositorio L2JDreamV2.

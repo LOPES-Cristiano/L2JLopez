@@ -7,3 +7,6 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
+  flyway:
+    # DDL das migracoes e do MariaDB; validado estaticamente por MigrationFilesTest.
+    enabled: false
