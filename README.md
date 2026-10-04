@@ -4,7 +4,7 @@ Servidor Lineage 2 Interlude (C6, protocolo 730-746) reescrito em **Java 21 + Sp
 
 ## Requisitos
 - JDK 21
-- MariaDB 10.6+ (apenas para rodar; os testes usam H2)
+- MySQL 8 (validado) ou MariaDB 10.6+ (apenas para rodar; os testes usam H2). Crie o schema: `CREATE DATABASE l2jlopez CHARACTER SET utf8mb4;`
 
 ## Comandos
 ```
@@ -39,7 +39,7 @@ API de teste: `GET http://localhost:8080/api/status` e `/actuator/health`.
   `tools/sql` do L2JDreamV2 e devem ser importados a parte.
 - `V123`: `player_achievement` (normalizada; substitui a tabela legada `achievements` com uma coluna por conquista).
 - Nos testes o Flyway fica desligado (H2 nao entende todo o DDL do MariaDB); `MigrationFilesTest` valida os arquivos
-  estaticamente. **Falta rodar as migracoes contra um MariaDB real** (`./mvnw spring-boot:run` com as variaveis acima).
+  estaticamente. As 123 migracoes foram aplicadas num **MySQL 8.0 real** e a aplicacao subiu. Teste de integracao opcional: `L2_IT=true ./mvnw test -Dtest=RealDatabaseIT` (usa `L2_DB_URL/USER/PASSWORD`; avisos de `int(11)`/`utf8` do MySQL 8 sao esperados).
 
 ## Modulos portados
 - **Achievements** (`features.achievements`): le `features/achievements.xml` (mesmo formato do L2JDream),

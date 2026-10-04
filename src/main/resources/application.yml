@@ -2,7 +2,7 @@ spring:
   application:
     name: l2jlopez
   datasource:
-    url: ${L2_DB_URL:jdbc:mariadb://localhost:3306/l2jlopez}
+    url: ${L2_DB_URL:jdbc:mysql://localhost:3306/l2jlopez}
     username: ${L2_DB_USER:l2jlopez}
     password: ${L2_DB_PASSWORD:change-me}
   jpa:

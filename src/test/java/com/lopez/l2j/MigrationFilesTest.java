@@ -53,6 +53,7 @@ class MigrationFilesTest {
 			}
 			assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS"), "sem CREATE TABLE IF NOT EXISTS: " + p);
 			assertTrue(!sql.contains("MyISAM"), "MyISAM nao permitido: " + p);
+			assertTrue(!Pattern.compile("IF NOT EXISTS\\s+IF NOT EXISTS").matcher(sql).find(), "IF NOT EXISTS duplicado: " + p);
 			assertTrue(!sql.toUpperCase().contains("DROP TABLE"), "DROP TABLE proibido em migracao: " + p);
 			assertEquals(count(sql, "("), count(sql, ")"), "parenteses desbalanceados: " + p);
 			assertTrue(sql.trim().endsWith(";"), "sem ponto-e-virgula final: " + p);
