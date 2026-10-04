@@ -112,6 +112,10 @@ public class BuyListTable {
 		return buyLists.size();
 	}
 
+	public List<NpcBuyList> byNpcId(int npcId) {
+		return buyLists.values().stream().filter(b -> b.npcId() == npcId).toList();
+	}
+
 	public Map<Integer, NpcBuyList> all() {
 		return Collections.unmodifiableMap(buyLists);
 	}

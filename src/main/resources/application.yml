@@ -37,6 +37,8 @@ l2:
   rates:
     xp: 1.0
     sp: 1.0
+    party-xp: 1.0
+    party-sp: 1.0
     adena: 1.0
     drop: 1.0
     spoil: 1.0

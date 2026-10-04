@@ -394,6 +394,15 @@ public sealed interface GameServerPacket {
 		public static final int YOU_DONT_HAVE_ENOUGH_EXP_TO_ENCHANT_THAT_SKILL = 1444;
 		public static final int ADD_NEW_SUBCLASS = 1269;
 		public static final int SUBCLASS_TRANSFER_COMPLETED = 1270;
+		public static final int YOU_INVITED_S1_TO_PARTY = 105;
+		public static final int YOU_JOINED_PARTY = 106;
+		public static final int S1_JOINED_PARTY = 107;
+		public static final int S1_LEFT_PARTY = 108;
+		public static final int CANT_INVITE_YOURSELF = 159;
+		public static final int PLAYER_ALREADY_IN_PARTY = 160;
+		public static final int S1_REFUSED_PARTY = 163;
+		public static final int PARTY_DISPERSED = 203;
+		public static final int NOT_ENOUGH_ARROWS = 726;
 
 		public static SystemMessage id(int id) {
 			return new SystemMessage(id, List.of());
@@ -1175,6 +1184,88 @@ public sealed interface GameServerPacket {
 				w.writeD(r.type()).writeD(r.id()).writeD(r.count()).writeD(r.unk());
 			}
 			return w.toByteArray();
+		}
+	}
+
+	/** 0x39 AskJoinParty: convite de grupo enviado ao jogador convidado. */
+	record AskJoinParty(String requestorName, int itemDistribution) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x39).writeS(requestorName).writeD(itemDistribution).toByteArray();
+		}
+	}
+
+	/** 0x3a JoinParty: resposta do convite de grupo (1 = aceito, 0 = recusado). */
+	record JoinParty(int response) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x3a).writeD(response).toByteArray();
+		}
+	}
+
+	/** 0x4e PartySmallWindowAll: inicializa a janela de grupo com todos os membros (exceto o próprio jogador). */
+	record PartySmallWindowAll(int leaderObjectId, int lootDistribution, List<PlayerCharacter> members,
+			int receiverObjectId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			var w = new PacketWriter().writeC(0x4e).writeD(leaderObjectId).writeD(lootDistribution);
+			long count = members.stream().filter(m -> m.objectId() != receiverObjectId).count();
+			w.writeD((int) count);
+			for (var m : members) {
+				if (m.objectId() == receiverObjectId) {
+					continue;
+				}
+				w.writeD(m.objectId()).writeS(m.name())
+						.writeD((int) m.currentCp()).writeD(m.maxCp())
+						.writeD((int) m.currentHp()).writeD(m.maxHp())
+						.writeD((int) m.currentMp()).writeD(m.maxMp())
+						.writeD(m.level()).writeD(m.classId())
+						.writeD(0).writeD(m.race());
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x4f PartySmallWindowAdd: adiciona um novo membro na janela de grupo existente. */
+	record PartySmallWindowAdd(int leaderObjectId, int lootDistribution, PlayerCharacter member)
+			implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x4f).writeD(leaderObjectId).writeD(lootDistribution)
+					.writeD(member.objectId()).writeS(member.name())
+					.writeD((int) member.currentCp()).writeD(member.maxCp())
+					.writeD((int) member.currentHp()).writeD(member.maxHp())
+					.writeD((int) member.currentMp()).writeD(member.maxMp())
+					.writeD(member.level()).writeD(member.classId())
+					.writeD(0).writeD(member.race()).toByteArray();
+		}
+	}
+
+	/** 0x50 PartySmallWindowDeleteAll: fecha a janela de grupo quando o grupo se desfaz ou o jogador sai. */
+	record PartySmallWindowDeleteAll() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x50).toByteArray();
+		}
+	}
+
+	/** 0x51 PartySmallWindowDelete: remove um membro da janela de grupo. */
+	record PartySmallWindowDelete(int memberObjectId, String memberName) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x51).writeD(memberObjectId).writeS(memberName).toByteArray();
+		}
+	}
+
+	/** 0x52 PartySmallWindowUpdate: atualiza HP/MP/CP de um membro do grupo. */
+	record PartySmallWindowUpdate(PlayerCharacter member) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x52).writeD(member.objectId()).writeS(member.name())
+					.writeD((int) member.currentCp()).writeD(member.maxCp())
+					.writeD((int) member.currentHp()).writeD(member.maxHp())
+					.writeD((int) member.currentMp()).writeD(member.maxMp())
+					.writeD(member.level()).writeD(member.classId()).toByteArray();
 		}
 	}
 }

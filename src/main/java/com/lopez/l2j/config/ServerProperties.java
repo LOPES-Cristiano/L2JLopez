@@ -30,6 +30,8 @@ public record ServerProperties(
 	public record Rates(
 			@DecimalMin("0.0") double xp,
 			@DecimalMin("0.0") double sp,
+			@DecimalMin("0.0") double partyXp,
+			@DecimalMin("0.0") double partySp,
 			@DecimalMin("0.0") double adena,
 			@DecimalMin("0.0") double drop,
 			@DecimalMin("0.0") double spoil) {

@@ -19,6 +19,11 @@ public final class NpcInstance {
 	private volatile int targetPlayerId;
 	private volatile long lastAttackTime;
 
+	private final int spawnX;
+	private final int spawnY;
+	private final int spawnZ;
+	private final int spawnHeading;
+
 	public NpcInstance(int objectId, NpcTemplate template, int x, int y, int z, int heading) {
 		this.objectId = objectId;
 		this.template = template;
@@ -26,6 +31,10 @@ public final class NpcInstance {
 		this.y = y;
 		this.z = z;
 		this.heading = heading;
+		this.spawnX = x;
+		this.spawnY = y;
+		this.spawnZ = z;
+		this.spawnHeading = heading;
 		this.currentHp = template.maxHp();
 		this.currentMp = template.maxMp();
 	}
@@ -38,6 +47,10 @@ public final class NpcInstance {
 	public int y() { return y; }
 	public int z() { return z; }
 	public int heading() { return heading; }
+	public int spawnX() { return spawnX; }
+	public int spawnY() { return spawnY; }
+	public int spawnZ() { return spawnZ; }
+	public int spawnHeading() { return spawnHeading; }
 	public double currentHp() { return currentHp; }
 	public void currentHp(double value) { this.currentHp = value; }
 	public double currentMp() { return currentMp; }

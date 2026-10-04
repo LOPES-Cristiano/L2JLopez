@@ -64,9 +64,25 @@ public class HtmCache {
 			return defaultHtml;
 		}
 
-		// 4. Fallback sintetico padrao
-		return "<html><body>%npc_name%:<br><br>Hello %name%! What can I do for you?<br><br>"
-				+ "<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a></body></html>";
+		// 4. Fallback sintetico inteligente baseado no tipo do NPC
+		StringBuilder sb = new StringBuilder();
+		sb.append("<html><body><font color=\"LEVEL\">%npc_name%</font>:<br><br>");
+		sb.append("Hello, %name%! How may I assist you today?<br><br>");
+
+		String lowerType = npcType != null ? npcType.toLowerCase(java.util.Locale.ROOT) : "";
+		if (lowerType.contains("teleport")) {
+			sb.append("<a action=\"bypass -h npc_%objectId%_Chat 1\">Teleport</a><br>");
+		} else if (lowerType.contains("merchant") || lowerType.contains("trader") || lowerType.contains("grocer")) {
+			sb.append("<a action=\"bypass -h npc_%objectId%_Buy 1\">Buy items</a><br>");
+		} else if (lowerType.contains("trainer") || lowerType.contains("master") || lowerType.contains("teacher")) {
+			sb.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn skills</a><br>");
+		} else if (lowerType.contains("warehouse")) {
+			sb.append("<a action=\"bypass -h npc_%objectId%_DepositP\">Deposit items</a><br>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_WithdrawP\">Withdraw items</a><br>");
+		}
+		sb.append("<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a><br>");
+		sb.append("</body></html>");
+		return sb.toString();
 	}
 
 	public String render(String rawHtml, int npcObjectId, String npcName, String playerName) {
@@ -83,15 +99,23 @@ public class HtmCache {
 		if (npcType == null) {
 			return "default";
 		}
-		return switch (npcType.toLowerCase(java.util.Locale.ROOT)) {
-			case "l2teleporter" -> "teleporter";
-			case "l2merchant" -> "merchant";
-			case "l2guard" -> "guard";
-			case "l2warehouse" -> "warehouse";
-			case "l2trainer" -> "trainer";
-			case "l2villagemaster" -> "villagemaster";
-			case "l2fisherman" -> "fisherman";
-			case "l2symbolmaker" -> "symbolmaker";
+		String clean = npcType.toLowerCase(java.util.Locale.ROOT);
+		if (clean.startsWith("l2")) {
+			clean = clean.substring(2);
+		}
+		if (clean.endsWith("instance")) {
+			clean = clean.substring(0, clean.length() - "instance".length());
+		}
+		return switch (clean) {
+			case "teleporter", "castleteleporter" -> "teleporter";
+			case "merchant" -> "merchant";
+			case "guard", "guardnohtml", "fortguard", "siegeguard" -> "guard";
+			case "warehouse" -> "warehouse";
+			case "trainer" -> "trainer";
+			case "villagemaster" -> "villagemaster";
+			case "fisherman" -> "fisherman";
+			case "symbolmaker" -> "symbolmaker";
+			case "doormen", "doorman" -> "doormen";
 			default -> "default";
 		};
 	}

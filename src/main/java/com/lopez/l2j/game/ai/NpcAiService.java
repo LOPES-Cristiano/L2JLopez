@@ -6,8 +6,11 @@ import com.lopez.l2j.game.template.CharTemplateTable;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Attack;
 import com.lopez.l2j.network.game.packet.GameServerPacket.AutoAttackStop;
+import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
+import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToLocation;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToPawn;
+import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.UserInfo;
@@ -17,19 +20,26 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Servico de IA para monstros em combate: perseguicao do jogador (MoveToPawn) e ataques continuos
- * baseados na velocidade de ataque do monstro.
+ * Servico de IA para NPCs e monstros:
+ * - Perseguicao e combate contra jogadores
+ * - Deteccao de jogadores por monstros agressivos (aggroRange)
+ * - Movimentacao aleatoria (roaming) ao redor do ponto de spawn
+ * - Despawn/decay de corpos e renascimento (respawn) automatico de monstros
  */
 @Service
 public class NpcAiService {
 
 	private static final Logger log = LoggerFactory.getLogger(NpcAiService.class);
+
+	private static final long DECAY_DELAY_MS = 7_000L;
+	private static final long RESPAWN_DELAY_MS = 25_000L;
 
 	private final GameWorld world;
 	private final CombatService combatService;
@@ -37,6 +47,7 @@ public class NpcAiService {
 
 	private final Set<NpcInstance> activeCombatNpcs = ConcurrentHashMap.newKeySet();
 	private ScheduledExecutorService scheduler;
+	private long tickCount = 0;
 
 	public NpcAiService(GameWorld world, CombatService combatService, CharTemplateTable charTemplates) {
 		this.world = world;
@@ -46,7 +57,7 @@ public class NpcAiService {
 
 	@PostConstruct
 	public void start() {
-		scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+		scheduler = Executors.newScheduledThreadPool(2, r -> {
 			Thread t = new Thread(r, "NpcAiThread");
 			t.setDaemon(true);
 			return t;
@@ -74,8 +85,7 @@ public class NpcAiService {
 
 		int pAtkSpd = Math.max(100, npc.template().pAtkSpd());
 		long cooldownMs = 500_000L / pAtkSpd;
-		// Atraso de reacao inicial para o player ver o proprio golpe primeiro (~700ms)
-		npc.lastAttackTime(System.currentTimeMillis() - cooldownMs + 700);
+		npc.lastAttackTime(System.currentTimeMillis() - cooldownMs + 600);
 
 		activeCombatNpcs.add(npc);
 	}
@@ -92,19 +102,120 @@ public class NpcAiService {
 	}
 
 	/**
-	 * Executa um ciclo da IA para todos os monstros atualmente em combate.
+	 * Agenda o sumico do corpo (decay) e posterior renascimento (respawn) do monstro derrotado.
+	 */
+	public void scheduleDecayAndRespawn(NpcInstance npc) {
+		stopCombat(npc);
+		if (scheduler == null || scheduler.isShutdown()) {
+			return;
+		}
+
+		// 1. Decay: Apos 7s o corpo some do chao dos jogadores proximos
+		scheduler.schedule(() -> {
+			try {
+				var deletePacket = new DeleteObject(npc.objectId());
+				world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, deletePacket);
+				world.removeNpc(npc);
+			} catch (Exception e) {
+				log.warn("Erro ao executar decay do monstro {}: {}", npc.name(), e.getMessage());
+			}
+
+			// 2. Respawn: Apos o tempo de renascimento, revive com HP total no spawn original
+			scheduler.schedule(() -> {
+				try {
+					npc.dead(false);
+					npc.currentHp(npc.template().maxHp());
+					npc.currentMp(npc.template().maxMp());
+					npc.targetPlayerId(0);
+					npc.inCombat(false);
+					npc.moveTo(npc.spawnX(), npc.spawnY(), npc.spawnZ(), npc.spawnHeading());
+
+					world.addNpc(npc);
+					var npcInfo = new NpcInfo(npc);
+					world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, npcInfo);
+					log.debug("Monstro {} renasceu em ({}, {}, {})", npc.name(), npc.x(), npc.y(), npc.z());
+				} catch (Exception e) {
+					log.warn("Erro ao executar respawn do monstro {}: {}", npc.name(), e.getMessage());
+				}
+			}, RESPAWN_DELAY_MS, TimeUnit.MILLISECONDS);
+
+		}, DECAY_DELAY_MS, TimeUnit.MILLISECONDS);
+	}
+
+	/**
+	 * Executa um ciclo da IA para monstros em combate, deteccao de aggro e movimentacao.
 	 */
 	public void tick() {
+		tickCount++;
+
+		// 1. Processa monstros em combate
 		for (NpcInstance npc : activeCombatNpcs) {
 			try {
-				processNpc(npc);
+				processCombatNpc(npc);
 			} catch (Exception e) {
-				log.warn("Erro ao processar IA do monstro {}: {}", npc.name(), e.getMessage());
+				log.warn("Erro ao processar combate do monstro {}: {}", npc.name(), e.getMessage());
+			}
+		}
+
+		// 2. Checagem de aggro (a cada 1 segundo = 2 ticks)
+		if (tickCount % 2 == 0) {
+			checkAggroAroundPlayers();
+		}
+
+		// 3. Roaming aleatorio de monstros pacíficos / ociosos (a cada 10 segundos = 20 ticks)
+		if (tickCount % 20 == 0) {
+			roamIdleMonsters();
+		}
+	}
+
+	private void checkAggroAroundPlayers() {
+		for (var player : world.players()) {
+			var character = player.character();
+			if (character == null || character.isDead() || character.isGm()) {
+				continue;
+			}
+			var nearbyNpcs = world.findNpcsAround(player.x(), player.y(), 1000);
+			for (var npc : nearbyNpcs) {
+				if (npc.isDead() || npc.inCombat() || !npc.isMonster()) {
+					continue;
+				}
+				int aggroRange = npc.template().aggroRange();
+				if (aggroRange > 0) {
+					double dist = Math.hypot(npc.x() - player.x(), npc.y() - player.y());
+					if (dist <= aggroRange) {
+						startCombat(npc, player.objectId());
+						break; // um aggro por jogador por ciclo
+					}
+				}
 			}
 		}
 	}
 
-	private void processNpc(NpcInstance npc) {
+	private void roamIdleMonsters() {
+		ThreadLocalRandom rnd = ThreadLocalRandom.current();
+		for (var player : world.players()) {
+			var nearbyNpcs = world.findNpcsAround(player.x(), player.y(), 1200);
+			for (var npc : nearbyNpcs) {
+				if (npc.isDead() || npc.inCombat() || !npc.isMonster()) {
+					continue;
+				}
+				// 25% de chance de caminhar um pouco
+				if (rnd.nextInt(100) < 25) {
+					int maxOffset = 150;
+					int targetX = npc.spawnX() + rnd.nextInt(-maxOffset, maxOffset + 1);
+					int targetY = npc.spawnY() + rnd.nextInt(-maxOffset, maxOffset + 1);
+					int heading = (int) Math.round(Math.atan2(targetY - npc.y(), targetX - npc.x()) * 10430.378);
+
+					var movePkt = new MoveToLocation(npc.objectId(), targetX, targetY, npc.spawnZ(),
+							npc.x(), npc.y(), npc.z());
+					npc.moveTo(targetX, targetY, npc.spawnZ(), heading);
+					world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, movePkt);
+				}
+			}
+		}
+	}
+
+	private void processCombatNpc(NpcInstance npc) {
 		if (npc.isDead() || npc.targetPlayerId() == 0) {
 			stopCombat(npc);
 			return;
@@ -112,14 +223,14 @@ public class NpcAiService {
 
 		var playerOpt = world.player(npc.targetPlayerId());
 		if (playerOpt.isEmpty()) {
-			stopCombat(npc);
+			returnToSpawn(npc);
 			return;
 		}
 
 		var player = playerOpt.get();
 		var character = player.character();
 		if (character == null || character.isDead()) {
-			stopCombat(npc);
+			returnToSpawn(npc);
 			return;
 		}
 
@@ -129,7 +240,7 @@ public class NpcAiService {
 
 		// Perda de aggro se o jogador fugir muito longe (> 1500)
 		if (dist > 1500.0) {
-			stopCombat(npc);
+			returnToSpawn(npc);
 			var stopAtk = new AutoAttackStop(npc.objectId());
 			player.send(stopAtk);
 			world.broadcastAround(player, GameWorld.VISIBILITY_RADIUS, stopAtk, false);
@@ -137,22 +248,20 @@ public class NpcAiService {
 		}
 
 		int attackRange = Math.max(40, npc.template().attackRange());
-		int reach = attackRange + 30; // margem de contato físico
+		int reach = attackRange + 30; // margem de contato fisico
 
-		// Stun/Sleep/Paralyze de skills: monstro parado sem agir
 		if (npc.isDisabled()) {
 			return;
 		}
 
 		if (dist > reach && npc.isRooted()) {
-			return; // Root: nao persegue, mas ataca se o jogador encostar
+			return;
 		}
 
 		if (dist > reach) {
-			// Monstro corre atras do jogador (MoveToPawn)
 			npc.running(true);
-			double runSpeed = Math.max(60, npc.template().runSpd()); // unidades/s (ex: 110)
-			double step = Math.min(dist - attackRange, runSpeed * 0.5); // passo para 500ms
+			double runSpeed = Math.max(60, npc.template().runSpd());
+			double step = Math.min(dist - attackRange, runSpeed * 0.5);
 			int newX = (int) Math.round(npc.x() + (dx / dist) * step);
 			int newY = (int) Math.round(npc.y() + (dy / dist) * step);
 			int heading = (int) Math.round(Math.atan2(dy, dx) * 10430.378);
@@ -162,9 +271,9 @@ public class NpcAiService {
 			player.send(movePawn);
 			world.broadcastAround(player, GameWorld.VISIBILITY_RADIUS, movePawn, false);
 		} else {
-			// Monstro esta no alcance de ataque!
+			// No alcance de ataque
 			int pAtkSpd = Math.max(100, npc.template().pAtkSpd());
-			long cooldownMs = 500_000L / pAtkSpd; // ex: 333 atk spd -> 1500ms
+			long cooldownMs = 500_000L / pAtkSpd;
 			long now = System.currentTimeMillis();
 
 			if (now - npc.lastAttackTime() >= cooldownMs) {
@@ -188,7 +297,7 @@ public class NpcAiService {
 						player.send(new UserInfo(character, template));
 
 						if (character.isDead()) {
-							stopCombat(npc);
+							returnToSpawn(npc);
 							var die = new Die(character.objectId(), true);
 							player.send(die);
 							world.broadcastAround(player, GameWorld.VISIBILITY_RADIUS, die, false);
@@ -196,6 +305,23 @@ public class NpcAiService {
 					}
 				}
 			}
+		}
+	}
+
+	private void returnToSpawn(NpcInstance npc) {
+		stopCombat(npc);
+		if (npc.isDead()) {
+			return;
+		}
+		npc.currentHp(npc.template().maxHp());
+		int sx = npc.spawnX();
+		int sy = npc.spawnY();
+		int sz = npc.spawnZ();
+		int sh = npc.spawnHeading();
+		if (npc.x() != sx || npc.y() != sy) {
+			var movePkt = new MoveToLocation(npc.objectId(), sx, sy, sz, npc.x(), npc.y(), npc.z());
+			npc.moveTo(sx, sy, sz, sh);
+			world.broadcastAround(sx, sy, GameWorld.VISIBILITY_RADIUS, movePkt);
 		}
 	}
 }

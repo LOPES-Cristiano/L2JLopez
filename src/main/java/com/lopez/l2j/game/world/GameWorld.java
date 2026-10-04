@@ -117,6 +117,15 @@ public class GameWorld {
 		});
 	}
 
+	public void broadcastAround(int x, int y, int range, GameServerPacket packet) {
+		long r2 = (long) range * range;
+		broadcast(packet, p -> {
+			long dx = p.x() - x;
+			long dy = p.y() - y;
+			return dx * dx + dy * dy <= r2;
+		});
+	}
+
 	// ---- NPCS E SPATIAL GRID ----
 
 	public void addNpc(NpcInstance npc) {
