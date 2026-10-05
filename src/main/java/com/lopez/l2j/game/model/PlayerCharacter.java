@@ -8,8 +8,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Personagem persistido na tabela legada {@code characters}. Mutavel apenas no que muda durante o jogo
- * (posicao, HP/MP/CP, flags de sessao); o resto e imutavel por enquanto. Acesso sempre pela thread da
+ * Personagem persistido na tabela legada {@code characters}. Mutavel apenas no
+ * que muda durante o jogo
+ * (posicao, HP/MP/CP, flags de sessao); o resto e imutavel por enquanto. Acesso
+ * sempre pela thread da
  * conexao dona do personagem.
  */
 public final class PlayerCharacter {
@@ -100,68 +102,241 @@ public final class PlayerCharacter {
 		this.currentCp = currentCp;
 	}
 
-	public int objectId() { return objectId; }
-	public String account() { return account; }
-	public String name() { return name; }
-	public int level() { return level; }
-	public long exp() { return exp; }
-	public int sp() { return sp; }
-	public int race() { return race; }
-	public int classId() { return classId; }
-	public void classId(int value) { this.classId = value; }
-	public int baseClassId() { return baseClassId; }
-	public boolean female() { return female; }
-	public int face() { return face; }
-	public void face(int value) { this.face = value; }
-	public int hairStyle() { return hairStyle; }
-	public void hairStyle(int value) { this.hairStyle = value; }
-	public int hairColor() { return hairColor; }
-	public void hairColor(int value) { this.hairColor = value; }
-	public int maxHp() { return maxHp; }
-	public void maxHp(int value) { this.maxHp = value; }
-	public int maxMp() { return maxMp; }
-	public void maxMp(int value) { this.maxMp = value; }
-	public int maxCp() { return maxCp; }
-	public void maxCp(int value) { this.maxCp = value; }
-	public int karma() { return karma; }
-	public int pvpKills() { return pvpKills; }
-	public int pkKills() { return pkKills; }
-	public int clanId() { return clanId; }
-	public String title() { return title; }
-	public int accessLevel() { return accessLevel; }
-	public void accessLevel(int value) { this.accessLevel = value; }
-	public boolean isGm() { return accessLevel > 0; }
-	public long lastAccess() { return lastAccess; }
-	public long deleteTime() { return deleteTime; }
-	public void deleteTime(long value) { this.deleteTime = value; }
-	public int x() { return x; }
-	public int y() { return y; }
-	public int z() { return z; }
-	public int heading() { return heading; }
-	public double currentHp() { return currentHp; }
-	public void currentHp(double value) { this.currentHp = Math.max(0, Math.min(maxHp, value)); }
-	public double currentMp() { return currentMp; }
-	public void currentMp(double value) { this.currentMp = Math.max(0, Math.min(maxMp, value)); }
-	public double currentCp() { return currentCp; }
-	public void currentCp(double value) { this.currentCp = Math.max(0, Math.min(maxCp, value)); }
-	public void exp(long value) { this.exp = value; }
-	public void sp(int value) { this.sp = value; }
-	public void level(int value) { this.level = value; }
-	public boolean isDead() { return currentHp <= 0; }
-	public boolean running() { return running; }
-	public void running(boolean value) { this.running = value; }
-	public boolean sitting() { return sitting; }
-	public void sitting(boolean value) { this.sitting = value; }
+	public int objectId() {
+		return objectId;
+	}
 
-	public Map<Integer, Integer> skills() { return skills; }
-	public int skillLevel(int skillId) { return skills.getOrDefault(skillId, 0); }
-	public PlayerEffects effects() { return effects; }
-	public List<StatFunc> passiveFuncs() { return passiveFuncs; }
-	public void passiveFuncs(List<StatFunc> funcs) { this.passiveFuncs = funcs == null ? List.of() : List.copyOf(funcs); }
+	public String account() {
+		return account;
+	}
 
-	public int abnormalEffect() { return abnormalEffect; }
-	public void startAbnormalEffect(int mask) { this.abnormalEffect |= mask; }
-	public void stopAbnormalEffect(int mask) { this.abnormalEffect &= ~mask; }
+	public String name() {
+		return name;
+	}
+
+	public int level() {
+		return level;
+	}
+
+	public long exp() {
+		return exp;
+	}
+
+	public int sp() {
+		return sp;
+	}
+
+	public int race() {
+		return race;
+	}
+
+	public int classId() {
+		return classId;
+	}
+
+	public int baseClassId() {
+		return baseClassId;
+	}
+
+	public boolean female() {
+		return female;
+	}
+
+	public int face() {
+		return face;
+	}
+
+	public void face(int value) {
+		this.face = value;
+	}
+
+	public int hairStyle() {
+		return hairStyle;
+	}
+
+	public void hairStyle(int value) {
+		this.hairStyle = value;
+	}
+
+	public int hairColor() {
+		return hairColor;
+	}
+
+	public void hairColor(int value) {
+		this.hairColor = value;
+	}
+
+	public int maxHp() {
+		return maxHp;
+	}
+
+	public void maxHp(int value) {
+		this.maxHp = value;
+	}
+
+	public int maxMp() {
+		return maxMp;
+	}
+
+	public void maxMp(int value) {
+		this.maxMp = value;
+	}
+
+	public int maxCp() {
+		return maxCp;
+	}
+
+	public void maxCp(int value) {
+		this.maxCp = value;
+	}
+
+	public int karma() {
+		return karma;
+	}
+
+	public int pvpKills() {
+		return pvpKills;
+	}
+
+	public int pkKills() {
+		return pkKills;
+	}
+
+	public int clanId() {
+		return clanId;
+	}
+
+	public String title() {
+		return title;
+	}
+
+	public int accessLevel() {
+		return accessLevel;
+	}
+
+	public void accessLevel(int value) {
+		this.accessLevel = value;
+	}
+
+	public boolean isGm() {
+		return accessLevel > 0;
+	}
+
+	public long lastAccess() {
+		return lastAccess;
+	}
+
+	public long deleteTime() {
+		return deleteTime;
+	}
+
+	public void deleteTime(long value) {
+		this.deleteTime = value;
+	}
+
+	public int x() {
+		return x;
+	}
+
+	public int y() {
+		return y;
+	}
+
+	public int z() {
+		return z;
+	}
+
+	public int heading() {
+		return heading;
+	}
+
+	public double currentHp() {
+		return currentHp;
+	}
+
+	public void currentHp(double value) {
+		this.currentHp = Math.max(0, Math.min(maxHp, value));
+	}
+
+	public double currentMp() {
+		return currentMp;
+	}
+
+	public void currentMp(double value) {
+		this.currentMp = Math.max(0, Math.min(maxMp, value));
+	}
+
+	public double currentCp() {
+		return currentCp;
+	}
+
+	public void currentCp(double value) {
+		this.currentCp = Math.max(0, Math.min(maxCp, value));
+	}
+
+	public void exp(long value) {
+		this.exp = value;
+	}
+
+	public void sp(int value) {
+		this.sp = value;
+	}
+
+	public void level(int value) {
+		this.level = value;
+	}
+
+	public boolean isDead() {
+		return currentHp <= 0;
+	}
+
+	public boolean running() {
+		return running;
+	}
+
+	public void running(boolean value) {
+		this.running = value;
+	}
+
+	public boolean sitting() {
+		return sitting;
+	}
+
+	public void sitting(boolean value) {
+		this.sitting = value;
+	}
+
+	public Map<Integer, Integer> skills() {
+		return skills;
+	}
+
+	public int skillLevel(int skillId) {
+		return skills.getOrDefault(skillId, 0);
+	}
+
+	public PlayerEffects effects() {
+		return effects;
+	}
+
+	public List<StatFunc> passiveFuncs() {
+		return passiveFuncs;
+	}
+
+	public void passiveFuncs(List<StatFunc> funcs) {
+		this.passiveFuncs = funcs == null ? List.of() : List.copyOf(funcs);
+	}
+
+	public int abnormalEffect() {
+		return abnormalEffect;
+	}
+
+	public void startAbnormalEffect(int mask) {
+		this.abnormalEffect |= mask;
+	}
+
+	public void stopAbnormalEffect(int mask) {
+		this.abnormalEffect &= ~mask;
+	}
 
 	private volatile long disabledUntil;
 	private volatile boolean sleeping;
@@ -191,7 +366,10 @@ public final class PlayerCharacter {
 		}
 	}
 
-	/** Inventario carregado ao entrar no jogo (vazio enquanto o personagem esta so na lista). */
+	/**
+	 * Inventario carregado ao entrar no jogo (vazio enquanto o personagem esta so
+	 * na lista).
+	 */
 	public Inventory inventory() {
 		if (inventory == null) {
 			inventory = new Inventory(objectId);
@@ -199,7 +377,9 @@ public final class PlayerCharacter {
 		return inventory;
 	}
 
-	public void inventory(Inventory value) { this.inventory = value; }
+	public void inventory(Inventory value) {
+		this.inventory = value;
+	}
 
 	public void moveTo(int x, int y, int z) {
 		this.x = x;
@@ -211,25 +391,83 @@ public final class PlayerCharacter {
 		this.heading = value;
 	}
 
-	public void name(String value) { this.name = value; }
-	public void classId(int value) { this.classId = value; }
-	public void title(String value) { this.title = value; }
-	public void karma(int value) { this.karma = value; }
-	public void pvpKills(int value) { this.pvpKills = value; }
-	public void pkKills(int value) { this.pkKills = value; }
-	public int mountType() { return mountType; }
-	public void mountType(int value) { this.mountType = value; }
-	public int gmSpeed() { return gmSpeed; }
-	public void gmSpeed(int value) { this.gmSpeed = value; }
-	public boolean invul() { return invul; }
-	public void invul(boolean value) { this.invul = value; }
-	public boolean invis() { return invis; }
-	public void invis(boolean value) { this.invis = value; }
-	public boolean silence() { return silence; }
-	public void silence(boolean value) { this.silence = value; }
-	public boolean diet() { return diet; }
-	public void diet(boolean value) { this.diet = value; }
-	public int polyNpcId() { return polyNpcId; }
-	public void polyNpcId(int value) { this.polyNpcId = value; }
-	public void isDisabled(boolean val) { this.disabledUntil = val ? Long.MAX_VALUE : 0; }
+	public void name(String value) {
+		this.name = value;
+	}
+
+	public void title(String value) {
+		this.title = value;
+	}
+
+	public void karma(int value) {
+		this.karma = value;
+	}
+
+	public void pvpKills(int value) {
+		this.pvpKills = value;
+	}
+
+	public void pkKills(int value) {
+		this.pkKills = value;
+	}
+
+	public int mountType() {
+		return mountType;
+	}
+
+	public void mountType(int value) {
+		this.mountType = value;
+	}
+
+	public int gmSpeed() {
+		return gmSpeed;
+	}
+
+	public void gmSpeed(int value) {
+		this.gmSpeed = value;
+	}
+
+	public boolean invul() {
+		return invul;
+	}
+
+	public void invul(boolean value) {
+		this.invul = value;
+	}
+
+	public boolean invis() {
+		return invis;
+	}
+
+	public void invis(boolean value) {
+		this.invis = value;
+	}
+
+	public boolean silence() {
+		return silence;
+	}
+
+	public void silence(boolean value) {
+		this.silence = value;
+	}
+
+	public boolean diet() {
+		return diet;
+	}
+
+	public void diet(boolean value) {
+		this.diet = value;
+	}
+
+	public int polyNpcId() {
+		return polyNpcId;
+	}
+
+	public void polyNpcId(int value) {
+		this.polyNpcId = value;
+	}
+
+	public void isDisabled(boolean val) {
+		this.disabledUntil = val ? Long.MAX_VALUE : 0;
+	}
 }
