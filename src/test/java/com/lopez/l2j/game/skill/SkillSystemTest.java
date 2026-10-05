@@ -124,4 +124,27 @@ class SkillSystemTest {
 				might.funcs()));
 		assertEquals(Math.round(base.pAtk() * 1.15), PlayerStats.calculate(p, template).pAtk());
 	}
+
+	@Test
+	void activeSkillWeaponRestrictionValidatesEquippedWeapon() {
+		var strike = table.get(3, 1).orElseThrow(); // Power Strike
+		org.junit.jupiter.api.Assertions.assertNotNull(strike.castCondition());
+
+		var p = player(20, 0);
+		assertFalse(strike.castCondition().test(p), "Desarmado nao deve poder usar Power Strike");
+
+		var bowTemplate = com.lopez.l2j.game.item.TestItems.templates().stream()
+				.filter(t -> t.id() == com.lopez.l2j.game.item.TestItems.BOW).findFirst().orElseThrow();
+		var bowInstance = new com.lopez.l2j.game.item.ItemInstance(101, bowTemplate, 1, 1);
+		p.inventory().add(bowInstance);
+		p.inventory().equip(bowInstance);
+		assertFalse(strike.castCondition().test(p), "Com arco nao deve poder usar Power Strike");
+
+		var swordTemplate = com.lopez.l2j.game.item.TestItems.templates().stream()
+				.filter(t -> t.id() == com.lopez.l2j.game.item.TestItems.SHORT_SWORD).findFirst().orElseThrow();
+		var swordInstance = new com.lopez.l2j.game.item.ItemInstance(102, swordTemplate, 1, 1);
+		p.inventory().add(swordInstance);
+		p.inventory().equip(swordInstance);
+		assertTrue(strike.castCondition().test(p), "Com espada deve poder usar Power Strike");
+	}
 }

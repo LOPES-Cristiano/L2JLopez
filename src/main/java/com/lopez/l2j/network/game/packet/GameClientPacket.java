@@ -42,7 +42,14 @@ public sealed interface GameClientPacket {
 	record EnterWorld() implements GameClientPacket {
 	}
 
-	record MoveBackwardToLocation(int targetX, int targetY, int targetZ, int originX, int originY, int originZ)
+	record MoveBackwardToLocation(int targetX, int targetY, int targetZ, int originX, int originY, int originZ,
+			int moveMovement) implements GameClientPacket {
+		public MoveBackwardToLocation(int targetX, int targetY, int targetZ, int originX, int originY, int originZ) {
+			this(targetX, targetY, targetZ, originX, originY, originZ, 1);
+		}
+	}
+
+	record AttackRequest(int objectId, int originX, int originY, int originZ, int attackId)
 			implements GameClientPacket {
 	}
 
@@ -104,11 +111,24 @@ public sealed interface GameClientPacket {
 	record RequestBypassToServer(String command) implements GameClientPacket {
 	}
 
+	/** 0x5b - comando digitado na caixa de chat com prefixo // (ex.: //admin). */
+	record SendBypassBuildCmd(String command) implements GameClientPacket {
+	}
+
 	record ItemRequest(int itemId, int count) {
 	}
 
 	record RequestBuyItem(int listId, java.util.List<ItemRequest> items) implements GameClientPacket {
 		public RequestBuyItem {
+			items = java.util.List.copyOf(items);
+		}
+	}
+
+	record SellItemRequest(int objectId, int itemId, int count) {
+	}
+
+	record RequestSellItem(int listId, java.util.List<SellItemRequest> items) implements GameClientPacket {
+		public RequestSellItem {
 			items = java.util.List.copyOf(items);
 		}
 	}
@@ -173,6 +193,10 @@ public sealed interface GameClientPacket {
 	record RequestDestroyItem(int objectId, int count) implements GameClientPacket {
 	}
 
+	/** 0x6e - comando de GM (Alt+G, etc). */
+	record RequestGMCommand(String targetName, int command) implements GameClientPacket {
+	}
+
 	record Unknown(int opcode, int subOpcode) implements GameClientPacket {
 	}
 
@@ -201,13 +225,19 @@ public sealed interface GameClientPacket {
 				};
 				case IN_GAME -> switch (op) {
 					case 0x03 -> new EnterWorld();
-					case 0x01 -> new MoveBackwardToLocation(r.readD(), r.readD(), r.readD(), r.readD(), r.readD(),
-							r.readD());
+					case 0x01 -> {
+						int tx = r.readD(), ty = r.readD(), tz = r.readD();
+						int ox = r.readD(), oy = r.readD(), oz = r.readD();
+						int mm = r.remaining() >= 4 ? r.readD() : 1;
+						yield new MoveBackwardToLocation(tx, ty, tz, ox, oy, oz, mm);
+					}
+					case 0x0a -> new AttackRequest(r.readD(), r.readD(), r.readD(), r.readD(), r.readC());
 					case 0x48 -> new ValidatePosition(r.readD(), r.readD(), r.readD(), r.readD());
 					case 0x38 -> say2(r);
 					case 0x04 -> new Action(r.readD(), r.readD(), r.readD(), r.readD(), r.readC());
 					case 0x21 -> new RequestBypassToServer(r.readS());
 					case 0x1b -> new RequestSocialAction(r.readD());
+					case 0x1e -> readSellItem(r);
 					case 0x1f -> readBuyItem(r);
 					case 0x29 -> new RequestJoinParty(r.readS(), r.readD());
 					case 0x2a -> new RequestAnswerJoinParty(r.readD());
@@ -226,9 +256,15 @@ public sealed interface GameClientPacket {
 					case 0x3f -> new RequestSkillList();
 					case 0x58 -> r.remaining() >= 4 ? new RequestEnchantItem(r.readD()) : new Unknown(op, -1);
 					case 0x59 -> r.remaining() >= 8 ? new RequestDestroyItem(r.readD(), r.readD()) : new Unknown(op, -1);
+					case 0x5b -> new SendBypassBuildCmd(r.readS());
 					case 0x6b -> new RequestAcquireSkillInfo(r.readD(), r.readD(), r.readD());
 					case 0x6c -> new RequestAcquireSkill(r.readD(), r.readD(), r.readD());
 					case 0x6d -> new RequestRestartPoint(r.readD());
+					case 0x6e -> {
+						String target = r.readS();
+						int cmd = r.remaining() >= 4 ? r.readD() : 1;
+						yield new RequestGMCommand(target, cmd);
+					}
 					case 0x63 -> new RequestQuestList();
 					case 0x09 -> new Logout();
 					case 0x46 -> new RequestRestart();
@@ -266,6 +302,19 @@ public sealed interface GameClientPacket {
 			items.add(new ItemRequest(r.readD(), r.readD()));
 		}
 		return new RequestBuyItem(listId, items);
+	}
+
+	private static RequestSellItem readSellItem(PacketReader r) {
+		int listId = r.readD();
+		int count = r.readD();
+		if (count <= 0 || count > 100 || r.remaining() < count * 12) {
+			return new RequestSellItem(listId, java.util.List.of());
+		}
+		java.util.List<SellItemRequest> items = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			items.add(new SellItemRequest(r.readD(), r.readD(), r.readD()));
+		}
+		return new RequestSellItem(listId, items);
 	}
 
 	private static GameClientPacket readWareHouseList(PacketReader r, boolean deposit) {

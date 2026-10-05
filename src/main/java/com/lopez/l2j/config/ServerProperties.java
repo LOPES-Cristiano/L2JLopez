@@ -18,7 +18,18 @@ public record ServerProperties(
 		@Valid @NotNull Network network,
 		@Valid @NotNull Login login,
 		@Valid Game game,
-		@Valid @NotNull Features features) {
+		@Valid @NotNull Features features,
+		@Valid Admin admin) {
+
+	public ServerProperties {
+		admin = admin != null ? admin : new Admin(java.util.List.of());
+	}
+
+	public record Admin(java.util.List<String> superusers) {
+		public Admin {
+			superusers = superusers != null ? superusers : java.util.List.of();
+		}
+	}
 
 	/** Configuracoes do game server (Config.java/custom.properties do legado). */
 	public record Game(

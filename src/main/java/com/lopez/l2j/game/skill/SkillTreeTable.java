@@ -68,6 +68,89 @@ public class SkillTreeTable {
 				classesByTrainer.size(), spellbookBySkill.size(), enchantSkills.size());
 	}
 
+	private static final Map<Integer, List<Integer>> FALLBACK_PROGRESSIONS = Map.ofEntries(
+			// 0th to 1st (starting -> 1st transfer)
+			Map.entry(0, List.of(1, 4, 7)),
+			Map.entry(10, List.of(11, 15)),
+			Map.entry(18, List.of(19, 22)),
+			Map.entry(25, List.of(26, 29)),
+			Map.entry(31, List.of(32, 35)),
+			Map.entry(38, List.of(39, 42)),
+			Map.entry(44, List.of(45, 47)),
+			Map.entry(49, List.of(50)),
+			Map.entry(53, List.of(54, 56)),
+
+			// 1st to 2nd transfer
+			Map.entry(1, List.of(2, 3)),
+			Map.entry(4, List.of(5, 6)),
+			Map.entry(7, List.of(8, 9)),
+			Map.entry(11, List.of(12, 13, 14)),
+			Map.entry(15, List.of(16, 17)),
+			Map.entry(19, List.of(20, 21)),
+			Map.entry(22, List.of(23, 24)),
+			Map.entry(26, List.of(27, 28)),
+			Map.entry(29, List.of(30)),
+			Map.entry(32, List.of(33, 34)),
+			Map.entry(35, List.of(36, 37)),
+			Map.entry(39, List.of(40, 41)),
+			Map.entry(42, List.of(43)),
+			Map.entry(45, List.of(46)),
+			Map.entry(47, List.of(48)),
+			Map.entry(50, List.of(51, 52)),
+			Map.entry(54, List.of(55)),
+			Map.entry(56, List.of(57)),
+
+			// 2nd to 3rd transfer
+			Map.entry(2, List.of(88)),
+			Map.entry(3, List.of(89)),
+			Map.entry(5, List.of(90)),
+			Map.entry(6, List.of(91)),
+			Map.entry(8, List.of(93)),
+			Map.entry(9, List.of(92)),
+			Map.entry(12, List.of(94)),
+			Map.entry(13, List.of(95)),
+			Map.entry(14, List.of(96)),
+			Map.entry(16, List.of(97)),
+			Map.entry(17, List.of(98)),
+			Map.entry(20, List.of(99)),
+			Map.entry(21, List.of(100)),
+			Map.entry(23, List.of(101)),
+			Map.entry(24, List.of(102)),
+			Map.entry(27, List.of(103)),
+			Map.entry(28, List.of(104)),
+			Map.entry(30, List.of(105)),
+			Map.entry(33, List.of(106)),
+			Map.entry(34, List.of(107)),
+			Map.entry(36, List.of(108)),
+			Map.entry(37, List.of(109)),
+			Map.entry(40, List.of(110)),
+			Map.entry(41, List.of(111)),
+			Map.entry(43, List.of(112)),
+			Map.entry(46, List.of(113)),
+			Map.entry(48, List.of(114)),
+			Map.entry(51, List.of(115)),
+			Map.entry(52, List.of(116)),
+			Map.entry(55, List.of(117)),
+			Map.entry(57, List.of(118))
+	);
+
+	/** Retorna as classes filhas diretas (opcoes de avanco de classe) para a classe informada. */
+	public List<Integer> getChildClasses(int classId) {
+		Set<Integer> set = new HashSet<>();
+		for (var entry : trees.entrySet()) {
+			if (entry.getValue().parentId() == classId) {
+				set.add(entry.getKey());
+			}
+		}
+		var fallback = FALLBACK_PROGRESSIONS.get(classId);
+		if (fallback != null) {
+			set.addAll(fallback);
+		}
+		List<Integer> list = new ArrayList<>(set);
+		list.sort(Integer::compareTo);
+		return list;
+	}
+
 	/** Todas as entradas da classe, incluindo as herdadas das classes pai. */
 	public List<SkillLearn> allFor(int classId) {
 		List<SkillLearn> out = new ArrayList<>();

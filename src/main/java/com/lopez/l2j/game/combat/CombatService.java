@@ -32,24 +32,27 @@ public class CombatService {
 			int spReward) {
 	}
 
+	public record HitPlan(int damage, int flags, boolean miss, boolean crit) {
+	}
+
 	public HitResult attackNpc(PlayerCharacter attacker, CharTemplate template, NpcInstance target) {
 		return attackNpc(attacker, template, target, -1);
 	}
 
 	/**
-	 * @param soulshotGrade grade do soulshot carregado (0 = no grade ... 5 = S) ou -1 sem soulshot. Com shot o
-	 *                      pAtk dobra (ssBoost do L2J) e o hit leva o flag USESS|grade para o cliente animar.
+	 * Planeja o golpe contra o monstro, calculando dano, acerto/erro, crítico e soulshot
+	 * SEM alterar o HP nem o estado de vida do monstro antes da animação atingir o alvo.
 	 */
-	public HitResult attackNpc(PlayerCharacter attacker, CharTemplate template, NpcInstance target,
+	public HitPlan planAttackNpc(PlayerCharacter attacker, CharTemplate template, NpcInstance target,
 			int soulshotGrade) {
 		if (target.isDead()) {
-			return new HitResult(0, 0, true, 0, target.template().maxHp(), 0, 0);
+			return new HitPlan(0, 0, false, false);
 		}
 
 		var stats = PlayerStats.calculate(attacker, template);
 		boolean soulshot = soulshotGrade >= 0;
 		double pAtk = stats.pAtk() * (soulshot ? 2.0 : 1.0);
-		double pDef = Math.max(1, target.template().pDef());
+		double pDef = Math.max(1, target.pDef());
 
 		// Chance de acerto: precisao vs evasao
 		int acc = stats.accuracy();
@@ -59,7 +62,7 @@ public class CombatService {
 		boolean miss = ThreadLocalRandom.current().nextInt(100) >= hitChance;
 
 		if (miss) {
-			return new HitResult(0, 0x80, false, (int) target.currentHp(), target.template().maxHp(), 0, 0);
+			return new HitPlan(0, 0x80, true, false);
 		}
 
 		// Chance de critico (base 40-120 per 1000)
@@ -80,7 +83,23 @@ public class CombatService {
 			flags |= 0x10 | soulshotGrade;
 		}
 
-		return applyDamage(target, damage, flags);
+		return new HitPlan(damage, flags, false, crit);
+	}
+
+	/**
+	 * @param soulshotGrade grade do soulshot carregado (0 = no grade ... 5 = S) ou -1 sem soulshot. Com shot o
+	 *                      pAtk dobra (ssBoost do L2J) e o hit leva o flag USESS|grade para o cliente animar.
+	 */
+	public HitResult attackNpc(PlayerCharacter attacker, CharTemplate template, NpcInstance target,
+			int soulshotGrade) {
+		if (target.isDead()) {
+			return new HitResult(0, 0, true, 0, target.template().maxHp(), 0, 0);
+		}
+		var plan = planAttackNpc(attacker, template, target, soulshotGrade);
+		if (plan.miss()) {
+			return new HitResult(0, plan.flags(), false, (int) target.currentHp(), target.template().maxHp(), 0, 0);
+		}
+		return applyDamage(target, plan.damage(), plan.flags());
 	}
 
 	/**
@@ -94,7 +113,7 @@ public class CombatService {
 		}
 		var stats = PlayerStats.calculate(attacker, template);
 		double pAtk = stats.pAtk() * (soulshot ? 2.0 : 1.0);
-		double pDef = Math.max(1, target.template().pDef());
+		double pDef = Math.max(1, target.pDef());
 		double dmg = (pAtk + power) * 70.0 / pDef;
 		boolean crit = blow ? ThreadLocalRandom.current().nextInt(100) < 50
 				: ThreadLocalRandom.current().nextInt(1000) < Math.max(40, stats.critical()) / 2;
@@ -126,7 +145,7 @@ public class CombatService {
 		} else if (sps) {
 			mAtk *= 2.0;
 		}
-		double mDef = Math.max(1, target.template().mDef());
+		double mDef = Math.max(1, target.mDef());
 		double dmg = 91.0 * Math.sqrt(mAtk) * power / mDef;
 		boolean crit = ThreadLocalRandom.current().nextInt(100) < 5;
 		if (crit) {
@@ -155,7 +174,7 @@ public class CombatService {
 		return ThreadLocalRandom.current().nextDouble(100) < chance;
 	}
 
-	private HitResult applyDamage(NpcInstance target, int damage, int flags) {
+	public HitResult applyDamage(NpcInstance target, int damage, int flags) {
 		int newHp;
 		synchronized (target) {
 			if (target.isDead()) {
@@ -181,7 +200,7 @@ public class CombatService {
 			return new HitResult(0, 0, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
 		}
 
-		double pAtk = attacker.template().pAtk();
+		double pAtk = attacker.pAtk();
 		var targetStats = PlayerStats.calculate(target, targetTemplate);
 		double pDef = Math.max(1, targetStats.pDef());
 
@@ -203,8 +222,99 @@ public class CombatService {
 
 		double newHp = Math.max(0, target.currentHp() - damage);
 		target.currentHp(newHp);
+		target.onDamaged();
 		boolean isDead = newHp <= 0;
 
 		return new HitResult(damage, flags, isDead, (int) newHp, target.maxHp(), 0, 0);
+	}
+
+	// ==================== PVP COMBAT & SKILLS ====================
+
+	public record PlayerDamageResult(int damage, int cpDamage, int hpDamage, boolean isDead, int remainingHp,
+			int remainingCp) {
+	}
+
+	public int skillPhysicalPlayer(PlayerCharacter attacker, CharTemplate attackerTemplate,
+			PlayerCharacter target, CharTemplate targetTemplate, double power, boolean soulshot, boolean blow) {
+		if (target.isDead()) {
+			return 0;
+		}
+		var attackerStats = PlayerStats.calculate(attacker, attackerTemplate);
+		var targetStats = PlayerStats.calculate(target, targetTemplate);
+		double pAtk = attackerStats.pAtk() * (soulshot ? 2.0 : 1.0);
+		double pDef = Math.max(1, targetStats.pDef());
+		double dmg = (pAtk + power) * 70.0 / pDef;
+		boolean crit = blow ? ThreadLocalRandom.current().nextInt(100) < 50
+				: ThreadLocalRandom.current().nextInt(1000) < Math.max(40, attackerStats.critical()) / 2;
+		if (crit) {
+			dmg *= 2.0;
+		}
+		dmg *= 0.95 + ThreadLocalRandom.current().nextDouble() * 0.10;
+		return Math.max(1, (int) Math.round(dmg));
+	}
+
+	public int skillMagicPlayer(PlayerCharacter attacker, CharTemplate attackerTemplate,
+			PlayerCharacter target, CharTemplate targetTemplate, double power, boolean sps, boolean bss) {
+		if (target.isDead()) {
+			return 0;
+		}
+		var attackerStats = PlayerStats.calculate(attacker, attackerTemplate);
+		var targetStats = PlayerStats.calculate(target, targetTemplate);
+		double mAtk = Math.max(1, attackerStats.mAtk());
+		if (bss) {
+			mAtk *= 4.0;
+		} else if (sps) {
+			mAtk *= 2.0;
+		}
+		double mDef = Math.max(1, targetStats.mDef());
+		double dmg = 91.0 * Math.sqrt(mAtk) * power / mDef;
+		boolean crit = ThreadLocalRandom.current().nextInt(100) < 5;
+		if (crit) {
+			dmg *= 3.0;
+		}
+		dmg *= 0.95 + ThreadLocalRandom.current().nextDouble() * 0.10;
+		return Math.max(1, (int) Math.round(dmg));
+	}
+
+	public boolean debuffLandsPlayer(double basePower, int magicLevel, int attackerLevel, PlayerCharacter target,
+			boolean sps, boolean bss) {
+		double chance = basePower > 0 ? basePower : 50;
+		int lvl = magicLevel > 0 ? magicLevel : attackerLevel;
+		chance -= Math.max(0, target.level() - lvl) * 3;
+		if (bss) {
+			chance = Math.min(95, chance * 1.5);
+		} else if (sps) {
+			chance = Math.min(90, chance * 1.25);
+		}
+		chance = Math.max(10, Math.min(90, chance));
+		return ThreadLocalRandom.current().nextDouble(100) < chance;
+	}
+
+	/**
+	 * Em PvP no Lineage II, dano consome Combat Points (CP) antes de atingir o HP.
+	 */
+	public PlayerDamageResult applyDamagePlayer(PlayerCharacter target, int damage) {
+		if (target.isDead()) {
+			return new PlayerDamageResult(0, 0, 0, true, 0, 0);
+		}
+		double curCp = target.currentCp();
+		double curHp = target.currentHp();
+		int cpDamage;
+		int hpDamage;
+		if (curCp >= damage) {
+			cpDamage = damage;
+			hpDamage = 0;
+			target.currentCp(curCp - damage);
+		} else {
+			cpDamage = (int) curCp;
+			target.currentCp(0.0);
+			int rem = damage - cpDamage;
+			hpDamage = rem;
+			target.currentHp(curHp - rem);
+		}
+		target.onDamaged();
+		boolean isDead = target.isDead();
+		return new PlayerDamageResult(damage, cpDamage, hpDamage, isDead, (int) target.currentHp(),
+				(int) target.currentCp());
 	}
 }

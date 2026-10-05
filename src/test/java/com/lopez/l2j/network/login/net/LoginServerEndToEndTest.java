@@ -51,7 +51,7 @@ class LoginServerEndToEndTest {
 		accounts.put("alice", new Account("alice", LegacyPasswordHasher.hash("pw"), 0, 0));
 		var login = new ServerProperties.Login(false, 1, "127.0.0.1", 10, true);
 		var props = new ServerProperties("t", null,
-				new ServerProperties.Network(2106, 7777, 9014, 730, 746), login, null, null);
+				new ServerProperties.Network(2106, 7777, 9014, 730, 746), login, null, null, null);
 		var service = new LoginAccountService(new AccountStore() {
 			public Optional<Account> find(String l) {
 				return Optional.ofNullable(accounts.get(l));

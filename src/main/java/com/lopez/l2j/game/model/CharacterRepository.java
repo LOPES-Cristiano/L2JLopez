@@ -1,6 +1,7 @@
 package com.lopez.l2j.game.model;
 
 import java.util.List;
+import java.util.Optional;
 
 /** Persistencia de personagens (tabela legada {@code characters}). */
 public interface CharacterRepository {
@@ -23,4 +24,12 @@ public interface CharacterRepository {
 
 	/** Grava posicao, HP/MP/CP e marca online/offline com lastAccess = agora. */
 	void saveState(PlayerCharacter c, boolean online);
+
+	void setAccessLevel(String charName, int accessLevel);
+
+	List<PlayerCharacter> listAll(int limit);
+
+	List<PlayerCharacter> searchByName(String query, int limit);
+
+	Optional<PlayerCharacter> findByName(String name);
 }

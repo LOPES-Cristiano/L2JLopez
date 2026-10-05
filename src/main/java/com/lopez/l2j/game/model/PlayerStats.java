@@ -89,6 +89,10 @@ public record PlayerStats(
 			runSpeed = (int) Math.round(apply(player, funcs, "runSpd", runSpeed));
 		}
 
+		if (player.gmSpeed() > 0) {
+			runSpeed = Math.min(500, runSpeed + player.gmSpeed() * 50);
+		}
+
 		return new PlayerStats(Math.max(1, pAtk), Math.max(1, pDef), Math.max(1, mAtk), Math.max(1, mDef),
 				Math.max(1, pAtkSpd), Math.max(1, mAtkSpd), Math.max(0, critical), accuracy, evasion,
 				Math.max(1, runSpeed));

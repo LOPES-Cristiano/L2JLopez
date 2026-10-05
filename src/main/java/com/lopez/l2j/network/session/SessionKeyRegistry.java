@@ -66,6 +66,10 @@ public class SessionKeyRegistry {
 		accounts.release(account);
 	}
 
+	public int getAccessLevel(String account) {
+		return accounts.getAccessLevel(account);
+	}
+
 	/** Libera contas cujo cliente recebeu PlayOk mas nunca se conectou ao game server. */
 	@Scheduled(fixedDelay = 15_000)
 	public void expirePending() {

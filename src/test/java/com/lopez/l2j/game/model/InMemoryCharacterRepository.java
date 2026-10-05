@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** Repositorio em memoria para testes de sessao/servico sem banco. */
 public class InMemoryCharacterRepository implements CharacterRepository {
@@ -54,6 +55,38 @@ public class InMemoryCharacterRepository implements CharacterRepository {
 
 	@Override
 	public synchronized void saveState(PlayerCharacter c, boolean isOnline) {
+		rows.put(c.objectId(), c);
 		online.put(c.objectId(), isOnline);
+	}
+
+	@Override
+	public synchronized void setAccessLevel(String charName, int accessLevel) {
+		for (PlayerCharacter c : rows.values()) {
+			if (c.name().equalsIgnoreCase(charName)) {
+				c.accessLevel(accessLevel);
+				break;
+			}
+		}
+	}
+
+	@Override
+	public synchronized List<PlayerCharacter> listAll(int limit) {
+		return rows.values().stream().limit(limit).toList();
+	}
+
+	@Override
+	public synchronized List<PlayerCharacter> searchByName(String query, int limit) {
+		String q = query.toLowerCase(java.util.Locale.ROOT);
+		return rows.values().stream()
+				.filter(c -> c.name().toLowerCase(java.util.Locale.ROOT).contains(q))
+				.limit(limit)
+				.toList();
+	}
+
+	@Override
+	public synchronized Optional<PlayerCharacter> findByName(String name) {
+		return rows.values().stream()
+				.filter(c -> c.name().equalsIgnoreCase(name))
+				.findFirst();
 	}
 }

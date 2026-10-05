@@ -146,8 +146,38 @@ public class SkillTable {
 		String condMsg = null;
 		if (condElement != null) {
 			var kids = SkillCondition.children(condElement);
-			castCond = kids.size() == 1 ? SkillCondition.parse(kids.get(0)) : null;
+			if (kids.size() == 1) {
+				castCond = SkillCondition.parse(kids.get(0));
+			} else if (kids.size() > 1) {
+				List<SkillCondition> parsedKids = new ArrayList<>();
+				for (Element kid : kids) {
+					SkillCondition sc = SkillCondition.parse(kid);
+					if (sc != null) {
+						parsedKids.add(sc);
+					}
+				}
+				if (!parsedKids.isEmpty()) {
+					castCond = p -> parsedKids.stream().allMatch(sc -> sc.test(p));
+				}
+			}
 			condMsg = condElement.getAttribute("msg");
+		}
+
+		int weaponsAllowed = 0;
+		if (sets.containsKey("weaponsAllowed")) {
+			try {
+				weaponsAllowed = Integer.parseInt(sets.get("weaponsAllowed").trim());
+			} catch (NumberFormatException ignored) {
+			}
+		}
+		if (weaponsAllowed > 0) {
+			final int mask = weaponsAllowed;
+			SkillCondition wCond = p -> SkillCondition.checkWeaponsAllowed(p, mask);
+			final SkillCondition baseCond = castCond;
+			castCond = baseCond != null ? (p -> wCond.test(p) && baseCond.test(p)) : wCond;
+			if (condMsg == null || condMsg.isBlank()) {
+				condMsg = "Equipamento incorreto para usar esta habilidade.";
+			}
 		}
 
 		SkillTemplate[] out = new SkillTemplate[levels];
@@ -203,8 +233,31 @@ public class SkillTable {
 				String rCondMsg = condMsg;
 				if (routeCond != null && routeCond != condElement) {
 					var kids = SkillCondition.children(routeCond);
-					rCastCond = kids.size() == 1 ? SkillCondition.parse(kids.get(0)) : null;
+					if (kids.size() == 1) {
+						rCastCond = SkillCondition.parse(kids.get(0));
+					} else if (kids.size() > 1) {
+						List<SkillCondition> parsedKids = new ArrayList<>();
+						for (Element kid : kids) {
+							SkillCondition sc = SkillCondition.parse(kid);
+							if (sc != null) parsedKids.add(sc);
+						}
+						if (!parsedKids.isEmpty()) {
+							rCastCond = p -> parsedKids.stream().allMatch(sc -> sc.test(p));
+						}
+					}
 					rCondMsg = routeCond.getAttribute("msg");
+				}
+				int rWeaponsAllowed = weaponsAllowed;
+				if (routeSets.containsKey("weaponsAllowed")) {
+					try {
+						rWeaponsAllowed = Integer.parseInt(routeSets.get("weaponsAllowed").trim());
+					} catch (NumberFormatException ignored) {}
+				}
+				if (rWeaponsAllowed > 0 && rCastCond != castCond) {
+					final int mask = rWeaponsAllowed;
+					SkillCondition wCond = p -> SkillCondition.checkWeaponsAllowed(p, mask);
+					final SkillCondition baseCond = rCastCond;
+					rCastCond = baseCond != null ? (p -> wCond.test(p) && baseCond.test(p)) : wCond;
 				}
 
 				for (int i = 0; i < count; i++) {

@@ -8,8 +8,11 @@ import com.lopez.l2j.game.model.PlayerStats;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.template.CharTemplate;
 import com.lopez.l2j.network.login.packet.PacketWriter;
+import com.lopez.l2j.game.skill.SkillService;
+import com.lopez.l2j.game.skill.SkillTemplate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Pacotes enviados pelo game server ao cliente Interlude. Layouts portados 1:1 de
@@ -260,10 +263,10 @@ public sealed interface GameServerPacket {
 			w.writeD(0); // large clan crest
 			w.writeC(0).writeC(0); // noble, hero
 			w.writeC(0).writeD(0).writeD(0).writeD(0); // fishing
-			w.writeD(NAME_COLOR);
+			w.writeD(c.isGm() ? 0x00FFFF : NAME_COLOR);
 			w.writeC(c.running() ? 1 : 0);
 			w.writeD(0).writeD(0); // pledge class (x2)
-			w.writeD(TITLE_COLOR);
+			w.writeD(c.isGm() ? 0x00FF77 : TITLE_COLOR);
 			w.writeD(0); // cursed weapon level
 			return w.toByteArray();
 		}
@@ -987,10 +990,10 @@ public sealed interface GameServerPacket {
 			w.writeD(0);
 			w.writeC(0).writeC(0);
 			w.writeC(0).writeD(0).writeD(0).writeD(0);
-			w.writeD(0xFFFFFF);
+			w.writeD(c.isGm() ? 0x00FFFF : 0xFFFFFF);
 			w.writeD(0x00);
 			w.writeD(0).writeD(0);
-			w.writeD(0xFFFF77);
+			w.writeD(c.isGm() ? 0x00FF77 : 0xFFFF77);
 			w.writeD(0x00);
 			return w.toByteArray();
 		}
@@ -1042,6 +1045,51 @@ public sealed interface GameServerPacket {
 				w.writeD(p.price());
 			}
 			return w.toByteArray();
+		}
+	}
+
+	/** 0x10 SellList: lista de itens vendiveis para o NPC mercador. */
+	record SellList(int money, int lease, List<SellItemView> items) implements GameServerPacket {
+		public record SellItemView(int objectId, int itemId, int count, int type1, int type2, int bodyPart, int enchant, int price) {
+		}
+
+		public SellList {
+			items = List.copyOf(items);
+		}
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x10).writeD(money).writeD(lease).writeH(items.size());
+			for (SellItemView item : items) {
+				w.writeH(item.type1());
+				w.writeD(item.objectId());
+				w.writeD(item.itemId());
+				w.writeD(item.count());
+				w.writeH(item.type2());
+				w.writeH(0);
+				w.writeD(item.bodyPart());
+				w.writeH(item.enchant());
+				w.writeH(0);
+				w.writeH(0);
+				w.writeD(item.price());
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xFE:0x51 ExShowVariationMakeWindow: abre a janela de augmentacao. */
+	record ExShowVariationMakeWindow() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x51).toByteArray();
+		}
+	}
+
+	/** 0xFE:0x52 ExShowVariationCancelWindow: abre a janela de remocao de augmentacao. */
+	record ExShowVariationCancelWindow() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x52).toByteArray();
 		}
 	}
 
@@ -1398,6 +1446,179 @@ public sealed interface GameServerPacket {
 				w.writeH(0);
 				w.writeD(item.objectId());
 				w.writeQ(0);
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x8f GMViewCharacterInfo: status e aparencia de personagem para o painel Alt+G do GM. */
+	record GMViewCharacterInfo(PlayerCharacter c, CharTemplate t, PlayerStats stats, Paperdoll paperdoll, int currentLoad)
+			implements GameServerPacket {
+
+		public GMViewCharacterInfo(PlayerCharacter c, CharTemplate t) {
+			this(c, t, PlayerStats.calculate(c, t), c.inventory().paperdollView(), c.inventory().currentLoad());
+		}
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter(512).writeC(0x8f);
+			w.writeD(c.x()).writeD(c.y()).writeD(c.z()).writeD(c.heading());
+			w.writeD(c.objectId());
+			w.writeS(c.name());
+			w.writeD(c.race());
+			w.writeD(c.female() ? 1 : 0);
+			w.writeD(c.classId());
+			w.writeD(c.level());
+			w.writeQ(c.exp());
+			w.writeD(t.str()).writeD(t.dex()).writeD(t.con()).writeD(t.intel()).writeD(t.wit()).writeD(t.men());
+			w.writeD(c.maxHp()).writeD((int) c.currentHp());
+			w.writeD(c.maxMp()).writeD((int) c.currentMp());
+			w.writeD(c.sp());
+			w.writeD(currentLoad).writeD(t.maxLoad());
+			w.writeD(0x28); // paperdoll start offset
+			writePaperdoll(w, paperdoll, ItemSlots.RHAND);
+			w.writeD(stats.pAtk());
+			w.writeD(stats.pAtkSpd());
+			w.writeD(stats.pDef());
+			w.writeD(stats.evasion());
+			w.writeD(stats.accuracy());
+			w.writeD(stats.critical());
+			w.writeD(stats.mAtk());
+			w.writeD(stats.mAtkSpd());
+			w.writeD(stats.pAtkSpd());
+			w.writeD(stats.mDef());
+			w.writeD(0); // pvp flag
+			w.writeD(c.karma());
+			int run = stats.runSpeed();
+			int walk = 80;
+			w.writeD(run).writeD(walk).writeD(run).writeD(walk).writeD(run).writeD(walk).writeD(run).writeD(walk);
+			w.writeF(1.0).writeF(1.0); // multipliers
+			w.writeF(t.collisionRadius(c.female())).writeF(t.collisionHeight(c.female()));
+			w.writeD(c.hairStyle()).writeD(c.hairColor()).writeD(c.face()).writeD(c.isGm() ? 1 : 0);
+			w.writeS(c.title() != null ? c.title() : "");
+			w.writeD(c.clanId()).writeD(0).writeD(0); // clanId, crest, ally
+			w.writeC(0).writeC(0).writeC(t.canCraft() ? 1 : 0); // mount, store, dwarven craft
+			w.writeD(c.pkKills()).writeD(c.pvpKills());
+			w.writeH(0).writeH(0); // recom left/have
+			w.writeD(c.classId()).writeD(0);
+			w.writeD(c.maxCp()).writeD((int) c.currentCp());
+			w.writeC(c.running() ? 1 : 0);
+			w.writeD(0).writeD(0).writeD(0).writeD(0);
+			w.writeD(c.isGm() ? 0x00FFFF : 0xFFFFFF); // name color
+			w.writeD(0);
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x90 GMViewPledgeInfo: informacoes de clan para o GM. */
+	record GMViewPledgeInfo(String charName, int clanId, int level, int classId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x90);
+			w.writeS(charName);
+			w.writeD(clanId);
+			w.writeS(clanId != 0 ? "Clan " + clanId : "");
+			w.writeS(charName);
+			w.writeD(0).writeD(0).writeD(0).writeD(0).writeD(0);
+			w.writeD(level);
+			w.writeD(0).writeD(0).writeD(0);
+			w.writeS("").writeD(0).writeD(0);
+			w.writeD(1); // 1 member
+			w.writeS(charName).writeD(level).writeD(classId).writeD(0).writeD(0).writeD(1);
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x91 GMViewSkillInfo: lista de skills do jogador para o GM. */
+	record GMViewSkillInfo(String charName, Map<Integer, Integer> skills, SkillService skillService)
+			implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x91);
+			w.writeS(charName);
+			w.writeD(skills.size());
+			for (var entry : skills.entrySet()) {
+				int skillId = entry.getKey();
+				int level = entry.getValue();
+				boolean isPassive = skillService != null && skillService.table() != null
+						&& skillService.table().get(skillId, level).map(SkillTemplate::isPassive).orElse(false);
+				w.writeD(isPassive ? 1 : 0);
+				w.writeD(level);
+				w.writeD(skillId);
+				w.writeC(0);
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x93 GMViewQuestInfo: lista de quests para o GM. */
+	record GMViewQuestInfo(String charName) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x93).writeS(charName).writeH(0).toByteArray();
+		}
+	}
+
+	/** 0x94 GMViewItemList: inventario completo para o GM. */
+	record GMViewItemList(String charName, Collection<ItemInstance> items, int inventoryLimit)
+			implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x94);
+			w.writeS(charName);
+			w.writeD(inventoryLimit);
+			w.writeH(1);
+			w.writeH(items.size());
+			for (ItemInstance item : items) {
+				var t = item.template();
+				w.writeH(t.type1());
+				w.writeD(item.objectId());
+				w.writeD(t.displayId());
+				w.writeD(item.count());
+				w.writeH(t.type2());
+				w.writeH(item.customType1());
+				w.writeH(item.isEquipped() ? 1 : 0);
+				w.writeD(t.bodyPart());
+				w.writeH(item.enchant());
+				w.writeH(item.customType2());
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xea GMHennaInfo: dyes/simbolos para a tela de inventario do GM. */
+	record GMHennaInfo(int intel, int str, int con, int men, int dex, int wit) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xea)
+					.writeC(intel).writeC(str).writeC(con).writeC(men).writeC(dex).writeC(wit)
+					.writeD(0)
+					.toByteArray();
+		}
+	}
+
+	/** 0x95 GMViewWarehouseWithdrawList: armazem para o GM. */
+	record GMViewWarehouseWithdrawList(String charName, int adena, List<ItemInstance> items)
+			implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x95);
+			w.writeS(charName);
+			w.writeD(adena);
+			w.writeH(items.size());
+			for (var item : items) {
+				var t = item.template();
+				w.writeH(t.type1());
+				w.writeD(item.objectId());
+				w.writeD(t.displayId());
+				w.writeD(item.count());
+				w.writeH(t.type2());
+				w.writeH(0);
+				w.writeD(t.bodyPart());
+				w.writeH(item.enchant());
+				w.writeH(0);
+				w.writeH(0);
+				w.writeD(item.objectId());
 			}
 			return w.toByteArray();
 		}

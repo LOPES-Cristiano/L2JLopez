@@ -3,6 +3,7 @@ package com.lopez.l2j.game.model;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -95,11 +96,12 @@ class JdbcCharacterRepository implements CharacterRepository {
 	@Override
 	public void saveState(PlayerCharacter c, boolean online) {
 		jdbc.sql("""
-				UPDATE characters SET x = :x, y = :y, z = :z, heading = :heading, level = :level,
+				UPDATE characters SET classid = :classId, x = :x, y = :y, z = :z, heading = :heading, level = :level,
 				  exp = :exp, sp = :sp, maxHp = :maxHp, maxMp = :maxMp, maxCp = :maxCp, curHp = :hp,
 				  curMp = :mp, curCp = :cp, face = :face, hairStyle = :hairStyle, hairColor = :hairColor,
-				  online = :online, lastAccess = :now WHERE charId = :id
+				  online = :online, lastAccess = :now, accesslevel = :accesslevel WHERE charId = :id
 				""")
+				.param("classId", c.classId())
 				.param("x", c.x())
 				.param("y", c.y())
 				.param("z", c.z())
@@ -118,8 +120,42 @@ class JdbcCharacterRepository implements CharacterRepository {
 				.param("hairColor", c.hairColor())
 				.param("online", online ? 1 : 0)
 				.param("now", System.currentTimeMillis())
+				.param("accesslevel", c.accessLevel())
 				.param("id", c.objectId())
 				.update();
+	}
+
+	@Override
+	public void setAccessLevel(String charName, int accessLevel) {
+		jdbc.sql("UPDATE characters SET accesslevel = :lvl WHERE LOWER(char_name) = LOWER(:name)")
+				.param("lvl", accessLevel)
+				.param("name", charName)
+				.update();
+	}
+
+	@Override
+	public List<PlayerCharacter> listAll(int limit) {
+		return jdbc.sql("SELECT " + COLUMNS + " FROM characters ORDER BY online DESC, lastAccess DESC LIMIT :lim")
+				.param("lim", limit)
+				.query(JdbcCharacterRepository::map)
+				.list();
+	}
+
+	@Override
+	public List<PlayerCharacter> searchByName(String query, int limit) {
+		return jdbc.sql("SELECT " + COLUMNS + " FROM characters WHERE LOWER(char_name) LIKE :q ORDER BY char_name ASC LIMIT :lim")
+				.param("q", "%" + query.toLowerCase(java.util.Locale.ROOT) + "%")
+				.param("lim", limit)
+				.query(JdbcCharacterRepository::map)
+				.list();
+	}
+
+	@Override
+	public Optional<PlayerCharacter> findByName(String name) {
+		return jdbc.sql("SELECT " + COLUMNS + " FROM characters WHERE LOWER(char_name) = LOWER(:name)")
+				.param("name", name)
+				.query(JdbcCharacterRepository::map)
+				.optional();
 	}
 
 	private static PlayerCharacter map(ResultSet rs, int row) throws SQLException {

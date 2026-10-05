@@ -74,7 +74,7 @@ public final class Inventory {
 	}
 
 	public ItemInstance paperdoll(int slot) {
-		return paperdoll[slot];
+		return (slot >= 0 && slot < PAPERDOLL_SLOTS) ? paperdoll[slot] : null;
 	}
 
 	public Paperdoll paperdollView() {

@@ -15,7 +15,9 @@ spring:
     # migracoes de schema (V124+) depois que os dados ja foram aplicados.
     locations: classpath:db/migration,classpath:db/data
     out-of-order: true
-
+  devtools:
+    restart:
+      enabled: false
 server:
   port: 8080
 
@@ -35,13 +37,13 @@ l2:
     teleports-file: ${L2_DATAPACK_TELEPORTS_FILE:data/xml/world/teleports.xml}
     buylists-file: ${L2_DATAPACK_BUYLISTS_FILE:data/xml/world/buylists.xml}
   rates:
-    xp: 1.0
-    sp: 1.0
-    party-xp: 1.0
-    party-sp: 1.0
-    adena: 1.0
-    drop: 1.0
-    spoil: 1.0
+    xp: 100.0
+    sp: 100.0
+    party-xp: 100.0
+    party-sp: 100.0
+    adena: 100.0
+    drop: 100.0
+    spoil: 100.0
   network:
     login-port: 2106
     game-port: 7777
@@ -71,3 +73,7 @@ l2:
     achievements: { enabled: true }
     vote: { enabled: false }
     quake: { enabled: true }
+  admin:
+    # Nomes de personagens ou logins de conta com privilegios de GM (accessLevel 100) automaticos ao entrar no jogo
+    superusers:
+      - "Cristiano"

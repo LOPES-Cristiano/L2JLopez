@@ -7,6 +7,7 @@ import com.lopez.l2j.game.template.CharTemplate;
 import com.lopez.l2j.game.template.CharTemplateTable;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CharCreateFailReason;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -117,7 +118,27 @@ public class CharacterService {
 				.orElseThrow(() -> new IllegalStateException("classe sem template: " + c.classId()));
 	}
 
+	public Optional<CharTemplate> template(int classId) {
+		return templates.get(classId);
+	}
+
 	public List<CharTemplate> creationTemplates() {
 		return templates.creationTemplates();
+	}
+
+	public void setAccessLevelByName(String charName, int accessLevel) {
+		repository.setAccessLevel(charName, accessLevel);
+	}
+
+	public List<PlayerCharacter> listAll(int limit) {
+		return repository.listAll(limit);
+	}
+
+	public List<PlayerCharacter> searchByName(String query, int limit) {
+		return repository.searchByName(query, limit);
+	}
+
+	public Optional<PlayerCharacter> findByName(String name) {
+		return repository.findByName(name);
 	}
 }

@@ -89,6 +89,13 @@ public class LoginAccountService {
 		store.touch(login, ip, serverId);
 	}
 
+	public int getAccessLevel(String login) {
+		if (login == null) {
+			return 0;
+		}
+		return store.find(login).map(Account::accessLevel).orElse(0);
+	}
+
 	private boolean createIfAllowed(String login, String password, String ip) {
 		if (!config.autoCreateAccounts()) {
 			return false;

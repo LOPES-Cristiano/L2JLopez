@@ -18,21 +18,21 @@ de migracao para o L2JLopez. Numeros medidos direto nos arquivos (outubro/2026).
 
 | Pacote | Arquivos | KB | Papel | Status no L2JLopez |
 |---|---:|---:|---|---|
-| `auth` | 52 | 137 | Login server (Blowfish/RSA, contas, registro de GS) | **Portado** (`network.login`), sem registro dinamico de GS |
+| `auth` | 52 | 137 | Login server (Blowfish/RSA, contas, registro de GS) | **Portado** (`network.login`), autenticacao e sessao completa |
 | `mmocore` | 13 | 38 | NIO selector proprio | **Substituido** por virtual threads (1 thread por conexao) |
 | `config` | 19 | 26 | Leitura dos `.properties` | **Substituido** por `ServerProperties` (records validados) |
-| `game.network` | 530 | 1.349 | 208 pacotes do cliente, 297 do servidor, crypt, handler | **Parcial**: crypt + ~45 pacotes (handshake, lobby, mundo basico) |
-| `game.model` | 462 | 3.439 | L2Object/L2Character/L2PcInstance, 108 tipos de instancia, zonas, olimpiada, sieges, eventos | **Inicio**: `PlayerCharacter`, `GameWorld` minimo |
-| `game.handler` | 181 | 727 | admin (38), item (45), skill (41), chat (13), user (15), voiced (10) | Pendente |
-| `game.manager` | 66 | 673 | Castle/Fort/ClanHall/Siege, grandbosses (11), raid, boat, manor, olimpiada, offline etc. | Pendente |
-| `game.skills` | 149 | 359 | Condicoes (49), efeitos (68), funcs, formulas | Pendente |
-| `game.datatables` | 47 | 297 | Carregadores: `sql/` (11) e `xml/` (30) | **Parcial**: `CharTemplateTable` |
-| `game.ai` | 16 | 153 | IA de NPC/monstro/jogador | Pendente |
+| `game.network` | 530 | 1.349 | 208 pacotes do cliente, 297 do servidor, crypt, handler | **Avancado**: crypt + ~55 pacotes (combate, trade, sell, multisell, party, dialogos) |
+| `game.model` | 462 | 3.439 | L2Object/L2Character/L2PcInstance, 108 tipos de instancia, zonas, olimpiada, sieges, eventos | **Avancado**: `PlayerCharacter`, `PlayerStats`, `GameWorld` com Spatial Grid, `Party` |
+| `game.handler` | 181 | 727 | admin (38), item (45), skill (41), chat (13), user (15), voiced (10) | **Portado parcialmente**: admin (menus HTML, spawn, heal, level, enchant...), item (consumíveis, shots, enchant, destroy), bypasses de NPCs |
+| `game.manager` | 66 | 673 | Castle/Fort/ClanHall/Siege, grandbosses (11), raid, boat, manor, olimpiada, offline etc. | **Parcial**: Spawns de RaidBoss e Dungeons ativos em `SpawnService` |
+| `game.skills` | 149 | 359 | Condicoes (49), efeitos (68), funcs, formulas | **Portado**: `SkillTable` (2.686 skills), `SkillCondition`, restrições de armas, buffs/debuffs e persistência |
+| `game.datatables` | 47 | 297 | Carregadores: `sql/` (11) e `xml/` (30) | **Portado**: `CharTemplateTable`, `TeleportLocationTable`, `BuyListTable`, `MultiSellTable`, `SkillTreeTable`, `HtmCache` (10.747 HTMLs) |
+| `game.ai` | 16 | 153 | IA de NPC/monstro/jogador | **Funcional**: `NpcAiService` básico |
 | `game.communitybbs` | 18 | 138 | Community Board (Alt+B) | Pendente |
-| `game.geodata` | 13 | 71 | Geodata + pathfinding | Pendente (dados 573 MB fora do git) |
-| `game.taskmanager` | 24 | 44 | Decay, attack stance, knownlist, auto-announce, reset | Pendente |
-| `game.templates` | 17 | 73 | Templates de NPC/item/char | **Parcial** (char) |
-| `game.idfactory` | 5 | 27 | Alocacao de objectId | **Simplificado** (faixa 0x10000000 em `JdbcCharacterRepository`) |
+| `game.geodata` | 13 | 71 | Geodata + pathfinding | Pendente |
+| `game.taskmanager` | 24 | 44 | Decay, attack stance, knownlist, auto-announce, reset | **Portado**: `ScheduledExecutorService`, VitalsRegenTask, Spatial Grid broadcasts |
+| `game.templates` | 17 | 73 | Templates de NPC/item/char | **Portado**: `NpcTemplate`, `ItemTemplate`, `CharTemplate` com fallbacks |
+| `game.idfactory` | 5 | 27 | Alocacao de objectId | **Portado**: `ObjectIdFactory` sequencial thread-safe |
 | `tools`, `util`, `thread`, `lang`, `jdklog` | ~90 | ~280 | Utilitarios, crypt, pools, i18n, log | Substituidos por JDK 21/Spring/SLF4J |
 
 ### 2.1 Instancias de NPC (108 classes em `model.actor.instance`)

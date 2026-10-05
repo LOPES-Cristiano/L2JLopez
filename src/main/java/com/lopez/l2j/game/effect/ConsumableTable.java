@@ -115,6 +115,15 @@ public final class ConsumableTable {
 		return Optional.ofNullable(BY_ITEM.get(itemId));
 	}
 
+	public static Optional<Consumable> bySkillId(int skillId) {
+		for (Consumable c : BY_ITEM.values()) {
+			if (c.skillId() == skillId && c.buff() != null) {
+				return Optional.of(c);
+			}
+		}
+		return Optional.empty();
+	}
+
 	public static boolean isSoulshot(int itemId) {
 		var c = BY_ITEM.get(itemId);
 		return c != null && c.type() == Type.SOULSHOT;

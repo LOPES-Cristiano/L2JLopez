@@ -16,12 +16,12 @@ public final class PlayerCharacter {
 
 	private final int objectId;
 	private final String account;
-	private final String name;
+	private String name;
 	private int level;
 	private long exp;
 	private int sp;
 	private final int race;
-	private final int classId;
+	private int classId;
 	private final int baseClassId;
 	private final boolean female;
 	private int face;
@@ -30,14 +30,21 @@ public final class PlayerCharacter {
 	private int maxHp;
 	private int maxMp;
 	private int maxCp;
-	private final int karma;
-	private final int pvpKills;
-	private final int pkKills;
+	private int karma;
+	private int pvpKills;
+	private int pkKills;
 	private final int clanId;
-	private final String title;
-	private final int accessLevel;
+	private String title;
+	private int accessLevel;
 	private final long lastAccess;
 	private long deleteTime;
+	private int mountType;
+	private int gmSpeed;
+	private boolean invul;
+	private boolean invis;
+	private boolean silence;
+	private boolean diet;
+	private int polyNpcId;
 
 	private int x;
 	private int y;
@@ -101,6 +108,7 @@ public final class PlayerCharacter {
 	public int sp() { return sp; }
 	public int race() { return race; }
 	public int classId() { return classId; }
+	public void classId(int value) { this.classId = value; }
 	public int baseClassId() { return baseClassId; }
 	public boolean female() { return female; }
 	public int face() { return face; }
@@ -121,6 +129,7 @@ public final class PlayerCharacter {
 	public int clanId() { return clanId; }
 	public String title() { return title; }
 	public int accessLevel() { return accessLevel; }
+	public void accessLevel(int value) { this.accessLevel = value; }
 	public boolean isGm() { return accessLevel > 0; }
 	public long lastAccess() { return lastAccess; }
 	public long deleteTime() { return deleteTime; }
@@ -154,6 +163,34 @@ public final class PlayerCharacter {
 	public void startAbnormalEffect(int mask) { this.abnormalEffect |= mask; }
 	public void stopAbnormalEffect(int mask) { this.abnormalEffect &= ~mask; }
 
+	private volatile long disabledUntil;
+	private volatile boolean sleeping;
+	private volatile long rootedUntil;
+
+	public void disable(long until, boolean sleep) {
+		this.disabledUntil = Math.max(disabledUntil, until);
+		this.sleeping = sleep;
+	}
+
+	public void root(long until) {
+		this.rootedUntil = Math.max(rootedUntil, until);
+	}
+
+	public boolean isDisabled() {
+		return System.currentTimeMillis() < disabledUntil;
+	}
+
+	public boolean isRooted() {
+		return System.currentTimeMillis() < rootedUntil;
+	}
+
+	public void onDamaged() {
+		if (sleeping) {
+			sleeping = false;
+			disabledUntil = 0;
+		}
+	}
+
 	/** Inventario carregado ao entrar no jogo (vazio enquanto o personagem esta so na lista). */
 	public Inventory inventory() {
 		if (inventory == null) {
@@ -173,4 +210,26 @@ public final class PlayerCharacter {
 	public void heading(int value) {
 		this.heading = value;
 	}
+
+	public void name(String value) { this.name = value; }
+	public void classId(int value) { this.classId = value; }
+	public void title(String value) { this.title = value; }
+	public void karma(int value) { this.karma = value; }
+	public void pvpKills(int value) { this.pvpKills = value; }
+	public void pkKills(int value) { this.pkKills = value; }
+	public int mountType() { return mountType; }
+	public void mountType(int value) { this.mountType = value; }
+	public int gmSpeed() { return gmSpeed; }
+	public void gmSpeed(int value) { this.gmSpeed = value; }
+	public boolean invul() { return invul; }
+	public void invul(boolean value) { this.invul = value; }
+	public boolean invis() { return invis; }
+	public void invis(boolean value) { this.invis = value; }
+	public boolean silence() { return silence; }
+	public void silence(boolean value) { this.silence = value; }
+	public boolean diet() { return diet; }
+	public void diet(boolean value) { this.diet = value; }
+	public int polyNpcId() { return polyNpcId; }
+	public void polyNpcId(int value) { this.polyNpcId = value; }
+	public void isDisabled(boolean val) { this.disabledUntil = val ? Long.MAX_VALUE : 0; }
 }

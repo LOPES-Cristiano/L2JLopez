@@ -64,6 +64,17 @@ public final class NpcInstance {
 	public void running(boolean value) { this.running = value; }
 	public boolean isAttackable() { return template.isAttackable(); }
 	public boolean isMonster() { return template.isMonster(); }
+
+	private volatile double pDefMul = 1.0;
+	private volatile double mDefMul = 1.0;
+	private volatile double pAtkMul = 1.0;
+
+	public double pDef() { return template.pDef() * pDefMul; }
+	public double mDef() { return template.mDef() * mDefMul; }
+	public double pAtk() { return template.pAtk() * pAtkMul; }
+	public void pDefMul(double value) { this.pDefMul = value; }
+	public void mDefMul(double value) { this.mDefMul = value; }
+	public void pAtkMul(double value) { this.pAtkMul = value; }
 	public int targetPlayerId() { return targetPlayerId; }
 	public void targetPlayerId(int value) { this.targetPlayerId = value; }
 	public long lastAttackTime() { return lastAttackTime; }

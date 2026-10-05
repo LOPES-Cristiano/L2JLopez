@@ -30,6 +30,7 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ChooseInventoryItem;
 import com.lopez.l2j.network.game.packet.GameServerPacket.EnchantResult;
+import com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.WareHouseDepositList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.WareHouseWithdrawalList;
 import java.nio.ByteBuffer;
@@ -43,6 +44,8 @@ class GameSessionFeaturesTest {
 
 	private List<GameServerPacket> sent;
 	private GameSession session;
+	private GameSession.Context ctx;
+	private FakeCharacterSkillSaveRepository buffRepo;
 	private PlayerCharacter player;
 	private GameWorld world;
 	private ItemTemplateTable itemTemplates;
@@ -57,15 +60,17 @@ class GameSessionFeaturesTest {
 		inventoryService = new InventoryService(com.lopez.l2j.game.item.TestItems.table(), repo,
 				com.lopez.l2j.game.model.ObjectIdFactory.sequential(0x20000000), 10_000_000);
 		var charTemplates = new CharTemplateTable();
-		var charService = new com.lopez.l2j.game.service.CharacterService(null, charTemplates, inventoryService);
+		var charRepo = new com.lopez.l2j.game.model.InMemoryCharacterRepository();
+		var charService = new com.lopez.l2j.game.service.CharacterService(charRepo, charTemplates, inventoryService);
 		var combat = new CombatService();
 
 		var htmls = new com.lopez.l2j.game.html.HtmCache("data/html");
 		var multisell = new com.lopez.l2j.game.multisell.MultiSellTable("data/xml/multisell");
 		var warehouse = new com.lopez.l2j.game.service.WarehouseService(repo, com.lopez.l2j.game.item.TestItems.table(),
 				com.lopez.l2j.game.model.ObjectIdFactory.sequential(0x30000000));
-		var ctx = new GameSession.Context(746, 746, null, charService, inventoryService, world, htmls,
-				null, null, combat, null, null, null, null, null, multisell, warehouse, null, "TestServer");
+		buffRepo = new FakeCharacterSkillSaveRepository();
+		ctx = new GameSession.Context(746, 746, null, charService, inventoryService, world, htmls,
+				null, null, combat, null, null, null, null, null, multisell, warehouse, buffRepo, null, "TestServer");
 
 		player = new PlayerCharacter(1001, "Archer", "Hero", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
 				200, 100, 100, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 200.0, 100.0, 100.0);
@@ -143,11 +148,11 @@ class GameSessionFeaturesTest {
 		int attacksCount1 = (int) sent.stream().filter(p -> p instanceof Attack).count();
 		assertEquals(1, attacksCount1);
 
-		// 2º ataque imediato: dentro do cooldown do swing, deve falhar (ActionFailed) e NAO gerar novo Attack
+		// 2º ataque imediato: dentro do cooldown do swing, nao deve disparar novo Attack nem enviar ActionFailed (para nao abortar a animacao no cliente)
 		invokeMethod(session, "onAttackNpc", new Class<?>[] { NpcInstance.class }, monster);
 		int attacksCount2 = (int) sent.stream().filter(p -> p instanceof Attack).count();
 		assertEquals(1, attacksCount2, "Spam clicks nao devem disparar novo Attack dentro do cooldown");
-		assertTrue(sent.stream().anyMatch(p -> p instanceof ActionFailed), "Deve responder ActionFailed no spam click");
+		assertFalse(sent.stream().anyMatch(p -> p instanceof ActionFailed), "Nao deve responder ActionFailed no spam click para evitar cancelamento de animacao");
 	}
 
 	@Test
@@ -528,6 +533,458 @@ class GameSessionFeaturesTest {
 		assertEquals(60, player.inventory().byObjectId(potions.objectId()).orElseThrow().count(), "Deve restar 60 pocoes no inventario");
 	}
 
+	@Test
+	void testBuffsPersistAcrossSessions() {
+		// Aplica um buff ativo (ex: Potion de Haste id 2034)
+		long now = System.currentTimeMillis();
+		player.effects().put(new com.lopez.l2j.game.effect.PlayerEffects.ActiveBuff(
+				2034, 1, "haste_potion", now + 60_000L, 0, 1.33, 1.0, 0));
+		assertFalse(player.effects().active().isEmpty(), "Player deve ter buff ativo antes de sair");
+
+		// Sai do mundo (simulando restart ou relog)
+		invokeMethod(session, "leaveWorld", new Class<?>[0]);
+
+		// Buffs devem ter sido salvos no repositorio
+		var saved = buffRepo.restoreBuffs(player.objectId(), 0);
+		assertEquals(1, saved.size(), "Deve salvar 1 buff no repositorio");
+		assertEquals(2034, saved.getFirst().skillId());
+
+		// Novo login do mesmo personagem apos restart
+		var player2 = new PlayerCharacter(1001, "Archer", "Hero", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
+				200, 100, 100, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 200.0, 100.0, 100.0);
+		player2.inventory(new Inventory(player2.objectId()));
+		assertTrue(player2.effects().active().isEmpty(), "Novo personagem inicia sem efeitos em memoria");
+
+		var session2 = new GameSession(ctx, new byte[8], "127.0.0.1", sent::add);
+		setField(session2, "active", player2);
+		setField(session2, "inWorld", true);
+
+		// Restaura buffs
+		invokeMethod(session2, "restoreBuffs", new Class<?>[0]);
+
+		// Deve ter restaurado o buff em player2.effects()
+		assertFalse(player2.effects().active().isEmpty(), "Buffs devem ser restaurados para o player");
+		assertTrue(player2.effects().hasSkill(2034), "Buff 2034 deve estar ativo no player");
+	}
+
+	@Test
+	void testBuffsDeletedOnDeathWhenLeavingWorld() {
+		long now = System.currentTimeMillis();
+		player.effects().put(new com.lopez.l2j.game.effect.PlayerEffects.ActiveBuff(
+				2034, 1, "haste_potion", now + 60_000L, 0, 1.33, 1.0, 0));
+
+		// Marca player como morto
+		player.currentHp(0);
+		assertTrue(player.isDead());
+
+		// Sai do mundo
+		invokeMethod(session, "leaveWorld", new Class<?>[0]);
+
+		// Buffs devem ter sido limpos
+		var saved = buffRepo.restoreBuffs(player.objectId(), 0);
+		assertTrue(saved.isEmpty(), "Buffs devem ser deletados quando o personagem morre");
+	}
+
+	@Test
+	void testAdminCommandUnauthorizedForNormalPlayer() {
+		player.accessLevel(0);
+		assertFalse(player.isGm());
+
+		sent.clear();
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("//admin", 0, null));
+
+		boolean denied = sent.stream().anyMatch(p -> p instanceof GameServerPacket.CreatureSay cs
+				&& cs.text().contains("permissao"));
+		assertTrue(denied, "Comando admin deve ser rejeitado para jogador normal");
+	}
+
+	@Test
+	void testAdminPanelHtmlViaSayAndBypass() {
+		player.accessLevel(100);
+		assertTrue(player.isGm());
+
+		// 1. //admin via chat
+		sent.clear();
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("//admin", 0, null));
+		boolean hasAdminHtml = sent.stream().anyMatch(p -> p instanceof NpcHtmlMessage html
+				&& html.npcObjectId() == 0
+				&& html.html().contains("Main Control Panel"));
+		assertTrue(hasAdminHtml, "Deve abrir o menu admin principal com npcObjectId 0");
+
+		// 2. admin via SendBypassBuildCmd (opcode 0x5b)
+		sent.clear();
+		invokeMethod(session, "handleAdminCommand", new Class<?>[] { String.class }, "admin");
+		boolean hasBuildCmdHtml = sent.stream().anyMatch(p -> p instanceof NpcHtmlMessage html
+				&& html.npcObjectId() == 0
+				&& html.html().contains("Main Control Panel"));
+		assertTrue(hasBuildCmdHtml, "Deve abrir o menu admin principal via SendBypassBuildCmd");
+
+		// 3. admin_gamemenu via bypass
+		sent.clear();
+		invokeMethod(session, "onBypass", new Class<?>[] { GameClientPacket.RequestBypassToServer.class },
+				new GameClientPacket.RequestBypassToServer("admin_gamemenu"));
+		boolean hasGameHtml = sent.stream().anyMatch(p -> p instanceof NpcHtmlMessage html
+				&& html.npcObjectId() == 0
+				&& html.html().contains("Game Control Panel"));
+		assertTrue(hasGameHtml, "Deve abrir o menu Game");
+
+		// 4. admin_show_moves (teleports) via bypass
+		sent.clear();
+		invokeMethod(session, "onBypass", new Class<?>[] { GameClientPacket.RequestBypassToServer.class },
+				new GameClientPacket.RequestBypassToServer("admin_show_moves"));
+		boolean hasTeleHtml = sent.stream().anyMatch(p -> p instanceof NpcHtmlMessage html
+				&& html.npcObjectId() == 0
+				&& html.html().contains("Teleport Panel"));
+		assertTrue(hasTeleHtml, "Deve abrir o painel de teleports");
+
+		// 5. admin_help tele/towns/aden.htm via bypass
+		sent.clear();
+		invokeMethod(session, "onBypass", new Class<?>[] { GameClientPacket.RequestBypassToServer.class },
+				new GameClientPacket.RequestBypassToServer("admin_help tele/towns/aden.htm"));
+		boolean hasAdenTele = sent.stream().anyMatch(p -> p instanceof NpcHtmlMessage html
+				&& html.npcObjectId() == 0
+				&& html.html().contains("Aden"));
+		assertTrue(hasAdenTele, "Deve abrir o submenu de teleport para Aden");
+	}
+
+	@Test
+	void testDecodeSendBypassBuildCmdPacket() {
+		byte[] body = new byte[] {
+				0x5b,
+				'a', 0, 'd', 0, 'm', 0, 'i', 0, 'n', 0, 0, 0
+		};
+		var decoded = GameClientPacket.decode(GameClientPacket.State.IN_GAME, body);
+		assertTrue(decoded.isPresent());
+		assertTrue(decoded.get() instanceof GameClientPacket.SendBypassBuildCmd);
+		assertEquals("admin", ((GameClientPacket.SendBypassBuildCmd) decoded.get()).command());
+	}
+
+	@Test
+	void testAdminCommandsInGame() {
+		player.accessLevel(100);
+
+		// Teleport //move_to
+		sent.clear();
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("//move_to 1234 5678 -100", 0, null));
+		assertEquals(1234, player.x());
+		assertEquals(5678, player.y());
+		assertEquals(-100, player.z());
+		assertTrue(sent.stream().anyMatch(p -> p instanceof TeleportToLocation));
+
+		// Criação de item //item 57 5000
+		sent.clear();
+		long adenaBefore = player.inventory().adena();
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("//item 57 5000", 0, null));
+		assertEquals(adenaBefore + 5000, player.inventory().adena());
+
+		// Cura //heal
+		player.currentHp(10.0);
+		player.currentMp(5.0);
+		player.currentCp(0.0);
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("//heal", 0, null));
+		assertEquals(player.maxHp(), player.currentHp());
+		assertEquals(player.maxMp(), player.currentMp());
+		assertEquals(player.maxCp(), player.currentCp());
+
+		// Alterar nível //setlevel 40
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("//setlevel 40", 0, null));
+		assertEquals(40, player.level());
+
+		// GM Speed //speed 4
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("//speed 4", 0, null));
+		assertEquals(4, player.gmSpeed());
+
+		// Paralysis //para e //unpara
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("//para", 0, null));
+		assertTrue(player.isDisabled());
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("//unpara", 0, null));
+		assertFalse(player.isDisabled());
+
+		// Invisibilidade //invis e //vis
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("//invis", 0, null));
+		assertTrue(player.invis());
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("//vis", 0, null));
+		assertFalse(player.invis());
+
+		// Conceder e remover skill //skill e //removeskill
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("//skill 1218 33", 0, null));
+		assertEquals(33, player.skillLevel(1218));
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("//removeskill 1218", 0, null));
+		assertEquals(0, player.skillLevel(1218));
+
+		// Bypasses de menus e submenus nao devem dar comando desconhecido
+		sent.clear();
+		invokeMethod(session, "onBypass", new Class<?>[] { GameClientPacket.RequestBypassToServer.class },
+				new GameClientPacket.RequestBypassToServer("admin_gmshop"));
+		assertFalse(sent.stream().anyMatch(p -> p instanceof GameServerPacket.CreatureSay cs && cs.text().contains("desconhecido")),
+				"admin_gmshop nao deve ser desconhecido");
+
+		sent.clear();
+		invokeMethod(session, "onBypass", new Class<?>[] { GameClientPacket.RequestBypassToServer.class },
+				new GameClientPacket.RequestBypassToServer("admin_enchant"));
+		assertFalse(sent.stream().anyMatch(p -> p instanceof GameServerPacket.CreatureSay cs && cs.text().contains("desconhecido")),
+				"admin_enchant nao deve ser desconhecido");
+
+		sent.clear();
+		invokeMethod(session, "onBypass", new Class<?>[] { GameClientPacket.RequestBypassToServer.class },
+				new GameClientPacket.RequestBypassToServer("admin_spawn_menu"));
+		assertFalse(sent.stream().anyMatch(p -> p instanceof GameServerPacket.CreatureSay cs && cs.text().contains("desconhecido")),
+				"admin_spawn_menu nao deve ser desconhecido");
+	}
+
+	@Test
+	void testPartyGroupHealAndBuffs() {
+		// Cria segundo membro da party
+		var player2 = new PlayerCharacter(1002, "Mage", "Partner", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
+				200, 100, 100, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 200.0, 100.0, 100.0);
+		player2.inventory(new Inventory(player2.objectId()));
+		player2.moveTo(50, 50, 0);
+
+		List<GameServerPacket> sent2 = new ArrayList<>();
+		var session2 = new GameSession(ctx, new byte[8], "127.0.0.1", sent2::add);
+		setField(session2, "state", GameClientPacket.State.IN_GAME);
+		setField(session2, "active", player2);
+		setField(session2, "inWorld", true);
+		world.add(session2);
+
+		var party = new com.lopez.l2j.game.party.Party(session, session2, 0);
+		session.party(party);
+		session2.party(party);
+
+		// Reduz HP de ambos os membros
+		player.currentHp(50.0);
+		player2.currentHp(60.0);
+
+		var groupHeal = new com.lopez.l2j.game.skill.SkillTemplate(1217, 1, "Greater Group Heal",
+				com.lopez.l2j.game.skill.SkillTemplate.OperateType.ACTIVE, "HEAL", "TARGET_PARTY", true,
+				10, 0, 0, 100.0, 0, 1000, 0, 0, 0, 40, 0, false, List.of(), List.of(), null, null);
+
+		// Dispara a cura em grupo
+		invokeMethod(session, "finishCast",
+				new Class<?>[] { com.lopez.l2j.game.skill.SkillTemplate.class, NpcInstance.class, GameSession.class,
+						boolean.class, boolean.class, boolean.class },
+				groupHeal, null, null, false, false, false);
+
+		// Ambos os membros devem ter recebido a cura
+		assertEquals(150.0, player.currentHp());
+		assertEquals(160.0, player2.currentHp());
+	}
+
+	@Test
+	void testResurrectionSkill() {
+		var deadPlayer = new PlayerCharacter(1003, "DeadHero", "Corpse", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
+				500, 100, 100, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 0.0, 100.0, 0.0);
+		deadPlayer.inventory(new Inventory(deadPlayer.objectId()));
+		deadPlayer.moveTo(20, 20, 0);
+		assertTrue(deadPlayer.isDead());
+
+		List<GameServerPacket> deadSent = new ArrayList<>();
+		var deadSession = new GameSession(ctx, new byte[8], "127.0.0.1", deadSent::add);
+		setField(deadSession, "state", GameClientPacket.State.IN_GAME);
+		setField(deadSession, "active", deadPlayer);
+		setField(deadSession, "inWorld", true);
+		world.add(deadSession);
+
+		var resurrect = new com.lopez.l2j.game.skill.SkillTemplate(1016, 1, "Resurrection",
+				com.lopez.l2j.game.skill.SkillTemplate.OperateType.ACTIVE, "RESURRECT", "TARGET_CORPSE_PLAYER", true,
+				10, 0, 0, 50.0, 400, 0, 0, 0, 0, 20, 0, false, List.of(), List.of(), null, null);
+
+		invokeMethod(session, "finishCast",
+				new Class<?>[] { com.lopez.l2j.game.skill.SkillTemplate.class, NpcInstance.class, GameSession.class,
+						boolean.class, boolean.class, boolean.class },
+				resurrect, null, deadSession, false, false, false);
+
+		// O jogador morto deve estar vivo novamente com 50% de HP
+		assertFalse(deadPlayer.isDead());
+		assertEquals(250.0, deadPlayer.currentHp());
+		assertTrue(deadSent.stream().anyMatch(p -> p instanceof Revive));
+	}
+
+	@Test
+	void testPvPOffensiveSkillDamagesCpAndHp() {
+		var enemy = new PlayerCharacter(1004, "Enemy", "Foe", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
+				200, 100, 50, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 200.0, 100.0, 50.0);
+		enemy.inventory(new Inventory(enemy.objectId()));
+		enemy.moveTo(30, 0, 0);
+
+		List<GameServerPacket> enemySent = new ArrayList<>();
+		var enemySession = new GameSession(ctx, new byte[8], "127.0.0.1", enemySent::add);
+		setField(enemySession, "state", GameClientPacket.State.IN_GAME);
+		setField(enemySession, "active", enemy);
+		setField(enemySession, "inWorld", true);
+		world.add(enemySession);
+
+		// Skill mágico de dano 100
+		var nuke = new com.lopez.l2j.game.skill.SkillTemplate(1177, 1, "Wind Strike",
+				com.lopez.l2j.game.skill.SkillTemplate.OperateType.ACTIVE, "MDAM", "TARGET_ONE", true,
+				10, 0, 0, 100.0, 600, 0, 0, 0, 0, 20, 0, false, List.of(), List.of(), null, null);
+
+		invokeMethod(session, "finishCast",
+				new Class<?>[] { com.lopez.l2j.game.skill.SkillTemplate.class, NpcInstance.class, GameSession.class,
+						boolean.class, boolean.class, boolean.class },
+				nuke, null, enemySession, false, false, false);
+
+		// Em PvP, CP absorve dano primeiro
+		// O dano foi maior que o CP total (50), então CP deve ter sido zerado e o restante afetou o HP
+		assertEquals(0.0, enemy.currentCp());
+		assertTrue(enemy.currentHp() < 200.0);
+		assertTrue(sent.stream().anyMatch(p -> p instanceof SystemMessage sm && sm.id() == SystemMessage.YOU_DID_S1_DMG));
+		assertTrue(enemySent.stream().anyMatch(p -> p instanceof SystemMessage sm && sm.id() == SystemMessage.S1_GAVE_YOU_S2_DMG));
+	}
+
+	@Test
+	void testControlDebuffAndSleepDamageWakeup() {
+		var targetChar = new PlayerCharacter(1005, "Target", "Victim", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
+				200, 100, 50, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 200.0, 100.0, 50.0);
+		targetChar.inventory(new Inventory(targetChar.objectId()));
+		targetChar.moveTo(30, 0, 0);
+
+		List<GameServerPacket> targetSent = new ArrayList<>();
+		var targetSession = new GameSession(ctx, new byte[8], "127.0.0.1", targetSent::add);
+		setField(targetSession, "state", GameClientPacket.State.IN_GAME);
+		setField(targetSession, "active", targetChar);
+		setField(targetSession, "inWorld", true);
+		world.add(targetSession);
+
+		// Aplica sleep de 10 segundos
+		targetSession.applyControlEffect("sleep", System.currentTimeMillis() + 10000L);
+		assertTrue(targetChar.isDisabled());
+
+		// Ao receber dano, acorda do sleep
+		targetChar.onDamaged();
+		assertFalse(targetChar.isDisabled());
+	}
+
+	@Test
+	void testNpcLinkBypassDisplaysHtml() {
+		sent.clear();
+		invokeMethod(session, "onBypass", new Class<?>[] { GameClientPacket.RequestBypassToServer.class },
+				new GameClientPacket.RequestBypassToServer("npc_30005_Link common/duals_01.htm"));
+
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.NpcHtmlMessage nh && nh.html().contains("dual")),
+				"Deve renderizar HTML de duals_01.htm");
+
+		sent.clear();
+		invokeMethod(session, "onBypass", new Class<?>[] { GameClientPacket.RequestBypassToServer.class },
+				new GameClientPacket.RequestBypassToServer("Link common/duals_01.htm"));
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.NpcHtmlMessage nh && nh.html().contains("dual")),
+				"Deve renderizar HTML mesmo sem prefixo npc_");
+	}
+
+	@Test
+	void testNpcExcMultisellDisplaysList() {
+		sent.clear();
+		invokeMethod(session, "onBypass", new Class<?>[] { GameClientPacket.RequestBypassToServer.class },
+				new GameClientPacket.RequestBypassToServer("npc_30005_exc_multisell 003"));
+
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.MultiSellList ml && ml.listId() == 3),
+				"Deve enviar pacote MultiSellList para o ID 3");
+	}
+
+	@Test
+	void testNpcSellListAndSellExecution() {
+		// 1. NPC Sell abre SellList
+		sent.clear();
+		invokeMethod(session, "onBypass", new Class<?>[] { GameClientPacket.RequestBypassToServer.class },
+				new GameClientPacket.RequestBypassToServer("npc_30005_Sell"));
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.SellList),
+				"Bypass de Sell deve enviar pacote SellList");
+
+		// 2. Execucao de venda de item stackable (ex: Wooden Arrow)
+		var added = inventoryService.addItem(player.inventory(), 17, 10, "TestSell");
+		assertNotNull(added);
+		int objId = added.item().objectId();
+		long adenaBefore = player.inventory().adena();
+
+		invokeMethod(session, "onSellItem", new Class<?>[] { GameClientPacket.RequestSellItem.class },
+				new GameClientPacket.RequestSellItem(1, List.of(new GameClientPacket.SellItemRequest(objId, 17, 4))));
+
+		assertEquals(6, player.inventory().byObjectId(objId).orElseThrow().count());
+		assertTrue(player.inventory().adena() > adenaBefore, "Adena do jogador deve aumentar apos venda");
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.InventoryUpdate),
+				"Deve atualizar inventario");
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.ItemList),
+				"Deve reenviar lista de itens");
+	}
+
+	@Test
+	void testNpcQuestMonsterDerbyTrackTeleport() {
+		sent.clear();
+		invokeMethod(session, "onBypass", new Class<?>[] { GameClientPacket.RequestBypassToServer.class },
+				new GameClientPacket.RequestBypassToServer("npc_30005_Quest 1101_teleport_to_race_track"));
+
+		assertEquals(12661, player.x());
+		assertEquals(181687, player.y());
+		assertEquals(-3560, player.z());
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.TeleportToLocation));
+	}
+
+	@Test
+	void testFunctionalNpcHtmlFallbacksWhenHtmlMissing() {
+		var cache = ctx.htmls();
+		assertNotNull(cache);
+
+		// Teleporter
+		String teleHtml = cache.getNpcHtml(99999, "L2Teleporter", 0);
+		assertTrue(teleHtml.contains("Teleport"), "Teleporter fallback deve conter opcao de Teleport");
+		assertFalse(teleHtml.contains("I have nothing to say to you"), "Nao deve cair em npcdefault");
+
+		// Merchant
+		String merchHtml = cache.getNpcHtml(99999, "L2Merchant", 0);
+		assertTrue(merchHtml.contains("Buy items") && merchHtml.contains("Sell items"),
+				"Merchant fallback deve conter Buy e Sell");
+
+		// Blacksmith
+		String bsHtml = cache.getNpcHtml(99999, "L2Blacksmith", 0);
+		assertTrue(bsHtml.contains("Craft Dual Swords") && bsHtml.contains("Augment Item"),
+				"Blacksmith fallback deve conter Craft e Augment");
+
+		// Warehouse
+		String whHtml = cache.getNpcHtml(99999, "L2Warehouse", 0);
+		assertTrue(whHtml.contains("Deposit Item") && whHtml.contains("Withdraw Item"),
+				"Warehouse fallback deve conter operacoes de bau");
+	}
+
+	private static class FakeCharacterSkillSaveRepository extends com.lopez.l2j.game.effect.CharacterSkillSaveRepository {
+		final java.util.Map<Integer, List<SavedBuff>> saved = new java.util.concurrent.ConcurrentHashMap<>();
+
+		FakeCharacterSkillSaveRepository() {
+			super(null);
+		}
+
+		@Override
+		public void saveBuffs(int charId, int classIndex, List<com.lopez.l2j.game.effect.PlayerEffects.ActiveBuff> buffs) {
+			long now = System.currentTimeMillis();
+			var list = buffs.stream()
+					.map(b -> new SavedBuff(b.skillId(), b.level(), b.remainingSeconds(now), b.endTimeMillis(), 1))
+					.toList();
+			saved.put(charId, list);
+		}
+
+		@Override
+		public List<SavedBuff> restoreBuffs(int charId, int classIndex) {
+			return saved.getOrDefault(charId, List.of());
+		}
+
+		@Override
+		public void deleteBuffs(int charId) {
+			saved.remove(charId);
+		}
+	}
+
 	private static byte[] buildBypassPacket(String command) {
 		byte[] cmdBytes = command.getBytes(java.nio.charset.StandardCharsets.UTF_16LE);
 		ByteBuffer buf = ByteBuffer.allocate(1 + cmdBytes.length + 2).order(ByteOrder.LITTLE_ENDIAN);
@@ -545,5 +1002,112 @@ class GameSessionFeaturesTest {
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	@Test
+	void testAdminCharListRendersPlayersAndPagination() {
+		player.accessLevel(100);
+		var bob = new PlayerCharacter(1002, "BobAcc", "Bob", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
+				200, 100, 100, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 200.0, 100.0, 100.0);
+		var bobSession = new GameSession(ctx, new byte[8], "127.0.0.1", p -> {});
+		setField(bobSession, "active", bob);
+		world.add(bobSession);
+
+		invokeMethod(session, "handleAdminCommand", new Class<?>[] { String.class }, "charlist");
+
+		NpcHtmlMessage htmlMsg = (NpcHtmlMessage) sent.stream()
+				.filter(p -> p instanceof NpcHtmlMessage)
+				.reduce((first, second) -> second)
+				.orElse(null);
+		assertNotNull(htmlMsg, "Deve enviar NpcHtmlMessage");
+		String html = htmlMsg.html();
+		assertFalse(html.contains("%players%"), "Nao deve conter %players% literal");
+		assertFalse(html.contains("%pages%"), "Nao deve conter %pages% literal");
+		assertTrue(html.contains("admin_character_info Hero"), "Deve conter link para Hero");
+		assertTrue(html.contains("admin_character_info Bob"), "Deve conter link para Bob");
+	}
+
+	@Test
+	void testAdminCharInfoRendersStats() {
+		player.accessLevel(100);
+		invokeMethod(session, "handleAdminCommand", new Class<?>[] { String.class }, "character_info Hero");
+
+		NpcHtmlMessage htmlMsg = (NpcHtmlMessage) sent.stream()
+				.filter(p -> p instanceof NpcHtmlMessage)
+				.reduce((first, second) -> second)
+				.orElse(null);
+		assertNotNull(htmlMsg, "Deve enviar NpcHtmlMessage");
+		String html = htmlMsg.html();
+		assertFalse(html.contains("%name%"), "Nao deve conter %name% literal");
+		assertFalse(html.contains("%currenthp%"), "Nao deve conter %currenthp% literal");
+		assertFalse(html.contains("%patk%"), "Nao deve conter %patk% literal");
+		assertTrue(html.contains("Hero"), "Deve conter o nome Hero");
+		assertTrue(html.contains("admin_teleportto Hero"), "Deve conter botao admin_teleportto");
+		assertTrue(html.contains("admin_kick Hero"), "Deve conter botao admin_kick");
+	}
+
+	@Test
+	void testRequestGMCommandAltGStatus() {
+		player.accessLevel(100);
+
+		// Test decode 0x6e
+		byte[] targetBytes = "Hero".getBytes(java.nio.charset.StandardCharsets.UTF_16LE);
+		ByteBuffer buf = ByteBuffer.allocate(1 + targetBytes.length + 2 + 4).order(ByteOrder.LITTLE_ENDIAN);
+		buf.put((byte) 0x6e);
+		buf.put(targetBytes);
+		buf.putShort((short) 0);
+		buf.putInt(1); // command 1 = status
+		var decoded = GameClientPacket.decode(GameClientPacket.State.IN_GAME, buf.array());
+		assertTrue(decoded.isPresent(), "Pacote 0x6e deve ser decodificado");
+		assertTrue(decoded.get() instanceof GameClientPacket.RequestGMCommand);
+		var cmd = (GameClientPacket.RequestGMCommand) decoded.get();
+		assertEquals("Hero", cmd.targetName());
+		assertEquals(1, cmd.command());
+
+		// Test handle in session
+		session.handle(buf.array());
+		boolean hasCharInfo = sent.stream().anyMatch(p -> p instanceof GameServerPacket.GMViewCharacterInfo);
+		assertTrue(hasCharInfo, "Deve enviar GMViewCharacterInfo para o Alt+G");
+
+		// Test packet encoding starts with 0x8f
+		var charInfo = (GameServerPacket.GMViewCharacterInfo) sent.stream()
+				.filter(p -> p instanceof GameServerPacket.GMViewCharacterInfo)
+				.findFirst()
+				.orElseThrow();
+		byte[] encoded = charInfo.encode();
+		assertEquals((byte) 0x8f, encoded[0], "Opcode do GMViewCharacterInfo deve ser 0x8f");
+	}
+
+	@Test
+	void testRequestGMCommandAltGInventory() {
+		player.accessLevel(100);
+		byte[] targetBytes = "Hero".getBytes(java.nio.charset.StandardCharsets.UTF_16LE);
+		ByteBuffer buf = ByteBuffer.allocate(1 + targetBytes.length + 2 + 4).order(ByteOrder.LITTLE_ENDIAN);
+		buf.put((byte) 0x6e);
+		buf.put(targetBytes);
+		buf.putShort((short) 0);
+		buf.putInt(5); // command 5 = inventory
+		session.handle(buf.array());
+
+		boolean hasItemList = sent.stream().anyMatch(p -> p instanceof GameServerPacket.GMViewItemList);
+		boolean hasHenna = sent.stream().anyMatch(p -> p instanceof GameServerPacket.GMHennaInfo);
+		assertTrue(hasItemList, "Deve enviar GMViewItemList para o tab de inventario do Alt+G");
+		assertTrue(hasHenna, "Deve enviar GMHennaInfo para o Alt+G");
+	}
+
+	@Test
+	void testAdminTeleportToPlayer() {
+		player.accessLevel(100);
+		var bob = new PlayerCharacter(1002, "BobAcc", "Bob", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
+				200, 100, 100, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 200.0, 100.0, 100.0);
+		bob.moveTo(5000, 6000, -1000);
+		var bobSession = new GameSession(ctx, new byte[8], "127.0.0.1", p -> {});
+		setField(bobSession, "active", bob);
+		world.add(bobSession);
+
+		invokeMethod(session, "handleAdminCommand", new Class<?>[] { String.class }, "teleportto Bob");
+		assertEquals(5000, player.x());
+		assertEquals(6000, player.y());
+		assertEquals(-1000, player.z());
 	}
 }
