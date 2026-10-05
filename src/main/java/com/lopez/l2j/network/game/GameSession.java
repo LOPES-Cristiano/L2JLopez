@@ -45,6 +45,15 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.CharCreateOk;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CharDeleteSuccess;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CharSelected;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CharSelectionInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ChooseInventoryItem;
+import com.lopez.l2j.network.game.packet.GameServerPacket.EnchantResult;
+import com.lopez.l2j.network.game.packet.GameServerPacket.WareHouseDepositList;
+import com.lopez.l2j.network.game.packet.GameServerPacket.WareHouseWithdrawalList;
+import com.lopez.l2j.network.game.packet.GameClientPacket.RequestEnchantItem;
+import com.lopez.l2j.network.game.packet.GameClientPacket.SendWareHouseDepositList;
+import com.lopez.l2j.network.game.packet.GameClientPacket.SendWareHouseWithDrawList;
+import com.lopez.l2j.network.game.packet.GameClientPacket.RequestDestroyItem;
+import com.lopez.l2j.game.item.EnchantScrollTable;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ClientSetTime;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
 import com.lopez.l2j.network.game.packet.GameServerPacket.EtcStatusUpdate;
@@ -88,6 +97,7 @@ import com.lopez.l2j.game.html.HtmCache;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Attack;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
+import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.item.ItemTemplate;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.teleport.TeleportLocation;
@@ -152,35 +162,36 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 			SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
 			com.lopez.l2j.game.multisell.MultiSellTable multisell,
+			com.lopez.l2j.game.service.WarehouseService warehouse,
 			com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, null, null, null, null, null, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, null, null, null, null, null, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, null, null, null, null, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, null, null, null, null, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				TeleportLocationTable teleports, BuyListTable buylists, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, null, null, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, null, null, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, null, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, null, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 				com.lopez.l2j.game.drop.DropService drops, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -188,7 +199,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 				SkillRepository skills, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -196,7 +207,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -205,7 +216,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
 				String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, skillService, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, skillService, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -214,7 +225,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
 				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, skillService, null, rates, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, skillService, null, null, rates, serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+				com.lopez.l2j.game.multisell.MultiSellTable multisell,
+				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, skillService, multisell, null, rates, serverName);
 		}
 	}
 
@@ -251,6 +272,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private RequestPartyPending pendingPartyInvite;
 	private volatile long attackEndTime;
 	private volatile int pendingNpcInteractObjectId;
+	private volatile int activeEnchantScrollObjectId;
 
 	record RequestPartyPending(GameSession requester, int itemDistribution) {}
 
@@ -348,6 +370,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case GameClientPacket.RequestRestartPoint p -> onRestartPoint(p);
 			case GameClientPacket.RequestUserCommand p -> onUserCommand(p.commandId());
 			case GameClientPacket.MultiSellChoose p -> onMultiSellChoose(p);
+			case RequestEnchantItem p -> onEnchantItem(p);
+			case SendWareHouseDepositList p -> onWareHouseDeposit(p);
+			case SendWareHouseWithDrawList p -> onWareHouseWithdraw(p);
+			case RequestDestroyItem p -> onDestroyItem(p);
 			case Unknown p -> log.debug("Opcode ignorado 0x{}{} no estado {}", Integer.toHexString(p.opcode()),
 					p.subOpcode() >= 0 ? ":" + Integer.toHexString(p.subOpcode()) : "", state);
 		}
@@ -1043,8 +1069,23 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 								return;
 							} catch (NumberFormatException ignored) {
 							}
-						} else if (action.startsWith("Deposit") || action.startsWith("Withdraw")) {
-							send(ItemList.of(active.inventory().items(), true));
+						} else if (action.startsWith("DepositP") || action.startsWith("Deposit")) {
+							if (ctx.warehouse() == null) {
+								send(new ActionFailed());
+								return;
+							}
+							var depositable = active.inventory().items().stream()
+									.filter(it -> !it.isEquipped() && it.template().type2() != ItemTemplate.TYPE2_QUEST)
+									.toList();
+							send(new WareHouseDepositList(1, (int) active.inventory().adena(), depositable));
+							return;
+						} else if (action.startsWith("WithdrawP") || action.startsWith("Withdraw")) {
+							if (ctx.warehouse() == null) {
+								send(new ActionFailed());
+								return;
+							}
+							var stored = ctx.warehouse().getWarehouseItems(active.objectId());
+							send(new WareHouseWithdrawalList(1, (int) active.inventory().adena(), stored));
 							return;
 						}
 					}
@@ -1480,6 +1521,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 			if (item.itemId() == 1665 || item.itemId() == 1863) {
 				onShowMiniMap();
+				return;
+			}
+			if (EnchantScrollTable.isEnchantScroll(item.itemId())) {
+				activeEnchantScrollObjectId = item.objectId();
+				send(new ChooseInventoryItem(item.itemId()));
+				send(new ActionFailed());
 				return;
 			}
 			var consumable = ConsumableTable.get(item.itemId());
@@ -2984,9 +3031,213 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		sink.accept(packet);
 	}
 
-	// ---- OnlinePlayer ----
+	private void onEnchantItem(RequestEnchantItem p) {
+		if (!inWorld || active == null || active.isDead()) {
+			send(new ActionFailed());
+			return;
+		}
+		int scrollObjectId = activeEnchantScrollObjectId;
+		activeEnchantScrollObjectId = 0;
+		if (scrollObjectId == 0) {
+			send(EnchantResult.CANCEL);
+			send(new ActionFailed());
+			return;
+		}
+		var scrollOpt = active.inventory().byObjectId(scrollObjectId);
+		if (scrollOpt.isEmpty()) {
+			send(EnchantResult.CANCEL);
+			send(new ActionFailed());
+			return;
+		}
+		var scroll = scrollOpt.get();
+		var scrollInfoOpt = EnchantScrollTable.get(scroll.itemId());
+		if (scrollInfoOpt.isEmpty()) {
+			send(EnchantResult.CANCEL);
+			send(new ActionFailed());
+			return;
+		}
+		var scrollInfo = scrollInfoOpt.get();
+		var targetOpt = active.inventory().byObjectId(p.objectId());
+		if (targetOpt.isEmpty()) {
+			send(EnchantResult.CANCEL);
+			send(new ActionFailed());
+			return;
+		}
+		var target = targetOpt.get();
+		if (!target.template().isEquipable()) {
+			send(SystemMessage.id(SystemMessage.INAPPROPRIATE_ENCHANT_CONDITION));
+			send(EnchantResult.CANCEL);
+			return;
+		}
 
-	@Override
+		// Valida compatibilidade de grade
+		String targetGrade = target.template().crystalType();
+		if (targetGrade == null || !targetGrade.equalsIgnoreCase(scrollInfo.grade())) {
+			send(SystemMessage.id(SystemMessage.INAPPROPRIATE_ENCHANT_CONDITION));
+			send(EnchantResult.CANCEL);
+			return;
+		}
+
+		// Valida tipo: arma vs armor/accessory/shield
+		boolean isWeapon = target.template().type2() == ItemTemplate.TYPE2_WEAPON;
+		if (scrollInfo.isWeapon() != isWeapon) {
+			send(SystemMessage.id(SystemMessage.INAPPROPRIATE_ENCHANT_CONDITION));
+			send(EnchantResult.CANCEL);
+			return;
+		}
+
+		// Consome o scroll
+		var consumedScroll = ctx.inventories().destroyItem(active.inventory(), scroll.objectId(), 1, "Enchant");
+		if (consumedScroll == null) {
+			send(EnchantResult.CANCEL);
+			return;
+		}
+		send(new InventoryUpdate(List.of(ItemInfo.of(consumedScroll.item(), consumedScroll.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+
+		// Calculo de seguranca e chance de sucesso
+		int safeLimit = (target.template().bodyPart() == com.lopez.l2j.game.item.ItemSlots.SLOT_FULL_ARMOR) ? 4 : 3;
+		boolean success;
+		if (target.enchant() < safeLimit) {
+			success = true;
+		} else {
+			// Taxa retail: 66% de chance
+			success = java.util.concurrent.ThreadLocalRandom.current().nextInt(100) < 66;
+		}
+
+		if (success) {
+			target.enchant(target.enchant() + 1);
+			ctx.inventories().saveItem(target);
+			send(EnchantResult.SUCCESS);
+			if (target.enchant() == 1) {
+				send(SystemMessage.of(SystemMessage.S1_SUCCESSFULLY_ENCHANTED, new SystemMessage.ItemName(target.itemId())));
+			} else {
+				send(SystemMessage.of(SystemMessage.S1_S2_SUCCESSFULLY_ENCHANTED,
+						new SystemMessage.Number(target.enchant()), new SystemMessage.ItemName(target.itemId())));
+			}
+			send(new InventoryUpdate(List.of(ItemInfo.of(target, ItemInfo.MODIFIED))));
+			broadcastAppearance();
+		} else {
+			if (scrollInfo.isBlessed()) {
+				// Blessed scroll: nao quebra, reseta para 0
+				target.enchant(0);
+				ctx.inventories().saveItem(target);
+				send(SystemMessage.id(SystemMessage.BLESSED_ENCHANT_FAILED));
+				send(EnchantResult.BLESSED_FAIL);
+				send(new InventoryUpdate(List.of(ItemInfo.of(target, ItemInfo.MODIFIED))));
+				broadcastAppearance();
+			} else {
+				// Normal scroll: quebra o item
+				int oldEnchant = target.enchant();
+				int itemId = target.itemId();
+				if (target.isEquipped()) {
+					afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), target.objectId()));
+				}
+				ctx.inventories().destroyItem(active.inventory(), target.objectId(), 1, "EnchantBreak");
+				if (oldEnchant > 0) {
+					send(SystemMessage.of(SystemMessage.ENCHANTMENT_FAILED_S1_S2_EVAPORATED,
+							new SystemMessage.Number(oldEnchant), new SystemMessage.ItemName(itemId)));
+				} else {
+					send(SystemMessage.of(SystemMessage.ENCHANTMENT_FAILED_S1_EVAPORATED, new SystemMessage.ItemName(itemId)));
+				}
+				send(EnchantResult.FAIL);
+				send(new InventoryUpdate(List.of(ItemInfo.of(target, ItemInfo.REMOVED))));
+				broadcastAppearance();
+			}
+		}
+	}
+
+	private void onWareHouseDeposit(SendWareHouseDepositList p) {
+		if (!inWorld || active == null || ctx.warehouse() == null || p.items().isEmpty()) {
+			send(new ActionFailed());
+			return;
+		}
+		List<ItemInfo> updates = new ArrayList<>();
+		var adenaBefore = active.inventory().byItemId(ItemTemplate.ADENA_ID).map(ItemInstance::count).orElse(0);
+
+		for (var req : p.items()) {
+			var opt = active.inventory().byObjectId(req.objectId());
+			if (opt.isEmpty()) {
+				continue;
+			}
+			var item = opt.get();
+			int count = Math.min(req.count(), item.count());
+			if (count <= 0 || item.isEquipped()) {
+				continue;
+			}
+			int prevCount = item.count();
+			boolean ok = ctx.warehouse().depositItem(active.inventory(), item.objectId(), count);
+			if (ok) {
+				if (prevCount == count) {
+					updates.add(ItemInfo.of(item, ItemInfo.REMOVED));
+				} else {
+					updates.add(ItemInfo.of(item, ItemInfo.MODIFIED));
+				}
+			}
+		}
+
+		var adenaAfter = active.inventory().byItemId(ItemTemplate.ADENA_ID).orElse(null);
+		if (adenaAfter != null && adenaAfter.count() != adenaBefore) {
+			updates.add(ItemInfo.of(adenaAfter, adenaAfter.count() == 0 ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+		}
+
+		if (!updates.isEmpty()) {
+			send(new InventoryUpdate(updates));
+			send(new StatusUpdate(active.objectId(),
+					List.of(new StatusUpdate.Attribute(StatusUpdate.CUR_LOAD, active.inventory().currentLoad()))));
+		}
+		send(new ActionFailed());
+	}
+
+	private void onWareHouseWithdraw(SendWareHouseWithDrawList p) {
+		if (!inWorld || active == null || ctx.warehouse() == null || p.items().isEmpty()) {
+			send(new ActionFailed());
+			return;
+		}
+		List<ItemInfo> updates = new ArrayList<>();
+		for (var req : p.items()) {
+			int beforeCount = active.inventory().byObjectId(req.objectId()).map(ItemInstance::count).orElse(0);
+			boolean ok = ctx.warehouse().withdrawItem(active.inventory(), active.objectId(), req.objectId(), req.count());
+			if (ok) {
+				var item = active.inventory().byObjectId(req.objectId()).orElse(null);
+				if (item != null) {
+					updates.add(ItemInfo.of(item, beforeCount == 0 ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+				}
+			}
+		}
+		if (!updates.isEmpty()) {
+			send(new InventoryUpdate(updates));
+			send(new StatusUpdate(active.objectId(),
+					List.of(new StatusUpdate.Attribute(StatusUpdate.CUR_LOAD, active.inventory().currentLoad()))));
+		}
+		send(new ActionFailed());
+	}
+
+	private void onDestroyItem(RequestDestroyItem p) {
+		if (!inWorld || active == null || active.isDead()) {
+			send(new ActionFailed());
+			return;
+		}
+		var opt = active.inventory().byObjectId(p.objectId());
+		if (opt.isEmpty()) {
+			send(new ActionFailed());
+			return;
+		}
+		var item = opt.get();
+		if (item.isEquipped() || !item.template().destroyable() || p.count() <= 0 || item.count() < p.count()) {
+			send(new ActionFailed());
+			return;
+		}
+		var result = ctx.inventories().destroyItem(active.inventory(), p.objectId(), p.count(), "UserDestroy");
+		if (result == null) {
+			send(new ActionFailed());
+			return;
+		}
+		send(new InventoryUpdate(List.of(ItemInfo.of(result.item(), result.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+		send(new StatusUpdate(active.objectId(),
+				List.of(new StatusUpdate.Attribute(StatusUpdate.CUR_LOAD, active.inventory().currentLoad()))));
+		send(new ActionFailed());
+	}
+
 	public GameServerPacket charInfo() {
 		return active == null ? null : new CharInfo(active, ctx.characters().template(active));
 	}

@@ -1,6 +1,7 @@
 package com.lopez.l2j.network.game.packet;
 
 import com.lopez.l2j.network.login.packet.PacketReader;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -153,6 +154,25 @@ public sealed interface GameClientPacket {
 	record MultiSellChoose(int listId, int entryId, int amount) implements GameClientPacket {
 	}
 
+	/** 0x58 - aplicacao de enchant scroll no item selecionado. */
+	record RequestEnchantItem(int objectId) implements GameClientPacket {
+	}
+
+	record WareHouseItemRequest(int objectId, int count) {
+	}
+
+	/** 0x31 - lista de itens a depositar no armazem. */
+	record SendWareHouseDepositList(List<WareHouseItemRequest> items) implements GameClientPacket {
+	}
+
+	/** 0x32 - lista de itens a retirar do armazem. */
+	record SendWareHouseWithDrawList(List<WareHouseItemRequest> items) implements GameClientPacket {
+	}
+
+	/** 0x59 - destruicao de item arrastado para a lixeira. */
+	record RequestDestroyItem(int objectId, int count) implements GameClientPacket {
+	}
+
 	record Unknown(int opcode, int subOpcode) implements GameClientPacket {
 	}
 
@@ -201,7 +221,11 @@ public sealed interface GameClientPacket {
 					case 0x0f -> new RequestItemList();
 					case 0x14 -> new UseItem(r.readD());
 					case 0x11 -> new RequestUnEquipItem(r.readD());
+					case 0x31 -> readWareHouseList(r, true);
+					case 0x32 -> readWareHouseList(r, false);
 					case 0x3f -> new RequestSkillList();
+					case 0x58 -> r.remaining() >= 4 ? new RequestEnchantItem(r.readD()) : new Unknown(op, -1);
+					case 0x59 -> r.remaining() >= 8 ? new RequestDestroyItem(r.readD(), r.readD()) : new Unknown(op, -1);
 					case 0x6b -> new RequestAcquireSkillInfo(r.readD(), r.readD(), r.readD());
 					case 0x6c -> new RequestAcquireSkill(r.readD(), r.readD(), r.readD());
 					case 0x6d -> new RequestRestartPoint(r.readD());
@@ -242,6 +266,21 @@ public sealed interface GameClientPacket {
 			items.add(new ItemRequest(r.readD(), r.readD()));
 		}
 		return new RequestBuyItem(listId, items);
+	}
+
+	private static GameClientPacket readWareHouseList(PacketReader r, boolean deposit) {
+		if (r.remaining() < 4) {
+			return deposit ? new SendWareHouseDepositList(java.util.List.of()) : new SendWareHouseWithDrawList(java.util.List.of());
+		}
+		int count = r.readD();
+		if (count <= 0 || count > 100 || r.remaining() < count * 8) {
+			return deposit ? new SendWareHouseDepositList(java.util.List.of()) : new SendWareHouseWithDrawList(java.util.List.of());
+		}
+		java.util.List<WareHouseItemRequest> items = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			items.add(new WareHouseItemRequest(r.readD(), r.readD()));
+		}
+		return deposit ? new SendWareHouseDepositList(items) : new SendWareHouseWithDrawList(items);
 	}
 
 	private static GameClientPacket extended(PacketReader r) {

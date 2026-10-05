@@ -407,6 +407,13 @@ public sealed interface GameServerPacket {
 		public static final int TARGET_CANT_FOUND = 165;
 		public static final int PARTY_DISPERSED = 203;
 		public static final int NOT_ENOUGH_ARROWS = 726;
+		public static final int S1_SUCCESSFULLY_ENCHANTED = 62;
+		public static final int S1_S2_SUCCESSFULLY_ENCHANTED = 63;
+		public static final int ENCHANTMENT_FAILED_S1_EVAPORATED = 64;
+		public static final int ENCHANTMENT_FAILED_S1_S2_EVAPORATED = 65;
+		public static final int WAREHOUSE_FULL = 130;
+		public static final int INAPPROPRIATE_ENCHANT_CONDITION = 355;
+		public static final int BLESSED_ENCHANT_FAILED = 1517;
 
 		public static SystemMessage id(int id) {
 			return new SystemMessage(id, List.of());
@@ -1319,6 +1326,78 @@ public sealed interface GameServerPacket {
 					w.writeD(0);
 					w.writeD(0);
 				}
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x6f ChooseInventoryItem: abre a janela de selecao/encantamento de itens. */
+	record ChooseInventoryItem(int itemId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x6f).writeD(itemId).toByteArray();
+		}
+	}
+
+	/** 0x81 EnchantResult: resultado do encantamento (0=sucesso, 1=falha normal, 2=cancelado, 3=falha blessed). */
+	record EnchantResult(int result) implements GameServerPacket {
+		public static final int RES_SUCCESS = 0;
+		public static final int RES_FAIL = 1;
+		public static final int RES_CANCEL = 2;
+		public static final int RES_BLESSED_FAIL = 3;
+
+		public static final EnchantResult SUCCESS = new EnchantResult(RES_SUCCESS);
+		public static final EnchantResult FAIL = new EnchantResult(RES_FAIL);
+		public static final EnchantResult CANCEL = new EnchantResult(RES_CANCEL);
+		public static final EnchantResult BLESSED_FAIL = new EnchantResult(RES_BLESSED_FAIL);
+
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x81).writeD(result).toByteArray();
+		}
+	}
+
+	/** 0x41 WareHouseDepositList: lista de itens disponiveis para deposito no armazem. */
+	record WareHouseDepositList(int whType, int adena, List<ItemInstance> items) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			var w = new PacketWriter(256).writeC(0x41).writeH(whType).writeD(adena).writeH(items.size());
+			for (var item : items) {
+				w.writeH(item.template().type1());
+				w.writeD(item.objectId());
+				w.writeD(item.itemId());
+				w.writeD(item.count());
+				w.writeH(item.template().type2());
+				w.writeH(item.customType1());
+				w.writeD(item.template().bodyPart());
+				w.writeH(item.enchant());
+				w.writeH(item.customType2());
+				w.writeH(0);
+				w.writeD(item.objectId());
+				w.writeQ(0);
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x42 WareHouseWithdrawalList: lista de itens guardados no armazem para retirada. */
+	record WareHouseWithdrawalList(int whType, int adena, List<ItemInstance> items) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			var w = new PacketWriter(256).writeC(0x42).writeH(whType).writeD(adena).writeH(items.size());
+			for (var item : items) {
+				w.writeH(item.template().type1());
+				w.writeD(item.objectId());
+				w.writeD(item.itemId());
+				w.writeD(item.count());
+				w.writeH(item.template().type2());
+				w.writeH(item.customType1());
+				w.writeD(item.template().bodyPart());
+				w.writeH(item.enchant());
+				w.writeH(item.customType2());
+				w.writeH(0);
+				w.writeD(item.objectId());
+				w.writeQ(0);
 			}
 			return w.toByteArray();
 		}

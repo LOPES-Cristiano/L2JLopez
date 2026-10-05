@@ -76,7 +76,15 @@ public final class TestItems {
 				ItemTemplate.etc(7562, 7562, "Dimension Diamond", "none", "stackable", 0, "none", 0, true, true,
 						true, true),
 				ItemTemplate.etc(7117, 7117, "Scroll of Escape: Talking Island", "scroll", "none", 100, "none", 0,
-						false, true, true, true));
+						false, true, true, true),
+				ItemTemplate.weapon(2499, 2499, "D-Sword", "rhand", "sword", 1500, "d", 50, 20, 379, 8, 0, 1000,
+						true, true, true, true),
+				ItemTemplate.etc(955, 955, "Scroll: Enchant Weapon (D)", "scroll", "none", 120, "none", 0, false,
+						true, true, true),
+				ItemTemplate.etc(6575, 6575, "Blessed Scroll: Enchant Weapon (D)", "scroll", "none", 120, "none", 0,
+						false, true, true, true),
+				ItemTemplate.etc(956, 956, "Scroll: Enchant Armor (D)", "scroll", "none", 120, "none", 0, false,
+						true, true, true));
 	}
 
 	/** Recorte de char_creation_items (guerreiro humano e mago humano). */

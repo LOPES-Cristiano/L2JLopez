@@ -26,6 +26,18 @@ public class InMemoryItemRepository implements ItemRepository {
 	}
 
 	@Override
+	public synchronized List<StoredItem> findWarehouse(int ownerId) {
+		List<StoredItem> out = new ArrayList<>();
+		for (Row r : rows.values()) {
+			if (r.ownerId() == ownerId && r.loc().equals("WAREHOUSE")) {
+				out.add(new StoredItem(r.objectId(), r.itemId(), r.count(), r.enchant(), r.loc(), r.locData(), 0, 0,
+						-1));
+			}
+		}
+		return out;
+	}
+
+	@Override
 	public synchronized List<Paperdoll.Entry> findPaperdoll(int ownerId) {
 		return rows.values().stream().filter(r -> r.ownerId() == ownerId && r.loc().equals("PAPERDOLL"))
 				.map(r -> new Paperdoll.Entry(r.locData(), r.objectId(), r.itemId())).toList();

@@ -5,7 +5,15 @@ import java.io.ByteArrayOutputStream;
 /** Escritor little-endian do protocolo L2 (C=byte, H=short, D=int, B=bytes). */
 public final class PacketWriter {
 
-	private final ByteArrayOutputStream out = new ByteArrayOutputStream(64);
+	private final ByteArrayOutputStream out;
+
+	public PacketWriter() {
+		this(64);
+	}
+
+	public PacketWriter(int initialCapacity) {
+		this.out = new ByteArrayOutputStream(initialCapacity);
+	}
 
 	public PacketWriter writeC(int v) {
 		out.write(v & 0xff);

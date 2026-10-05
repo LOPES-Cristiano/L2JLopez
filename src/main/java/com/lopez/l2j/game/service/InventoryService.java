@@ -177,6 +177,32 @@ public class InventoryService {
 		}
 	}
 
+	/** Destroi um item especifico pelo objectId. */
+	public ConsumeResult destroyItem(Inventory inv, int objectId, int count, String process) {
+		if (count <= 0) {
+			return null;
+		}
+		var opt = inv.byObjectId(objectId);
+		if (opt.isEmpty() || opt.get().count() < count) {
+			return null;
+		}
+		ItemInstance item = opt.get();
+		if (item.count() == count) {
+			inv.remove(item);
+			repository.delete(item.objectId());
+			return new ConsumeResult(item, true);
+		} else {
+			item.count(item.count() - count);
+			repository.update(item);
+			return new ConsumeResult(item, false);
+		}
+	}
+
+	/** Persiste as alteracoes de um item (ex: enchant). */
+	public void saveItem(ItemInstance item) {
+		repository.update(item);
+	}
+
 	/** UseItem para equipaveis: alterna equipar/desequipar. */
 	public EquipResult toggleEquip(Inventory inv, int objectId) {
 		ItemInstance item = inv.byObjectId(objectId).orElse(null);

@@ -27,6 +27,19 @@ class JdbcItemRepository implements ItemRepository {
 	}
 
 	@Override
+	public List<StoredItem> findWarehouse(int ownerId) {
+		return jdbc.sql("""
+				SELECT object_id, item_id, count, enchant_level, loc, loc_data, custom_type1, custom_type2, mana_left
+				FROM items WHERE owner_id = :owner AND loc = 'WAREHOUSE' ORDER BY object_id
+				""")
+				.param("owner", ownerId)
+				.query((rs, i) -> new StoredItem(rs.getInt("object_id"), rs.getInt("item_id"), rs.getInt("count"),
+						rs.getInt("enchant_level"), rs.getString("loc"), rs.getInt("loc_data"),
+						rs.getInt("custom_type1"), rs.getInt("custom_type2"), rs.getInt("mana_left")))
+				.list();
+	}
+
+	@Override
 	public List<Paperdoll.Entry> findPaperdoll(int ownerId) {
 		return jdbc.sql("SELECT object_id, item_id, loc_data FROM items WHERE owner_id = :owner AND loc = 'PAPERDOLL'")
 				.param("owner", ownerId)

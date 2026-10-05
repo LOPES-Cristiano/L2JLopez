@@ -28,6 +28,12 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.ShowMiniMap;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SocialAction;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ChooseInventoryItem;
+import com.lopez.l2j.network.game.packet.GameServerPacket.EnchantResult;
+import com.lopez.l2j.network.game.packet.GameServerPacket.WareHouseDepositList;
+import com.lopez.l2j.network.game.packet.GameServerPacket.WareHouseWithdrawalList;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,8 +62,10 @@ class GameSessionFeaturesTest {
 
 		var htmls = new com.lopez.l2j.game.html.HtmCache("data/html");
 		var multisell = new com.lopez.l2j.game.multisell.MultiSellTable("data/xml/multisell");
+		var warehouse = new com.lopez.l2j.game.service.WarehouseService(repo, com.lopez.l2j.game.item.TestItems.table(),
+				com.lopez.l2j.game.model.ObjectIdFactory.sequential(0x30000000));
 		var ctx = new GameSession.Context(746, 746, null, charService, inventoryService, world, htmls,
-				null, null, combat, null, null, null, null, null, multisell, null, "TestServer");
+				null, null, combat, null, null, null, null, null, multisell, warehouse, null, "TestServer");
 
 		player = new PlayerCharacter(1001, "Archer", "Hero", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
 				200, 100, 100, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 200.0, 100.0, 100.0);
@@ -74,6 +82,10 @@ class GameSessionFeaturesTest {
 				"L2Monster", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
 		monster = new NpcInstance(30001, monsterTemplate, 30, 0, 0, 0);
 		world.addNpc(monster);
+
+		var whTemplate = new NpcTemplate(30005, 30005, "Wilford", false, "", false, 10.0, 15.0, 1, "male",
+				"L2Warehouse", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
+		world.addNpc(new NpcInstance(30005, whTemplate, 0, 0, 0, 0));
 	}
 
 	private static void setField(Object target, String name, Object val) {
@@ -279,17 +291,27 @@ class GameSessionFeaturesTest {
 		var charTemplates = new CharTemplateTable();
 		var template = charTemplates.get(player.classId()).orElseThrow();
 		var combat = new CombatService();
-		monster.currentHp(1000.0);
-		monster.dead(false);
-		var normalHit = combat.skillMagicNpc(player, template, monster, 40.0, false, false);
+		// Roda ate pegar hits sem critico magico (flag 0x20) para comparar o multiplicador base dos shots
+		CombatService.HitResult normalHit;
+		do {
+			monster.currentHp(1000.0);
+			monster.dead(false);
+			normalHit = combat.skillMagicNpc(player, template, monster, 40.0, false, false);
+		} while ((normalHit.flags() & 0x20) != 0);
 
-		monster.currentHp(1000.0);
-		monster.dead(false);
-		var spsHit = combat.skillMagicNpc(player, template, monster, 40.0, true, false);
+		CombatService.HitResult spsHit;
+		do {
+			monster.currentHp(1000.0);
+			monster.dead(false);
+			spsHit = combat.skillMagicNpc(player, template, monster, 40.0, true, false);
+		} while ((spsHit.flags() & 0x20) != 0);
 
-		monster.currentHp(1000.0);
-		monster.dead(false);
-		var bssHit = combat.skillMagicNpc(player, template, monster, 40.0, false, true);
+		CombatService.HitResult bssHit;
+		do {
+			monster.currentHp(1000.0);
+			monster.dead(false);
+			bssHit = combat.skillMagicNpc(player, template, monster, 40.0, false, true);
+		} while ((bssHit.flags() & 0x20) != 0);
 
 		assertTrue(spsHit.damage() > normalHit.damage(), "Spiritshot normal deve causar mais dano magico que sem shot");
 		assertTrue(bssHit.damage() > spsHit.damage(), "Blessed Spiritshot deve causar mais dano magico que Spiritshot normal");
@@ -344,6 +366,175 @@ class GameSessionFeaturesTest {
 		String html = htmls.getNpcHtml(30005, "L2Npc", 0);
 		assertNotNull(html);
 		assertTrue(html.contains("Warehouse Keeper Wilford"), "Deve encontrar o arquivo retail em warehouse/30005.htm mesmo com tipo L2Npc");
+	}
+
+	@Test
+	void testEnchantScrollOpensChooseInventoryItemAndEnchantsWeapon() {
+		// Adiciona D-Sword (2499) e Scroll: Enchant Weapon D (955)
+		var sword = inventoryService.addItem(player.inventory(), 2499, 1, "Test").item();
+		var scroll = inventoryService.addItem(player.inventory(), 955, 1, "Test").item();
+
+		sent.clear();
+		// Usa o scroll (0x14 UseItem)
+		byte[] useItem = ByteBuffer.allocate(9).order(ByteOrder.LITTLE_ENDIAN)
+				.put((byte) 0x14)
+				.putInt(scroll.objectId())
+				.putInt(0)
+				.array();
+		session.handle(useItem);
+
+		// Deve enviar ChooseInventoryItem(955)
+		boolean hasChooseItem = sent.stream().anyMatch(p -> p instanceof ChooseInventoryItem ci && ci.itemId() == 955);
+		assertTrue(hasChooseItem, "Deve enviar ChooseInventoryItem para abrir janela de enchant");
+
+		sent.clear();
+		// Envia RequestEnchantItem (0x58) selecionando a espada
+		byte[] reqEnchant = ByteBuffer.allocate(5).order(ByteOrder.LITTLE_ENDIAN)
+				.put((byte) 0x58)
+				.putInt(sword.objectId())
+				.array();
+		session.handle(reqEnchant);
+
+		// Seguro ate +3: sucesso garantido
+		boolean hasEnchantSuccess = sent.stream().anyMatch(p -> p instanceof EnchantResult er && er.result() == EnchantResult.RES_SUCCESS);
+		assertTrue(hasEnchantSuccess, "Deve aplicar sucesso no encantamento seguro (+1)");
+		assertEquals(1, sword.enchant(), "Espada deve ter nivel de encanto 1");
+	}
+
+	@Test
+	void testEnchantScrollGradeMismatchRejected() {
+		var sword = inventoryService.addItem(player.inventory(), 2499, 1, "Test").item();
+		var armorScroll = inventoryService.addItem(player.inventory(), 956, 1, "Test").item(); // Scroll Armor D
+
+		// Usa o scroll de armor
+		byte[] useItem = ByteBuffer.allocate(9).order(ByteOrder.LITTLE_ENDIAN)
+				.put((byte) 0x14)
+				.putInt(armorScroll.objectId())
+				.putInt(0)
+				.array();
+		session.handle(useItem);
+
+		sent.clear();
+		// Tenta encantar uma arma com scroll de armadura
+		byte[] reqEnchant = ByteBuffer.allocate(5).order(ByteOrder.LITTLE_ENDIAN)
+				.put((byte) 0x58)
+				.putInt(sword.objectId())
+				.array();
+		session.handle(reqEnchant);
+
+		boolean hasMismatch = sent.stream().anyMatch(p -> p instanceof SystemMessage sm && sm.id() == SystemMessage.INAPPROPRIATE_ENCHANT_CONDITION);
+		assertTrue(hasMismatch, "Deve rejeitar encantamento incompativel (armor scroll em arma)");
+		assertEquals(0, sword.enchant(), "Espada nao deve ser modificada");
+	}
+
+	@Test
+	void testEnchantScrollBlessedResetsToZeroOnFailure() {
+		var sword = inventoryService.addItem(player.inventory(), 2499, 1, "Test").item();
+		sword.enchant(10); // Ja esta em +10 (alem do limite seguro)
+
+		boolean failed = false;
+		for (int i = 0; i < 50; i++) {
+			var blessedScroll = inventoryService.addItem(player.inventory(), 6575, 1, "Test").item();
+			byte[] useItem = ByteBuffer.allocate(9).order(ByteOrder.LITTLE_ENDIAN)
+					.put((byte) 0x14)
+					.putInt(blessedScroll.objectId())
+					.putInt(0)
+					.array();
+			session.handle(useItem);
+
+			sent.clear();
+			byte[] reqEnchant = ByteBuffer.allocate(5).order(ByteOrder.LITTLE_ENDIAN)
+					.put((byte) 0x58)
+					.putInt(sword.objectId())
+					.array();
+			session.handle(reqEnchant);
+
+			boolean hasBlessedFail = sent.stream().anyMatch(p -> p instanceof EnchantResult er && er.result() == EnchantResult.RES_BLESSED_FAIL);
+			if (hasBlessedFail) {
+				failed = true;
+				break;
+			}
+		}
+
+		assertTrue(failed, "Com chance de 66%, apos multiplas tentativas deve ocorrer falha blessed");
+		assertEquals(0, sword.enchant(), "Item blessed que falhou deve ter o enchant resetado para 0");
+		assertTrue(player.inventory().byObjectId(sword.objectId()).isPresent(), "Item blessed nao deve quebrar/ser deletado ao falhar");
+	}
+
+	@Test
+	void testWarehouseDepositAndWithdraw() {
+		// Adiciona 10.000 Adena e uma espada
+		inventoryService.addItem(player.inventory(), 57, 10_000, "Test");
+		var sword = inventoryService.addItem(player.inventory(), 2499, 1, "Test").item();
+
+		sent.clear();
+		// Clica em Deposit (bypass npc_30005_DepositP)
+		byte[] bypassDeposit = buildBypassPacket("npc_30005_DepositP");
+		session.handle(bypassDeposit);
+
+		// Recebe WareHouseDepositList contendo a espada
+		boolean hasDepositList = sent.stream().anyMatch(p -> p instanceof WareHouseDepositList dl && dl.items().stream().anyMatch(i -> i.objectId() == sword.objectId()));
+		assertTrue(hasDepositList, "Deve listar a espada como item disponivel para deposito");
+
+		sent.clear();
+		// Deposita a espada (SendWareHouseDepositList 0x31)
+		byte[] depositPacket = ByteBuffer.allocate(13).order(ByteOrder.LITTLE_ENDIAN)
+				.put((byte) 0x31)
+				.putInt(1) // 1 item
+				.putInt(sword.objectId())
+				.putInt(1) // count
+				.array();
+		session.handle(depositPacket);
+
+		// Espada nao deve mais estar no inventario do player
+		assertFalse(player.inventory().byObjectId(sword.objectId()).isPresent(), "Espada deve ter saido do inventario do jogador");
+		// Taxa de 30 adena descontada
+		assertEquals(9_970, player.inventory().adena(), "Deve descontar taxa de 30 adena no deposito");
+
+		sent.clear();
+		// Clica em Withdraw (bypass npc_30005_WithdrawP)
+		byte[] bypassWithdraw = buildBypassPacket("npc_30005_WithdrawP");
+		session.handle(bypassWithdraw);
+
+		boolean hasWithdrawList = sent.stream().anyMatch(p -> p instanceof WareHouseWithdrawalList wl && wl.items().stream().anyMatch(i -> i.objectId() == sword.objectId()));
+		assertTrue(hasWithdrawList, "Deve listar a espada guardada no armazem");
+
+		sent.clear();
+		// Retira a espada (SendWareHouseWithDrawList 0x32)
+		byte[] withdrawPacket = ByteBuffer.allocate(13).order(ByteOrder.LITTLE_ENDIAN)
+				.put((byte) 0x32)
+				.putInt(1) // 1 item
+				.putInt(sword.objectId())
+				.putInt(1) // count
+				.array();
+		session.handle(withdrawPacket);
+
+		// Espada voltou para o inventario
+		assertTrue(player.inventory().byObjectId(sword.objectId()).isPresent(), "Espada deve ter voltado para o inventario");
+	}
+
+	@Test
+	void testDestroyItem() {
+		var potions = inventoryService.addItem(player.inventory(), 1060, 100, "Test").item();
+
+		// Destroi 40 pocoes (RequestDestroyItem 0x59)
+		byte[] destroyPacket = ByteBuffer.allocate(9).order(ByteOrder.LITTLE_ENDIAN)
+				.put((byte) 0x59)
+				.putInt(potions.objectId())
+				.putInt(40)
+				.array();
+		session.handle(destroyPacket);
+
+		assertEquals(60, player.inventory().byObjectId(potions.objectId()).orElseThrow().count(), "Deve restar 60 pocoes no inventario");
+	}
+
+	private static byte[] buildBypassPacket(String command) {
+		byte[] cmdBytes = command.getBytes(java.nio.charset.StandardCharsets.UTF_16LE);
+		ByteBuffer buf = ByteBuffer.allocate(1 + cmdBytes.length + 2).order(ByteOrder.LITTLE_ENDIAN);
+		buf.put((byte) 0x21); // RequestBypassToServer
+		buf.put(cmdBytes);
+		buf.putShort((short) 0);
+		return buf.array();
 	}
 
 	private static void invokeMethod(Object target, String name, Class<?>[] paramTypes, Object... args) {

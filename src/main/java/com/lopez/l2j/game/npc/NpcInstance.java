@@ -58,6 +58,7 @@ public final class NpcInstance {
 	public boolean isDead() { return dead; }
 	public void dead(boolean value) { this.dead = value; }
 	public boolean isInCombat() { return inCombat; }
+	public boolean inCombat() { return inCombat; }
 	public void inCombat(boolean value) { this.inCombat = value; }
 	public boolean isRunning() { return running; }
 	public void running(boolean value) { this.running = value; }

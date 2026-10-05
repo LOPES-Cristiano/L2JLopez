@@ -12,6 +12,9 @@ public interface ItemRepository {
 	/** Itens no inventario ou equipados (loc INVENTORY/PAPERDOLL), como Inventory.restore. */
 	List<StoredItem> findInventory(int ownerId);
 
+	/** Itens guardados no armazem (loc WAREHOUSE). */
+	List<StoredItem> findWarehouse(int ownerId);
+
 	/** So os equipados, para a tela de selecao de personagem. */
 	List<Paperdoll.Entry> findPaperdoll(int ownerId);
 
