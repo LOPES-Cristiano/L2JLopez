@@ -89,4 +89,22 @@ public class InMemoryCharacterRepository implements CharacterRepository {
 				.filter(c -> c.name().equalsIgnoreCase(name))
 				.findFirst();
 	}
+
+	@Override
+	public synchronized List<PlayerCharacter> findTopPvP(int limit) {
+		return rows.values().stream()
+				.filter(c -> c.pvpKills() > 0)
+				.sorted((c1, c2) -> Integer.compare(c2.pvpKills(), c1.pvpKills()))
+				.limit(limit)
+				.toList();
+	}
+
+	@Override
+	public synchronized List<PlayerCharacter> findTopPK(int limit) {
+		return rows.values().stream()
+				.filter(c -> c.pkKills() > 0)
+				.sorted((c1, c2) -> Integer.compare(c2.pkKills(), c1.pkKills()))
+				.limit(limit)
+				.toList();
+	}
 }

@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.drop;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
@@ -43,12 +44,31 @@ public class DropService {
 		this.autoLoot = autoLoot;
 	}
 
+	public List<DropData> getDrops(int mobId) {
+		return dropTable.getDrops(mobId);
+	}
+
 	/**
 	 * Sorteia os drops de um monstro baseado na tabela de droplist e nas taxas configuradas.
 	 */
 	public List<DropReward> rollDrops(int mobId) {
+		return rollDrops(mobId, 0, 0);
+	}
+
+	public List<DropReward> rollDrops(int mobId, int playerLevel, int mobLevel) {
 		List<DropData> rules = dropTable.getDrops(mobId);
 		if (rules.isEmpty()) {
+			return List.of();
+		}
+
+		double levelPenalty = 1.0;
+		if (Config.getBoolean("UseDeepBlueDropRules", true) && playerLevel > 0 && mobLevel > 0) {
+			int diff = playerLevel - mobLevel;
+			if (diff >= 9) {
+				levelPenalty = Math.max(0.0, 1.0 - ((diff - 8) * 0.2));
+			}
+		}
+		if (levelPenalty <= 0.0) {
 			return List.of();
 		}
 
@@ -63,7 +83,7 @@ public class DropService {
 
 			if (rule.isAdena()) {
 				// Calculo de Adena
-				double rate = rateAdena;
+				double rate = (rateAdena > 0 ? rateAdena : Config.RATE_DROP_ADENA) * levelPenalty;
 				long effectiveChance = Math.round(rule.chance() * rate);
 				if (effectiveChance > DropData.MAX_CHANCE) {
 					// Quando o rate ultrapassa 100%, garante drop e multiplica a quantidade
@@ -78,7 +98,7 @@ public class DropService {
 				}
 			} else {
 				// Calculo de Itens / Materiais / Equipamentos
-				double rate = rateDrop;
+				double rate = (rateDrop > 0 ? rateDrop : Config.RATE_DROP_ITEMS) * levelPenalty;
 				long effectiveChance = Math.round(rule.chance() * rate);
 				if (effectiveChance >= DropData.MAX_CHANCE || rng.nextInt(DropData.MAX_CHANCE) < effectiveChance) {
 					int count = randomCount(rng, rule.min(), rule.max());
@@ -90,16 +110,25 @@ public class DropService {
 		return rewards;
 	}
 
+	public List<DropReward> rewardMonsterDeath(
+			PlayerCharacter player,
+			int mobId,
+			InventoryService inventoryService,
+			Consumer<GameServerPacket> packetSender) {
+		return rewardMonsterDeath(player, mobId, 0, inventoryService, packetSender);
+	}
+
 	/**
 	 * Processa a entrega das recompensas de drop ao jogador que abateu o monstro.
 	 */
 	public List<DropReward> rewardMonsterDeath(
 			PlayerCharacter player,
 			int mobId,
+			int mobLevel,
 			InventoryService inventoryService,
 			Consumer<GameServerPacket> packetSender) {
 
-		List<DropReward> rewards = rollDrops(mobId);
+		List<DropReward> rewards = rollDrops(mobId, player != null ? player.level() : 0, mobLevel);
 		if (rewards.isEmpty()) {
 			return List.of();
 		}
@@ -107,7 +136,8 @@ public class DropService {
 		List<ItemInfo> itemUpdates = new ArrayList<>();
 
 		for (DropReward reward : rewards) {
-			if (autoLoot && inventoryService != null) {
+			boolean shouldLoot = reward.isAdena() ? Config.AUTO_LOOT_ADENA : (autoLoot && Config.AUTO_LOOT);
+			if (shouldLoot && inventoryService != null) {
 				try {
 					var addResult = inventoryService.addItem(player.inventory(), reward.itemId(), reward.count(), "Drop");
 					if (addResult != null) {

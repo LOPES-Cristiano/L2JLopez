@@ -1,5 +1,7 @@
 package com.lopez.l2j.game.item;
 
+import com.lopez.l2j.game.augmentation.Augmentation;
+
 /**
  * Instancia de item (linha da tabela {@code items}). Mutavel: quantidade, encantamento e localizacao mudam com o
  * jogo. Acesso pela thread da conexao do dono.
@@ -21,6 +23,7 @@ public final class ItemInstance {
 	private int customType1;
 	private int customType2;
 	private int mana = -1;
+	private Augmentation augmentation;
 
 	public ItemInstance(int objectId, ItemTemplate template, int ownerId, int count) {
 		this.objectId = objectId;
@@ -46,6 +49,9 @@ public final class ItemInstance {
 	public void customType2(int value) { this.customType2 = value; }
 	public int mana() { return mana; }
 	public void mana(int value) { this.mana = value; }
+	public Augmentation augmentation() { return augmentation; }
+	public void augmentation(Augmentation value) { this.augmentation = value; }
+	public boolean isAugmented() { return augmentation != null; }
 
 	public void location(Location location, int data) {
 		this.location = location;

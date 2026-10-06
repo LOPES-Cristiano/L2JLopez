@@ -61,6 +61,38 @@ public final class Inventory {
 		return changed;
 	}
 
+	public int getItemCount(int itemId) {
+		return items.values().stream()
+				.filter(i -> i.itemId() == itemId)
+				.mapToInt(ItemInstance::count)
+				.sum();
+	}
+
+	public synchronized boolean destroyItemByItemId(int itemId, int count) {
+		if (count <= 0) {
+			return true;
+		}
+		if (getItemCount(itemId) < count) {
+			return false;
+		}
+		int remaining = count;
+		var iterator = items.values().iterator();
+		while (iterator.hasNext() && remaining > 0) {
+			var it = iterator.next();
+			if (it.itemId() == itemId) {
+				if (it.count() <= remaining) {
+					remaining -= it.count();
+					it.count(0);
+					iterator.remove();
+				} else {
+					it.count(it.count() - remaining);
+					remaining = 0;
+				}
+			}
+		}
+		return remaining == 0;
+	}
+
 	public long adena() {
 		return byItemId(ItemTemplate.ADENA_ID).map(ItemInstance::count).orElse(0);
 	}
@@ -97,6 +129,19 @@ public final class Inventory {
 			}
 		}
 		return out;
+	}
+
+	public List<ItemInstance> equippedItems() {
+		return equipped();
+	}
+
+	public boolean isEquipped(int itemId) {
+		for (ItemInstance i : paperdoll) {
+			if (i != null && i.itemId() == itemId) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

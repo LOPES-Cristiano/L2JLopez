@@ -80,6 +80,15 @@ public final class NpcInstance {
 	public long lastAttackTime() { return lastAttackTime; }
 	public void lastAttackTime(long value) { this.lastAttackTime = value; }
 
+	private volatile int masterObjectId;
+	private final java.util.List<NpcInstance> minions = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+	public int masterObjectId() { return masterObjectId; }
+	public void masterObjectId(int id) { this.masterObjectId = id; }
+	public java.util.List<NpcInstance> minions() { return minions; }
+	public boolean hasMinions() { return !minions.isEmpty(); }
+	public boolean isMinion() { return masterObjectId != 0 || template.isMinion(); }
+
 	public void moveTo(int x, int y, int z, int heading) {
 		this.x = x;
 		this.y = y;

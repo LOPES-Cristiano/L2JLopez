@@ -1,6 +1,9 @@
 package com.lopez.l2j.game.service;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.config.ServerProperties;
+import com.lopez.l2j.game.augmentation.Augmentation;
+import com.lopez.l2j.game.augmentation.AugmentationRepository;
 import com.lopez.l2j.game.item.Inventory;
 import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.item.ItemRepository;
@@ -14,6 +17,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,11 +54,18 @@ public class InventoryService {
 	private final ItemRepository repository;
 	private final ObjectIdFactory ids;
 	private final int startingAdena;
+	private AugmentationRepository augmentationRepository;
 
 	@Autowired
 	public InventoryService(ItemTemplateTable templates, ItemRepository repository, ObjectIdFactory ids,
-			ServerProperties properties) {
+			ServerProperties properties, @Autowired(required = false) AugmentationRepository augmentationRepository) {
 		this(templates, repository, ids, properties.game() == null ? 0 : properties.game().startingAdena());
+		this.augmentationRepository = augmentationRepository;
+	}
+
+	public InventoryService(ItemTemplateTable templates, ItemRepository repository, ObjectIdFactory ids,
+			ServerProperties properties) {
+		this(templates, repository, ids, properties, null);
 	}
 
 	public InventoryService(ItemTemplateTable templates, ItemRepository repository, ObjectIdFactory ids,
@@ -73,6 +84,9 @@ public class InventoryService {
 	public Inventory load(int ownerId) {
 		Inventory inv = new Inventory(ownerId);
 		List<ItemInstance> toEquip = new ArrayList<>();
+		Map<Integer, Augmentation> augs = (augmentationRepository != null)
+				? augmentationRepository.findByOwnerId(ownerId)
+				: Map.of();
 		for (StoredItem row : repository.findInventory(ownerId)) {
 			var template = templates.get(row.itemId()).orElse(null);
 			if (template == null) {
@@ -85,6 +99,12 @@ public class InventoryService {
 			item.customType1(row.customType1());
 			item.customType2(row.customType2());
 			item.mana(row.mana());
+			if (!augs.isEmpty()) {
+				var aug = augs.get(row.objectId());
+				if (aug != null) {
+					item.augmentation(aug);
+				}
+			}
 			inv.add(item);
 			if ("PAPERDOLL".equals(row.location())) {
 				item.location(ItemInstance.Location.PAPERDOLL, row.locationData());
@@ -119,8 +139,12 @@ public class InventoryService {
 				persist(inv.equip(added.item()));
 			}
 		}
-		if (startingAdena > 0) {
-			addItem(inv, ItemTemplate.ADENA_ID, startingAdena, "Init");
+		int adena = startingAdena > 0 ? startingAdena : Config.STARTING_ADENA;
+		if (adena > 0) {
+			addItem(inv, ItemTemplate.ADENA_ID, adena, "Init");
+		}
+		if (Config.STARTING_AA > 0) {
+			addItem(inv, 5575, Config.STARTING_AA, "Init");
 		}
 		return inv;
 	}
@@ -190,6 +214,9 @@ public class InventoryService {
 		if (item.count() == count) {
 			inv.remove(item);
 			repository.delete(item.objectId());
+			if (augmentationRepository != null) {
+				augmentationRepository.delete(item.objectId());
+			}
 			return new ConsumeResult(item, true);
 		} else {
 			item.count(item.count() - count);

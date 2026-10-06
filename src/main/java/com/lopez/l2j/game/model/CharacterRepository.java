@@ -32,4 +32,8 @@ public interface CharacterRepository {
 	List<PlayerCharacter> searchByName(String query, int limit);
 
 	Optional<PlayerCharacter> findByName(String name);
+
+	List<PlayerCharacter> findTopPvP(int limit);
+
+	List<PlayerCharacter> findTopPK(int limit);
 }

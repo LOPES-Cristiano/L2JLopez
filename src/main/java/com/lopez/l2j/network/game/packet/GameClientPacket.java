@@ -111,6 +111,9 @@ public sealed interface GameClientPacket {
 	record RequestBypassToServer(String command) implements GameClientPacket {
 	}
 
+	record RequestBBSwrite(String url, String arg1, String arg2, String arg3, String arg4, String arg5) implements GameClientPacket {
+	}
+
 	/** 0x5b - comando digitado na caixa de chat com prefixo // (ex.: //admin). */
 	record SendBypassBuildCmd(String command) implements GameClientPacket {
 	}
@@ -197,6 +200,124 @@ public sealed interface GameClientPacket {
 	record RequestGMCommand(String targetName, int command) implements GameClientPacket {
 	}
 
+	/** 0x68 - solicitacao de brasao de cla por crestId. */
+	record RequestPledgeCrest(int crestId) implements GameClientPacket {
+	}
+
+	/** 0x66 - solicitacao de informacoes do cla. */
+	record RequestPledgeInfo(int clanId) implements GameClientPacket {
+	}
+
+	/** 0x53 - solicitacao de lista de membros do cla. */
+	record RequestPledgeMemberList() implements GameClientPacket {
+	}
+
+	/** 0x52 - upload de novo brasao de cla. */
+	record RequestSetPledgeCrest(byte[] data) implements GameClientPacket {
+	}
+
+	/** 0xba - solicitacao de lista de tatuagens disponiveis no Symbol Maker. */
+	record RequestHennaList() implements GameClientPacket {
+	}
+
+	/** 0xbb - solicitacao de detalhes de uma tatuagem. */
+	record RequestHennaItemInfo(int symbolId) implements GameClientPacket {
+	}
+
+	/** 0xbc - equipar tatuagem. */
+	record RequestHennaEquip(int symbolId) implements GameClientPacket {
+	}
+
+	/** 0xbd - remover tatuagem. */
+	record RequestHennaRemove(int symbolId) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x45 - solicitacao da lista de armas amaldicoadas ativas. */
+	record RequestCursedWeaponList() implements GameClientPacket {
+	}
+
+	/** 0xd0:0x46 - solicitacao da localizacao no mapa das armas amaldicoadas. */
+	record RequestCursedWeaponLocation() implements GameClientPacket {
+	}
+
+	/** 0xd0:0x29 - confirmacao de item para augmentacao. */
+	record RequestConfirmTargetItem(int itemObjId) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x2a - confirmacao de Life Stone para augmentacao. */
+	record RequestConfirmRefinerItem(int targetItemObjId, int refinerItemObjId) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x2b - confirmacao de Gemstones para augmentacao. */
+	record RequestConfirmGemStone(int targetItemObjId, int refinerItemObjId, int gemstoneItemObjId, int gemstoneCount) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x2c - execucao da augmentacao de arma. */
+	record RequestRefine(int targetItemObjId, int refinerItemObjId, int gemstoneItemObjId, int gemstoneCount) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x2d - confirmacao de item para remocao de augmentacao. */
+	record RequestConfirmCancelItem(int itemObjId) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x2e - execucao do cancelamento de augmentacao de arma. */
+	record RequestRefineCancel(int itemObjId) implements GameClientPacket {
+	}
+
+	/** 0xc7 - solicitacao da pagina de status do Seven Signs. */
+	record RequestSSQStatus(int page) implements GameClientPacket {
+	}
+
+	/** 0x30 - notificacao do cliente que concluiu o carregamento do mapa/teleporte e esta pronto para aparecer no mundo. */
+	record RequestAppearing() implements GameClientPacket {
+	}
+
+	/** 0xb9 - recomendacao de jogador (evalscore). */
+	record RequestEvaluate(int targetId) implements GameClientPacket {
+	}
+
+	/** 0x5e - convidar jogador para amigos. */
+	record RequestFriendInvite(String name) implements GameClientPacket {
+	}
+
+	/** 0x5f - responder a convite de amigos (1=aceitar, 0=recusar). */
+	record RequestAnswerFriendInvite(int response) implements GameClientPacket {
+	}
+
+	/** 0x60 - abrir lista de amigos. */
+	record RequestFriendList() implements GameClientPacket {
+	}
+
+	/** 0x61 - remover amigo. */
+	record RequestFriendDel(String name) implements GameClientPacket {
+	}
+
+	/** 0xa0 - bloquear/desbloquear jogador ou listar bloqueios. */
+	record RequestBlock(int type, String name) implements GameClientPacket {
+		public static final int BLOCK = 0;
+		public static final int UNBLOCK = 1;
+		public static final int BLOCKLIST = 2;
+		public static final int ALLBLOCK = 3;
+		public static final int ALLUNBLOCK = 4;
+	}
+
+	record StoreItemRequest(int objectId, int count, int price) {}
+
+	/** 0x73 - abrir configuracao de venda da loja pessoal. */
+	record RequestPrivateStoreManageSell() implements GameClientPacket {}
+
+	/** 0x74 - definir lista de itens a venda na loja pessoal. */
+	record SetPrivateStoreListSell(boolean packageSale, java.util.List<StoreItemRequest> items) implements GameClientPacket {}
+
+	/** 0x76 - fechar loja pessoal de venda. */
+	record RequestPrivateStoreQuitSell() implements GameClientPacket {}
+
+	/** 0x77 - definir mensagem da loja pessoal de venda. */
+	record SetPrivateStoreMsgSell(String storeMsg) implements GameClientPacket {}
+
+	/** 0x79 - comprar itens/buffs de uma loja pessoal. */
+	record RequestPrivateStoreBuy(int sellerId, java.util.List<StoreItemRequest> items) implements GameClientPacket {}
+
 	record Unknown(int opcode, int subOpcode) implements GameClientPacket {
 	}
 
@@ -220,6 +341,7 @@ public sealed interface GameClientPacket {
 					case 0x62 -> new CharacterRestore(r.readD());
 					case 0x0d -> new CharacterSelect(r.readD());
 					case 0x09 -> new Logout();
+					case 0x68 -> new RequestPledgeCrest(r.readD());
 					case 0xd0 -> extended(r);
 					default -> new Unknown(op, -1);
 				};
@@ -236,6 +358,7 @@ public sealed interface GameClientPacket {
 					case 0x38 -> say2(r);
 					case 0x04 -> new Action(r.readD(), r.readD(), r.readD(), r.readD(), r.readC());
 					case 0x21 -> new RequestBypassToServer(r.readS());
+					case 0x22 -> readBBSwrite(r);
 					case 0x1b -> new RequestSocialAction(r.readD());
 					case 0x1e -> readSellItem(r);
 					case 0x1f -> readBuyItem(r);
@@ -244,6 +367,7 @@ public sealed interface GameClientPacket {
 					case 0x2b -> new RequestWithDrawalParty();
 					case 0x2c -> new RequestOustPartyMember(r.readS());
 					case 0x2f -> new RequestMagicSkillUse(r.readD(), r.readD() != 0, r.readC() != 0);
+					case 0x30 -> new RequestAppearing();
 					case 0x33 -> new RequestShortCutReg(r.readD(), r.readD(), r.readD(), r.readD());
 					case 0x35 -> new RequestShortCutDel(r.readD());
 					case 0x37 -> new RequestTargetCancel();
@@ -254,9 +378,13 @@ public sealed interface GameClientPacket {
 					case 0x31 -> readWareHouseList(r, true);
 					case 0x32 -> readWareHouseList(r, false);
 					case 0x3f -> new RequestSkillList();
+					case 0x52 -> readSetPledgeCrest(r);
+					case 0x53 -> new RequestPledgeMemberList();
 					case 0x58 -> r.remaining() >= 4 ? new RequestEnchantItem(r.readD()) : new Unknown(op, -1);
 					case 0x59 -> r.remaining() >= 8 ? new RequestDestroyItem(r.readD(), r.readD()) : new Unknown(op, -1);
 					case 0x5b -> new SendBypassBuildCmd(r.readS());
+					case 0x66 -> new RequestPledgeInfo(r.readD());
+					case 0x68 -> new RequestPledgeCrest(r.readD());
 					case 0x6b -> new RequestAcquireSkillInfo(r.readD(), r.readD(), r.readD());
 					case 0x6c -> new RequestAcquireSkill(r.readD(), r.readD(), r.readD());
 					case 0x6d -> new RequestRestartPoint(r.readD());
@@ -265,11 +393,27 @@ public sealed interface GameClientPacket {
 						int cmd = r.remaining() >= 4 ? r.readD() : 1;
 						yield new RequestGMCommand(target, cmd);
 					}
+					case 0x73 -> new RequestPrivateStoreManageSell();
+					case 0x74 -> readSetPrivateStoreListSell(r);
+					case 0x76 -> new RequestPrivateStoreQuitSell();
+					case 0x77 -> new SetPrivateStoreMsgSell(r.readS());
+					case 0x79 -> readRequestPrivateStoreBuy(r);
+					case 0x5e -> new RequestFriendInvite(r.readS());
+					case 0x5f -> new RequestAnswerFriendInvite(r.readD());
+					case 0x60 -> new RequestFriendList();
+					case 0x61 -> new RequestFriendDel(r.readS());
 					case 0x63 -> new RequestQuestList();
 					case 0x09 -> new Logout();
 					case 0x46 -> new RequestRestart();
 					case 0xaa -> new RequestUserCommand(r.readD());
+					case 0xa0 -> readBlock(r);
 					case 0xa7 -> readMultiSellChoose(r);
+					case 0xb9 -> new RequestEvaluate(r.readD());
+					case 0xba -> new RequestHennaList();
+					case 0xbb -> new RequestHennaItemInfo(r.readD());
+					case 0xbc -> new RequestHennaEquip(r.readD());
+					case 0xbd -> new RequestHennaRemove(r.readD());
+					case 0xc7 -> r.remaining() >= 1 ? new RequestSSQStatus(r.readC()) : new Unknown(op, -1);
 					case 0xcd -> new RequestShowMiniMap();
 					case 0xd0 -> extended(r);
 					default -> new Unknown(op, -1);
@@ -278,6 +422,38 @@ public sealed interface GameClientPacket {
 		} catch (IllegalArgumentException e) {
 			return Optional.empty();
 		}
+	}
+
+	private static RequestBlock readBlock(PacketReader r) {
+		int type = r.readD();
+		String name = (type == RequestBlock.BLOCK || type == RequestBlock.UNBLOCK) && r.remaining() > 0 ? r.readS() : "";
+		return new RequestBlock(type, name);
+	}
+
+	private static SetPrivateStoreListSell readSetPrivateStoreListSell(PacketReader r) {
+		boolean packageSale = r.readD() == 1;
+		int count = r.readD();
+		if (count <= 0 || count > 100 || r.remaining() < count * 12) {
+			return new SetPrivateStoreListSell(packageSale, java.util.List.of());
+		}
+		java.util.List<StoreItemRequest> list = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			list.add(new StoreItemRequest(r.readD(), r.readD(), r.readD()));
+		}
+		return new SetPrivateStoreListSell(packageSale, list);
+	}
+
+	private static RequestPrivateStoreBuy readRequestPrivateStoreBuy(PacketReader r) {
+		int sellerId = r.readD();
+		int count = r.readD();
+		if (count <= 0 || count > 100 || r.remaining() < count * 12) {
+			return new RequestPrivateStoreBuy(sellerId, java.util.List.of());
+		}
+		java.util.List<StoreItemRequest> list = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			list.add(new StoreItemRequest(r.readD(), r.readD(), r.readD()));
+		}
+		return new RequestPrivateStoreBuy(sellerId, list);
 	}
 
 	private static MultiSellChoose readMultiSellChoose(PacketReader r) {
@@ -342,6 +518,14 @@ public sealed interface GameClientPacket {
 			case 0x05 -> r.remaining() >= 8 ? new RequestAutoSoulShot(r.readD(), r.readD()) : new Unknown(0xd0, sub);
 			case 0x06 -> r.remaining() >= 8 ? new RequestExEnchantSkillInfo(r.readD(), r.readD()) : new Unknown(0xd0, sub);
 			case 0x07 -> r.remaining() >= 8 ? new RequestExEnchantSkill(r.readD(), r.readD()) : new Unknown(0xd0, sub);
+			case 0x29 -> r.remaining() >= 4 ? new RequestConfirmTargetItem(r.readD()) : new Unknown(0xd0, sub);
+			case 0x2a -> r.remaining() >= 8 ? new RequestConfirmRefinerItem(r.readD(), r.readD()) : new Unknown(0xd0, sub);
+			case 0x2b -> r.remaining() >= 16 ? new RequestConfirmGemStone(r.readD(), r.readD(), r.readD(), r.readD()) : new Unknown(0xd0, sub);
+			case 0x2c -> r.remaining() >= 16 ? new RequestRefine(r.readD(), r.readD(), r.readD(), r.readD()) : new Unknown(0xd0, sub);
+			case 0x2d -> r.remaining() >= 4 ? new RequestConfirmCancelItem(r.readD()) : new Unknown(0xd0, sub);
+			case 0x2e -> r.remaining() >= 4 ? new RequestRefineCancel(r.readD()) : new Unknown(0xd0, sub);
+			case 0x45 -> new RequestCursedWeaponList();
+			case 0x46 -> new RequestCursedWeaponLocation();
 			default -> new Unknown(0xd0, sub);
 		};
 	}
@@ -351,5 +535,27 @@ public sealed interface GameClientPacket {
 		int channel = r.readD();
 		String target = channel == 2 && r.remaining() >= 2 ? r.readS() : null;
 		return new Say2(text, channel, target);
+	}
+
+	private static RequestBBSwrite readBBSwrite(PacketReader r) {
+		String url = r.remaining() >= 2 ? r.readS() : "";
+		String arg1 = r.remaining() >= 2 ? r.readS() : "";
+		String arg2 = r.remaining() >= 2 ? r.readS() : "";
+		String arg3 = r.remaining() >= 2 ? r.readS() : "";
+		String arg4 = r.remaining() >= 2 ? r.readS() : "";
+		String arg5 = r.remaining() >= 2 ? r.readS() : "";
+		return new RequestBBSwrite(url, arg1, arg2, arg3, arg4, arg5);
+	}
+
+	private static GameClientPacket readSetPledgeCrest(PacketReader r) {
+		if (r.remaining() < 4) {
+			return new RequestSetPledgeCrest(new byte[0]);
+		}
+		int length = r.readD();
+		if (length <= 0 || length > 2176 || r.remaining() < length) {
+			return new RequestSetPledgeCrest(new byte[0]);
+		}
+		byte[] data = r.readB(length);
+		return new RequestSetPledgeCrest(data);
 	}
 }

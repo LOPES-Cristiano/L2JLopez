@@ -4,6 +4,7 @@ import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.item.ItemSlots;
 import com.lopez.l2j.game.item.ItemTemplate;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.npc.NpcInstance;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -13,13 +14,17 @@ import org.w3c.dom.Node;
 
 /**
  * Condicoes do datapack ({@code <and>}, {@code <or>}, {@code <not>}, {@code <using kind=...>},
- * {@code <player level/hp=...>}). So o subconjunto que o servidor sabe avaliar; o parser devolve null para o
- * resto e quem chama decide (passivas desconhecidas nao aplicam, conds de uso sao permissivas).
+ * {@code <player level/hp=...>}, {@code <target undead=...>}). So o subconjunto que o servidor sabe avaliar;
+ * o parser devolve null para o resto e quem chama decide.
  */
 @FunctionalInterface
 public interface SkillCondition {
 
-	boolean test(PlayerCharacter p);
+	boolean test(PlayerCharacter p, Object target);
+
+	default boolean test(PlayerCharacter p) {
+		return test(p, null);
+	}
 
 	Set<String> ARMOR_KINDS = Set.of("light", "heavy", "magic");
 
@@ -39,13 +44,13 @@ public interface SkillCondition {
 				if (parts.isEmpty()) {
 					return null;
 				}
-				return tag.equals("and") ? p -> parts.stream().allMatch(c -> c.test(p))
-						: p -> parts.stream().anyMatch(c -> c.test(p));
+				return tag.equals("and") ? (p, target) -> parts.stream().allMatch(c -> c.test(p, target))
+						: (p, target) -> parts.stream().anyMatch(c -> c.test(p, target));
 			}
 			case "not" -> {
 				var kids = children(e);
 				SkillCondition inner = kids.size() == 1 ? parse(kids.get(0)) : null;
-				return inner == null ? null : p -> !inner.test(p);
+				return inner == null ? null : (p, target) -> !inner.test(p, target);
 			}
 			case "using" -> {
 				String kind = e.getAttribute("kind");
@@ -56,16 +61,28 @@ public interface SkillCondition {
 				for (String k : kind.split(",")) {
 					kinds.add(normalize(k));
 				}
-				return p -> kinds.stream().anyMatch(k -> isUsing(p, k));
+				return (p, target) -> kinds.stream().anyMatch(k -> isUsing(p, k));
 			}
 			case "player" -> {
 				if (e.hasAttribute("level") && e.getAttributes().getLength() == 1) {
 					int min = Integer.parseInt(e.getAttribute("level").trim());
-					return p -> p.level() >= min;
+					return (p, target) -> p.level() >= min;
 				}
 				if (e.hasAttribute("hp") && e.getAttributes().getLength() == 1) {
 					double pct = Double.parseDouble(e.getAttribute("hp").trim());
-					return p -> p.maxHp() > 0 && p.currentHp() * 100.0 / p.maxHp() <= pct;
+					return (p, target) -> p.maxHp() > 0 && p.currentHp() * 100.0 / p.maxHp() <= pct;
+				}
+				return null;
+			}
+			case "target" -> {
+				if (e.hasAttribute("undead")) {
+					boolean needUndead = Boolean.parseBoolean(e.getAttribute("undead").trim());
+					return (p, target) -> {
+						if (target instanceof NpcInstance npc) {
+							return npc.template().isUndead() == needUndead;
+						}
+						return !needUndead;
+					};
 				}
 				return null;
 			}

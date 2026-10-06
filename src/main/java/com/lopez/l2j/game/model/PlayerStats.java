@@ -24,6 +24,20 @@ public record PlayerStats(
 		int runSpeed
 ) {
 
+	public int walkSpeed(CharTemplate template) {
+		int baseRun = template != null ? Math.max(1, template.runSpeed()) : 120;
+		return Math.max(1, (int) Math.round(80.0 * runSpeed / baseRun));
+	}
+
+	public double movementSpeedMultiplier(CharTemplate template) {
+		int baseRun = template != null ? Math.max(1, template.runSpeed()) : 120;
+		return (double) runSpeed / baseRun;
+	}
+
+	public double attackSpeedMultiplier() {
+		return pAtkSpd / 277.478340719;
+	}
+
 	public static PlayerStats calculate(PlayerCharacter player, CharTemplate template) {
 		int pAtk = template.pAtk();
 		int mAtk = template.mAtk();
@@ -89,8 +103,30 @@ public record PlayerStats(
 			runSpeed = (int) Math.round(apply(player, funcs, "runSpd", runSpeed));
 		}
 
+		int maxPAtkSpeed = com.lopez.l2j.config.Config.getInt("MaxPAtkSpeed", 9999);
+		int maxMAtkSpeed = com.lopez.l2j.config.Config.getInt("MaxMAtkSpeed", 9999);
+		int maxRunSpeed = com.lopez.l2j.config.Config.getInt("MaxRunSpeed", 9999);
+		int maxEvasion = com.lopez.l2j.config.Config.getInt("MaxEvasion", 200);
+		int maxPCritical = com.lopez.l2j.config.Config.getInt("AltPCriticalCap", 500);
+
 		if (player.gmSpeed() > 0) {
-			runSpeed = Math.min(500, runSpeed + player.gmSpeed() * 50);
+			runSpeed = Math.min(maxRunSpeed, runSpeed + player.gmSpeed() * 50);
+		}
+
+		if (maxPAtkSpeed > 0 && pAtkSpd > maxPAtkSpeed) {
+			pAtkSpd = maxPAtkSpeed;
+		}
+		if (maxMAtkSpeed > 0 && mAtkSpd > maxMAtkSpeed) {
+			mAtkSpd = maxMAtkSpeed;
+		}
+		if (maxRunSpeed > 0 && runSpeed > maxRunSpeed) {
+			runSpeed = maxRunSpeed;
+		}
+		if (maxEvasion > 0 && evasion > maxEvasion) {
+			evasion = maxEvasion;
+		}
+		if (maxPCritical > 0 && critical > maxPCritical) {
+			critical = maxPCritical;
 		}
 
 		return new PlayerStats(Math.max(1, pAtk), Math.max(1, pDef), Math.max(1, mAtk), Math.max(1, mDef),
@@ -98,16 +134,20 @@ public record PlayerStats(
 				Math.max(1, runSpeed));
 	}
 
-	/** Passivas + buffs de skill do jogador. */
+	/** Passivas + buffs de skill + sets de armadura + augmentacao do jogador. */
 	public static List<StatFunc> allFuncs(PlayerCharacter player) {
 		var passive = player.passiveFuncs();
 		var buffs = player.effects().funcs();
-		if (buffs.isEmpty()) {
+		var sets = player.armorSetFuncs();
+		var aug = player.augmentationFuncs();
+		if (buffs.isEmpty() && sets.isEmpty() && aug.isEmpty()) {
 			return passive;
 		}
-		List<StatFunc> all = new ArrayList<>(passive.size() + buffs.size());
+		List<StatFunc> all = new ArrayList<>(passive.size() + buffs.size() + sets.size() + aug.size());
 		all.addAll(passive);
 		all.addAll(buffs);
+		all.addAll(sets);
+		all.addAll(aug);
 		return all;
 	}
 

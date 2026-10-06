@@ -64,6 +64,10 @@ public record ItemTemplate(int id, int displayId, String name, Kind kind, String
 		return kind == Kind.ETC && "arrow".equals(subType);
 	}
 
+	public boolean isStackable() {
+		return stackable;
+	}
+
 	public static ItemTemplate weapon(int id, int displayId, String name, String bodyPartName, String weaponType,
 			int weight, String crystal, int pAtk, int mAtk, int atkSpeed, int critical, int shieldDef, int price,
 			boolean sellable, boolean dropable, boolean destroyable, boolean tradeable) {

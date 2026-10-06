@@ -21,6 +21,7 @@ import com.lopez.l2j.network.game.packet.GameServerPacket;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ActionFailed;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Attack;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ChangeWaitType;
+import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MyTargetSelected;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Revive;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SetupGauge;
@@ -98,6 +99,16 @@ class GameSessionFeaturesTest {
 			var f = target.getClass().getDeclaredField(name);
 			f.setAccessible(true);
 			f.set(target, val);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private static Object getField(Object target, String name) {
+		try {
+			var f = target.getClass().getDeclaredField(name);
+			f.setAccessible(true);
+			return f.get(target);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -239,6 +250,19 @@ class GameSessionFeaturesTest {
 		assertTrue(player.currentHp() > 0, "HP deve ser restaurado");
 		assertTrue(sent.stream().anyMatch(p -> p instanceof Revive), "Deve enviar pacote Revive");
 		assertTrue(sent.stream().anyMatch(p -> p instanceof TeleportToLocation), "Deve enviar TeleportToLocation para a vila");
+	}
+
+	@Test
+	void playerDeathSendsDiePacketWithToVillageButton() {
+		session.handlePlayerDeath(null);
+
+		assertTrue(player.isDead(), "Player deve estar morto apos //kill");
+		var dieOpt = sent.stream()
+				.filter(p -> p instanceof Die)
+				.map(p -> (Die) p)
+				.findFirst();
+		assertTrue(dieOpt.isPresent(), "Deve enviar pacote Die quando o player morre");
+		assertTrue(dieOpt.get().toVillage(), "O pacote Die deve ter toVillage=true para exibir o botao To Nearest Village");
 	}
 
 	@Test
@@ -700,6 +724,13 @@ class GameSessionFeaturesTest {
 		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
 				new GameClientPacket.Say2("//speed 4", 0, null));
 		assertEquals(4, player.gmSpeed());
+		assertTrue(player.effects().hasSkill(7029), "Super Haste deve estar ativo no jogador");
+
+		// GM Speed //speed 0
+		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
+				new GameClientPacket.Say2("//speed 0", 0, null));
+		assertEquals(0, player.gmSpeed());
+		assertFalse(player.effects().hasSkill(7029), "Super Haste deve ser desativado com //speed 0");
 
 		// Paralysis //para e //unpara
 		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
@@ -1109,5 +1140,147 @@ class GameSessionFeaturesTest {
 		assertEquals(5000, player.x());
 		assertEquals(6000, player.y());
 		assertEquals(-1000, player.z());
+	}
+
+	@Test
+	void testTeleportLifecycleAndRequestAppearing() {
+		sent.clear();
+		session.teleportToLocation(83400, 147943, -3404);
+
+		// Confere envio de TeleportToLocation
+		boolean hasTeleport = sent.stream().anyMatch(p -> p instanceof GameServerPacket.TeleportToLocation);
+		assertTrue(hasTeleport, "Deve enviar TeleportToLocation");
+
+		// Envia RequestAppearing (0x30)
+		var buf = ByteBuffer.allocate(1).order(ByteOrder.LITTLE_ENDIAN);
+		buf.put((byte) 0x30);
+		session.handle(buf.array());
+
+		// Apos RequestAppearing, UserInfo deve ser enviado
+		boolean hasUserInfo = sent.stream().anyMatch(p -> p instanceof GameServerPacket.UserInfo);
+		assertTrue(hasUserInfo, "Deve enviar UserInfo apos RequestAppearing");
+	}
+
+	@Test
+	void testTeleportClearsOldLocationFromKnownObjects() {
+		var bob = new PlayerCharacter(1002, "BobAcc", "Bob", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
+				200, 100, 100, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 200.0, 100.0, 100.0);
+		bob.moveTo(player.x() + 100, player.y() + 100, player.z());
+		List<GameServerPacket> bobSent = new ArrayList<>();
+		var bobSession = new GameSession(ctx, new byte[8], "127.0.0.1", bobSent::add);
+		setField(bobSession, "active", bob);
+		setField(bobSession, "inWorld", true);
+		world.add(bobSession);
+
+		// Inicializa visibilidade mutua
+		invokeMethod(session, "updateKnownObjects", new Class<?>[] {});
+
+		// Player teletransporta para longe
+		session.teleportToLocation(83400, 147943, -3404);
+
+		// Bob deve receber DeleteObject do player que teleportou
+		boolean bobGotDelete = bobSent.stream().anyMatch(p -> p instanceof GameServerPacket.DeleteObject del && del.objectId() == player.objectId());
+		assertTrue(bobGotDelete, "Outro jogador no local antigo deve receber DeleteObject");
+	}
+
+	@Test
+	void testPlayerAutoAttackAndPvpFlag() {
+		var bob = new PlayerCharacter(1003, "BobAcc2", "BobTarget", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
+				1000, 500, 500, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 1000.0, 500.0, 500.0);
+		bob.moveTo(player.x() + 30, player.y() + 30, player.z());
+		List<GameServerPacket> bobSent = new ArrayList<>();
+		var bobSession = new GameSession(ctx, new byte[8], "127.0.0.1", bobSent::add);
+		setField(bobSession, "active", bob);
+		setField(bobSession, "inWorld", true);
+		world.add(bobSession);
+
+		sent.clear();
+
+		// Envia AttackRequest no Bob (opcode 0x0a)
+		var buf = ByteBuffer.allocate(18).order(ByteOrder.LITTLE_ENDIAN);
+		buf.put((byte) 0x0a); // 0x0a AttackRequest
+		buf.putInt(bob.objectId());
+		buf.putInt(player.x());
+		buf.putInt(player.y());
+		buf.putInt(player.z());
+		buf.put((byte) 0); // shift / attackId
+		session.handle(buf.array());
+
+		// Confere se enviou AutoAttackStart (combat stance)
+		boolean hasAutoAttackStart = sent.stream().anyMatch(p -> p instanceof GameServerPacket.AutoAttackStart);
+		assertTrue(hasAutoAttackStart, "Deve enviar AutoAttackStart ao atacar jogador");
+
+		// Confere se ativou pvpFlag (nome roxo)
+		assertEquals(1, player.pvpFlag(), "Jogador deve receber pvpFlag=1");
+
+		// Confere se enviou Attack packet
+		boolean hasAttack = sent.stream().anyMatch(p -> p instanceof GameServerPacket.Attack);
+		assertTrue(hasAttack, "Deve enviar pacote Attack contra o jogador");
+	}
+
+	@Test
+	void testCancelCastOnMove() throws Exception {
+		// Equipa ou garante que player tem skill com hitTime
+		setField(session, "casting", true);
+
+		// Move enquanto esta casting (opcode 0x01 MoveBackwardToLocation)
+		var buf = ByteBuffer.allocate(29).order(ByteOrder.LITTLE_ENDIAN);
+		buf.put((byte) 0x01); // 0x01 MoveBackwardToLocation
+		buf.putInt(player.x() + 500);
+		buf.putInt(player.y() + 500);
+		buf.putInt(player.z());
+		buf.putInt(player.x());
+		buf.putInt(player.y());
+		buf.putInt(player.z());
+		buf.putInt(1); // moveMovement = 1 (click no chao)
+		session.handle(buf.array());
+
+		// casting deve ter sido cancelado imediatamente
+		boolean isCasting = (boolean) getField(session, "casting");
+		assertFalse(isCasting, "Casting deve ser false apos mover");
+
+		// Deve enviar MagicSkillCanceld
+		boolean hasCancel = sent.stream().anyMatch(p -> p instanceof GameServerPacket.MagicSkillCanceld);
+		assertTrue(hasCancel, "Deve enviar pacote MagicSkillCanceld ao andar durante o cast");
+	}
+
+	@Test
+	void testAdminSoundsAndPlaySound() throws Exception {
+		player.accessLevel(100);
+		sent.clear();
+
+		// Testa bypass admin_sounds e comando //sounds
+		session.handle(buildBypassPacket("admin_sounds"));
+		boolean hasHtml = sent.stream().anyMatch(p -> p instanceof GameServerPacket.NpcHtmlMessage);
+		assertTrue(hasHtml, "Deve enviar NpcHtmlMessage ao executar admin_sounds");
+
+		sent.clear();
+		// Testa comando play_sound via invokeMethod
+		invokeMethod(session, "handleAdminCommand", new Class<?>[] { String.class }, "play_sound ls01_f");
+		boolean hasPlaySound = sent.stream().anyMatch(p -> p instanceof GameServerPacket.PlaySound ps && "ls01_f".equals(ps.soundFile()));
+		assertTrue(hasPlaySound, "Deve enviar pacote PlaySound para ls01_f");
+	}
+
+	@Test
+	void testAdminRblist() throws Exception {
+		player.accessLevel(100);
+		sent.clear();
+
+		// Testa comando rblist sem argumentos (menu principal de raid)
+		session.handle(buildBypassPacket("admin_rblist"));
+		boolean hasMainRaidMenu = sent.stream().anyMatch(p -> p instanceof GameServerPacket.NpcHtmlMessage);
+		assertTrue(hasMainRaidMenu, "Deve abrir menu de Raid Boss com admin_rblist");
+
+		sent.clear();
+		// Testa comando rblist 20 (faixa de level 20-29)
+		session.handle(buildBypassPacket("admin_rblist 20"));
+		boolean hasRaidList20 = sent.stream().anyMatch(p -> p instanceof GameServerPacket.NpcHtmlMessage html && html.html().contains("Raid Bosses (20-29)"));
+		assertTrue(hasRaidList20, "Deve listar Raid Bosses da faixa 20-29");
+
+		sent.clear();
+		// Testa comando rblist grand (Grand Bosses)
+		session.handle(buildBypassPacket("admin_rblist grand"));
+		boolean hasGrandBossList = sent.stream().anyMatch(p -> p instanceof GameServerPacket.NpcHtmlMessage html && html.html().contains("Grand Bosses") && html.html().contains("Antharas"));
+		assertTrue(hasGrandBossList, "Deve listar Grand Bosses incluindo Antharas com coordenadas e teleport");
 	}
 }

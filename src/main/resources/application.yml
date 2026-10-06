@@ -77,3 +77,9 @@ l2:
     # Nomes de personagens ou logins de conta com privilegios de GM (accessLevel 100) automaticos ao entrar no jogo
     superusers:
       - "Cristiano"
+      - "cristiano"
+      - "admin"
+      - "Admin"
+      - "gm"
+      - "GM"
+      - "root"

@@ -54,11 +54,51 @@ public record NpcTemplate(
 	}
 
 	public boolean isMonster() {
-		return "L2Monster".equalsIgnoreCase(type) || "L2RaidBoss".equalsIgnoreCase(type)
-				|| "L2GrandBoss".equalsIgnoreCase(type);
+		if (type == null) {
+			return false;
+		}
+		String clean = type.toLowerCase(java.util.Locale.ROOT);
+		return clean.contains("monster")
+				|| clean.contains("boss")
+				|| clean.contains("minion")
+				|| clean.contains("chest")
+				|| clean.contains("beast")
+				|| clean.contains("invader")
+				|| clean.contains("angel")
+				|| clean.contains("squash")
+				|| clean.contains("siegeguard")
+				|| clean.contains("commander")
+				|| clean.contains("friendlymob")
+				|| clean.contains("tower")
+				|| clean.contains("larva");
+	}
+
+	public boolean isRaidBoss() {
+		return type != null && ("L2RaidBoss".equalsIgnoreCase(type) || "L2GrandBoss".equalsIgnoreCase(type)
+				|| "L2FrintezzaBoss".equalsIgnoreCase(type));
+	}
+
+	public boolean isGrandBoss() {
+		return type != null && ("L2GrandBoss".equalsIgnoreCase(type) || "L2FrintezzaBoss".equalsIgnoreCase(type));
+	}
+
+	public boolean isMinion() {
+		return type != null && "L2Minion".equalsIgnoreCase(type);
+	}
+
+	public boolean isGuard() {
+		return type != null && type.toLowerCase(java.util.Locale.ROOT).contains("guard");
 	}
 
 	public boolean isAttackable() {
-		return isMonster();
+		return isMonster() || isGuard();
+	}
+
+	public static NpcTemplate fallback(int id, String name, String type) {
+		return new NpcTemplate(
+				id, id, name, true, "", false,
+				9.0, 24.0, 70, "male", type, 40,
+				2000, 1000, 150, 150, 150, 150, 250, 333,
+				0, 0, 0, 50, 120, 0, false, 0L, 0);
 	}
 }

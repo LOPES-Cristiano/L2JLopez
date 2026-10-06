@@ -50,4 +50,37 @@ class SpawnServiceTest {
 		assertThat(npcOpt).isEmpty();
 		assertThat(world.totalNpcs()).isZero();
 	}
+
+	@Test
+	void shouldSpawnAndCleanMinionsWithMaster() {
+		NpcTemplate minionTpl = new NpcTemplate(
+				20002, 20002, "Wolf Minion", false, "", false,
+				8.0, 16.0, 1, "male", "L2Minion",
+				40, 30, 10, 8, 8, 3, 3, 250, 333,
+				0, 0, 0, 50, 100, 0, false);
+		table = NpcTemplateTable.of(List.of(
+				new NpcTemplate(20001, 20001, "Wolf Boss", false, "", false,
+						8.0, 16.0, 1, "male", "L2RaidBoss",
+						40, 500, 200, 20, 20, 10, 10, 250, 333,
+						0, 0, 0, 50, 100, 0, false),
+				minionTpl));
+
+		com.lopez.l2j.game.npc.minion.MinionTable minionTable = new com.lopez.l2j.game.npc.minion.MinionTable("dummy.xml");
+		// Injeta regra diretamente via reflexao ou instancia
+		service = new SpawnService(null, table, world, ids, minionTable);
+
+		var bossOpt = service.spawn(20001, 1000, 1000, 0, 0);
+		assertThat(bossOpt).isPresent();
+		var boss = bossOpt.get();
+		assertThat(boss.isMonster()).isTrue();
+		assertThat(boss.template().isAttackable()).isTrue();
+
+		// Minion template tests
+		assertThat(minionTpl.isMonster()).isTrue();
+		assertThat(minionTpl.isAttackable()).isTrue();
+		assertThat(minionTpl.isMinion()).isTrue();
+
+		service.deleteSpawn(boss, false);
+		assertThat(world.totalNpcs()).isZero();
+	}
 }

@@ -157,7 +157,7 @@ public class SkillTable {
 					}
 				}
 				if (!parsedKids.isEmpty()) {
-					castCond = p -> parsedKids.stream().allMatch(sc -> sc.test(p));
+					castCond = (p, target) -> parsedKids.stream().allMatch(sc -> sc.test(p, target));
 				}
 			}
 			condMsg = condElement.getAttribute("msg");
@@ -172,9 +172,9 @@ public class SkillTable {
 		}
 		if (weaponsAllowed > 0) {
 			final int mask = weaponsAllowed;
-			SkillCondition wCond = p -> SkillCondition.checkWeaponsAllowed(p, mask);
+			SkillCondition wCond = (p, target) -> SkillCondition.checkWeaponsAllowed(p, mask);
 			final SkillCondition baseCond = castCond;
-			castCond = baseCond != null ? (p -> wCond.test(p) && baseCond.test(p)) : wCond;
+			castCond = baseCond != null ? ((p, target) -> wCond.test(p, target) && baseCond.test(p, target)) : wCond;
 			if (condMsg == null || condMsg.isBlank()) {
 				condMsg = "Equipamento incorreto para usar esta habilidade.";
 			}
@@ -212,7 +212,9 @@ public class SkillTable {
 					r.integer(sets.get("skillRadius"), 80), r.integer(sets.get("hitTime"), 0),
 					r.integer(sets.get("coolTime"), 0), r.integer(sets.get("reuseDelay"), 0),
 					r.integer(sets.get("magicLvl"), 0), r.number(sets.get("absorbPart"), 0),
-					r.bool(sets.get("nextActionAttack")), List.copyOf(funcs), List.copyOf(effects), castCond,
+					r.bool(sets.get("nextActionAttack")),
+					r.integer(sets.get("itemConsumeId"), 0), r.integer(sets.get("itemConsumeCount"), 0),
+					List.copyOf(funcs), List.copyOf(effects), castCond,
 					condMsg);
 		}
 		byId.put(id, out);
@@ -242,7 +244,7 @@ public class SkillTable {
 							if (sc != null) parsedKids.add(sc);
 						}
 						if (!parsedKids.isEmpty()) {
-							rCastCond = p -> parsedKids.stream().allMatch(sc -> sc.test(p));
+							rCastCond = (p, target) -> parsedKids.stream().allMatch(sc -> sc.test(p, target));
 						}
 					}
 					rCondMsg = routeCond.getAttribute("msg");
@@ -255,9 +257,9 @@ public class SkillTable {
 				}
 				if (rWeaponsAllowed > 0 && rCastCond != castCond) {
 					final int mask = rWeaponsAllowed;
-					SkillCondition wCond = p -> SkillCondition.checkWeaponsAllowed(p, mask);
+					SkillCondition wCond = (p, target) -> SkillCondition.checkWeaponsAllowed(p, mask);
 					final SkillCondition baseCond = rCastCond;
-					rCastCond = baseCond != null ? (p -> wCond.test(p) && baseCond.test(p)) : wCond;
+					rCastCond = baseCond != null ? ((p, target) -> wCond.test(p, target) && baseCond.test(p, target)) : wCond;
 				}
 
 				for (int i = 0; i < count; i++) {
@@ -298,6 +300,7 @@ public class SkillTable {
 							skillType, target, magic, mpConsume, mpInitial, hpConsume, power,
 							castRange, skillRadius, hitTime, coolTime, reuseDelay, magicLvl,
 							absorb, base.nextActionAttack(),
+							base.itemConsumeId(), base.itemConsumeCount(),
 							funcs.isEmpty() && routeFor == forElement ? base.funcs() : List.copyOf(funcs),
 							effects.isEmpty() && routeFor == forElement ? base.effects() : List.copyOf(effects),
 							rCastCond, rCondMsg);
@@ -331,7 +334,7 @@ public class SkillTable {
 		if (!kids.isEmpty()) {
 			cond = SkillCondition.parse(kids.get(0));
 			if (cond == null) {
-				cond = p -> false; // condicao que o servidor nao sabe avaliar: nao aplica
+				cond = (p, target) -> false; // condicao que o servidor nao sabe avaliar: nao aplica
 			}
 		}
 		return new StatFunc(f.getAttribute("stat"), op, parseOrder(f.getAttribute("order")),

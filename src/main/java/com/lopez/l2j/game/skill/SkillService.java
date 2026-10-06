@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.skill;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.skill.SkillTreeTable.SkillLearn;
 import java.util.ArrayList;
@@ -112,7 +113,7 @@ public class SkillService {
 			removeSkill(p, SKILL_LUCKY);
 			changed = true;
 		}
-		boolean auto = autoLearn && (autoLearnMaxLevel <= 0 || p.level() <= autoLearnMaxLevel);
+		boolean auto = autoLearn && Config.AUTO_LEARN_SKILLS && (autoLearnMaxLevel <= 0 || p.level() <= autoLearnMaxLevel);
 		for (var e : trees.unlocked(p.classId(), p.level(), !auto).entrySet()) {
 			changed |= grant(p, e.getKey(), e.getValue());
 		}
@@ -138,7 +139,8 @@ public class SkillService {
 
 	/** Livro exigido (SpBookNeeded: so para o nivel 1), ou -1. */
 	public int requiredBook(int id, int level) {
-		return spBookNeeded && level == 1 ? trees.spellbookFor(id) : -1;
+		boolean needBook = Config.getBoolean("SpBookNeeded", spBookNeeded);
+		return needBook && level == 1 ? trees.spellbookFor(id) : -1;
 	}
 
 	/** Grava o skill no nivel informado (sem checar custo) e atualiza as passivas. */

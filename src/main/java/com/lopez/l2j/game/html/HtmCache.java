@@ -109,22 +109,25 @@ public class HtmCache {
 				? new String[] { npcId + "-" + val + ".htm", npcId + "-0" + val + ".htm", npcId + "-" + val + ".html" }
 				: new String[] { npcId + ".htm", npcId + "-1.htm", npcId + "-01.htm", npcId + ".html" };
 
-		for (String cand : candidates) {
-			String indexedPath = indexedFiles.get(cand.toLowerCase(java.util.Locale.ROOT));
-			if (indexedPath != null) {
-				html = getHtml(indexedPath);
-				if (html != null && !html.isBlank()) {
-					return html;
-				}
-			}
-		}
-
 		String lowerType = npcType != null ? npcType.toLowerCase(java.util.Locale.ROOT) : "";
 		boolean isFunctional = lowerType.contains("teleport")
 				|| lowerType.contains("merchant") || lowerType.contains("trader") || lowerType.contains("grocer")
 				|| lowerType.contains("blacksmith") || lowerType.contains("trainer") || lowerType.contains("master")
 				|| lowerType.contains("teacher") || lowerType.contains("warehouse") || lowerType.contains("guard")
-				|| lowerType.contains("fisherman") || lowerType.contains("symbolmaker");
+				|| lowerType.contains("fisherman") || lowerType.contains("symbolmaker") || lowerType.contains("priest");
+
+		for (String cand : candidates) {
+			String indexedPath = indexedFiles.get(cand.toLowerCase(java.util.Locale.ROOT));
+			if (indexedPath != null) {
+				html = getHtml(indexedPath);
+				if (html != null && !html.isBlank()) {
+					if (isFunctional && !html.contains("bypass") || html.contains("I have nothing to say")) {
+						return enrichNpcHtml(html, npcId, lowerType);
+					}
+					return html;
+				}
+			}
+		}
 
 		// 4. Se for NPC funcional ou se val > 0, gera o dialogo sintetico interativo rico
 		if (isFunctional || val > 0) {
@@ -133,11 +136,46 @@ public class HtmCache {
 
 		// 5. Fallback para npcdefault.htm se nao for NPC funcional
 		String defaultHtml = getHtml("npcdefault.htm");
-		if (defaultHtml != null && !defaultHtml.isBlank()) {
+		if (defaultHtml != null && !defaultHtml.isBlank() && !defaultHtml.contains("I have nothing to say")) {
 			return defaultHtml;
 		}
 
 		return generateSmartNpcHtml(npcId, lowerType, val);
+	}
+
+	public String enrichNpcHtml(String baseHtml, int npcId, String lowerType) {
+		StringBuilder extra = new StringBuilder("<br><br>");
+		if (lowerType.contains("trainer") || lowerType.contains("master") || lowerType.contains("teacher") || lowerType.contains("priest")) {
+			extra.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn Skills</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_1stClass\">1st Class Transfer</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_2ndClass\">2nd Class Transfer</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_3rdClass\">3rd Class Transfer</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_create_clan\">Create Clan</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_increase_clan_level\">Increase Clan Level</a><br>");
+		} else if (lowerType.contains("teleport")) {
+			extra.append("<a action=\"bypass -h npc_%objectId%_Chat 1\">Teleport</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_Quest 1101_teleport_to_race_track\">Monster Derby Track (Free)</a><br>");
+		} else if (lowerType.contains("merchant") || lowerType.contains("trader") || lowerType.contains("grocer")) {
+			extra.append("<a action=\"bypass -h npc_%objectId%_Buy 1\">Buy Items</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_Sell\">Sell Items</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_multisell 1\">Exchange Equipment</a><br>");
+		} else if (lowerType.contains("warehouse")) {
+			extra.append("<a action=\"bypass -h npc_%objectId%_DepositP\">Deposit Item (Private)</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_WithdrawP\">Withdraw Item (Private)</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_DepositC\">Deposit Item (Clan)</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_WithdrawC\">Withdraw Item (Clan)</a><br>");
+		} else if (lowerType.contains("blacksmith")) {
+			extra.append("<a action=\"bypass -h npc_%objectId%_Link common/duals_01.htm\">Craft Dual Swords</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_Link common/crafting_01.htm\">Craft Items</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_Link common/weapon_sa_01.htm\">Bestow Special Ability</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_Augment 1\">Augment Item</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_Augment 2\">Cancel Augmentation</a><br1>")
+					.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn Skills</a><br>");
+		}
+		if (baseHtml.contains("</body>")) {
+			return baseHtml.replace("</body>", extra + "</body>");
+		}
+		return baseHtml + extra;
 	}
 
 	private String generateSmartNpcHtml(int npcId, String lowerType, int val) {
@@ -159,37 +197,42 @@ public class HtmCache {
 				sb.append("<a action=\"bypass -h npc_%objectId%_Chat 0\">Back</a><br>");
 			} else {
 				sb.append("May the starlight guide your path, %name%! Which destination would you like to travel to?<br><br>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_Chat 1\">Teleport</a><br>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_Quest 1101_teleport_to_race_track\">Move to Monster Derby Track (Free)</a><br>");
+				sb.append("<a action=\"bypass -h npc_%objectId%_Chat 1\">Teleport</a><br1>");
+				sb.append("<a action=\"bypass -h npc_%objectId%_Quest 1101_teleport_to_race_track\">Move to Monster Derby Track (Free)</a><br1>");
 				sb.append("<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a><br>");
 			}
 		} else if (lowerType.contains("merchant") || lowerType.contains("trader") || lowerType.contains("grocer")) {
 			sb.append("Greetings %name%! Take a look at our fine wares. Best prices in the realm!<br><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Buy 1\">Buy items</a><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Sell\">Sell items</a><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_multisell 1\">Exchange equipment</a><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_TerritoryStatus\">View territory tax rate</a><br>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_Buy 1\">Buy items</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_Sell\">Sell items</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_multisell 1\">Exchange equipment</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_TerritoryStatus\">View territory tax rate</a><br1>");
 			sb.append("<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a><br>");
 		} else if (lowerType.contains("blacksmith")) {
 			sb.append("Welcome to the forge, %name%! The anvil never rests.<br><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Link common/duals_01.htm\">Craft Dual Swords</a><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Link common/crafting_01.htm\">Craft Items</a><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Link common/weapon_sa_01.htm\">Bestow Special Ability</a><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Link common/augmentation_01.htm\">Augment Item</a><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Link common/augmentation_02.htm\">Cancel Item Augmentation</a><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn Skills</a><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_TerritoryStatus\">View territory tax rate</a><br>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_Link common/duals_01.htm\">Craft Dual Swords</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_Link common/crafting_01.htm\">Craft Items</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_Link common/weapon_sa_01.htm\">Bestow Special Ability</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_Augment 1\">Augment Item</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_Augment 2\">Cancel Augmentation</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn Skills</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_TerritoryStatus\">View territory tax rate</a><br1>");
 			sb.append("<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a><br>");
-		} else if (lowerType.contains("trainer") || lowerType.contains("master") || lowerType.contains("teacher") || lowerType.contains("guild")) {
+		} else if (lowerType.contains("trainer") || lowerType.contains("master") || lowerType.contains("teacher") || lowerType.contains("guild") || lowerType.contains("priest")) {
 			sb.append("Welcome, pupil %name%. Are you ready to sharpen your abilities?<br><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn skills</a><br>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn Skills</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_1stClass\">1st Class Transfer</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_2ndClass\">2nd Class Transfer</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_3rdClass\">3rd Class Transfer</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_create_clan\">Create Clan</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_increase_clan_level\">Increase Clan Level</a><br1>");
 			sb.append("<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a><br>");
 		} else if (lowerType.contains("warehouse")) {
 			sb.append("Greetings! Your possessions are completely secure in our vault.<br><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_DepositP\">Deposit Item (Private)</a><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_WithdrawP\">Withdraw Item (Private)</a><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_DepositC\">Deposit Item (Clan)</a><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_WithdrawC\">Withdraw Item (Clan)</a><br>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_DepositP\">Deposit Item (Private)</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_WithdrawP\">Withdraw Item (Private)</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_DepositC\">Deposit Item (Clan)</a><br1>");
+			sb.append("<a action=\"bypass -h npc_%objectId%_WithdrawC\">Withdraw Item (Clan)</a><br1>");
 			sb.append("<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a><br>");
 		} else if (lowerType.contains("guard")) {
 			sb.append("The perimeter of this city is secure under our watchful eye. Move along, %name%, and stay safe.<br><br>");

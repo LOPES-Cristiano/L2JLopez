@@ -13,8 +13,19 @@ import java.util.Set;
 public record SkillTemplate(int id, int level, String name, OperateType operateType, String skillType,
 		String target, boolean magic, int mpConsume, int mpInitialConsume, int hpConsume, double power,
 		int castRange, int skillRadius, int hitTime, int coolTime, int reuseDelay, int magicLevel,
-		double absorbPart, boolean nextActionAttack, List<StatFunc> funcs, List<EffectTemplate> effects,
+		double absorbPart, boolean nextActionAttack, int itemConsumeId, int itemConsumeCount,
+		List<StatFunc> funcs, List<EffectTemplate> effects,
 		SkillCondition castCondition, String condMsg) {
+
+	public SkillTemplate(int id, int level, String name, OperateType operateType, String skillType,
+			String target, boolean magic, int mpConsume, int mpInitialConsume, int hpConsume, double power,
+			int castRange, int skillRadius, int hitTime, int coolTime, int reuseDelay, int magicLevel,
+			double absorbPart, boolean nextActionAttack, List<StatFunc> funcs, List<EffectTemplate> effects,
+			SkillCondition castCondition, String condMsg) {
+		this(id, level, name, operateType, skillType, target, magic, mpConsume, mpInitialConsume, hpConsume, power,
+				castRange, skillRadius, hitTime, coolTime, reuseDelay, magicLevel, absorbPart, nextActionAttack,
+				0, 0, funcs, effects, castCondition, condMsg);
+	}
 
 	public enum OperateType {
 		ACTIVE, PASSIVE, TOGGLE
@@ -42,7 +53,7 @@ public record SkillTemplate(int id, int level, String name, OperateType operateT
 			"AGGREMOVE", "STEAL_BUFF", "SWITCH", "FATAL", "SOW", "HARVEST");
 
 	private static final Set<String> PHYSICAL_DAMAGE = Set.of("PDAM", "BLOW", "CHARGEDAM", "FATALCOUNTER");
-	private static final Set<String> MAGIC_DAMAGE = Set.of("MDAM", "DEATHLINK", "DRAIN", "MANADAM");
+	private static final Set<String> MAGIC_DAMAGE = Set.of("MDAM", "DEATHLINK", "DRAIN");
 
 	public boolean isPassive() {
 		return operateType == OperateType.PASSIVE;
@@ -62,6 +73,10 @@ public record SkillTemplate(int id, int level, String name, OperateType operateT
 
 	public boolean isMagicDamage() {
 		return MAGIC_DAMAGE.contains(skillType);
+	}
+
+	public boolean isManaBurn() {
+		return "MANADAM".equalsIgnoreCase(skillType);
 	}
 
 	public boolean isAreaAroundSelf() {

@@ -89,6 +89,24 @@ public class NpcAiService {
 		npc.lastAttackTime(System.currentTimeMillis() - cooldownMs + 600);
 
 		activeCombatNpcs.add(npc);
+
+		// Notifica lacaios (minions) para atacarem o mesmo alvo
+		if (npc.hasMinions()) {
+			for (NpcInstance minion : npc.minions()) {
+				if (minion != null && !minion.isDead() && !minion.inCombat()) {
+					startCombat(minion, targetPlayerId);
+				}
+			}
+		}
+
+		// Se for lacaio sendo atacado, notifica o mestre para revidar
+		if (npc.isMinion() && npc.masterObjectId() != 0) {
+			world.npc(npc.masterObjectId()).ifPresent(master -> {
+				if (!master.isDead() && !master.inCombat()) {
+					startCombat(master, targetPlayerId);
+				}
+			});
+		}
 	}
 
 	/**
@@ -129,7 +147,25 @@ public class NpcAiService {
 					npc.currentMp(npc.template().maxMp());
 					npc.targetPlayerId(0);
 					npc.inCombat(false);
-					npc.moveTo(npc.spawnX(), npc.spawnY(), npc.spawnZ(), npc.spawnHeading());
+
+					int targetX = npc.spawnX();
+					int targetY = npc.spawnY();
+					int targetZ = npc.spawnZ();
+					int targetHeading = npc.spawnHeading();
+
+					if (npc.isMinion() && npc.masterObjectId() != 0) {
+						var masterOpt = world.npc(npc.masterObjectId());
+						if (masterOpt.isPresent() && !masterOpt.get().isDead()) {
+							var master = masterOpt.get();
+							double angle = ThreadLocalRandom.current().nextDouble(0, 2 * Math.PI);
+							int dist = ThreadLocalRandom.current().nextInt(40, 90);
+							targetX = master.x() + (int) (Math.cos(angle) * dist);
+							targetY = master.y() + (int) (Math.sin(angle) * dist);
+							targetZ = master.z();
+							targetHeading = master.heading();
+						}
+					}
+					npc.moveTo(targetX, targetY, targetZ, targetHeading);
 
 					world.addNpc(npc);
 					var npcInfo = new NpcInfo(npc);
@@ -208,9 +244,12 @@ public class NpcAiService {
 						int targetY = npc.spawnY() + rnd.nextInt(-maxOffset, maxOffset + 1);
 						int heading = (int) Math.round(Math.atan2(targetY - npc.y(), targetX - npc.x()) * 10430.378);
 
+						int fromX = npc.x();
+						int fromY = npc.y();
 						var movePkt = new MoveToLocation(npc.objectId(), targetX, targetY, npc.spawnZ(),
 								npc.x(), npc.y(), npc.z());
 						npc.moveTo(targetX, targetY, npc.spawnZ(), heading);
+						world.updateNpcPosition(npc, fromX, fromY);
 						world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, movePkt);
 					}
 				} else {
@@ -275,7 +314,10 @@ public class NpcAiService {
 			int newX = (int) Math.round(npc.x() + (dx / dist) * step);
 			int newY = (int) Math.round(npc.y() + (dy / dist) * step);
 			int heading = (int) Math.round(Math.atan2(dy, dx) * 10430.378);
+			int fromX = npc.x();
+			int fromY = npc.y();
 			npc.moveTo(newX, newY, player.z(), heading);
+			world.updateNpcPosition(npc, fromX, fromY);
 
 			var movePawn = new MoveToPawn(npc.objectId(), player.objectId(), attackRange, npc.x(), npc.y(), npc.z());
 			player.send(movePawn);
@@ -329,8 +371,11 @@ public class NpcAiService {
 		int sz = npc.spawnZ();
 		int sh = npc.spawnHeading();
 		if (npc.x() != sx || npc.y() != sy) {
+			int fromX = npc.x();
+			int fromY = npc.y();
 			var movePkt = new MoveToLocation(npc.objectId(), sx, sy, sz, npc.x(), npc.y(), npc.z());
 			npc.moveTo(sx, sy, sz, sh);
+			world.updateNpcPosition(npc, fromX, fromY);
 			world.broadcastAround(sx, sy, GameWorld.VISIBILITY_RADIUS, movePkt);
 		}
 	}

@@ -146,6 +146,21 @@ public class GameWorld {
 		}
 	}
 
+	public void updateNpcPosition(NpcInstance npc, int oldX, int oldY) {
+		long oldKey = cellKey(oldX, oldY);
+		long newKey = cellKey(npc.x(), npc.y());
+		if (oldKey != newKey) {
+			Set<NpcInstance> oldCell = npcsByCell.get(oldKey);
+			if (oldCell != null) {
+				oldCell.remove(npc);
+				if (oldCell.isEmpty()) {
+					npcsByCell.remove(oldKey, Collections.emptySet());
+				}
+			}
+			npcsByCell.computeIfAbsent(newKey, k -> ConcurrentHashMap.newKeySet()).add(npc);
+		}
+	}
+
 	public Optional<NpcInstance> npc(int objectId) {
 		return Optional.ofNullable(npcsById.get(objectId));
 	}

@@ -19,7 +19,7 @@ class JdbcCharacterRepository implements CharacterRepository {
 	private static final String COLUMNS = """
 			account_name, charId, char_name, level, exp, sp, race, classid, base_class, sex, face, hairStyle,
 			hairColor, maxHp, maxMp, maxCp, curHp, curMp, curCp, karma, pvpkills, pkkills, clanid, title,
-			accesslevel, lastAccess, deletetime, x, y, z, heading""";
+			accesslevel, lastAccess, deletetime, x, y, z, heading, rec_have, rec_left, last_recom_date""";
 
 	private final JdbcClient jdbc;
 	private final ObjectIdFactory ids;
@@ -99,7 +99,8 @@ class JdbcCharacterRepository implements CharacterRepository {
 				UPDATE characters SET classid = :classId, x = :x, y = :y, z = :z, heading = :heading, level = :level,
 				  exp = :exp, sp = :sp, maxHp = :maxHp, maxMp = :maxMp, maxCp = :maxCp, curHp = :hp,
 				  curMp = :mp, curCp = :cp, face = :face, hairStyle = :hairStyle, hairColor = :hairColor,
-				  online = :online, lastAccess = :now, accesslevel = :accesslevel WHERE charId = :id
+				  online = :online, lastAccess = :now, accesslevel = :accesslevel,
+				  rec_have = :recHave, rec_left = :recLeft, last_recom_date = :lastRecomDate WHERE charId = :id
 				""")
 				.param("classId", c.classId())
 				.param("x", c.x())
@@ -121,6 +122,9 @@ class JdbcCharacterRepository implements CharacterRepository {
 				.param("online", online ? 1 : 0)
 				.param("now", System.currentTimeMillis())
 				.param("accesslevel", c.accessLevel())
+				.param("recHave", c.recomHave())
+				.param("recLeft", c.recomLeft())
+				.param("lastRecomDate", c.lastRecomDate())
 				.param("id", c.objectId())
 				.update();
 	}
@@ -158,8 +162,24 @@ class JdbcCharacterRepository implements CharacterRepository {
 				.optional();
 	}
 
+	@Override
+	public List<PlayerCharacter> findTopPvP(int limit) {
+		return jdbc.sql("SELECT " + COLUMNS + " FROM characters WHERE pvpkills > 0 ORDER BY pvpkills DESC LIMIT :lim")
+				.param("lim", limit)
+				.query(JdbcCharacterRepository::map)
+				.list();
+	}
+
+	@Override
+	public List<PlayerCharacter> findTopPK(int limit) {
+		return jdbc.sql("SELECT " + COLUMNS + " FROM characters WHERE pkkills > 0 ORDER BY pkkills DESC LIMIT :lim")
+				.param("lim", limit)
+				.query(JdbcCharacterRepository::map)
+				.list();
+	}
+
 	private static PlayerCharacter map(ResultSet rs, int row) throws SQLException {
-		return new PlayerCharacter(rs.getInt("charId"), rs.getString("account_name"), rs.getString("char_name"),
+		var c = new PlayerCharacter(rs.getInt("charId"), rs.getString("account_name"), rs.getString("char_name"),
 				rs.getInt("level"), rs.getLong("exp"), rs.getInt("sp"), rs.getInt("race"), rs.getInt("classid"),
 				rs.getInt("base_class"), rs.getInt("sex") == 1, rs.getInt("face"), rs.getInt("hairStyle"),
 				rs.getInt("hairColor"), rs.getInt("maxHp"), rs.getInt("maxMp"), rs.getInt("maxCp"),
@@ -167,5 +187,9 @@ class JdbcCharacterRepository implements CharacterRepository {
 				rs.getString("title"), rs.getInt("accesslevel"), rs.getLong("lastAccess"), rs.getLong("deletetime"),
 				rs.getInt("x"), rs.getInt("y"), rs.getInt("z"), rs.getInt("heading"), rs.getInt("curHp"),
 				rs.getInt("curMp"), rs.getInt("curCp"));
+		c.recomHave(rs.getInt("rec_have"));
+		c.recomLeft(rs.getInt("rec_left"));
+		c.lastRecomDate(rs.getLong("last_recom_date"));
+		return c;
 	}
 }

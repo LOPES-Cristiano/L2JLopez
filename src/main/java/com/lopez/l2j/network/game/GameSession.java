@@ -1,5 +1,6 @@
 package com.lopez.l2j.network.game;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.item.ItemSlots;
 import com.lopez.l2j.game.item.Inventory;
 import com.lopez.l2j.game.npc.SpawnService;
@@ -53,6 +54,8 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.ChooseInventoryItem;
 import com.lopez.l2j.network.game.packet.GameServerPacket.EnchantResult;
 import com.lopez.l2j.network.game.packet.GameServerPacket.WareHouseDepositList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.WareHouseWithdrawalList;
+import com.lopez.l2j.network.game.packet.GameServerPacket.HennaEquipList;
+import com.lopez.l2j.network.game.packet.GameServerPacket.HennaItemInfo;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestEnchantItem;
 import com.lopez.l2j.network.game.packet.GameClientPacket.SendWareHouseDepositList;
 import com.lopez.l2j.network.game.packet.GameClientPacket.SendWareHouseWithDrawList;
@@ -83,6 +86,8 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.ShowMiniMap;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SkillList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse;
+import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillCanceld;
+import com.lopez.l2j.network.game.packet.GameServerPacket.PlaySound;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestShortCutReg;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestShortCutDel;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestMagicSkillUse;
@@ -98,6 +103,30 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.TargetUnselected;
 import com.lopez.l2j.game.combat.CombatService;
 import com.lopez.l2j.game.html.HtmCache;
+import com.lopez.l2j.game.mapregion.MapRegionTable;
+import com.lopez.l2j.game.announcements.Announcements;
+import com.lopez.l2j.game.door.DoorTable;
+import com.lopez.l2j.game.door.DoorInstance;
+import com.lopez.l2j.game.item.ArmorSetsTable;
+import com.lopez.l2j.game.skill.StatFunc;
+import com.lopez.l2j.game.clan.Clan;
+import com.lopez.l2j.game.clan.ClanMember;
+import com.lopez.l2j.game.clan.ClanTable;
+import com.lopez.l2j.game.clan.CrestCache;
+import com.lopez.l2j.game.chat.WordFilterTable;
+import com.lopez.l2j.game.staticobject.StaticObjectTable;
+import com.lopez.l2j.game.staticobject.StaticObjectInstance;
+import com.lopez.l2j.game.item.GroundItemService;
+import com.lopez.l2j.network.game.packet.GameServerPacket.StaticObject;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ShowTownMap;
+import com.lopez.l2j.network.game.packet.GameServerPacket.DropItem;
+import com.lopez.l2j.network.game.packet.GameServerPacket.GetItem;
+import com.lopez.l2j.network.game.packet.GameServerPacket.PledgeCrest;
+import com.lopez.l2j.network.game.packet.GameServerPacket.PledgeShowInfoUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.PledgeShowMemberListAll;
+import com.lopez.l2j.network.game.packet.GameServerPacket.PledgeShowMemberListUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.DoorInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.DoorStatusUpdate;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Attack;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
@@ -111,10 +140,25 @@ import com.lopez.l2j.game.trade.NpcBuyList;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestBuyItem;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestSellItem;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestBypassToServer;
+import com.lopez.l2j.network.game.packet.GameClientPacket.RequestBBSwrite;
 import com.lopez.l2j.network.game.packet.GameServerPacket.BuyList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SellList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ExShowVariationMakeWindow;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ExShowVariationCancelWindow;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ExPutItemResultForVariationMake;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ExPutIntensiveResultForVariationMake;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ExPutCommissionResultForVariationMake;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ExVariationResult;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ExPutItemResultForVariationCancel;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ExVariationCancelResult;
+import com.lopez.l2j.game.augmentation.Augmentation;
+import com.lopez.l2j.game.augmentation.AugmentationService;
+import com.lopez.l2j.network.game.packet.GameServerPacket.PrivateStoreItem;
+import com.lopez.l2j.network.game.packet.GameServerPacket.PrivateStoreMsgSell;
+import com.lopez.l2j.network.game.packet.GameServerPacket.PrivateStoreListSell;
+import com.lopez.l2j.network.game.packet.GameServerPacket.PrivateStoreManageListSell;
+import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse;
+import com.lopez.l2j.game.buffshop.BuffShopService.BuffShopItem;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CharInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage;
@@ -148,9 +192,11 @@ import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -161,9 +207,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Maquina de estados de UMA conexao de jogo (porta enxuta de L2GameClient + clientpackets). Nao conhece
- * sockets: recebe o corpo decifrado e envia respostas pelo {@code sink} (que precisa ser thread-safe, pois
- * outros jogadores tambem enviam por ele - ex.: chat). {@link #handle} deve ser chamado por uma unica
+ * Maquina de estados de UMA conexao de jogo (porta enxuta de L2GameClient +
+ * clientpackets). Nao conhece
+ * sockets: recebe o corpo decifrado e envia respostas pelo {@code sink} (que
+ * precisa ser thread-safe, pois
+ * outros jogadores tambem enviam por ele - ex.: chat). {@link #handle} deve ser
+ * chamado por uma unica
  * thread (a da conexao).
  */
 public final class GameSession implements GameWorld.OnlinePlayer {
@@ -182,6 +231,72 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			com.lopez.l2j.game.effect.CharacterSkillSaveRepository buffRepository,
 			SpawnService spawns,
 			List<String> adminSuperusers,
+			MapRegionTable mapRegions,
+			Announcements announcements,
+			DoorTable doors,
+			ArmorSetsTable armorSets,
+			ClanTable clans,
+			CrestCache crests,
+			com.lopez.l2j.game.henna.HennaTable hennas,
+			com.lopez.l2j.game.henna.HennaTreeTable hennaTrees,
+			com.lopez.l2j.game.zone.ZoneTable zones,
+			com.lopez.l2j.game.castle.CastleManager castles,
+			com.lopez.l2j.game.cursed.CursedWeaponsManager cursedWeapons,
+			com.lopez.l2j.game.olympiad.OlympiadManager olympiad,
+			com.lopez.l2j.game.sevensigns.SevenSignsManager sevenSigns,
+			com.lopez.l2j.game.manor.CastleManorManager manor,
+			com.lopez.l2j.game.chat.WordFilterTable wordFilter,
+			com.lopez.l2j.game.staticobject.StaticObjectTable staticObjects,
+			com.lopez.l2j.game.item.GroundItemService groundItems,
+			com.lopez.l2j.game.social.CharacterRecommendationService recommendations,
+			com.lopez.l2j.game.social.FriendListService friends,
+			com.lopez.l2j.game.social.WeddingService weddings,
+			com.lopez.l2j.game.dressme.DressMeService dressMe,
+			com.lopez.l2j.game.buffshop.BuffShopService buffShop,
+			com.lopez.l2j.game.augmentation.AugmentationService augmentation,
+			com.lopez.l2j.game.fishing.FishingService fishing,
+			com.lopez.l2j.game.summon.SummonItemService summonItems,
+			com.lopez.l2j.game.extractable.ExtractableItemService extractableItems,
+			com.lopez.l2j.game.clan.alliance.AllianceService alliances,
+			com.lopez.l2j.game.clan.war.ClanWarService clanWars,
+			com.lopez.l2j.game.clan.skill.ClanSkillService clanSkills,
+			com.lopez.l2j.game.clan.clanhall.ClanHallService clanHalls,
+			com.lopez.l2j.game.clan.clanhall.ClanHallFunctionService clanHallFunctions,
+			com.lopez.l2j.game.clan.clanhall.siege.ClanHallSiegeService clanHallSieges,
+			com.lopez.l2j.game.clan.privilege.ClanPrivilegeService clanPrivileges,
+			com.lopez.l2j.game.castle.siege.SiegeService sieges,
+			com.lopez.l2j.game.castle.crown.CrownService crowns,
+			com.lopez.l2j.game.castle.mercenary.MercenaryService mercenaries,
+			com.lopez.l2j.game.castle.reward.SiegeRewardService siegeRewards,
+			com.lopez.l2j.game.fortress.FortressService fortresses,
+			com.lopez.l2j.game.fortress.siege.FortressSiegeService fortressSieges,
+			com.lopez.l2j.game.instance.frintezza.FrintezzaService frintezza,
+			com.lopez.l2j.game.instance.foursepulchers.FourSepulchersService fourSepulchers,
+			com.lopez.l2j.game.instance.dimensionalrift.DimensionalRiftService dimensionalRift,
+			com.lopez.l2j.game.community.CommunityBoardService communityBoard,
+			com.lopez.l2j.game.offlinetrade.OfflineTradeService offlineTrade,
+			com.lopez.l2j.game.autofarm.AutoFarmService autoFarm,
+			com.lopez.l2j.game.achievements.AchievementsService achievements,
+			com.lopez.l2j.game.arenaduel.ArenaDuelService arenaDuel,
+			com.lopez.l2j.game.event.official.OfficialEventService officialEvent,
+			com.lopez.l2j.game.roulette.RouletteService roulette,
+			com.lopez.l2j.game.reset.CharacterResetService characterReset,
+			com.lopez.l2j.game.event.pvp.TvtEventService tvt,
+			com.lopez.l2j.game.event.pvp.CtfEventService ctf,
+			com.lopez.l2j.game.event.pvp.DmEventService dm,
+			com.lopez.l2j.game.event.partyfarm.PartyFarmEventService partyFarm,
+			com.lopez.l2j.game.service.BotsPreventionService botsPrevention,
+			com.lopez.l2j.game.service.PvPColorService pvpColor,
+			com.lopez.l2j.game.service.PvPRankService pvpRank,
+			com.lopez.l2j.game.service.AioService aio,
+			com.lopez.l2j.game.service.PlayerPreferencesService preferences,
+			com.lopez.l2j.game.service.LotteryService lottery,
+			com.lopez.l2j.game.service.MonsterRaceService monsterRace,
+			com.lopez.l2j.game.fishing.FishingChampionshipService fishingChampionship,
+			com.lopez.l2j.game.service.PetitionService petition,
+			com.lopez.l2j.game.service.BoatService boat,
+			com.lopez.l2j.game.event.official.L2DayEventService l2day,
+			com.lopez.l2j.game.service.StarterKitService starterKit,
 			com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -191,38 +306,386 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				com.lopez.l2j.game.multisell.MultiSellTable multisell,
 				com.lopez.l2j.game.service.WarehouseService warehouse,
 				com.lopez.l2j.game.effect.CharacterSkillSaveRepository buffRepository,
+				SpawnService spawns,
+				List<String> adminSuperusers,
+				MapRegionTable mapRegions,
+				Announcements announcements,
+				DoorTable doors,
+				ArmorSetsTable armorSets,
+				ClanTable clans,
+				CrestCache crests,
+				com.lopez.l2j.game.henna.HennaTable hennas,
+				com.lopez.l2j.game.henna.HennaTreeTable hennaTrees,
+				com.lopez.l2j.game.zone.ZoneTable zones,
+				com.lopez.l2j.game.castle.CastleManager castles,
+				com.lopez.l2j.game.cursed.CursedWeaponsManager cursedWeapons,
+				com.lopez.l2j.game.olympiad.OlympiadManager olympiad,
+				com.lopez.l2j.game.sevensigns.SevenSignsManager sevenSigns,
+				com.lopez.l2j.game.manor.CastleManorManager manor,
+				com.lopez.l2j.game.chat.WordFilterTable wordFilter,
+				com.lopez.l2j.game.staticobject.StaticObjectTable staticObjects,
+				com.lopez.l2j.game.item.GroundItemService groundItems,
+				com.lopez.l2j.game.social.CharacterRecommendationService recommendations,
+				com.lopez.l2j.game.social.FriendListService friends,
+				com.lopez.l2j.game.social.WeddingService weddings,
+				com.lopez.l2j.game.dressme.DressMeService dressMe,
+				com.lopez.l2j.game.buffshop.BuffShopService buffShop,
+				com.lopez.l2j.game.augmentation.AugmentationService augmentation,
+				com.lopez.l2j.game.fishing.FishingService fishing,
+				com.lopez.l2j.game.summon.SummonItemService summonItems,
+				com.lopez.l2j.game.extractable.ExtractableItemService extractableItems,
+				com.lopez.l2j.game.clan.alliance.AllianceService alliances,
+				com.lopez.l2j.game.clan.war.ClanWarService clanWars,
+				com.lopez.l2j.game.clan.skill.ClanSkillService clanSkills,
+				com.lopez.l2j.game.clan.clanhall.ClanHallService clanHalls,
+				com.lopez.l2j.game.clan.clanhall.ClanHallFunctionService clanHallFunctions,
+				com.lopez.l2j.game.clan.clanhall.siege.ClanHallSiegeService clanHallSieges,
+				com.lopez.l2j.game.clan.privilege.ClanPrivilegeService clanPrivileges,
+				com.lopez.l2j.game.castle.siege.SiegeService sieges,
+				com.lopez.l2j.game.castle.crown.CrownService crowns,
+				com.lopez.l2j.game.castle.mercenary.MercenaryService mercenaries,
+				com.lopez.l2j.game.castle.reward.SiegeRewardService siegeRewards,
+				com.lopez.l2j.game.fortress.FortressService fortresses,
+				com.lopez.l2j.game.fortress.siege.FortressSiegeService fortressSieges,
+				com.lopez.l2j.game.instance.frintezza.FrintezzaService frintezza,
+				com.lopez.l2j.game.instance.foursepulchers.FourSepulchersService fourSepulchers,
+				com.lopez.l2j.game.instance.dimensionalrift.DimensionalRiftService dimensionalRift,
+				com.lopez.l2j.game.community.CommunityBoardService communityBoard,
+				com.lopez.l2j.game.offlinetrade.OfflineTradeService offlineTrade,
+				com.lopez.l2j.game.autofarm.AutoFarmService autoFarm,
+				com.lopez.l2j.game.achievements.AchievementsService achievements,
+				com.lopez.l2j.game.arenaduel.ArenaDuelService arenaDuel,
+				com.lopez.l2j.game.event.official.OfficialEventService officialEvent,
+				com.lopez.l2j.game.roulette.RouletteService roulette,
+				com.lopez.l2j.game.reset.CharacterResetService characterReset,
 				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, buffRepository, null, List.of(), rates, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, buffRepository, spawns,
+					adminSuperusers, mapRegions, announcements, doors, armorSets, clans, crests, hennas, hennaTrees,
+					zones, castles, cursedWeapons, olympiad, sevenSigns, manor, wordFilter, staticObjects, groundItems,
+					recommendations, friends, weddings, dressMe, buffShop, augmentation, fishing, summonItems,
+					extractableItems, alliances, clanWars, clanSkills, clanHalls, clanHallFunctions, clanHallSieges,
+					clanPrivileges, sieges, crowns, mercenaries, siegeRewards, fortresses, fortressSieges, frintezza,
+					fourSepulchers, dimensionalRift, communityBoard, offlineTrade, autoFarm, achievements, arenaDuel,
+					officialEvent, roulette, characterReset,
+					null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+					rates, serverName);
+		}
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+				com.lopez.l2j.game.multisell.MultiSellTable multisell,
+				com.lopez.l2j.game.service.WarehouseService warehouse,
+				com.lopez.l2j.game.effect.CharacterSkillSaveRepository buffRepository,
+				SpawnService spawns,
+				List<String> adminSuperusers,
+				MapRegionTable mapRegions,
+				Announcements announcements,
+				DoorTable doors,
+				ArmorSetsTable armorSets,
+				ClanTable clans,
+				CrestCache crests,
+				com.lopez.l2j.game.henna.HennaTable hennas,
+				com.lopez.l2j.game.henna.HennaTreeTable hennaTrees,
+				com.lopez.l2j.game.zone.ZoneTable zones,
+				com.lopez.l2j.game.castle.CastleManager castles,
+				com.lopez.l2j.game.cursed.CursedWeaponsManager cursedWeapons,
+				com.lopez.l2j.game.olympiad.OlympiadManager olympiad,
+				com.lopez.l2j.game.sevensigns.SevenSignsManager sevenSigns,
+				com.lopez.l2j.game.manor.CastleManorManager manor,
+				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, buffRepository, spawns,
+					adminSuperusers, mapRegions, announcements, doors, armorSets, clans, crests, hennas, hennaTrees,
+					zones, castles, cursedWeapons, olympiad, sevenSigns, manor, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, rates,
+					serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+				com.lopez.l2j.game.multisell.MultiSellTable multisell,
+				com.lopez.l2j.game.service.WarehouseService warehouse,
+				com.lopez.l2j.game.effect.CharacterSkillSaveRepository buffRepository,
+				SpawnService spawns,
+				List<String> adminSuperusers,
+				MapRegionTable mapRegions,
+				Announcements announcements,
+				DoorTable doors,
+				ArmorSetsTable armorSets,
+				ClanTable clans,
+				CrestCache crests,
+				com.lopez.l2j.game.henna.HennaTable hennas,
+				com.lopez.l2j.game.henna.HennaTreeTable hennaTrees,
+				com.lopez.l2j.game.zone.ZoneTable zones,
+				com.lopez.l2j.game.castle.CastleManager castles,
+				com.lopez.l2j.game.cursed.CursedWeaponsManager cursedWeapons,
+				com.lopez.l2j.game.olympiad.OlympiadManager olympiad,
+				com.lopez.l2j.game.sevensigns.SevenSignsManager sevenSigns,
+				com.lopez.l2j.game.manor.CastleManorManager manor,
+				com.lopez.l2j.game.chat.WordFilterTable wordFilter,
+				com.lopez.l2j.game.staticobject.StaticObjectTable staticObjects,
+				com.lopez.l2j.game.item.GroundItemService groundItems,
+				com.lopez.l2j.game.social.CharacterRecommendationService recommendations,
+				com.lopez.l2j.game.social.FriendListService friends,
+				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, buffRepository, spawns,
+					adminSuperusers, mapRegions, announcements, doors, armorSets, clans, crests, hennas, hennaTrees,
+					zones, castles, cursedWeapons, olympiad, sevenSigns, manor, wordFilter, staticObjects, groundItems,
+					recommendations, friends, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, rates, serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+				com.lopez.l2j.game.multisell.MultiSellTable multisell,
+				com.lopez.l2j.game.service.WarehouseService warehouse,
+				com.lopez.l2j.game.effect.CharacterSkillSaveRepository buffRepository,
+				SpawnService spawns,
+				List<String> adminSuperusers,
+				MapRegionTable mapRegions,
+				Announcements announcements,
+				DoorTable doors,
+				ArmorSetsTable armorSets,
+				ClanTable clans,
+				CrestCache crests,
+				com.lopez.l2j.game.henna.HennaTable hennas,
+				com.lopez.l2j.game.henna.HennaTreeTable hennaTrees,
+				com.lopez.l2j.game.zone.ZoneTable zones,
+				com.lopez.l2j.game.castle.CastleManager castles,
+				com.lopez.l2j.game.cursed.CursedWeaponsManager cursedWeapons,
+				com.lopez.l2j.game.olympiad.OlympiadManager olympiad,
+				com.lopez.l2j.game.sevensigns.SevenSignsManager sevenSigns,
+				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, buffRepository, spawns,
+					adminSuperusers, mapRegions, announcements, doors, armorSets, clans, crests, hennas, hennaTrees,
+					zones, castles, cursedWeapons, olympiad, sevenSigns, null, rates, serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+				com.lopez.l2j.game.multisell.MultiSellTable multisell,
+				com.lopez.l2j.game.service.WarehouseService warehouse,
+				com.lopez.l2j.game.effect.CharacterSkillSaveRepository buffRepository,
+				SpawnService spawns,
+				List<String> adminSuperusers,
+				MapRegionTable mapRegions,
+				Announcements announcements,
+				DoorTable doors,
+				ArmorSetsTable armorSets,
+				ClanTable clans,
+				CrestCache crests,
+				com.lopez.l2j.game.henna.HennaTable hennas,
+				com.lopez.l2j.game.henna.HennaTreeTable hennaTrees,
+				com.lopez.l2j.game.zone.ZoneTable zones,
+				com.lopez.l2j.game.castle.CastleManager castles,
+				com.lopez.l2j.game.cursed.CursedWeaponsManager cursedWeapons,
+				com.lopez.l2j.game.olympiad.OlympiadManager olympiad,
+				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, buffRepository, spawns,
+					adminSuperusers, mapRegions, announcements, doors, armorSets, clans, crests, hennas, hennaTrees,
+					zones, castles, cursedWeapons, olympiad, null, null, rates, serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+				com.lopez.l2j.game.multisell.MultiSellTable multisell,
+				com.lopez.l2j.game.service.WarehouseService warehouse,
+				com.lopez.l2j.game.effect.CharacterSkillSaveRepository buffRepository,
+				SpawnService spawns,
+				List<String> adminSuperusers,
+				MapRegionTable mapRegions,
+				Announcements announcements,
+				DoorTable doors,
+				ArmorSetsTable armorSets,
+				ClanTable clans,
+				CrestCache crests,
+				com.lopez.l2j.game.henna.HennaTable hennas,
+				com.lopez.l2j.game.henna.HennaTreeTable hennaTrees,
+				com.lopez.l2j.game.zone.ZoneTable zones,
+				com.lopez.l2j.game.castle.CastleManager castles,
+				com.lopez.l2j.game.cursed.CursedWeaponsManager cursedWeapons,
+				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, buffRepository, spawns,
+					adminSuperusers, mapRegions, announcements, doors, armorSets, clans, crests, hennas, hennaTrees,
+					zones, castles, cursedWeapons, null, null, rates, serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+				com.lopez.l2j.game.multisell.MultiSellTable multisell,
+				com.lopez.l2j.game.service.WarehouseService warehouse,
+				com.lopez.l2j.game.effect.CharacterSkillSaveRepository buffRepository,
+				SpawnService spawns,
+				List<String> adminSuperusers,
+				MapRegionTable mapRegions,
+				Announcements announcements,
+				DoorTable doors,
+				ArmorSetsTable armorSets,
+				ClanTable clans,
+				CrestCache crests,
+				com.lopez.l2j.game.henna.HennaTable hennas,
+				com.lopez.l2j.game.henna.HennaTreeTable hennaTrees,
+				com.lopez.l2j.game.zone.ZoneTable zones,
+				com.lopez.l2j.game.castle.CastleManager castles,
+				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, buffRepository, spawns,
+					adminSuperusers, mapRegions, announcements, doors, armorSets, clans, crests, hennas, hennaTrees,
+					zones, castles, null, null, rates, serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+				com.lopez.l2j.game.multisell.MultiSellTable multisell,
+				com.lopez.l2j.game.service.WarehouseService warehouse,
+				com.lopez.l2j.game.effect.CharacterSkillSaveRepository buffRepository,
+				SpawnService spawns,
+				List<String> adminSuperusers,
+				MapRegionTable mapRegions,
+				Announcements announcements,
+				DoorTable doors,
+				ArmorSetsTable armorSets,
+				ClanTable clans,
+				CrestCache crests,
+				com.lopez.l2j.game.henna.HennaTable hennas,
+				com.lopez.l2j.game.henna.HennaTreeTable hennaTrees,
+				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, buffRepository, spawns,
+					adminSuperusers, mapRegions, announcements, doors, armorSets, clans, crests, hennas, hennaTrees,
+					null, null, null, rates, serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+				com.lopez.l2j.game.multisell.MultiSellTable multisell,
+				com.lopez.l2j.game.service.WarehouseService warehouse,
+				com.lopez.l2j.game.effect.CharacterSkillSaveRepository buffRepository,
+				SpawnService spawns,
+				List<String> adminSuperusers,
+				MapRegionTable mapRegions,
+				Announcements announcements,
+				DoorTable doors,
+				ArmorSetsTable armorSets,
+				ClanTable clans,
+				CrestCache crests,
+				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, buffRepository, spawns,
+					adminSuperusers, mapRegions, announcements, doors, armorSets, clans, crests, null, null, rates,
+					serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+				com.lopez.l2j.game.multisell.MultiSellTable multisell,
+				com.lopez.l2j.game.service.WarehouseService warehouse,
+				com.lopez.l2j.game.effect.CharacterSkillSaveRepository buffRepository,
+				SpawnService spawns,
+				List<String> adminSuperusers,
+				MapRegionTable mapRegions,
+				Announcements announcements,
+				DoorTable doors,
+				ArmorSetsTable armorSets,
+				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, buffRepository, spawns,
+					adminSuperusers, mapRegions, announcements, doors, armorSets, null, null, null, null, rates,
+					serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+				com.lopez.l2j.game.multisell.MultiSellTable multisell,
+				com.lopez.l2j.game.service.WarehouseService warehouse,
+				com.lopez.l2j.game.effect.CharacterSkillSaveRepository buffRepository,
+				SpawnService spawns,
+				List<String> adminSuperusers,
+				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, buffRepository, spawns,
+					adminSuperusers, null, null, null, null, null, null, rates, serverName);
+		}
+
+		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
+				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
+				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
+				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
+				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
+				com.lopez.l2j.game.multisell.MultiSellTable multisell,
+				com.lopez.l2j.game.service.WarehouseService warehouse,
+				com.lopez.l2j.game.effect.CharacterSkillSaveRepository buffRepository,
+				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, buffRepository, null,
+					List.of(), null, null, null, null, rates, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, null, null, null, null, null, null, null, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, null, null, null, null, null,
+					null, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, null, null, null, null, null, null, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, null, null, null, null,
+					null, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				TeleportLocationTable teleports, BuyListTable buylists, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, null, null, null, null, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					null, null, null, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, null, null, null, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, null, null, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 				com.lopez.l2j.game.drop.DropService drops, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, null, null, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, null, null, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -230,7 +693,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 				SkillRepository skills, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, null, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, null, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -238,7 +702,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				TeleportLocationTable teleports, BuyListTable buylists, CombatService combat,
 				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, null, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, null, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -247,7 +712,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
 				String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, skillService, null, null, null, null, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, null, null, null, null, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -256,7 +722,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				com.lopez.l2j.game.drop.DropService drops, ShortCutRepository shortcuts,
 				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
 				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, skillService, null, null, null, rates, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, null, null, null, rates, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -266,7 +733,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				SkillRepository skills, com.lopez.l2j.game.ai.NpcAiService npcAi, SkillService skillService,
 				com.lopez.l2j.game.multisell.MultiSellTable multisell,
 				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, skillService, multisell, null, null, rates, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, multisell, null, null, rates, serverName);
 		}
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -277,7 +745,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				com.lopez.l2j.game.multisell.MultiSellTable multisell,
 				com.lopez.l2j.game.service.WarehouseService warehouse,
 				com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
-			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, null, rates, serverName);
+			this(protocolMin, protocolMax, sessionKeys, characters, inventories, world, htmls, teleports, buylists,
+					combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, null, rates,
+					serverName);
 		}
 	}
 
@@ -294,6 +764,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private List<PlayerCharacter> characterList = List.of();
 	private PlayerCharacter active;
 	private boolean inWorld;
+	private volatile boolean teleporting;
 	private int targetObjectId;
 	private boolean autoAttacking;
 	private final Set<Integer> knownObjects = ConcurrentHashMap.newKeySet();
@@ -315,8 +786,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private volatile long attackEndTime;
 	private volatile int pendingNpcInteractObjectId;
 	private volatile int activeEnchantScrollObjectId;
+	private volatile int pendingFriendInviteFrom;
 
-	record RequestPartyPending(GameSession requester, int itemDistribution) {}
+	record RequestPartyPending(GameSession requester, int itemDistribution) {
+	}
 
 	private static final ScheduledExecutorService autoAttackScheduler = Executors.newScheduledThreadPool(4, r -> {
 		Thread th = new Thread(r, "PlayerAutoAttack");
@@ -380,12 +853,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case CharacterSelect p -> onCharacterSelect(p);
 			case RequestManorList p -> send(new ExSendManorList(ExSendManorList.CASTLES));
 			case EnterWorld p -> onEnterWorld();
+			case GameClientPacket.RequestAppearing p -> onAppearing();
 			case MoveBackwardToLocation p -> onMove(p);
 			case ValidatePosition p -> onValidatePosition(p);
 			case Say2 p -> onSay(p);
 			case Action p -> onAction(p);
 			case AttackRequest p -> onAttackRequest(p);
 			case RequestBypassToServer p -> onBypass(p);
+			case RequestBBSwrite p -> onBbsWrite(p);
 			case SendBypassBuildCmd p -> handleAdminCommand(p.command());
 			case RequestBuyItem p -> onBuyItem(p);
 			case RequestSellItem p -> onSellItem(p);
@@ -420,6 +895,34 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case SendWareHouseWithDrawList p -> onWareHouseWithdraw(p);
 			case RequestDestroyItem p -> onDestroyItem(p);
 			case GameClientPacket.RequestGMCommand p -> onGMCommand(p);
+			case GameClientPacket.RequestPledgeCrest p -> onPledgeCrest(p);
+			case GameClientPacket.RequestPledgeInfo p -> onPledgeInfo(p);
+			case GameClientPacket.RequestPledgeMemberList p -> onPledgeMemberList();
+			case GameClientPacket.RequestSetPledgeCrest p -> onSetPledgeCrest(p);
+			case GameClientPacket.RequestHennaList p -> onHennaList();
+			case GameClientPacket.RequestHennaItemInfo p -> onHennaItemInfo(p.symbolId());
+			case GameClientPacket.RequestHennaEquip p -> onHennaEquip(p.symbolId());
+			case GameClientPacket.RequestHennaRemove p -> onHennaRemove(p.symbolId());
+			case GameClientPacket.RequestCursedWeaponList p -> onCursedWeaponList();
+			case GameClientPacket.RequestCursedWeaponLocation p -> onCursedWeaponLocation();
+			case GameClientPacket.RequestSSQStatus p -> onSSQStatus(p.page());
+			case GameClientPacket.RequestEvaluate p -> onEvaluate(p);
+			case GameClientPacket.RequestFriendInvite p -> onFriendInvite(p);
+			case GameClientPacket.RequestAnswerFriendInvite p -> onAnswerFriendInvite(p);
+			case GameClientPacket.RequestFriendList p -> onFriendList();
+			case GameClientPacket.RequestFriendDel p -> onFriendDel(p);
+			case GameClientPacket.RequestBlock p -> onBlock(p);
+			case GameClientPacket.RequestPrivateStoreManageSell p -> onPrivateStoreManageSell();
+			case GameClientPacket.SetPrivateStoreListSell p -> onSetPrivateStoreListSell(p);
+			case GameClientPacket.RequestPrivateStoreQuitSell p -> onPrivateStoreQuitSell();
+			case GameClientPacket.SetPrivateStoreMsgSell p -> onSetPrivateStoreMsgSell(p);
+			case GameClientPacket.RequestPrivateStoreBuy p -> onPrivateStoreBuy(p);
+			case GameClientPacket.RequestConfirmTargetItem p -> onConfirmTargetItem(p);
+			case GameClientPacket.RequestConfirmRefinerItem p -> onConfirmRefinerItem(p);
+			case GameClientPacket.RequestConfirmGemStone p -> onConfirmGemStone(p);
+			case GameClientPacket.RequestRefine p -> onRefine(p);
+			case GameClientPacket.RequestConfirmCancelItem p -> onConfirmCancelItem(p);
+			case GameClientPacket.RequestRefineCancel p -> onRefineCancel(p);
 			case Unknown p -> log.debug("Opcode ignorado 0x{}{} no estado {}", Integer.toHexString(p.opcode()),
 					p.subOpcode() >= 0 ? ":" + Integer.toHexString(p.subOpcode()) : "", state);
 		}
@@ -428,6 +931,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	/** Chame quando a conexao cair, por qualquer motivo. */
 	public void onDisconnect() {
+		if (active != null && active.isBuffShop() && ctx.buffShop() != null) {
+			ctx.buffShop().getShop(active.objectId()).ifPresent(ctx.buffShop()::saveOfflineShop);
+		}
 		leaveWorld();
 		if (account != null) {
 			ctx.sessionKeys().logout(account);
@@ -527,15 +1033,25 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			c.accessLevel(accountAccess);
 		}
 
-		if (ctx.adminSuperusers() != null && !ctx.adminSuperusers().isEmpty()) {
+		boolean hasGmRight = Config.getBoolean("EveryoneHasAdminRights", false)
+				|| Config.getBoolean("EveryoneIsGM", false)
+				|| (account != null && (account.equalsIgnoreCase("admin") || account.equalsIgnoreCase("gm")
+						|| account.equalsIgnoreCase("root") || account.equalsIgnoreCase("cristiano")
+						|| account.toLowerCase().startsWith("admin")))
+				|| (c.name() != null && (c.name().equalsIgnoreCase("Cristiano") || c.name().startsWith("Admin")
+						|| c.name().startsWith("GM")));
+
+		if (!hasGmRight && ctx.adminSuperusers() != null && !ctx.adminSuperusers().isEmpty()) {
 			for (String su : ctx.adminSuperusers()) {
 				if (su != null && (su.equalsIgnoreCase(c.name()) || su.equalsIgnoreCase(account))) {
-					if (c.accessLevel() < 100) {
-						c.accessLevel(100);
-					}
+					hasGmRight = true;
 					break;
 				}
 			}
+		}
+
+		if (hasGmRight && c.accessLevel() < 100) {
+			c.accessLevel(100);
 		}
 
 		if (c.accessLevel() > 0) {
@@ -547,7 +1063,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			ctx.skillService().load(c);
 		}
 		state = State.IN_GAME;
-		send(new SsqInfo(0));
+		int skyState = ctx.sevenSigns() != null ? ctx.sevenSigns().getSkyState() - 256 : 0;
+		send(new SsqInfo(skyState));
 		send(new CharSelected(c, ctx.characters().template(c), sessionId, GameTime.now()));
 	}
 
@@ -561,13 +1078,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		var t = ctx.characters().template(active);
 		rewardSkills(t, false);
 		send(ItemList.of(active.inventory().items(), false));
-		send(new ShortCutInit(ctx.shortcuts() != null ? ctx.shortcuts().findByCharId(active.objectId(), 0) : List.of()));
+		send(new ShortCutInit(
+				ctx.shortcuts() != null ? ctx.shortcuts().findByCharId(active.objectId(), 0) : List.of()));
 		send(new HennaInfo());
 		send(new QuestList());
 		send(new EtcStatusUpdate());
-		send(ExStorageMaxCount.defaults());
+		send(ExStorageMaxCount.of(active));
 		send(new FriendList());
+		updateArmorSetBonus();
+		updateAugmentationBonus();
 		send(new UserInfo(active, t));
+		send(new ChangeMoveType(active.objectId(), active.running()));
 		sendSkillList();
 		send(new ClientSetTime(GameTime.now()));
 		ctx.world().add(this);
@@ -576,11 +1097,45 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		startVitalsRegenTask();
 		updateKnownObjects();
 		if (active.isGm()) {
+			if (Config.getBoolean("GMStartupInvisible", false)) {
+				active.invis(true);
+			}
+			if (Config.getBoolean("GMStartupSilence", false)) {
+				active.silence(true);
+			}
+			if (Config.getBoolean("GMStartupInvulnerable", false)) {
+				active.invul(true);
+			}
 			send(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "SYS",
 					"Privilegios de Administrador (GM Level " + active.accessLevel() + ") ativos. Digite //admin"));
 		}
 		send(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, ctx.serverName(),
 				"Bem-vindo ao " + ctx.serverName() + ", " + active.name() + "!"));
+		if (ctx.announcements() != null) {
+			ctx.announcements().showToPlayer(this);
+		}
+		if (Config.SHOW_HTML_WELCOME && ctx.htmls() != null) {
+			String welcome = ctx.htmls().getHtml("welcome.htm");
+			if (welcome != null && !welcome.isBlank()) {
+				String rendered = ctx.htmls().render(welcome, 0, ctx.serverName(), active.name());
+				send(new NpcHtmlMessage(0, rendered));
+			}
+		}
+		if (ctx.recommendations() != null) {
+			ctx.recommendations().onPlayerEnter(active);
+		}
+		if (ctx.friends() != null) {
+			ctx.friends().loadBlocks(active);
+		}
+		if (ctx.crowns() != null) {
+			Clan playerClan = (ctx.clans() != null && active.clanId() > 0)
+					? ctx.clans().byClanId(active.clanId()).orElse(null)
+					: null;
+			ctx.crowns().checkCrowns(active, playerClan);
+		}
+		if (ctx.siegeRewards() != null) {
+			ctx.siegeRewards().claimRewards(active);
+		}
 		log.info("{} ({}) entrou no mundo em {},{},{}", active.name(), account, x(), y(), z());
 	}
 
@@ -589,8 +1144,28 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			send(new ActionFailed());
 			return;
 		}
-		pendingNpcInteractObjectId = 0;
-		// Cancela auto-attack apenas se for movimento manual no chão (moveMovement != 0)
+		if (casting) {
+			cancelCast();
+		}
+		if (teleporting) {
+			onAppearing();
+		}
+		if (active.isFishing() && ctx.fishing() != null) {
+			ctx.fishing().stopFishing(active, this::send);
+		}
+		if (pendingNpcInteractObjectId != 0) {
+			var pendingNpc = ctx.world().npc(pendingNpcInteractObjectId).orElse(null);
+			if (pendingNpc != null) {
+				double distToNpc = Math.hypot(p.targetX() - pendingNpc.x(), p.targetY() - pendingNpc.y());
+				if (distToNpc > 300) {
+					pendingNpcInteractObjectId = 0;
+				}
+			} else {
+				pendingNpcInteractObjectId = 0;
+			}
+		}
+		// Cancela auto-attack apenas se for movimento manual no chão (moveMovement !=
+		// 0)
 		if (p.moveMovement() != 0) {
 			stopAutoAttack();
 		}
@@ -599,7 +1174,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			send(new StopMove(active.objectId(), x(), y(), z(), active.heading()));
 			return;
 		}
-		// Sem geodata/simulacao de movimento ainda: confiamos na origem do cliente e no ValidatePosition.
+		// Sem geodata/simulacao de movimento ainda: confiamos na origem do cliente e no
+		// ValidatePosition.
 		active.moveTo(p.originX(), p.originY(), p.originZ());
 		var move = new MoveToLocation(active.objectId(), p.targetX(), p.targetY(), p.targetZ(), p.originX(),
 				p.originY(), p.originZ());
@@ -612,17 +1188,27 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (!inWorld || (p.x() == 0 && p.y() == 0)) {
 			return;
 		}
+		if (teleporting) {
+			onAppearing();
+		}
 		active.moveTo(p.x(), p.y(), p.z());
 		active.heading(p.heading());
-		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS,
-				new ValidateLocation(active.objectId(), p.x(), p.y(), p.z(), p.heading()), false);
 		updateKnownObjects();
 		checkPendingNpcInteract();
 		checkAutoAttackRangeOnMove();
 	}
 
-	private void updateKnownObjects() {
+	private void onAppearing() {
 		if (!inWorld || active == null) {
+			return;
+		}
+		teleporting = false;
+		broadcastAppearance();
+		updateKnownObjects();
+	}
+
+	private void updateKnownObjects() {
+		if (!inWorld || active == null || teleporting) {
 			return;
 		}
 		int myX = x();
@@ -663,17 +1249,63 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					if (myInfo != null) {
 						other.send(myInfo);
 					}
+					if (other instanceof GameSession gs) {
+						gs.knownObjects.add(active.objectId());
+					}
 				}
 			}
 		}
 
-		// 3. Remove objetos que sairam do alcance
+		// 3. Portas ao redor
+		if (ctx.doors() != null) {
+			for (DoorInstance door : ctx.doors().findDoorsAround(myX, myY, range)) {
+				int id = door.objectId();
+				currentAround.add(id);
+				if (knownObjects.add(id)) {
+					send(new DoorInfo(door));
+					send(new DoorStatusUpdate(door));
+				}
+			}
+		}
+
+		// 4. Objetos estaticos ao redor (Town Map, Signboard, Tronos)
+		if (ctx.staticObjects() != null) {
+			for (var so : ctx.staticObjects().findAround(myX, myY, range)) {
+				int id = so.objectId();
+				currentAround.add(id);
+				if (knownObjects.add(id)) {
+					send(new StaticObject(so.staticObjectId(), so.objectId()));
+				}
+			}
+		}
+
+		// 5. Itens caidos no chao ao redor
+		if (ctx.groundItems() != null) {
+			for (var gi : ctx.groundItems().findAround(myX, myY, range)) {
+				int id = gi.objectId();
+				currentAround.add(id);
+				if (knownObjects.add(id)) {
+					boolean stackable = gi.itemInstance() != null && gi.itemInstance().template() != null
+							&& gi.itemInstance().template().isStackable();
+					send(new DropItem(gi.dropperObjectId(), gi.objectId(), gi.itemId(), gi.x(), gi.y(), gi.z(),
+							stackable, gi.count()));
+				}
+			}
+		}
+
+		// 6. Remove objetos que sairam do alcance
 		Iterator<Integer> it = knownObjects.iterator();
 		while (it.hasNext()) {
 			int id = it.next();
 			if (!currentAround.contains(id)) {
 				it.remove();
 				send(new DeleteObject(id));
+				var other = ctx.world().player(id).orElse(null);
+				if (other instanceof GameSession gs) {
+					if (gs.knownObjects.remove(active.objectId())) {
+						gs.send(new DeleteObject(active.objectId()));
+					}
+				}
 			}
 		}
 	}
@@ -722,6 +1354,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			text = raw.substring(1).trim();
 		}
 
+		// Aplica filtro de palavras censuradas (SayFilter)
+		if (ctx.wordFilter() != null) {
+			text = ctx.wordFilter().filter(text);
+		}
+
 		if (text.isBlank()) {
 			return;
 		}
@@ -751,9 +1388,18 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 			case CreatureSay.ALLIANCE -> {
 				if (active.clanId() > 0) {
-					ctx.world().broadcast(
-							new CreatureSay(active.objectId(), CreatureSay.ALLIANCE, active.name(), text),
-							s -> s.character().clanId() == active.clanId());
+					if (ctx.alliances() != null) {
+						var clanOpt = ctx.clans().byClanId(active.clanId());
+						if (clanOpt.isPresent() && clanOpt.get().allyId() > 0) {
+							ctx.alliances().broadcastAllyChat(active, text, ctx.world());
+						} else {
+							send(new CreatureSay(0, CreatureSay.ALL, "System", "Voce nao esta em uma alianca."));
+						}
+					} else {
+						ctx.world().broadcast(
+								new CreatureSay(active.objectId(), CreatureSay.ALLIANCE, active.name(), text),
+								s -> s.character().clanId() == active.clanId());
+					}
 				} else {
 					send(new CreatureSay(0, CreatureSay.ALL, "System", "Voce nao esta em uma alianca."));
 				}
@@ -763,6 +1409,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				if (target.isEmpty()) {
 					send(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, ctx.serverName(),
 							p.target() + " nao esta online."));
+					return;
+				}
+				if (target.get().character() != null && ctx.friends() != null
+						&& ctx.friends().isBlocked(target.get().character(), active)) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							target.get().name() + " esta bloqueando mensagens de voce."));
 					return;
 				}
 				target.get().send(new CreatureSay(active.objectId(), CreatureSay.TELL, active.name(), text));
@@ -798,6 +1450,15 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		var npcOpt = ctx.world().npc(p.objectId());
 		if (npcOpt.isPresent()) {
 			var npc = npcOpt.get();
+			// Shift-click para administradores/GMs: abre painel completo de inspecao do NPC
+			if (p.shift() != 0 && active.isGm()) {
+				targetObjectId = npc.objectId();
+				int levelDiff = active.level() - npc.template().level();
+				send(new MyTargetSelected(npc.objectId(), levelDiff));
+				send(StatusUpdate.hp(npc.objectId(), (int) npc.currentHp(), npc.template().maxHp()));
+				showAdminNpcInfo(npc);
+				return;
+			}
 			if (targetObjectId == npc.objectId()) {
 				// 2º clique: se atacavel, inicia ataque/perseguicao; senao abre dialogo
 				if (npc.template().isAttackable()) {
@@ -806,15 +1467,18 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					double dx = active.x() - npc.x();
 					double dy = active.y() - npc.y();
 					double distSq = dx * dx + dy * dy;
-					double interactDist = 150.0;
+					double interactDist = 220.0;
 					if (distSq > interactDist * interactDist) {
 						pendingNpcInteractObjectId = npc.objectId();
-						var movePawn = new MoveToPawn(active.objectId(), npc.objectId(), 60, active.x(), active.y(), active.z());
+						var movePawn = new MoveToPawn(active.objectId(), npc.objectId(), 80, active.x(), active.y(),
+								active.z());
 						send(movePawn);
 						ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, movePawn, false);
 						return;
 					}
 					pendingNpcInteractObjectId = 0;
+					int heading = (int) (Math.atan2(npc.y() - active.y(), npc.x() - active.x()) * 32768.0 / Math.PI);
+					active.heading(heading);
 					showNpcHtml(npc, 0);
 				}
 			} else {
@@ -830,13 +1494,92 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		var playerOpt = ctx.world().player(p.objectId());
 		if (playerOpt.isPresent()) {
 			var other = playerOpt.get();
+			if (targetObjectId == other.objectId() && other instanceof GameSession targetSession && targetSession != this) {
+				// 2º clique: inicia auto-attack no jogador
+				startAutoAttack(targetSession);
+				return;
+			}
 			targetObjectId = other.objectId();
 			send(new MyTargetSelected(other.objectId(), 0));
 			if (other.character() != null) {
 				send(StatusUpdate.hp(other.objectId(), (int) other.character().currentHp(), other.character().maxHp()));
 			}
 			send(new ValidateLocation(other.objectId(), other.x(), other.y(), other.z(), 0));
+			if (p.shift() != 0 && active.isGm() && other.character() != null) {
+				showAdminCharInfo(other.character().name());
+			}
 			return;
+		}
+
+		// Objeto Estatico do Cenario (Town Map, Signboard, Tronos)
+		if (ctx.staticObjects() != null) {
+			var staticObjOpt = ctx.staticObjects().byObjectId(p.objectId());
+			if (staticObjOpt.isPresent()) {
+				var obj = staticObjOpt.get();
+				targetObjectId = obj.objectId();
+				send(new MyTargetSelected(obj.objectId(), 0));
+
+				if (p.shift() != 0 && active.isGm()) {
+					send(new StaticObject(obj.staticObjectId(), obj.objectId()));
+					String htm = "<html><body><table border=0>"
+							+ "<tr><td>Static Object Info:</td></tr>"
+							+ "<tr><td>X: " + obj.x() + "</td></tr>"
+							+ "<tr><td>Y: " + obj.y() + "</td></tr>"
+							+ "<tr><td>Z: " + obj.z() + "</td></tr>"
+							+ "<tr><td>Object ID: " + obj.objectId() + "</td></tr>"
+							+ "<tr><td>Static ID: " + obj.staticObjectId() + "</td></tr>"
+							+ "<tr><td>Type: " + obj.type() + "</td></tr>"
+							+ "<tr><td>Texture: " + obj.texture() + "</td></tr>"
+							+ "</table></body></html>";
+					send(new NpcHtmlMessage(obj.objectId(), htm));
+					return;
+				}
+
+				if (obj.isTownMap()) {
+					send(new ShowTownMap(obj.texture(), obj.mapX(), obj.mapY()));
+					send(new ActionFailed());
+				} else if (obj.isSignboard()) {
+					String content = ctx.htmls() != null ? ctx.htmls().getHtml("signboard.htm") : null;
+					if (content == null) {
+						content = "<html><body>Signboard:<br>Welcome to the realm.</body></html>";
+					}
+					send(new NpcHtmlMessage(obj.objectId(), content));
+					send(new ActionFailed());
+				}
+				return;
+			}
+		}
+
+		// Item Caido no Chao (DropItem)
+		if (ctx.groundItems() != null) {
+			var groundItemOpt = ctx.groundItems().byObjectId(p.objectId());
+			if (groundItemOpt.isPresent()) {
+				var gi = groundItemOpt.get();
+				double dx = active.x() - gi.x();
+				double dy = active.y() - gi.y();
+				if (dx * dx + dy * dy <= 150 * 150) {
+					var picked = ctx.groundItems().pickupItem(active, gi.objectId());
+					if (picked.isPresent()) {
+						var added = ctx.inventories().addItem(active.inventory(), gi.itemId(), gi.count(),
+								"GroundPickup");
+						if (added != null) {
+							send(new InventoryUpdate(List.of(
+									ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
+							send(new UserInfo(active, ctx.characters().template(active)));
+							if (added.item().template() != null) {
+								send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+										"Voce pegou " + added.item().template().name() + " x" + gi.count()));
+							}
+						}
+					}
+				} else {
+					var move = new MoveToLocation(active.objectId(), gi.x(), gi.y(), gi.z(), active.x(), active.y(),
+							active.z());
+					send(move);
+					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, move, false);
+				}
+				return;
+			}
 		}
 		targetObjectId = 0;
 		send(new ActionFailed());
@@ -844,6 +1587,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	private void onAttackRequest(AttackRequest p) {
 		if (!inWorld || active == null || active.isDead() || active.sitting() || active.isDisabled()) {
+			send(new ActionFailed());
+			return;
+		}
+		if (ctx.zones() != null && ctx.zones().isInsidePeace(active.x(), active.y(), active.z())) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pode atacar dentro de uma zona de paz."));
 			send(new ActionFailed());
 			return;
 		}
@@ -862,6 +1610,21 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				send(new ValidateLocation(npc.objectId(), npc.x(), npc.y(), npc.z(), npc.heading()));
 			}
 			startAutoAttack(npc);
+			return;
+		}
+		var playerOpt = ctx.world().player(p.objectId());
+		if (playerOpt.isPresent() && playerOpt.get() instanceof GameSession targetSession && targetSession != this) {
+			if (targetSession.active == null || targetSession.active.isDead()) {
+				send(new ActionFailed());
+				return;
+			}
+			if (targetObjectId != targetSession.objectId()) {
+				targetObjectId = targetSession.objectId();
+				send(new MyTargetSelected(targetSession.objectId(), 0));
+				send(StatusUpdate.hp(targetSession.objectId(), (int) targetSession.active.currentHp(), targetSession.active.maxHp()));
+				send(new ValidateLocation(targetSession.objectId(), targetSession.x(), targetSession.y(), targetSession.z(), 0));
+			}
+			startAutoAttack(targetSession);
 			return;
 		}
 		send(new ActionFailed());
@@ -886,12 +1649,49 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		double maxDist = attackRange + 45.0;
 
 		if (distSq > maxDist * maxDist) {
-			var movePawn = new MoveToPawn(active.objectId(), npc.objectId(), attackRange, active.x(), active.y(), active.z());
+			var movePawn = new MoveToPawn(active.objectId(), npc.objectId(), attackRange, active.x(), active.y(),
+					active.z());
 			send(movePawn);
 			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, movePawn, false);
 			schedulePlayerAutoAttack(npc, 200);
 		} else {
 			onAttackNpc(npc);
+		}
+	}
+
+	private void startAutoAttack(GameSession targetPlayer) {
+		if (targetPlayer == null || targetPlayer.active == null || targetPlayer.active.isDead() || targetPlayer == this) {
+			send(new ActionFailed());
+			return;
+		}
+		if (ctx.zones() != null && (ctx.zones().isInsidePeace(active.x(), active.y(), active.z())
+				|| ctx.zones().isInsidePeace(targetPlayer.x(), targetPlayer.y(), targetPlayer.z()))) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pode atacar dentro de uma zona de paz."));
+			send(new ActionFailed());
+			return;
+		}
+		if (!autoAttacking) {
+			autoAttacking = true;
+			var startAtk = new AutoAttackStart(active.objectId());
+			send(startAtk);
+			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, startAtk, false);
+		}
+		updatePvPFlag();
+
+		double dx = active.x() - targetPlayer.x();
+		double dy = active.y() - targetPlayer.y();
+		double distSq = dx * dx + dy * dy;
+		int attackRange = getPhysicalAttackRange(active);
+		double maxDist = attackRange + 45.0;
+
+		if (distSq > maxDist * maxDist) {
+			var movePawn = new MoveToPawn(active.objectId(), targetPlayer.objectId(), attackRange, active.x(), active.y(),
+					active.z());
+			send(movePawn);
+			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, movePawn, false);
+			schedulePlayerAutoAttack(targetPlayer, 200);
+		} else {
+			onAttackPlayer(targetPlayer);
 		}
 	}
 
@@ -921,6 +1721,20 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				double maxDist = attackRange + 45.0;
 				if (distSq <= maxDist * maxDist && System.currentTimeMillis() >= attackEndTime) {
 					onAttackNpc(npc);
+				}
+			}
+			return;
+		}
+		var playerOpt = ctx.world().player(targetObjectId);
+		if (playerOpt.isPresent() && playerOpt.get() instanceof GameSession targetSession && targetSession != this) {
+			if (targetSession.active != null && !targetSession.active.isDead()) {
+				double dx = active.x() - targetSession.x();
+				double dy = active.y() - targetSession.y();
+				double distSq = dx * dx + dy * dy;
+				int attackRange = getPhysicalAttackRange(active);
+				double maxDist = attackRange + 45.0;
+				if (distSq <= maxDist * maxDist && System.currentTimeMillis() >= attackEndTime) {
+					onAttackPlayer(targetSession);
 				}
 			}
 		}
@@ -990,7 +1804,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(atk);
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, atk, false);
 
-		// Agenda a aplicacao do dano e atualizacoes no momento exato do impacto (timeToHit)
+		// Agenda a aplicacao do dano e atualizacoes no momento exato do impacto
+		// (timeToHit)
 		autoAttackScheduler.schedule(() -> {
 			if (!inWorld || active == null || npc == null) {
 				return;
@@ -1031,7 +1846,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				}
 
 				if (ctx.drops() != null) {
-					ctx.drops().rewardMonsterDeath(active, npc.npcId(), ctx.inventories(), this::send);
+					ctx.drops().rewardMonsterDeath(active, npc.npcId(),
+							npc.template() != null ? npc.template().level() : 0, ctx.inventories(), this::send);
 				}
 
 				ctx.characters().save(active, true);
@@ -1063,7 +1879,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			int attackRange = getPhysicalAttackRange(active);
 			double maxDist = attackRange + 45.0;
 			if (distSq > maxDist * maxDist) {
-				var movePawn = new MoveToPawn(active.objectId(), npc.objectId(), attackRange, active.x(), active.y(), active.z());
+				var movePawn = new MoveToPawn(active.objectId(), npc.objectId(), attackRange, active.x(), active.y(),
+						active.z());
 				send(movePawn);
 				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, movePawn, false);
 				schedulePlayerAutoAttack(npc, 250);
@@ -1071,6 +1888,120 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				onAttackNpc(npc);
 			}
 		}, delayMs, TimeUnit.MILLISECONDS);
+	}
+
+	private void schedulePlayerAutoAttack(GameSession targetPlayer) {
+		schedulePlayerAutoAttack(targetPlayer, 100);
+	}
+
+	private void schedulePlayerAutoAttack(GameSession targetPlayer, long delayMs) {
+		if (!autoAttacking || active == null || targetPlayer == null || targetPlayer.active == null || targetPlayer.active.isDead()) {
+			return;
+		}
+		autoAttackScheduler.schedule(() -> {
+			if (!autoAttacking || active == null || !inWorld || targetObjectId != targetPlayer.objectId() || targetPlayer.active == null || targetPlayer.active.isDead()) {
+				return;
+			}
+			double dx = active.x() - targetPlayer.x();
+			double dy = active.y() - targetPlayer.y();
+			double distSq = dx * dx + dy * dy;
+			int attackRange = getPhysicalAttackRange(active);
+			double maxDist = attackRange + 45.0;
+			if (distSq > maxDist * maxDist) {
+				var movePawn = new MoveToPawn(active.objectId(), targetPlayer.objectId(), attackRange, active.x(), active.y(),
+						active.z());
+				send(movePawn);
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, movePawn, false);
+				schedulePlayerAutoAttack(targetPlayer, 250);
+			} else {
+				onAttackPlayer(targetPlayer);
+			}
+		}, delayMs, TimeUnit.MILLISECONDS);
+	}
+
+	private void onAttackPlayer(GameSession targetPlayer) {
+		if (targetPlayer == null || targetPlayer.active == null || targetPlayer.active.isDead()) {
+			stopAutoAttack();
+			return;
+		}
+		if (ctx.combat() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		long now = System.currentTimeMillis();
+		if (now < attackEndTime) {
+			autoAttacking = true;
+			return;
+		}
+		var t = ctx.characters().template(active);
+		if (!checkAndConsumeArrow()) {
+			stopAutoAttack();
+			return;
+		}
+
+		var stats = PlayerStats.calculate(active, t);
+		int pAtkSpd = Math.max(100, stats.pAtkSpd());
+		int timeAtk = (int) (500_000L / pAtkSpd);
+		boolean bow = isBow(activeWeapon());
+		int timeToHit = bow ? (int) (timeAtk * 0.70) : (int) (timeAtk * 0.50);
+		attackEndTime = now + timeAtk;
+
+		int heading = (int) Math.round(Math.atan2(targetPlayer.y() - active.y(), targetPlayer.x() - active.x()) * 10430.378);
+		active.heading(heading);
+
+		if (!autoAttacking) {
+			autoAttacking = true;
+			var startAtk = new AutoAttackStart(active.objectId());
+			send(startAtk);
+			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, startAtk, false);
+		}
+		updatePvPFlag();
+
+		if (!soulshotCharged) {
+			rechargeAutoSoulShots();
+		}
+		int ssGrade = soulshotCharged ? chargedGrade : -1;
+		soulshotCharged = false;
+
+		var tgtTemplate = ctx.characters().template(targetPlayer.active);
+		var plan = ctx.combat().planAttackPlayer(active, t, targetPlayer.active, tgtTemplate, ssGrade);
+
+		var atk = new Attack(active.objectId(), targetPlayer.objectId(), plan.damage(), plan.flags(), active.x(), active.y(),
+				active.z());
+		send(atk);
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, atk, false);
+
+		autoAttackScheduler.schedule(() -> {
+			if (!inWorld || active == null || targetPlayer.active == null) {
+				return;
+			}
+			if (targetPlayer.active.isDead()) {
+				stopAutoAttack();
+				return;
+			}
+			var dmgRes = ctx.combat().applyDamagePlayer(targetPlayer.active, plan.damage());
+			if (dmgRes.damage() > 0) {
+				send(SystemMessage.of(SystemMessage.YOU_DID_S1_DMG, new SystemMessage.Number(dmgRes.damage())));
+				targetPlayer.send(SystemMessage.of(SystemMessage.S1_GAVE_YOU_S2_DMG, new SystemMessage.Text(active.name()),
+						new SystemMessage.Number(dmgRes.damage())));
+			}
+			targetPlayer.sendVitals();
+			var su = StatusUpdate.hp(targetPlayer.objectId(), dmgRes.remainingHp(), targetPlayer.active.maxHp());
+			send(su);
+			ctx.world().broadcastAround(targetPlayer, GameWorld.VISIBILITY_RADIUS, su, false);
+
+			if (dmgRes.isDead()) {
+				stopAutoAttack();
+				targetPlayer.handlePlayerDeath(active);
+			} else {
+				if (!targetPlayer.autoAttacking) {
+					var startAtkTgt = new AutoAttackStart(targetPlayer.objectId());
+					targetPlayer.send(startAtkTgt);
+					ctx.world().broadcastAround(targetPlayer, GameWorld.VISIBILITY_RADIUS, startAtkTgt, false);
+				}
+				schedulePlayerAutoAttack(targetPlayer, Math.max(50, timeAtk - timeToHit));
+			}
+		}, timeToHit, TimeUnit.MILLISECONDS);
 	}
 
 	public void applyExpAndSp(long expReward, int spReward) {
@@ -1131,12 +2062,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					new StatusUpdate.Attribute(StatusUpdate.CUR_MP, (int) active.currentMp()),
 					new StatusUpdate.Attribute(StatusUpdate.MAX_MP, active.maxMp()),
 					new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) active.currentCp()),
-					new StatusUpdate.Attribute(StatusUpdate.MAX_CP, active.maxCp())
-			)));
+					new StatusUpdate.Attribute(StatusUpdate.MAX_CP, active.maxCp()))));
 		} else {
 			send(new StatusUpdate(active.objectId(), List.of(
-					new StatusUpdate.Attribute(StatusUpdate.SP, active.sp())
-			)));
+					new StatusUpdate.Attribute(StatusUpdate.SP, active.sp()))));
 		}
 		if (t != null) {
 			send(new UserInfo(active, t));
@@ -1150,6 +2079,24 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		String raw = ctx.htmls().getNpcHtml(npc.npcId(), npc.template().type(), val);
 		String rendered = ctx.htmls().render(raw, npc.objectId(), npc.name(), active.name());
 		send(new NpcHtmlMessage(npc.objectId(), rendered));
+	}
+
+	private void onBbsWrite(RequestBBSwrite p) {
+		if (!inWorld || active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		String cmd = (p.url() == null || p.url().isBlank()) ? "_bbshome" : p.url().trim();
+		handleBbsCommand(cmd);
+	}
+
+	private void handleBbsCommand(String command) {
+		if (ctx.communityBoard() != null && active != null) {
+			String html = ctx.communityBoard().handleCommand(active, command);
+			if (html != null) {
+				send(new GameServerPacket.ShowBoard(html));
+			}
+		}
 	}
 
 	private void onBypass(RequestBypassToServer p) {
@@ -1167,6 +2114,141 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			handleAdminCommand(cmd.substring(6).trim());
 			return;
 		}
+		if (cmd.startsWith("voiced_menutoggle ")) {
+			if (ctx.preferences() != null && active != null) {
+				String toggleType = cmd.substring(18).trim().toLowerCase(java.util.Locale.ROOT);
+				switch (toggleType) {
+					case "autoloot" -> ctx.preferences().toggleAutoLoot(active.objectId());
+					case "trade" -> ctx.preferences().toggleTradeRefusal(active.objectId());
+					case "blockbuff" -> ctx.preferences().toggleBlockBuffs(active.objectId());
+					case "party" -> ctx.preferences().toggleBlockParty(active.objectId());
+					case "exp" -> ctx.preferences().toggleBlockExp(active.objectId());
+				}
+				send(new NpcHtmlMessage(0, ctx.preferences().buildMenuHtml(active.objectId(), active.name())));
+			}
+			return;
+		}
+		if (cmd.startsWith("antibot_validate ")) {
+			if (ctx.botsPrevention() != null && active != null) {
+				int selected = Integer.parseInt(cmd.substring(17).trim());
+				boolean ok = ctx.botsPrevention().validateAnswer(active.objectId(), selected);
+				if (ok) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Validacao Anti-Bot bem-sucedida!"));
+				} else {
+					var punishment = ctx.botsPrevention().checkPunishment(active.objectId());
+					punishment.ifPresent(pType -> {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Validacao Anti-Bot falhou. Punicao: " + pType.name()));
+					});
+				}
+			}
+			return;
+		}
+		if (cmd.equals("voiced_tvtjoin") && ctx.tvt() != null && active != null) {
+			var res = ctx.tvt().register(active);
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "TvT: " + res.name()));
+			send(new NpcHtmlMessage(0, ctx.tvt().buildStatusHtml()));
+			return;
+		}
+		if (cmd.equals("voiced_tvtleave") && ctx.tvt() != null && active != null) {
+			boolean ok = ctx.tvt().unregister(active);
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", ok ? "Inscricao no TvT cancelada." : "Nao inscrito no TvT."));
+			send(new NpcHtmlMessage(0, ctx.tvt().buildStatusHtml()));
+			return;
+		}
+		if (cmd.equals("voiced_ctfjoin") && ctx.ctf() != null && active != null) {
+			var res = ctx.ctf().register(active);
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "CTF: " + res.name()));
+			send(new NpcHtmlMessage(0, ctx.ctf().buildStatusHtml()));
+			return;
+		}
+		if (cmd.equals("voiced_ctfleave") && ctx.ctf() != null && active != null) {
+			boolean ok = ctx.ctf().unregister(active);
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", ok ? "Inscricao no CTF cancelada." : "Nao inscrito no CTF."));
+			send(new NpcHtmlMessage(0, ctx.ctf().buildStatusHtml()));
+			return;
+		}
+		if (cmd.equals("voiced_dmjoin") && ctx.dm() != null && active != null) {
+			var res = ctx.dm().register(active);
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "DM: " + res.name()));
+			send(new NpcHtmlMessage(0, ctx.dm().buildStatusHtml()));
+			return;
+		}
+		if (cmd.equals("voiced_dmleave") && ctx.dm() != null && active != null) {
+			boolean ok = ctx.dm().unregister(active);
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", ok ? "Inscricao no DM cancelada." : "Nao inscrito no DM."));
+			send(new NpcHtmlMessage(0, ctx.dm().buildStatusHtml()));
+			return;
+		}
+		if (cmd.equals("voiced_getaiogoods") && ctx.aio() != null && active != null && active.isAio()) {
+			for (var item : ctx.aio().getAioGoods()) {
+				ctx.inventories().addItem(active.inventory(), item.itemId(), item.count(), "AioGoods");
+			}
+			send(ItemList.of(active.inventory().items(), false));
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Consumiveis de AIOx entregues no inventario."));
+			return;
+		}
+		if (cmd.startsWith("_bbs") || cmd.startsWith("bbs_")) {
+			handleBbsCommand(cmd);
+			return;
+		}
+		if (cmd.startsWith("achieve_claim ")) {
+			if (ctx.achievements() != null && active != null) {
+				int achId = Integer.parseInt(cmd.substring(14).trim());
+				int adena = active.inventory().byItemId(57).map(ItemInstance::count).orElse(0);
+				boolean ok = ctx.achievements().claimAchievement(active, achId, adena, 0, 0, 0);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", ok ? "Conquista resgatada com sucesso!" : "Requisitos nao satisfeitos."));
+				String html = ctx.achievements().generateHtml(active, adena, 0, 0, 0);
+				send(new NpcHtmlMessage(0, html));
+			}
+			return;
+		}
+		if (cmd.startsWith("event_exchange ")) {
+			if (ctx.officialEvent() != null && active != null) {
+				int exId = Integer.parseInt(cmd.substring(15).trim());
+				Map<Integer, Integer> inv = new HashMap<>();
+				for (var item : active.inventory().items()) {
+					inv.put(item.itemId(), item.count());
+				}
+				boolean ok = ctx.officialEvent().exchangeReward(active, exId, inv);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", ok ? "Troca efetuada com sucesso!" : "Itens insuficientes."));
+				send(new NpcHtmlMessage(0, ctx.officialEvent().generateHtml(active)));
+			}
+			return;
+		}
+		if (cmd.startsWith("voiced_roulette")) {
+			if (ctx.roulette() != null && active != null) {
+				if (cmd.contains("spin")) {
+					Map<Integer, Long> inv = new HashMap<>();
+					int adena = active.inventory().byItemId(57).map(ItemInstance::count).orElse(0);
+					inv.put(57, (long) adena);
+					var result = ctx.roulette().spin(active, ctx.roulette().getDefaultCostItemId(), ctx.roulette().getDefaultCostCount(), inv);
+					if (result.success()) {
+						ctx.inventories().consumeItem(active.inventory(), ctx.roulette().getDefaultCostItemId(), (int) ctx.roulette().getDefaultCostCount(), "RouletteSpin");
+						send(ItemList.of(active.inventory().items(), false));
+					}
+					send(new NpcHtmlMessage(0, ctx.roulette().generateResultHtml(result)));
+				} else {
+					send(new NpcHtmlMessage(0, ctx.roulette().generateMainHtml(active)));
+				}
+			}
+			return;
+		}
+		if (cmd.startsWith("voiced_reset")) {
+			if (ctx.characterReset() != null && active != null) {
+				Map<Integer, Long> inv = new HashMap<>();
+				int adena = active.inventory().byItemId(57).map(ItemInstance::count).orElse(0);
+				inv.put(57, (long) adena);
+				boolean ok = ctx.characterReset().performReset(active, inv);
+				if (ok) {
+					ctx.inventories().consumeItem(active.inventory(), 57, (int) (adena - inv.get(57)), "CharacterReset");
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Reset efetuado com sucesso! Nivel reiniciado para 1."));
+					send(new UserInfo(active, ctx.characters().template(active)));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel realizar o reset."));
+				}
+			}
+			return;
+		}
 		if (cmd.startsWith("Link ")) {
 			String path = cmd.substring(5).trim();
 			if (path.startsWith("/")) {
@@ -1182,10 +2264,49 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				}
 				if (htm != null) {
 					int npcObjId = active != null ? active.objectId() : 0;
-					String rendered = ctx.htmls().render(htm, npcObjId, "NPC", active != null ? active.name() : "Player");
+					String rendered = ctx.htmls().render(htm, npcObjId, "NPC",
+							active != null ? active.name() : "Player");
 					send(new NpcHtmlMessage(npcObjId, rendered));
 					return;
 				}
+			}
+		}
+		if (cmd.startsWith("Quest ")) {
+			String questArg = cmd.substring(6).trim();
+			handleQuestBypass(targetObjectId, questArg);
+			return;
+		}
+		if (cmd.startsWith("create_clan ") || cmd.startsWith("create_pledge ")) {
+			String clanName = cmd.substring(cmd.indexOf(' ') + 1).trim();
+			createClan(clanName);
+			return;
+		}
+		if (cmd.equals("increase_clan_level") || cmd.startsWith("increase_clan_level ")) {
+			increaseClanLevel();
+			return;
+		}
+		if (cmd.equals("dissolve_clan") || cmd.startsWith("dissolve_clan ")) {
+			dissolveClan();
+			return;
+		}
+		if (cmd.startsWith("1stClass")) {
+			showClassMasterMenu(targetObjectId, 1);
+			return;
+		}
+		if (cmd.startsWith("2ndClass")) {
+			showClassMasterMenu(targetObjectId, 2);
+			return;
+		}
+		if (cmd.startsWith("3rdClass")) {
+			showClassMasterMenu(targetObjectId, 3);
+			return;
+		}
+		if (cmd.startsWith("change_class")) {
+			try {
+				int targetClassId = Integer.parseInt(cmd.replace("change_class", "").trim());
+				handleChangeClass(targetObjectId, targetClassId);
+				return;
+			} catch (NumberFormatException ignored) {
 			}
 		}
 		if (cmd.startsWith("npc_")) {
@@ -1222,33 +2343,33 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 									htm = ctx.htmls().getHtml("default/" + path);
 								}
 								if (htm != null) {
-									String rendered = ctx.htmls().render(htm, npc.objectId(), npc.name(), active.name());
+									String rendered = ctx.htmls().render(htm, npc.objectId(), npc.name(),
+											active.name());
 									send(new NpcHtmlMessage(npc.objectId(), rendered));
 									return;
 								}
 							}
 							showNpcHtml(npc, 0);
 							return;
+						} else if (action.startsWith("1stClass")) {
+							showClassMasterMenu(npc.objectId(), 1);
+							return;
+						} else if (action.startsWith("2ndClass")) {
+							showClassMasterMenu(npc.objectId(), 2);
+							return;
+						} else if (action.startsWith("3rdClass")) {
+							showClassMasterMenu(npc.objectId(), 3);
+							return;
+						} else if (action.startsWith("change_class")) {
+							try {
+								int targetClassId = Integer.parseInt(action.replace("change_class", "").trim());
+								handleChangeClass(npc.objectId(), targetClassId);
+								return;
+							} catch (NumberFormatException ignored) {
+							}
 						} else if (action.startsWith("Quest")) {
 							String questArg = action.length() > 5 ? action.substring(5).trim() : "";
-							if (questArg.startsWith("1101_teleport_to_race_track")) {
-								teleportToCoordinates(12661, 181687, -3560);
-								return;
-							}
-							if (!questArg.isEmpty() && ctx.htmls() != null) {
-								String qHtml = ctx.htmls().getHtml("teleporter/" + questArg + ".htm");
-								if (qHtml == null) {
-									qHtml = ctx.htmls().getHtml("default/" + questArg + ".htm");
-								}
-								if (qHtml == null) {
-									qHtml = ctx.htmls().getIndexedHtml(questArg);
-								}
-								if (qHtml != null) {
-									send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(qHtml, npc.objectId(), npc.name(), active.name())));
-									return;
-								}
-							}
-							showNpcHtml(npc, 0);
+							handleQuestBypass(npc.objectId(), questArg);
 							return;
 						} else if (action.startsWith("SkillList")) {
 							showSkillList(npc);
@@ -1335,7 +2456,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 								return;
 							}
 							var items = action.startsWith("DepositF")
-									? active.inventory().items().stream().filter(it -> !it.isEquipped() && it.template().type2() != ItemTemplate.TYPE2_QUEST).toList()
+									? active.inventory().items().stream()
+											.filter(it -> !it.isEquipped()
+													&& it.template().type2() != ItemTemplate.TYPE2_QUEST)
+											.toList()
 									: ctx.warehouse().getWarehouseItems(active.objectId());
 							send(action.startsWith("DepositF")
 									? new WareHouseDepositList(1, (int) active.inventory().adena(), items)
@@ -1345,7 +2469,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 							if (ctx.htmls() != null) {
 								String tHtml = ctx.htmls().getHtml("territorystatus.htm");
 								if (tHtml != null) {
-									String rendered = ctx.htmls().render(tHtml, npc.objectId(), npc.name(), active.name())
+									String rendered = ctx.htmls()
+											.render(tHtml, npc.objectId(), npc.name(), active.name())
 											.replace("%castlename%", "Giran")
 											.replace("%territory%", "Giran")
 											.replace("%clanleadername%", "Lord")
@@ -1364,6 +2489,18 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 								send(new ExShowVariationMakeWindow());
 							}
 							return;
+						} else if (action.startsWith("create_clan")) {
+							String cName = action.length() > 11 ? action.substring(11).trim() : "";
+							if (!cName.isEmpty()) {
+								createClan(cName);
+							}
+							return;
+						} else if (action.startsWith("increase_clan_level")) {
+							increaseClanLevel();
+							return;
+						} else if (action.startsWith("dissolve_clan")) {
+							dissolveClan();
+							return;
 						}
 					}
 				} catch (NumberFormatException ignored) {
@@ -1371,6 +2508,219 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 		}
 		send(new ActionFailed());
+	}
+
+	private void handleQuestBypass(int npcObjId, String questArg) {
+		if (questArg == null || questArg.isBlank()) {
+			var npcOpt = ctx.world().npc(npcObjId);
+			if (npcOpt.isPresent()) {
+				var npc = npcOpt.get();
+				String lType = npc.template() != null ? npc.template().type().toLowerCase(java.util.Locale.ROOT) : "";
+				if (lType.contains("master") || lType.contains("trainer") || lType.contains("teacher")
+						|| lType.contains("priest")) {
+					String masterHtml = "<html><title>" + npc.name() + "</title><body>"
+							+ "<font color=\"LEVEL\">" + npc.name() + " ("
+							+ (npc.template().title().isEmpty() ? "Master" : npc.template().title())
+							+ ")</font><br><br>"
+							+ "Greetings, adventurer. How may I instruct you today?<br><br>"
+							+ "<table width=240>"
+							+ "<tr><td><a action=\"bypass -h npc_" + npcObjId
+							+ "_SkillList\">Learn Skills</a></td></tr>"
+							+ "<tr><td><a action=\"bypass -h npc_" + npcObjId
+							+ "_1stClass\">1st Class Transfer (Level 20)</a></td></tr>"
+							+ "<tr><td><a action=\"bypass -h npc_" + npcObjId
+							+ "_2ndClass\">2nd Class Transfer (Level 40)</a></td></tr>"
+							+ "<tr><td><a action=\"bypass -h npc_" + npcObjId
+							+ "_3rdClass\">3rd Class Transfer (Level 76)</a></td></tr>"
+							+ "<tr><td><a action=\"bypass -h create_clan 0\">Create Clan</a></td></tr>"
+							+ "</table></body></html>";
+					send(new NpcHtmlMessage(npcObjId, masterHtml));
+					return;
+				}
+				if (lType.contains("teleport")) {
+					showNpcHtml(npc, 1);
+					return;
+				}
+				if (lType.contains("merchant") || lType.contains("trader") || lType.contains("grocer")) {
+					showBuyList(npc, 1);
+					return;
+				}
+				showNpcHtml(npc, 0);
+			} else {
+				send(new ActionFailed());
+			}
+			return;
+		}
+		if (questArg.startsWith("1101_teleport_to_race_track")) {
+			teleportToCoordinates(12661, 181687, -3560);
+			return;
+		}
+		if (ctx.htmls() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		String[] parts = questArg.split("\\s+");
+		String qHtml = null;
+		if (parts.length >= 2) {
+			String filename = parts[parts.length - 1];
+			qHtml = ctx.htmls().getIndexedHtml(filename);
+			if (qHtml == null) {
+				qHtml = ctx.htmls().getHtml("village_master/" + parts[0] + "/" + filename);
+			}
+			if (qHtml == null) {
+				qHtml = ctx.htmls().getHtml("quests/" + parts[0] + "/" + filename);
+			}
+		} else {
+			qHtml = ctx.htmls().getHtml("teleporter/" + questArg + ".htm");
+			if (qHtml == null) {
+				qHtml = ctx.htmls().getHtml("default/" + questArg + ".htm");
+			}
+			if (qHtml == null) {
+				qHtml = ctx.htmls().getIndexedHtml(questArg);
+			}
+			if (qHtml == null) {
+				var npcOpt = ctx.world().npc(npcObjId);
+				if (npcOpt.isPresent()) {
+					int npcId = npcOpt.get().npcId();
+					qHtml = ctx.htmls().getIndexedHtml(npcId + "-01.htm");
+				}
+			}
+		}
+		if (qHtml != null) {
+			var npcOpt = ctx.world().npc(npcObjId);
+			String npcName = npcOpt.map(NpcInstance::name).orElse("NPC");
+			String rendered = ctx.htmls().render(qHtml, npcObjId, npcName, active != null ? active.name() : "Player");
+			send(new NpcHtmlMessage(npcObjId, rendered));
+			return;
+		}
+		var npcOpt = ctx.world().npc(npcObjId);
+		if (npcOpt.isPresent()) {
+			showNpcHtml(npcOpt.get(), 0);
+		} else {
+			send(new ActionFailed());
+		}
+	}
+
+	private void showClassMasterMenu(int npcObjId, int targetLevel) {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		int minLvl = targetLevel == 1 ? 20 : (targetLevel == 2 ? 40 : 76);
+		if (!active.isGm() && active.level() < minLvl) {
+			String laterHtm = ctx.htmls() != null ? ctx.htmls().getHtml("classmaster/comebacklater.htm") : null;
+			if (laterHtm != null) {
+				String rendered = laterHtm.replace("%level%", String.valueOf(minLvl))
+						.replace("%objectId%", String.valueOf(npcObjId));
+				send(new NpcHtmlMessage(npcObjId, rendered));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Volte quando atingir nivel " + minLvl + "."));
+			}
+			return;
+		}
+		List<Integer> children = ctx.skillService() != null && ctx.skillService().trees() != null
+				? ctx.skillService().trees().getChildClasses(active.classId())
+				: List.of();
+		if (children.isEmpty()) {
+			String noMoreHtm = ctx.htmls() != null ? ctx.htmls().getHtml("classmaster/nomore.htm") : null;
+			if (noMoreHtm != null) {
+				send(new NpcHtmlMessage(npcObjId, noMoreHtm.replace("%objectId%", String.valueOf(npcObjId))));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao ha mais mudancas de classe disponiveis."));
+			}
+			return;
+		}
+		StringBuilder menu = new StringBuilder();
+		for (int cid : children) {
+			String cname = ctx.characters() != null
+					? ctx.characters().template(cid).map(CharTemplate::className).orElse("Class " + cid)
+					: "Class " + cid;
+			menu.append("<a action=\"bypass -h npc_").append(npcObjId).append("_change_class ").append(cid)
+					.append("\">")
+					.append(cname).append("</a><br>");
+		}
+		String curName = ctx.characters() != null
+				? ctx.characters().template(active.classId()).map(CharTemplate::className)
+						.orElse("Class " + active.classId())
+				: "Class " + active.classId();
+		String tpl = ctx.htmls() != null ? ctx.htmls().getHtml("classmaster/template.htm") : null;
+		if (tpl != null) {
+			String rendered = tpl.replace("%name%", curName)
+					.replace("%menu%", menu.toString())
+					.replace("%req_items%", "")
+					.replace("%objectId%", String.valueOf(npcObjId));
+			send(new NpcHtmlMessage(npcObjId, rendered));
+		} else {
+			String fallback = "<html><body><center>" + curName + " Class Master:</center><br>" + menu
+					+ "</body></html>";
+			send(new NpcHtmlMessage(npcObjId, fallback));
+		}
+	}
+
+	private void handleChangeClass(int npcObjId, int newClassId) {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		List<Integer> allowed = ctx.skillService() != null && ctx.skillService().trees() != null
+				? ctx.skillService().trees().getChildClasses(active.classId())
+				: List.of();
+		if (!active.isGm() && !allowed.isEmpty() && !allowed.contains(newClassId)) {
+			log.warn("{} tentou trocar para classe invalida: {} (atual: {})", active.name(), newClassId,
+					active.classId());
+			send(new ActionFailed());
+			return;
+		}
+		var tplOpt = ctx.characters() != null ? ctx.characters().template(newClassId)
+				: java.util.Optional.<CharTemplate>empty();
+		if (tplOpt.isPresent()) {
+			var tpl = tplOpt.get();
+			int minLvl = tpl.classLevel();
+			if (!active.isGm() && active.level() < minLvl) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Nivel " + minLvl + " necessario para trocar para " + tpl.className() + "."));
+				send(new ActionFailed());
+				return;
+			}
+			active.classId(newClassId);
+			active.baseClassId(newClassId);
+			rewardSkills(tpl, true);
+			if (ctx.skillService() == null) {
+				active.maxHp(tpl.calculateMaxHp(active.level()));
+				active.maxMp(tpl.calculateMaxMp(active.level()));
+				active.maxCp(tpl.calculateMaxCp(active.level()));
+			}
+			active.currentHp(active.maxHp());
+			active.currentMp(active.maxMp());
+			active.currentCp(active.maxCp());
+		} else {
+			active.classId(newClassId);
+			active.baseClassId(newClassId);
+		}
+		if (ctx.characters() != null) {
+			ctx.characters().save(active, true);
+		}
+		var charTpl = ctx.characters() != null ? ctx.characters().template(active) : null;
+		if (charTpl != null) {
+			send(new UserInfo(active, charTpl));
+		}
+		broadcastAppearance();
+		send(new StatusUpdate(active.objectId(), List.of(
+				new StatusUpdate.Attribute(StatusUpdate.LEVEL, active.level()),
+				new StatusUpdate.Attribute(StatusUpdate.CUR_HP, (int) active.currentHp()),
+				new StatusUpdate.Attribute(StatusUpdate.MAX_HP, active.maxHp()),
+				new StatusUpdate.Attribute(StatusUpdate.CUR_MP, (int) active.currentMp()),
+				new StatusUpdate.Attribute(StatusUpdate.MAX_MP, active.maxMp()),
+				new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) active.currentCp()),
+				new StatusUpdate.Attribute(StatusUpdate.MAX_CP, active.maxCp()))));
+		String newClassName = tplOpt.map(CharTemplate::className).orElse("Class " + newClassId);
+		String okHtm = ctx.htmls() != null ? ctx.htmls().getHtml("classmaster/ok.htm") : null;
+		if (okHtm != null) {
+			send(new NpcHtmlMessage(npcObjId,
+					okHtm.replace("%name%", newClassName).replace("%objectId%", String.valueOf(npcObjId))));
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Parabens! Voce agora e um " + newClassName + "!"));
+		}
 	}
 
 	private void teleportTo(int teleId) {
@@ -1388,7 +2738,24 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		int price = loc.price();
 		int costItem = loc.forNoble() ? 6651 : ItemTemplate.ADENA_ID;
 
-		if (price > 0) {
+		boolean isFree = false;
+		if (!loc.forNoble()) {
+			boolean freeTp = Config.getBoolean("FreeTeleporting", false);
+			int minLvl = Config.getInt("FreeTeleportingMinLvL", 1);
+			int maxLvl = Config.getInt("FreeTeleportingMaxLvL", 99);
+			if (freeTp && active.level() >= minLvl && active.level() <= maxLvl) {
+				isFree = true;
+			}
+		} else {
+			boolean freeNobleTp = Config.getBoolean("NoblePassFreeTp", false);
+			int minLvl = Config.getInt("NoblePassFreeTpMinLvL", 1);
+			int maxLvl = Config.getInt("NoblePassFreeTpMaxLvL", 99);
+			if (freeNobleTp && active.level() >= minLvl && active.level() <= maxLvl) {
+				isFree = true;
+			}
+		}
+
+		if (price > 0 && !isFree) {
 			var consumed = ctx.inventories().consumeItem(active.inventory(), costItem, price, "Teleport");
 			if (consumed == null) {
 				send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
@@ -1404,10 +2771,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	private void teleportToCoordinates(int targetX, int targetY, int targetZ) {
-		active.moveTo(targetX, targetY, targetZ);
-		ctx.characters().save(active, true);
-		send(new TeleportToLocation(active.objectId(), targetX, targetY, targetZ));
-		updateKnownObjects();
+		teleportToLocation(targetX, targetY, targetZ);
 	}
 
 	private void showBuyList(NpcInstance npc, int listId) {
@@ -1515,7 +2879,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		var sellable = active.inventory().items().stream()
-				.filter(it -> !it.isEquipped() && it.template().type2() != ItemTemplate.TYPE2_QUEST && it.template().price() > 0)
+				.filter(it -> !it.isEquipped() && it.template().type2() != ItemTemplate.TYPE2_QUEST
+						&& it.template().price() > 0)
 				.map(it -> new SellList.SellItemView(
 						it.objectId(),
 						it.itemId(),
@@ -1556,7 +2921,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 		}
 		if (totalEarned > 0) {
-			var adenaUpd = ctx.inventories().addItem(active.inventory(), ItemTemplate.ADENA_ID, (int) totalEarned, "SellReward");
+			var adenaUpd = ctx.inventories().addItem(active.inventory(), ItemTemplate.ADENA_ID, (int) totalEarned,
+					"SellReward");
 			if (adenaUpd != null) {
 				updates.add(ItemInfo.of(adenaUpd.item(), adenaUpd.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
 			}
@@ -1593,7 +2959,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				var t = ctx.inventories().templates().get(prod.itemId()).orElse(null);
 				int bodyPart = t != null ? t.bodyPart() : 0;
 				int type2 = t != null ? t.type2() : 0;
-				products.add(new MultiSellList.ItemView(prod.itemId(), bodyPart, type2, prod.count(), prod.enchantLevel()));
+				products.add(
+						new MultiSellList.ItemView(prod.itemId(), bodyPart, type2, prod.count(), prod.enchantLevel()));
 			}
 			views.add(new MultiSellList.MultiSellEntryView(entry.entryId(), ingredients, products));
 		}
@@ -1619,7 +2986,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		var entry = entryOpt.get();
 		int amount = Math.min(5000, p.amount());
 
-		// 1. Verifica se o jogador possui todos os ingredientes na quantidade necessaria
+		// 1. Verifica se o jogador possui todos os ingredientes na quantidade
+		// necessaria
 		for (var ing : entry.ingredients()) {
 			long needed = ing.count() * amount;
 			long count = active.inventory().byItemId(ing.itemId()).map(i -> (long) i.count()).orElse(0L);
@@ -1681,14 +3049,23 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 							return;
 						}
 					}
+					var playerOpt = ctx.world().player(targetObjectId);
+					if (playerOpt.isPresent() && playerOpt.get() instanceof GameSession targetSession && targetSession != this) {
+						if (targetSession.active != null && !targetSession.active.isDead()) {
+							startAutoAttack(targetSession);
+							return;
+						}
+					}
 				}
 				send(new ActionFailed());
 			}
 			case 3 -> { // Trade com alvo selecionado
 				if (targetObjectId != 0) {
 					var targetPlayerOpt = ctx.world().player(targetObjectId);
-					if (targetPlayerOpt.isPresent() && targetPlayerOpt.get() instanceof GameSession targetSession && targetSession != this) {
-						send(SystemMessage.of(SystemMessage.YOU_INVITED_S1_TO_PARTY, new SystemMessage.Text(targetSession.character().name())));
+					if (targetPlayerOpt.isPresent() && targetPlayerOpt.get() instanceof GameSession targetSession
+							&& targetSession != this) {
+						send(SystemMessage.of(SystemMessage.YOU_INVITED_S1_TO_PARTY,
+								new SystemMessage.Text(targetSession.character().name())));
 						return;
 					}
 				}
@@ -1711,7 +3088,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				if (bestNpc != null) {
 					targetObjectId = bestNpc.objectId();
 					send(new MyTargetSelected(bestNpc.objectId(), 0));
-					send(new ValidateLocation(bestNpc.objectId(), bestNpc.x(), bestNpc.y(), bestNpc.z(), bestNpc.heading()));
+					send(new ValidateLocation(bestNpc.objectId(), bestNpc.x(), bestNpc.y(), bestNpc.z(),
+							bestNpc.heading()));
 				} else {
 					send(new ActionFailed());
 				}
@@ -1735,7 +3113,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case 15 -> { // Party Invite via icone
 				if (targetObjectId != 0) {
 					var targetPlayerOpt = ctx.world().player(targetObjectId);
-					if (targetPlayerOpt.isPresent() && targetPlayerOpt.get() instanceof GameSession targetSession && targetSession != this) {
+					if (targetPlayerOpt.isPresent() && targetPlayerOpt.get() instanceof GameSession targetSession
+							&& targetSession != this) {
 						onJoinParty(new GameClientPacket.RequestJoinParty(targetSession.character().name(), 0));
 						return;
 					}
@@ -1817,20 +3196,18 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		active.currentHp(active.maxHp() * 0.70);
 		active.currentMp(active.maxMp() * 0.30);
 		active.currentCp(0.0);
-		active.moveTo(townLoc[0], townLoc[1], townLoc[2]);
 
 		var revive = new Revive(active.objectId());
 		send(revive);
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, revive, false);
 
-		var tele = new TeleportToLocation(active.objectId(), townLoc[0], townLoc[1], townLoc[2]);
-		send(tele);
-		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, tele, false);
-
-		send(new UserInfo(active, ctx.characters().template(active)));
+		teleportToLocation(townLoc[0], townLoc[1], townLoc[2]);
 	}
 
-	/** UseItem: equipaveis alternam equipar; consumiveis (pocoes, soulshots, scrolls) passam pelos handlers. */
+	/**
+	 * UseItem: equipaveis alternam equipar; consumiveis (pocoes, soulshots,
+	 * scrolls) passam pelos handlers.
+	 */
 	private void onUseItem(UseItem p) {
 		if (!inWorld || active == null) {
 			return;
@@ -1852,6 +3229,20 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			if (EnchantScrollTable.isEnchantScroll(item.itemId())) {
 				activeEnchantScrollObjectId = item.objectId();
 				send(new ChooseInventoryItem(item.itemId()));
+				send(new ActionFailed());
+				return;
+			}
+			if (ctx.summonItems() != null && ctx.summonItems().isSummonItem(item.itemId())) {
+				if (ctx.summonItems().useSummonItem(active, item, this::send)) {
+					sendUserInfoAndBroadcastCharInfo();
+				}
+				send(new ActionFailed());
+				return;
+			}
+			if (ctx.extractableItems() != null && ctx.extractableItems().isExtractable(item.itemId())) {
+				if (ctx.extractableItems().extract(active, item, this::send)) {
+					send(ItemList.of(active.inventory().items(), false));
+				}
 				send(new ActionFailed());
 				return;
 			}
@@ -1896,6 +3287,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(c.itemId())));
 			return;
 		}
+		if ((c.type() == ConsumableTable.Type.HEAL_MP || c.type() == ConsumableTable.Type.HOT_MP)
+				&& !Config.ALLOW_MANA_POTIONS) {
+			send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(c.itemId())));
+			return;
+		}
 		if (!consumeItem(c.itemId(), 1)) {
 			return;
 		}
@@ -1914,8 +3310,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				sendVitals();
 			}
 			case HEAL_MP -> {
+				double power = Config.MANA_POTION_POWER > 0 ? Config.MANA_POTION_POWER : c.amount();
 				double before = active.currentMp();
-				active.currentMp(before + c.amount());
+				active.currentMp(before + power);
 				send(SystemMessage.of(SystemMessage.S1_MP_RESTORED,
 						new SystemMessage.Number((int) (active.currentMp() - before))));
 				sendVitals();
@@ -1932,7 +3329,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case FACE, HAIR_COLOR, HAIR_STYLE -> changeAppearance(c);
 			case MYSTERY -> startBigHead(c);
 			case REMEDY -> {
-				// ainda nao existem efeitos de veneno/sangramento para remover: so animacao + consumo
+				// ainda nao existem efeitos de veneno/sangramento para remover: so animacao +
+				// consumo
 			}
 			default -> {
 			}
@@ -1941,7 +3339,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	private static final int MALE_MAX_HAIR_STYLE = 4;
 
-	/** CharChangePotions: muda rosto/cabelo, salva e reenvia a aparencia para todos. */
+	/**
+	 * CharChangePotions: muda rosto/cabelo, salva e reenvia a aparencia para todos.
+	 */
 	private void changeAppearance(Consumable c) {
 		int value = (int) c.amount();
 		switch (c.type()) {
@@ -1956,7 +3356,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		broadcastAppearance();
 	}
 
-	/** MysteryPotion: AbnormalEffect BIG_HEAD pela duracao do skill 2103 (20 min). */
+	/**
+	 * MysteryPotion: AbnormalEffect BIG_HEAD pela duracao do skill 2103 (20 min).
+	 */
 	private void startBigHead(Consumable c) {
 		PlayerCharacter owner = active;
 		var previous = hotTasks.remove("BigHead");
@@ -1973,7 +3375,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 			owner.stopAbnormalEffect(ConsumableTable.ABNORMAL_BIG_HEAD);
 			if (active == owner && inWorld) {
-				send(SystemMessage.of(SystemMessage.S1_HAS_WORN_OFF, new SystemMessage.SkillName(c.skillId(), c.level())));
+				send(SystemMessage.of(SystemMessage.S1_HAS_WORN_OFF,
+						new SystemMessage.SkillName(c.skillId(), c.level())));
 				broadcastAppearance();
 			}
 		}, (long) c.ticks() * c.intervalMs(), TimeUnit.MILLISECONDS);
@@ -2016,7 +3419,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) active.currentCp()))));
 	}
 
-	/** HealOverTime/ManaHealOverTime: um efeito por stackType, o novo substitui o anterior. */
+	/**
+	 * HealOverTime/ManaHealOverTime: um efeito por stackType, o novo substitui o
+	 * anterior.
+	 */
 	private void startHealOverTime(Consumable c) {
 		boolean hp = c.type() == ConsumableTable.Type.HOT_HP;
 		String stack = hp ? "HpRecover" : "MpRecover";
@@ -2064,13 +3470,19 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		var buff = new ActiveBuff(c.skillId(), c.level(), d.stackType(), System.currentTimeMillis() + durationMs,
 				d.runSpdAdd(), d.pAtkSpdMul(), d.mAtkSpdMul(), d.accuracyAdd());
 		PlayerCharacter owner = active;
+		int maxBuffs = Config.MAX_BUFFS_AMOUNT > 0 ? Config.MAX_BUFFS_AMOUNT : 20;
+		var currentActive = owner.effects().active();
+		if (currentActive.size() >= maxBuffs && !owner.effects().hasSkill(c.skillId())) {
+			owner.effects().remove(currentActive.get(0));
+		}
 		owner.effects().put(buff);
 		send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT, new SystemMessage.SkillName(c.skillId(), c.level())));
 		refreshBuffs();
 		saveBuffs();
 		autoAttackScheduler.schedule(() -> {
 			if (owner.effects().remove(buff) && active == owner && inWorld) {
-				send(SystemMessage.of(SystemMessage.S1_HAS_WORN_OFF, new SystemMessage.SkillName(c.skillId(), c.level())));
+				send(SystemMessage.of(SystemMessage.S1_HAS_WORN_OFF,
+						new SystemMessage.SkillName(c.skillId(), c.level())));
 				refreshBuffs();
 				saveBuffs();
 			}
@@ -2083,7 +3495,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		long now = System.currentTimeMillis();
-		// um icone por skill (um skill pode ter varios efeitos com stackTypes diferentes)
+		// um icone por skill (um skill pode ter varios efeitos com stackTypes
+		// diferentes)
 		Map<Integer, MagicEffectIcons.Icon> icons = new java.util.LinkedHashMap<>();
 		for (var b : active.effects().active()) {
 			icons.putIfAbsent(b.skillId(), new MagicEffectIcons.Icon(b.skillId(), b.level(), b.remainingSeconds(now)));
@@ -2093,7 +3506,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (ctx.skillService() != null) {
 			recalcMaxVitals(t);
 		}
-		send(new UserInfo(active, t));
+		sendUserInfoAndBroadcastCharInfo();
 	}
 
 	private void saveBuffs() {
@@ -2202,7 +3615,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	/**
-	 * Carrega a arma com um soulshot (SoulShots.useItem do legado). {@code quiet} suprime avisos de arma/grade
+	 * Carrega a arma com um soulshot (SoulShots.useItem do legado). {@code quiet}
+	 * suprime avisos de arma/grade
 	 * quando a chamada vem do uso automatico antes de cada golpe.
 	 */
 	private boolean chargeSoulShot(int itemId, boolean quiet) {
@@ -2306,12 +3720,108 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 							name)
 					: SystemMessage.of(SystemMessage.S1_DISARMED, name));
 		}
+		updateArmorSetBonus();
+		updateAugmentationBonus();
 		send(InventoryUpdate.modified(r.changed()));
-		send(new UserInfo(active, ctx.characters().template(active)));
-		// Trocar de arma descarrega o soulshot; o automatico tenta recarregar com o grade novo
-		if (r.changed().stream().anyMatch(i -> i.template().kind() == com.lopez.l2j.game.item.ItemTemplate.Kind.WEAPON)) {
+		sendUserInfoAndBroadcastCharInfo();
+		// Trocar de arma descarrega o soulshot; o automatico tenta recarregar com o
+		// grade novo
+		if (r.changed().stream()
+				.anyMatch(i -> i.template().kind() == com.lopez.l2j.game.item.ItemTemplate.Kind.WEAPON)) {
 			soulshotCharged = false;
 			rechargeAutoSoulShots();
+		}
+	}
+
+	private void updateArmorSetBonus() {
+		if (ctx.armorSets() == null || active == null) {
+			return;
+		}
+		var set = ctx.armorSets().findMatchingSet(active.inventory());
+		if (set == null) {
+			active.clearArmorSetBonus();
+			return;
+		}
+		List<StatFunc> funcs = new ArrayList<>();
+		var skillTable = ctx.skillService() != null ? ctx.skillService().table() : null;
+		if (skillTable != null && set.skillId() > 0) {
+			var sk = skillTable.get(set.skillId(), 1).orElse(null);
+			if (sk != null && sk.funcs() != null) {
+				funcs.addAll(sk.funcs());
+			}
+		}
+		if (skillTable != null && set.shieldSkillId() > 0 && set.hasShield(active.inventory())) {
+			var sk = skillTable.get(set.shieldSkillId(), 1).orElse(null);
+			if (sk != null && sk.funcs() != null) {
+				funcs.addAll(sk.funcs());
+			}
+		}
+		if (skillTable != null && set.enchant6Skill() > 0 && set.isEnchanted6(active.inventory())) {
+			var sk = skillTable.get(set.enchant6Skill(), 1).orElse(null);
+			if (sk != null && sk.funcs() != null) {
+				funcs.addAll(sk.funcs());
+			}
+		}
+		active.setArmorSetBonus(set.chest(), funcs);
+	}
+
+	private void updateAugmentationBonus() {
+		if (active == null) {
+			return;
+		}
+		var weapon = activeWeapon();
+		int oldSkillId = active.activeAugmentationSkillId();
+		if (weapon == null || !weapon.isAugmented() || ctx.augmentation() == null) {
+			if (oldSkillId > 0) {
+				active.skills().remove(oldSkillId);
+				if (ctx.skillService() != null) {
+					ctx.skillService().refreshPassives(active);
+				}
+				sendSkillList();
+			}
+			active.clearAugmentationBonus();
+			return;
+		}
+		active.clearAugmentationBonus();
+		var aug = weapon.augmentation();
+		var stats = ctx.augmentation().getAugStatsById(aug.attributes());
+		List<StatFunc> funcs = new ArrayList<>();
+		for (var s : stats) {
+			switch (s.stat()) {
+				case "pAtk" -> funcs.add(new StatFunc("pAtk", StatFunc.Op.ADD, 0x40, s.value()));
+				case "mAtk" -> funcs.add(new StatFunc("mAtk", StatFunc.Op.ADD, 0x40, s.value()));
+				case "pDef" -> funcs.add(new StatFunc("pDef", StatFunc.Op.ADD, 0x40, s.value()));
+				case "mDef" -> funcs.add(new StatFunc("mDef", StatFunc.Op.ADD, 0x40, s.value()));
+				case "rCrit" -> funcs.add(new StatFunc("rCrit", StatFunc.Op.ADD, 0x40, s.value()));
+				case "accCombat" -> funcs.add(new StatFunc("accCombat", StatFunc.Op.ADD, 0x40, s.value()));
+				case "rEvas" -> funcs.add(new StatFunc("rEvas", StatFunc.Op.ADD, 0x40, s.value()));
+				case "maxHp" -> funcs.add(new StatFunc("maxHp", StatFunc.Op.ADD, 0x40, s.value()));
+				case "maxMp" -> funcs.add(new StatFunc("maxMp", StatFunc.Op.ADD, 0x40, s.value()));
+				case "maxCp" -> funcs.add(new StatFunc("maxCp", StatFunc.Op.ADD, 0x40, s.value()));
+				case "regHp" -> funcs.add(new StatFunc("regHp", StatFunc.Op.ADD, 0x40, s.value()));
+				case "regMp" -> funcs.add(new StatFunc("regMp", StatFunc.Op.ADD, 0x40, s.value()));
+				case "regCp" -> funcs.add(new StatFunc("regCp", StatFunc.Op.ADD, 0x40, s.value()));
+				case "STR" -> active.augSTR(active.augSTR() + (int) s.value());
+				case "CON" -> active.augCON(active.augCON() + (int) s.value());
+				case "INT" -> active.augINT(active.augINT() + (int) s.value());
+				case "MEN" -> active.augMEN(active.augMEN() + (int) s.value());
+			}
+		}
+		active.augmentationFuncs(funcs);
+
+		if (aug.hasSkill()) {
+			active.setAugmentationSkill(aug.skillId(), aug.skillLevel());
+			active.skills().put(aug.skillId(), aug.skillLevel());
+			if (ctx.skillService() != null) {
+				ctx.skillService().refreshPassives(active);
+			}
+			sendSkillList();
+		} else if (oldSkillId > 0) {
+			active.skills().remove(oldSkillId);
+			if (ctx.skillService() != null) {
+				ctx.skillService().refreshPassives(active);
+			}
+			sendSkillList();
 		}
 	}
 
@@ -2338,13 +3848,22 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			party = null;
 		}
 		if (inWorld) {
-			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new DeleteObject(active.objectId()), false);
-			ctx.world().remove(this);
-			ctx.characters().save(active, false);
-			knownObjects.clear();
-			log.info("{} saiu do mundo", active.name());
+			if (ctx.offlineTrade() != null && ctx.offlineTrade().isOfflineTrader(active.objectId())) {
+				log.info("{} entrou em modo loja offline (permanece no mundo)", active.name());
+			} else {
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new DeleteObject(active.objectId()), false);
+				for (var p : ctx.world().players()) {
+					if (p instanceof GameSession gs && gs != this) {
+						gs.knownObjects.remove(active.objectId());
+					}
+				}
+				ctx.world().remove(this);
+				ctx.characters().save(active, false);
+				knownObjects.clear();
+				log.info("{} saiu do mundo", active.name());
+				inWorld = false;
+			}
 		}
-		inWorld = false;
 		hotTasks.values().forEach(f -> f.cancel(false));
 		hotTasks.clear();
 		autoSoulShots.clear();
@@ -2397,18 +3916,29 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
-	// ---- Skills (porta enxuta de L2Character.doCast/onMagicHitTimer + handlers de skill do L2JDream) ----
+	// ---- Skills (porta enxuta de L2Character.doCast/onMagicHitTimer + handlers de
+	// skill do L2JDream) ----
 
 	/** Conjuracao em andamento (um skill por vez, como no cliente). */
 	private volatile boolean casting;
 	private volatile ScheduledFuture<?> castTask;
 	/** Reuse por skillId (epoch ms em que libera). */
 	private final Map<Integer, Long> skillReuse = new ConcurrentHashMap<>();
-	/** Treinador da ultima janela de skills aberta (RequestAcquireSkill confere a distancia). */
+	/**
+	 * Treinador da ultima janela de skills aberta (RequestAcquireSkill confere a
+	 * distancia).
+	 */
 	private int lastTrainerObjectId;
 
 	private void onMagicSkillUse(RequestMagicSkillUse p) {
 		if (!inWorld || active.isDead() || active.isDisabled()) {
+			send(new ActionFailed());
+			return;
+		}
+		if (p.magicId() == 1312 && active.isFishing()) {
+			if (ctx.fishing() != null) {
+				ctx.fishing().stopFishing(active, this::send);
+			}
 			send(new ActionFailed());
 			return;
 		}
@@ -2423,12 +3953,25 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			send(new ActionFailed());
 			return;
 		}
+		if (sk.magic() && active.isMuted()) {
+			send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.SkillName(sk.id(), sk.level())));
+			send(new ActionFailed());
+			return;
+		}
 		castSkill(sk, true);
 	}
 
-	/** Valida e inicia a conjuracao; {@code mayMove} = pode andar ate o alvo antes (uma vez). */
+	/**
+	 * Valida e inicia a conjuracao; {@code mayMove} = pode andar ate o alvo antes
+	 * (uma vez).
+	 */
 	private void castSkill(SkillTemplate sk, boolean mayMove) {
 		if (!inWorld || active == null || active.isDead() || active.isDisabled()) {
+			return;
+		}
+		if (sk.magic() && active.isMuted()) {
+			send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.SkillName(sk.id(), sk.level())));
+			send(new ActionFailed());
 			return;
 		}
 		if (casting) {
@@ -2438,26 +3981,22 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		long now = System.currentTimeMillis();
 		Long readyAt = skillReuse.get(sk.id());
 		if (readyAt != null && readyAt > now) {
-			send(SystemMessage.of(SystemMessage.S1_PREPARED_FOR_REUSE, new SystemMessage.SkillName(sk.id(), sk.level())));
-			send(new ActionFailed());
-			return;
-		}
-		if (sk.castCondition() != null && !sk.castCondition().test(active)) {
-			if (sk.condMsg() != null && !sk.condMsg().isBlank()) {
-				try {
-					int msgId = Integer.parseInt(sk.condMsg().trim());
-					send(SystemMessage.id(msgId));
-				} catch (NumberFormatException e) {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", sk.condMsg()));
-				}
-			} else {
-				send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.SkillName(sk.id(), sk.level())));
-			}
+			send(SystemMessage.of(SystemMessage.S1_PREPARED_FOR_REUSE,
+					new SystemMessage.SkillName(sk.id(), sk.level())));
 			send(new ActionFailed());
 			return;
 		}
 		if (isBow(activeWeapon()) && !sk.magic()) {
 			if (!checkAndConsumeArrow()) {
+				return;
+			}
+		}
+		if (sk.itemConsumeId() > 0 && sk.itemConsumeCount() > 0) {
+			int have = active.inventory().byItemId(sk.itemConsumeId()).map(ItemInstance::count).orElse(0);
+			if (have < sk.itemConsumeCount()) {
+				send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.SkillName(sk.id(), sk.level())));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Itens insuficientes para usar esta habilidade."));
+				send(new ActionFailed());
 				return;
 			}
 		}
@@ -2517,13 +4056,49 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			playerTarget = this;
 		}
 
+		// Verificacao de Zona de Paz para habilidades ofensivas
+		if (sk.isOffensive() && ctx.zones() != null) {
+			if (ctx.zones().isInsidePeace(active.x(), active.y(), active.z())) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pode usar habilidades ofensivas em zona de paz."));
+				send(new ActionFailed());
+				return;
+			}
+			if (npcTarget != null && ctx.zones().isInsidePeace(npcTarget.x(), npcTarget.y(), npcTarget.z())) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O alvo esta em zona de paz."));
+				send(new ActionFailed());
+				return;
+			}
+			if (playerTarget != null && ctx.zones().isInsidePeace(playerTarget.x(), playerTarget.y(), playerTarget.z())) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O alvo esta em zona de paz."));
+				send(new ActionFailed());
+				return;
+			}
+		}
+
+		// Validacao de condicoes da skill levando o alvo em consideracao (ex: <target undead="true" />)
+		Object resolvedTarget = npcTarget != null ? npcTarget : (playerTarget != null ? playerTarget.active : null);
+		if (sk.castCondition() != null && !sk.castCondition().test(active, resolvedTarget)) {
+			if (sk.condMsg() != null && !sk.condMsg().isBlank()) {
+				try {
+					int msgId = Integer.parseInt(sk.condMsg().trim());
+					send(SystemMessage.id(msgId));
+				} catch (NumberFormatException e) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", sk.condMsg()));
+				}
+			} else {
+				send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+			}
+			send(new ActionFailed());
+			return;
+		}
+
 		// Alcance (o L2J anda ate o alvo e depois conjura)
 		int tx = npcTarget != null ? npcTarget.x() : (playerTarget != null ? playerTarget.x() : active.x());
 		int ty = npcTarget != null ? npcTarget.y() : (playerTarget != null ? playerTarget.y() : active.y());
 		int tz = npcTarget != null ? npcTarget.z() : (playerTarget != null ? playerTarget.z() : active.z());
 		if (sk.castRange() > 0 && (npcTarget != null || (playerTarget != null && playerTarget != this))) {
 			double dist = Math.hypot(active.x() - tx, active.y() - ty);
-			double maxDist = sk.castRange() + 40 + (npcTarget != null ? npcTarget.template().collisionRadius() : 0);
+			double maxDist = sk.castRange() + 70 + (npcTarget != null ? npcTarget.template().collisionRadius() : 0);
 			if (dist > maxDist) {
 				if (!mayMove) {
 					send(SystemMessage.id(SystemMessage.TARGET_TOO_FAR));
@@ -2531,14 +4106,21 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					return;
 				}
 				int targetId = npcTarget != null ? npcTarget.objectId() : playerTarget.objectId();
-				var move = new MoveToPawn(active.objectId(), targetId, sk.castRange(), active.x(), active.y(), active.z());
+				var move = new MoveToPawn(active.objectId(), targetId, sk.castRange(), active.x(), active.y(),
+						active.z());
 				send(move);
 				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, move, false);
 				int run = Math.max(50, PlayerStats.calculate(active, ctx.characters().template(active)).runSpeed());
-				long travelMs = (long) ((dist - sk.castRange()) * 1000 / run) + 300;
+				long travelMs = (long) ((dist - sk.castRange()) * 1000 / run) + 200;
+				double angle = Math.atan2(active.y() - ty, active.x() - tx);
+				int stopDist = Math.max(20, sk.castRange() - 30);
+				int stopX = (int) (tx + stopDist * Math.cos(angle));
+				int stopY = (int) (ty + stopDist * Math.sin(angle));
+				int stopZ = tz;
 				PlayerCharacter owner = active;
 				autoAttackScheduler.schedule(() -> {
 					if (active == owner) {
+						active.moveTo(stopX, stopY, stopZ);
 						castSkill(sk, false);
 					}
 				}, travelMs, TimeUnit.MILLISECONDS);
@@ -2560,20 +4142,36 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (bss) {
 			speedFactor *= 0.65;
 		}
-		int hitTime = sk.hitTime() > 0 ? Math.max(150, (int) (sk.hitTime() * speedFactor)) : 0;
+		int minHit = (active.isGm() || active.gmSpeed() > 0) ? 10 : Config.getInt("MinimumHitTime", 330);
+		int hitTime = sk.hitTime() > 0 ? Math.max(minHit, (int) (sk.hitTime() * speedFactor)) : 0;
 		int reuse = (int) (sk.reuseDelay() * speedFactor);
+		double mReuse = PlayerStats.applyStat(active, "mReuse", 1.0);
+		if (mReuse > 1.0) {
+			reuse = (int) (reuse / mReuse);
+		}
 		active.currentMp(active.currentMp() - sk.mpInitialConsume());
 		if (reuse > 0) {
 			skillReuse.put(sk.id(), now + Math.max(reuse, hitTime));
 		}
-		boolean resumeAttack = autoAttacking && npcTarget != null && sk.isOffensive();
+		boolean resumeAttack = autoAttacking && (npcTarget != null || playerTarget != null) && sk.isOffensive();
 		autoAttacking = false; // o auto-ataque para durante o cast
 
-		int mainTargetId = npcTarget != null ? npcTarget.objectId() : (playerTarget != null ? playerTarget.objectId() : active.objectId());
+		int mainTargetId = npcTarget != null ? npcTarget.objectId()
+				: (playerTarget != null ? playerTarget.objectId() : active.objectId());
 		var msu = new MagicSkillUse(active.objectId(), mainTargetId, sk.id(), sk.level(), hitTime, reuse,
 				active.x(), active.y(), active.z(), tx, ty, tz);
 		send(msu);
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msu, false);
+		if (sk.isOffensive()) {
+			var startAtk = new AutoAttackStart(active.objectId());
+			send(startAtk);
+			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, startAtk, false);
+			if (playerTarget != null && playerTarget != this) {
+				var startAtkTgt = new AutoAttackStart(playerTarget.objectId());
+				playerTarget.send(startAtkTgt);
+				ctx.world().broadcastAround(playerTarget, GameWorld.VISIBILITY_RADIUS, startAtkTgt, false);
+			}
+		}
 		send(SystemMessage.of(SystemMessage.USE_S1, new SystemMessage.SkillName(sk.id(), sk.level())));
 		if (hitTime > 0) {
 			send(new GameServerPacket.SetupGauge(GameServerPacket.SetupGauge.BLUE, hitTime));
@@ -2587,11 +4185,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		NpcInstance npc = npcTarget;
 		GameSession targetSess = playerTarget;
 		Runnable finish = () -> {
-			casting = false;
-			castTask = null;
-			if (active != owner || !inWorld || owner.isDead()) {
+			if (!casting || active != owner || !inWorld || owner.isDead()) {
 				return;
 			}
+			casting = false;
+			castTask = null;
 			try {
 				finishCast(sk, npc, targetSess, resumeAttack, sps, bss);
 			} catch (RuntimeException e) {
@@ -2616,7 +4214,37 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (sk.hpConsume() > 0) {
 			active.currentHp(active.currentHp() - sk.hpConsume());
 		}
+		if (sk.itemConsumeId() > 0 && sk.itemConsumeCount() > 0) {
+			if (active.inventory().destroyItemByItemId(sk.itemConsumeId(), sk.itemConsumeCount())) {
+				send(ItemList.of(active.inventory().items(), false));
+				send(SystemMessage.of(SystemMessage.S1_DISAPPEARED, new SystemMessage.ItemName(sk.itemConsumeId())));
+			}
+		}
 		var t = ctx.characters().template(active);
+
+		if (sk.id() == 1312) { // Fishing
+			if (ctx.fishing() != null) {
+				int d = 150;
+				double angle = Math.toRadians(active.heading() * (360.0 / 65536.0));
+				int fx = active.x() + (int) (d * Math.cos(angle));
+				int fy = active.y() + (int) (d * Math.sin(angle));
+				int fz = active.z();
+				ctx.fishing().startFishing(active, fx, fy, fz, this::send);
+			}
+			return;
+		}
+		if (sk.id() == 1313) { // Pumping
+			if (ctx.fishing() != null) {
+				ctx.fishing().handlePumping(active, sk.level(), (int) sk.power(), this::send);
+			}
+			return;
+		}
+		if (sk.id() == 1314) { // Reeling
+			if (ctx.fishing() != null) {
+				ctx.fishing().handleReeling(active, sk.level(), (int) sk.power(), this::send);
+			}
+			return;
+		}
 
 		if (sk.isOffensive()) {
 			boolean ss = false;
@@ -2630,6 +4258,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			if (targetPlayer != null && !targetPlayer.active.isDead()) {
 				// PvP ofensivo direcionado a outro jogador
+				updatePvPFlag();
+				targetPlayer.updatePvPFlag();
 				broadcastLaunched(sk, List.of(targetPlayer.objectId()));
 				applyOffensivePlayer(sk, targetPlayer, t, ss, sps, bss);
 			} else {
@@ -2655,9 +4285,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				}
 			}
 			sendVitals();
-			if (resumeAttack && mainNpc != null && !mainNpc.isDead() && targetObjectId == mainNpc.objectId()) {
-				autoAttacking = true;
-				schedulePlayerAutoAttack(mainNpc);
+			if (resumeAttack) {
+				if (mainNpc != null && !mainNpc.isDead() && targetObjectId == mainNpc.objectId()) {
+					autoAttacking = true;
+					schedulePlayerAutoAttack(mainNpc);
+				} else if (targetPlayer != null && targetPlayer.active != null && !targetPlayer.active.isDead() && targetObjectId == targetPlayer.objectId()) {
+					autoAttacking = true;
+					schedulePlayerAutoAttack(targetPlayer);
+				}
 			}
 			return;
 		}
@@ -2673,7 +4308,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (isPartySkill && party != null) {
 			int radius = sk.skillRadius() > 0 ? sk.skillRadius() : 1000;
 			double rSq = (double) radius * radius;
-			boolean resurrect = "RESURRECT".equalsIgnoreCase(sk.skillType()) || sk.target().startsWith("TARGET_CORPSE_");
+			boolean resurrect = "RESURRECT".equalsIgnoreCase(sk.skillType())
+					|| sk.target().startsWith("TARGET_CORPSE_");
 			for (GameSession member : party.members()) {
 				if (member != null && member.active != null) {
 					if (resurrect ? member.active.isDead() : !member.active.isDead()) {
@@ -2718,24 +4354,36 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (sk.isPhysicalDamage()) {
 			hit = combat.skillPhysicalNpc(active, t, npc, sk.power(), soulshot, sk.skillType().equals("BLOW"));
 		} else if (sk.isMagicDamage() && sk.power() > 0) {
-			hit = combat.skillMagicNpc(active, t, npc, sk.power(), sps, bss);
+			hit = combat.skillMagicNpc(active, t, npc, sk.power(), sk.magicLevel(), sps, bss);
 			if (sk.skillType().equals("DRAIN") && hit.damage() > 0) {
 				double absorb = sk.absorbPart() > 0 ? sk.absorbPart() : 0.2;
 				active.currentHp(active.currentHp() + hit.damage() * absorb);
 			}
+		} else if (sk.isManaBurn() && sk.power() > 0) {
+			int mpDam = combat.skillManaDamNpc(active, t, npc, sk.power(), sk.magicLevel(), sps, bss);
+			if (mpDam > 0) {
+				double newMp = Math.max(0, npc.currentMp() - mpDam);
+				npc.currentMp(newMp);
+				send(SystemMessage.of(SystemMessage.YOU_DID_S1_DMG, new SystemMessage.Number(mpDam)));
+				var su = StatusUpdate.mp(npc.objectId(), (int) npc.currentMp(), npc.template().maxMp());
+				send(su);
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, su, false);
+			}
 		}
 
-		// Debuffs de controle (Stun/Sleep/Paralyze/Root), DoTs e debuffs de stats nos monstros
+		// Debuffs de controle (Stun/Sleep/Paralyze/Root/Silence/Fear), DoTs e debuffs de stats nos monstros
 		if (!npc.isDead()) {
 			boolean damageSkill = hit != null;
 			for (var e : sk.effects()) {
 				String name = e.name().toLowerCase(java.util.Locale.ROOT);
 				boolean control = name.equals("stun") || name.equals("sleep") || name.equals("paralyze")
-						|| name.equals("root") || name.equals("petrification");
+						|| name.equals("root") || name.equals("petrification") || name.equals("silence")
+						|| name.equals("mute") || name.equals("fear");
 				if (control) {
 					double base = damageSkill ? 50 : sk.power();
 					if (!combat.debuffLands(base, sk.magicLevel(), active.level(), npc, sps, bss)) {
-						send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2, new SystemMessage.NpcName(npc.npcId()),
+						send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
+								new SystemMessage.NpcName(npc.npcId()),
 								new SystemMessage.SkillName(sk.id(), sk.level())));
 						continue;
 					}
@@ -2745,12 +4393,15 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					} else {
 						npc.disable(until, name.equals("sleep"));
 					}
-				} else if (name.equals("damovertime")) {
-					if (combat.debuffLands(sk.power() > 0 ? sk.power() : 50, sk.magicLevel(), active.level(), npc, sps, bss)) {
+				} else if (name.equals("damovertime") || name.equals("manadamovertime") || name.equals("poison")
+						|| name.equals("bleed")) {
+					if (combat.debuffLands(sk.power() > 0 ? sk.power() : 50, sk.magicLevel(), active.level(), npc, sps,
+							bss)) {
 						startNpcDot(npc, sk, e, t);
 					}
 				} else if (!e.funcs().isEmpty()) {
-					if (combat.debuffLands(sk.power() > 0 ? sk.power() : 50, sk.magicLevel(), active.level(), npc, sps, bss)) {
+					if (combat.debuffLands(sk.power() > 0 ? sk.power() : 50, sk.magicLevel(), active.level(), npc, sps,
+							bss)) {
 						applyNpcDebuff(npc, e);
 					}
 				}
@@ -2768,13 +4419,16 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		for (var f : e.funcs()) {
 			if (f.stat().equals("pDef")) {
 				npc.pDefMul(0.77);
-				autoAttackScheduler.schedule(() -> npc.pDefMul(1.0), Math.max(1000, e.durationMs()), TimeUnit.MILLISECONDS);
+				autoAttackScheduler.schedule(() -> npc.pDefMul(1.0), Math.max(1000, e.durationMs()),
+						TimeUnit.MILLISECONDS);
 			} else if (f.stat().equals("mDef")) {
 				npc.mDefMul(0.77);
-				autoAttackScheduler.schedule(() -> npc.mDefMul(1.0), Math.max(1000, e.durationMs()), TimeUnit.MILLISECONDS);
+				autoAttackScheduler.schedule(() -> npc.mDefMul(1.0), Math.max(1000, e.durationMs()),
+						TimeUnit.MILLISECONDS);
 			} else if (f.stat().equals("pAtk")) {
 				npc.pAtkMul(0.77);
-				autoAttackScheduler.schedule(() -> npc.pAtkMul(1.0), Math.max(1000, e.durationMs()), TimeUnit.MILLISECONDS);
+				autoAttackScheduler.schedule(() -> npc.pAtkMul(1.0), Math.max(1000, e.durationMs()),
+						TimeUnit.MILLISECONDS);
 			}
 		}
 	}
@@ -2822,10 +4476,28 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			damage = combat.skillPhysicalPlayer(active, t, targetActive, targetTemplate, sk.power(), soulshot,
 					sk.skillType().equals("BLOW"));
 		} else if (sk.isMagicDamage() && sk.power() > 0) {
-			damage = combat.skillMagicPlayer(active, t, targetActive, targetTemplate, sk.power(), sps, bss);
+			damage = combat.skillMagicPlayer(active, t, targetActive, targetTemplate, sk.power(), sk.magicLevel(), sps, bss);
+			if (damage <= 1 && targetActive.level() - (sk.magicLevel() > 0 ? Math.min(sk.magicLevel(), active.level()) : active.level()) > 9) {
+				send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
+						new SystemMessage.Text(targetActive.name()),
+						new SystemMessage.SkillName(sk.id(), sk.level())));
+			}
 			if (sk.skillType().equals("DRAIN") && damage > 0) {
 				double absorb = sk.absorbPart() > 0 ? sk.absorbPart() : 0.2;
 				healHp(damage * absorb);
+			}
+		} else if (sk.isManaBurn() && sk.power() > 0) {
+			int mpDam = combat.skillManaDamPlayer(active, t, targetActive, targetTemplate, sk.power(), sk.magicLevel(), sps, bss);
+			if (mpDam > 0) {
+				double newMp = Math.max(0, targetActive.currentMp() - mpDam);
+				targetActive.currentMp(newMp);
+				send(SystemMessage.of(SystemMessage.YOU_DID_S1_DMG, new SystemMessage.Number(mpDam)));
+				targetSession.send(SystemMessage.of(SystemMessage.S1_GAVE_YOU_S2_DMG, new SystemMessage.Text(active.name()),
+						new SystemMessage.Number(mpDam)));
+				targetSession.sendVitals();
+				var su = StatusUpdate.mp(targetActive.objectId(), (int) targetActive.currentMp(), targetActive.maxMp());
+				send(su);
+				ctx.world().broadcastAround(targetSession, GameWorld.VISIBILITY_RADIUS, su, false);
 			}
 		}
 
@@ -2851,7 +4523,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			for (var e : sk.effects()) {
 				String name = e.name().toLowerCase(java.util.Locale.ROOT);
 				boolean control = name.equals("stun") || name.equals("sleep") || name.equals("paralyze")
-						|| name.equals("root") || name.equals("petrification");
+						|| name.equals("root") || name.equals("petrification") || name.equals("silence")
+						|| name.equals("mute") || name.equals("fear");
 
 				if (control) {
 					if (!combat.debuffLandsPlayer(sk.power() > 0 ? sk.power() : 50, sk.magicLevel(), active.level(),
@@ -2863,7 +4536,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					}
 					long until = System.currentTimeMillis() + Math.max(1000, e.durationMs());
 					targetSession.applyControlEffect(name, until);
-				} else if (name.equals("damovertime") || name.equals("manadamovertime")) {
+					targetSession.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT,
+							new SystemMessage.SkillName(sk.id(), sk.level())));
+				} else if (name.equals("damovertime") || name.equals("manadamovertime") || name.equals("poison")
+						|| name.equals("bleed")) {
 					if (combat.debuffLandsPlayer(sk.power() > 0 ? sk.power() : 50, sk.magicLevel(), active.level(),
 							targetActive, sps, bss)) {
 						targetSession.startSkillDot(sk, e);
@@ -2906,6 +4582,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				cancelCast();
 				abnormalMask = 0x0010;
 			}
+			case "mute", "silence" -> {
+				active.mute(until);
+				cancelCast();
+				abnormalMask = 0x0020;
+			}
+			case "fear" -> {
+				active.disable(until, false);
+				stopAutoAttack();
+				cancelCast();
+				abnormalMask = 0x0004;
+			}
 		}
 		if (abnormalMask != 0) {
 			active.startAbnormalEffect(abnormalMask);
@@ -2929,14 +4616,42 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		active.currentHp(0);
 		active.currentCp(0);
 
+		if (active.level() >= 10 && !active.skills().containsKey(SkillService.SKILL_LUCKY)) {
+			long expForCurLevel = com.lopez.l2j.game.model.ExperienceTable.expForLevel(active.level());
+			long expForNextLevel = com.lopez.l2j.game.model.ExperienceTable.expForLevel(active.level() + 1);
+			long expDiff = Math.max(1, expForNextLevel - expForCurLevel);
+			long lostExp = (long) (expDiff * 0.04);
+			if (active.exp() - lostExp < expForCurLevel && !Config.DELEVEL) {
+				active.exp(expForCurLevel);
+			} else {
+				active.exp(Math.max(0, active.exp() - lostExp));
+				int newLvl = com.lopez.l2j.game.model.ExperienceTable.calculateLevel(active.exp());
+				if (newLvl != active.level()) {
+					active.level(newLvl);
+					var t = ctx.characters().template(active);
+					rewardSkills(t, false);
+				}
+			}
+			send(new UserInfo(active, ctx.characters().template(active)));
+		}
+
 		send(new StatusUpdate(active.objectId(), List.of(
 				new StatusUpdate.Attribute(StatusUpdate.CUR_HP, 0),
-				new StatusUpdate.Attribute(StatusUpdate.CUR_CP, 0)
-		)));
+				new StatusUpdate.Attribute(StatusUpdate.CUR_CP, 0))));
 
-		var die = new Die(active.objectId(), false);
+		boolean hasClanHall = false;
+		boolean hasCastle = false;
+		if (ctx.clans() != null && active.clanId() > 0) {
+			var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
+			if (clan != null) {
+				hasClanHall = clan.clanHallId() > 0;
+				hasCastle = clan.castleId() > 0;
+			}
+		}
+		var die = new Die(active.objectId(), true, hasClanHall, hasCastle);
 		send(die);
-		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, die, false);
+		var dieObserver = new Die(active.objectId(), false);
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, dieObserver, false);
 		ctx.characters().save(active, true);
 	}
 
@@ -2948,16 +4663,46 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				task.cancel(false);
 				castTask = null;
 			}
+			var cancel = new MagicSkillCanceld(active.objectId());
+			send(cancel);
+			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, cancel, false);
 			send(SystemMessage.id(SystemMessage.CASTING_INTERRUPTED));
 			send(new ActionFailed());
 		}
 	}
 
+	public void updatePvPFlag() {
+		if (active == null) {
+			return;
+		}
+		if (ctx.zones() != null && ctx.zones().isInsidePeace(active.x(), active.y(), active.z())) {
+			return;
+		}
+		boolean changed = active.pvpFlag() == 0;
+		active.pvpFlag(1);
+		active.pvpFlagEndTime(System.currentTimeMillis() + 20_000L);
+		if (changed) {
+			broadcastAppearance();
+		}
+		PlayerCharacter owner = active;
+		autoAttackScheduler.schedule(() -> {
+			if (active == owner && active.pvpFlag() == 1 && System.currentTimeMillis() >= active.pvpFlagEndTime()) {
+				active.pvpFlag(0);
+				broadcastAppearance();
+			}
+		}, 20_100L, TimeUnit.MILLISECONDS);
+	}
+
 	/** Mensagem de dano, HP do alvo, morte (EXP/drop) ou aggro. */
 	private void handleNpcHit(NpcInstance npc, CombatService.HitResult hit, CharTemplate t, SkillTemplate sk) {
+		if (hit.resisted() && sk != null) {
+			send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
+					new SystemMessage.NpcName(npc.npcId()),
+					new SystemMessage.SkillName(sk.id(), sk.level())));
+		}
 		if (hit.damage() > 0) {
 			if ((hit.flags() & 0x20) != 0) {
-				send(SystemMessage.id(sk.magic() ? SystemMessage.CRITICAL_HIT_MAGIC : SystemMessage.CRITICAL_HIT));
+				send(SystemMessage.id(sk != null && sk.magic() ? SystemMessage.CRITICAL_HIT_MAGIC : SystemMessage.CRITICAL_HIT));
 			}
 			send(SystemMessage.of(SystemMessage.YOU_DID_S1_DMG, new SystemMessage.Number(hit.damage())));
 		}
@@ -2972,7 +4717,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			if (targetObjectId == npc.objectId() && autoAttacking) {
 				autoAttacking = false;
 				send(new AutoAttackStop(active.objectId()));
-				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new AutoAttackStop(active.objectId()), false);
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new AutoAttackStop(active.objectId()),
+						false);
 			}
 			var die = new Die(npc.objectId(), false);
 			send(die);
@@ -2985,7 +4731,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				applyExpAndSp(hit.expReward(), hit.spReward(), t);
 			}
 			if (ctx.drops() != null) {
-				ctx.drops().rewardMonsterDeath(active, npc.npcId(), ctx.inventories(), this::send);
+				ctx.drops().rewardMonsterDeath(active, npc.npcId(), npc.template() != null ? npc.template().level() : 0,
+						ctx.inventories(), this::send);
 			}
 			ctx.characters().save(active, true);
 		} else if (!npc.isDead() && ctx.npcAi() != null) {
@@ -2993,7 +4740,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
-	/** Cura/buff recebido (chamado na sessao do alvo; pode ser o proprio conjurador). */
+	/**
+	 * Cura/buff recebido (chamado na sessao do alvo; pode ser o proprio
+	 * conjurador).
+	 */
 	void receivePositiveSkill(SkillTemplate sk, String casterName) {
 		if (active == null) {
 			return;
@@ -3011,17 +4761,20 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case "MANAHEAL", "MANARECHARGE" -> {
 				double before = active.currentMp();
 				active.currentMp(before + power);
-				send(SystemMessage.of(SystemMessage.S1_MP_RESTORED, new SystemMessage.Number((int) (active.currentMp() - before))));
+				send(SystemMessage.of(SystemMessage.S1_MP_RESTORED,
+						new SystemMessage.Number((int) (active.currentMp() - before))));
 			}
 			case "MANAHEAL_PERCENT" -> {
 				double before = active.currentMp();
 				active.currentMp(before + active.maxMp() * power / 100.0);
-				send(SystemMessage.of(SystemMessage.S1_MP_RESTORED, new SystemMessage.Number((int) (active.currentMp() - before))));
+				send(SystemMessage.of(SystemMessage.S1_MP_RESTORED,
+						new SystemMessage.Number((int) (active.currentMp() - before))));
 			}
 			case "COMBATPOINTHEAL" -> {
 				double before = active.currentCp();
 				active.currentCp(before + power);
-				send(SystemMessage.of(SystemMessage.S1_CP_WILL_BE_RESTORED, new SystemMessage.Number((int) (active.currentCp() - before))));
+				send(SystemMessage.of(SystemMessage.S1_CP_WILL_BE_RESTORED,
+						new SystemMessage.Number((int) (active.currentCp() - before))));
 			}
 			default -> {
 			}
@@ -3055,10 +4808,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private void healHp(double amount) {
 		double before = active.currentHp();
 		active.currentHp(before + amount);
-		send(SystemMessage.of(SystemMessage.S1_HP_RESTORED, new SystemMessage.Number((int) (active.currentHp() - before))));
+		send(SystemMessage.of(SystemMessage.S1_HP_RESTORED,
+				new SystemMessage.Number((int) (active.currentHp() - before))));
 	}
 
-	/** Aplica os {@code <effect>} do skill no proprio jogador desta sessao (buffs, HoT, DoT, toggles). */
+	/**
+	 * Aplica os {@code <effect>} do skill no proprio jogador desta sessao (buffs,
+	 * HoT, DoT, toggles).
+	 */
 	private void applySkillEffects(SkillTemplate sk, boolean toggle) {
 		applySkillEffects(sk, toggle, 0);
 	}
@@ -3083,7 +4840,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				continue; // efeito sem stats (Stun, Fear, etc.) ainda nao tem motor no jogador
 			}
 			String stack = e.stackType() == null || e.stackType().equalsIgnoreCase("none")
-					? "skill_" + sk.id() + "_" + name : e.stackType();
+					? "skill_" + sk.id() + "_" + name
+					: e.stackType();
 			long duration = remainingMs > 0 ? remainingMs : e.durationMs();
 			long end = toggle ? com.lopez.l2j.game.effect.PlayerEffects.PERMANENT
 					: System.currentTimeMillis() + duration;
@@ -3110,17 +4868,37 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	public void startSkillDot(SkillTemplate sk, SkillTemplate.EffectTemplate e) {
 		String kind = e.name().toLowerCase(java.util.Locale.ROOT);
-		String stack = "skilldot_" + (e.stackType() != null && !e.stackType().equalsIgnoreCase("none") ? e.stackType() : sk.id() + "_" + kind);
+		String stackType = e.stackType() != null ? e.stackType().toLowerCase(java.util.Locale.ROOT) : "";
+		String stack = "skilldot_" + (!stackType.isEmpty() && !stackType.equalsIgnoreCase("none") ? stackType
+				: sk.id() + "_" + kind);
 		var previous = hotTasks.remove(stack);
 		if (previous != null) {
 			previous.cancel(false);
 		}
+		int abnormalMask = 0;
+		if (kind.contains("poison") || stackType.contains("poison") || sk.skillType().equalsIgnoreCase("POISON")) {
+			abnormalMask = 0x0001;
+		} else if (kind.contains("bleed") || stackType.contains("bleed") || sk.skillType().equalsIgnoreCase("BLEED")) {
+			abnormalMask = 0x0002;
+		}
+		if (abnormalMask != 0) {
+			active.startAbnormalEffect(abnormalMask);
+			broadcastAppearance();
+		}
+		final int dotMask = abnormalMask;
+		send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT, new SystemMessage.SkillName(sk.id(), sk.level())));
+		refreshBuffs();
+
 		PlayerCharacter owner = active;
 		int[] remaining = { Math.max(1, e.count()) };
 		long period = Math.max(1, e.period()) * 1000L;
 		AtomicReference<ScheduledFuture<?>> self = new AtomicReference<>();
 		ScheduledFuture<?> task = autoAttackScheduler.scheduleAtFixedRate(() -> {
 			if (active != owner || !inWorld || owner.isDead() || remaining[0] <= 0) {
+				if (dotMask != 0 && active != null) {
+					active.stopAbnormalEffect(dotMask);
+					broadcastAppearance();
+				}
 				stopHot(stack, self.get());
 				return;
 			}
@@ -3134,12 +4912,19 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				owner.currentHp(newHp);
 				sendVitals();
 			}
+			if (remaining[0] <= 0 && dotMask != 0 && active != null) {
+				active.stopAbnormalEffect(dotMask);
+				broadcastAppearance();
+			}
 		}, period, period, TimeUnit.MILLISECONDS);
 		self.set(task);
 		hotTasks.put(stack, task);
 	}
 
-	/** HealOverTime/ManaHealOverTime do skill: {@code val} por tick a cada {@code period} s, {@code count} vezes. */
+	/**
+	 * HealOverTime/ManaHealOverTime do skill: {@code val} por tick a cada
+	 * {@code period} s, {@code count} vezes.
+	 */
 	private void startSkillHot(SkillTemplate sk, SkillTemplate.EffectTemplate e) {
 		String kind = e.name().toLowerCase(java.util.Locale.ROOT);
 		String stack = "skillhot_" + kind;
@@ -3168,11 +4953,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		hotTasks.put(stack, task);
 	}
 
-	/** Toggle (OP_TOGGLE): liga aplicando os efeitos permanentes, desliga removendo. */
+	/**
+	 * Toggle (OP_TOGGLE): liga aplicando os efeitos permanentes, desliga removendo.
+	 */
 	private void toggleSkill(SkillTemplate sk) {
 		if (active.effects().hasSkill(sk.id())) {
 			active.effects().removeSkill(sk.id());
-			send(SystemMessage.of(SystemMessage.EFFECT_S1_DISAPPEARED, new SystemMessage.SkillName(sk.id(), sk.level())));
+			if (sk.id() == 7029) {
+				active.gmSpeed(0);
+			}
+			send(SystemMessage.of(SystemMessage.EFFECT_S1_DISAPPEARED,
+					new SystemMessage.SkillName(sk.id(), sk.level())));
 			refreshBuffs();
 			saveBuffs();
 			return;
@@ -3187,10 +4978,16 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(msu);
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msu, false);
 		applySkillEffects(sk, true);
+		if (sk.id() == 7029) {
+			active.gmSpeed(sk.level());
+		}
 		sendVitals();
 	}
 
-	/** Max HP/MP/CP = formula da classe no nivel + passivas/buffs (maxHp, maxMp, maxCp). */
+	/**
+	 * Max HP/MP/CP = formula da classe no nivel + passivas/buffs (maxHp, maxMp,
+	 * maxCp).
+	 */
 	private void recalcMaxVitals(CharTemplate t) {
 		int lvl = active.level();
 		active.maxHp(Math.max(1, (int) PlayerStats.applyStat(active, "maxHp", t.calculateMaxHp(lvl))));
@@ -3222,7 +5019,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
-	// ---- Treinador (L2NpcInstance.showSkillList + RequestAquireSkillInfo/RequestAquireSkill) ----
+	// ---- Treinador (L2NpcInstance.showSkillList +
+	// RequestAquireSkillInfo/RequestAquireSkill) ----
 
 	private void showSkillList(NpcInstance npc) {
 		var svc = ctx.skillService();
@@ -3241,7 +5039,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (list.isEmpty()) {
 			int min = svc.minLevelForNewSkill(active);
 			if (min > 0) {
-				send(SystemMessage.of(SystemMessage.DO_NOT_HAVE_FURTHER_SKILLS_TO_LEARN, new SystemMessage.Number(min)));
+				send(SystemMessage.of(SystemMessage.DO_NOT_HAVE_FURTHER_SKILLS_TO_LEARN,
+						new SystemMessage.Number(min)));
 			} else {
 				send(SystemMessage.id(SystemMessage.NO_MORE_SKILLS_TO_LEARN));
 			}
@@ -3280,7 +5079,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		var trainer = ctx.world().npc(lastTrainerObjectId).orElse(null);
-		if (trainer == null || (!active.isGm() && Math.hypot(active.x() - trainer.x(), active.y() - trainer.y()) > 250)) {
+		if (trainer == null
+				|| (!active.isGm() && Math.hypot(active.x() - trainer.x(), active.y() - trainer.y()) > 250)) {
 			return;
 		}
 		if (active.skillLevel(p.skillId()) >= p.level()) {
@@ -3376,29 +5176,31 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		double distSq = Math.pow(active.x() - npc.x(), 2) + Math.pow(active.y() - npc.y(), 2);
-		if (distSq <= 180.0 * 180.0) {
+		if (distSq <= 250.0 * 250.0) {
 			pendingNpcInteractObjectId = 0;
+			int heading = (int) (Math.atan2(npc.y() - active.y(), npc.x() - active.x()) * 32768.0 / Math.PI);
+			active.heading(heading);
 			showNpcHtml(npc, 0);
 		}
 	}
 
 	private static final int[][] MAJOR_TOWNS = {
 			{ -84318, 244579, -3730 }, // Talking Island
-			{ 46934, 51467, -2977 },   // Elven Village
-			{ 9745, 15606, -4574 },    // Dark Elven Village
+			{ 46934, 51467, -2977 }, // Elven Village
+			{ 9745, 15606, -4574 }, // Dark Elven Village
 			{ -44836, -112524, -235 }, // Orc Village
 			{ 115113, -178212, -901 }, // Dwarven Village
 			{ -80826, 149775, -3043 }, // Gludin
 			{ -12678, 122776, -3116 }, // Gludio
-			{ 15670, 142983, -2705 },  // Dion
-			{ 83400, 147943, -3404 },  // Giran
+			{ 15670, 142983, -2705 }, // Dion
+			{ 83400, 147943, -3404 }, // Giran
 			{ 111409, 219364, -3545 }, // Heine
-			{ 82956, 53162, -1495 },   // Oren
-			{ 116819, 76994, -2714 },  // Hunters Village
-			{ 146331, 25762, -2018 },  // Aden
+			{ 82956, 53162, -1495 }, // Oren
+			{ 116819, 76994, -2714 }, // Hunters Village
+			{ 146331, 25762, -2018 }, // Aden
 			{ 147928, -55273, -2734 }, // Goddard
-			{ 43799, -47727, -798 },   // Rune
-			{ 87331, -142842, -1317 }  // Schuttgart
+			{ 43799, -47727, -798 }, // Rune
+			{ 87331, -142842, -1317 } // Schuttgart
 	};
 
 	private static final Map<Integer, int[]> TOWN_SCROLL_COORDINATES = Map.ofEntries(
@@ -3426,8 +5228,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			Map.entry(7132, new int[] { 146331, 25762, -2018 }),
 			Map.entry(7133, new int[] { 147928, -55273, -2734 }),
 			Map.entry(7134, new int[] { 43799, -47727, -798 }),
-			Map.entry(7135, new int[] { 87331, -142842, -1317 })
-	);
+			Map.entry(7135, new int[] { 87331, -142842, -1317 }));
 
 	private boolean isScrollOfEscape(int itemId) {
 		return itemId == 736 || itemId == 1538 || itemId == 3958 || itemId == 5858 || itemId == 5859
@@ -3465,16 +5266,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			if (!inWorld || active == null || active.isDead()) {
 				return;
 			}
-			active.moveTo(targetLoc[0], targetLoc[1], targetLoc[2]);
-			ctx.characters().save(active, true);
-			var tele = new TeleportToLocation(active.objectId(), targetLoc[0], targetLoc[1], targetLoc[2]);
-			send(tele);
-			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, tele, false);
-			updateKnownObjects();
+			teleportToLocation(targetLoc[0], targetLoc[1], targetLoc[2]);
 		}, hitTime, TimeUnit.MILLISECONDS);
 	}
 
 	private int[] findNearestTown(int px, int py) {
+		if (ctx.mapRegions() != null && active != null) {
+			int[] respawn = ctx.mapRegions().getRestartCoordinates(px, py, active.z(), active.race());
+			if (respawn != null) {
+				return respawn;
+			}
+		}
 		int[] nearest = MAJOR_TOWNS[0];
 		long minSq = Long.MAX_VALUE;
 		for (int[] t : MAJOR_TOWNS) {
@@ -3510,7 +5312,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		if (targetSession.party() != null) {
-			send(SystemMessage.of(SystemMessage.PLAYER_ALREADY_IN_PARTY, new SystemMessage.Text(targetSession.character().name())));
+			send(SystemMessage.of(SystemMessage.PLAYER_ALREADY_IN_PARTY,
+					new SystemMessage.Text(targetSession.character().name())));
 			send(new ActionFailed());
 			return;
 		}
@@ -3533,7 +5336,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		targetSession.setPendingPartyInvite(new RequestPartyPending(this, p.itemDistribution()));
 		targetSession.send(new GameServerPacket.AskJoinParty(active.name(), p.itemDistribution()));
-		send(SystemMessage.of(SystemMessage.YOU_INVITED_S1_TO_PARTY, new SystemMessage.Text(targetSession.character().name())));
+		send(SystemMessage.of(SystemMessage.YOU_INVITED_S1_TO_PARTY,
+				new SystemMessage.Text(targetSession.character().name())));
 	}
 
 	private void onAnswerJoinParty(GameClientPacket.RequestAnswerJoinParty p) {
@@ -3556,10 +5360,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			requester.party(newParty);
 			this.party = newParty;
 			send(new GameServerPacket.JoinParty(1));
-			requester.send(new GameServerPacket.PartySmallWindowAll(requester.character().objectId(), pending.itemDistribution(), newParty.characters(), requester.character().objectId()));
-			send(new GameServerPacket.PartySmallWindowAll(requester.character().objectId(), pending.itemDistribution(), newParty.characters(), active.objectId()));
+			requester.send(new GameServerPacket.PartySmallWindowAll(requester.character().objectId(),
+					pending.itemDistribution(), newParty.characters(), requester.character().objectId()));
+			send(new GameServerPacket.PartySmallWindowAll(requester.character().objectId(), pending.itemDistribution(),
+					newParty.characters(), active.objectId()));
 			requester.send(SystemMessage.of(SystemMessage.S1_JOINED_PARTY, new SystemMessage.Text(active.name())));
-			send(SystemMessage.of(SystemMessage.YOU_JOINED_PARTY, new SystemMessage.Text(requester.character().name())));
+			send(SystemMessage.of(SystemMessage.YOU_JOINED_PARTY,
+					new SystemMessage.Text(requester.character().name())));
 		} else {
 			var existingParty = requester.party();
 			if (existingParty.isFull()) {
@@ -3663,7 +5470,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						active.x(), active.y(), active.z(), active.x(), active.y(), active.z());
 				send(msu);
 				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msu, false);
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Transporting to the nearest village in 30 seconds..."));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Transporting to the nearest village in 30 seconds..."));
 
 				casting = true;
 				castTask = autoAttackScheduler.schedule(() -> {
@@ -3672,12 +5480,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						return;
 					}
 					int[] dest = findNearestTown(active.x(), active.y());
-					active.moveTo(dest[0], dest[1], dest[2]);
-					ctx.characters().save(active, true);
-					var tele = new TeleportToLocation(active.objectId(), dest[0], dest[1], dest[2]);
-					send(tele);
-					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, tele, false);
-					updateKnownObjects();
+					teleportToLocation(dest[0], dest[1], dest[2]);
 				}, hitTime, TimeUnit.MILLISECONDS);
 			}
 			case 77 -> { // /time
@@ -3685,6 +5488,19 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				int h = (now / 60) % 24;
 				int m = now % 60;
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", String.format("Game time: %02d:%02d", h, m)));
+			}
+			case 109 -> { // /olympiadstat
+				if (ctx.olympiad() != null && ctx.olympiad().isNoble(active.objectId())) {
+					var noble = ctx.olympiad().getNoble(active.objectId()).get();
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							String.format(
+									"Grand Olympiad Games - Pontos: %d | Partidas: %d (Vitorias: %d, Derrotas: %d, Empates: %d)",
+									noble.points(), noble.competitionsDone(), noble.competitionsWon(),
+									noble.competitionsLost(), noble.competitionsDrawn())));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Voce nao e um Nobless registrado nas Olimpiadas."));
+				}
 			}
 			default -> log.debug("UserCommand {} nao tratado", commandId);
 		}
@@ -3698,6 +5514,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			onUserCommand(52);
 		} else if (lower.equals("/time")) {
 			onUserCommand(77);
+		} else if (lower.equals("/olympiadstat")) {
+			onUserCommand(109);
 		} else if (lower.startsWith("/target ")) {
 			String name = cmd.substring(8).trim().toLowerCase(java.util.Locale.ROOT);
 			if (!name.isEmpty()) {
@@ -3709,6 +5527,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			onActionUse(new GameClientPacket.RequestActionUse(2, false, false));
 		} else if (lower.equals("/leave") || lower.equals("/partyleave")) {
 			onLeaveParty();
+		} else if (lower.equals("/offline")) {
+			if (!com.lopez.l2j.config.Config.ALLOW_OFFLINE_TRADE) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Modo offline desativado pelo servidor."));
+				return;
+			}
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Modo offline ativado. Desconectando sessao..."));
+			onLogout();
 		} else {
 			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Comando: " + cmd));
 		}
@@ -3738,11 +5563,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 		for (var other : ctx.world().players()) {
-			if (other.objectId() != active.objectId() && other.name().toLowerCase(java.util.Locale.ROOT).startsWith(query)) {
+			if (other.objectId() != active.objectId()
+					&& other.name().toLowerCase(java.util.Locale.ROOT).startsWith(query)) {
 				targetObjectId = other.objectId();
 				send(new MyTargetSelected(other.objectId(), 0));
 				if (other.character() != null) {
-					send(StatusUpdate.hp(other.objectId(), (int) other.character().currentHp(), other.character().maxHp()));
+					send(StatusUpdate.hp(other.objectId(), (int) other.character().currentHp(),
+							other.character().maxHp()));
 				}
 				send(new ValidateLocation(other.objectId(), other.x(), other.y(), other.z(), 0));
 				return;
@@ -3755,15 +5582,376 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		String lower = cmd.toLowerCase(java.util.Locale.ROOT).trim();
 		if (lower.equals(".online")) {
 			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Jogadores online: " + ctx.world().players().size()));
-		} else if (lower.equals(".stats") || lower.equals(".menu")) {
+		} else if (lower.equals(".stats")) {
 			var t = ctx.characters() != null ? ctx.characters().template(active) : null;
 			var stats = PlayerStats.calculate(active, t);
 			send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 					String.format("%s (Nv %d): P.Atk %d, M.Atk %d, P.Def %d, M.Def %d, AtkSpd %d, CastSpd %d",
 							active.name(), active.level(), stats.pAtk(), stats.mAtk(), stats.pDef(), stats.mDef(),
 							stats.pAtkSpd(), stats.mAtkSpd())));
+		} else if (lower.equals(".menu")) {
+			if (ctx.preferences() != null) {
+				send(new NpcHtmlMessage(0, ctx.preferences().buildMenuHtml(active.objectId(), active.name())));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Menu de preferencias indisponivel."));
+			}
+		} else if (lower.equals(".blockbuff")) {
+			if (ctx.preferences() != null) {
+				boolean blocked = ctx.preferences().toggleBlockBuffs(active.objectId());
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Bloqueio de buffs: " + (blocked ? "ATIVADO" : "DESATIVADO")));
+			}
+		} else if (lower.equals(".tvt")) {
+			if (ctx.tvt() != null) {
+				send(new NpcHtmlMessage(0, ctx.tvt().buildStatusHtml()));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Evento TvT desativado."));
+			}
+		} else if (lower.equals(".tvtjoin")) {
+			if (ctx.tvt() != null) {
+				var res = ctx.tvt().register(active);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "TvT: " + res.name()));
+			}
+		} else if (lower.equals(".tvtleave")) {
+			if (ctx.tvt() != null) {
+				boolean ok = ctx.tvt().unregister(active);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", ok ? "Inscricao do TvT cancelada." : "Voce nao esta inscrito no TvT."));
+			}
+		} else if (lower.equals(".ctf")) {
+			if (ctx.ctf() != null) {
+				send(new NpcHtmlMessage(0, ctx.ctf().buildStatusHtml()));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Evento CTF desativado."));
+			}
+		} else if (lower.equals(".ctfjoin")) {
+			if (ctx.ctf() != null) {
+				var res = ctx.ctf().register(active);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "CTF: " + res.name()));
+			}
+		} else if (lower.equals(".ctfleave")) {
+			if (ctx.ctf() != null) {
+				boolean ok = ctx.ctf().unregister(active);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", ok ? "Inscricao do CTF cancelada." : "Voce nao esta inscrito no CTF."));
+			}
+		} else if (lower.equals(".dm")) {
+			if (ctx.dm() != null) {
+				send(new NpcHtmlMessage(0, ctx.dm().buildStatusHtml()));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Evento DM desativado."));
+			}
+		} else if (lower.equals(".dmjoin")) {
+			if (ctx.dm() != null) {
+				var res = ctx.dm().register(active);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "DM: " + res.name()));
+			}
+		} else if (lower.equals(".dmleave")) {
+			if (ctx.dm() != null) {
+				boolean ok = ctx.dm().unregister(active);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", ok ? "Inscricao do DM cancelada." : "Voce nao esta inscrito no DM."));
+			}
+		} else if (lower.equals(".aiomenu")) {
+			if (ctx.aio() != null && active.isAio()) {
+				send(new NpcHtmlMessage(0, ctx.aio().buildAioMenuHtml(active)));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas personagens com status AIOx podem acessar este menu."));
+			}
+		} else if (lower.equals(".getaiogoods")) {
+			if (ctx.aio() != null && active.isAio()) {
+				for (var item : ctx.aio().getAioGoods()) {
+					ctx.inventories().addItem(active.inventory(), item.itemId(), item.count(), "AioGoods");
+				}
+				send(ItemList.of(active.inventory().items(), false));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Consumiveis de AIOx entregues no inventario."));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas personagens com status AIOx podem receber consumiveis."));
+			}
+		} else if (lower.equals(".classmaster") || lower.equals(".class")) {
+			int targetJob = 1;
+			if (active.level() >= 76) {
+				targetJob = 3;
+			} else if (active.level() >= 40) {
+				targetJob = 2;
+			}
+			showClassMasterMenu(0, targetJob);
+		} else if (lower.equals(".offline")) {
+			if (!com.lopez.l2j.config.Config.ALLOW_OFFLINE_TRADE) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Modo offline desativado pelo servidor."));
+				return;
+			}
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Modo offline ativado. Desconectando sessao..."));
+			onLogout();
+		} else if (lower.equals(".deposit")) {
+			if (!com.lopez.l2j.config.Config.BANKING_SYSTEM_ENABLED) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema bancario desativado."));
+				return;
+			}
+			int reqAdena = com.lopez.l2j.config.Config.BANKING_SYSTEM_ADENA;
+			var adenaItem = active.inventory().byItemId(57).orElse(null);
+			if (adenaItem == null || adenaItem.count() < reqAdena) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Voce precisa de " + reqAdena + " adena para comprar um Gold Bar."));
+				return;
+			}
+			ctx.inventories().consumeItem(active.inventory(), 57, reqAdena, "BankingDeposit");
+			ctx.inventories().addItem(active.inventory(), 3470, com.lopez.l2j.config.Config.BANKING_SYSTEM_GOLDBARS,
+					"BankingDeposit");
+			send(ItemList.of(active.inventory().items(), false));
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					"Deposito realizado: Gold Bar adicionado ao seu inventario."));
+		} else if (lower.equals(".withdraw")) {
+			if (!com.lopez.l2j.config.Config.BANKING_SYSTEM_ENABLED) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema bancario desativado."));
+				return;
+			}
+			int reqBars = com.lopez.l2j.config.Config.BANKING_SYSTEM_GOLDBARS;
+			var barItem = active.inventory().byItemId(3470).orElse(null);
+			if (barItem == null || barItem.count() < reqBars) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Voce precisa de " + reqBars + " Gold Bar para sacar."));
+				return;
+			}
+			ctx.inventories().consumeItem(active.inventory(), 3470, reqBars, "BankingWithdraw");
+			ctx.inventories().addItem(active.inventory(), 57, com.lopez.l2j.config.Config.BANKING_SYSTEM_ADENA,
+					"BankingWithdraw");
+			send(ItemList.of(active.inventory().items(), false));
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Saque realizado: Adena adicionada ao seu inventario."));
+		} else if (lower.equals(".gotolove")) {
+			if (ctx.weddings() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema de casamento desativado."));
+				return;
+			}
+			int partnerId = ctx.weddings().getPartnerId(active.objectId());
+			if (partnerId == 0 || !ctx.weddings().isMarried(active.objectId())) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao e casado."));
+				return;
+			}
+			var partnerOpt = ctx.world().player(partnerId);
+			if (partnerOpt.isEmpty() || partnerOpt.get().character() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Seu parceiro(a) nao esta online."));
+				return;
+			}
+			var partner = partnerOpt.get().character();
+			if (!ctx.weddings().canTeleportToPartner(active, partner)) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Nao e possivel teleportar para seu parceiro(a) no momento (combate/morte/karma)."));
+				return;
+			}
+			teleportToLocation(partner.x(), partner.y(), partner.z());
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Teleportado para seu parceiro(a)!"));
+		} else if (lower.equals(".divorce")) {
+			if (ctx.weddings() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema de casamento desativado."));
+				return;
+			}
+			var coupleOpt = ctx.weddings().getCoupleForPlayer(active.objectId());
+			if (coupleOpt.isEmpty()) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao possui relacionamento ativo."));
+				return;
+			}
+			int partnerId = ctx.weddings().getPartnerId(active.objectId());
+			ctx.weddings().divorce(coupleOpt.get().id());
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce esta oficialmente divorciado(a)."));
+			ctx.world().player(partnerId).ifPresent(p -> {
+				p.send(new CreatureSay(0, CreatureSay.ALL, "SYS", active.name() + " se divorciou de voce."));
+			});
+		} else if (lower.equals(".engage")) {
+			if (ctx.weddings() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema de casamento desativado."));
+				return;
+			}
+			if (targetObjectId == 0 || targetObjectId == active.objectId()) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Selecione seu pretendente antes de usar o comando."));
+				return;
+			}
+			var targetOpt = ctx.world().player(targetObjectId);
+			if (targetOpt.isEmpty() || targetOpt.get().character() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Alvo invalido para noivado."));
+				return;
+			}
+			var targetChar = targetOpt.get().character();
+			if (ctx.weddings().getCoupleForPlayer(active.objectId()).isPresent()
+					|| ctx.weddings().getCoupleForPlayer(targetChar.objectId()).isPresent()) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Um de voces ja esta noivo ou casado."));
+				return;
+			}
+			ctx.weddings().engage(active, targetChar);
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce e " + targetChar.name() + " agora estao noivos!"));
+			targetOpt.get().send(
+					new CreatureSay(0, CreatureSay.ALL, "SYS", active.name() + " oficializou o noivado com voce!"));
+		} else if (lower.equals(".autofarm") || lower.startsWith(".autofarm ")) {
+			if (ctx.autoFarm() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema de Auto-Farm desativado."));
+				return;
+			}
+			boolean activeState = ctx.autoFarm().toggleAutoFarm(active);
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Auto-Farm " + (activeState ? "ATIVADO" : "DESATIVADO") + "."));
+		} else if (lower.equals(".offline")) {
+			if (ctx.offlineTrade() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema de loja offline desativado."));
+				return;
+			}
+			if (active.privateStoreType() == 0 && !active.isBuffShop()) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce precisa estar com uma loja pessoal aberta para ativar o modo offline."));
+				return;
+			}
+			List<com.lopez.l2j.game.offlinetrade.OfflineShopItem> items = new ArrayList<>();
+			items.add(new com.lopez.l2j.game.offlinetrade.OfflineShopItem(57, 1, 1));
+			boolean ok = ctx.offlineTrade().startOfflineTrade(
+					active,
+					active.privateStoreType() != 0 ? active.privateStoreType() : com.lopez.l2j.game.offlinetrade.OfflineTradeService.STORE_PRIVATE_SELL,
+					false,
+					active.storeTitle(),
+					items,
+					com.lopez.l2j.game.offlinetrade.OfflineTradeService.DEFAULT_OFFLINE_DURATION
+			);
+			if (ok) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Modo offline ativado com sucesso! Desconectando sessao..."));
+				active.sitting(true);
+				closeRequested = true;
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel ativar o modo offline."));
+			}
+		} else if (lower.equals(".dressme")) {
+			if (ctx.dressMe() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema DressMe indisponivel."));
+				return;
+			}
+			boolean state = ctx.dressMe().toggle(active);
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "DressMe " + (state ? "ativado" : "desativado") + "."));
+			sendUserInfoAndBroadcastCharInfo();
+		} else if (lower.equals(".undressme")) {
+			if (ctx.dressMe() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema DressMe indisponivel."));
+				return;
+			}
+			ctx.dressMe().removeArmorSkin(active);
+			ctx.dressMe().removeWeaponSkin(active);
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Todas as skins DressMe foram removidas."));
+			sendUserInfoAndBroadcastCharInfo();
+		} else if (lower.equals(".buffshop")) {
+			if (ctx.buffShop() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema Buff Shop desativado."));
+				return;
+			}
+			if (ctx.buffShop().isBuffShop(active.objectId())) {
+				onPrivateStoreQuitSell();
+			} else {
+				var avail = ctx.buffShop().getAvailableBuffSkills(active,
+						ctx.skillService() != null ? ctx.skillService().table() : null);
+				if (avail.isEmpty()) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sua classe nao possui buffs para vender."));
+					return;
+				}
+				active.setBuffShop(true);
+				if (active.storeTitle() == null || active.storeTitle().isBlank()) {
+					active.storeTitle("Buff Store");
+				}
+				onPrivateStoreManageSell();
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Gerenciador de Buff Shop aberto."));
+			}
+		} else if (lower.equals(".buybuff")) {
+			if (ctx.buffShop() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema Buff Shop desativado."));
+				return;
+			}
+			if (targetObjectId == 0 || !ctx.buffShop().isBuffShop(targetObjectId)) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Selecione um vendedor de buffs ativo como alvo."));
+				return;
+			}
+			ctx.buffShop().getShop(targetObjectId).ifPresent(shop -> {
+				List<PrivateStoreItem> storeItems = new ArrayList<>();
+				for (var item : shop.items().values()) {
+					storeItems.add(new PrivateStoreItem(item.skillId(), item.skillId(), 1, item.price(), 0, 0));
+				}
+				int adena = active.inventory().byItemId(57).map(ItemInstance::count).orElse(0);
+				send(new PrivateStoreListSell(shop.sellerId(), false, adena, storeItems));
+			});
+		} else if (lower.startsWith(".augment")) {
+			if (ctx.augmentation() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema de augmentacao desativado."));
+				return;
+			}
+			String[] parts = lower.split("\\s+");
+			var weapon = activeWeapon();
+			if (parts.length > 1 && weapon != null && ctx.augmentation().isAugmentable(weapon)) {
+				try {
+					int stoneId = Integer.parseInt(parts[1]);
+					if (AugmentationService.isLifeStone(stoneId)) {
+						ctx.augmentation().applyAugmentation(weapon, stoneId);
+						updateAugmentationBonus();
+						send(new InventoryUpdate(List.of(ItemInfo.of(weapon, ItemInfo.MODIFIED))));
+						sendUserInfoAndBroadcastCharInfo();
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Arma equipada augmentada com Life Stone " + stoneId + "!"));
+						return;
+					}
+				} catch (NumberFormatException ignored) {}
+			}
+			send(ExShowVariationMakeWindow.STATIC_PACKET);
+		} else if (lower.equals(".unaugment")) {
+			if (ctx.augmentation() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema de augmentacao desativado."));
+				return;
+			}
+			var weapon = activeWeapon();
+			if (weapon != null && weapon.isAugmented()) {
+				ctx.augmentation().removeAugmentation(weapon);
+				updateAugmentationBonus();
+				send(new InventoryUpdate(List.of(ItemInfo.of(weapon, ItemInfo.MODIFIED))));
+				sendUserInfoAndBroadcastCharInfo();
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Augmentacao da arma equipada removida!"));
+				return;
+			}
+			send(ExShowVariationCancelWindow.STATIC_PACKET);
+		} else if (lower.equals(".achieve") || lower.equals(".achievements")) {
+			if (ctx.achievements() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema de conquistas desativado."));
+				return;
+			}
+			int adena = active.inventory().byItemId(57).map(ItemInstance::count).orElse(0);
+			String html = ctx.achievements().generateHtml(active, adena, 0, 0, 0);
+			send(new NpcHtmlMessage(0, html));
+		} else if (lower.equals(".arena") || lower.equals(".duel")) {
+			if (ctx.arenaDuel() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Arena 1x1 desativada."));
+				return;
+			}
+			if (ctx.arenaDuel().isRegistered(active.objectId())) {
+				ctx.arenaDuel().unregister(active);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Inscricao cancelada na Arena 1x1."));
+			} else {
+				boolean ok = ctx.arenaDuel().register(active);
+				if (ok) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Inscrito na Arena 1x1! Aguardando oponente..."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel se inscrever na Arena 1x1."));
+				}
+			}
+		} else if (lower.equals(".event") || lower.equals(".events")) {
+			if (ctx.officialEvent() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Eventos oficiais desativados."));
+				return;
+			}
+			String html = ctx.officialEvent().generateHtml(active);
+			send(new NpcHtmlMessage(0, html));
+		} else if (lower.equals(".roulette") || lower.startsWith(".roulette ")) {
+			if (ctx.roulette() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema de roleta desativado."));
+				return;
+			}
+			String html = ctx.roulette().generateMainHtml(active);
+			send(new NpcHtmlMessage(0, html));
+		} else if (lower.equals(".reset") || lower.equals(".rebirth")) {
+			if (ctx.characterReset() == null) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema de reset desativado."));
+				return;
+			}
+			int adena = active.inventory().byItemId(57).map(ItemInstance::count).orElse(0);
+			Map<Integer, Long> invMap = new HashMap<>();
+			invMap.put(57, (long) adena);
+			String html = ctx.characterReset().generateHtml(active, invMap);
+			send(new NpcHtmlMessage(0, html));
 		} else {
-			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Comandos de voz: .online, .stats"));
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					"Comandos de voz: .online, .stats, .classmaster, .offline, .deposit, .withdraw, .gotolove, .divorce, .engage, .dressme, .undressme, .buffshop, .buybuff, .augment, .unaugment, .autofarm, .achieve, .arena, .event, .roulette, .reset"));
 		}
 	}
 
@@ -3771,12 +5959,30 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (!inWorld || active == null) {
 			return;
 		}
+		int oldX = active.x();
+		int oldY = active.y();
+		var delMe = new DeleteObject(active.objectId());
+		ctx.world().broadcastAround(oldX, oldY, GameWorld.VISIBILITY_RADIUS, delMe);
+		for (var p : ctx.world().players()) {
+			if (p instanceof GameSession gs && gs != this) {
+				gs.knownObjects.remove(active.objectId());
+			}
+		}
+		knownObjects.clear();
+		stopAutoAttack();
+		cancelCast();
 		active.sitting(false);
+		teleporting = true;
 		active.moveTo(x, y, z);
 		ctx.characters().save(active, true);
 		var tele = new TeleportToLocation(active.objectId(), x, y, z);
 		send(tele);
-		updateKnownObjects();
+		PlayerCharacter owner = active;
+		autoAttackScheduler.schedule(() -> {
+			if (active == owner && teleporting) {
+				onAppearing();
+			}
+		}, 1500, TimeUnit.MILLISECONDS);
 	}
 
 	private PlayerCharacter getTargetPlayerOrActive() {
@@ -3817,15 +6023,18 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			clean = "menus/effects.htm";
 		} else if ("mod".equalsIgnoreCase(clean) || "mods".equalsIgnoreCase(clean)) {
 			clean = "menus/mod.htm";
-		} else if ("show_moves".equalsIgnoreCase(clean) || "teleports".equalsIgnoreCase(clean) || "tele".equalsIgnoreCase(clean) || "tele_menu".equalsIgnoreCase(clean)) {
+		} else if ("show_moves".equalsIgnoreCase(clean) || "teleports".equalsIgnoreCase(clean)
+				|| "tele".equalsIgnoreCase(clean) || "tele_menu".equalsIgnoreCase(clean)) {
 			clean = "tele/teleports.htm";
-		} else if ("gmshop".equalsIgnoreCase(clean) || "adminshop".equalsIgnoreCase(clean) || "shop".equalsIgnoreCase(clean)) {
+		} else if ("gmshop".equalsIgnoreCase(clean) || "adminshop".equalsIgnoreCase(clean)
+				|| "shop".equalsIgnoreCase(clean)) {
 			clean = "menus/submenus/adminshop_menu.htm";
 		} else if ("enchant".equalsIgnoreCase(clean) || "enchant_menu".equalsIgnoreCase(clean)) {
 			clean = "menus/submenus/enchant_menu.htm";
 		} else if ("spawn_menu".equalsIgnoreCase(clean) || "spawnmenu".equalsIgnoreCase(clean)) {
 			clean = "menus/submenus/spawn_menu.htm";
-		} else if ("show_skills".equalsIgnoreCase(clean) || "skills_menu".equalsIgnoreCase(clean) || "skills".equalsIgnoreCase(clean)) {
+		} else if ("show_skills".equalsIgnoreCase(clean) || "skills_menu".equalsIgnoreCase(clean)
+				|| "skills".equalsIgnoreCase(clean)) {
 			clean = "menus/submenus/skills_menu.htm";
 		} else if ("social_menu".equalsIgnoreCase(clean) || "socialmenu".equalsIgnoreCase(clean)) {
 			clean = "menus/submenus/social_menu.htm";
@@ -3837,19 +6046,23 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			clean = "menus/control.htm";
 		} else if ("players".equalsIgnoreCase(clean) || "players_menu".equalsIgnoreCase(clean)) {
 			clean = "menus/players.htm";
-		} else if ("config".equalsIgnoreCase(clean) || "configs".equalsIgnoreCase(clean) || "config_menu".equalsIgnoreCase(clean)) {
+		} else if ("config".equalsIgnoreCase(clean) || "configs".equalsIgnoreCase(clean)
+				|| "config_menu".equalsIgnoreCase(clean)) {
 			clean = "menus/config.htm";
 		} else if ("events".equalsIgnoreCase(clean) || "events_menu".equalsIgnoreCase(clean)) {
 			clean = "menus/events.htm";
-		} else if ("charedit".equalsIgnoreCase(clean) || "charedit_menu".equalsIgnoreCase(clean) || "current_player".equalsIgnoreCase(clean)) {
+		} else if ("charedit".equalsIgnoreCase(clean) || "charedit_menu".equalsIgnoreCase(clean)
+				|| "current_player".equalsIgnoreCase(clean)) {
 			clean = "menus/submenus/charedit_menu.htm";
 		} else if ("charinfo".equalsIgnoreCase(clean) || "charinfo_menu".equalsIgnoreCase(clean)) {
 			clean = "menus/submenus/charinfo_menu.htm";
-		} else if ("charlist".equalsIgnoreCase(clean) || "charlist_menu".equalsIgnoreCase(clean) || "find_character".equalsIgnoreCase(clean)) {
+		} else if ("charlist".equalsIgnoreCase(clean) || "charlist_menu".equalsIgnoreCase(clean)
+				|| "find_character".equalsIgnoreCase(clean)) {
 			clean = "menus/submenus/charlist_menu.htm";
 		} else if ("gmmenu".equalsIgnoreCase(clean)) {
 			clean = "menus/submenus/gmmenu.htm";
-		} else if ("itemcreation".equalsIgnoreCase(clean) || "itemcreation_menu".equalsIgnoreCase(clean) || "itemcreate".equalsIgnoreCase(clean)) {
+		} else if ("itemcreation".equalsIgnoreCase(clean) || "itemcreation_menu".equalsIgnoreCase(clean)
+				|| "itemcreate".equalsIgnoreCase(clean)) {
 			clean = "menus/submenus/itemcreation_menu.htm";
 		} else if ("expsp".equalsIgnoreCase(clean) || "expsp_menu".equalsIgnoreCase(clean)) {
 			clean = "menus/submenus/expsp_menu.htm";
@@ -3857,6 +6070,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			clean = "menus/submenus/charclasses_menu.htm";
 		} else if ("cwinfo".equalsIgnoreCase(clean) || "cw_info_menu".equalsIgnoreCase(clean)) {
 			clean = "menus/submenus/cwinfo.htm";
+		} else if ("sounds".equalsIgnoreCase(clean) || "sound".equalsIgnoreCase(clean)
+				|| "songs".equalsIgnoreCase(clean) || "song".equalsIgnoreCase(clean)) {
+			clean = "songs/songs.htm";
+		} else if ("rblist".equalsIgnoreCase(clean) || "raid".equalsIgnoreCase(clean)
+				|| "raidboss".equalsIgnoreCase(clean)) {
+			clean = "tele/raid/raid.htm";
 		}
 
 		List<String> candidates = new ArrayList<>();
@@ -3872,12 +6091,16 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				candidates.add("admin/gmshop/" + clean + ".htm");
 				candidates.add("admin/tele/" + clean + ".htm");
 				candidates.add("admin/skills/" + clean + ".htm");
+				candidates.add("admin/songs/" + clean + ".htm");
+				candidates.add("admin/tele/raid/" + clean + ".htm");
 			}
 			candidates.add("admin/menus/" + clean);
 			candidates.add("admin/menus/submenus/" + clean);
 			candidates.add("admin/gmshop/" + clean);
 			candidates.add("admin/tele/" + clean);
 			candidates.add("admin/skills/" + clean);
+			candidates.add("admin/songs/" + clean);
+			candidates.add("admin/tele/raid/" + clean);
 		}
 
 		for (String cand : candidates) {
@@ -3980,20 +6203,24 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		switch (command) {
 			case 1 -> {
 				if (template != null && stats != null) {
-					send(new GMViewCharacterInfo(targetChar, template, stats, targetChar.inventory().paperdollView(), targetChar.inventory().currentLoad()));
+					send(new GMViewCharacterInfo(targetChar, template, stats, targetChar.inventory().paperdollView(),
+							targetChar.inventory().currentLoad()));
 				}
 			}
-			case 2 -> send(new GMViewPledgeInfo(targetChar.name(), targetChar.clanId(), targetChar.level(), targetChar.classId()));
+			case 2 -> send(new GMViewPledgeInfo(targetChar.name(), targetChar.clanId(), targetChar.level(),
+					targetChar.classId()));
 			case 3 -> send(new GMViewSkillInfo(targetChar.name(), targetChar.skills(), ctx.skillService()));
 			case 4 -> send(new GMViewQuestInfo(targetChar.name()));
 			case 5 -> {
 				send(new GMViewItemList(targetChar.name(), targetChar.inventory().items(), 80));
 				send(new GMHennaInfo(0, 0, 0, 0, 0, 0));
 			}
-			case 6 -> send(new GMViewWarehouseWithdrawList(targetChar.name(), (int) Math.min(Integer.MAX_VALUE, targetChar.inventory().adena()), List.of()));
+			case 6 -> send(new GMViewWarehouseWithdrawList(targetChar.name(),
+					(int) Math.min(Integer.MAX_VALUE, targetChar.inventory().adena()), List.of()));
 			default -> {
 				if (template != null && stats != null) {
-					send(new GMViewCharacterInfo(targetChar, template, stats, targetChar.inventory().paperdollView(), targetChar.inventory().currentLoad()));
+					send(new GMViewCharacterInfo(targetChar, template, stats, targetChar.inventory().paperdollView(),
+							targetChar.inventory().currentLoad()));
 				}
 			}
 		}
@@ -4041,11 +6268,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		int currentPage = Math.min(Math.max(1, page), maxPages);
 		int fromIndex = (currentPage - 1) * pageSize;
 		int toIndex = Math.min(fromIndex + pageSize, totalPlayers);
-		List<PlayerCharacter> pageList = (fromIndex < totalPlayers) ? allPlayers.subList(fromIndex, toIndex) : List.of();
+		List<PlayerCharacter> pageList = (fromIndex < totalPlayers) ? allPlayers.subList(fromIndex, toIndex)
+				: List.of();
 
 		StringBuilder rows = new StringBuilder();
 		if (pageList.isEmpty()) {
-			rows.append("<tr><td colspan=3><center><font color=\"LEVEL\">No characters found.</font></center></td></tr>");
+			rows.append(
+					"<tr><td colspan=3><center><font color=\"LEVEL\">No characters found.</font></center></td></tr>");
 		} else {
 			for (PlayerCharacter pc : pageList) {
 				String className = "Class " + pc.classId();
@@ -4061,7 +6290,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				boolean isOnline = ctx.world().byName(pc.name()).isPresent();
 				String nameDisplay = isOnline ? "<font color=\"00FF00\">" + pc.name() + "</font>" : pc.name();
 				rows.append("<tr>")
-						.append("<td width=80><a action=\"bypass -h admin_character_info ").append(pc.name()).append("\">").append(nameDisplay).append("</a></td>")
+						.append("<td width=80><a action=\"bypass -h admin_character_info ").append(pc.name())
+						.append("\">").append(nameDisplay).append("</a></td>")
 						.append("<td width=110>").append(className).append("</td>")
 						.append("<td width=40>").append(pc.level()).append("</td>")
 						.append("</tr>");
@@ -4074,9 +6304,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			String safeQuery = (query != null && !query.isBlank()) ? query.trim() : "";
 			for (int p = 1; p <= maxPages; p++) {
 				if (p == currentPage) {
-					pages.append("<td><button value=\"[").append(p).append("]\" action=\"bypass -h admin_show_characters ").append(safeQuery).append(" ").append(p).append("\" width=30 height=19 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>");
+					pages.append("<td><button value=\"[").append(p)
+							.append("]\" action=\"bypass -h admin_show_characters ").append(safeQuery).append(" ")
+							.append(p)
+							.append("\" width=30 height=19 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>");
 				} else {
-					pages.append("<td><button value=\"").append(p).append("\" action=\"bypass -h admin_show_characters ").append(safeQuery).append(" ").append(p).append("\" width=30 height=19 back=\"sek.cbui94\" fore=\"sek.cbui94\"></td>");
+					pages.append("<td><button value=\"").append(p)
+							.append("\" action=\"bypass -h admin_show_characters ").append(safeQuery).append(" ")
+							.append(p).append("\" width=30 height=19 back=\"sek.cbui94\" fore=\"sek.cbui94\"></td>");
 				}
 			}
 			pages.append("</tr></table>");
@@ -4161,11 +6396,288 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new NpcHtmlMessage(0, rendered));
 	}
 
-	private void handleAdminCommand(String fullCmd) {
-		if (active == null || !active.isGm()) {
-			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao tem permissao de Administrador."));
-			send(new ActionFailed());
+	private void showAdminNpcInfo(NpcInstance npc) {
+		if (npc == null || active == null || !active.isGm()) {
 			return;
+		}
+		var t = npc.template();
+		int curHp = (int) npc.currentHp();
+		int maxHp = t != null ? t.maxHp() : curHp;
+		int curMp = (int) npc.currentMp();
+		int maxMp = t != null ? t.maxMp() : curMp;
+		int pAtk = t != null ? t.pAtk() : 0;
+		int mAtk = t != null ? t.mAtk() : 0;
+		int pDef = t != null ? t.pDef() : 0;
+		int mDef = t != null ? t.mDef() : 0;
+		int lvl = t != null ? t.level() : 1;
+		String type = t != null ? t.type() : "L2Npc";
+
+		String htm = "<html><title>NPC Info: " + npc.name() + "</title><body>"
+				+ "<center>"
+				+ "<table width=270>"
+				+ "<tr><td><font color=\"LEVEL\">" + npc.name() + "</font> (ID: " + npc.npcId()
+				+ ")</td><td align=right>Obj: " + npc.objectId() + "</td></tr>"
+				+ "</table>"
+				+ "<center><img src=\"L2UI.SquareGray\" width=270 height=1></center><br>"
+				+ "<table width=270>"
+				+ "<tr><td>Type: <font color=\"00FF00\">" + type + "</font></td><td>Level: <font color=\"LEVEL\">" + lvl
+				+ "</font></td></tr>"
+				+ "<tr><td>HP: <font color=\"FF5555\">" + curHp + " / " + maxHp
+				+ "</font></td><td>MP: <font color=\"5555FF\">" + curMp + " / " + maxMp + "</font></td></tr>"
+				+ "<tr><td>P.Atk: " + pAtk + " | P.Def: " + pDef + "</td><td>M.Atk: " + mAtk + " | M.Def: " + mDef
+				+ "</td></tr>"
+				+ "<tr><td colspan=2>Loc: " + npc.x() + ", " + npc.y() + ", " + npc.z() + " (" + npc.heading()
+				+ ")</td></tr>"
+				+ "</table>"
+				+ "<br><center><img src=\"L2UI.SquareGray\" width=270 height=1></center><br>"
+				+ "<table width=270>"
+				+ "<tr>"
+				+ "<td><button value=\"Kill\" action=\"bypass -h admin_kill\" width=65 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+				+ "<td><button value=\"Delete\" action=\"bypass -h admin_delete\" width=65 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+				+ "<td><button value=\"Heal\" action=\"bypass -h admin_heal\" width=65 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+				+ "<td><button value=\"Teleport\" action=\"bypass -h admin_move_to " + npc.x() + " " + npc.y() + " "
+				+ npc.z()
+				+ "\" width=65 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+				+ "</tr>"
+				+ "<tr>"
+				+ "<td colspan=2><button value=\"Talk Dialogue\" action=\"bypass -h npc_" + npc.objectId()
+				+ "_Chat 0\" width=130 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td>"
+				+ "<td colspan=2><button value=\"View DropList\" action=\"bypass -h admin_show_droplist " + npc.npcId()
+				+ "\" width=130 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td>"
+				+ "</tr>"
+				+ "</table>"
+				+ "</center></body></html>";
+
+		send(new NpcHtmlMessage(npc.objectId(), htm));
+	}
+
+	private void showAdminDropList(int npcId) {
+		if (active == null || !active.isGm()) {
+			return;
+		}
+		List<com.lopez.l2j.game.drop.DropData> drops = (ctx.drops() != null) ? ctx.drops().getDrops(npcId) : List.of();
+		String npcName = ctx.world().npcs().stream().filter(n -> n.npcId() == npcId).findFirst().map(NpcInstance::name)
+				.orElse("NPC " + npcId);
+
+		StringBuilder sb = new StringBuilder();
+		sb.append("<html><title>DropList: ").append(npcName).append("</title><body><center>");
+		sb.append("<font color=\"LEVEL\">").append(npcName).append("</font> (ID: ").append(npcId).append(")<br><br>");
+		if (drops.isEmpty()) {
+			sb.append("<font color=\"FF5555\">Nenhum drop configurado para este NPC.</font><br><br>");
+		} else {
+			sb.append("<table width=280>");
+			sb.append("<tr><td><b>Item</b></td><td><b>Qtd</b></td><td><b>Chance</b></td><td><b>Tipo</b></td></tr>");
+			for (var d : drops) {
+				String itemName = "Item " + d.itemId();
+				if (ctx.inventories() != null && ctx.inventories().templates() != null) {
+					var tpl = ctx.inventories().templates().get(d.itemId()).orElse(null);
+					if (tpl != null && tpl.name() != null) {
+						itemName = tpl.name();
+					}
+				}
+				if (itemName.length() > 18) {
+					itemName = itemName.substring(0, 16) + "..";
+				}
+				double pct = (double) d.chance() / 10000.0;
+				String typeStr = d.isSpoil() ? "<font color=\"00FF00\">Spoil</font>"
+						: "<font color=\"LEVEL\">Drop</font>";
+				sb.append("<tr>");
+				sb.append("<td>").append(itemName).append("</td>");
+				sb.append("<td>").append(d.min()).append("-").append(d.max()).append("</td>");
+				sb.append("<td>").append(String.format(java.util.Locale.US, "%.2f%%", pct)).append("</td>");
+				sb.append("<td>").append(typeStr).append("</td>");
+				sb.append("</tr>");
+			}
+			sb.append("</table>");
+		}
+		sb.append("<br><a action=\"bypass -h admin_admin\">Main Admin Menu</a>");
+		sb.append("</center></body></html>");
+		send(new NpcHtmlMessage(0, sb.toString()));
+	}
+
+	private record RaidBossEntry(int id, String name, int level, int x, int y, int z, boolean alive) {}
+
+	private void showAdminRaidBossList(String args) {
+		if (active == null || !active.isGm()) {
+			return;
+		}
+		if (args == null || args.isBlank()) {
+			showAdminHtml("tele/raid/raid.htm");
+			return;
+		}
+
+		String[] parts = args.trim().split("\\s+");
+		String cat = parts[0].toLowerCase(java.util.Locale.ROOT);
+		int page = parts.length > 1 ? parseIntSafe(parts[1], 1) : 1;
+		if (page < 1) {
+			page = 1;
+		}
+
+		List<RaidBossEntry> bosses = new ArrayList<>();
+		String title;
+
+		if ("grand".equals(cat)) {
+			title = "Grand Bosses";
+			List<RaidBossEntry> grandTemplates = List.of(
+					new RaidBossEntry(29001, "Queen Ant", 40, -21610, 181594, -5734, false),
+					new RaidBossEntry(29006, "Core", 50, 17726, 108915, -6480, false),
+					new RaidBossEntry(29014, "Orfen", 50, 55024, 17368, -5412, false),
+					new RaidBossEntry(29022, "Zaken", 60, 55312, 219168, -3223, false),
+					new RaidBossEntry(29020, "Baium", 75, 116033, 17447, 10107, false),
+					new RaidBossEntry(29019, "Antharas", 79, 181323, 114850, -7670, false),
+					new RaidBossEntry(29062, "High Priestess van Halter", 80, -16375, -53658, 10448, false),
+					new RaidBossEntry(29065, "Sailren", 80, 27333, -6835, -1970, false),
+					new RaidBossEntry(29028, "Valakas", 85, 212852, -114842, -1632, false),
+					new RaidBossEntry(29045, "Frintezza", 85, -87784, -155083, -9083, false));
+
+			Map<Integer, RaidBossEntry> bossMap = new LinkedHashMap<>();
+			for (RaidBossEntry t : grandTemplates) {
+				bossMap.put(t.id(), t);
+			}
+
+			if (ctx.world() != null) {
+				for (NpcInstance n : ctx.world().npcs()) {
+					if (n.template() == null) {
+						continue;
+					}
+					boolean isGrand = n.template().isGrandBoss() || bossMap.containsKey(n.npcId());
+					if (!isGrand) {
+						continue;
+					}
+					int x = n.x() != 0 ? n.x() : n.spawnX();
+					int y = n.y() != 0 ? n.y() : n.spawnY();
+					int z = n.z() != 0 ? n.z() : n.spawnZ();
+					boolean alive = !n.isDead();
+					bossMap.put(n.npcId(), new RaidBossEntry(n.npcId(), n.name(), n.template().level(), x, y, z, alive));
+				}
+			}
+			bosses.addAll(bossMap.values());
+			bosses.sort(java.util.Comparator.comparingInt(RaidBossEntry::level).thenComparing(RaidBossEntry::name));
+		} else {
+			int minLvl = 20;
+			int maxLvl = 29;
+			if (cat.contains("-")) {
+				String[] lr = cat.split("-");
+				minLvl = parseIntSafe(lr[0], 20);
+				maxLvl = parseIntSafe(lr[1], minLvl + 9);
+			} else {
+				int parsed = parseIntSafe(cat, 20);
+				minLvl = parsed;
+				maxLvl = (parsed % 10 == 0) ? parsed + 9 : parsed;
+			}
+			title = "Raid Bosses (" + minLvl + "-" + maxLvl + ")";
+
+			Map<Integer, RaidBossEntry> bossMap = new LinkedHashMap<>();
+			if (ctx.world() != null) {
+				for (NpcInstance n : ctx.world().npcs()) {
+					if (n.template() == null || !n.template().isRaidBoss() || n.template().isGrandBoss()) {
+						continue;
+					}
+					int lvl = n.template().level();
+					if (lvl < minLvl || lvl > maxLvl) {
+						continue;
+					}
+					int x = n.x() != 0 ? n.x() : n.spawnX();
+					int y = n.y() != 0 ? n.y() : n.spawnY();
+					int z = n.z() != 0 ? n.z() : n.spawnZ();
+					boolean alive = !n.isDead();
+					RaidBossEntry existing = bossMap.get(n.npcId());
+					if (existing == null || (!existing.alive() && alive)) {
+						bossMap.put(n.npcId(), new RaidBossEntry(n.npcId(), n.name(), lvl, x, y, z, alive));
+					}
+				}
+			}
+			bosses.addAll(bossMap.values());
+			bosses.sort(java.util.Comparator.comparingInt(RaidBossEntry::level).thenComparing(RaidBossEntry::name));
+		}
+
+		int pageSize = 8;
+		int totalBosses = bosses.size();
+		int totalPages = Math.max(1, (int) Math.ceil((double) totalBosses / pageSize));
+		if (page > totalPages) {
+			page = totalPages;
+		}
+		int startIdx = (page - 1) * pageSize;
+		int endIdx = Math.min(startIdx + pageSize, totalBosses);
+		List<RaidBossEntry> pageList = (startIdx < totalBosses) ? bosses.subList(startIdx, endIdx) : List.of();
+
+		StringBuilder sb = new StringBuilder();
+		sb.append("<html><title>Raid Boss Menu</title><body><center>");
+		sb.append("<table width=270><tr>");
+		sb.append("<td width=45><button value=\"Main\" action=\"bypass -h admin_admin\" width=40 height=19 back=\"sek.cbui94\" fore=\"sek.cbui94\"></td>");
+		sb.append("<td width=180><center><font color=\"LEVEL\">").append(title).append("</font></center></td>");
+		sb.append("<td width=45><button value=\"Back\" action=\"bypass -h admin_help tele/raid/raid.htm\" width=40 height=19 back=\"sek.cbui94\" fore=\"sek.cbui94\"></td>");
+		sb.append("</tr></table>");
+		sb.append("<center><img src=\"L2UI.SquareGray\" width=270 height=1></center>");
+		sb.append("<table width=270 bgcolor=\"000000\"><tr>");
+		sb.append("<td width=150><font color=\"LEVEL\">Boss Name</font></td>");
+		sb.append("<td width=50><center><font color=\"LEVEL\">Status</font></center></td>");
+		sb.append("<td width=70><center><font color=\"LEVEL\">Teleport</font></center></td>");
+		sb.append("</tr></table>");
+		sb.append("<center><img src=\"L2UI.SquareGray\" width=270 height=1></center>");
+		sb.append("<table width=270>");
+
+		if (pageList.isEmpty()) {
+			sb.append("<tr><td colspan=3 align=center><br><font color=\"FF5555\">Nenhum Raid Boss encontrado nesta faixa de nivel.</font><br></td></tr>");
+		} else {
+			for (RaidBossEntry b : pageList) {
+				String status = b.alive() ? "<font color=\"00FF00\">Alive</font>" : "<font color=\"FF0000\">Dead</font>";
+				String shortName = b.name().length() > 18 ? b.name().substring(0, 16) + ".." : b.name();
+				sb.append("<tr>");
+				sb.append("<td width=150>").append(shortName).append(" <font color=\"LEVEL\">(Lv ").append(b.level()).append(")</font></td>");
+				sb.append("<td width=50 align=center>").append(status).append("</td>");
+				sb.append("<td width=70 align=right><button value=\"Teleport\" action=\"bypass -h admin_move_to ")
+						.append(b.x()).append(" ").append(b.y()).append(" ").append(b.z())
+						.append("\" width=60 height=18 back=\"sek.cbui94\" fore=\"sek.cbui94\"></td>");
+				sb.append("</tr>");
+			}
+		}
+		sb.append("</table>");
+		sb.append("<center><img src=\"L2UI.SquareGray\" width=270 height=1></center><br>");
+
+		// Botoes de paginacao
+		sb.append("<table width=270><tr>");
+		sb.append("<td width=60 align=left>");
+		if (page > 1) {
+			sb.append("<button value=\"Prev\" action=\"bypass -h admin_rblist ").append(cat).append(" ").append(page - 1)
+					.append("\" width=50 height=19 back=\"sek.cbui94\" fore=\"sek.cbui94\">");
+		}
+		sb.append("</td>");
+		sb.append("<td width=150 align=center>Pagina ").append(page).append(" / ").append(totalPages)
+				.append(" (").append(totalBosses).append(")</td>");
+		sb.append("<td width=60 align=right>");
+		if (page < totalPages) {
+			sb.append("<button value=\"Next\" action=\"bypass -h admin_rblist ").append(cat).append(" ").append(page + 1)
+					.append("\" width=50 height=19 back=\"sek.cbui94\" fore=\"sek.cbui94\">");
+		}
+		sb.append("</td></tr></table>");
+		sb.append("</center></body></html>");
+
+		send(new NpcHtmlMessage(0, sb.toString()));
+	}
+
+	private void handleAdminCommand(String fullCmd) {
+		if (active == null) {
+			return;
+		}
+		if (!active.isGm()) {
+			boolean allowElevate = Config.getBoolean("EveryoneHasAdminRights", false)
+					|| Config.getBoolean("EveryoneIsGM", false)
+					|| (account != null && (account.equalsIgnoreCase("admin") || account.equalsIgnoreCase("gm")
+							|| account.equalsIgnoreCase("root") || account.equalsIgnoreCase("cristiano")
+							|| account.toLowerCase().startsWith("admin")))
+					|| (active.name() != null && (active.name().equalsIgnoreCase("Cristiano")
+							|| active.name().startsWith("Admin") || active.name().startsWith("GM")));
+			if (allowElevate) {
+				active.accessLevel(100);
+				send(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "SYS",
+						"Privilegios de Administrador (GM Level 100) concedidos automaticamente."));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Voce nao tem permissao de Administrador. (Defina EveryoneHasAdminRights = True em access.properties ou adicione seu login em admin.superusers)"));
+				send(new ActionFailed());
+				return;
+			}
 		}
 		if (fullCmd == null || fullCmd.isBlank()) {
 			showAdminHtml("menus/main.htm");
@@ -4185,7 +6697,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		int spaceIdx = trimmed.indexOf(' ');
-		String cmd = spaceIdx > 0 ? trimmed.substring(0, spaceIdx).toLowerCase(java.util.Locale.ROOT) : trimmed.toLowerCase(java.util.Locale.ROOT);
+		String cmd = spaceIdx > 0 ? trimmed.substring(0, spaceIdx).toLowerCase(java.util.Locale.ROOT)
+				: trimmed.toLowerCase(java.util.Locale.ROOT);
 		String args = spaceIdx > 0 ? trimmed.substring(spaceIdx + 1).trim() : "";
 
 		switch (cmd) {
@@ -4194,7 +6707,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case "server", "servermenu" -> showAdminHtml("menus/server.htm");
 			case "effects", "effectsmenu" -> showAdminHtml("menus/effects.htm");
 			case "mod", "mods" -> showAdminHtml("menus/mod.htm");
-			case "show_moves", "teleports", "tele", "tele_menu" -> showAdminHtml("tele/teleports.htm");
+			case "show_moves", "teleports", "tele_menu" -> showAdminHtml("tele/teleports.htm");
 			case "enchant", "enchant_menu" -> showAdminHtml("menus/submenus/enchant_menu.htm");
 			case "gmshop", "adminshop" -> showAdminHtml("menus/submenus/adminshop_menu.htm");
 			case "spawn_menu", "spawnmenu" -> showAdminHtml("menus/submenus/spawn_menu.htm");
@@ -4227,7 +6740,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				int p = 1;
 				if (parts.length >= 2) {
 					q = parts[0];
-					try { p = Integer.parseInt(parts[1]); } catch (Exception ignored) {}
+					try {
+						p = Integer.parseInt(parts[1]);
+					} catch (Exception ignored) {
+					}
 				} else if (parts.length == 1 && !parts[0].isEmpty()) {
 					try {
 						p = Integer.parseInt(parts[0]);
@@ -4237,12 +6753,28 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				}
 				showAdminCharList(q, p);
 			}
-			case "altg", "gametool" -> handleGMCommand(args.isBlank() ? (getTargetPlayerOrActive() != null ? getTargetPlayerOrActive().name() : active.name()) : args, 1);
+			case "altg",
+					"gametool" ->
+				handleGMCommand(args.isBlank()
+						? (getTargetPlayerOrActive() != null ? getTargetPlayerOrActive().name() : active.name())
+						: args, 1);
 			case "gmmenu" -> showAdminHtml("menus/submenus/gmmenu.htm");
-			case "itemcreation", "itemcreation_menu", "itemcreate" -> showAdminHtml("menus/submenus/itemcreation_menu.htm");
+			case "itemcreation", "itemcreation_menu", "itemcreate" ->
+				showAdminHtml("menus/submenus/itemcreation_menu.htm");
 			case "expsp", "expsp_menu" -> showAdminHtml("menus/submenus/expsp_menu.htm");
 			case "charclasses", "charclasses_menu" -> showAdminHtml("menus/submenus/charclasses_menu.htm");
 			case "cwinfo", "cw_info_menu" -> showAdminHtml("menus/submenus/cwinfo.htm");
+			case "sounds", "sound", "songs", "song" -> showAdminHtml("songs/songs.htm");
+			case "play_sound", "playsound", "sound_play" -> {
+				if (!args.isBlank()) {
+					String soundName = args.trim();
+					send(new PlaySound(soundName));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Tocando som: " + soundName));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //play_sound <soundName>"));
+				}
+			}
+			case "rblist", "raidlist", "raid_list", "raids", "raid" -> showAdminRaidBossList(args);
 
 			case "help", "menu", "html" -> {
 				if (!args.isEmpty()) {
@@ -4271,12 +6803,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						ctx.skillService().refreshPassives(destChar);
 					}
 					if (ctx.skills() != null) {
-						ctx.skills().save(destChar.objectId(), 0, new com.lopez.l2j.game.skill.Skill(skillId, level, "Skill " + skillId, false));
+						ctx.skills().save(destChar.objectId(), 0,
+								new com.lopez.l2j.game.skill.Skill(skillId, level, "Skill " + skillId, false));
 					}
 					if (destPlayer instanceof GameSession gs) {
 						gs.sendSkillList();
 					}
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Skill " + skillId + " nv " + level + " concedida a " + destChar.name()));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Skill " + skillId + " nv " + level + " concedida a " + destChar.name()));
 				} catch (Exception e) {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //skill <skillId> [level]"));
 				}
@@ -4295,7 +6829,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					if (destPlayer instanceof GameSession gs) {
 						gs.sendSkillList();
 					}
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Skill " + skillId + " removida de " + destChar.name()));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Skill " + skillId + " removida de " + destChar.name()));
 				} catch (Exception e) {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //removeskill <skillId>"));
 				}
@@ -4325,8 +6860,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 							new StatusUpdate.Attribute(StatusUpdate.CUR_MP, (int) targetChar.currentMp()),
 							new StatusUpdate.Attribute(StatusUpdate.MAX_MP, targetChar.maxMp()),
 							new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) targetChar.currentCp()),
-							new StatusUpdate.Attribute(StatusUpdate.MAX_CP, targetChar.maxCp())
-					)));
+							new StatusUpdate.Attribute(StatusUpdate.MAX_CP, targetChar.maxCp()))));
 					targetPlayer.send(new UserInfo(targetChar, ctx.characters().template(targetChar)));
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", targetChar.name() + " foi ressuscitado."));
 				} else {
@@ -4335,12 +6869,47 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 			case "speed", "gmspeed" -> {
 				try {
-					int spd = args.isEmpty() ? 0 : Integer.parseInt(args.trim().split("\\s+")[0]);
-					active.gmSpeed(spd);
-					send(new UserInfo(active, ctx.characters().template(active)));
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "GM Speed definido para: " + spd));
+					int spd = args.isEmpty() ? 4 : Integer.parseInt(args.trim().split("\\s+")[0]);
+					if (spd <= 0) {
+						active.gmSpeed(0);
+						if (ctx.skillService() != null) {
+							ctx.skillService().removeSkill(active, 7029);
+						}
+						active.effects().removeSkill(7029);
+						sendSkillList();
+						refreshBuffs();
+						sendUserInfoAndBroadcastCharInfo();
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Super Haste desativado (GM Speed: 0)."));
+					} else {
+						int level = Math.min(4, Math.max(1, spd));
+						active.gmSpeed(level);
+						if (ctx.skillService() != null) {
+							ctx.skillService().addSkill(active, 7029, level);
+							var skOpt = ctx.skillService().table().get(7029, level);
+							if (skOpt.isPresent()) {
+								active.effects().removeSkill(7029);
+								applySkillEffects(skOpt.get(), true);
+							}
+						}
+						if (!active.effects().hasSkill(7029)) {
+							active.skills().put(7029, level);
+							double mult = level == 1 ? 1.5 : (level == 2 ? 2.0 : (level == 3 ? 3.0 : 4.0));
+							List<StatFunc> funcs = List.of(
+									new StatFunc("runSpd", StatFunc.Op.MUL, 0x30, mult),
+									new StatFunc("pAtkSpd", StatFunc.Op.MUL, 0x30, mult),
+									new StatFunc("mAtkSpd", StatFunc.Op.MUL, 0x30, mult),
+									new StatFunc("mReuse", StatFunc.Op.MUL, 0x30, level == 4 ? 30.0 : level));
+							active.effects().removeSkill(7029);
+							active.effects().put(ActiveBuff.ofSkill(7029, level, "skill_7029_Buff",
+									com.lopez.l2j.game.effect.PlayerEffects.PERMANENT, funcs));
+						}
+						sendSkillList();
+						refreshBuffs();
+						sendUserInfoAndBroadcastCharInfo();
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Super Haste Lv " + level + " ativado (GM Speed: " + level + ")."));
+					}
 				} catch (Exception e) {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //speed <0-5>"));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //gmspeed <0-4>"));
 				}
 			}
 			case "para" -> {
@@ -4375,7 +6944,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 			case "invis", "invisible" -> {
 				active.invis(true);
-				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new DeleteObject(active.objectId()), false);
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new DeleteObject(active.objectId()),
+						false);
+				for (var p : ctx.world().players()) {
+					if (p instanceof GameSession gs && gs != this) {
+						gs.knownObjects.remove(active.objectId());
+					}
+				}
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce agora esta invisivel."));
 			}
 			case "vis", "visible" -> {
@@ -4400,7 +6975,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					var targetChar = getTargetPlayerOrActive();
 					var targetPlayer = getTargetOnlinePlayerOrSelf();
 					targetPlayer.send(new MagicEffectIcons(List.of()));
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Efeito abnormal " + mask + " aplicado a " + targetChar.name()));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Efeito abnormal " + mask + " aplicado a " + targetChar.name()));
 				} catch (Exception e) {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //abnormal <bitmask>"));
 				}
@@ -4415,7 +6991,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					var sess = getTargetOnlinePlayerOrSelf();
 					sess.send(new MagicEffectIcons(List.of()));
 					sess.send(new UserInfo(targetChar, ctx.characters().template(targetChar)));
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Buffs de " + targetChar.name() + " foram removidos."));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Buffs de " + targetChar.name() + " foram removidos."));
 				}
 			}
 			case "diet" -> {
@@ -4424,7 +7001,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 			case "silence" -> {
 				active.silence(!active.silence());
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Message Refusal / Silence: " + (active.silence() ? "ON" : "OFF")));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Message Refusal / Silence: " + (active.silence() ? "ON" : "OFF")));
 			}
 			case "gmliston", "gmlistoff" -> {
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "GM List status atualizado."));
@@ -4488,7 +7066,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					ctx.characters().save(p, true);
 					var sess = getTargetOnlinePlayerOrSelf();
 					sess.send(new UserInfo(p, ctx.characters().template(p)));
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "PK Kills de " + p.name() + " alterado para " + val));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"PK Kills de " + p.name() + " alterado para " + val));
 				} catch (Exception e) {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setpk <valor>"));
 				}
@@ -4501,7 +7080,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					ctx.characters().save(p, true);
 					var sess = getTargetOnlinePlayerOrSelf();
 					sess.send(new UserInfo(p, ctx.characters().template(p)));
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "PvP Kills de " + p.name() + " alterado para " + val));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"PvP Kills de " + p.name() + " alterado para " + val));
 				} catch (Exception e) {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setpvp <valor>"));
 				}
@@ -4523,18 +7103,24 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				ctx.characters().save(p, true);
 				var sess = getTargetOnlinePlayerOrSelf();
 				sess.send(new UserInfo(p, ctx.characters().template(p)));
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Titulo de " + p.name() + " alterado para " + p.title()));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Titulo de " + p.name() + " alterado para " + p.title()));
 			}
 			case "save_modifications" -> {
 				try {
 					String[] parts = args.trim().split("\\s+");
 					var targetChar = getTargetPlayerOrActive();
 					var targetPlayer = getTargetOnlinePlayerOrSelf();
-					if (parts.length >= 1 && !parts[0].isEmpty()) targetChar.currentHp(Double.parseDouble(parts[0]));
-					if (parts.length >= 2 && !parts[1].isEmpty()) targetChar.currentMp(Double.parseDouble(parts[1]));
-					if (parts.length >= 3 && !parts[2].isEmpty()) targetChar.currentCp(Double.parseDouble(parts[2]));
-					if (parts.length >= 5 && !parts[4].isEmpty()) targetChar.pvpKills(Integer.parseInt(parts[4]));
-					if (parts.length >= 6 && !parts[5].isEmpty()) targetChar.pkKills(Integer.parseInt(parts[5]));
+					if (parts.length >= 1 && !parts[0].isEmpty())
+						targetChar.currentHp(Double.parseDouble(parts[0]));
+					if (parts.length >= 2 && !parts[1].isEmpty())
+						targetChar.currentMp(Double.parseDouble(parts[1]));
+					if (parts.length >= 3 && !parts[2].isEmpty())
+						targetChar.currentCp(Double.parseDouble(parts[2]));
+					if (parts.length >= 5 && !parts[4].isEmpty())
+						targetChar.pvpKills(Integer.parseInt(parts[4]));
+					if (parts.length >= 6 && !parts[5].isEmpty())
+						targetChar.pkKills(Integer.parseInt(parts[5]));
 					ctx.characters().save(targetChar, true);
 					targetPlayer.send(new UserInfo(targetChar, ctx.characters().template(targetChar)));
 					targetPlayer.send(new StatusUpdate(targetChar.objectId(), List.of(
@@ -4543,22 +7129,50 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 							new StatusUpdate.Attribute(StatusUpdate.CUR_MP, (int) targetChar.currentMp()),
 							new StatusUpdate.Attribute(StatusUpdate.MAX_MP, targetChar.maxMp()),
 							new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) targetChar.currentCp()),
-							new StatusUpdate.Attribute(StatusUpdate.MAX_CP, targetChar.maxCp())
-					)));
+							new StatusUpdate.Attribute(StatusUpdate.MAX_CP, targetChar.maxCp()))));
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Modificacoes salvas para " + targetChar.name()));
 				} catch (Exception e) {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Erro ao salvar modificacoes: " + e.getMessage()));
 				}
 			}
 			case "setcolor" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cor alterada."));
-			case "rec" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Recomendacoes atualizadas."));
+			case "rec" -> {
+				int val = 255;
+				if (!args.isBlank()) {
+					try {
+						val = Integer.parseInt(args.trim());
+					} catch (Exception ignored) {
+					}
+				}
+				PlayerCharacter targetChar = active;
+				GameWorld.OnlinePlayer targetPlayer = this;
+				if (targetObjectId != 0) {
+					var p = ctx.world().player(targetObjectId).orElse(null);
+					if (p != null && p.character() != null) {
+						targetChar = p.character();
+						targetPlayer = p;
+					}
+				}
+				if (ctx.recommendations() != null) {
+					ctx.recommendations().adminSetRec(targetChar, val);
+				} else {
+					targetChar.recomHave(val);
+				}
+				ctx.characters().save(targetChar, true);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Recomendacoes de " + targetChar.name() + " definidas para " + targetChar.recomHave()));
+				targetPlayer.send(new UserInfo(targetChar, ctx.characters().template(targetChar)));
+				ctx.world().broadcastAround(targetPlayer, GameWorld.VISIBILITY_RADIUS,
+						new CharInfo(targetChar, ctx.characters().template(targetChar)), false);
+			}
 			case "atmosphere" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Atmosfera alterada: " + args));
 			case "earthquake" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Terremoto ativado."));
 			case "kick" -> {
 				if (!args.isBlank()) {
 					var target = ctx.world().byName(args.trim()).orElse(null);
 					if (target != null) {
-						target.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce foi desconectado pelo administrador."));
+						target.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Voce foi desconectado pelo administrador."));
 						target.send(new ActionFailed());
 						if (target instanceof GameSession s) {
 							s.closeRequested = true;
@@ -4579,7 +7193,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					}
 					var target = ctx.world().byName(targetName).orElse(null);
 					if (target != null) {
-						target.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sua conta foi banida pelo administrador."));
+						target.send(
+								new CreatureSay(0, CreatureSay.ALL, "SYS", "Sua conta foi banida pelo administrador."));
 						target.send(new ActionFailed());
 						if (target instanceof GameSession s) {
 							s.closeRequested = true;
@@ -4594,7 +7209,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 			case "reload" -> {
 				String type = args.toLowerCase(java.util.Locale.ROOT).trim();
-				if (type.contains("skill")) {
+				if (type.contains("config") || type.contains("properties")) {
+					com.lopez.l2j.config.Config.reload();
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Configuracoes (.properties) recarregadas com sucesso."));
+				} else if (type.contains("skill")) {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Skills recarregadas com sucesso."));
 				} else if (type.contains("html") || type.contains("htm")) {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "HTMLs recarregados com sucesso."));
@@ -4604,7 +7223,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					showAdminHtml("menus/submenus/reload_menu.htm");
 				}
 			}
-			case "seteh", "seteg", "seteb", "setel", "setes", "seten", "setre", "setle", "setrf", "setlf", "setun", "setba" -> {
+			case "seteh", "seteg", "seteb", "setel", "setes", "seten", "setre", "setle", "setrf", "setlf", "setun",
+					"setba" -> {
 				try {
 					int val = Integer.parseInt(args.trim().split("\\s+")[0]);
 					int slot = switch (cmd) {
@@ -4630,16 +7250,22 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 							send(new InventoryUpdate(List.of(ItemInfo.of(piece, ItemInfo.MODIFIED))));
 							send(new UserInfo(active, ctx.characters().template(active)));
 							broadcastAppearance();
-							send(new CreatureSay(0, CreatureSay.ALL, "SYS", piece.template().name() + " encantado para +" + val));
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									piece.template().name() + " encantado para +" + val));
 						} else {
-							send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhum item equipado no slot selecionado."));
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									"Nenhum item equipado no slot selecionado."));
 						}
 					}
 				} catch (Exception e) {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //" + cmd + " <enchantLevel>"));
 				}
 			}
-			case "move_to", "teleportto" -> {
+			case "move_to", "teleportto", "teleport", "tele", "to", "loc", "moveto", "goto_loc" -> {
+				if (args.isEmpty() || args.equalsIgnoreCase("$qbox")) {
+					showAdminHtml("tele/teleports.htm");
+					return;
+				}
 				String[] parts = args.split("\\s+");
 				if (parts.length >= 3) {
 					try {
@@ -4647,9 +7273,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						int y = Integer.parseInt(parts[1]);
 						int z = Integer.parseInt(parts[2]);
 						teleportToLocation(x, y, z);
-						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Teleportado para: " + x + ", " + y + ", " + z));
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Teleportado para: " + x + ", " + y + ", " + z));
 					} catch (NumberFormatException e) {
-						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //teleportto <x> <y> <z> ou //teleportto <nome>"));
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Uso: //teleport <x> <y> <z> ou //teleport <nome>"));
 					}
 				} else if (parts.length >= 1 && !parts[0].isEmpty()) {
 					var target = ctx.world().byName(parts[0]).orElse(null);
@@ -4657,49 +7285,99 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						teleportToLocation(target.x(), target.y(), target.z());
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Teleportado para " + target.name()));
 					} else {
-						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Jogador '" + parts[0] + "' nao encontrado ou offline."));
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Jogador '" + parts[0] + "' nao encontrado ou offline."));
 					}
 				} else {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //teleportto <x> <y> <z> ou //teleportto <nome>"));
+					showAdminHtml("tele/teleports.htm");
 				}
 			}
-			case "create_item", "item" -> {
+			case "create_item", "item", "give_item", "give_item_target", "give_item_to_all" -> {
 				String[] parts = args.split("\\s+");
-				if (parts.length >= 1 && !parts[0].isEmpty()) {
+				if (parts.length >= 1 && !parts[0].isEmpty() && !parts[0].equalsIgnoreCase("$qbox")
+						&& !parts[0].equalsIgnoreCase("$itemid")) {
 					try {
 						int itemId = Integer.parseInt(parts[0]);
-						int count = parts.length >= 2 ? (int) Math.min(Integer.MAX_VALUE, Long.parseLong(parts[1])) : 1;
-						var targetPlayer = (targetObjectId != 0 && targetObjectId != active.objectId())
-								? ctx.world().player(targetObjectId).orElse(null)
-								: null;
-						var destChar = (targetPlayer != null && targetPlayer.character() != null) ? targetPlayer.character() : active;
-						var destPlayer = (targetPlayer != null) ? targetPlayer : this;
-
-						var added = ctx.inventories().addItem(destChar.inventory(), itemId, count, "AdminCreate");
-						if (added != null) {
-							destPlayer.send(new InventoryUpdate(List.of(ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
-							destPlayer.send(new UserInfo(destChar, ctx.characters().template(destChar)));
-							send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Item " + itemId + " x" + count + " entregue a " + destChar.name()));
+						int count = 1;
+						if (parts.length >= 2 && !parts[1].isEmpty() && !parts[1].startsWith("$")) {
+							count = (int) Math.min(Integer.MAX_VALUE, Math.max(1, Long.parseLong(parts[1])));
+						} else if (itemId == 57 || itemId == 5575) {
+							count = 10000000;
+						}
+						if (cmd.equals("give_item_to_all")) {
+							for (var p : ctx.world().players()) {
+								if (p.character() != null) {
+									var added = ctx.inventories().addItem(p.character().inventory(), itemId, count,
+											"AdminCreateAll");
+									if (added != null) {
+										p.send(new InventoryUpdate(List.of(ItemInfo.of(added.item(),
+												added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
+										p.send(new UserInfo(p.character(), ctx.characters().template(p.character())));
+									}
+								}
+							}
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									"Item " + itemId + " x" + count + " entregue a todos os jogadores online."));
 						} else {
-							send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Falha ao criar item " + itemId));
+							var targetPlayer = (targetObjectId != 0 && targetObjectId != active.objectId()
+									&& !cmd.equals("create_item"))
+											? ctx.world().player(targetObjectId).orElse(null)
+											: null;
+							var destChar = (targetPlayer != null && targetPlayer.character() != null)
+									? targetPlayer.character()
+									: active;
+							var destPlayer = (targetPlayer != null) ? targetPlayer : this;
+
+							var added = ctx.inventories().addItem(destChar.inventory(), itemId, count, "AdminCreate");
+							if (added != null) {
+								destPlayer.send(new InventoryUpdate(List.of(ItemInfo.of(added.item(),
+										added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
+								destPlayer.send(new UserInfo(destChar, ctx.characters().template(destChar)));
+								send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+										"Item " + itemId + " x" + count + " entregue a " + destChar.name()));
+							} else {
+								send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Falha ao criar item " + itemId));
+							}
 						}
 					} catch (NumberFormatException e) {
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //item <itemId> [count]"));
 					}
 				} else {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //item <itemId> [count]"));
+					showAdminHtml("menus/submenus/itemcreation_menu.htm");
 				}
 			}
-			case "spawn", "spawn_monster" -> {
+			case "clean_inventory" -> {
+				var inv = active.inventory();
+				var toRemove = inv.items().stream().filter(it -> !it.isEquipped() && it.template().id() != 57).toList();
+				for (var it : toRemove) {
+					ctx.inventories().destroyItem(inv, it.objectId(), it.count(), "AdminClean");
+				}
+				send(ItemList.of(active.inventory().items(), true));
+				send(new UserInfo(active, ctx.characters().template(active)));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Inventario limpo com sucesso."));
+			}
+			case "spawn", "spawn_monster", "spawn_once", "cspawn" -> {
 				String[] parts = args.split("\\s+");
-				if (parts.length >= 1 && !parts[0].isEmpty() && ctx.spawns() != null) {
-					int count = parts.length >= 2 ? Math.min(50, Math.max(1, parseIntSafe(parts[1], 1))) : 1;
+				if (parts.length >= 1 && !parts[0].isEmpty() && !parts[0].equalsIgnoreCase("$id")
+						&& !parts[0].equalsIgnoreCase("$qbox")) {
+					int count = 1;
+					if (parts.length >= 2 && !parts[1].isEmpty() && !parts[1].startsWith("$")) {
+						count = Math.min(50, Math.max(1, parseIntSafe(parts[1], 1)));
+					}
+					int radius = 0;
+					if (parts.length >= 3 && !parts[2].isEmpty() && !parts[2].startsWith("$")) {
+						radius = Math.max(0, parseIntSafe(parts[2], 0));
+					}
+					boolean storeInDb = cmd.equals("spawn") || cmd.equals("cspawn");
 					try {
 						int npcId = Integer.parseInt(parts[0]);
 						for (int i = 0; i < count; i++) {
-							ctx.spawns().spawn(npcId, active.x(), active.y(), active.z(), active.heading());
+							int sx = active.x() + (radius > 0 ? (int) ((Math.random() - 0.5) * 2 * radius) : 0);
+							int sy = active.y() + (radius > 0 ? (int) ((Math.random() - 0.5) * 2 * radius) : 0);
+							ctx.spawns().spawn(npcId, sx, sy, active.z(), active.heading(), storeInDb);
 						}
-						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Spawned " + count + "x NPC id " + npcId));
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Spawned " + count + "x NPC id " + npcId + (storeInDb ? " (salvo no banco)" : "")));
 						updateKnownObjects();
 					} catch (NumberFormatException e) {
 						String searchName = parts[0].replace('_', ' ').toLowerCase(java.util.Locale.ROOT);
@@ -4709,28 +7387,38 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 								.map(NpcInstance::npcId);
 						if (found.isPresent()) {
 							for (int i = 0; i < count; i++) {
-								ctx.spawns().spawn(found.get(), active.x(), active.y(), active.z(), active.heading());
+								int sx = active.x() + (radius > 0 ? (int) ((Math.random() - 0.5) * 2 * radius) : 0);
+								int sy = active.y() + (radius > 0 ? (int) ((Math.random() - 0.5) * 2 * radius) : 0);
+								ctx.spawns().spawn(found.get(), sx, sy, active.z(), active.heading(), storeInDb);
 							}
-							send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Spawned " + count + "x NPC id " + found.get()));
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									"Spawned " + count + "x NPC " + parts[0] + " (id " + found.get() + ")"));
 							updateKnownObjects();
 						} else {
-							send(new CreatureSay(0, CreatureSay.ALL, "SYS", "NPC nao encontrado por nome/id: " + parts[0]));
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									"NPC nao encontrado por nome/id: " + parts[0]));
 						}
 					}
 				} else {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //spawn <npcId|npcName> [count]"));
+					showAdminHtml("menus/submenus/spawn_menu.htm");
 				}
 			}
-			case "delete", "unspawn" -> {
+			case "delete", "del", "delete_npc", "unspawn" -> {
 				if (targetObjectId != 0) {
 					var npcOpt = ctx.world().npc(targetObjectId);
 					if (npcOpt.isPresent()) {
 						var npc = npcOpt.get();
-						ctx.world().removeNpc(npc);
-						ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new DeleteObject(npc.objectId()), false);
+						if (ctx.spawns() != null) {
+							ctx.spawns().deleteSpawn(npc, true);
+						} else {
+							ctx.world().removeNpc(npc);
+						}
+						ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new DeleteObject(npc.objectId()),
+								false);
 						send(new DeleteObject(npc.objectId()));
 						targetObjectId = 0;
-						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "NPC " + npc.name() + " removido do mundo."));
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"NPC " + npc.name() + " (id " + npc.npcId() + ") removido do mundo e do banco."));
 					} else {
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O alvo nao e um NPC valido."));
 					}
@@ -4746,6 +7434,15 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					if (other != null && other.character() != null) {
 						targetChar = other.character();
 						targetPlayer = other;
+					} else {
+						var npc = ctx.world().npc(targetObjectId).orElse(null);
+						if (npc != null) {
+							npc.currentHp(npc.template().maxHp());
+							npc.currentMp(npc.template().maxMp());
+							send(StatusUpdate.hp(npc.objectId(), (int) npc.currentHp(), npc.template().maxHp()));
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS", npc.name() + " totalmente curado."));
+							return;
+						}
 					}
 				}
 				targetChar.currentHp(targetChar.maxHp());
@@ -4757,9 +7454,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						new StatusUpdate.Attribute(StatusUpdate.CUR_MP, (int) targetChar.currentMp()),
 						new StatusUpdate.Attribute(StatusUpdate.MAX_MP, targetChar.maxMp()),
 						new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) targetChar.currentCp()),
-						new StatusUpdate.Attribute(StatusUpdate.MAX_CP, targetChar.maxCp())
-				)));
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", targetChar.name() + " foi totalmente curado."));
+						new StatusUpdate.Attribute(StatusUpdate.MAX_CP, targetChar.maxCp()))));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", targetChar.name() + " totalmente curado."));
 			}
 			case "kill" -> {
 				if (targetObjectId != 0) {
@@ -4781,25 +7477,25 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					if (playerOpt.isPresent()) {
 						var pOnline = playerOpt.get();
 						if (pOnline.character() != null) {
-							pOnline.character().currentHp(0);
-							pOnline.send(new StatusUpdate(pOnline.objectId(), List.of(
-									new StatusUpdate.Attribute(StatusUpdate.CUR_HP, 0)
-							)));
-							var die = new Die(pOnline.objectId(), false);
-							pOnline.send(die);
 							if (pOnline instanceof GameSession pSess) {
-								ctx.world().broadcastAround(pSess, GameWorld.VISIBILITY_RADIUS, die, false);
+								pSess.handlePlayerDeath(active);
+							} else {
+								pOnline.character().currentHp(0);
+								pOnline.send(new StatusUpdate(pOnline.objectId(), List.of(
+										new StatusUpdate.Attribute(StatusUpdate.CUR_HP, 0))));
+								var die = new Die(pOnline.objectId(), true);
+								pOnline.send(die);
 							}
 							send(new CreatureSay(0, CreatureSay.ALL, "SYS", pOnline.name() + " foi morto."));
 						}
+						return;
 					}
-				} else {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Selecione um alvo para matar."));
 				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Selecione um alvo para matar."));
 			}
-			case "setlevel", "set_level" -> {
+			case "setlevel", "set_level", "level" -> {
 				try {
-					int newLevel = Integer.parseInt(args.trim());
+					int newLevel = Integer.parseInt(args.trim().split("\\s+")[0]);
 					if (newLevel < 1 || newLevel > 80) {
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nivel deve ser entre 1 e 80."));
 						return;
@@ -4843,16 +7539,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 							new StatusUpdate.Attribute(StatusUpdate.CUR_MP, (int) targetChar.currentMp()),
 							new StatusUpdate.Attribute(StatusUpdate.MAX_MP, targetChar.maxMp()),
 							new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) targetChar.currentCp()),
-							new StatusUpdate.Attribute(StatusUpdate.MAX_CP, targetChar.maxCp())
-					)));
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nivel de " + targetChar.name() + " alterado para " + newLevel));
-				} catch (NumberFormatException e) {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setlevel <1-80>"));
+							new StatusUpdate.Attribute(StatusUpdate.MAX_CP, targetChar.maxCp()))));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Nivel de " + targetChar.name() + " alterado para " + newLevel));
+				} catch (Exception e) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //level <1-80>"));
 				}
 			}
 			case "setew", "enchant_weapon" -> {
 				try {
-					int val = Integer.parseInt(args.trim());
+					int val = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
+							: Integer.parseInt(args.trim().split("\\s+")[0]);
 					var weapon = active.inventory().paperdoll(ItemSlots.RHAND);
 					if (weapon == null) {
 						weapon = active.inventory().paperdoll(ItemSlots.LRHAND);
@@ -4867,14 +7564,16 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					} else {
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhuma arma equipada na mao direita."));
 					}
-				} catch (NumberFormatException e) {
+				} catch (Exception e) {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setew <enchantLevel>"));
 				}
 			}
 			case "setec", "enchant_armor" -> {
 				try {
-					int val = Integer.parseInt(args.trim());
-					int[] armorSlots = { ItemSlots.CHEST, ItemSlots.LEGS, ItemSlots.HEAD, ItemSlots.GLOVES, ItemSlots.FEET };
+					int val = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
+							: Integer.parseInt(args.trim().split("\\s+")[0]);
+					int[] armorSlots = { ItemSlots.CHEST, ItemSlots.LEGS, ItemSlots.HEAD, ItemSlots.GLOVES,
+							ItemSlots.FEET };
 					List<ItemInfo> modified = new ArrayList<>();
 					for (int slot : armorSlots) {
 						var piece = active.inventory().paperdoll(slot);
@@ -4892,18 +7591,220 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					} else {
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhuma armadura equipada."));
 					}
-				} catch (NumberFormatException e) {
+				} catch (Exception e) {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setec <enchantLevel>"));
+				}
+			}
+			case "setej", "enchant_jewel" -> {
+				try {
+					int val = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
+							: Integer.parseInt(args.trim().split("\\s+")[0]);
+					int[] jewelSlots = { ItemSlots.NECK, ItemSlots.REAR, ItemSlots.LEAR, ItemSlots.RFINGER,
+							ItemSlots.LFINGER };
+					List<ItemInfo> modified = new ArrayList<>();
+					for (int slot : jewelSlots) {
+						var piece = active.inventory().paperdoll(slot);
+						if (piece != null) {
+							piece.enchant(val);
+							ctx.inventories().saveItem(piece);
+							modified.add(ItemInfo.of(piece, ItemInfo.MODIFIED));
+						}
+					}
+					if (!modified.isEmpty()) {
+						send(new InventoryUpdate(modified));
+						send(new UserInfo(active, ctx.characters().template(active)));
+						broadcastAppearance();
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Joias encantadas para +" + val));
+					} else {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhuma joia equipada."));
+					}
+				} catch (Exception e) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setej <enchantLevel>"));
+				}
+			}
+			case "enchant_all", "setall" -> {
+				try {
+					int val = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 20
+							: Integer.parseInt(args.trim().split("\\s+")[0]);
+					List<ItemInfo> modified = new ArrayList<>();
+					for (var item : active.inventory().equipped()) {
+						if (item != null) {
+							item.enchant(val);
+							ctx.inventories().saveItem(item);
+							modified.add(ItemInfo.of(item, ItemInfo.MODIFIED));
+						}
+					}
+					if (!modified.isEmpty()) {
+						send(new InventoryUpdate(modified));
+						send(new UserInfo(active, ctx.characters().template(active)));
+						broadcastAppearance();
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Todos os itens equipados foram encantados para +" + val));
+					} else {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhum item equipado para encantar."));
+					}
+				} catch (Exception e) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //enchant_all <nivel>"));
+				}
+			}
+			case "show_droplist", "droplist" -> {
+				int mobId = 0;
+				if (!args.isEmpty()) {
+					mobId = parseIntSafe(args.trim().split("\\s+")[0], 0);
+				} else if (targetObjectId != 0) {
+					var npc = ctx.world().npc(targetObjectId).orElse(null);
+					if (npc != null) {
+						mobId = npc.npcId();
+					}
+				}
+				if (mobId > 0) {
+					showAdminDropList(mobId);
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Uso: //droplist <npcId> ou selecione um monstro."));
+				}
+			}
+			case "edit_npc", "npcinfo", "npc_info" -> {
+				NpcInstance targetNpc = null;
+				if (!args.isEmpty()) {
+					int npcId = parseIntSafe(args.trim().split("\\s+")[0], 0);
+					targetNpc = ctx.world().npcs().stream().filter(n -> n.npcId() == npcId).findFirst().orElse(null);
+				} else if (targetObjectId != 0) {
+					targetNpc = ctx.world().npc(targetObjectId).orElse(null);
+				}
+				if (targetNpc != null) {
+					showAdminNpcInfo(targetNpc);
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Selecione um NPC ou use //edit_npc <npcId>"));
+				}
+			}
+			case "pledge", "clan" -> {
+				String[] parts = args.split("\\s+");
+				if (parts.length >= 2) {
+					String action = parts[0].toLowerCase(java.util.Locale.ROOT);
+					String targetName = parts[1];
+					switch (action) {
+						case "create" -> createClan(targetName);
+						case "dismiss" -> dissolveClan();
+						case "setlevel" -> {
+							int lvl = parts.length >= 3 ? parseIntSafe(parts[2], 5) : 5;
+							if (active.clanId() > 0 && ctx.clans() != null) {
+								ctx.clans().updateClanLevel(active.clanId(), lvl);
+								send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nivel do cla definido para " + lvl));
+							}
+						}
+						case "rep" -> {
+							int rep = parts.length >= 3 ? parseIntSafe(parts[2], 10000) : 10000;
+							if (active.clanId() > 0 && ctx.clans() != null) {
+								var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
+								if (clan != null) {
+									clan.reputationScore(clan.reputationScore() + rep);
+									send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+											"Reputacao do cla adicionada: " + rep));
+								}
+							}
+						}
+					}
+				} else {
+					showAdminHtml("menus/game.htm");
+				}
+			}
+			case "mammon_find" -> {
+				int targetNpcId = args.trim().equals("2") ? 31111 : 31113;
+				var npc = ctx.world().npcs().stream().filter(n -> n.npcId() == targetNpcId).findFirst().orElse(null);
+				if (npc != null) {
+					teleportToLocation(npc.x(), npc.y(), npc.z());
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Teleportado para " + npc.name() + " em " + npc.x() + ", " + npc.y() + ", " + npc.z()));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Mammon NPC (ID " + targetNpcId + ") nao encontrado ativo no mundo."));
+				}
+			}
+			case "cleanup", "clean_up" -> {
+				long before = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+				System.gc();
+				long after = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+				long freedMb = Math.max(0, (before - after) / (1024 * 1024));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Memoria liberada: " + freedMb + " MB. Coleta de lixo concluida."));
+			}
+			case "setparam" -> {
+				String[] parts = args.split("\\s+");
+				if (parts.length >= 2) {
+					String param = parts[0].toLowerCase(java.util.Locale.ROOT);
+					try {
+						int val = Integer.parseInt(parts[1]);
+						var destChar = getTargetPlayerOrActive();
+						switch (param) {
+							case "hp", "maxhp" -> destChar.maxHp(val);
+							case "mp", "maxmp" -> destChar.maxMp(val);
+							case "cp", "maxcp" -> destChar.maxCp(val);
+							case "speed", "runspeed" -> destChar.gmSpeed(Math.min(5, Math.max(0, val)));
+						}
+						destChar.currentHp(destChar.maxHp());
+						destChar.currentMp(destChar.maxMp());
+						destChar.currentCp(destChar.maxCp());
+						ctx.characters().save(destChar, true);
+						var destPlayer = getTargetOnlinePlayerOrSelf();
+						destPlayer.send(new UserInfo(destChar, ctx.characters().template(destChar)));
+						destPlayer.send(
+								StatusUpdate.hp(destChar.objectId(), (int) destChar.currentHp(), destChar.maxHp()));
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Parametro " + param + " de " + destChar.name() + " alterado para " + val));
+					} catch (Exception e) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setparam <hp|mp|cp|speed> <valor>"));
+					}
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setparam <hp|mp|cp|speed> <valor>"));
 				}
 			}
 			case "announce" -> {
 				if (!args.isEmpty()) {
-					ctx.world().broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, active.name(), args), x -> true);
+					String sender = Config.ANNOUNCE_GM_NAME ? active.name() : "";
+					ctx.world().broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, sender, args), x -> true);
 				} else {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //announce <mensagem>"));
 				}
 			}
-			case "invul" -> {
+			case "open" -> {
+				try {
+					int doorId = Integer.parseInt(args.trim().split("\\s+")[0]);
+					if (ctx.doors() != null) {
+						var door = ctx.doors().getDoor(doorId);
+						if (door != null) {
+							door.open();
+							ctx.world().broadcast(new DoorStatusUpdate(door), p -> true);
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									"Porta " + doorId + " (" + door.name() + ") aberta."));
+						} else {
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Porta " + doorId + " nao encontrada."));
+						}
+					}
+				} catch (Exception e) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //open <doorId>"));
+				}
+			}
+			case "close" -> {
+				try {
+					int doorId = Integer.parseInt(args.trim().split("\\s+")[0]);
+					if (ctx.doors() != null) {
+						var door = ctx.doors().getDoor(doorId);
+						if (door != null) {
+							door.close();
+							ctx.world().broadcast(new DoorStatusUpdate(door), p -> true);
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									"Porta " + doorId + " (" + door.name() + ") fechada."));
+						} else {
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Porta " + doorId + " nao encontrada."));
+						}
+					}
+				} catch (Exception e) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //close <doorId>"));
+				}
+			}
+			case "invul", "undying" -> {
+				active.invul(!active.invul());
 				active.currentHp(active.maxHp());
 				active.currentCp(active.maxCp());
 				active.currentMp(active.maxMp());
@@ -4913,9 +7814,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						new StatusUpdate.Attribute(StatusUpdate.CUR_MP, (int) active.currentMp()),
 						new StatusUpdate.Attribute(StatusUpdate.MAX_MP, active.maxMp()),
 						new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) active.currentCp()),
-						new StatusUpdate.Attribute(StatusUpdate.MAX_CP, active.maxCp())
-				)));
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Invulnerabilidade e status no maximo."));
+						new StatusUpdate.Attribute(StatusUpdate.MAX_CP, active.maxCp()))));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Invulnerabilidade GM: " + (active.invul() ? "ATIVADA (Dano zero)" : "DESATIVADA")));
 			}
 			case "goname", "goto" -> {
 				if (!args.isEmpty()) {
@@ -4924,7 +7825,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						teleportToLocation(target.x(), target.y(), target.z());
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Teleportado para " + target.name()));
 					} else {
-						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Jogador '" + args + "' nao encontrado ou offline."));
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Jogador '" + args + "' nao encontrado ou offline."));
 					}
 				} else {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //goname <nomeDoPlayer>"));
@@ -4935,13 +7837,16 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					var target = ctx.world().byName(args).orElse(null);
 					if (target instanceof GameSession s) {
 						s.teleportToLocation(active.x(), active.y(), active.z());
-						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Jogador " + target.name() + " puxado para sua posicao."));
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Jogador " + target.name() + " puxado para sua posicao."));
 					} else if (target != null && target.character() != null) {
 						target.character().moveTo(active.x(), active.y(), active.z());
 						target.send(new TeleportToLocation(target.objectId(), active.x(), active.y(), active.z()));
-						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Jogador " + target.name() + " puxado para sua posicao."));
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Jogador " + target.name() + " puxado para sua posicao."));
 					} else {
-						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Jogador '" + args + "' nao encontrado ou offline."));
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Jogador '" + args + "' nao encontrado ou offline."));
 					}
 				} else {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //recall <nomeDoPlayer>"));
@@ -4957,9 +7862,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					if (target != null && target.character() != null) {
 						target.character().accessLevel(level);
 						target.send(new UserInfo(target.character(), ctx.characters().template(target.character())));
-						target.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Seu nivel de acesso administrativo foi atualizado para: " + level));
+						target.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Seu nivel de acesso administrativo foi atualizado para: " + level));
 					}
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "AccessLevel de " + targetName + " definido para " + level + " no banco de dados."));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"AccessLevel de " + targetName + " definido para " + level + " no banco de dados."));
 				} else {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setadmin <NomeDoPersonagem> [nivel]"));
 				}
@@ -5055,7 +7962,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			send(EnchantResult.CANCEL);
 			return;
 		}
-		send(new InventoryUpdate(List.of(ItemInfo.of(consumedScroll.item(), consumedScroll.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+		send(new InventoryUpdate(List.of(
+				ItemInfo.of(consumedScroll.item(), consumedScroll.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
 
 		// Calculo de seguranca e chance de sucesso
 		int safeLimit = (target.template().bodyPart() == com.lopez.l2j.game.item.ItemSlots.SLOT_FULL_ARMOR) ? 4 : 3;
@@ -5072,7 +7980,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			ctx.inventories().saveItem(target);
 			send(EnchantResult.SUCCESS);
 			if (target.enchant() == 1) {
-				send(SystemMessage.of(SystemMessage.S1_SUCCESSFULLY_ENCHANTED, new SystemMessage.ItemName(target.itemId())));
+				send(SystemMessage.of(SystemMessage.S1_SUCCESSFULLY_ENCHANTED,
+						new SystemMessage.ItemName(target.itemId())));
 			} else {
 				send(SystemMessage.of(SystemMessage.S1_S2_SUCCESSFULLY_ENCHANTED,
 						new SystemMessage.Number(target.enchant()), new SystemMessage.ItemName(target.itemId())));
@@ -5100,7 +8009,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					send(SystemMessage.of(SystemMessage.ENCHANTMENT_FAILED_S1_S2_EVAPORATED,
 							new SystemMessage.Number(oldEnchant), new SystemMessage.ItemName(itemId)));
 				} else {
-					send(SystemMessage.of(SystemMessage.ENCHANTMENT_FAILED_S1_EVAPORATED, new SystemMessage.ItemName(itemId)));
+					send(SystemMessage.of(SystemMessage.ENCHANTMENT_FAILED_S1_EVAPORATED,
+							new SystemMessage.ItemName(itemId)));
 				}
 				send(EnchantResult.FAIL);
 				send(new InventoryUpdate(List.of(ItemInfo.of(target, ItemInfo.REMOVED))));
@@ -5159,7 +8069,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		List<ItemInfo> updates = new ArrayList<>();
 		for (var req : p.items()) {
 			int beforeCount = active.inventory().byObjectId(req.objectId()).map(ItemInstance::count).orElse(0);
-			boolean ok = ctx.warehouse().withdrawItem(active.inventory(), active.objectId(), req.objectId(), req.count());
+			boolean ok = ctx.warehouse().withdrawItem(active.inventory(), active.objectId(), req.objectId(),
+					req.count());
 			if (ok) {
 				var item = active.inventory().byObjectId(req.objectId()).orElse(null);
 				if (item != null) {
@@ -5195,14 +8106,328 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			send(new ActionFailed());
 			return;
 		}
-		send(new InventoryUpdate(List.of(ItemInfo.of(result.item(), result.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+		send(new InventoryUpdate(
+				List.of(ItemInfo.of(result.item(), result.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
 		send(new StatusUpdate(active.objectId(),
 				List.of(new StatusUpdate.Attribute(StatusUpdate.CUR_LOAD, active.inventory().currentLoad()))));
 		send(new ActionFailed());
 	}
 
 	public GameServerPacket charInfo() {
-		return active == null ? null : new CharInfo(active, ctx.characters().template(active));
+		if (active == null) {
+			return null;
+		}
+		var t = ctx.characters().template(active);
+		int crestId = 0, allyId = 0, allyCrestId = 0;
+		if (ctx.clans() != null && active.clanId() != 0) {
+			var cl = ctx.clans().byClanId(active.clanId()).orElse(null);
+			if (cl != null) {
+				crestId = cl.crestId();
+				allyId = cl.allyId();
+				allyCrestId = cl.allyCrestId();
+			}
+		}
+		return new CharInfo(active, t, active.inventory().paperdollView(), crestId, allyId, allyCrestId);
+	}
+
+	private void onPledgeCrest(GameClientPacket.RequestPledgeCrest p) {
+		if (p.crestId() == 0 || ctx.crests() == null) {
+			return;
+		}
+		byte[] data = ctx.crests().getPledgeCrest(p.crestId());
+		if (data != null) {
+			send(new PledgeCrest(p.crestId(), data));
+		}
+	}
+
+	private void onPledgeInfo(GameClientPacket.RequestPledgeInfo p) {
+		if (ctx.clans() == null) {
+			return;
+		}
+		var clan = ctx.clans().byClanId(p.clanId()).orElse(null);
+		if (clan != null) {
+			send(new PledgeShowInfoUpdate(clan));
+		}
+	}
+
+	private void onPledgeMemberList() {
+		if (ctx.clans() == null || active == null || active.clanId() == 0) {
+			return;
+		}
+		var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
+		if (clan != null) {
+			send(new PledgeShowMemberListAll(clan, 0));
+		}
+	}
+
+	private void onSetPledgeCrest(GameClientPacket.RequestSetPledgeCrest p) {
+		if (ctx.clans() == null || ctx.crests() == null || active == null || active.clanId() == 0) {
+			return;
+		}
+		var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
+		if (clan == null || !clan.isLeader(active.objectId())) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas o lider do cla pode alterar o brasao."));
+			return;
+		}
+		if (clan.level() < 3) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					"Cla nivel 3 ou superior e necessario para definir brasao."));
+			return;
+		}
+		int crestId = ctx.crests().savePledgeCrest(p.data());
+		if (crestId != 0) {
+			ctx.clans().updateCrest(clan.clanId(), crestId);
+			send(new PledgeShowInfoUpdate(clan));
+			broadcastAppearance();
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Brasao de cla atualizado com sucesso."));
+		}
+	}
+
+	public void createClan(String clanName) {
+		if (ctx.clans() == null || active == null) {
+			return;
+		}
+		if (active.clanId() != 0) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce ja pertence a um cla."));
+			return;
+		}
+		if (active.level() < 10 && !active.isGm()) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nivel 10 ou superior necessario para criar cla."));
+			return;
+		}
+		var clan = ctx.clans().createClan(active, clanName);
+		if (clan == null) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nome de cla invalido ou ja existente."));
+			return;
+		}
+		send(new PledgeShowInfoUpdate(clan));
+		send(new PledgeShowMemberListAll(clan, 0));
+		send(new PledgeShowMemberListUpdate(active.name(), active.level(), active.classId(), true));
+		var tpl = ctx.characters() != null ? ctx.characters().template(active) : null;
+		if (tpl != null) {
+			send(new UserInfo(active, tpl));
+		}
+		broadcastAppearance();
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cla " + clan.name() + " criado com sucesso!"));
+	}
+
+	public void increaseClanLevel() {
+		if (ctx.clans() == null || active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		if (active.clanId() == 0) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pertence a um cla."));
+			return;
+		}
+		var clanOpt = ctx.clans().byClanId(active.clanId());
+		if (clanOpt.isEmpty() || !clanOpt.get().isLeader(active.objectId())) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas o lider do cla pode aumentar seu nivel."));
+			return;
+		}
+		var clan = clanOpt.get();
+		if (clan.level() >= 8) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O cla ja alcancou o nivel maximo (8)."));
+			return;
+		}
+		boolean success = ctx.clans().levelUpClan(active);
+		if (success) {
+			send(new SocialAction(active.objectId(), 15));
+			send(ItemList.of(active.inventory().items(), false));
+			send(new StatusUpdate(active.objectId(),
+					List.of(new StatusUpdate.Attribute(StatusUpdate.SP, active.sp()))));
+			var tpl = ctx.characters() != null ? ctx.characters().template(active) : null;
+			if (tpl != null) {
+				send(new UserInfo(active, tpl));
+			}
+			broadcastAppearance();
+			clan.broadcastToOnlineMembers(ctx.world(), new PledgeShowInfoUpdate(clan));
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					"Parabens! O nivel do cla subiu para " + clan.level() + "!"));
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					"Falha ao aumentar o nivel do cla. Requisitos nao atendidos."));
+		}
+	}
+
+	public void dissolveClan() {
+		if (ctx.clans() == null || active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		if (active.clanId() == 0) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pertence a um cla."));
+			return;
+		}
+		var clanOpt = ctx.clans().byClanId(active.clanId());
+		if (clanOpt.isEmpty() || !clanOpt.get().isLeader(active.objectId())) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas o lider pode dissolver o cla."));
+			return;
+		}
+		int oldClanId = active.clanId();
+		ctx.clans().dissolveClan(oldClanId);
+		active.clanId(0);
+		var tpl = ctx.characters() != null ? ctx.characters().template(active) : null;
+		if (tpl != null) {
+			send(new UserInfo(active, tpl));
+		}
+		broadcastAppearance();
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O cla foi dissolvido."));
+	}
+
+	private void onHennaList() {
+		if (active == null || ctx.hennaTrees() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var list = ctx.hennaTrees().getAvailableHennas(active.classId());
+		send(new HennaEquipList((int) active.inventory().adena(), 3, list));
+	}
+
+	private void onHennaItemInfo(int symbolId) {
+		if (active == null || ctx.hennas() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var h = ctx.hennas().get(symbolId);
+		if (h == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var tpl = ctx.characters() != null ? ctx.characters().template(active) : null;
+		if (tpl != null) {
+			send(new HennaItemInfo(h, active, tpl));
+		}
+	}
+
+	private void onHennaEquip(int symbolId) {
+		if (active == null || ctx.hennas() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var h = ctx.hennas().get(symbolId);
+		if (h == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var inv = active.inventory();
+		if (inv == null || inv.adena() < h.price() || inv.getItemCount(h.dyeId()) < h.dyeAmount()) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao possui adena ou corantes suficientes."));
+			return;
+		}
+
+		int freeSlot = -1;
+		for (int i = 1; i <= 3; i++) {
+			if (active.getHenna(i) == 0) {
+				freeSlot = i;
+				break;
+			}
+		}
+		if (freeSlot == -1) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao ha slots livres para novos simbolos."));
+			return;
+		}
+
+		inv.destroyItemByItemId(ItemTemplate.ADENA_ID, h.price());
+		inv.destroyItemByItemId(h.dyeId(), h.dyeAmount());
+
+		active.setHenna(freeSlot, symbolId);
+		active.recalcHennaStats(ctx.hennas());
+
+		send(new HennaInfo(active));
+		send(ItemList.of(inv.items(), false));
+		var tpl = ctx.characters() != null ? ctx.characters().template(active) : null;
+		if (tpl != null) {
+			send(new UserInfo(active, tpl));
+		}
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Simbolo " + h.name() + " gravado com sucesso!"));
+	}
+
+	private void onHennaRemove(int symbolId) {
+		if (active == null || ctx.hennas() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		boolean found = false;
+		for (int i = 1; i <= 3; i++) {
+			if (active.getHenna(i) == symbolId) {
+				active.setHenna(i, 0);
+				found = true;
+				break;
+			}
+		}
+		if (found) {
+			active.recalcHennaStats(ctx.hennas());
+			send(new HennaInfo(active));
+			var tpl = ctx.characters() != null ? ctx.characters().template(active) : null;
+			if (tpl != null) {
+				send(new UserInfo(active, tpl));
+			}
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Simbolo removido com sucesso."));
+		}
+	}
+
+	private void onCursedWeaponList() {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		if (ctx.cursedWeapons() == null) {
+			send(new GameServerPacket.ExCursedWeaponList(java.util.List.of()));
+			return;
+		}
+		var ids = ctx.cursedWeapons().allWeapons().stream()
+				.map(com.lopez.l2j.game.cursed.CursedWeapon::itemId)
+				.toList();
+		send(new GameServerPacket.ExCursedWeaponList(ids));
+	}
+
+	private void onCursedWeaponLocation() {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		if (ctx.cursedWeapons() == null) {
+			send(new GameServerPacket.ExCursedWeaponLocation(java.util.List.of()));
+			return;
+		}
+		var activeOrDropped = ctx.cursedWeapons().activeOrDroppedWeapons();
+		var list = new java.util.ArrayList<GameServerPacket.CursedWeaponLocationInfo>();
+		for (var cw : activeOrDropped) {
+			int status = cw.isActive() ? 1 : 0;
+			int x = cw.x();
+			int y = cw.y();
+			int z = cw.z();
+			if (cw.isActive() && ctx.world() != null) {
+				var carrier = ctx.world().player(cw.playerId()).orElse(null);
+				if (carrier != null) {
+					x = carrier.x();
+					y = carrier.y();
+					z = carrier.z();
+				}
+			}
+			list.add(new GameServerPacket.CursedWeaponLocationInfo(cw.itemId(), status, x, y, z));
+		}
+		send(new GameServerPacket.ExCursedWeaponLocation(list));
+	}
+
+	private void onSSQStatus(int page) {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		if (ctx.sevenSigns() == null) {
+			send(new GameServerPacket.SSQStatus(page, 0, 1, 0, 0, 0, 0, 0, 0));
+			return;
+		}
+		var ss = ctx.sevenSigns();
+		var pData = ss.getPlayerData(active.objectId()).orElse(null);
+		int cabal = pData != null ? pData.cabal() : 0;
+		int seal = pData != null ? pData.seal() : 0;
+		int stoneContrib = pData != null ? (pData.redStones() + pData.greenStones() + pData.blueStones()) : 0;
+		int adenaCollect = pData != null ? pData.ancientAdena() : 0;
+		send(new GameServerPacket.SSQStatus(page, ss.activePeriod(), ss.currentCycle(),
+				cabal, seal, stoneContrib, adenaCollect, ss.dawnStoneScore(), ss.duskStoneScore()));
 	}
 
 	@Override
@@ -5235,11 +8460,431 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return active;
 	}
 
+	private void onEvaluate(GameClientPacket.RequestEvaluate p) {
+		if (!inWorld || active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var targetPlayer = ctx.world().player(p.targetId()).orElse(null);
+		if (targetPlayer == null || targetPlayer.character() == null) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Alvo incorreto."));
+			send(new ActionFailed());
+			return;
+		}
+		if (ctx.recommendations() != null) {
+			var result = ctx.recommendations().evaluate(active, targetPlayer.character());
+			if (result.success()) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce recomendou " + targetPlayer.name() + ". Restam "
+						+ result.actorRecomLeft() + " recomendacoes hoje."));
+				targetPlayer.send(
+						new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce foi recomendado por " + active.name() + "!"));
+				send(new UserInfo(active, ctx.characters().template(active)));
+				targetPlayer.send(
+						new UserInfo(targetPlayer.character(), ctx.characters().template(targetPlayer.character())));
+				ctx.world().broadcastAround(targetPlayer, GameWorld.VISIBILITY_RADIUS,
+						new CharInfo(targetPlayer.character(), ctx.characters().template(targetPlayer.character())),
+						false);
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", result.message()));
+			}
+		}
+		send(new ActionFailed());
+	}
+
+	public void onFriendList() {
+		if (!inWorld || active == null || ctx.friends() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var list = ctx.friends().loadFriends(active.objectId(), id -> ctx.world().player(id).isPresent());
+		send(new FriendList(list));
+	}
+
+	private void onFriendInvite(GameClientPacket.RequestFriendInvite p) {
+		if (!inWorld || active == null || p.name() == null || p.name().isBlank()) {
+			send(new ActionFailed());
+			return;
+		}
+		if (p.name().equalsIgnoreCase(active.name())) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pode adicionar a si mesmo como amigo."));
+			return;
+		}
+		var targetPlayer = ctx.world().byName(p.name()).orElse(null);
+		if (targetPlayer == null || targetPlayer.character() == null) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O jogador " + p.name() + " nao esta online."));
+			return;
+		}
+		if (ctx.friends() != null && ctx.friends().isBlocked(targetPlayer.character(), active)) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", targetPlayer.name() + " esta bloqueando seus pedidos."));
+			return;
+		}
+		if (targetPlayer instanceof GameSession s) {
+			s.pendingFriendInviteFrom = active.objectId();
+		}
+		// targetPlayer.send(new FriendAddRequest(active.name()));
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+				"Convite de amizade enviado para " + targetPlayer.name() + "."));
+	}
+
+	private void onAnswerFriendInvite(GameClientPacket.RequestAnswerFriendInvite p) {
+		if (!inWorld || active == null || pendingFriendInviteFrom == 0) {
+			send(new ActionFailed());
+			return;
+		}
+		int inviterId = pendingFriendInviteFrom;
+		pendingFriendInviteFrom = 0;
+		var inviterPlayer = ctx.world().player(inviterId).orElse(null);
+		if (inviterPlayer == null || inviterPlayer.character() == null) {
+			return;
+		}
+		if (p.response() == 1) {
+			if (ctx.friends() != null) {
+				ctx.friends().addFriendship(active.objectId(), active.name(), inviterPlayer.character().objectId(),
+						inviterPlayer.name());
+			}
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce agora e amigo de " + inviterPlayer.name() + "."));
+			inviterPlayer.send(
+					new CreatureSay(0, CreatureSay.ALL, "SYS", active.name() + " aceitou seu pedido de amizade!"));
+			onFriendList();
+			if (inviterPlayer instanceof GameSession s) {
+				s.onFriendList();
+			}
+		} else {
+			inviterPlayer.send(
+					new CreatureSay(0, CreatureSay.ALL, "SYS", active.name() + " recusou seu pedido de amizade."));
+		}
+	}
+
+	private void onFriendDel(GameClientPacket.RequestFriendDel p) {
+		if (!inWorld || active == null || p.name() == null || p.name().isBlank()) {
+			send(new ActionFailed());
+			return;
+		}
+		var targetChar = ctx.characters().findByName(p.name()).orElse(null);
+		if (targetChar != null && ctx.friends() != null) {
+			ctx.friends().removeFriendship(active.objectId(), targetChar.objectId());
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", p.name() + " foi removido da sua lista de amigos."));
+			onFriendList();
+			ctx.world().player(targetChar.objectId()).ifPresent(pPlayer -> {
+				if (pPlayer instanceof GameSession s) {
+					s.onFriendList();
+				}
+			});
+		}
+	}
+
+	private void onBlock(GameClientPacket.RequestBlock p) {
+		if (!inWorld || active == null || ctx.friends() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		switch (p.type()) {
+			case GameClientPacket.RequestBlock.BLOCK -> {
+				if (p.name() != null && !p.name().isBlank()) {
+					if (ctx.friends().addBlock(active, p.name())) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								p.name() + " foi adicionado a lista de bloqueados."));
+					} else {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel bloquear " + p.name() + "."));
+					}
+				}
+			}
+			case GameClientPacket.RequestBlock.UNBLOCK -> {
+				if (p.name() != null && !p.name().isBlank()) {
+					if (ctx.friends().removeBlock(active, p.name())) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								p.name() + " foi removido da lista de bloqueados."));
+					} else {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								p.name() + " nao estava na lista de bloqueados."));
+					}
+				}
+			}
+			case GameClientPacket.RequestBlock.BLOCKLIST -> {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "--- Lista de Bloqueados ---"));
+				for (String name : active.blockList()) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "- " + name));
+				}
+			}
+			case GameClientPacket.RequestBlock.ALLBLOCK -> {
+				active.setBlockingAll(true);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce esta bloqueando todas as mensagens privadas."));
+			}
+			case GameClientPacket.RequestBlock.ALLUNBLOCK -> {
+				active.setBlockingAll(false);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce desbloqueou o recebimento de mensagens."));
+			}
+		}
+	}
+
 	private static int parseIntSafe(String val, int def) {
 		try {
 			return Integer.parseInt(val.trim());
 		} catch (Exception e) {
 			return def;
 		}
+	}
+
+	private void sendUserInfoAndBroadcastCharInfo() {
+		var t = ctx.characters() != null ? ctx.characters().template(active) : null;
+		send(new UserInfo(active, t));
+		var info = charInfo();
+		if (info != null) {
+			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, info, false);
+		}
+	}
+
+	private void onPrivateStoreManageSell() {
+		if (!inWorld || active == null || ctx.buffShop() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var avail = ctx.buffShop().getAvailableBuffSkills(active,
+				ctx.skillService() != null ? ctx.skillService().table() : null);
+		List<PrivateStoreItem> availableItems = new ArrayList<>();
+		for (var buff : avail) {
+			availableItems.add(new PrivateStoreItem(buff.skillId(), buff.skillId(), 1, buff.price(), 0, 0));
+		}
+		List<PrivateStoreItem> currentItems = new ArrayList<>();
+		ctx.buffShop().getShop(active.objectId()).ifPresent(shop -> {
+			for (var buff : shop.items().values()) {
+				currentItems.add(new PrivateStoreItem(buff.skillId(), buff.skillId(), 1, buff.price(), 0, 0));
+			}
+		});
+		int adena = active.inventory().byItemId(57).map(ItemInstance::count).orElse(0);
+		send(new PrivateStoreManageListSell(active.objectId(), false, adena, availableItems, currentItems));
+	}
+
+	private void onSetPrivateStoreListSell(GameClientPacket.SetPrivateStoreListSell p) {
+		if (!inWorld || active == null || ctx.buffShop() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		if (p.items().isEmpty()) {
+			onPrivateStoreQuitSell();
+			return;
+		}
+		List<BuffShopItem> buffItems = new ArrayList<>();
+		for (var item : p.items()) {
+			int skillId = item.objectId();
+			int price = item.price();
+			var skOpt = ctx.skillService() != null ? ctx.skillService().known(active, skillId)
+					: java.util.Optional.<com.lopez.l2j.game.skill.SkillTemplate>empty();
+			int level = skOpt.map(com.lopez.l2j.game.skill.SkillTemplate::level).orElse(1);
+			String name = skOpt.map(com.lopez.l2j.game.skill.SkillTemplate::name).orElse("Skill #" + skillId);
+			buffItems.add(new BuffShopItem(skillId, level, price, name));
+		}
+		ctx.buffShop().startShop(active, active.storeTitle() != null ? active.storeTitle() : "Buff Store", buffItems);
+		sendUserInfoAndBroadcastCharInfo();
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS,
+				new PrivateStoreMsgSell(active.objectId(), active.storeTitle()), false);
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Buff shop iniciada com " + buffItems.size() + " buffs a venda!"));
+	}
+
+	private void onPrivateStoreQuitSell() {
+		if (!inWorld || active == null || ctx.buffShop() == null) {
+			return;
+		}
+		ctx.buffShop().stopShop(active);
+		sendUserInfoAndBroadcastCharInfo();
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Buff shop encerrada."));
+	}
+
+	private void onSetPrivateStoreMsgSell(GameClientPacket.SetPrivateStoreMsgSell p) {
+		if (!inWorld || active == null) {
+			return;
+		}
+		active.storeTitle(p.storeMsg());
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS,
+				new PrivateStoreMsgSell(active.objectId(), p.storeMsg()), false);
+	}
+
+	private void onPrivateStoreBuy(GameClientPacket.RequestPrivateStoreBuy p) {
+		if (!inWorld || active == null || ctx.buffShop() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var sellerOpt = ctx.world().player(p.sellerId());
+		if (sellerOpt.isEmpty() || sellerOpt.get().character() == null) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Vendedor nao encontrado."));
+			send(new ActionFailed());
+			return;
+		}
+		var sellerChar = sellerOpt.get().character();
+		List<Integer> skillIds = p.items().stream().map(GameClientPacket.StoreItemRequest::objectId).toList();
+		var skillTable = ctx.skillService() != null ? ctx.skillService().table() : null;
+		var result = ctx.buffShop().purchaseBuffs(active, p.sellerId(), skillIds, sellerChar, ctx.inventories(),
+				skillTable, ctx.skillService());
+		if (result.success()) {
+			for (int skillId : result.appliedSkills()) {
+				int lvl = sellerChar.skillLevel(skillId);
+				if (lvl <= 0) lvl = 1;
+				var skOpt = skillTable != null ? skillTable.get(skillId, lvl)
+						: java.util.Optional.<com.lopez.l2j.game.skill.SkillTemplate>empty();
+				if (skOpt.isPresent()) {
+					var sk = skOpt.get();
+					applySkillEffects(sk, false);
+					var anim = new MagicSkillUse(sellerChar.objectId(), active.objectId(), sk.id(), sk.level(), 500, 0);
+					send(anim);
+					sellerOpt.get().send(anim);
+				}
+			}
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce comprou buffs por " + result.totalCost() + " Adena."));
+			sellerOpt.get().send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					active.name() + " comprou buffs na sua loja por " + result.totalCost() + " Adena."));
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", result.message()));
+		}
+	}
+
+	private void onConfirmTargetItem(GameClientPacket.RequestConfirmTargetItem p) {
+		if (!inWorld || active == null || active.isDead() || active.sitting()) {
+			send(new ActionFailed());
+			return;
+		}
+		var item = active.inventory().byObjectId(p.itemObjId()).orElse(null);
+		if (item == null || ctx.augmentation() == null || !ctx.augmentation().isAugmentable(item)) {
+			send(SystemMessage.id(SystemMessage.THIS_IS_NOT_A_SUITABLE_ITEM));
+			send(new ActionFailed());
+			return;
+		}
+		send(new ExPutItemResultForVariationMake(p.itemObjId()));
+		send(SystemMessage.id(SystemMessage.SELECT_THE_CATALYST_FOR_AUGMENTATION));
+	}
+
+	private void onConfirmRefinerItem(GameClientPacket.RequestConfirmRefinerItem p) {
+		if (!inWorld || active == null || active.isDead() || ctx.augmentation() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var target = active.inventory().byObjectId(p.targetItemObjId()).orElse(null);
+		var refiner = active.inventory().byObjectId(p.refinerItemObjId()).orElse(null);
+		if (target == null || refiner == null || !AugmentationService.isLifeStone(refiner.itemId())) {
+			send(SystemMessage.id(SystemMessage.THIS_IS_NOT_A_SUITABLE_ITEM));
+			send(new ActionFailed());
+			return;
+		}
+		int level = AugmentationService.getLifeStoneLevel(refiner.itemId());
+		if (active.level() < AugmentationService.getMinPlayerLevel(level)) {
+			send(SystemMessage.id(SystemMessage.THIS_IS_NOT_A_SUITABLE_ITEM));
+			send(new ActionFailed());
+			return;
+		}
+		int gemItemId = AugmentationService.getGemstoneItemId(target);
+		int gemCount = AugmentationService.getGemstoneCount(target);
+		send(new ExPutIntensiveResultForVariationMake(p.refinerItemObjId(), refiner.itemId(), gemItemId, gemCount));
+	}
+
+	private void onConfirmGemStone(GameClientPacket.RequestConfirmGemStone p) {
+		if (!inWorld || active == null || active.isDead() || ctx.augmentation() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var target = active.inventory().byObjectId(p.targetItemObjId()).orElse(null);
+		var gem = active.inventory().byObjectId(p.gemstoneItemObjId()).orElse(null);
+		if (target == null || gem == null) {
+			send(new ActionFailed());
+			return;
+		}
+		int reqItemId = AugmentationService.getGemstoneItemId(target);
+		int reqCount = AugmentationService.getGemstoneCount(target);
+		if (gem.itemId() != reqItemId || gem.count() < reqCount || p.gemstoneCount() != reqCount) {
+			send(new ActionFailed());
+			return;
+		}
+		send(new ExPutCommissionResultForVariationMake(p.gemstoneItemObjId(), p.gemstoneCount(), reqItemId));
+	}
+
+	private void onRefine(GameClientPacket.RequestRefine p) {
+		if (!inWorld || active == null || active.isDead() || ctx.augmentation() == null) {
+			send(new ExVariationResult(0, 0, 0));
+			send(new ActionFailed());
+			return;
+		}
+		var target = active.inventory().byObjectId(p.targetItemObjId()).orElse(null);
+		var refiner = active.inventory().byObjectId(p.refinerItemObjId()).orElse(null);
+		var gem = active.inventory().byObjectId(p.gemstoneItemObjId()).orElse(null);
+		if (target == null || refiner == null || gem == null || !ctx.augmentation().isAugmentable(target)
+				|| !AugmentationService.isLifeStone(refiner.itemId())) {
+			send(new ExVariationResult(0, 0, 0));
+			send(new ActionFailed());
+			return;
+		}
+		int reqCount = AugmentationService.getGemstoneCount(target);
+		int reqGemId = AugmentationService.getGemstoneItemId(target);
+		if (gem.itemId() != reqGemId || gem.count() < reqCount) {
+			send(new ExVariationResult(0, 0, 0));
+			send(new ActionFailed());
+			return;
+		}
+		boolean wasEquipped = target.isEquipped();
+		if (wasEquipped) {
+			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), target.objectId()));
+		}
+		var resRefiner = ctx.inventories().destroyItem(active.inventory(), refiner.objectId(), 1, "Refine");
+		var resGem = ctx.inventories().destroyItem(active.inventory(), gem.objectId(), reqCount, "Refine");
+		var aug = ctx.augmentation().applyAugmentation(target, refiner.itemId());
+		send(new ExVariationResult(aug.stat12(), aug.stat34(), 1));
+		List<ItemInfo> updates = new ArrayList<>();
+		updates.add(ItemInfo.of(target, ItemInfo.MODIFIED));
+		if (resRefiner != null) {
+			updates.add(ItemInfo.of(resRefiner.item(), resRefiner.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+		}
+		if (resGem != null) {
+			updates.add(ItemInfo.of(resGem.item(), resGem.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+		}
+		send(new InventoryUpdate(updates));
+		if (wasEquipped) {
+			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), target.objectId()));
+		}
+		sendUserInfoAndBroadcastCharInfo();
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Arma augmentada com sucesso!"));
+	}
+
+	private void onConfirmCancelItem(GameClientPacket.RequestConfirmCancelItem p) {
+		if (!inWorld || active == null || active.isDead() || ctx.augmentation() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var item = active.inventory().byObjectId(p.itemObjId()).orElse(null);
+		if (item == null || !item.isAugmented()) {
+			send(new ActionFailed());
+			return;
+		}
+		long price = AugmentationService.getCancelPrice(item);
+		send(new ExPutItemResultForVariationCancel(p.itemObjId(), price));
+	}
+
+	private void onRefineCancel(GameClientPacket.RequestRefineCancel p) {
+		if (!inWorld || active == null || active.isDead() || ctx.augmentation() == null) {
+			send(new ExVariationCancelResult(0));
+			send(new ActionFailed());
+			return;
+		}
+		var target = active.inventory().byObjectId(p.itemObjId()).orElse(null);
+		if (target == null || !target.isAugmented()) {
+			send(new ExVariationCancelResult(0));
+			send(new ActionFailed());
+			return;
+		}
+		long price = AugmentationService.getCancelPrice(target);
+		if (active.inventory().adena() < price) {
+			send(new ExVariationCancelResult(0));
+			send(new ActionFailed());
+			return;
+		}
+		boolean wasEquipped = target.isEquipped();
+		if (wasEquipped) {
+			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), target.objectId()));
+		}
+		ctx.inventories().consumeItem(active.inventory(), 57, (int) price, "RefineCancel");
+		ctx.augmentation().removeAugmentation(target);
+		send(new ExVariationCancelResult(1));
+		send(new InventoryUpdate(List.of(ItemInfo.of(target, ItemInfo.MODIFIED))));
+		if (wasEquipped) {
+			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), target.objectId()));
+		}
+		sendUserInfoAndBroadcastCharInfo();
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Augmentacao removida com sucesso."));
 	}
 }

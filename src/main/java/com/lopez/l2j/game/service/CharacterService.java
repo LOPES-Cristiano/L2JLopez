@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.service;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.CharacterRepository;
 import com.lopez.l2j.game.model.CharacterRepository.NewCharacter;
 import com.lopez.l2j.game.model.PlayerCharacter;
@@ -52,7 +53,19 @@ public class CharacterService {
 	}
 
 	public List<PlayerCharacter> list(String account) {
-		return repository.findByAccount(account);
+		long now = System.currentTimeMillis();
+		var characters = repository.findByAccount(account);
+		var result = new java.util.ArrayList<PlayerCharacter>();
+		for (var c : characters) {
+			if (c.deleteTime() > 0 && c.deleteTime() <= now) {
+				repository.delete(c.objectId());
+				inventories.deleteAll(c.objectId());
+				log.info("Personagem expirado e removido: {} da conta {}", c.name(), c.account());
+			} else {
+				result.add(c);
+			}
+		}
+		return result;
 	}
 
 	public CreateResult create(CreateRequest r) {
@@ -72,16 +85,30 @@ public class CharacterService {
 			return CreateResult.fail(CharCreateFailReason.CREATION_FAILED);
 		}
 		synchronized (createLock) {
-			if (repository.findByAccount(r.account()).size() >= MAX_CHARACTERS_PER_ACCOUNT) {
+			int maxChars = Config.CHAR_MAX_NUMBER > 0 ? Config.CHAR_MAX_NUMBER : MAX_CHARACTERS_PER_ACCOUNT;
+			if (repository.findByAccount(r.account()).size() >= maxChars) {
 				return CreateResult.fail(CharCreateFailReason.TOO_MANY_CHARACTERS);
 			}
 			if (repository.nameExists(r.name())) {
 				return CreateResult.fail(CharCreateFailReason.NAME_ALREADY_EXISTS);
 			}
 			try {
+				int spawnX = Config.ALT_SPAWN_NEW_CHAR ? Config.ALT_SPAWN_X : t.spawnX();
+				int spawnY = Config.ALT_SPAWN_NEW_CHAR ? Config.ALT_SPAWN_Y : t.spawnY();
+				int spawnZ = Config.ALT_SPAWN_NEW_CHAR ? Config.ALT_SPAWN_Z : t.spawnZ();
+
 				var created = repository.create(new NewCharacter(r.account(), r.name(), t.raceId(), t.classId(),
 						r.sex() == 1, r.face(), r.hairStyle(), r.hairColor(), (int) t.hpBase(), (int) t.mpBase(),
-						(int) t.cpBase(), t.spawnX(), t.spawnY(), t.spawnZ(), t.canCraft()));
+						(int) t.cpBase(), spawnX, spawnY, spawnZ, t.canCraft()));
+
+				if (Config.ENABLE_STARTUP_LVL && Config.STARTUP_LVL > 1) {
+					int targetLvl = Math.min(Config.STARTUP_LVL, Config.PLAYER_MAX_LEVEL);
+					long targetExp = com.lopez.l2j.game.model.ExperienceTable.expForLevel(targetLvl);
+					created.level(targetLvl);
+					created.exp(targetExp);
+					repository.saveState(created, false);
+				}
+
 				var inv = inventories.giveStarterItems(created.objectId(), created.classId());
 				log.info("Personagem criado: {} ({}) na conta {} com {} itens", created.name(), t.className(),
 						r.account(), inv.size());
@@ -92,11 +119,19 @@ public class CharacterService {
 		}
 	}
 
-	/** Remocao imediata (DeleteCharAfterDays = 0 no legado). */
+	/** Remocao imediata ou agendada (DeleteCharAfterDays no legado). */
 	public void delete(PlayerCharacter c) {
-		repository.delete(c.objectId());
-		inventories.deleteAll(c.objectId());
-		log.info("Personagem removido: {} da conta {}", c.name(), c.account());
+		int days = Config.DELETE_CHAR_AFTER_DAYS;
+		if (days <= 0) {
+			repository.delete(c.objectId());
+			inventories.deleteAll(c.objectId());
+			log.info("Personagem removido: {} da conta {}", c.name(), c.account());
+		} else {
+			long deleteTime = System.currentTimeMillis() + (days * 86400000L);
+			repository.updateDeleteTime(c.objectId(), deleteTime);
+			c.deleteTime(deleteTime);
+			log.info("Personagem agendado para remocao: {} da conta {} em {} dias", c.name(), c.account(), days);
+		}
 	}
 
 	public void restore(PlayerCharacter c) {
