@@ -97,10 +97,26 @@ public final class Inventory {
 		return byItemId(ItemTemplate.ADENA_ID).map(ItemInstance::count).orElse(0);
 	}
 
+	public void addAdena(int count) {
+		if (count <= 0) return;
+		var opt = byItemId(ItemTemplate.ADENA_ID);
+		if (opt.isPresent()) {
+			opt.get().count(opt.get().count() + count);
+		} else {
+			ItemTemplate dummy = ItemTemplate.etc(ItemTemplate.ADENA_ID, ItemTemplate.ADENA_ID, "Adena", "asset", "asset", 0, "none", 0, false, false, false, false);
+			add(new ItemInstance(0x40000000 + ItemTemplate.ADENA_ID, dummy, ownerId, count));
+		}
+	}
+
 	public int currentLoad() {
 		long load = 0;
 		for (ItemInstance i : items.values()) {
-			load += (long) i.template().weight() * i.count();
+			if (i.itemId() == ItemTemplate.ADENA_ID || (i.template() != null && i.template().isQuestItem())) {
+				continue;
+			}
+			if (i.template() != null) {
+				load += (long) i.template().weight() * i.count();
+			}
 		}
 		return (int) Math.min(Integer.MAX_VALUE, load);
 	}
@@ -112,13 +128,15 @@ public final class Inventory {
 	public Paperdoll paperdollView() {
 		int[] o = new int[PAPERDOLL_SLOTS];
 		int[] i = new int[PAPERDOLL_SLOTS];
+		int[] e = new int[PAPERDOLL_SLOTS];
 		for (int s = 0; s < PAPERDOLL_SLOTS; s++) {
 			if (paperdoll[s] != null) {
 				o[s] = paperdoll[s].objectId();
 				i[s] = paperdoll[s].template().displayId();
+				e[s] = paperdoll[s].enchant();
 			}
 		}
-		return new Paperdoll(o, i);
+		return new Paperdoll(o, i, e);
 	}
 
 	public List<ItemInstance> equipped() {
