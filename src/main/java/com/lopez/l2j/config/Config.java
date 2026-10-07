@@ -98,6 +98,9 @@ public final class Config {
 	public static int SUBCLASS_INIT_LEVEL = 40;
 	public static boolean ALT_SUBCLASS_WITHOUT_QUESTS = false;
 	public static boolean ALT_SUBCLASS_EVERYWHERE = true;
+	public static boolean ANNOUNCE_CLASS_CHANGE = false;
+	public static boolean ANNOUNCE_CLASS_CHANGE_AROUND = false;
+	public static boolean SHOW_CLASS_CHANGE_MESSAGE = true;
 	public static int INVENTORY_MAXIMUM_NO_DWARF = 80;
 	public static int INVENTORY_MAXIMUM_DWARF = 100;
 	public static int WAREHOUSE_SLOT_NO_DWARF = 100;
@@ -261,6 +264,9 @@ public final class Config {
 		SUBCLASS_INIT_LEVEL = ConfigLoader.getInt("SublcassInitLevel", 40);
 		ALT_SUBCLASS_WITHOUT_QUESTS = ConfigLoader.getBoolean("AltSubClassWithoutQuests", false);
 		ALT_SUBCLASS_EVERYWHERE = ConfigLoader.getBoolean("AltSubclassEverywhere", true);
+		ANNOUNCE_CLASS_CHANGE = ConfigLoader.getBoolean("AnnounceClassChange", false);
+		ANNOUNCE_CLASS_CHANGE_AROUND = ConfigLoader.getBoolean("AnnounceClassChangeAround", false);
+		SHOW_CLASS_CHANGE_MESSAGE = ConfigLoader.getBoolean("ShowClassChangeMessage", true);
 		INVENTORY_MAXIMUM_NO_DWARF = ConfigLoader.getInt("MaxInventorySlotsForOther", 80);
 		INVENTORY_MAXIMUM_DWARF = ConfigLoader.getInt("MaxInventorySlotsForDwarf", 100);
 		WAREHOUSE_SLOT_NO_DWARF = ConfigLoader.getInt("WarehouseSlotLimitNoDwarf", 100);
