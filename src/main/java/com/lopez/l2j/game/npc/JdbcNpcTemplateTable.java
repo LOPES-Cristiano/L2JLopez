@@ -109,7 +109,11 @@ class JdbcNpcTemplateTable implements NpcTemplateTable {
 
 	private static String getStringSafe(ResultSet rs, String column) {
 		try {
-			return rs.getString(column);
+			String val = rs.getString(column);
+			if (val == null || val.isBlank() || "null".equalsIgnoreCase(val.trim()) || "none".equalsIgnoreCase(val.trim())) {
+				return null;
+			}
+			return val.trim();
 		} catch (SQLException e) {
 			return null;
 		}
