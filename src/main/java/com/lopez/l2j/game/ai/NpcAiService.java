@@ -4,10 +4,14 @@ import com.lopez.l2j.game.combat.CombatService;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.template.CharTemplateTable;
 import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.game.npc.NpcSkillTable;
+import com.lopez.l2j.game.skill.SkillTable;
+import com.lopez.l2j.game.skill.SkillTemplate;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Attack;
 import com.lopez.l2j.network.game.packet.GameServerPacket.AutoAttackStop;
 import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
+import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToLocation;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToPawn;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
@@ -45,15 +49,35 @@ public class NpcAiService {
 	private final GameWorld world;
 	private final CombatService combatService;
 	private final CharTemplateTable charTemplates;
+	private final NpcSkillTable npcSkillTable;
+	private final SkillTable skillTable;
 
 	private final Set<NpcInstance> activeCombatNpcs = ConcurrentHashMap.newKeySet();
+	private final java.util.Map<Integer, AbstractNpcAI> aiArchetypes = new ConcurrentHashMap<>();
 	private ScheduledExecutorService scheduler;
 	private long tickCount = 0;
 
-	public NpcAiService(GameWorld world, CombatService combatService, CharTemplateTable charTemplates) {
+	public AbstractNpcAI getOrAssignAI(NpcInstance npc) {
+		return aiArchetypes.computeIfAbsent(npc.objectId(), id ->
+				NpcAiFactory.createAI(npc, world, combatService, charTemplates, npcSkillTable, skillTable));
+	}
+
+	@org.springframework.beans.factory.annotation.Autowired
+	public NpcAiService(
+			GameWorld world,
+			CombatService combatService,
+			CharTemplateTable charTemplates,
+			@org.springframework.beans.factory.annotation.Autowired(required = false) NpcSkillTable npcSkillTable,
+			@org.springframework.beans.factory.annotation.Autowired(required = false) SkillTable skillTable) {
 		this.world = world;
 		this.combatService = combatService;
 		this.charTemplates = charTemplates;
+		this.npcSkillTable = npcSkillTable;
+		this.skillTable = skillTable;
+	}
+
+	public NpcAiService(GameWorld world, CombatService combatService, CharTemplateTable charTemplates) {
+		this(world, combatService, charTemplates, null, null);
 	}
 
 	@PostConstruct
@@ -84,28 +108,69 @@ public class NpcAiService {
 		npc.targetPlayerId(targetPlayerId);
 		npc.inCombat(true);
 
+		var npcStart = new com.lopez.l2j.network.game.packet.GameServerPacket.AutoAttackStart(npc.objectId());
+		world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, npcStart);
+
+		world.player(targetPlayerId).ifPresent(p -> p.onAttacked(npc.objectId()));
+
 		int pAtkSpd = Math.max(100, npc.template().pAtkSpd());
 		long cooldownMs = 500_000L / pAtkSpd;
 		npc.lastAttackTime(System.currentTimeMillis() - cooldownMs + 600);
 
 		activeCombatNpcs.add(npc);
 
-		// Notifica lacaios (minions) para atacarem o mesmo alvo
+		// 1. Notifica lacaios (minions) para atacarem o mesmo alvo
 		if (npc.hasMinions()) {
 			for (NpcInstance minion : npc.minions()) {
-				if (minion != null && !minion.isDead() && !minion.inCombat()) {
+				if (minion != null && !minion.isDead() && (!minion.inCombat() || minion.targetPlayerId() != targetPlayerId)) {
 					startCombat(minion, targetPlayerId);
 				}
 			}
 		}
 
-		// Se for lacaio sendo atacado, notifica o mestre para revidar
+		// 2. Se for lacaio sendo atacado, notifica o mestre e todos os lacaios irmaos do grupo para revidarem juntos (L2JDream)
 		if (npc.isMinion() && npc.masterObjectId() != 0) {
 			world.npc(npc.masterObjectId()).ifPresent(master -> {
-				if (!master.isDead() && !master.inCombat()) {
-					startCombat(master, targetPlayerId);
+				if (!master.isDead()) {
+					if (!master.inCombat() || master.targetPlayerId() != targetPlayerId) {
+						startCombat(master, targetPlayerId);
+					}
+					if (master.hasMinions()) {
+						for (NpcInstance brother : master.minions()) {
+							if (brother != null && !brother.isDead() && brother != npc
+									&& (!brother.inCombat() || brother.targetPlayerId() != targetPlayerId)) {
+								startCombat(brother, targetPlayerId);
+							}
+						}
+					}
 				}
 			});
+		}
+
+		// Notifica monstros aliados da mesma Faccao (Social Call / Help Clan)
+		notifyFactionCall(npc, targetPlayerId);
+	}
+
+	private void notifyFactionCall(NpcInstance npc, int targetPlayerId) {
+		if (npc.template() == null) {
+			return;
+		}
+		String factionId = npc.template().factionId();
+		if (factionId == null || factionId.isBlank()) {
+			return;
+		}
+		int range = npc.template().factionRange();
+		if (range <= 0) {
+			range = 400; // range padrao se nao definido
+		}
+		var nearby = world.findNpcsAround(npc.x(), npc.y(), range);
+		for (NpcInstance ally : nearby) {
+			if (ally == npc || ally.isDead() || ally.inCombat() || !ally.isMonster()) {
+				continue;
+			}
+			if (ally.template() != null && factionId.equalsIgnoreCase(ally.template().factionId())) {
+				startCombat(ally, targetPlayerId);
+			}
 		}
 	}
 
@@ -117,6 +182,9 @@ public class NpcAiService {
 			npc.inCombat(false);
 			npc.targetPlayerId(0);
 			activeCombatNpcs.remove(npc);
+			aiArchetypes.remove(npc.objectId());
+			var stopAtk = new AutoAttackStop(npc.objectId());
+			world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, stopAtk);
 		}
 	}
 
@@ -125,6 +193,12 @@ public class NpcAiService {
 	 */
 	public void scheduleDecayAndRespawn(NpcInstance npc) {
 		stopCombat(npc);
+		// Apenas Raid Boss despawna seus lacaios ao morrer (regra retail / L2JDream)
+		// Monstros comuns com lacaios mantem seus lacaios vivos lutando individualmente!
+		if (npc.hasMinions() && npc.template() != null && npc.template().isRaidBoss()) {
+			onMasterDied(npc);
+		}
+
 		if (scheduler == null || scheduler.isShutdown()) {
 			return;
 		}
@@ -142,41 +216,86 @@ public class NpcAiService {
 			// 2. Respawn: Apos o tempo de renascimento, revive com HP total no spawn original
 			scheduler.schedule(() -> {
 				try {
-					npc.dead(false);
-					npc.currentHp(npc.template().maxHp());
-					npc.currentMp(npc.template().maxMp());
-					npc.targetPlayerId(0);
-					npc.inCombat(false);
-
-					int targetX = npc.spawnX();
-					int targetY = npc.spawnY();
-					int targetZ = npc.spawnZ();
-					int targetHeading = npc.spawnHeading();
-
 					if (npc.isMinion() && npc.masterObjectId() != 0) {
 						var masterOpt = world.npc(npc.masterObjectId());
-						if (masterOpt.isPresent() && !masterOpt.get().isDead()) {
-							var master = masterOpt.get();
-							double angle = ThreadLocalRandom.current().nextDouble(0, 2 * Math.PI);
-							int dist = ThreadLocalRandom.current().nextInt(40, 90);
-							targetX = master.x() + (int) (Math.cos(angle) * dist);
-							targetY = master.y() + (int) (Math.sin(angle) * dist);
-							targetZ = master.z();
-							targetHeading = master.heading();
+						if (masterOpt.isEmpty() || masterOpt.get().isDead()) {
+							// Mestre esta morto, minion aguarda o mestre renascer para recompor o grupo
+							return;
 						}
 					}
-					npc.moveTo(targetX, targetY, targetZ, targetHeading);
 
-					world.addNpc(npc);
-					var npcInfo = new NpcInfo(npc);
-					world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, npcInfo);
-					log.debug("Monstro {} renasceu em ({}, {}, {})", npc.name(), npc.x(), npc.y(), npc.z());
+					respawnNpc(npc);
+
+					// Se for mestre renascendo, revive tambem os minions vinculados que estiverem mortos
+					if (npc.hasMinions()) {
+						for (NpcInstance minion : npc.minions()) {
+							if (minion != null && minion.isDead()) {
+								respawnMinion(minion, npc);
+							}
+						}
+					}
 				} catch (Exception e) {
 					log.warn("Erro ao executar respawn do monstro {}: {}", npc.name(), e.getMessage());
 				}
 			}, RESPAWN_DELAY_MS, TimeUnit.MILLISECONDS);
 
 		}, DECAY_DELAY_MS, TimeUnit.MILLISECONDS);
+	}
+
+	private void respawnNpc(NpcInstance npc) {
+		npc.dead(false);
+		npc.currentHp(npc.template().maxHp());
+		npc.currentMp(npc.template().maxMp());
+		npc.targetPlayerId(0);
+		npc.inCombat(false);
+
+		int targetX = npc.spawnX();
+		int targetY = npc.spawnY();
+		int targetZ = npc.spawnZ();
+		int targetHeading = npc.spawnHeading();
+
+		if (npc.isMinion() && npc.masterObjectId() != 0) {
+			var masterOpt = world.npc(npc.masterObjectId());
+			if (masterOpt.isPresent() && !masterOpt.get().isDead()) {
+				var master = masterOpt.get();
+				double angle = ThreadLocalRandom.current().nextDouble(0, 2 * Math.PI);
+				int dist = ThreadLocalRandom.current().nextInt(40, 90);
+				targetX = master.x() + (int) (Math.cos(angle) * dist);
+				targetY = master.y() + (int) (Math.sin(angle) * dist);
+				targetZ = master.z();
+				targetHeading = master.heading();
+			}
+		}
+		npc.moveTo(targetX, targetY, targetZ, targetHeading);
+
+		world.addNpc(npc);
+		var npcInfo = new NpcInfo(npc);
+		world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, npcInfo);
+		log.debug("Monstro {} renasceu em ({}, {}, {})", npc.name(), npc.x(), npc.y(), npc.z());
+	}
+
+	private void respawnMinion(NpcInstance minion, NpcInstance master) {
+		if (minion == null || !minion.isDead() || master == null) {
+			return;
+		}
+		minion.dead(false);
+		minion.currentHp(minion.template().maxHp());
+		minion.currentMp(minion.template().maxMp());
+		minion.targetPlayerId(0);
+		minion.inCombat(false);
+
+		double angle = ThreadLocalRandom.current().nextDouble(0, 2 * Math.PI);
+		int dist = ThreadLocalRandom.current().nextInt(40, 90);
+		int targetX = master.x() + (int) (Math.cos(angle) * dist);
+		int targetY = master.y() + (int) (Math.sin(angle) * dist);
+		int targetZ = master.z();
+		int targetHeading = master.heading();
+		minion.moveTo(targetX, targetY, targetZ, targetHeading);
+
+		world.addNpc(minion);
+		var npcInfo = new NpcInfo(minion);
+		world.broadcastAround(minion.x(), minion.y(), GameWorld.VISIBILITY_RADIUS, npcInfo);
+		log.debug("Minion {} renasceu junto ao mestre {} em ({}, {}, {})", minion.name(), master.name(), targetX, targetY, targetZ);
 	}
 
 	/**
@@ -218,6 +337,14 @@ public class NpcAiService {
 				}
 				int aggroRange = npc.template().aggroRange();
 				if (aggroRange > 0) {
+					// Regra oficial Lineage II / L2JDream:
+					// Monstros comuns nao agram jogadores 9+ niveis acima (com excecao de Raid Bosses e Grand Bosses)
+					if (!npc.template().isRaidBoss() && !npc.template().isGrandBoss()) {
+						if (character.level() >= npc.template().level() + 9) {
+							continue;
+						}
+					}
+
 					double dist = Math.hypot(npc.x() - player.x(), npc.y() - player.y());
 					if (dist <= aggroRange) {
 						startCombat(npc, player.objectId());
@@ -296,71 +423,73 @@ public class NpcAiService {
 			return;
 		}
 
-		int attackRange = Math.max(40, npc.template().attackRange());
-		int reach = attackRange + 30; // margem de contato fisico
+		AbstractNpcAI ai = getOrAssignAI(npc);
+		ai.processCombat();
+	}
 
-		if (npc.isDisabled()) {
+	public void onMasterDied(NpcInstance master) {
+		if (master == null || !master.hasMinions()) {
 			return;
 		}
-
-		if (dist > reach && npc.isRooted()) {
-			return;
-		}
-
-		if (dist > reach) {
-			npc.running(true);
-			double runSpeed = Math.max(60, npc.template().runSpd());
-			double step = Math.min(dist - attackRange, runSpeed * 0.5);
-			int newX = (int) Math.round(npc.x() + (dx / dist) * step);
-			int newY = (int) Math.round(npc.y() + (dy / dist) * step);
-			int heading = (int) Math.round(Math.atan2(dy, dx) * 10430.378);
-			int fromX = npc.x();
-			int fromY = npc.y();
-			npc.moveTo(newX, newY, player.z(), heading);
-			world.updateNpcPosition(npc, fromX, fromY);
-
-			var movePawn = new MoveToPawn(npc.objectId(), player.objectId(), attackRange, npc.x(), npc.y(), npc.z());
-			player.send(movePawn);
-			world.broadcastAround(player, GameWorld.VISIBILITY_RADIUS, movePawn, false);
-		} else {
-			// No alcance de ataque
-			int pAtkSpd = Math.max(100, npc.template().pAtkSpd());
-			long cooldownMs = 500_000L / pAtkSpd;
-			long now = System.currentTimeMillis();
-
-			if (now - npc.lastAttackTime() >= cooldownMs) {
-				npc.lastAttackTime(now);
-				var template = charTemplates.get(character.classId()).orElse(null);
-				if (template != null) {
-					var counter = combatService.attackPlayer(npc, character, template);
-					if (counter != null) {
-						var npcAtk = new Attack(npc.objectId(), character.objectId(), counter.damage(), counter.flags(),
-								npc.x(), npc.y(), npc.z());
-						player.send(npcAtk);
-						world.broadcastAround(player, GameWorld.VISIBILITY_RADIUS, npcAtk, false);
-
-						if (counter.damage() > 0) {
-							player.send(SystemMessage.of(SystemMessage.S1_GAVE_YOU_S2_DMG,
-									new SystemMessage.NpcName(npc.npcId()),
-									new SystemMessage.Number(counter.damage())));
-						}
-
-						player.send(StatusUpdate.hp(character.objectId(), (int) character.currentHp(), character.maxHp()));
-						player.send(new UserInfo(character, template));
-
-						if (character.isDead()) {
-							returnToSpawn(npc);
-							var die = new Die(character.objectId(), true);
-							player.send(die);
-							world.broadcastAround(player, GameWorld.VISIBILITY_RADIUS, die, false);
-						}
-					}
+		// Apenas Raid Boss ou Grand Boss limpa/despawna lacaios ao morrer (Retail L2 / L2JDream)
+		// Monstros comuns com lacaios (ex: Ketra Prophet) mantem seus lacaios vivos lutando individualmente!
+		if (master.template() != null && master.template().isRaidBoss()) {
+			for (NpcInstance minion : master.minions()) {
+				if (minion != null && !minion.isDead()) {
+					stopCombat(minion);
+					minion.dead(true);
+					minion.currentHp(0);
+					var deletePacket = new DeleteObject(minion.objectId());
+					world.broadcastAround(minion.x(), minion.y(), GameWorld.VISIBILITY_RADIUS, deletePacket);
+					world.removeNpc(minion);
 				}
 			}
 		}
 	}
 
-	private void returnToSpawn(NpcInstance npc) {
+	private SkillTemplate chooseMonsterSkill(NpcInstance npc) {
+		if (npcSkillTable == null || skillTable == null) {
+			return null;
+		}
+		var holders = npcSkillTable.getSkills(npc.npcId());
+		if (holders.isEmpty()) {
+			return null;
+		}
+
+		// 1. Se HP < 50%, prioriza habilidade de cura se possuir
+		if (npc.template() != null && npc.currentHp() < (npc.template().maxHp() * 0.5)) {
+			for (var holder : holders) {
+				var opt = skillTable.get(holder.skillId(), holder.level());
+				if (opt.isPresent()) {
+					var sk = opt.get();
+					if (sk.isHeal() && npc.currentMp() >= sk.mpConsume()) {
+						return sk;
+					}
+				}
+			}
+		}
+
+		// 2. ~35% de chance de conjurar habilidade ofensiva, buff ou debuff
+		if (ThreadLocalRandom.current().nextInt(100) >= 35) {
+			return null;
+		}
+
+		for (var holder : holders) {
+			var opt = skillTable.get(holder.skillId(), holder.level());
+			if (opt.isPresent()) {
+				var sk = opt.get();
+				if (!sk.isPassive() && !sk.isToggle()) {
+					if ((sk.isOffensive() || sk.isPhysicalDamage() || sk.isMagicDamage() || sk.isDebuff() || sk.isBuff())
+							&& npc.currentMp() >= sk.mpConsume()) {
+						return sk;
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	public void returnToSpawn(NpcInstance npc) {
 		stopCombat(npc);
 		if (npc.isDead()) {
 			return;
@@ -377,6 +506,15 @@ public class NpcAiService {
 			npc.moveTo(sx, sy, sz, sh);
 			world.updateNpcPosition(npc, fromX, fromY);
 			world.broadcastAround(sx, sy, GameWorld.VISIBILITY_RADIUS, movePkt);
+		}
+
+		// Se for mestre com lacaios, faz os lacaios retornarem tambem
+		if (npc.hasMinions()) {
+			for (NpcInstance minion : npc.minions()) {
+				if (minion != null && !minion.isDead()) {
+					returnToSpawn(minion);
+				}
+			}
 		}
 	}
 }
