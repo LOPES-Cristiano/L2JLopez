@@ -26,6 +26,7 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.MyTargetSelected;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Revive;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SetupGauge;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ShowMiniMap;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ExGetBossRecord;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SocialAction;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation;
@@ -235,6 +236,17 @@ class GameSessionFeaturesTest {
 
 		assertTrue(sent.stream().anyMatch(p -> p instanceof ShowMiniMap),
 				"Pressionar Alt+M ou clicar no mapa deve enviar pacote ShowMiniMap (0x9d) para abrir a janela de mapa mundi");
+		assertTrue(sent.stream().anyMatch(p -> p instanceof ExGetBossRecord),
+				"Pressionar Alt+M deve enviar ExGetBossRecord para inicializar a aba de raids");
+	}
+
+	@Test
+	void requestGetBossRecordSendsExGetBossRecord() {
+		// Envia opcode 0xd0, sub 0x0018 (RequestGetBossRecord - disparado ao abrir a aba/janela de raids no mapa)
+		session.handle(new byte[] { (byte) 0xd0, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00 });
+
+		assertTrue(sent.stream().anyMatch(p -> p instanceof ExGetBossRecord),
+				"Clicar em Raid Info ou consultar raids deve responder com ExGetBossRecord (0xfe:0x33)");
 	}
 
 	@Test
@@ -805,9 +817,10 @@ class GameSessionFeaturesTest {
 
 		// Dispara a cura em grupo
 		invokeMethod(session, "finishCast",
-				new Class<?>[] { com.lopez.l2j.game.skill.SkillTemplate.class, NpcInstance.class, GameSession.class,
+				new Class<?>[] { com.lopez.l2j.game.skill.SkillTemplate.class, NpcInstance.class,
+						com.lopez.l2j.game.door.DoorInstance.class, GameSession.class,
 						boolean.class, boolean.class, boolean.class },
-				groupHeal, null, null, false, false, false);
+				groupHeal, null, null, null, false, false, false);
 
 		// Ambos os membros devem ter recebido a cura
 		assertEquals(150.0, player.currentHp());
@@ -834,9 +847,10 @@ class GameSessionFeaturesTest {
 				10, 0, 0, 50.0, 400, 0, 0, 0, 0, 20, 0, false, List.of(), List.of(), null, null);
 
 		invokeMethod(session, "finishCast",
-				new Class<?>[] { com.lopez.l2j.game.skill.SkillTemplate.class, NpcInstance.class, GameSession.class,
+				new Class<?>[] { com.lopez.l2j.game.skill.SkillTemplate.class, NpcInstance.class,
+						com.lopez.l2j.game.door.DoorInstance.class, GameSession.class,
 						boolean.class, boolean.class, boolean.class },
-				resurrect, null, deadSession, false, false, false);
+				resurrect, null, null, deadSession, false, false, false);
 
 		// O jogador morto deve estar vivo novamente com 50% de HP
 		assertFalse(deadPlayer.isDead());
@@ -864,9 +878,10 @@ class GameSessionFeaturesTest {
 				10, 0, 0, 100.0, 600, 0, 0, 0, 0, 20, 0, false, List.of(), List.of(), null, null);
 
 		invokeMethod(session, "finishCast",
-				new Class<?>[] { com.lopez.l2j.game.skill.SkillTemplate.class, NpcInstance.class, GameSession.class,
+				new Class<?>[] { com.lopez.l2j.game.skill.SkillTemplate.class, NpcInstance.class,
+						com.lopez.l2j.game.door.DoorInstance.class, GameSession.class,
 						boolean.class, boolean.class, boolean.class },
-				nuke, null, enemySession, false, false, false);
+				nuke, null, null, enemySession, false, false, false);
 
 		// Em PvP, CP absorve dano primeiro
 		// O dano foi maior que o CP total (50), então CP deve ter sido zerado e o restante afetou o HP
@@ -1282,5 +1297,22 @@ class GameSessionFeaturesTest {
 		session.handle(buildBypassPacket("admin_rblist grand"));
 		boolean hasGrandBossList = sent.stream().anyMatch(p -> p instanceof GameServerPacket.NpcHtmlMessage html && html.html().contains("Grand Bosses") && html.html().contains("Antharas"));
 		assertTrue(hasGrandBossList, "Deve listar Grand Bosses incluindo Antharas com coordenadas e teleport");
+	}
+
+	@Test
+	void chargesIncreaseAndCapWithoutSpamWhenAlreadyMax() {
+		player.charges(6);
+		sent.clear();
+		session.increaseCharges(1, 7);
+		assertEquals(7, player.charges());
+		assertTrue(sent.stream().anyMatch(p -> p instanceof SystemMessage sm && sm.id() == SystemMessage.FORCE_MAXLEVEL_REACHED),
+				"Ao atingir o maximo de charges deve enviar FORCE_MAXLEVEL_REACHED");
+
+		// Quando ja esta no maximo (ex: batendo com Sonic Rage no limite de 7)
+		sent.clear();
+		session.increaseCharges(1, 7);
+		assertEquals(7, player.charges(), "Charges nao devem ultrapassar o maximo");
+		assertFalse(sent.stream().anyMatch(p -> p instanceof SystemMessage sm && sm.id() == SystemMessage.FORCE_MAXLEVEL_REACHED),
+				"Quando ja esta no maximo, nao deve enviar spam de FORCE_MAXLEVEL_REACHED");
 	}
 }
