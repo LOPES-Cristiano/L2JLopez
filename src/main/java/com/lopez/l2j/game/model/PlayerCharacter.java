@@ -38,6 +38,8 @@ public final class PlayerCharacter {
 	private int pvpKills;
 	private int pkKills;
 	private int clanId;
+	private volatile long clanJoinExpiryTime;
+	private boolean clanLeader;
 	private String title;
 	private int accessLevel;
 	private final long lastAccess;
@@ -49,11 +51,13 @@ public final class PlayerCharacter {
 	private boolean silence;
 	private boolean diet;
 	private int polyNpcId;
+	private int charges;
 
 	private int x;
 	private int y;
 	private int z;
 	private int heading;
+	private int instanceId = 0;
 	private double currentHp;
 	private double currentMp;
 	private double currentCp;
@@ -62,6 +66,8 @@ public final class PlayerCharacter {
 	private Inventory inventory;
 
 	private final Map<Integer, Integer> skills = new ConcurrentHashMap<>();
+	private final Map<Integer, Integer> equippedItemSkills = new ConcurrentHashMap<>();
+	private final java.util.Set<Integer> armorSetSkillIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
 	private final PlayerEffects effects = new PlayerEffects();
 	private List<StatFunc> passiveFuncs = List.of();
 	private List<StatFunc> armorSetFuncs = List.of();
@@ -100,6 +106,37 @@ public final class PlayerCharacter {
 	public boolean isAio() { return aio; }
 	public void setAio(boolean aio) { this.aio = aio; }
 	public void aio(boolean aio) { this.aio = aio; }
+
+	private volatile long lastCombatTime;
+
+	public boolean isInCombat() {
+		return (System.currentTimeMillis() - lastCombatTime) < 15_000L;
+	}
+
+	public void enterCombat() {
+		this.lastCombatTime = System.currentTimeMillis();
+	}
+
+	public void leaveCombat() {
+		this.lastCombatTime = 0L;
+	}
+
+	public long lastCombatTime() {
+		return lastCombatTime;
+	}
+
+	public int expertiseGrade() {
+		return expertiseGrade(level);
+	}
+
+	public static int expertiseGrade(int level) {
+		if (level >= 76) return 5; // S
+		if (level >= 61) return 4; // A
+		if (level >= 52) return 3; // B
+		if (level >= 40) return 2; // C
+		if (level >= 20) return 1; // D
+		return 0; // None
+	}
 
 	public boolean isMage() {
 		return (classId >= 10 && classId <= 17) || (classId >= 25 && classId <= 30)
@@ -202,6 +239,36 @@ public final class PlayerCharacter {
 		this.baseClassId = value;
 	}
 
+	private int classIndex = 0;
+	private final java.util.Map<Integer, com.lopez.l2j.game.subclass.SubClass> subClasses = new java.util.concurrent.ConcurrentHashMap<>();
+
+	public int classIndex() {
+		return classIndex;
+	}
+
+	public void classIndex(int value) {
+		this.classIndex = value;
+	}
+
+	public boolean isSubClassActive() {
+		return classIndex > 0;
+	}
+
+	public java.util.Map<Integer, com.lopez.l2j.game.subclass.SubClass> subClasses() {
+		return subClasses;
+	}
+
+	public java.util.Map<Integer, com.lopez.l2j.game.subclass.SubClass> getSubClasses() {
+		return subClasses;
+	}
+
+	public void setSubClasses(java.util.Map<Integer, com.lopez.l2j.game.subclass.SubClass> map) {
+		this.subClasses.clear();
+		if (map != null) {
+			this.subClasses.putAll(map);
+		}
+	}
+
 	public boolean female() {
 		return female;
 	}
@@ -274,6 +341,30 @@ public final class PlayerCharacter {
 		this.clanId = value;
 	}
 
+	public long clanJoinExpiryTime() {
+		return clanJoinExpiryTime;
+	}
+
+	public void clanJoinExpiryTime(long value) {
+		this.clanJoinExpiryTime = value;
+	}
+
+	public boolean clanLeader() {
+		return clanLeader;
+	}
+
+	public boolean isClanLeader() {
+		return clanLeader;
+	}
+
+	public void clanLeader(boolean value) {
+		this.clanLeader = value;
+	}
+
+	public boolean hasClanJoinPenalty() {
+		return System.currentTimeMillis() < clanJoinExpiryTime;
+	}
+
 	public String title() {
 		return title;
 	}
@@ -300,6 +391,14 @@ public final class PlayerCharacter {
 
 	public void deleteTime(long value) {
 		this.deleteTime = value;
+	}
+
+	public int instanceId() {
+		return instanceId;
+	}
+
+	public void instanceId(int value) {
+		this.instanceId = value;
 	}
 
 	public int x() {
@@ -344,6 +443,28 @@ public final class PlayerCharacter {
 		this.currentHp = Math.max(0, Math.min(maxHp, value));
 	}
 
+	public boolean isDead() {
+		return currentHp <= 0.0;
+	}
+
+	public boolean isAlikeDead() {
+		return isDead();
+	}
+
+	private volatile boolean olympiadMode;
+
+	public boolean isOlympiadMode() {
+		return olympiadMode;
+	}
+
+	public void inOlympiadMode(boolean value) {
+		this.olympiadMode = value;
+	}
+
+	public void setOlympiadMode(boolean value) {
+		this.olympiadMode = value;
+	}
+
 	public double currentMp() {
 		return currentMp;
 	}
@@ -372,11 +493,11 @@ public final class PlayerCharacter {
 		this.level = value;
 	}
 
-	public boolean isDead() {
-		return currentHp <= 0;
+	public boolean running() {
+		return running;
 	}
 
-	public boolean running() {
+	public boolean isMoving() {
 		return running;
 	}
 
@@ -385,6 +506,10 @@ public final class PlayerCharacter {
 	}
 
 	public boolean sitting() {
+		return sitting;
+	}
+
+	public boolean isSitting() {
 		return sitting;
 	}
 
@@ -402,6 +527,14 @@ public final class PlayerCharacter {
 
 	public PlayerEffects effects() {
 		return effects;
+	}
+
+	public Map<Integer, Integer> equippedItemSkills() {
+		return equippedItemSkills;
+	}
+
+	public java.util.Set<Integer> armorSetSkillIds() {
+		return armorSetSkillIds;
 	}
 
 	public List<StatFunc> passiveFuncs() {
@@ -519,6 +652,18 @@ public final class PlayerCharacter {
 		this.inventory = value;
 	}
 
+	/**
+	 * Nivel de encantamento da arma equipada (0..127) para exibicao de brilho/aura visual no cliente
+	 * (Interlude: 0=sem brilho, 4..15=azul, 16+=vermelho).
+	 */
+	public int enchantEffect() {
+		if (inventory == null) {
+			return 0;
+		}
+		var wpn = inventory.paperdoll(com.lopez.l2j.game.item.ItemSlots.RHAND);
+		return wpn != null ? Math.min(127, Math.max(0, wpn.enchant())) : 0;
+	}
+
 	public void moveTo(int x, int y, int z) {
 		this.x = x;
 		this.y = y;
@@ -571,6 +716,14 @@ public final class PlayerCharacter {
 
 	public void invul(boolean value) {
 		this.invul = value;
+	}
+
+	public int charges() {
+		return charges;
+	}
+
+	public void charges(int value) {
+		this.charges = Math.max(0, value);
 	}
 
 	public boolean invis() {
