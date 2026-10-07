@@ -98,6 +98,22 @@ public class ZoneTable {
 	}
 
 	/**
+	 * Verifica se as coordenadas informadas estao dentro de uma Zona de Dano Ambiental (Lava, Pantano Toxico).
+	 */
+	public boolean isInsideDamage(int x, int y, int z) {
+		List<Zone> damages = byType.get(ZoneType.DAMAGE);
+		if (damages == null || damages.isEmpty()) {
+			return false;
+		}
+		for (Zone zone : damages) {
+			if (zone.contains(x, y, z)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Retorna todas as zonas presentes nas coordenadas especificadas.
 	 */
 	public List<Zone> getZonesAt(int x, int y, int z) {
@@ -258,6 +274,7 @@ public class ZoneTable {
 		if (lowerFile.contains("siege")) return ZoneType.SIEGE;
 		if (lowerFile.contains("clanhall")) return ZoneType.CLANHALL;
 		if (lowerFile.contains("boss")) return ZoneType.BOSS;
+		if (lowerFile.contains("damage")) return ZoneType.DAMAGE;
 		return ZoneType.OTHER;
 	}
 }
