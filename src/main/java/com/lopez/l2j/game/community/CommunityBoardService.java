@@ -41,6 +41,12 @@ public class CommunityBoardService {
     @Autowired(required = false)
     private RepairBBSManager repairBBSManager;
 
+    @Autowired(required = false)
+    private com.lopez.l2j.game.service.CharacterVariablesService variablesService;
+
+    @Autowired(required = false)
+    private com.lopez.l2j.game.service.SchemeBufferService schemeBufferService;
+
     public CommunityBoardService() {
         this(null, null, null);
     }
@@ -73,6 +79,12 @@ public class CommunityBoardService {
 
         if (cmd.startsWith("_bbsteleport_to ")) {
             return handleTeleport(player, cmd.substring(16).trim());
+        } else if (cmd.startsWith("_bbsteleport_fav ")) {
+            return handleTeleportFavorite(player, cmd.substring(17).trim());
+        } else if (cmd.startsWith("_bbsteleport_save ")) {
+            return handleSaveFavorite(player, cmd.substring(18).trim());
+        } else if (cmd.startsWith("_bbsteleport_del ")) {
+            return handleDeleteFavorite(player, cmd.substring(17).trim());
         } else if (cmd.equals("_bbsteleport")) {
             return getTeleportHtml(player);
         } else if (cmd.startsWith("_bbsbuff_")) {
@@ -259,10 +271,86 @@ public class CommunityBoardService {
                 "<td align=center><button value=\"Town of Heine\" action=\"bypass _bbsteleport_to 7\" width=160 height=25 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
         sb.append(
                 "<td align=center><button value=\"Hunters Village\" action=\"bypass _bbsteleport_to 8\" width=160 height=25 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-        sb.append("</tr></table>");
+        sb.append("</tr></table><br>");
+
+        // Favoritos Pessoais (Bookmarks)
+        sb.append("<table width=750 border=0 cellpadding=2 cellspacing=2>");
+        sb.append("<tr><td align=center><font color=\"LEVEL\"><b>MEUS TELEPORTES FAVORITOS</b></font></td></tr>");
+        sb.append("<tr><td align=center><font color=\"AAAAAA\">Salve coordenadas personalizadas no mundo aberto.</font></td></tr>");
+        sb.append("</table>");
+
+        sb.append("<table width=600 bgcolor=151515 border=1 cellpadding=3 cellspacing=0 align=center>");
+        sb.append("<tr><th width=50>Slot</th><th width=300>Localizacao Salva</th><th width=150>Acoes</th></tr>");
+
+        for (int slot = 1; slot <= 5; slot++) {
+            String fav = getFavorite(player, slot);
+            sb.append("<tr><td align=center>#").append(slot).append("</td>");
+            if (fav != null) {
+                String[] parts = fav.split(";");
+                String name = parts[0];
+                sb.append("<td><font color=\"00FF00\"><b>").append(name).append("</b></font></td>");
+                sb.append("<td align=center><button value=\"Teleportar\" action=\"bypass _bbsteleport_fav ").append(slot).append("\" width=75 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"> ");
+                sb.append("<button value=\"Excluir\" action=\"bypass _bbsteleport_del ").append(slot).append("\" width=60 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+            } else {
+                sb.append("<td><font color=\"666666\">[Vazio]</font></td>");
+                sb.append("<td align=center><button value=\"Salvar Atual\" action=\"bypass _bbsteleport_save ").append(slot).append("\" width=90 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+            }
+            sb.append("</tr>");
+        }
+        sb.append("</table>");
 
         sb.append("</body></html>");
         return sb.toString();
+    }
+
+    private String getFavorite(PlayerCharacter player, int slot) {
+        if (variablesService == null || player == null) return null;
+        return variablesService.getVariable(player.objectId(), "fav_tele_" + slot, null);
+    }
+
+    private String handleSaveFavorite(PlayerCharacter player, String slotStr) {
+        if (player == null || variablesService == null) return getTeleportHtml(player);
+        try {
+            int slot = Integer.parseInt(slotStr);
+            if (slot >= 1 && slot <= 5) {
+                String name = "Ponto #" + slot + " (" + player.x() + "," + player.y() + ")";
+                String val = name + ";" + player.x() + ";" + player.y() + ";" + player.z();
+                variablesService.setVariable(player.objectId(), "fav_tele_" + slot, val);
+                log.info("Jogador {} salvou favorito slot {} em {}", player.name(), slot, val);
+            }
+        } catch (NumberFormatException ignored) {}
+        return getTeleportHtml(player);
+    }
+
+    private String handleDeleteFavorite(PlayerCharacter player, String slotStr) {
+        if (player == null || variablesService == null) return getTeleportHtml(player);
+        try {
+            int slot = Integer.parseInt(slotStr);
+            if (slot >= 1 && slot <= 5) {
+                variablesService.deleteVariable(player.objectId(), "fav_tele_" + slot);
+            }
+        } catch (NumberFormatException ignored) {}
+        return getTeleportHtml(player);
+    }
+
+    private String handleTeleportFavorite(PlayerCharacter player, String slotStr) {
+        if (player == null || player.isDead() || player.karma() > 0) {
+            return getTeleportHtml(player);
+        }
+        try {
+            int slot = Integer.parseInt(slotStr);
+            String fav = getFavorite(player, slot);
+            if (fav != null) {
+                String[] parts = fav.split(";");
+                int tx = Integer.parseInt(parts[1]);
+                int ty = Integer.parseInt(parts[2]);
+                int tz = Integer.parseInt(parts[3]);
+                player.teleport(tx, ty, tz);
+                log.info("Jogador {} teleportado para favorito #{}: {},{},{}", player.name(), slot, tx, ty, tz);
+                return getHomeHtml(player);
+            }
+        } catch (Exception ignored) {}
+        return getTeleportHtml(player);
     }
 
     private String handleTeleport(PlayerCharacter player, String arg) {
