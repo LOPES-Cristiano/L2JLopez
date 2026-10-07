@@ -54,6 +54,10 @@ public class SkillService {
 		return trees;
 	}
 
+	public Optional<SkillTemplate> skill(int skillId, int level) {
+		return table != null ? table.get(skillId, level) : Optional.empty();
+	}
+
 	public Optional<SkillTemplate> known(PlayerCharacter p, int skillId) {
 		int level = p.skillLevel(skillId);
 		return level <= 0 ? Optional.empty() : table.get(skillId, level);
