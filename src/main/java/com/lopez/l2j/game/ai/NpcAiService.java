@@ -156,12 +156,12 @@ public class NpcAiService {
 			return;
 		}
 		String factionId = npc.template().factionId();
-		if (factionId == null || factionId.isBlank()) {
+		if (factionId == null || factionId.isBlank() || "null".equalsIgnoreCase(factionId)) {
 			return;
 		}
 		int range = npc.template().factionRange();
 		if (range <= 0) {
-			range = 400; // range padrao se nao definido
+			return;
 		}
 		var nearby = world.findNpcsAround(npc.x(), npc.y(), range);
 		for (NpcInstance ally : nearby) {
@@ -185,6 +185,21 @@ public class NpcAiService {
 			aiArchetypes.remove(npc.objectId());
 			var stopAtk = new AutoAttackStop(npc.objectId());
 			world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, stopAtk);
+		}
+	}
+
+	/**
+	 * Cancela imediatamente o combate de todos os monstros que tinham este jogador como alvo
+	 * (chamado quando o jogador morre, teleporta ou da To Village).
+	 */
+	public void stopCombatForPlayer(int playerId) {
+		if (playerId == 0) {
+			return;
+		}
+		for (NpcInstance npc : activeCombatNpcs) {
+			if (npc != null && npc.targetPlayerId() == playerId) {
+				returnToSpawn(npc);
+			}
 		}
 	}
 
