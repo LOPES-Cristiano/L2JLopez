@@ -41,10 +41,10 @@ class JdbcItemRepository implements ItemRepository {
 
 	@Override
 	public List<Paperdoll.Entry> findPaperdoll(int ownerId) {
-		return jdbc.sql("SELECT object_id, item_id, loc_data FROM items WHERE owner_id = :owner AND loc = 'PAPERDOLL'")
+		return jdbc.sql("SELECT object_id, item_id, loc_data, enchant_level FROM items WHERE owner_id = :owner AND loc = 'PAPERDOLL'")
 				.param("owner", ownerId)
 				.query((rs, i) -> new Paperdoll.Entry(rs.getInt("loc_data"), rs.getInt("object_id"),
-						rs.getInt("item_id")))
+						rs.getInt("item_id"), rs.getInt("enchant_level")))
 				.list();
 	}
 
