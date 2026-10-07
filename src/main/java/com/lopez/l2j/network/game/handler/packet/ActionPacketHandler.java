@@ -304,9 +304,7 @@ public class ActionPacketHandler {
 			return;
 		}
 		session.stopAutoAttack();
-		session.targetObjectId(0);
-		session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.TargetUnselected(active.objectId(),
-				session.x(), session.y(), session.z()));
+		session.clearTarget();
 	}
 
 	public void handleActionUse(RequestActionUse p) {
