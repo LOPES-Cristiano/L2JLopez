@@ -84,6 +84,12 @@ public class HtmCache {
 		return getHtml(filename);
 	}
 
+	public static boolean isSevenSignsNpc(int npcId) {
+		return (npcId >= 31078 && npcId <= 31091) || npcId == 31168 || npcId == 31169
+				|| npcId == 31692 || npcId == 31693 || npcId == 31694 || npcId == 31695
+				|| npcId == 31997 || npcId == 31998;
+	}
+
 	public String getNpcHtml(int npcId, String npcType, int val) {
 		String folder = folderForType(npcType);
 		String suffix = val > 0 ? "-" + val : "";
@@ -110,18 +116,19 @@ public class HtmCache {
 				: new String[] { npcId + ".htm", npcId + "-1.htm", npcId + "-01.htm", npcId + ".html" };
 
 		String lowerType = npcType != null ? npcType.toLowerCase(java.util.Locale.ROOT) : "";
-		boolean isFunctional = lowerType.contains("teleport")
+		boolean isSevenSigns = isSevenSignsNpc(npcId);
+		boolean isFunctional = !isSevenSigns && (lowerType.contains("teleport")
 				|| lowerType.contains("merchant") || lowerType.contains("trader") || lowerType.contains("grocer")
 				|| lowerType.contains("blacksmith") || lowerType.contains("trainer") || lowerType.contains("master")
 				|| lowerType.contains("teacher") || lowerType.contains("warehouse") || lowerType.contains("guard")
-				|| lowerType.contains("fisherman") || lowerType.contains("symbolmaker") || lowerType.contains("priest");
+				|| lowerType.contains("fisherman") || lowerType.contains("symbolmaker") || lowerType.contains("priest"));
 
 		for (String cand : candidates) {
 			String indexedPath = indexedFiles.get(cand.toLowerCase(java.util.Locale.ROOT));
 			if (indexedPath != null) {
 				html = getHtml(indexedPath);
 				if (html != null && !html.isBlank()) {
-					if (isFunctional && !html.contains("bypass") || html.contains("I have nothing to say")) {
+					if (!isSevenSigns && (isFunctional && !html.contains("bypass") || html.contains("I have nothing to say"))) {
 						return enrichNpcHtml(html, npcId, lowerType);
 					}
 					return html;
@@ -130,7 +137,7 @@ public class HtmCache {
 		}
 
 		// 4. Se for NPC funcional ou se val > 0, gera o dialogo sintetico interativo rico
-		if (isFunctional || val > 0) {
+		if (isFunctional || (!isSevenSigns && val > 0)) {
 			return generateSmartNpcHtml(npcId, lowerType, val);
 		}
 
@@ -144,6 +151,9 @@ public class HtmCache {
 	}
 
 	public String enrichNpcHtml(String baseHtml, int npcId, String lowerType) {
+		if (isSevenSignsNpc(npcId)) {
+			return baseHtml;
+		}
 		StringBuilder extra = new StringBuilder("<br><br>");
 		if (lowerType.contains("trainer") || lowerType.contains("master") || lowerType.contains("teacher") || lowerType.contains("priest")) {
 			extra.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn Skills</a><br1>")
@@ -218,7 +228,7 @@ public class HtmCache {
 			sb.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn Skills</a><br1>");
 			sb.append("<a action=\"bypass -h npc_%objectId%_TerritoryStatus\">View territory tax rate</a><br1>");
 			sb.append("<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a><br>");
-		} else if (lowerType.contains("trainer") || lowerType.contains("master") || lowerType.contains("teacher") || lowerType.contains("guild") || lowerType.contains("priest")) {
+		} else if (lowerType.contains("trainer") || lowerType.contains("master") || lowerType.contains("teacher") || lowerType.contains("guild")) {
 			sb.append("Welcome, pupil %name%. Are you ready to sharpen your abilities?<br><br>");
 			sb.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn Skills</a><br1>");
 			sb.append("<a action=\"bypass -h npc_%objectId%_1stClass\">1st Class Transfer</a><br1>");
