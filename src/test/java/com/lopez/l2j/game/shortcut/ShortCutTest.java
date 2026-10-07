@@ -33,6 +33,11 @@ class ShortCutTest {
 		public void delete(int charId, int classIndex, int slot, int page) {
 			list.removeIf(s -> s.slot() == slot && s.page() == page);
 		}
+
+		@Override
+		public void deleteByTypeAndId(int charId, int type, int shortcutId) {
+			list.removeIf(s -> s.type() == type && s.id() == shortcutId);
+		}
 	}
 
 	@BeforeEach
