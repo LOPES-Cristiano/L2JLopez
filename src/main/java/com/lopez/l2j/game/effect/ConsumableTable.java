@@ -20,7 +20,9 @@ public final class ConsumableTable {
 		/** Mystery Potion: cabecao (AbnormalEffect BIG_HEAD) por ticks*intervalMs. */
 		MYSTERY,
 		/** Antidotos/bandagens: removem veneno/sangramento. */
-		REMEDY
+		REMEDY,
+		/** Pedra de energia para Gladiator/Tyrant: aumenta cargas ate o nivel 2. */
+		ENERGY_STONE
 	}
 
 	/** Mascara AbnormalEffect.BIG_HEAD do cliente Interlude. */
@@ -58,6 +60,7 @@ public final class ConsumableTable {
 			instant(728, Type.HEAL_MP, 2005, 1, 200, 1000), // Mana Potion
 			instant(5591, Type.HEAL_CP, 2166, 1, 50, 1000), // CP Potion
 			instant(5592, Type.HEAL_CP, 2166, 2, 200, 1000), // Greater CP Potion
+			instant(5589, Type.ENERGY_STONE, 2165, 1, 1, 500), // Energy Stone
 			Map.entry(726, new Consumable(726, Type.HOT_MP, 2003, 1, 20, 5, 4000, 1000, null, null)), // Mana Drug
 			// Buffs (stackType igual ao do L2J: o novo substitui o antigo)
 			buff(733, 2010, 1, new BuffDef("hit_up", 300_000, 0, 1.0, 1.0, 4)), // Endeavor Potion
