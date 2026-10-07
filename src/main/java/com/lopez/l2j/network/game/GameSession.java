@@ -1218,6 +1218,26 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	public void targetObjectId(int id) {
 		this.targetObjectId = id;
+		if (id == 0 && active != null) {
+			var unselect = new TargetUnselected(active.objectId(), active.x(), active.y(), active.z());
+			send(unselect);
+			if (ctx != null && ctx.world() != null) {
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, unselect, false);
+			}
+		}
+	}
+
+	public void clearTarget() {
+		if (targetObjectId != 0) {
+			targetObjectId = 0;
+			if (active != null) {
+				var unselect = new TargetUnselected(active.objectId(), active.x(), active.y(), active.z());
+				send(unselect);
+				if (ctx != null && ctx.world() != null) {
+					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, unselect, false);
+				}
+			}
+		}
 	}
 
 	public List<String> sessionBypasses() {
@@ -1828,6 +1848,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		teleporting = false;
+		clearTarget();
+		if (ctx != null && ctx.npcAi() != null) {
+			ctx.npcAi().stopCombatForPlayer(active.objectId());
+		}
 		broadcastAppearance();
 		updateKnownObjects();
 	}
@@ -4215,6 +4239,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			send(new ActionFailed());
 			return;
 		}
+		clearTarget();
+		if (ctx != null && ctx.npcAi() != null) {
+			ctx.npcAi().stopCombatForPlayer(active.objectId());
+		}
 		int[] townLoc = findNearestTown(active.x(), active.y());
 		active.sitting(false);
 		active.currentHp(active.maxHp() * 0.70);
@@ -4944,6 +4972,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		int tz = npcTarget != null ? npcTarget.z() : (doorTarget != null ? doorTarget.z() : (playerTarget != null ? playerTarget.z() : active.z()));
 		if (sk.castRange() > 0 && (npcTarget != null || doorTarget != null || (playerTarget != null && playerTarget != this))) {
 			double dist = Math.hypot(active.x() - tx, active.y() - ty);
+			if (dist > 3000.0) {
+				send(SystemMessage.id(SystemMessage.TARGET_TOO_FAR));
+				send(new ActionFailed());
+				clearTarget();
+				return;
+			}
 			double maxDist = sk.castRange() + 70 + (npcTarget != null ? npcTarget.template().collisionRadius() : 0);
 			if (dist > maxDist) {
 				if (!mayMove) {
@@ -5677,6 +5711,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		stopAutoAttack();
 		cancelCast();
 		clearCharges();
+		clearTarget();
+		if (ctx != null && ctx.npcAi() != null) {
+			ctx.npcAi().stopCombatForPlayer(active.objectId());
+		}
 		active.invul(false);
 		active.currentHp(0);
 		active.currentCp(0);
@@ -7014,6 +7052,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (!inWorld || active == null) {
 			return;
 		}
+		clearTarget();
+		if (ctx != null && ctx.npcAi() != null) {
+			ctx.npcAi().stopCombatForPlayer(active.objectId());
+		}
 		var delMe = new DeleteObject(active.objectId());
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, delMe, false);
 		for (var p : ctx.world().players()) {
@@ -7026,10 +7068,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		cancelCast();
 		active.sitting(false);
 		teleporting = true;
-		if (targetObjectId != 0) {
-			targetObjectId = 0;
-			send(new TargetUnselected(active.objectId(), x, y, z));
-		}
 		active.moveTo(x, y, z);
 		ctx.characters().save(active, true);
 		var tele = new TeleportToLocation(active.objectId(), x, y, z);
