@@ -75,6 +75,10 @@ public class ClanTable {
 			log.warn("{} tentou criar cla '{}' mas ja pertence a um cla ({})", leader.name(), clanName, leader.clanId());
 			return null;
 		}
+		if (leader.hasClanJoinPenalty()) {
+			log.warn("{} tentou criar cla '{}' mas possui penalidade de cla ativa", leader.name(), clanName);
+			return null;
+		}
 		if (leader.level() < 10 && !leader.isGm()) {
 			log.warn("{} tentou criar cla '{}' com nivel insuficiente ({})", leader.name(), clanName, leader.level());
 			return null;
@@ -249,6 +253,118 @@ public class ClanTable {
 		}
 
 		log.info("Cla '{}' subiu para o nivel {} com sucesso pelo lider {}", clan.name(), nextLevel, leader.name());
+		return true;
+	}
+
+	/**
+	 * Tenta adicionar um jogador a um cla, aplicando validacoes de penalidade e limite de membros (V.34).
+	 *
+	 * @param clan O cla de destino
+	 * @param player O jogador a ser adicionado
+	 * @return true se adicionado com sucesso, false caso contrario
+	 */
+	public synchronized boolean addClanMember(Clan clan, PlayerCharacter player) {
+		if (clan == null || player == null) {
+			return false;
+		}
+		if (player.clanId() != 0) {
+			log.warn("{} ja pertence a outro cla ({})", player.name(), player.clanId());
+			return false;
+		}
+		if (player.hasClanJoinPenalty()) {
+			log.warn("{} possui penalidade ativa para entrar em cla ate {}", player.name(), player.clanJoinExpiryTime());
+			return false;
+		}
+		if (clan.hasCharPenalty()) {
+			log.warn("Cla {} possui penalidade ativa para recrutar novos membros ate {}", clan.name(), clan.charPenaltyExpiryTime());
+			return false;
+		}
+
+		int maxMembers;
+		switch (clan.level()) {
+			case 0 -> maxMembers = 10;
+			case 1 -> maxMembers = 15;
+			case 2 -> maxMembers = 20;
+			case 3 -> maxMembers = 30;
+			default -> maxMembers = 40;
+		}
+		if (clan.membersCount() >= maxMembers) {
+			log.warn("Cla {} atingiu o limite maximo de membros ({}) para o nivel {}", clan.name(), maxMembers, clan.level());
+			return false;
+		}
+
+		ClanMember member = new ClanMember(player.objectId(), player.name(), player.level(),
+				player.classId(), player.title(), false, 0);
+		clan.addMember(member);
+		player.clanId(clan.clanId());
+
+		if (jdbc != null) {
+			try {
+				jdbc.sql("UPDATE characters SET clanid = :clanId WHERE charId = :charId")
+						.param("clanId", clan.clanId())
+						.param("charId", player.objectId())
+						.update();
+			} catch (Exception ex) {
+				log.error("Erro ao persistir adicao de membro {} ao cla {}", player.name(), clan.name(), ex);
+			}
+		}
+
+		log.info("Jogador {} adicionado ao cla {}", player.name(), clan.name());
+		return true;
+	}
+
+	/**
+	 * Remove um membro do cla (por saida voluntaria ou expulsao) aplicando as penalidades de 24h (V.34).
+	 *
+	 * @param clan O cla
+	 * @param player O jogador que esta saindo ou sendo expulso
+	 * @param isDismissed true se for expulsao pelo lider, false se for saida voluntaria
+	 * @return true se o membro foi removido com sucesso
+	 */
+	public synchronized boolean removeClanMember(Clan clan, PlayerCharacter player, boolean isDismissed) {
+		if (clan == null || player == null) {
+			return false;
+		}
+		if (clan.isLeader(player.objectId())) {
+			log.warn("Lider do cla {} nao pode ser expulso ou sair do cla diretamente", clan.name());
+			return false;
+		}
+
+		ClanMember member = clan.removeMember(player.objectId());
+		if (member == null) {
+			return false;
+		}
+
+		player.clanId(0);
+		long penaltyTime = System.currentTimeMillis() + 86_400_000L; // 24 horas de penalidade
+		player.clanJoinExpiryTime(penaltyTime);
+
+		if (isDismissed) {
+			clan.charPenaltyExpiryTime(penaltyTime);
+			if (jdbc != null) {
+				try {
+					jdbc.sql("UPDATE clan_data SET char_penalty_expiry_time = :exp WHERE clan_id = :clanId")
+							.param("exp", penaltyTime)
+							.param("clanId", clan.clanId())
+							.update();
+				} catch (Exception ex) {
+					log.error("Erro ao persistir char_penalty_expiry_time do cla {}", clan.name(), ex);
+				}
+			}
+		}
+
+		if (jdbc != null) {
+			try {
+				jdbc.sql("UPDATE characters SET clanid = 0, clan_join_expiry_time = :exp WHERE charId = :charId")
+						.param("exp", penaltyTime)
+						.param("charId", player.objectId())
+						.update();
+			} catch (Exception ex) {
+				log.error("Erro ao persistir remocao de membro {} do cla {}", player.name(), clan.name(), ex);
+			}
+		}
+
+		log.info("Jogador {} removido do cla {} (expulso: {}), penalidade ate {}", player.name(), clan.name(), isDismissed, penaltyTime);
 		return true;
 	}
 
