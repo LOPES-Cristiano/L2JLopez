@@ -14,8 +14,33 @@ public record SkillTemplate(int id, int level, String name, OperateType operateT
 		String target, boolean magic, int mpConsume, int mpInitialConsume, int hpConsume, double power,
 		int castRange, int skillRadius, int hitTime, int coolTime, int reuseDelay, int magicLevel,
 		double absorbPart, boolean nextActionAttack, int itemConsumeId, int itemConsumeCount,
+		int giveCharges, int maxCharges, int needCharges, boolean consumeCharges, boolean continueAfterMax,
 		List<StatFunc> funcs, List<EffectTemplate> effects,
 		SkillCondition castCondition, String condMsg) {
+
+	public SkillTemplate(int id, int level, String name, OperateType operateType, String skillType,
+			String target, boolean magic, int mpConsume, int mpInitialConsume, int hpConsume, double power,
+			int castRange, int skillRadius, int hitTime, int coolTime, int reuseDelay, int magicLevel,
+			double absorbPart, boolean nextActionAttack, int itemConsumeId, int itemConsumeCount,
+			int giveCharges, int maxCharges, int needCharges, boolean consumeCharges,
+			List<StatFunc> funcs, List<EffectTemplate> effects,
+			SkillCondition castCondition, String condMsg) {
+		this(id, level, name, operateType, skillType, target, magic, mpConsume, mpInitialConsume, hpConsume, power,
+				castRange, skillRadius, hitTime, coolTime, reuseDelay, magicLevel, absorbPart, nextActionAttack,
+				itemConsumeId, itemConsumeCount, giveCharges, maxCharges, needCharges, consumeCharges, false,
+				funcs, effects, castCondition, condMsg);
+	}
+
+	public SkillTemplate(int id, int level, String name, OperateType operateType, String skillType,
+			String target, boolean magic, int mpConsume, int mpInitialConsume, int hpConsume, double power,
+			int castRange, int skillRadius, int hitTime, int coolTime, int reuseDelay, int magicLevel,
+			double absorbPart, boolean nextActionAttack, int itemConsumeId, int itemConsumeCount,
+			List<StatFunc> funcs, List<EffectTemplate> effects,
+			SkillCondition castCondition, String condMsg) {
+		this(id, level, name, operateType, skillType, target, magic, mpConsume, mpInitialConsume, hpConsume, power,
+				castRange, skillRadius, hitTime, coolTime, reuseDelay, magicLevel, absorbPart, nextActionAttack,
+				itemConsumeId, itemConsumeCount, 0, 0, 0, true, false, funcs, effects, castCondition, condMsg);
+	}
 
 	public SkillTemplate(int id, int level, String name, OperateType operateType, String skillType,
 			String target, boolean magic, int mpConsume, int mpInitialConsume, int hpConsume, double power,
@@ -24,7 +49,7 @@ public record SkillTemplate(int id, int level, String name, OperateType operateT
 			SkillCondition castCondition, String condMsg) {
 		this(id, level, name, operateType, skillType, target, magic, mpConsume, mpInitialConsume, hpConsume, power,
 				castRange, skillRadius, hitTime, coolTime, reuseDelay, magicLevel, absorbPart, nextActionAttack,
-				0, 0, funcs, effects, castCondition, condMsg);
+				0, 0, 0, 0, 0, true, false, funcs, effects, castCondition, condMsg);
 	}
 
 	public enum OperateType {
@@ -71,12 +96,31 @@ public record SkillTemplate(int id, int level, String name, OperateType operateT
 		return PHYSICAL_DAMAGE.contains(skillType);
 	}
 
+	public boolean isChargedDam() {
+		return "CHARGEDAM".equalsIgnoreCase(skillType);
+	}
+
 	public boolean isMagicDamage() {
 		return MAGIC_DAMAGE.contains(skillType);
 	}
 
 	public boolean isManaBurn() {
 		return "MANADAM".equalsIgnoreCase(skillType);
+	}
+
+	public boolean isHeal() {
+		return "HEAL".equalsIgnoreCase(skillType) || "HEAL_PERCENT".equalsIgnoreCase(skillType)
+				|| "HOT".equalsIgnoreCase(skillType);
+	}
+
+	public boolean isBuff() {
+		return "BUFF".equalsIgnoreCase(skillType);
+	}
+
+	public boolean isDebuff() {
+		return "DEBUFF".equalsIgnoreCase(skillType) || "STUN".equalsIgnoreCase(skillType)
+				|| "ROOT".equalsIgnoreCase(skillType) || "SLEEP".equalsIgnoreCase(skillType)
+				|| "PARALYZE".equalsIgnoreCase(skillType);
 	}
 
 	public boolean isAreaAroundSelf() {
