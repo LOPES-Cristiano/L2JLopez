@@ -47,6 +47,11 @@ import com.lopez.l2j.network.game.packet.GameClientPacket.RequestTutorialQuestio
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestTutorialClientEvent;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestUnEquipItem;
 import com.lopez.l2j.network.game.packet.GameClientPacket.Say2;
+import com.lopez.l2j.network.game.handler.packet.ActionPacketHandler;
+import com.lopez.l2j.network.game.handler.packet.ChatPacketHandler;
+import com.lopez.l2j.network.game.handler.packet.ItemPacketHandler;
+import com.lopez.l2j.network.game.handler.packet.PartyClanPacketHandler;
+import com.lopez.l2j.network.game.handler.packet.TradeStorePacketHandler;
 import com.lopez.l2j.network.game.packet.GameClientPacket.SendBypassBuildCmd;
 import com.lopez.l2j.network.game.packet.GameClientPacket.State;
 import com.lopez.l2j.network.game.packet.GameClientPacket.Unknown;
@@ -1128,7 +1133,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private int macroRevision = 1;
 	private int nextMacroId = 1000;
 
-	record RequestPartyPending(GameSession requester, int itemDistribution) {
+	public record RequestPartyPending(GameSession requester, int itemDistribution) {
 	}
 
 	private static final ScheduledExecutorService autoAttackScheduler = Executors.newScheduledThreadPool(4, r -> {
@@ -1138,6 +1143,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	});
 
 	private final Consumer<GameServerPacket> closeCallback;
+	private final ChatPacketHandler chatHandler;
+	private final PartyClanPacketHandler partyClanHandler;
+	private final ItemPacketHandler itemHandler;
+	private final ActionPacketHandler actionHandler;
+	private final TradeStorePacketHandler tradeStoreHandler;
 
 	public GameSession(Context ctx, byte[] cryptKey, String ip, Consumer<GameServerPacket> sink) {
 		this(ctx, cryptKey, ip, sink, null);
@@ -1150,6 +1160,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		this.ip = ip;
 		this.sink = sink;
 		this.closeCallback = closeCallback;
+		this.chatHandler = new ChatPacketHandler(this);
+		this.partyClanHandler = new PartyClanPacketHandler(this);
+		this.itemHandler = new ItemPacketHandler(this);
+		this.actionHandler = new ActionPacketHandler(this);
+		this.tradeStoreHandler = new TradeStorePacketHandler(this);
 	}
 
 	@Override
@@ -1241,6 +1256,122 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	public void setPendingPartyInvite(RequestPartyPending pendingPartyInvite) {
 		this.pendingPartyInvite = pendingPartyInvite;
+	}
+
+	public ChatPacketHandler chatHandler() {
+		return chatHandler;
+	}
+
+	public PartyClanPacketHandler partyClanHandler() {
+		return partyClanHandler;
+	}
+
+	public ItemPacketHandler itemHandler() {
+		return itemHandler;
+	}
+
+	public ActionPacketHandler actionHandler() {
+		return actionHandler;
+	}
+
+	public TradeStorePacketHandler tradeStoreHandler() {
+		return tradeStoreHandler;
+	}
+
+	public static ScheduledExecutorService autoAttackScheduler() {
+		return autoAttackScheduler;
+	}
+
+	public boolean casting() {
+		return casting;
+	}
+
+	public void casting(boolean casting) {
+		this.casting = casting;
+	}
+
+	public ScheduledFuture<?> castTask() {
+		return castTask;
+	}
+
+	public void castTask(ScheduledFuture<?> castTask) {
+		this.castTask = castTask;
+	}
+
+	public boolean teleporting() {
+		return teleporting;
+	}
+
+	public void teleporting(boolean teleporting) {
+		this.teleporting = teleporting;
+	}
+
+	public int pendingNpcInteractObjectId() {
+		return pendingNpcInteractObjectId;
+	}
+
+	public void pendingNpcInteractObjectId(int id) {
+		this.pendingNpcInteractObjectId = id;
+	}
+
+	public boolean soulshotCharged() {
+		return soulshotCharged;
+	}
+
+	public void soulshotCharged(boolean soulshotCharged) {
+		this.soulshotCharged = soulshotCharged;
+	}
+
+	public boolean spiritshotCharged() {
+		return spiritshotCharged;
+	}
+
+	public void spiritshotCharged(boolean spiritshotCharged) {
+		this.spiritshotCharged = spiritshotCharged;
+	}
+
+	public int chargedGrade() {
+		return chargedGrade;
+	}
+
+	public void chargedGrade(int chargedGrade) {
+		this.chargedGrade = chargedGrade;
+	}
+
+	public int chargedSpSGrade() {
+		return chargedSpSGrade;
+	}
+
+	public void chargedSpSGrade(int chargedSpSGrade) {
+		this.chargedSpSGrade = chargedSpSGrade;
+	}
+
+	public boolean blessedSpiritshot() {
+		return blessedSpiritshot;
+	}
+
+	public void blessedSpiritshot(boolean blessedSpiritshot) {
+		this.blessedSpiritshot = blessedSpiritshot;
+	}
+
+	public Set<Integer> autoSoulShots() {
+		return autoSoulShots;
+	}
+
+	public int activeEnchantScrollObjectId() {
+		return activeEnchantScrollObjectId;
+	}
+
+	public void activeEnchantScrollObjectId(int activeEnchantScrollObjectId) {
+		this.activeEnchantScrollObjectId = activeEnchantScrollObjectId;
+	}
+
+	public Map<Integer, Long> consumableReuse() {
+		return consumableReuse;
+	}
+
+	public Map<String, ScheduledFuture<?>> hotTasks() {
+		return hotTasks;
 	}
 
 	/** Processa um pacote; devolve false quando a conexao deve ser fechada. */
@@ -1622,64 +1753,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		log.info("{} ({}) entrou no mundo em {},{},{}", active.name(), account, x(), y(), z());
 	}
 
-	private void onMove(MoveBackwardToLocation p) {
-		if (!inWorld || active.sitting() || active.isDisabled() || active.isRooted()) {
-			send(new ActionFailed());
-			return;
-		}
-		if (casting) {
-			cancelCast();
-		}
-		if (teleporting) {
-			onAppearing();
-		}
-		if (active.isFishing() && ctx.fishing() != null) {
-			ctx.fishing().stopFishing(active, this::send);
-		}
-		if (pendingNpcInteractObjectId != 0) {
-			var pendingNpc = ctx.world().npc(pendingNpcInteractObjectId).orElse(null);
-			if (pendingNpc != null) {
-				double distToNpc = Math.hypot(p.targetX() - pendingNpc.x(), p.targetY() - pendingNpc.y());
-				if (distToNpc > 300) {
-					pendingNpcInteractObjectId = 0;
-				}
-			} else {
-				pendingNpcInteractObjectId = 0;
-			}
-		}
-		// Cancela auto-attack apenas se for movimento manual no chão (moveMovement !=
-		// 0)
-		if (p.moveMovement() != 0) {
-			stopAutoAttack();
-		}
-
-		if (p.targetX() == p.originX() && p.targetY() == p.originY() && p.targetZ() == p.originZ()) {
-			send(new StopMove(active.objectId(), x(), y(), z(), active.heading()));
-			return;
-		}
-		// Sem geodata/simulacao de movimento ainda: confiamos na origem do cliente e no
-		// ValidatePosition.
-		active.moveTo(p.originX(), p.originY(), p.originZ());
-		var move = new MoveToLocation(active.objectId(), p.targetX(), p.targetY(), p.targetZ(), p.originX(),
-				p.originY(), p.originZ());
-		send(move);
-		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, move, false);
-		updateKnownObjects();
+	public void onMove(MoveBackwardToLocation p) {
+		actionHandler.handleMove(p);
 	}
 
-	private void onValidatePosition(ValidatePosition p) {
-		if (!inWorld || (p.x() == 0 && p.y() == 0)) {
-			return;
-		}
-		if (teleporting) {
-			onAppearing();
-		}
-		active.moveTo(p.x(), p.y(), p.z());
-		active.heading(p.heading());
-		updateKnownObjects();
-		checkPendingNpcInteract();
-		checkAutoAttackRangeOnMove();
-		checkZoneEnvironment();
+	public void onValidatePosition(ValidatePosition p) {
+		actionHandler.handleValidatePosition(p);
 	}
 
 	public void checkZoneEnvironment() {
@@ -1744,7 +1823,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, die, false);
 	}
 
-	private void onAppearing() {
+	public void onAppearing() {
 		if (!inWorld || active == null) {
 			return;
 		}
@@ -1753,7 +1832,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		updateKnownObjects();
 	}
 
-	private void updateKnownObjects() {
+	public void updateKnownObjects() {
 		if (!inWorld || active == null || teleporting) {
 			return;
 		}
@@ -1856,119 +1935,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
-	private void onSay(Say2 p) {
-		if (!inWorld || p.text() == null || p.text().isBlank()) {
-			return;
-		}
-		String raw = p.text().length() > MAX_CHAT_LENGTH ? p.text().substring(0, MAX_CHAT_LENGTH) : p.text();
-		raw = raw.trim();
-
-		if (raw.startsWith("//")) {
-			handleAdminCommand(raw.substring(2).trim());
-			return;
-		}
-		if (raw.startsWith("/")) {
-			handleSlashCommand(raw);
-			return;
-		}
-		if (raw.startsWith(".")) {
-			handleDotCommand(raw);
-			return;
-		}
-
-		int channel = p.channel();
-		String text = raw;
-
-		// Detecta e extrai prefixos digitados na caixa principal de chat
-		if (raw.startsWith("!")) {
-			channel = CreatureSay.SHOUT;
-			text = raw.substring(1).trim();
-		} else if (raw.startsWith("+")) {
-			channel = CreatureSay.TRADE;
-			text = raw.substring(1).trim();
-		} else if (raw.startsWith("%")) {
-			channel = CreatureSay.HERO;
-			text = raw.substring(1).trim();
-		} else if (raw.startsWith("#")) {
-			channel = CreatureSay.PARTY;
-			text = raw.substring(1).trim();
-		} else if (raw.startsWith("@")) {
-			channel = CreatureSay.CLAN;
-			text = raw.substring(1).trim();
-		} else if (raw.startsWith("$")) {
-			channel = CreatureSay.ALLIANCE;
-			text = raw.substring(1).trim();
-		}
-
-		// Aplica filtro de palavras censuradas (SayFilter)
-		if (ctx.wordFilter() != null) {
-			text = ctx.wordFilter().filter(text);
-		}
-
-		if (text.isBlank()) {
-			return;
-		}
-
-		switch (channel) {
-			case CreatureSay.SHOUT -> ctx.world().broadcast(
-					new CreatureSay(active.objectId(), CreatureSay.SHOUT, active.name(), text), x -> true);
-			case CreatureSay.TRADE -> ctx.world().broadcast(
-					new CreatureSay(active.objectId(), CreatureSay.TRADE, active.name(), text), x -> true);
-			case CreatureSay.HERO -> ctx.world().broadcast(
-					new CreatureSay(active.objectId(), CreatureSay.HERO, active.name(), text), x -> true);
-			case CreatureSay.PARTY -> {
-				if (party != null) {
-					party.broadcast(new CreatureSay(active.objectId(), CreatureSay.PARTY, active.name(), text));
-				} else {
-					send(new CreatureSay(0, CreatureSay.ALL, "System", "Voce nao esta em uma party."));
-				}
-			}
-			case CreatureSay.CLAN -> {
-				if (active.clanId() > 0) {
-					ctx.world().broadcast(
-							new CreatureSay(active.objectId(), CreatureSay.CLAN, active.name(), text),
-							s -> s.character().clanId() == active.clanId());
-				} else {
-					send(new CreatureSay(0, CreatureSay.ALL, "System", "Voce nao esta em um cla."));
-				}
-			}
-			case CreatureSay.ALLIANCE -> {
-				if (active.clanId() > 0) {
-					if (ctx.alliances() != null) {
-						var clanOpt = ctx.clans().byClanId(active.clanId());
-						if (clanOpt.isPresent() && clanOpt.get().allyId() > 0) {
-							ctx.alliances().broadcastAllyChat(active, text, ctx.world());
-						} else {
-							send(new CreatureSay(0, CreatureSay.ALL, "System", "Voce nao esta em uma alianca."));
-						}
-					} else {
-						ctx.world().broadcast(
-								new CreatureSay(active.objectId(), CreatureSay.ALLIANCE, active.name(), text),
-								s -> s.character().clanId() == active.clanId());
-					}
-				} else {
-					send(new CreatureSay(0, CreatureSay.ALL, "System", "Voce nao esta em uma alianca."));
-				}
-			}
-			case CreatureSay.TELL -> {
-				var target = ctx.world().byName(p.target());
-				if (target.isEmpty()) {
-					send(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, ctx.serverName(),
-							p.target() + " nao esta online."));
-					return;
-				}
-				if (target.get().character() != null && ctx.friends() != null
-						&& ctx.friends().isBlocked(target.get().character(), active)) {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
-							target.get().name() + " esta bloqueando mensagens de voce."));
-					return;
-				}
-				target.get().send(new CreatureSay(active.objectId(), CreatureSay.TELL, active.name(), text));
-				send(new CreatureSay(active.objectId(), CreatureSay.TELL, "->" + target.get().name(), text));
-			}
-			default -> ctx.world().broadcastAround(this, GameWorld.LOCAL_CHAT_RANGE,
-					new CreatureSay(active.objectId(), CreatureSay.ALL, active.name(), text));
-		}
+	public void onSay(Say2 p) {
+		chatHandler.handleSay(p);
 	}
 
 	private int getPhysicalAttackRange(PlayerCharacter player) {
@@ -1987,205 +1955,15 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return 40;
 	}
 
-	private void onAction(Action p) {
-		if (!inWorld) {
-			send(new ActionFailed());
-			return;
-		}
-		if (p.objectId() == active.objectId()) {
-			targetObjectId = active.objectId();
-			send(new MyTargetSelected(active.objectId(), 0));
-			send(StatusUpdate.hp(active.objectId(), (int) active.currentHp(), active.maxHp()));
-			return;
-		}
-		var npcOpt = ctx.world().npc(p.objectId());
-		if (npcOpt.isPresent()) {
-			var npc = npcOpt.get();
-			// Shift-click para administradores/GMs: abre painel completo de inspecao do NPC
-			if (p.shift() != 0 && active.isGm()) {
-				targetObjectId = npc.objectId();
-				int levelDiff = active.level() - npc.template().level();
-				send(new MyTargetSelected(npc.objectId(), levelDiff));
-				send(StatusUpdate.hp(npc.objectId(), (int) npc.currentHp(), npc.template().maxHp()));
-				showAdminNpcInfo(npc);
-				return;
-			}
-			if (targetObjectId == npc.objectId()) {
-				// 2º clique: se atacavel, inicia ataque/perseguicao; senao abre dialogo
-				if (npc.template().isAttackable()) {
-					startAutoAttack(npc);
-				} else {
-					double dx = active.x() - npc.x();
-					double dy = active.y() - npc.y();
-					double distSq = dx * dx + dy * dy;
-					double interactDist = 220.0;
-					if (distSq > interactDist * interactDist) {
-						pendingNpcInteractObjectId = npc.objectId();
-						var movePawn = new MoveToPawn(active.objectId(), npc.objectId(), 80, active.x(), active.y(),
-								active.z());
-						send(movePawn);
-						ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, movePawn, false);
-						return;
-					}
-					pendingNpcInteractObjectId = 0;
-					int heading = (int) (Math.atan2(npc.y() - active.y(), npc.x() - active.x()) * 32768.0 / Math.PI);
-					active.heading(heading);
-					int npcHeading = (int) (Math.atan2(active.y() - npc.y(), active.x() - npc.x()) * 32768.0 / Math.PI);
-					npc.heading(npcHeading);
-					var valLoc = new ValidateLocation(npc.objectId(), npc.x(), npc.y(), npc.z(), npcHeading);
-					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, valLoc, true);
-					showNpcHtml(npc, 0);
-				}
-			} else {
-				// 1º clique: seleciona NPC como alvo e envia StatusUpdate com HP atual/maximo
-				targetObjectId = npc.objectId();
-				int levelDiff = active.level() - npc.template().level();
-				send(new MyTargetSelected(npc.objectId(), levelDiff));
-				send(StatusUpdate.hp(npc.objectId(), (int) npc.currentHp(), npc.template().maxHp()));
-				send(new ValidateLocation(npc.objectId(), npc.x(), npc.y(), npc.z(), npc.heading()));
-			}
-			return;
-		}
-		var playerOpt = ctx.world().player(p.objectId());
-		if (playerOpt.isPresent()) {
-			var other = playerOpt.get();
-			if (targetObjectId == other.objectId() && other instanceof GameSession targetSession && targetSession != this) {
-				// 2º clique: inicia auto-attack no jogador
-				startAutoAttack(targetSession);
-				return;
-			}
-			targetObjectId = other.objectId();
-			send(new MyTargetSelected(other.objectId(), 0));
-			if (other.character() != null) {
-				send(StatusUpdate.hp(other.objectId(), (int) other.character().currentHp(), other.character().maxHp()));
-			}
-			send(new ValidateLocation(other.objectId(), other.x(), other.y(), other.z(), 0));
-			if (p.shift() != 0 && active.isGm() && other.character() != null) {
-				showAdminCharInfo(other.character().name());
-			}
-			return;
-		}
-
-		// Objeto Estatico do Cenario (Town Map, Signboard, Tronos)
-		if (ctx.staticObjects() != null) {
-			var staticObjOpt = ctx.staticObjects().byObjectId(p.objectId());
-			if (staticObjOpt.isPresent()) {
-				var obj = staticObjOpt.get();
-				targetObjectId = obj.objectId();
-				send(new MyTargetSelected(obj.objectId(), 0));
-
-				if (p.shift() != 0 && active.isGm()) {
-					send(new StaticObject(obj.staticObjectId(), obj.objectId()));
-					String htm = "<html><body><table border=0>"
-							+ "<tr><td>Static Object Info:</td></tr>"
-							+ "<tr><td>X: " + obj.x() + "</td></tr>"
-							+ "<tr><td>Y: " + obj.y() + "</td></tr>"
-							+ "<tr><td>Z: " + obj.z() + "</td></tr>"
-							+ "<tr><td>Object ID: " + obj.objectId() + "</td></tr>"
-							+ "<tr><td>Static ID: " + obj.staticObjectId() + "</td></tr>"
-							+ "<tr><td>Type: " + obj.type() + "</td></tr>"
-							+ "<tr><td>Texture: " + obj.texture() + "</td></tr>"
-							+ "</table></body></html>";
-					send(new NpcHtmlMessage(obj.objectId(), htm));
-					return;
-				}
-
-				if (obj.isTownMap()) {
-					send(new ShowTownMap(obj.texture(), obj.mapX(), obj.mapY()));
-					send(new ActionFailed());
-				} else if (obj.isSignboard()) {
-					String content = ctx.htmls() != null ? ctx.htmls().getHtml("signboard.htm") : null;
-					if (content == null) {
-						content = "<html><body>Signboard:<br>Welcome to the realm.</body></html>";
-					}
-					send(new NpcHtmlMessage(obj.objectId(), content));
-					send(new ActionFailed());
-				}
-				return;
-			}
-		}
-
-		// Item Caido no Chao (DropItem)
-		if (ctx.groundItems() != null) {
-			var groundItemOpt = ctx.groundItems().byObjectId(p.objectId());
-			if (groundItemOpt.isPresent()) {
-				var gi = groundItemOpt.get();
-				double dx = active.x() - gi.x();
-				double dy = active.y() - gi.y();
-				if (dx * dx + dy * dy <= 150 * 150) {
-					var picked = ctx.groundItems().pickupItem(active, gi.objectId());
-					if (picked.isPresent()) {
-						var added = ctx.inventories().addItem(active.inventory(), gi.itemId(), gi.count(),
-								"GroundPickup");
-						if (added != null) {
-							send(new InventoryUpdate(List.of(
-									ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
-							refreshWeightAndPenalties();
-							if (added.item().template() != null) {
-								send(new CreatureSay(0, CreatureSay.ALL, "SYS",
-										"Voce pegou " + added.item().template().name() + " x" + gi.count()));
-							}
-						}
-					}
-				} else {
-					var move = new MoveToLocation(active.objectId(), gi.x(), gi.y(), gi.z(), active.x(), active.y(),
-							active.z());
-					send(move);
-					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, move, false);
-				}
-				return;
-			}
-		}
-		targetObjectId = 0;
-		send(new ActionFailed());
+	public void onAction(Action p) {
+		actionHandler.handleAction(p);
 	}
 
-	private void onAttackRequest(AttackRequest p) {
-		if (!inWorld || active == null || active.isDead() || active.sitting() || active.isDisabled()) {
-			send(new ActionFailed());
-			return;
-		}
-		if (ctx.zones() != null && ctx.zones().isInsidePeace(active.x(), active.y(), active.z())) {
-			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pode atacar dentro de uma zona de paz."));
-			send(new ActionFailed());
-			return;
-		}
-		var npcOpt = ctx.world().npc(p.objectId());
-		if (npcOpt.isPresent()) {
-			var npc = npcOpt.get();
-			if (!npc.template().isAttackable() || npc.isDead()) {
-				send(new ActionFailed());
-				return;
-			}
-			if (targetObjectId != npc.objectId()) {
-				targetObjectId = npc.objectId();
-				int levelDiff = active.level() - npc.template().level();
-				send(new MyTargetSelected(npc.objectId(), levelDiff));
-				send(StatusUpdate.hp(npc.objectId(), (int) npc.currentHp(), npc.template().maxHp()));
-				send(new ValidateLocation(npc.objectId(), npc.x(), npc.y(), npc.z(), npc.heading()));
-			}
-			startAutoAttack(npc);
-			return;
-		}
-		var playerOpt = ctx.world().player(p.objectId());
-		if (playerOpt.isPresent() && playerOpt.get() instanceof GameSession targetSession && targetSession != this) {
-			if (targetSession.active == null || targetSession.active.isDead()) {
-				send(new ActionFailed());
-				return;
-			}
-			if (targetObjectId != targetSession.objectId()) {
-				targetObjectId = targetSession.objectId();
-				send(new MyTargetSelected(targetSession.objectId(), 0));
-				send(StatusUpdate.hp(targetSession.objectId(), (int) targetSession.active.currentHp(), targetSession.active.maxHp()));
-				send(new ValidateLocation(targetSession.objectId(), targetSession.x(), targetSession.y(), targetSession.z(), 0));
-			}
-			startAutoAttack(targetSession);
-			return;
-		}
-		send(new ActionFailed());
+	public void onAttackRequest(AttackRequest p) {
+		actionHandler.handleAttackRequest(p);
 	}
 
-	private void startAutoAttack(NpcInstance npc) {
+	public void startAutoAttack(NpcInstance npc) {
 		if (npc == null || npc.isDead() || !npc.template().isAttackable()) {
 			send(new ActionFailed());
 			return;
@@ -2219,7 +1997,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
-	private void startAutoAttack(GameSession targetPlayer) {
+	public void startAutoAttack(GameSession targetPlayer) {
 		if (targetPlayer == null || targetPlayer.active == null || targetPlayer.active.isDead() || targetPlayer == this) {
 			send(new ActionFailed());
 			return;
@@ -2353,7 +2131,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}, 15_000L, TimeUnit.MILLISECONDS);
 	}
 
-	private void stopAutoAttack() {
+	public void stopAutoAttack() {
 		if (autoAttacking) {
 			autoAttacking = false;
 			if (active != null && !active.isInCombat()) {
@@ -2364,7 +2142,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
-	private void checkAutoAttackRangeOnMove() {
+	public void checkAutoAttackRangeOnMove() {
 		if (!autoAttacking || targetObjectId == 0 || active == null) {
 			return;
 		}
@@ -2398,12 +2176,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
-	private void onCancelTarget() {
-		targetObjectId = 0;
-		if (active != null) {
-			send(new TargetUnselected(active.objectId(), x(), y(), z()));
-			stopAutoAttack();
-		}
+	public void onCancelTarget() {
+		actionHandler.handleCancelTarget();
 	}
 
 	private void onAttackNpc(NpcInstance npc) {
@@ -2774,7 +2548,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
-	private void showNpcHtml(NpcInstance npc, int val) {
+	public void showNpcHtml(NpcInstance npc, int val) {
 		if (isSevenSignsPriest(npc.npcId(), npc.name())) {
 			showSevenSignsNpcHtml(npc, val);
 			return;
@@ -3124,16 +2898,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 
-	private void onBbsWrite(RequestBBSwrite p) {
-		if (!inWorld || active == null) {
-			send(new ActionFailed());
-			return;
-		}
-		String cmd = (p.url() == null || p.url().isBlank()) ? "_bbshome" : p.url().trim();
-		handleBbsCommand(cmd);
+	public void onBbsWrite(RequestBBSwrite p) {
+		chatHandler.handleBbsWrite(p);
 	}
 
-	private void handleBbsCommand(String command) {
+	public void handleBbsCommand(String command) {
 		if (ctx.communityBoard() != null && active != null) {
 			String html = ctx.communityBoard().handleCommand(active, command);
 			if (html != null) {
@@ -4291,347 +4060,28 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new BuyList((int) active.inventory().adena(), listId, views));
 	}
 
-	private void onBuyItem(RequestBuyItem p) {
-		if (!inWorld || p.items().isEmpty()) {
-			send(new ActionFailed());
-			return;
-		}
-		if (ctx.buylists() == null) {
-			send(new ActionFailed());
-			return;
-		}
-		var blOpt = ctx.buylists().get(p.listId());
-		if (blOpt.isEmpty()) {
-			send(new ActionFailed());
-			return;
-		}
-		var bl = blOpt.get();
-		long totalCost = 0;
-		int slots = 0;
-
-		for (var itemReq : p.items()) {
-			var prodOpt = bl.getProduct(itemReq.itemId());
-			if (prodOpt.isEmpty()) {
-				send(new ActionFailed());
-				return;
-			}
-			var prod = prodOpt.get();
-			var template = ctx.inventories().templates().get(prod.itemId()).orElse(null);
-			if (template == null) {
-				send(new ActionFailed());
-				return;
-			}
-			totalCost += (long) prod.price() * itemReq.count();
-			if (!template.stackable()) {
-				slots += itemReq.count();
-			} else if (active.inventory().byItemId(prod.itemId()).isEmpty()) {
-				slots++;
-			}
-		}
-
-		if (totalCost > Integer.MAX_VALUE || totalCost < 0) {
-			send(new ActionFailed());
-			return;
-		}
-
-		if (active.inventory().adena() < totalCost) {
-			send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
-			send(new ActionFailed());
-			return;
-		}
-
-		if (active.inventory().size() + slots > 80) {
-			send(SystemMessage.id(SystemMessage.SLOTS_FULL));
-			send(new ActionFailed());
-			return;
-		}
-
-		List<ItemInfo> updates = new ArrayList<>();
-		if (totalCost > 0) {
-			var consumed = ctx.inventories().consumeItem(active.inventory(), ItemTemplate.ADENA_ID, (int) totalCost,
-					"Buy");
-			if (consumed != null) {
-				updates.add(consumed.removed()
-						? ItemInfo.of(consumed.item(), ItemInfo.REMOVED)
-						: ItemInfo.of(consumed.item(), ItemInfo.MODIFIED));
-			}
-		}
-
-		for (var itemReq : p.items()) {
-			var added = ctx.inventories().addItem(active.inventory(), itemReq.itemId(), itemReq.count(), "Buy");
-			if (added != null) {
-				updates.add(ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
-			}
-		}
-
-		send(new InventoryUpdate(updates));
-		refreshWeightAndPenalties();
+	public void onBuyItem(RequestBuyItem p) {
+		itemHandler.handleBuyItem(p);
 	}
 
-	private void showSellList(NpcInstance npc) {
-		if (active == null) {
-			return;
-		}
-		var sellable = active.inventory().items().stream()
-				.filter(it -> !it.isEquipped() && it.template().type2() != ItemTemplate.TYPE2_QUEST
-						&& it.template().price() > 0)
-				.map(it -> new SellList.SellItemView(
-						it.objectId(),
-						it.itemId(),
-						(int) it.count(),
-						it.template().type1(),
-						it.template().type2(),
-						it.template().bodyPart(),
-						it.enchant(),
-						Math.max(1, it.template().price() / 2)))
-				.toList();
-		send(new SellList((int) active.inventory().adena(), 0, sellable));
+	public void showSellList(NpcInstance npc) {
+		tradeStoreHandler.showSellList(npc);
 	}
 
-	private void onSellItem(RequestSellItem p) {
-		if (!inWorld || p.items().isEmpty()) {
-			send(new ActionFailed());
-			return;
-		}
-		long totalEarned = 0;
-		List<ItemInfo> updates = new ArrayList<>();
-		for (var req : p.items()) {
-			var itOpt = active.inventory().byObjectId(req.objectId());
-			if (itOpt.isEmpty()) {
-				continue;
-			}
-			var item = itOpt.get();
-			if (item.isEquipped() || item.template().type2() == ItemTemplate.TYPE2_QUEST) {
-				continue;
-			}
-			int count = Math.min((int) item.count(), Math.max(1, req.count()));
-			int pricePerItem = Math.max(1, item.template().price() / 2);
-			totalEarned += (long) pricePerItem * count;
-			var upd = ctx.inventories().destroyItem(active.inventory(), item.objectId(), count, "Sell");
-			if (upd != null) {
-				updates.add(upd.removed()
-						? ItemInfo.of(upd.item(), ItemInfo.REMOVED)
-						: ItemInfo.of(upd.item(), ItemInfo.MODIFIED));
-			}
-		}
-		if (totalEarned > 0) {
-			var adenaUpd = ctx.inventories().addItem(active.inventory(), ItemTemplate.ADENA_ID, (int) totalEarned,
-					"SellReward");
-			if (adenaUpd != null) {
-				updates.add(ItemInfo.of(adenaUpd.item(), adenaUpd.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
-			}
-		}
-		if (!updates.isEmpty()) {
-			send(new InventoryUpdate(updates));
-			send(ItemList.of(active.inventory().items(), false));
-			refreshWeightAndPenalties();
-		}
+	public void onSellItem(RequestSellItem p) {
+		itemHandler.handleSellItem(p);
 	}
 
-	private void showMultiSell(NpcInstance npc, int listId) {
-		if (ctx.multisell() == null) {
-			send(new ActionFailed());
-			return;
-		}
-		var containerOpt = ctx.multisell().get(listId);
-		if (containerOpt.isEmpty()) {
-			log.warn("MultiSell id {} nao encontrada", listId);
-			send(new ActionFailed());
-			return;
-		}
-		var container = containerOpt.get();
-		List<MultiSellList.MultiSellEntryView> views = new ArrayList<>();
-		for (var entry : container.entries()) {
-			List<MultiSellList.ItemView> ingredients = new ArrayList<>();
-			for (var ing : entry.ingredients()) {
-				var t = ctx.inventories().templates().get(ing.itemId()).orElse(null);
-				int type2 = t != null ? t.type2() : 0;
-				ingredients.add(new MultiSellList.ItemView(ing.itemId(), 0, type2, ing.count(), ing.enchantLevel()));
-			}
-			List<MultiSellList.ItemView> products = new ArrayList<>();
-			for (var prod : entry.products()) {
-				var t = ctx.inventories().templates().get(prod.itemId()).orElse(null);
-				int bodyPart = t != null ? t.bodyPart() : 0;
-				int type2 = t != null ? t.type2() : 0;
-				products.add(
-						new MultiSellList.ItemView(prod.itemId(), bodyPart, type2, prod.count(), prod.enchantLevel()));
-			}
-			views.add(new MultiSellList.MultiSellEntryView(entry.entryId(), ingredients, products));
-		}
-		send(new MultiSellList(listId, 1, 1, 40, views));
+	public void showMultiSell(NpcInstance npc, int listId) {
+		tradeStoreHandler.showMultiSell(npc, listId);
 	}
 
-	private void onMultiSellChoose(GameClientPacket.MultiSellChoose p) {
-		if (!inWorld || active == null || p.amount() <= 0 || ctx.multisell() == null) {
-			send(new ActionFailed());
-			return;
-		}
-		var containerOpt = ctx.multisell().get(p.listId());
-		if (containerOpt.isEmpty()) {
-			send(new ActionFailed());
-			return;
-		}
-		var container = containerOpt.get();
-		var entryOpt = container.entries().stream().filter(e -> e.entryId() == p.entryId()).findFirst();
-		if (entryOpt.isEmpty()) {
-			send(new ActionFailed());
-			return;
-		}
-		var entry = entryOpt.get();
-		int amount = Math.min(5000, p.amount());
-
-		// 1. Verifica se o jogador possui todos os ingredientes na quantidade
-		// necessaria
-		for (var ing : entry.ingredients()) {
-			long needed = ing.count() * amount;
-			long count = active.inventory().byItemId(ing.itemId()).map(i -> (long) i.count()).orElse(0L);
-			if (count < needed) {
-				send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
-				send(new ActionFailed());
-				return;
-			}
-		}
-
-		// 2. Consome os ingredientes
-		for (var ing : entry.ingredients()) {
-			long needed = ing.count() * amount;
-			ctx.inventories().consumeItem(active.inventory(), ing.itemId(), (int) needed, "MultiSell");
-		}
-
-		// 3. Adiciona os produtos
-		for (var prod : entry.products()) {
-			long totalAdd = prod.count() * amount;
-			ctx.inventories().addItem(active.inventory(), prod.itemId(), (int) totalAdd, "MultiSell");
-			send(SystemMessage.of(SystemMessage.YOU_PICKED_UP_S1_S2,
-					new SystemMessage.ItemName(prod.itemId()),
-					new SystemMessage.Number((int) totalAdd)));
-		}
-
-		// 4. Atualiza o inventario do jogador
-		send(ItemList.of(active.inventory().items(), false));
-		refreshWeightAndPenalties();
+	public void onMultiSellChoose(GameClientPacket.MultiSellChoose p) {
+		tradeStoreHandler.handleMultiSellChoose(p);
 	}
 
-	private void onActionUse(RequestActionUse p) {
-		if (!inWorld || active == null || active.isDead()) {
-			send(new ActionFailed());
-			return;
-		}
-		switch (p.actionId()) {
-			case 0 -> { // Sit / Stand
-				active.sitting(!active.sitting());
-				var wait = new ChangeWaitType(active.objectId(), active.sitting() ? 0 : 1, x(), y(), z());
-				send(wait);
-				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, wait, false);
-			}
-			case 1 -> { // Walk / Run
-				active.running(!active.running());
-				var move = new ChangeMoveType(active.objectId(), active.running());
-				send(move);
-				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, move, false);
-			}
-			case 2 -> { // Acao de Ataque (icone de espada)
-				if (targetObjectId != 0) {
-					var npcOpt = ctx.world().npc(targetObjectId);
-					if (npcOpt.isPresent()) {
-						var npc = npcOpt.get();
-						if (npc.template().isAttackable() && !npc.isDead()) {
-							startAutoAttack(npc);
-							return;
-						}
-					}
-					var playerOpt = ctx.world().player(targetObjectId);
-					if (playerOpt.isPresent() && playerOpt.get() instanceof GameSession targetSession && targetSession != this) {
-						if (targetSession.active != null && !targetSession.active.isDead()) {
-							startAutoAttack(targetSession);
-							return;
-						}
-					}
-				}
-				send(new ActionFailed());
-			}
-			case 3 -> { // Trade com alvo selecionado
-				if (targetObjectId != 0) {
-					var targetPlayerOpt = ctx.world().player(targetObjectId);
-					if (targetPlayerOpt.isPresent() && targetPlayerOpt.get() instanceof GameSession targetSession
-							&& targetSession != this) {
-						send(SystemMessage.of(SystemMessage.YOU_INVITED_S1_TO_PARTY,
-								new SystemMessage.Text(targetSession.character().name())));
-						return;
-					}
-				}
-				send(new ActionFailed());
-			}
-			case 4 -> { // Target Next (proximo alvo / mob atacavel mais proximo)
-				double bestDistSq = 900.0 * 900.0;
-				NpcInstance bestNpc = null;
-				for (var npc : ctx.world().findNpcsAround(active.x(), active.y(), 900)) {
-					if (npc.template().isAttackable() && !npc.isDead()) {
-						double dx = active.x() - npc.x();
-						double dy = active.y() - npc.y();
-						double d2 = dx * dx + dy * dy;
-						if (d2 < bestDistSq) {
-							bestDistSq = d2;
-							bestNpc = npc;
-						}
-					}
-				}
-				if (bestNpc != null) {
-					targetObjectId = bestNpc.objectId();
-					send(new MyTargetSelected(bestNpc.objectId(), 0));
-					send(new ValidateLocation(bestNpc.objectId(), bestNpc.x(), bestNpc.y(), bestNpc.z(),
-							bestNpc.heading()));
-				} else {
-					send(new ActionFailed());
-				}
-			}
-			case 5 -> { // Pickup
-				send(new ActionFailed());
-			}
-			case 6 -> { // Assist
-				if (targetObjectId != 0) {
-					var targetPlayerOpt = ctx.world().player(targetObjectId);
-					if (targetPlayerOpt.isPresent() && targetPlayerOpt.get() instanceof GameSession targetSession) {
-						if (targetSession.targetObjectId != 0) {
-							targetObjectId = targetSession.targetObjectId;
-							send(new MyTargetSelected(targetObjectId, 0));
-							return;
-						}
-					}
-				}
-				send(new ActionFailed());
-			}
-			case 15 -> { // Party Invite via icone
-				if (targetObjectId != 0) {
-					var targetPlayerOpt = ctx.world().player(targetObjectId);
-					if (targetPlayerOpt.isPresent() && targetPlayerOpt.get() instanceof GameSession targetSession
-							&& targetSession != this) {
-						onJoinParty(new GameClientPacket.RequestJoinParty(targetSession.character().name(), 0));
-						return;
-					}
-				}
-				send(new ActionFailed());
-			}
-			case 16 -> onLeaveParty(); // Party Leave
-			case 17 -> { // Party Dismiss / Expel
-				if (party != null && party.isLeader(active.objectId()) && targetObjectId != 0) {
-					var targetPlayerOpt = ctx.world().player(targetObjectId);
-					if (targetPlayerOpt.isPresent() && targetPlayerOpt.get() instanceof GameSession targetSession) {
-						party.oust(targetSession.character().name());
-						return;
-					}
-				}
-				send(new ActionFailed());
-			}
-			case 18 -> { // Change Party Leader
-				if (party != null && party.isLeader(active.objectId()) && targetObjectId != 0) {
-					party.changeLeader(targetObjectId);
-					return;
-				}
-				send(new ActionFailed());
-			}
-			default -> send(new ActionFailed());
-		}
+	public void onActionUse(RequestActionUse p) {
+		actionHandler.handleActionUse(p);
 	}
 
 	private void onSocialAction(GameClientPacket.RequestSocialAction p) {
@@ -4644,32 +4094,15 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, pkt, false);
 	}
 
-	private void onLeaveParty() {
-		if (!inWorld || active == null) {
-			send(new ActionFailed());
-			return;
-		}
-		if (party != null) {
-			party.removeMember(this);
-			this.party = null;
-		} else {
-			send(new ActionFailed());
-		}
+	public void onLeaveParty() {
+		partyClanHandler.handleLeaveParty();
 	}
 
-	private void onExpelPartyMember(String name) {
-		if (!inWorld || active == null) {
-			send(new ActionFailed());
-			return;
-		}
-		if (party != null && party.isLeader(active.objectId())) {
-			party.oust(name);
-		} else {
-			send(new ActionFailed());
-		}
+	public void onExpelPartyMember(String name) {
+		partyClanHandler.handleExpelPartyMember(name);
 	}
 
-	private void onShowMiniMap() {
+	public void onShowMiniMap() {
 		if (!inWorld || active == null) {
 			send(new ActionFailed());
 			return;
@@ -4799,83 +4232,25 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	 * UseItem: equipaveis alternam equipar; consumiveis (pocoes, soulshots,
 	 * scrolls) passam pelos handlers.
 	 */
-	private void onUseItem(UseItem p) {
-		if (!inWorld || active == null) {
-			return;
-		}
-		var item = active.inventory().byObjectId(p.objectId()).orElse(null);
-		if (item == null) {
-			send(new ActionFailed());
-			return;
-		}
-		if (!item.template().isEquipable()) {
-			if (isScrollOfEscape(item.itemId())) {
-				useScrollOfEscape(item);
-				return;
-			}
-			if (item.itemId() == 1665 || item.itemId() == 1863) {
-				onShowMiniMap();
-				return;
-			}
-			if (EnchantScrollTable.isEnchantScroll(item.itemId())) {
-				activeEnchantScrollObjectId = item.objectId();
-				send(new ChooseInventoryItem(item.itemId()));
-				send(new ActionFailed());
-				return;
-			}
-			if (ctx.summonItems() != null && ctx.summonItems().isSummonItem(item.itemId())) {
-				if (ctx.summonItems().useSummonItem(active, item, this::send)) {
-					sendUserInfoAndBroadcastCharInfo();
-				}
-				send(new ActionFailed());
-				return;
-			}
-			if (ctx.extractableItems() != null && ctx.extractableItems().isExtractable(item.itemId())) {
-				if (ctx.extractableItems().extract(active, item, this::send)) {
-					send(ItemList.of(active.inventory().items(), false));
-				}
-				send(new ActionFailed());
-				return;
-			}
-			if (isChestKey(item.itemId())) {
-				useChestKey(item);
-				return;
-			}
-			if (item.itemId() == 1661) {
-				useThiefKey(item);
-				return;
-			}
-			var consumable = ConsumableTable.get(item.itemId());
-			if (consumable.isPresent()) {
-				useConsumable(consumable.get());
-			} else {
-				send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(item.itemId())));
-			}
-			send(new ActionFailed());
-			return;
-		}
-		if (active.sitting()) {
-			send(new ActionFailed());
-			return;
-		}
-		afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), item.objectId()));
+	public void onUseItem(UseItem p) {
+		itemHandler.handleUseItem(p);
 	}
 
-	// ---- Chaves de Bau e Destrancamento ----
-
-	private static boolean isDeluxeChestKey(int itemId) {
-		return itemId >= 6665 && itemId <= 6672;
+	public void useConsumable(Consumable c) {
+		itemHandler.useConsumable(c);
 	}
 
-	private static boolean isNormalChestKey(int itemId) {
-		return itemId >= 5197 && itemId <= 5204;
+	/** UserInfo para o proprio jogador e CharInfo para quem esta por perto. */
+	public void broadcastAppearance() {
+		sendUserInfoAndBroadcastCharInfo();
 	}
 
-	private static boolean isChestKey(int itemId) {
-		return isDeluxeChestKey(itemId) || isNormalChestKey(itemId) || itemId == 9205;
+	/** Tira {@code count} unidades do item e manda InventoryUpdate + peso. */
+	public boolean consumeItem(int itemId, int count) {
+		return itemHandler.consumeItem(itemId, count);
 	}
 
-	private static boolean isChestNpc(NpcInstance npc) {
+	public static boolean isChestNpc(NpcInstance npc) {
 		if (npc == null || npc.template() == null) {
 			return false;
 		}
@@ -4900,7 +4275,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return false;
 	}
 
-	private static int getRequiredChestKeyGrade(int chestLevel) {
+	public static int getRequiredChestKeyGrade(int chestLevel) {
 		if (chestLevel < 30) return 1;
 		if (chestLevel < 40) return 2;
 		if (chestLevel < 50) return 3;
@@ -4911,215 +4286,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return 8;
 	}
 
-	private void useThiefKey(ItemInstance keyItem) {
-		if (!inWorld || active == null || active.isDead() || active.sitting() || active.isDisabled()) {
-			send(new ActionFailed());
-			return;
-		}
-		var svc = ctx.skillService();
-		var sk = svc == null ? null : svc.known(active, 27).orElse(null);
-		if (sk != null) {
-			castSkill(sk, true);
-		} else {
-			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Thief Key e consumida pela habilidade Unlock (ladinos)."));
-			send(new ActionFailed());
-		}
-	}
-
-	private void useChestKey(ItemInstance keyItem) {
-		if (!inWorld || active == null || active.isDead() || active.sitting() || active.isDisabled()) {
-			send(new ActionFailed());
-			return;
-		}
-		int itemId = keyItem.itemId();
-		SkillTemplate sk = null;
-		var skTable = ctx.skillService() != null ? ctx.skillService().table() : null;
-		if (skTable != null) {
-			if (isDeluxeChestKey(itemId)) {
-				int level = itemId - 6665 + 1;
-				sk = skTable.get(2229, level).orElse(null);
-			} else if (isNormalChestKey(itemId)) {
-				int level = 5204 - itemId + 1;
-				sk = skTable.get(2065, level).orElse(null);
-			} else if (itemId == 9205) {
-				sk = skTable.get(2229, 8).orElse(null);
-			}
-		}
-
-		if (sk == null) {
-			send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(itemId)));
-			send(new ActionFailed());
-			return;
-		}
-
-		if (targetObjectId == 0) {
-			send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
-			send(new ActionFailed());
-			return;
-		}
-
-		var npcTarget = ctx.world().npc(targetObjectId).filter(n -> !n.isDead() && isChestNpc(n)).orElse(null);
-		var doorTarget = (npcTarget == null && ctx.doors() != null) ? ctx.doors().door(targetObjectId) : null;
-		if (npcTarget == null && doorTarget == null) {
-			send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
-			send(new ActionFailed());
-			return;
-		}
-		if (doorTarget != null && !doorTarget.unlockable()) {
-			send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
-			send(new ActionFailed());
-			return;
-		}
-
-		castSkill(sk, true);
-	}
-
-	// ---- Consumiveis (porta de handler/item/Potions e SoulShots do L2JDream) ----
-
-	public void useConsumable(Consumable c) {
-		if (active.isDead()) {
-			return;
-		}
-		if (c.type() == ConsumableTable.Type.SOULSHOT) {
-			chargeSoulShot(c.itemId(), false);
-			return;
-		}
-		if (c.type() == ConsumableTable.Type.SPIRITSHOT || c.type() == ConsumableTable.Type.BLESSED_SPIRITSHOT) {
-			chargeSpiritShot(c.itemId(), false, c.type() == ConsumableTable.Type.BLESSED_SPIRITSHOT);
-			return;
-		}
-		long now = System.currentTimeMillis();
-		Long readyAt = consumableReuse.get(c.skillId());
-		if (readyAt != null && readyAt > now) {
-			send(SystemMessage.of(SystemMessage.S1_PREPARED_FOR_REUSE, new SystemMessage.ItemName(c.itemId())));
-			return;
-		}
-		if (c.type() == ConsumableTable.Type.HAIR_STYLE && !active.female() && c.amount() > MALE_MAX_HAIR_STYLE) {
-			// homens so tem estilos A-E; F e G sao exclusivos de personagens femininos
-			send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(c.itemId())));
-			return;
-		}
-		if ((c.type() == ConsumableTable.Type.HEAL_MP || c.type() == ConsumableTable.Type.HOT_MP)
-				&& !Config.ALLOW_MANA_POTIONS) {
-			send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(c.itemId())));
-			return;
-		}
-		if (c.type() == ConsumableTable.Type.ENERGY_STONE) {
-			if (active.charges() >= 2) {
-				send(SystemMessage.id(SystemMessage.FORCE_MAXLEVEL_REACHED));
-				return;
-			}
-		}
-		if (!consumeItem(c.itemId(), 1)) {
-			return;
-		}
-		if (c.reuseMs() > 0) {
-			consumableReuse.put(c.skillId(), now + c.reuseMs());
-		}
-		send(SystemMessage.of(SystemMessage.USE_S1, new SystemMessage.ItemName(c.itemId())));
-		broadcastSelfSkill(c.skillId(), c.level());
-
-		switch (c.type()) {
-			case HEAL_HP -> {
-				double before = active.currentHp();
-				active.currentHp(before + c.amount());
-				send(SystemMessage.of(SystemMessage.S1_HP_RESTORED,
-						new SystemMessage.Number((int) (active.currentHp() - before))));
-				sendVitals();
-			}
-			case HEAL_MP -> {
-				double power = Config.MANA_POTION_POWER > 0 ? Config.MANA_POTION_POWER : c.amount();
-				double before = active.currentMp();
-				active.currentMp(before + power);
-				send(SystemMessage.of(SystemMessage.S1_MP_RESTORED,
-						new SystemMessage.Number((int) (active.currentMp() - before))));
-				sendVitals();
-			}
-			case HEAL_CP -> {
-				double before = active.currentCp();
-				active.currentCp(before + c.amount());
-				send(SystemMessage.of(SystemMessage.S1_CP_WILL_BE_RESTORED,
-						new SystemMessage.Number((int) (active.currentCp() - before))));
-				sendVitals();
-			}
-			case HOT_HP, HOT_MP -> startHealOverTime(c);
-			case BUFF -> applyBuff(c);
-			case FACE, HAIR_COLOR, HAIR_STYLE -> changeAppearance(c);
-			case MYSTERY -> startBigHead(c);
-			case ENERGY_STONE -> increaseCharges(1, 2);
-			case REMEDY -> {
-				// ainda nao existem efeitos de veneno/sangramento para remover: so animacao +
-				// consumo
-			}
-			default -> {
-			}
-		}
-	}
-
-	private static final int MALE_MAX_HAIR_STYLE = 4;
-
-	/**
-	 * CharChangePotions: muda rosto/cabelo, salva e reenvia a aparencia para todos.
-	 */
-	private void changeAppearance(Consumable c) {
-		int value = (int) c.amount();
-		switch (c.type()) {
-			case FACE -> active.face(value);
-			case HAIR_COLOR -> active.hairColor(value);
-			case HAIR_STYLE -> active.hairStyle(value);
-			default -> {
-				return;
-			}
-		}
-		ctx.characters().save(active, true);
-		broadcastAppearance();
-	}
-
-	/**
-	 * MysteryPotion: AbnormalEffect BIG_HEAD pela duracao do skill 2103 (20 min).
-	 */
-	private void startBigHead(Consumable c) {
-		PlayerCharacter owner = active;
-		var previous = hotTasks.remove("BigHead");
-		if (previous != null) {
-			previous.cancel(false);
-		}
-		owner.startAbnormalEffect(ConsumableTable.ABNORMAL_BIG_HEAD);
-		send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT, new SystemMessage.SkillName(c.skillId(), c.level())));
-		broadcastAppearance();
-		AtomicReference<ScheduledFuture<?>> self = new AtomicReference<>();
-		ScheduledFuture<?> task = autoAttackScheduler.schedule(() -> {
-			if (!hotTasks.remove("BigHead", self.get())) {
-				return;
-			}
-			owner.stopAbnormalEffect(ConsumableTable.ABNORMAL_BIG_HEAD);
-			if (active == owner && inWorld) {
-				send(SystemMessage.of(SystemMessage.S1_HAS_WORN_OFF,
-						new SystemMessage.SkillName(c.skillId(), c.level())));
-				broadcastAppearance();
-			}
-		}, (long) c.ticks() * c.intervalMs(), TimeUnit.MILLISECONDS);
-		self.set(task);
-		hotTasks.put("BigHead", task);
-	}
-
-	/** UserInfo para o proprio jogador e CharInfo para quem esta por perto. */
-	private void broadcastAppearance() {
-		sendUserInfoAndBroadcastCharInfo();
-	}
-
-	/** Tira {@code count} unidades do item e manda InventoryUpdate + peso. */
-	private boolean consumeItem(int itemId, int count) {
-		var r = ctx.inventories().consumeItem(active.inventory(), itemId, count, "Consume");
-		if (r == null) {
-			return false;
-		}
-		send(new InventoryUpdate(List.of(ItemInfo.of(r.item(), r.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
-		refreshWeightAndPenalties();
-		return true;
-	}
-
-	private void broadcastSelfSkill(int skillId, int level) {
+	public void broadcastSelfSkill(int skillId, int level) {
 		var msu = new MagicSkillUse(active.objectId(), active.objectId(), skillId, level, 0, 0,
 				active.x(), active.y(), active.z(), active.x(), active.y(), active.z());
 		send(msu);
@@ -5230,7 +4397,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		sendUserInfoAndBroadcastCharInfo();
 	}
 
-	private void saveBuffs() {
+	public void saveBuffs() {
 		if (active == null || ctx.buffRepository() == null) {
 			return;
 		}
@@ -5284,293 +4451,40 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	// ---- Soulshots ----
 
-	private void onAutoSoulShot(RequestAutoSoulShot p) {
-		if (!inWorld || active.isDead()) {
-			return;
-		}
-		if (!ConsumableTable.isShot(p.itemId())) {
-			send(new ExAutoSoulShot(p.itemId(), 0));
-			return;
-		}
-		if (active.inventory().byItemId(p.itemId()).isEmpty()) {
-			return;
-		}
-		var name = new SystemMessage.ItemName(p.itemId());
-		if (p.type() == 1) {
-			autoSoulShots.add(p.itemId());
-			send(new ExAutoSoulShot(p.itemId(), 1));
-			send(SystemMessage.of(SystemMessage.USE_OF_S1_WILL_BE_AUTO, name));
-			if (ConsumableTable.isSoulshot(p.itemId())) {
-				chargeSoulShot(p.itemId(), false);
-			} else {
-				chargeSpiritShot(p.itemId(), false, ConsumableTable.isBlessedSpiritshot(p.itemId()));
-			}
-		} else {
-			autoSoulShots.remove(p.itemId());
-			send(new ExAutoSoulShot(p.itemId(), 0));
-			send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, name));
-		}
+	public void onAutoSoulShot(RequestAutoSoulShot p) {
+		itemHandler.handleAutoSoulShot(p);
 	}
 
-	private void rechargeAutoSoulShots() {
-		for (int itemId : autoSoulShots) {
-			if (ConsumableTable.isSoulshot(itemId)) {
-				if (!soulshotCharged && chargeSoulShot(itemId, true)) {
-					// soulshot carregado
-				}
-			} else if (ConsumableTable.isSpiritshot(itemId)) {
-				if (!spiritshotCharged && chargeSpiritShot(itemId, true, ConsumableTable.isBlessedSpiritshot(itemId))) {
-					// spiritshot carregado
-				}
-			}
-		}
+	public void rechargeAutoSoulShots() {
+		itemHandler.rechargeAutoSoulShots();
 	}
 
-	private com.lopez.l2j.game.item.ItemInstance activeWeapon() {
-		var inv = active.inventory();
-		var w = inv.paperdoll(com.lopez.l2j.game.item.ItemSlots.RHAND);
-		if (w == null) {
-			w = inv.paperdoll(com.lopez.l2j.game.item.ItemSlots.LRHAND);
-		}
-		return w != null && w.template().kind() == com.lopez.l2j.game.item.ItemTemplate.Kind.WEAPON ? w : null;
+	public com.lopez.l2j.game.item.ItemInstance activeWeapon() {
+		return itemHandler.activeWeapon();
 	}
 
-	/**
-	 * Carrega a arma com um soulshot (SoulShots.useItem do legado). {@code quiet}
-	 * suprime avisos de arma/grade
-	 * quando a chamada vem do uso automatico antes de cada golpe.
-	 */
-	private boolean chargeSoulShot(int itemId, boolean quiet) {
-		if (soulshotCharged) {
-			return true;
-		}
-		var c = ConsumableTable.get(itemId).orElse(null);
-		if (c == null || c.type() != ConsumableTable.Type.SOULSHOT) {
-			return false;
-		}
-		var weapon = activeWeapon();
-		if (weapon == null) {
-			if (!quiet) {
-				send(SystemMessage.id(SystemMessage.CANNOT_USE_SOULSHOTS));
-			}
-			return false;
-		}
-		int weaponGrade = ConsumableTable.gradeIndex(weapon.template().crystalType());
-		if (weaponGrade != ConsumableTable.gradeIndex(c.grade())) {
-			if (!quiet) {
-				send(SystemMessage.id(SystemMessage.SOULSHOTS_GRADE_MISMATCH));
-			}
-			return false;
-		}
-		int count = weapon.template().soulshots() > 0 ? weapon.template().soulshots() : 1;
-		if (!consumeItem(itemId, count)) {
-			if (autoSoulShots.remove(itemId)) {
-				send(new ExAutoSoulShot(itemId, 0));
-				send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, new SystemMessage.ItemName(itemId)));
-			} else {
-				send(SystemMessage.id(SystemMessage.NOT_ENOUGH_SOULSHOTS));
-			}
-			return false;
-		}
-		chargedGrade = weaponGrade;
-		soulshotCharged = true;
-		send(SystemMessage.id(SystemMessage.ENABLED_SOULSHOT));
-		broadcastSelfSkill(c.skillId(), 1);
-		return true;
+	public boolean chargeSoulShot(int itemId, boolean quiet) {
+		return itemHandler.chargeSoulShot(itemId, quiet);
 	}
 
-	private boolean chargeSpiritShot(int itemId, boolean quiet, boolean blessed) {
-		if (spiritshotCharged) {
-			return true;
-		}
-		var c = ConsumableTable.get(itemId).orElse(null);
-		if (c == null) {
-			return false;
-		}
-		var weapon = activeWeapon();
-		if (weapon == null) {
-			if (!quiet) {
-				send(SystemMessage.id(SystemMessage.CANNOT_USE_SOULSHOTS));
-			}
-			return false;
-		}
-		int weaponGrade = ConsumableTable.gradeIndex(weapon.template().crystalType());
-		if (weaponGrade != ConsumableTable.gradeIndex(c.grade())) {
-			if (!quiet) {
-				send(SystemMessage.id(SystemMessage.SOULSHOTS_GRADE_MISMATCH));
-			}
-			return false;
-		}
-		int count = weapon.template().spiritshots() > 0 ? weapon.template().spiritshots() : 1;
-		if (!consumeItem(itemId, count)) {
-			if (autoSoulShots.remove(itemId)) {
-				send(new ExAutoSoulShot(itemId, 0));
-				send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, new SystemMessage.ItemName(itemId)));
-			} else {
-				send(SystemMessage.id(SystemMessage.NOT_ENOUGH_SOULSHOTS));
-			}
-			return false;
-		}
-		chargedSpSGrade = weaponGrade;
-		blessedSpiritshot = blessed;
-		spiritshotCharged = true;
-		send(SystemMessage.id(SystemMessage.ENABLED_SOULSHOT));
-		broadcastSelfSkill(c.skillId(), 1);
-		return true;
+	public boolean chargeSpiritShot(int itemId, boolean quiet, boolean blessed) {
+		return itemHandler.chargeSpiritShot(itemId, quiet, blessed);
 	}
 
-	private void onUnEquip(RequestUnEquipItem p) {
-		if (!inWorld) {
-			return;
-		}
-		afterEquipChange(ctx.inventories().unequipBodyPart(active.inventory(), p.bodyPart()));
+	public void onUnEquip(RequestUnEquipItem p) {
+		itemHandler.handleUnEquip(p);
 	}
 
-	private void afterEquipChange(EquipResult r) {
-		if (!r.ok()) {
-			send(new ActionFailed());
-			return;
-		}
-		var item = r.item();
-		var name = new SystemMessage.ItemName(item.itemId());
-		if (r.equipped()) {
-			send(item.enchant() > 0
-					? SystemMessage.of(SystemMessage.S1_S2_EQUIPPED, new SystemMessage.Number(item.enchant()), name)
-					: SystemMessage.of(SystemMessage.S1_EQUIPPED, name));
-		} else {
-			send(item.enchant() > 0
-					? SystemMessage.of(SystemMessage.EQUIPMENT_S1_S2_REMOVED, new SystemMessage.Number(item.enchant()),
-							name)
-					: SystemMessage.of(SystemMessage.S1_DISARMED, name));
-		}
-		updateArmorSetBonus();
-		updateEquippedItemSkills();
-		updateAugmentationBonus();
-		send(InventoryUpdate.modified(r.changed()));
-		sendUserInfoAndBroadcastCharInfo();
-		var t = ctx.characters() != null ? ctx.characters().template(active) : null;
-		if (t != null) {
-			var stats = com.lopez.l2j.game.model.PlayerStats.calculate(active, t);
-			if (stats.gradePenalty() > 0) {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "The equipment's grade is too high. A penalty is applied."));
-			}
-		}
-		// Trocar de arma descarrega o soulshot; o automatico tenta recarregar com o
-		// grade novo
-		if (r.changed().stream()
-				.anyMatch(i -> i.template().kind() == com.lopez.l2j.game.item.ItemTemplate.Kind.WEAPON)) {
-			soulshotCharged = false;
-			rechargeAutoSoulShots();
-		}
+	public void afterEquipChange(EquipResult r) {
+		itemHandler.afterEquipChange(r);
 	}
 
-	private void updateArmorSetBonus() {
-		if (ctx.armorSets() == null || active == null) {
-			return;
-		}
-		var set = ctx.armorSets().findMatchingSet(active.inventory());
-		java.util.Set<Integer> newSetSkills = new java.util.HashSet<>();
-		if (set != null) {
-			if (set.skillId() > 0) newSetSkills.add(set.skillId());
-			if (set.shieldSkillId() > 0 && set.hasShield(active.inventory())) newSetSkills.add(set.shieldSkillId());
-			if (set.enchant6Skill() > 0 && set.isEnchanted6(active.inventory())) newSetSkills.add(set.enchant6Skill());
-		}
-
-		java.util.Set<Integer> currentSetSkills = active.armorSetSkillIds();
-		boolean changed = false;
-
-		for (int skId : currentSetSkills) {
-			if (!newSetSkills.contains(skId)) {
-				active.skills().remove(skId);
-				changed = true;
-			}
-		}
-
-		for (int skId : newSetSkills) {
-			if (!active.skills().containsKey(skId)) {
-				active.skills().put(skId, 1);
-				changed = true;
-			}
-		}
-
-		currentSetSkills.clear();
-		currentSetSkills.addAll(newSetSkills);
-
-		if (set == null) {
-			active.clearArmorSetBonus();
-		} else {
-			active.setArmorSetBonus(set.chest(), List.of());
-		}
-
-		if (changed) {
-			if (ctx.skillService() != null) {
-				ctx.skillService().refreshPassives(active);
-			}
-			var t = ctx.characters() != null ? ctx.characters().template(active) : null;
-			if (t != null) {
-				recalcMaxVitals(t);
-			}
-			sendSkillList();
-		}
+	public void updateArmorSetBonus() {
+		itemHandler.updateArmorSetBonus();
 	}
 
-	private void updateEquippedItemSkills() {
-		if (active == null || active.inventory() == null) {
-			return;
-		}
-		Map<Integer, Integer> newItemSkills = new HashMap<>();
-		for (com.lopez.l2j.game.item.ItemInstance item : active.inventory().equipped()) {
-			var tpl = item.template();
-			if (tpl == null) {
-				continue;
-			}
-			// Skills nativas do item (ex: SA da arma, joias de boss, passivas de armadura/escudo)
-			for (ItemSkillHolder h : tpl.itemSkills()) {
-				newItemSkills.merge(h.skillId(), h.level(), Math::max);
-			}
-			// Duals ou armas encantadas +4 com skill_enchant4
-			if (tpl.kind() == com.lopez.l2j.game.item.ItemTemplate.Kind.WEAPON && item.enchant() >= 4 && tpl.enchant4Skill() != null) {
-				var e4 = tpl.enchant4Skill();
-				newItemSkills.merge(e4.skillId(), e4.level(), Math::max);
-			}
-		}
-
-		Map<Integer, Integer> currentItemSkills = active.equippedItemSkills();
-		boolean changed = false;
-
-		// Remove skills que não estão mais equipadas
-		for (var entry : currentItemSkills.entrySet()) {
-			int skillId = entry.getKey();
-			if (!newItemSkills.containsKey(skillId)) {
-				active.skills().remove(skillId);
-				changed = true;
-			}
-		}
-
-		// Adiciona ou atualiza skills recém equipadas
-		for (var entry : newItemSkills.entrySet()) {
-			int skillId = entry.getKey();
-			int lvl = entry.getValue();
-			Integer curLvl = active.skills().get(skillId);
-			if (curLvl == null || curLvl != lvl) {
-				active.skills().put(skillId, lvl);
-				changed = true;
-			}
-		}
-
-		currentItemSkills.clear();
-		currentItemSkills.putAll(newItemSkills);
-
-		if (changed) {
-			if (ctx.skillService() != null) {
-				ctx.skillService().refreshPassives(active);
-			}
-			var t = ctx.characters() != null ? ctx.characters().template(active) : null;
-			if (t != null) {
-				recalcMaxVitals(t);
-			}
-			sendSkillList();
-		}
+	public void updateEquippedItemSkills() {
+		itemHandler.updateEquippedItemSkills();
 	}
 
 	private void triggerWeaponOnCritSkill(NpcInstance npc, GameSession targetPlayer) {
@@ -5626,64 +4540,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
-	private void updateAugmentationBonus() {
-		if (active == null) {
-			return;
-		}
-		var weapon = activeWeapon();
-		int oldSkillId = active.activeAugmentationSkillId();
-		if (weapon == null || !weapon.isAugmented() || ctx.augmentation() == null) {
-			if (oldSkillId > 0) {
-				active.skills().remove(oldSkillId);
-				if (ctx.skillService() != null) {
-					ctx.skillService().refreshPassives(active);
-				}
-				sendSkillList();
-			}
-			active.clearAugmentationBonus();
-			return;
-		}
-		active.clearAugmentationBonus();
-		var aug = weapon.augmentation();
-		var stats = ctx.augmentation().getAugStatsById(aug.attributes());
-		List<StatFunc> funcs = new ArrayList<>();
-		for (var s : stats) {
-			switch (s.stat()) {
-				case "pAtk" -> funcs.add(new StatFunc("pAtk", StatFunc.Op.ADD, 0x40, s.value()));
-				case "mAtk" -> funcs.add(new StatFunc("mAtk", StatFunc.Op.ADD, 0x40, s.value()));
-				case "pDef" -> funcs.add(new StatFunc("pDef", StatFunc.Op.ADD, 0x40, s.value()));
-				case "mDef" -> funcs.add(new StatFunc("mDef", StatFunc.Op.ADD, 0x40, s.value()));
-				case "rCrit" -> funcs.add(new StatFunc("rCrit", StatFunc.Op.ADD, 0x40, s.value()));
-				case "accCombat" -> funcs.add(new StatFunc("accCombat", StatFunc.Op.ADD, 0x40, s.value()));
-				case "rEvas" -> funcs.add(new StatFunc("rEvas", StatFunc.Op.ADD, 0x40, s.value()));
-				case "maxHp" -> funcs.add(new StatFunc("maxHp", StatFunc.Op.ADD, 0x40, s.value()));
-				case "maxMp" -> funcs.add(new StatFunc("maxMp", StatFunc.Op.ADD, 0x40, s.value()));
-				case "maxCp" -> funcs.add(new StatFunc("maxCp", StatFunc.Op.ADD, 0x40, s.value()));
-				case "regHp" -> funcs.add(new StatFunc("regHp", StatFunc.Op.ADD, 0x40, s.value()));
-				case "regMp" -> funcs.add(new StatFunc("regMp", StatFunc.Op.ADD, 0x40, s.value()));
-				case "regCp" -> funcs.add(new StatFunc("regCp", StatFunc.Op.ADD, 0x40, s.value()));
-				case "STR" -> active.augSTR(active.augSTR() + (int) s.value());
-				case "CON" -> active.augCON(active.augCON() + (int) s.value());
-				case "INT" -> active.augINT(active.augINT() + (int) s.value());
-				case "MEN" -> active.augMEN(active.augMEN() + (int) s.value());
-			}
-		}
-		active.augmentationFuncs(funcs);
-
-		if (aug.hasSkill()) {
-			active.setAugmentationSkill(aug.skillId(), aug.skillLevel());
-			active.skills().put(aug.skillId(), aug.skillLevel());
-			if (ctx.skillService() != null) {
-				ctx.skillService().refreshPassives(active);
-			}
-			sendSkillList();
-		} else if (oldSkillId > 0) {
-			active.skills().remove(oldSkillId);
-			if (ctx.skillService() != null) {
-				ctx.skillService().refreshPassives(active);
-			}
-			sendSkillList();
-		}
+	public void updateAugmentationBonus() {
+		itemHandler.updateAugmentationBonus();
 	}
 
 	private void onLogout() {
@@ -5904,42 +4762,15 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	 */
 	private int lastTrainerObjectId;
 
-	private void onMagicSkillUse(RequestMagicSkillUse p) {
-		if (!inWorld || active.isDead() || active.isDisabled()) {
-			send(new ActionFailed());
-			return;
-		}
-		if (p.magicId() == 1312 && active.isFishing()) {
-			if (ctx.fishing() != null) {
-				ctx.fishing().stopFishing(active, this::send);
-			}
-			send(new ActionFailed());
-			return;
-		}
-		var svc = ctx.skillService();
-		var sk = svc == null ? null : svc.known(active, p.magicId()).orElse(null);
-		if (sk == null || sk.isPassive()) {
-			send(new ActionFailed());
-			return;
-		}
-		if (sk.isToggle()) {
-			toggleSkill(sk);
-			send(new ActionFailed());
-			return;
-		}
-		if (sk.magic() && active.isMuted()) {
-			send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.SkillName(sk.id(), sk.level())));
-			send(new ActionFailed());
-			return;
-		}
-		castSkill(sk, true);
+	public void onMagicSkillUse(RequestMagicSkillUse p) {
+		actionHandler.handleMagicSkillUse(p);
 	}
 
 	/**
 	 * Valida e inicia a conjuracao; {@code mayMove} = pode andar ate o alvo antes
 	 * (uma vez).
 	 */
-	private void castSkill(SkillTemplate sk, boolean mayMove) {
+	public void castSkill(SkillTemplate sk, boolean mayMove) {
 		if (!inWorld || active == null || active.isDead() || active.isDisabled()) {
 			return;
 		}
@@ -7088,11 +5919,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	 * Aplica os {@code <effect>} do skill no proprio jogador desta sessao (buffs,
 	 * HoT, DoT, toggles).
 	 */
-	private void applySkillEffects(SkillTemplate sk, boolean toggle) {
+	public void applySkillEffects(SkillTemplate sk, boolean toggle) {
 		applySkillEffects(sk, toggle, 0);
 	}
 
-	private void applySkillEffects(SkillTemplate sk, boolean toggle, long remainingMs) {
+	public void applySkillEffects(SkillTemplate sk, boolean toggle, long remainingMs) {
 		boolean any = false;
 		PlayerCharacter owner = active;
 		for (var e : sk.effects()) {
@@ -7245,7 +6076,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	/**
 	 * Toggle (OP_TOGGLE): liga aplicando os efeitos permanentes, desliga removendo.
 	 */
-	private void toggleSkill(SkillTemplate sk) {
+	public void toggleSkill(SkillTemplate sk) {
 		if (active.effects().hasSkill(sk.id())) {
 			active.effects().removeSkill(sk.id());
 			if (sk.id() == 7029) {
@@ -7277,7 +6108,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	 * Max HP/MP/CP = formula da classe no nivel + passivas/buffs (maxHp, maxMp,
 	 * maxCp).
 	 */
-	private void recalcMaxVitals(CharTemplate t) {
+	public void recalcMaxVitals(CharTemplate t) {
 		if (t == null && ctx.characters() != null && active != null) {
 			t = ctx.characters().template(active);
 		}
@@ -7296,7 +6127,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		active.currentCp(Math.min(active.maxCp(), active.currentCp()));
 	}
 
-	private void sendSkillList() {
+	public void sendSkillList() {
 		if (ctx.skillService() != null) {
 			send(new SkillList(ctx.skillService().skillList(active)));
 		} else {
@@ -7463,7 +6294,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return consumeItem(arrowId, 1);
 	}
 
-	private void checkPendingNpcInteract() {
+	public void checkPendingNpcInteract() {
 		int npcId = pendingNpcInteractObjectId;
 		if (npcId == 0 || active == null) {
 			return;
@@ -7532,12 +6363,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			Map.entry(7134, new int[] { 43799, -47727, -798 }),
 			Map.entry(7135, new int[] { 87331, -142842, -1317 }));
 
-	private boolean isScrollOfEscape(int itemId) {
+	public boolean isScrollOfEscape(int itemId) {
 		return itemId == 736 || itemId == 1538 || itemId == 3958 || itemId == 5858 || itemId == 5859
 				|| TOWN_SCROLL_COORDINATES.containsKey(itemId);
 	}
 
-	private void useScrollOfEscape(com.lopez.l2j.game.item.ItemInstance item) {
+	public void useScrollOfEscape(com.lopez.l2j.game.item.ItemInstance item) {
 		if (active == null || active.isDead() || casting) {
 			send(new ActionFailed());
 			return;
@@ -7593,93 +6424,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return nearest;
 	}
 
-	private void onJoinParty(GameClientPacket.RequestJoinParty p) {
-		if (!inWorld || active == null || active.isDead()) {
-			send(new ActionFailed());
-			return;
-		}
-		var target = ctx.world().byName(p.name());
-		if (target.isEmpty() || target.get().character() == null) {
-			send(SystemMessage.id(SystemMessage.TARGET_CANT_FOUND));
-			send(new ActionFailed());
-			return;
-		}
-		if (!(target.get() instanceof GameSession targetSession)) {
-			send(new ActionFailed());
-			return;
-		}
-		if (targetSession == this || targetSession.character().objectId() == active.objectId()) {
-			send(SystemMessage.id(SystemMessage.CANT_INVITE_YOURSELF));
-			send(new ActionFailed());
-			return;
-		}
-		if (targetSession.party() != null) {
-			send(SystemMessage.of(SystemMessage.PLAYER_ALREADY_IN_PARTY,
-					new SystemMessage.Text(targetSession.character().name())));
-			send(new ActionFailed());
-			return;
-		}
-		if (party != null) {
-			if (!party.isLeader(active.objectId())) {
-				send(SystemMessage.id(SystemMessage.ONLY_LEADER_CAN_INVITE));
-				send(new ActionFailed());
-				return;
-			}
-			if (party.isFull()) {
-				send(SystemMessage.id(SystemMessage.PARTY_FULL));
-				send(new ActionFailed());
-				return;
-			}
-		}
-		if (targetSession.pendingPartyInvite() != null) {
-			send(SystemMessage.id(SystemMessage.WAITING_FOR_REPLY));
-			send(new ActionFailed());
-			return;
-		}
-		targetSession.setPendingPartyInvite(new RequestPartyPending(this, p.itemDistribution()));
-		targetSession.send(new GameServerPacket.AskJoinParty(active.name(), p.itemDistribution()));
-		send(SystemMessage.of(SystemMessage.YOU_INVITED_S1_TO_PARTY,
-				new SystemMessage.Text(targetSession.character().name())));
+	public void onJoinParty(GameClientPacket.RequestJoinParty p) {
+		partyClanHandler.handleJoinParty(p);
 	}
 
-	private void onAnswerJoinParty(GameClientPacket.RequestAnswerJoinParty p) {
-		if (!inWorld || active == null || pendingPartyInvite == null) {
-			return;
-		}
-		var pending = pendingPartyInvite;
-		pendingPartyInvite = null;
-		var requester = pending.requester();
-		if (requester == null || requester.character() == null || !requester.inWorld()) {
-			return;
-		}
-		if (p.response() == 0) {
-			requester.send(SystemMessage.of(SystemMessage.S1_REFUSED_PARTY, new SystemMessage.Text(active.name())));
-			return;
-		}
-		// Aceitou o convite (response == 1)
-		if (requester.party() == null) {
-			var newParty = new com.lopez.l2j.game.party.Party(requester, this, pending.itemDistribution());
-			requester.party(newParty);
-			this.party = newParty;
-			send(new GameServerPacket.JoinParty(1));
-			requester.send(new GameServerPacket.PartySmallWindowAll(requester.character().objectId(),
-					pending.itemDistribution(), newParty.characters(), requester.character().objectId()));
-			send(new GameServerPacket.PartySmallWindowAll(requester.character().objectId(), pending.itemDistribution(),
-					newParty.characters(), active.objectId()));
-			requester.send(SystemMessage.of(SystemMessage.S1_JOINED_PARTY, new SystemMessage.Text(active.name())));
-			send(SystemMessage.of(SystemMessage.YOU_JOINED_PARTY,
-					new SystemMessage.Text(requester.character().name())));
-		} else {
-			var existingParty = requester.party();
-			if (existingParty.isFull()) {
-				send(SystemMessage.id(SystemMessage.PARTY_FULL));
-				return;
-			}
-			if (existingParty.addMember(this)) {
-				this.party = existingParty;
-				send(new GameServerPacket.JoinParty(1));
-			}
-		}
+	public void onAnswerJoinParty(GameClientPacket.RequestAnswerJoinParty p) {
+		partyClanHandler.handleAnswerJoinParty(p);
 	}
 
 	private void startVitalsRegenTask() {
@@ -7814,7 +6564,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
-	private void handleSlashCommand(String cmd) {
+	public void handleSlashCommand(String cmd) {
 		String lower = cmd.toLowerCase(java.util.Locale.ROOT).trim();
 		if (lower.equals("/loc")) {
 			onUserCommand(0);
@@ -7886,7 +6636,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new ActionFailed());
 	}
 
-	private void handleDotCommand(String cmd) {
+	public void handleDotCommand(String cmd) {
 		String trimmed = cmd.trim();
 		String rawCmd = trimmed.startsWith(".") ? trimmed.substring(1) : trimmed;
 		int space = rawCmd.indexOf(' ');
@@ -8645,7 +7395,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new NpcHtmlMessage(0, rendered));
 	}
 
-	private void showAdminCharInfo(String charName) {
+	public void showAdminCharInfo(String charName) {
 		PlayerCharacter targetChar = null;
 		GameWorld.OnlinePlayer onlineTarget = null;
 		if (charName != null && !charName.isBlank()) {
@@ -8715,7 +7465,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new NpcHtmlMessage(0, rendered));
 	}
 
-	private void showAdminNpcInfo(NpcInstance npc) {
+	public void showAdminNpcInfo(NpcInstance npc) {
 		if (npc == null || active == null || !active.isGm()) {
 			return;
 		}
@@ -9170,7 +7920,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		showAdminSubClassMenu(targetChar);
 	}
 
-	private void handleAdminCommand(String fullCmd) {
+	public void handleAdminCommand(String fullCmd) {
 		if (active == null) {
 			return;
 		}
@@ -10534,223 +9284,20 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		sink.accept(packet);
 	}
 
-	private void onEnchantItem(RequestEnchantItem p) {
-		if (!inWorld || active == null || active.isDead()) {
-			send(new ActionFailed());
-			return;
-		}
-		int scrollObjectId = activeEnchantScrollObjectId;
-		activeEnchantScrollObjectId = 0;
-		if (scrollObjectId == 0) {
-			send(EnchantResult.CANCEL);
-			send(new ActionFailed());
-			return;
-		}
-		var scrollOpt = active.inventory().byObjectId(scrollObjectId);
-		if (scrollOpt.isEmpty()) {
-			send(EnchantResult.CANCEL);
-			send(new ActionFailed());
-			return;
-		}
-		var scroll = scrollOpt.get();
-		var scrollInfoOpt = EnchantScrollTable.get(scroll.itemId());
-		if (scrollInfoOpt.isEmpty()) {
-			send(EnchantResult.CANCEL);
-			send(new ActionFailed());
-			return;
-		}
-		var scrollInfo = scrollInfoOpt.get();
-		var targetOpt = active.inventory().byObjectId(p.objectId());
-		if (targetOpt.isEmpty()) {
-			send(EnchantResult.CANCEL);
-			send(new ActionFailed());
-			return;
-		}
-		var target = targetOpt.get();
-		if (!target.template().isEquipable()) {
-			send(SystemMessage.id(SystemMessage.INAPPROPRIATE_ENCHANT_CONDITION));
-			send(EnchantResult.CANCEL);
-			return;
-		}
-
-		// Valida compatibilidade de grade
-		String targetGrade = target.template().crystalType();
-		if (targetGrade == null || !targetGrade.equalsIgnoreCase(scrollInfo.grade())) {
-			send(SystemMessage.id(SystemMessage.INAPPROPRIATE_ENCHANT_CONDITION));
-			send(EnchantResult.CANCEL);
-			return;
-		}
-
-		// Valida tipo: arma vs armor/accessory/shield
-		boolean isWeapon = target.template().type2() == ItemTemplate.TYPE2_WEAPON;
-		if (scrollInfo.isWeapon() != isWeapon) {
-			send(SystemMessage.id(SystemMessage.INAPPROPRIATE_ENCHANT_CONDITION));
-			send(EnchantResult.CANCEL);
-			return;
-		}
-
-		// Consome o scroll
-		var consumedScroll = ctx.inventories().destroyItem(active.inventory(), scroll.objectId(), 1, "Enchant");
-		if (consumedScroll == null) {
-			send(EnchantResult.CANCEL);
-			return;
-		}
-		send(new InventoryUpdate(List.of(
-				ItemInfo.of(consumedScroll.item(), consumedScroll.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
-
-		// Calculo de seguranca e chance de sucesso
-		int safeLimit = (target.template().bodyPart() == com.lopez.l2j.game.item.ItemSlots.SLOT_FULL_ARMOR) ? 4 : 3;
-		boolean success;
-		if (target.enchant() < safeLimit) {
-			success = true;
-		} else {
-			// Taxa retail: 66% de chance
-			success = java.util.concurrent.ThreadLocalRandom.current().nextInt(100) < 66;
-		}
-
-		if (success) {
-			target.enchant(target.enchant() + 1);
-			ctx.inventories().saveItem(target);
-			send(EnchantResult.SUCCESS);
-			if (target.enchant() == 1) {
-				send(SystemMessage.of(SystemMessage.S1_SUCCESSFULLY_ENCHANTED,
-						new SystemMessage.ItemName(target.itemId())));
-			} else {
-				send(SystemMessage.of(SystemMessage.S1_S2_SUCCESSFULLY_ENCHANTED,
-						new SystemMessage.Number(target.enchant()), new SystemMessage.ItemName(target.itemId())));
-			}
-			send(new InventoryUpdate(List.of(ItemInfo.of(target, ItemInfo.MODIFIED))));
-			if (target.isEquipped()) {
-				updateArmorSetBonus();
-				updateEquippedItemSkills();
-				sendUserInfoAndBroadcastCharInfo();
-			}
-			broadcastAppearance();
-		} else {
-			if (scrollInfo.isBlessed()) {
-				// Blessed scroll: nao quebra, reseta para 0
-				target.enchant(0);
-				ctx.inventories().saveItem(target);
-				send(SystemMessage.id(SystemMessage.BLESSED_ENCHANT_FAILED));
-				send(EnchantResult.BLESSED_FAIL);
-				send(new InventoryUpdate(List.of(ItemInfo.of(target, ItemInfo.MODIFIED))));
-				if (target.isEquipped()) {
-					updateArmorSetBonus();
-					updateEquippedItemSkills();
-					sendUserInfoAndBroadcastCharInfo();
-				}
-				broadcastAppearance();
-			} else {
-				// Normal scroll: quebra o item
-				int oldEnchant = target.enchant();
-				int itemId = target.itemId();
-				if (target.isEquipped()) {
-					afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), target.objectId()));
-				}
-				ctx.inventories().destroyItem(active.inventory(), target.objectId(), 1, "EnchantBreak");
-				if (oldEnchant > 0) {
-					send(SystemMessage.of(SystemMessage.ENCHANTMENT_FAILED_S1_S2_EVAPORATED,
-							new SystemMessage.Number(oldEnchant), new SystemMessage.ItemName(itemId)));
-				} else {
-					send(SystemMessage.of(SystemMessage.ENCHANTMENT_FAILED_S1_EVAPORATED,
-							new SystemMessage.ItemName(itemId)));
-				}
-				send(EnchantResult.FAIL);
-				send(new InventoryUpdate(List.of(ItemInfo.of(target, ItemInfo.REMOVED))));
-				broadcastAppearance();
-			}
-		}
+	public void onEnchantItem(RequestEnchantItem p) {
+		itemHandler.handleEnchantItem(p);
 	}
 
-	private void onWareHouseDeposit(SendWareHouseDepositList p) {
-		if (!inWorld || active == null || ctx.warehouse() == null || p.items().isEmpty()) {
-			send(new ActionFailed());
-			return;
-		}
-		List<ItemInfo> updates = new ArrayList<>();
-		var adenaBefore = active.inventory().byItemId(ItemTemplate.ADENA_ID).map(ItemInstance::count).orElse(0);
-
-		for (var req : p.items()) {
-			var opt = active.inventory().byObjectId(req.objectId());
-			if (opt.isEmpty()) {
-				continue;
-			}
-			var item = opt.get();
-			int count = Math.min(req.count(), item.count());
-			if (count <= 0 || item.isEquipped()) {
-				continue;
-			}
-			int prevCount = item.count();
-			boolean ok = ctx.warehouse().depositItem(active.inventory(), item.objectId(), count);
-			if (ok) {
-				if (prevCount == count) {
-					updates.add(ItemInfo.of(item, ItemInfo.REMOVED));
-				} else {
-					updates.add(ItemInfo.of(item, ItemInfo.MODIFIED));
-				}
-			}
-		}
-
-		var adenaAfter = active.inventory().byItemId(ItemTemplate.ADENA_ID).orElse(null);
-		if (adenaAfter != null && adenaAfter.count() != adenaBefore) {
-			updates.add(ItemInfo.of(adenaAfter, adenaAfter.count() == 0 ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
-		}
-
-		if (!updates.isEmpty()) {
-			send(new InventoryUpdate(updates));
-			refreshWeightAndPenalties();
-		}
-		send(new ActionFailed());
+	public void onWareHouseDeposit(SendWareHouseDepositList p) {
+		tradeStoreHandler.handleWareHouseDeposit(p);
 	}
 
-	private void onWareHouseWithdraw(SendWareHouseWithDrawList p) {
-		if (!inWorld || active == null || ctx.warehouse() == null || p.items().isEmpty()) {
-			send(new ActionFailed());
-			return;
-		}
-		List<ItemInfo> updates = new ArrayList<>();
-		for (var req : p.items()) {
-			int beforeCount = active.inventory().byObjectId(req.objectId()).map(ItemInstance::count).orElse(0);
-			boolean ok = ctx.warehouse().withdrawItem(active.inventory(), active.objectId(), req.objectId(),
-					req.count());
-			if (ok) {
-				var item = active.inventory().byObjectId(req.objectId()).orElse(null);
-				if (item != null) {
-					updates.add(ItemInfo.of(item, beforeCount == 0 ? ItemInfo.ADDED : ItemInfo.MODIFIED));
-				}
-			}
-		}
-		if (!updates.isEmpty()) {
-			send(new InventoryUpdate(updates));
-			refreshWeightAndPenalties();
-		}
-		send(new ActionFailed());
+	public void onWareHouseWithdraw(SendWareHouseWithDrawList p) {
+		tradeStoreHandler.handleWareHouseWithdraw(p);
 	}
 
-	private void onDestroyItem(RequestDestroyItem p) {
-		if (!inWorld || active == null || active.isDead()) {
-			send(new ActionFailed());
-			return;
-		}
-		var opt = active.inventory().byObjectId(p.objectId());
-		if (opt.isEmpty()) {
-			send(new ActionFailed());
-			return;
-		}
-		var item = opt.get();
-		if (item.isEquipped() || !item.template().destroyable() || p.count() <= 0 || item.count() < p.count()) {
-			send(new ActionFailed());
-			return;
-		}
-		var result = ctx.inventories().destroyItem(active.inventory(), p.objectId(), p.count(), "UserDestroy");
-		if (result == null) {
-			send(new ActionFailed());
-			return;
-		}
-		send(new InventoryUpdate(
-				List.of(ItemInfo.of(result.item(), result.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
-		refreshWeightAndPenalties();
-		send(new ActionFailed());
+	public void onDestroyItem(RequestDestroyItem p) {
+		itemHandler.handleDestroyItem(p);
 	}
 
 	public GameServerPacket charInfo() {
@@ -10770,57 +9317,20 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return new CharInfo(active, t, active.inventory().paperdollView(), crestId, allyId, allyCrestId);
 	}
 
-	private void onPledgeCrest(GameClientPacket.RequestPledgeCrest p) {
-		if (p.crestId() == 0 || ctx.crests() == null) {
-			return;
-		}
-		byte[] data = ctx.crests().getPledgeCrest(p.crestId());
-		if (data != null) {
-			send(new PledgeCrest(p.crestId(), data));
-		}
+	public void onPledgeCrest(GameClientPacket.RequestPledgeCrest p) {
+		partyClanHandler.handlePledgeCrest(p);
 	}
 
-	private void onPledgeInfo(GameClientPacket.RequestPledgeInfo p) {
-		if (ctx.clans() == null) {
-			return;
-		}
-		var clan = ctx.clans().byClanId(p.clanId()).orElse(null);
-		if (clan != null) {
-			send(new PledgeShowInfoUpdate(clan));
-		}
+	public void onPledgeInfo(GameClientPacket.RequestPledgeInfo p) {
+		partyClanHandler.handlePledgeInfo(p);
 	}
 
-	private void onPledgeMemberList() {
-		if (ctx.clans() == null || active == null || active.clanId() == 0) {
-			return;
-		}
-		var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
-		if (clan != null) {
-			send(new PledgeShowMemberListAll(clan, 0));
-		}
+	public void onPledgeMemberList() {
+		partyClanHandler.handlePledgeMemberList();
 	}
 
-	private void onSetPledgeCrest(GameClientPacket.RequestSetPledgeCrest p) {
-		if (ctx.clans() == null || ctx.crests() == null || active == null || active.clanId() == 0) {
-			return;
-		}
-		var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
-		if (clan == null || !clan.isLeader(active.objectId())) {
-			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas o lider do cla pode alterar o brasao."));
-			return;
-		}
-		if (clan.level() < 3) {
-			send(new CreatureSay(0, CreatureSay.ALL, "SYS",
-					"Cla nivel 3 ou superior e necessario para definir brasao."));
-			return;
-		}
-		int crestId = ctx.crests().savePledgeCrest(p.data());
-		if (crestId != 0) {
-			ctx.clans().updateCrest(clan.clanId(), crestId);
-			send(new PledgeShowInfoUpdate(clan));
-			broadcastAppearance();
-			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Brasao de cla atualizado com sucesso."));
-		}
+	public void onSetPledgeCrest(GameClientPacket.RequestSetPledgeCrest p) {
+		partyClanHandler.handleSetPledgeCrest(p);
 	}
 
 	public void createClan(String clanName) {
@@ -11331,107 +9841,24 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
-	private void onPrivateStoreManageSell() {
-		if (!inWorld || active == null || ctx.buffShop() == null) {
-			send(new ActionFailed());
-			return;
-		}
-		var avail = ctx.buffShop().getAvailableBuffSkills(active,
-				ctx.skillService() != null ? ctx.skillService().table() : null);
-		List<PrivateStoreItem> availableItems = new ArrayList<>();
-		for (var buff : avail) {
-			availableItems.add(new PrivateStoreItem(buff.skillId(), buff.skillId(), 1, buff.price(), 0, 0));
-		}
-		List<PrivateStoreItem> currentItems = new ArrayList<>();
-		ctx.buffShop().getShop(active.objectId()).ifPresent(shop -> {
-			for (var buff : shop.items().values()) {
-				currentItems.add(new PrivateStoreItem(buff.skillId(), buff.skillId(), 1, buff.price(), 0, 0));
-			}
-		});
-		int adena = active.inventory().byItemId(57).map(ItemInstance::count).orElse(0);
-		send(new PrivateStoreManageListSell(active.objectId(), false, adena, availableItems, currentItems));
+	public void onPrivateStoreManageSell() {
+		tradeStoreHandler.handlePrivateStoreManageSell();
 	}
 
-	private void onSetPrivateStoreListSell(GameClientPacket.SetPrivateStoreListSell p) {
-		if (!inWorld || active == null || ctx.buffShop() == null) {
-			send(new ActionFailed());
-			return;
-		}
-		if (p.items().isEmpty()) {
-			onPrivateStoreQuitSell();
-			return;
-		}
-		List<BuffShopItem> buffItems = new ArrayList<>();
-		for (var item : p.items()) {
-			int skillId = item.objectId();
-			int price = item.price();
-			var skOpt = ctx.skillService() != null ? ctx.skillService().known(active, skillId)
-					: java.util.Optional.<com.lopez.l2j.game.skill.SkillTemplate>empty();
-			int level = skOpt.map(com.lopez.l2j.game.skill.SkillTemplate::level).orElse(1);
-			String name = skOpt.map(com.lopez.l2j.game.skill.SkillTemplate::name).orElse("Skill #" + skillId);
-			buffItems.add(new BuffShopItem(skillId, level, price, name));
-		}
-		ctx.buffShop().startShop(active, active.storeTitle() != null ? active.storeTitle() : "Buff Store", buffItems);
-		sendUserInfoAndBroadcastCharInfo();
-		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS,
-				new PrivateStoreMsgSell(active.objectId(), active.storeTitle()), false);
-		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Buff shop iniciada com " + buffItems.size() + " buffs a venda!"));
+	public void onSetPrivateStoreListSell(GameClientPacket.SetPrivateStoreListSell p) {
+		tradeStoreHandler.handleSetPrivateStoreListSell(p);
 	}
 
-	private void onPrivateStoreQuitSell() {
-		if (!inWorld || active == null || ctx.buffShop() == null) {
-			return;
-		}
-		ctx.buffShop().stopShop(active);
-		sendUserInfoAndBroadcastCharInfo();
-		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Buff shop encerrada."));
+	public void onPrivateStoreQuitSell() {
+		tradeStoreHandler.handlePrivateStoreQuitSell();
 	}
 
-	private void onSetPrivateStoreMsgSell(GameClientPacket.SetPrivateStoreMsgSell p) {
-		if (!inWorld || active == null) {
-			return;
-		}
-		active.storeTitle(p.storeMsg());
-		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS,
-				new PrivateStoreMsgSell(active.objectId(), p.storeMsg()), false);
+	public void onSetPrivateStoreMsgSell(GameClientPacket.SetPrivateStoreMsgSell p) {
+		tradeStoreHandler.handleSetPrivateStoreMsgSell(p);
 	}
 
-	private void onPrivateStoreBuy(GameClientPacket.RequestPrivateStoreBuy p) {
-		if (!inWorld || active == null || ctx.buffShop() == null) {
-			send(new ActionFailed());
-			return;
-		}
-		var sellerOpt = ctx.world().player(p.sellerId());
-		if (sellerOpt.isEmpty() || sellerOpt.get().character() == null) {
-			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Vendedor nao encontrado."));
-			send(new ActionFailed());
-			return;
-		}
-		var sellerChar = sellerOpt.get().character();
-		List<Integer> skillIds = p.items().stream().map(GameClientPacket.StoreItemRequest::objectId).toList();
-		var skillTable = ctx.skillService() != null ? ctx.skillService().table() : null;
-		var result = ctx.buffShop().purchaseBuffs(active, p.sellerId(), skillIds, sellerChar, ctx.inventories(),
-				skillTable, ctx.skillService());
-		if (result.success()) {
-			for (int skillId : result.appliedSkills()) {
-				int lvl = sellerChar.skillLevel(skillId);
-				if (lvl <= 0) lvl = 1;
-				var skOpt = skillTable != null ? skillTable.get(skillId, lvl)
-						: java.util.Optional.<com.lopez.l2j.game.skill.SkillTemplate>empty();
-				if (skOpt.isPresent()) {
-					var sk = skOpt.get();
-					applySkillEffects(sk, false);
-					var anim = new MagicSkillUse(sellerChar.objectId(), active.objectId(), sk.id(), sk.level(), 500, 0);
-					send(anim);
-					sellerOpt.get().send(anim);
-				}
-			}
-			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce comprou buffs por " + result.totalCost() + " Adena."));
-			sellerOpt.get().send(new CreatureSay(0, CreatureSay.ALL, "SYS",
-					active.name() + " comprou buffs na sua loja por " + result.totalCost() + " Adena."));
-		} else {
-			send(new CreatureSay(0, CreatureSay.ALL, "SYS", result.message()));
-		}
+	public void onPrivateStoreBuy(GameClientPacket.RequestPrivateStoreBuy p) {
+		tradeStoreHandler.handlePrivateStoreBuy(p);
 	}
 
 	private void onConfirmTargetItem(GameClientPacket.RequestConfirmTargetItem p) {
