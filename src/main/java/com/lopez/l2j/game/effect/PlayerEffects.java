@@ -71,6 +71,11 @@ public final class PlayerEffects {
 		byStack.clear();
 	}
 
+	public void addBuff(int skillId, int level, long durationMs) {
+		long end = durationMs == PERMANENT ? PERMANENT : (System.currentTimeMillis() + durationMs);
+		put(new ActiveBuff(skillId, level, "skill_" + skillId, end, 0, 1.0, 1.0, 0, List.of()));
+	}
+
 	public List<ActiveBuff> active() {
 		long now = System.currentTimeMillis();
 		List<ActiveBuff> out = new ArrayList<>();
@@ -80,6 +85,10 @@ public final class PlayerEffects {
 			}
 		}
 		return out;
+	}
+
+	public List<ActiveBuff> activeBuffs() {
+		return active();
 	}
 
 	/** Funcoes de stat de todos os buffs de skill ativos. */
