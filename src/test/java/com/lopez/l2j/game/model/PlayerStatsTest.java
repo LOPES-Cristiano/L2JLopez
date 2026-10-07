@@ -48,7 +48,7 @@ class PlayerStatsTest {
 		var stats = PlayerStats.calculate(player, template);
 		assertEquals(template.pAtk() + 35, stats.pAtk(), "P.Atk deve somar o dano da arma");
 		assertEquals(379, stats.pAtkSpd(), "AtkSpd deve vir da arma equipada");
-		assertEquals(8, stats.critical(), "Critical deve vir da arma equipada");
+		assertEquals(80, stats.critical(), "Critical deve vir da arma equipada normalizado para base 1000");
 	}
 
 	@Test
@@ -84,5 +84,36 @@ class PlayerStatsTest {
 
 		var stats = PlayerStats.calculate(player, template);
 		assertEquals(template.pAtk() + 35 + (3 * 2), stats.pAtk(), "Enchant deve adicionar bônus de P.Atk");
+	}
+
+	@Test
+	void levelProgressionIncreasesAccuracyAndEvasion() {
+		// Level 1: Math.round(sqrt(30) * 6) + 1 = 33 + 1 = 34
+		var statsLv1 = PlayerStats.calculate(player, template);
+		assertEquals(34, statsLv1.accuracy(), "Accuracy no Lv 1 deve ser base DEX + Level");
+		assertEquals(34, statsLv1.evasion(), "Evasion no Lv 1 deve ser base DEX + Level");
+
+		// Simulando Level 60
+		player.level(60);
+		var statsLv60 = PlayerStats.calculate(player, template);
+		assertEquals(93, statsLv60.accuracy(), "Accuracy no Lv 60 deve progredir com o nivel (33 + 60 = 93)");
+		assertEquals(93, statsLv60.evasion(), "Evasion no Lv 60 deve progredir com o nivel (33 + 60 = 93)");
+	}
+
+	@Test
+	void criticalScalesWithWeaponAndDex() {
+		// Arco com 12 critical (120 em base 1000) e penalidade de hit -3
+		var bowTemplate = ItemTemplate.weapon(14, 14, "Bow", "lrhand", "bow", 1930, "none",
+				23, 9, 293, 12, -3, 0, 0, 12500, true, true, true, true);
+		var bow = new ItemInstance(0x20000005, bowTemplate, player.objectId(), 1);
+		inventory.add(bow);
+		inventory.equip(bow);
+
+		player.level(60);
+		var stats = PlayerStats.calculate(player, template);
+		// Accuracy: 33 + 60 - 3 = 90
+		assertEquals(90, stats.accuracy(), "Arco deve aplicar modificador hitModify na precisao");
+		// DEX 30 bonus = 1.00 -> 120 * 1.00 = 120
+		assertEquals(120, stats.critical(), "Bow critical com DEX 30 deve ser 120");
 	}
 }
