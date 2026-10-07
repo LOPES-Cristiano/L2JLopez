@@ -147,4 +147,94 @@ class SkillSystemTest {
 		p.inventory().equip(swordInstance);
 		assertTrue(strike.castCondition().test(p), "Com espada deve poder usar Power Strike");
 	}
+
+	@Test
+	void chargesParsedAndValidated() {
+		var sonicFocus1 = table.get(8, 1).orElseThrow();
+		assertEquals(1, sonicFocus1.giveCharges());
+		assertEquals(1, sonicFocus1.maxCharges());
+
+		var sonicFocus7 = table.get(8, 7).orElseThrow();
+		assertEquals(1, sonicFocus7.giveCharges());
+		assertFalse(sonicFocus1.continueAfterMax());
+		assertFalse(sonicFocus7.continueAfterMax());
+
+		var sonicRage = table.get(345, 1).orElseThrow();
+		assertEquals(1, sonicRage.giveCharges());
+		assertEquals(7, sonicRage.maxCharges());
+		assertTrue(sonicRage.continueAfterMax());
+
+		var ragingForce = table.get(346, 1).orElseThrow();
+		assertEquals(1, ragingForce.giveCharges());
+		assertEquals(7, ragingForce.maxCharges());
+		assertTrue(ragingForce.continueAfterMax());
+
+		var tss = table.get(261, 1).orElseThrow(); // Triple Sonic Slash
+		assertEquals(4, tss.needCharges());
+		assertTrue(tss.consumeCharges());
+		assertTrue(tss.isChargedDam());
+
+		var sonicBarrier = table.get(442, 1).orElseThrow(); // Sonic Barrier
+		assertEquals(5, sonicBarrier.needCharges());
+		assertTrue(sonicBarrier.consumeCharges());
+		assertFalse(sonicBarrier.effects().isEmpty());
+		assertEquals("Invincible", sonicBarrier.effects().get(0).name());
+
+		var forceBarrier = table.get(443, 1).orElseThrow(); // Force Barrier
+		assertEquals(4, forceBarrier.needCharges());
+		assertTrue(forceBarrier.consumeCharges());
+		assertFalse(forceBarrier.effects().isEmpty());
+		assertEquals("Invincible", forceBarrier.effects().get(0).name());
+	}
+
+	@Test
+	void battleRoarEffectIncreasesMaxHp() {
+		var battleRoar = table.get(121, 1).orElseThrow();
+		assertEquals("HEAL_PERCENT", battleRoar.skillType());
+		assertFalse(battleRoar.effects().isEmpty());
+		var effect = battleRoar.effects().get(0);
+		assertEquals("max_hp_up", effect.stackType());
+		assertFalse(effect.funcs().isEmpty());
+
+		var p = player(40, 0);
+		var template = new CharTemplateTable().get(0).orElseThrow();
+		var baseMaxHp = template.calculateMaxHp(p.level());
+
+		p.effects().put(ActiveBuff.ofSkill(121, 1, effect.stackType(), System.currentTimeMillis() + 60_000,
+				effect.funcs()));
+		var buffedMaxHp = PlayerStats.applyStat(p, "maxHp", baseMaxHp);
+		assertEquals(Math.round(baseMaxHp * 1.10), Math.round(buffedMaxHp));
+	}
+
+	@Test
+	void chargeDamageScalingInCombat() {
+		var combat = new com.lopez.l2j.game.combat.CombatService();
+		var p = player(76, 88); // Duelist
+		var template = new CharTemplateTable().get(0).orElseThrow();
+
+		var npcTemplate = new com.lopez.l2j.game.npc.NpcTemplate(20001, 20001, "Test Monster", false, "", false,
+				9.0, 24.0, 70, "male", "Monster", 40, 10000000, 1000, 500, 200, 300, 200, 253, 333,
+				0, 0, 0, 50, 120, 0, false, 5000L, 500);
+		var npc = new com.lopez.l2j.game.npc.NpcInstance(0x20000001, npcTemplate, 0, 0, 0, 0);
+
+		p.charges(0);
+		double sum0 = 0;
+		for (int i = 0; i < 20; i++) {
+			npc.dead(false);
+			npc.currentHp(10000000);
+			sum0 += combat.skillPhysicalNpc(p, template, npc, 2000.0, false, false, true).damage();
+		}
+		double avg0 = sum0 / 20.0;
+
+		p.charges(7);
+		double sum7 = 0;
+		for (int i = 0; i < 20; i++) {
+			npc.dead(false);
+			npc.currentHp(10000000);
+			sum7 += combat.skillPhysicalNpc(p, template, npc, 2000.0, false, false, true).damage();
+		}
+		double avg7 = sum7 / 20.0;
+
+		assertTrue(avg7 > avg0 * 2.0, "7 charges deve aumentar expressivamente o dano medio (esperado ~2.75x)");
+	}
 }
