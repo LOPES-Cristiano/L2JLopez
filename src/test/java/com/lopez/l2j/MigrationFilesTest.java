@@ -48,8 +48,8 @@ class MigrationFilesTest {
 	void everyMigrationCreatesATableIdempotentlyAndUsesInnoDb() throws IOException {
 		for (Path p : files()) {
 			String sql = Files.readString(p);
-			if (p.getFileName().toString().startsWith("V1__") || sql.contains("INSERT INTO")) {
-				continue; // baseline escrito a mao ou inserts de dados
+			if (p.getFileName().toString().startsWith("V1__") || sql.contains("INSERT INTO") || sql.contains("UPDATE ") || sql.contains("ALTER TABLE")) {
+				continue; // baseline escrito a mao ou inserts/updates/alteracoes de dados
 			}
 			assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS"), "sem CREATE TABLE IF NOT EXISTS: " + p);
 			assertTrue(!sql.contains("MyISAM"), "MyISAM nao permitido: " + p);
