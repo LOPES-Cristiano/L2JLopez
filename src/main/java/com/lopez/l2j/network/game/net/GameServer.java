@@ -122,7 +122,19 @@ public class GameServer implements SmartLifecycle {
 			@Autowired(required = false) com.lopez.l2j.game.service.PetitionService petition,
 			@Autowired(required = false) com.lopez.l2j.game.service.BoatService boat,
 			@Autowired(required = false) com.lopez.l2j.game.event.official.L2DayEventService l2day,
-			@Autowired(required = false) com.lopez.l2j.game.service.StarterKitService starterKit) {
+			@Autowired(required = false) com.lopez.l2j.game.service.StarterKitService starterKit,
+			@Autowired(required = false) com.lopez.l2j.game.quest.QuestManager questManager,
+			@Autowired(required = false) com.lopez.l2j.game.subclass.SubClassService subClasses,
+			@Autowired(required = false) com.lopez.l2j.game.macro.MacroRepository macros,
+			@Autowired(required = false) com.lopez.l2j.game.boss.RaidPointsService raidPoints,
+			@Autowired(required = false) com.lopez.l2j.network.game.security.BypassEncoderService bypassEncoder,
+			@Autowired(required = false) com.lopez.l2j.network.game.security.PacketRateLimiter packetRateLimiter,
+			@Autowired(required = false) com.lopez.l2j.game.service.CharacterVariablesService characterVariables,
+			@Autowired(required = false) com.lopez.l2j.network.game.handler.admin.AdminCommandHandlerRegistry adminCommands,
+			@Autowired(required = false) com.lopez.l2j.network.game.handler.voiced.VoicedCommandHandlerRegistry voicedCommands,
+			@Autowired(required = false) com.lopez.l2j.network.game.handler.bypass.BypassHandlerRegistry bypassHandlers,
+			@Autowired(required = false) com.lopez.l2j.game.service.AcpService acpService,
+			@Autowired(required = false) com.lopez.l2j.game.service.SchemeBufferService schemeBuffer) {
 		this(p.network().gamePort(), new GameSession.Context(p.network().protocolMin(), p.network().protocolMax(),
 				sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi,
 				skillService, multisell, warehouse, buffRepository, spawns, p.admin().superusers(), mapRegions, announcements,
@@ -133,7 +145,9 @@ public class GameServer implements SmartLifecycle {
 				frintezza, fourSepulchers, dimensionalRift, communityBoard, offlineTrade, autoFarm,
 				achievements, arenaDuel, officialEvent, roulette, characterReset,
 				tvt, ctf, dm, partyFarm, botsPrevention, pvpColor, pvpRank, aio, preferences,
-				lottery, monsterRace, fishingChampionship, petition, boat, l2day, starterKit,
+				lottery, monsterRace, fishingChampionship, petition, boat, l2day, starterKit, questManager, subClasses,
+				macros, raidPoints, bypassEncoder, packetRateLimiter, characterVariables, adminCommands, voicedCommands, bypassHandlers,
+				acpService, schemeBuffer,
 				p.rates(), p.serverName()));
 	}
 
@@ -190,7 +204,8 @@ public class GameServer implements SmartLifecycle {
 				client.setKeepAlive(true);
 				String ip = client.getInetAddress().getHostAddress();
 				byte[] key = GameCrypt.newKey(random);
-				var connection = new GameConnection(client, key, sink -> new GameSession(context, key, ip, sink),
+				var connection = new GameConnection(client, key,
+						(sink, closer) -> new GameSession(context, key, ip, sink, closer),
 						slots::release);
 				executor.execute(connection);
 			} catch (IOException | RuntimeException e) {
