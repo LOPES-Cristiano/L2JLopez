@@ -64,15 +64,42 @@ public interface SkillCondition {
 				return (p, target) -> kinds.stream().anyMatch(k -> isUsing(p, k));
 			}
 			case "player" -> {
-				if (e.hasAttribute("level") && e.getAttributes().getLength() == 1) {
-					int min = Integer.parseInt(e.getAttribute("level").trim());
-					return (p, target) -> p.level() >= min;
-				}
-				if (e.hasAttribute("hp") && e.getAttributes().getLength() == 1) {
+				List<SkillCondition> playerConditions = new ArrayList<>();
+				if (e.hasAttribute("hp")) {
 					double pct = Double.parseDouble(e.getAttribute("hp").trim());
-					return (p, target) -> p.maxHp() > 0 && p.currentHp() * 100.0 / p.maxHp() <= pct;
+					playerConditions.add((p, target) -> p != null && p.maxHp() > 0 && (p.currentHp() * 100.0 / p.maxHp()) <= pct);
 				}
-				return null;
+				if (e.hasAttribute("mp")) {
+					double pct = Double.parseDouble(e.getAttribute("mp").trim());
+					playerConditions.add((p, target) -> p != null && p.maxMp() > 0 && (p.currentMp() * 100.0 / p.maxMp()) <= pct);
+				}
+				if (e.hasAttribute("cp")) {
+					double pct = Double.parseDouble(e.getAttribute("cp").trim());
+					playerConditions.add((p, target) -> p != null && p.maxCp() > 0 && (p.currentCp() * 100.0 / p.maxCp()) <= pct);
+				}
+				if (e.hasAttribute("level")) {
+					int min = Integer.parseInt(e.getAttribute("level").trim());
+					playerConditions.add((p, target) -> p != null && p.level() >= min);
+				}
+				if (e.hasAttribute("charges")) {
+					int min = Integer.parseInt(e.getAttribute("charges").trim());
+					playerConditions.add((p, target) -> p != null && p.charges() >= min);
+				}
+				if (e.hasAttribute("resting")) {
+					boolean val = Boolean.parseBoolean(e.getAttribute("resting").trim());
+					playerConditions.add((p, target) -> p != null && p.isSitting() == val);
+				}
+				if (e.hasAttribute("moving")) {
+					boolean val = Boolean.parseBoolean(e.getAttribute("moving").trim());
+					playerConditions.add((p, target) -> p != null && p.isMoving() == val);
+				}
+				if (playerConditions.isEmpty()) {
+					return null;
+				}
+				if (playerConditions.size() == 1) {
+					return playerConditions.get(0);
+				}
+				return (p, target) -> playerConditions.stream().allMatch(c -> c.test(p, target));
 			}
 			case "target" -> {
 				if (e.hasAttribute("undead")) {
@@ -103,19 +130,22 @@ public interface SkillCondition {
 	}
 
 	static String normalize(String kind) {
-		return kind.trim().toLowerCase(Locale.ROOT).replace(" ", "");
+		return kind.trim().toLowerCase(Locale.ROOT).replace(" ", "").replace("_", "");
 	}
 
 	/** Nome do tipo de arma no formato do datapack (Big Sword, Dual Sword...), normalizado. */
 	static String weaponKind(ItemTemplate t) {
 		String sub = t.subType();
+		if (sub == null) return "none";
 		boolean twoHanded = (t.bodyPart() & ItemSlots.SLOT_LR_HAND) == ItemSlots.SLOT_LR_HAND;
-		return switch (sub) {
+		return switch (sub.toLowerCase(Locale.ROOT).replace(" ", "").replace("_", "")) {
 			case "sword" -> twoHanded ? "bigsword" : "sword";
 			case "blunt" -> twoHanded ? "bigblunt" : "blunt";
-			case "dual" -> "dualsword";
+			case "dual", "dualsword" -> "dualsword";
 			case "dualfist" -> "dualfist";
-			default -> sub.replace(" ", "");
+			case "pole", "polearm" -> "pole";
+			case "crossbow" -> "crossbow";
+			default -> sub.replace(" ", "").replace("_", "").toLowerCase(Locale.ROOT);
 		};
 	}
 
@@ -128,15 +158,15 @@ public interface SkillCondition {
 			return 1;
 		}
 		boolean twoHanded = (item.template().bodyPart() & ItemSlots.SLOT_LR_HAND) == ItemSlots.SLOT_LR_HAND;
-		return switch (sub.toLowerCase(Locale.ROOT)) {
+		return switch (sub.toLowerCase(Locale.ROOT).replace(" ", "").replace("_", "")) {
 			case "sword" -> twoHanded ? (1 << 11) : (1 << 2); // 2048 (BIGSWORD) : 4 (SWORD)
 			case "blunt" -> twoHanded ? (1 << 14) : (1 << 3); // 16384 (BIGBLUNT) : 8 (BLUNT)
 			case "dagger" -> 1 << 4; // 16
 			case "bow" -> 1 << 5; // 32
-			case "pole" -> 1 << 6; // 64
+			case "pole", "polearm" -> 1 << 6; // 64
 			case "etc" -> 1 << 7; // 128
 			case "fist" -> 1 << 8; // 256
-			case "dual" -> 1 << 9; // 512
+			case "dual", "dualsword" -> 1 << 9; // 512
 			case "dualfist" -> 1 << 10; // 1024
 			case "bigsword" -> 1 << 11; // 2048
 			case "pet" -> 1 << 12; // 4096
