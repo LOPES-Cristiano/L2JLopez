@@ -99,7 +99,7 @@
 |---|---|---|---|:---:|---|
 | **41** | **Catálogo Geral de Itens (Armas, Sets, Etc)** | `ItemTable` (`stats/weapon`, `armor`, `etcitem`) | `ItemTemplateTable.java` | ✅ Concluído | Milhares de itens mapeados com peso, slots, graus (No-Grade até S-Grade). |
 | **42** | **Bônus de Sets de Armadura e +6 Enchant** | `ArmorSetsTable` (`armorsets.xml`) | `ArmorSetsTable.java` | ✅ Concluído | 30+ sets com passivas completas e bônus de MP Regen ao encantar o conjunto +6. |
-| **43** | **Sistema de Encantamento de Armas e Armaduras** | `RequestEnchantItem` / `EnchantScrollTable` | `GameSession.java` / `EnchantScrollTable.java` | ✅ Concluído | Scrolls normais e abençoados (Blessed), brilho azul/vermelho e taxas oficiais. |
+| **43** | **Sistema de Encantamento de Armas e Armaduras** | `RequestEnchantItem` / `EnchantScrollTable` | `GameSession.java` / `EnchantScrollTable.java` / `GameServerPacket.java` | ✅ Concluído | Scrolls normais e abençoados (Blessed), taxas oficiais, serialização do byte de enchant em UserInfo, CharInfo e CharSelectionInfo ativando brilho azul (+4..+15) e vermelho (+16+); `WeaponEnchantGlowTest` validado. |
 | **44** | **Augmentação de Armas (Life Stones)** | `AugmentationData` (`augmentation_*.xml`) | `AugmentationService.java` | ✅ Concluído | Inserção de Life Stones, atributos aleatórios, skills de chance e brilho roxo/dourado. |
 | **45** | **Armas Malditas: Zariche e Akamanah** | `CursedWeaponsManager` (`cursedWeapons.xml`) | `CursedWeaponsManager.java` | ✅ Concluído | Transformação demônica, título automático, aumento de dano por PK e aura vermelha. |
 | **46** | **Sistema de Pesca e Campeonato de Pesca** | `FishTable` / `fishingChampionship` | `FishingService.java` | ✅ Concluído | Varas de pescar, iscas, minigame de puxar o peixe, troféus e recompensas. |
@@ -246,5 +246,5 @@
 - **Total de Itens Mapeados**: 118 Subsistemas cobrindo 100% dos módulos do L2JDream V2 portados para o ecossistema L2JLopez.
 - **Blocos Temáticos**: 14 Blocos Arquiteturais Estruturados.
 - **Subsistemas Concluídos**: **118 / 118 (100% Concluídos)**.
-- **Status do Build & Testes**: Spring Boot 3.5 / Java 21 com Virtual Threads e suíte automatizada com 457 testes unitários e de integração passing com 0 erros e 0 falhas.
+- **Status do Build & Testes**: Spring Boot 3.5 / Java 21 com Virtual Threads e suíte automatizada com 559 testes unitários e de integração passing com 0 erros e 0 falhas.
 
