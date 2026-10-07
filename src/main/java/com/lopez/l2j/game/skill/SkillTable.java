@@ -36,6 +36,10 @@ public class SkillTable {
 	private final Map<Integer, SkillTemplate[]> byId = new HashMap<>();
 	private final Map<Integer, Map<Integer, SkillTemplate>> enchantedById = new HashMap<>();
 
+	public SkillTable() {
+		// Construtor vazio para testes unitarios em memoria
+	}
+
 	@Autowired
 	public SkillTable(@Value("${l2.datapack.xml-dir:data/xml}") String xmlDir) {
 		this(Path.of(xmlDir, "stats", "skills"));
@@ -83,6 +87,24 @@ public class SkillTable {
 
 	public int size() {
 		return byId.size();
+	}
+
+	public void register(SkillTemplate skill) {
+		if (skill == null || skill.level() < 1) {
+			return;
+		}
+		if (skill.level() >= 100) {
+			enchantedById.computeIfAbsent(skill.id(), k -> new HashMap<>()).put(skill.level(), skill);
+			return;
+		}
+		SkillTemplate[] existing = byId.get(skill.id());
+		int newLen = Math.max(skill.level(), existing != null ? existing.length : 0);
+		SkillTemplate[] updated = new SkillTemplate[newLen];
+		if (existing != null) {
+			System.arraycopy(existing, 0, updated, 0, existing.length);
+		}
+		updated[skill.level() - 1] = skill;
+		byId.put(skill.id(), updated);
 	}
 
 	// ---- parsing ----
@@ -214,6 +236,11 @@ public class SkillTable {
 					r.integer(sets.get("magicLvl"), 0), r.number(sets.get("absorbPart"), 0),
 					r.bool(sets.get("nextActionAttack")),
 					r.integer(sets.get("itemConsumeId"), 0), r.integer(sets.get("itemConsumeCount"), 0),
+					r.integer(sets.get("giveCharges"), 0), r.integer(sets.get("maxCharges"), 0),
+					r.integer(sets.get("needCharges"), 0), r.bool(sets.get("consumeCharges"), true),
+					sets.containsKey("continueAfterMax")
+							? r.bool(sets.get("continueAfterMax"), false)
+							: (r.integer(sets.get("giveCharges"), 0) > 0 && !"TARGET_SELF".equalsIgnoreCase(r.str(sets.get("target"), "TARGET_SELF"))),
 					List.copyOf(funcs), List.copyOf(effects), castCond,
 					condMsg);
 		}
@@ -301,6 +328,8 @@ public class SkillTable {
 							castRange, skillRadius, hitTime, coolTime, reuseDelay, magicLvl,
 							absorb, base.nextActionAttack(),
 							base.itemConsumeId(), base.itemConsumeCount(),
+							base.giveCharges(), base.maxCharges(), base.needCharges(), base.consumeCharges(),
+							base.continueAfterMax(),
 							funcs.isEmpty() && routeFor == forElement ? base.funcs() : List.copyOf(funcs),
 							effects.isEmpty() && routeFor == forElement ? base.effects() : List.copyOf(effects),
 							rCastCond, rCondMsg);
@@ -332,8 +361,18 @@ public class SkillTable {
 		SkillCondition cond = null;
 		var kids = SkillCondition.children(f);
 		if (!kids.isEmpty()) {
-			cond = SkillCondition.parse(kids.get(0));
-			if (cond == null) {
+			List<SkillCondition> parsedKids = new ArrayList<>();
+			for (Element kid : kids) {
+				SkillCondition sc = SkillCondition.parse(kid);
+				if (sc != null) {
+					parsedKids.add(sc);
+				}
+			}
+			if (parsedKids.size() == 1) {
+				cond = parsedKids.get(0);
+			} else if (parsedKids.size() > 1) {
+				cond = (p, target) -> parsedKids.stream().allMatch(c -> c.test(p, target));
+			} else {
 				cond = (p, target) -> false; // condicao que o servidor nao sabe avaliar: nao aplica
 			}
 		}
@@ -388,8 +427,16 @@ public class SkillTable {
 			return (int) Math.round(number(raw, def));
 		}
 
+		boolean bool(String raw, boolean def) {
+			String s = str(raw, null);
+			if (s == null) {
+				return def;
+			}
+			return Boolean.parseBoolean(s);
+		}
+
 		boolean bool(String raw) {
-			return Boolean.parseBoolean(str(raw, "false"));
+			return bool(raw, false);
 		}
 	}
 }
