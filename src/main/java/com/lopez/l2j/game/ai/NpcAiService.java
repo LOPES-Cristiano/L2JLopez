@@ -335,6 +335,10 @@ public class NpcAiService {
 				if (npc.isDead() || npc.inCombat() || !npc.isMonster()) {
 					continue;
 				}
+				// Regra oficial Lineage II / L2JDream: Friendly Mobs (ex: Pixy, Bloody Pixy, Treant) so agram jogadores PK (Karma > 0)
+				if (npc.template().isFriendlyMob() && character.karma() <= 0) {
+					continue;
+				}
 				int aggroRange = npc.template().aggroRange();
 				if (aggroRange > 0) {
 					// Regra oficial Lineage II / L2JDream:
