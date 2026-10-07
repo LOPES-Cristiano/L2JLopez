@@ -4911,20 +4911,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			playerTarget = this;
 		}
 
-		// Verificacao de Zona de Paz para habilidades ofensivas
-		if (sk.isOffensive() && ctx.zones() != null) {
-			if (ctx.zones().isInsidePeace(active.x(), active.y(), active.z())) {
+		// Verificacao de Zona de Paz para habilidades ofensivas (aplica-se a PvP contra outros jogadores, nao a monstros)
+		if (sk.isOffensive() && ctx.zones() != null && playerTarget != null && playerTarget != this) {
+			if (ctx.zones().isInsidePeace(active.x(), active.y(), active.z())
+					|| ctx.zones().isInsidePeace(playerTarget.x(), playerTarget.y(), playerTarget.z())) {
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pode usar habilidades ofensivas em zona de paz."));
-				send(new ActionFailed());
-				return;
-			}
-			if (npcTarget != null && ctx.zones().isInsidePeace(npcTarget.x(), npcTarget.y(), npcTarget.z())) {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O alvo esta em zona de paz."));
-				send(new ActionFailed());
-				return;
-			}
-			if (playerTarget != null && ctx.zones().isInsidePeace(playerTarget.x(), playerTarget.y(), playerTarget.z())) {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O alvo esta em zona de paz."));
 				send(new ActionFailed());
 				return;
 			}
