@@ -56,25 +56,35 @@ public class GrandBossManager {
 
 	private void initDefinitions() {
 		register(new GrandBossInfo(QUEEN_ANT, "Queen Ant", -21610, 181594, -5734, 0,
-				Config.getInt("QueenAntMinRespawn", 1140), Config.getInt("QueenAntMaxRespawn", 2160)));
+				Config.getInt("QueenAntMinRespawn", 1140), Config.getInt("QueenAntMaxRespawn", 2160),
+				Config.getString("QueenAntCron", "")));
 		register(new GrandBossInfo(CORE, "Core", 17726, 108915, -6480, 0,
-				Config.getInt("CoreMinRespawn", 2220), Config.getInt("CoreMaxRespawn", 3600)));
+				Config.getInt("CoreMinRespawn", 2220), Config.getInt("CoreMaxRespawn", 3600),
+				Config.getString("CoreCron", "")));
 		register(new GrandBossInfo(ORFEN, "Orfen", 55024, 17368, -5412, 0,
-				Config.getInt("OrfenMinRespawn", 1680), Config.getInt("OrfenMaxRespawn", 2880)));
+				Config.getInt("OrfenMinRespawn", 1680), Config.getInt("OrfenMaxRespawn", 2880),
+				Config.getString("OrfenCron", "")));
 		register(new GrandBossInfo(ANTHARAS, "Antharas", 181323, 114850, -7670, 32542,
-				Config.getInt("AntharasMinRespawn", 11520), Config.getInt("AntharasMaxRespawn", 15840)));
+				Config.getInt("AntharasMinRespawn", 11520), Config.getInt("AntharasMaxRespawn", 15840),
+				Config.getString("AntharasCron", "")));
 		register(new GrandBossInfo(BAIUM, "Baium", 116033, 17447, 10107, 40188,
-				Config.getInt("BaiumMinRespawn", 7200), Config.getInt("BaiumMaxRespawn", 10080)));
+				Config.getInt("BaiumMinRespawn", 7200), Config.getInt("BaiumMaxRespawn", 10080),
+				Config.getString("BaiumCron", "")));
 		register(new GrandBossInfo(ZAKEN, "Zaken", 55312, 219168, -3223, 0,
-				Config.getInt("ZakenMinRespawn", 2400), Config.getInt("ZakenMaxRespawn", 3600)));
+				Config.getInt("ZakenMinRespawn", 2400), Config.getInt("ZakenMaxRespawn", 3600),
+				Config.getString("ZakenCron", "")));
 		register(new GrandBossInfo(VALAKAS, "Valakas", 212852, -114842, -1632, 833,
-				Config.getInt("ValakasMinRespawn", 11520), Config.getInt("ValakasMaxRespawn", 15840)));
+				Config.getInt("ValakasMinRespawn", 11520), Config.getInt("ValakasMaxRespawn", 15840),
+				Config.getString("ValakasCron", "")));
 		register(new GrandBossInfo(FRINTEZZA, "Frintezza", -87784, -155083, -9083, 16048,
-				Config.getInt("FrintezzaMinRespawn", 2400), Config.getInt("FrintezzaMaxRespawn", 3600)));
+				Config.getInt("FrintezzaMinRespawn", 2400), Config.getInt("FrintezzaMaxRespawn", 3600),
+				Config.getString("FrintezzaCron", "")));
 		register(new GrandBossInfo(VAN_HALTER, "High Priestess van Halter", -16375, -53658, 10448, 0,
-				Config.getInt("VanHalterMinRespawn", 720), Config.getInt("VanHalterMaxRespawn", 2160)));
+				Config.getInt("VanHalterMinRespawn", 720), Config.getInt("VanHalterMaxRespawn", 2160),
+				Config.getString("VanHalterCron", "")));
 		register(new GrandBossInfo(SAILREN, "Sailren", 27333, -6835, -1970, 0,
-				Config.getInt("SailrenMinRespawn", 720), Config.getInt("SailrenMaxRespawn", 2160)));
+				Config.getInt("SailrenMinRespawn", 720), Config.getInt("SailrenMaxRespawn", 2160),
+				Config.getString("SailrenCron", "")));
 	}
 
 	public void register(GrandBossInfo info) {
@@ -113,25 +123,34 @@ public class GrandBossManager {
 		}
 	}
 
+	public synchronized void setBossCron(int bossId, String cronExpression) {
+		GrandBossInfo info = bosses.get(bossId);
+		if (info != null) {
+			info.cronExpression(cronExpression);
+			log.info("GrandBoss {} (ID {}) cron configurado para '{}'", info.name(), bossId, cronExpression);
+		}
+	}
+
+	public String getNextRespawnFormatted(int bossId) {
+		GrandBossInfo info = bosses.get(bossId);
+		return info != null ? info.getNextRespawnFormatted() : "DESCONHECIDO";
+	}
+
 	public synchronized void onBossKilled(int bossId) {
 		GrandBossInfo info = bosses.get(bossId);
 		if (info == null) {
 			return;
 		}
 
-		long minRespawn = (long) info.minRespawnMinutes() * 60_000L;
-		long maxRespawn = (long) info.maxRespawnMinutes() * 60_000L;
-		long delay = minRespawn;
-		if (maxRespawn > minRespawn) {
-			delay = ThreadLocalRandom.current().nextLong(minRespawn, maxRespawn);
-		}
+		long respawnTime = info.calculateNextRespawnTime();
+		long delay = Math.max(0, respawnTime - System.currentTimeMillis());
 
-		long respawnTime = System.currentTimeMillis() + delay;
 		info.respawnTime(respawnTime);
 		info.status(BossStatus.INTERVAL);
 		persistDb(info);
 
-		log.info("GrandBoss {} foi morto! Respawn agendado para {} ms a frente (status INTERVAL)", info.name(), delay);
+		log.info("GrandBoss {} foi morto! Respawn agendado para {} ({} ms, status INTERVAL)",
+				info.name(), info.getNextRespawnFormatted(), delay);
 		scheduler.schedule(() -> spawnBoss(bossId), delay, TimeUnit.MILLISECONDS);
 	}
 
