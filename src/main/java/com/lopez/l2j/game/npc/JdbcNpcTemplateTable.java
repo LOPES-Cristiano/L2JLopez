@@ -102,6 +102,24 @@ class JdbcNpcTemplateTable implements NpcTemplateTable {
 				rs.getInt("aggro"),
 				rs.getInt("isUndead") == 1,
 				rs.getLong("exp"),
-				rs.getInt("sp"));
+				rs.getInt("sp"),
+				getStringSafe(rs, "faction_id"),
+				getIntSafe(rs, "faction_range", 0));
+	}
+
+	private static String getStringSafe(ResultSet rs, String column) {
+		try {
+			return rs.getString(column);
+		} catch (SQLException e) {
+			return null;
+		}
+	}
+
+	private static int getIntSafe(ResultSet rs, String column, int def) {
+		try {
+			return rs.getInt(column);
+		} catch (SQLException e) {
+			return def;
+		}
 	}
 }
