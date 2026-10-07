@@ -58,4 +58,15 @@ class CombatPlayerRetaliationTest {
 		var hit = combatService.attackPlayer(monster, player, playerTemplate);
 		assertEquals(0, hit.damage());
 	}
+
+	@Test
+	void playerEntersAndLeavesCombatState() {
+		assertFalse(player.isInCombat(), "Jogador deve iniciar fora de combate");
+
+		player.enterCombat();
+		assertTrue(player.isInCombat(), "Jogador deve estar em modo de combate apos enterCombat");
+
+		player.leaveCombat();
+		assertFalse(player.isInCombat(), "Jogador deve sair do combate apos leaveCombat");
+	}
 }
