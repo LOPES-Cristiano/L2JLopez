@@ -142,6 +142,12 @@ public sealed interface GameClientPacket {
 	record RequestShortCutDel(int id) implements GameClientPacket {
 	}
 
+	record RequestMakeMacro(com.lopez.l2j.game.macro.Macro macro) implements GameClientPacket {
+	}
+
+	record RequestDeleteMacro(int id) implements GameClientPacket {
+	}
+
 	record RequestMagicSkillUse(int magicId, boolean ctrlPressed, boolean shiftPressed) implements GameClientPacket {
 	}
 
@@ -232,6 +238,10 @@ public sealed interface GameClientPacket {
 	record RequestHennaRemove(int symbolId) implements GameClientPacket {
 	}
 
+	/** 0xd0:0x18 - solicitacao de historico/ranking de Raid Bosses no mapa mundi (Alt+M). */
+	record RequestGetBossRecord(int bossId) implements GameClientPacket {
+	}
+
 	/** 0xd0:0x45 - solicitacao da lista de armas amaldicoadas ativas. */
 	record RequestCursedWeaponList() implements GameClientPacket {
 	}
@@ -318,6 +328,18 @@ public sealed interface GameClientPacket {
 	/** 0x79 - comprar itens/buffs de uma loja pessoal. */
 	record RequestPrivateStoreBuy(int sellerId, java.util.List<StoreItemRequest> items) implements GameClientPacket {}
 
+	/** 0x7b - link clicado na janela HTML de tutorial. */
+	record RequestTutorialLinkHtml(String link) implements GameClientPacket {}
+
+	/** 0x7c - comando/bypass passado pelo tutorial ao servidor. */
+	record RequestTutorialPassCmdToServer(String bypass) implements GameClientPacket {}
+
+	/** 0x7d - clique no ponto de interrogacao do tutorial. */
+	record RequestTutorialQuestionMark(int number) implements GameClientPacket {}
+
+	/** 0x7e - evento disparado pelo cliente para o tutorial. */
+	record RequestTutorialClientEvent(int eventId) implements GameClientPacket {}
+
 	record Unknown(int opcode, int subOpcode) implements GameClientPacket {
 	}
 
@@ -398,6 +420,10 @@ public sealed interface GameClientPacket {
 					case 0x76 -> new RequestPrivateStoreQuitSell();
 					case 0x77 -> new SetPrivateStoreMsgSell(r.readS());
 					case 0x79 -> readRequestPrivateStoreBuy(r);
+					case 0x7b -> new RequestTutorialLinkHtml(r.readS());
+					case 0x7c -> new RequestTutorialPassCmdToServer(r.readS());
+					case 0x7d -> new RequestTutorialQuestionMark(r.readD());
+					case 0x7e -> new RequestTutorialClientEvent(r.readD());
 					case 0x5e -> new RequestFriendInvite(r.readS());
 					case 0x5f -> new RequestAnswerFriendInvite(r.readD());
 					case 0x60 -> new RequestFriendList();
@@ -413,6 +439,8 @@ public sealed interface GameClientPacket {
 					case 0xbb -> new RequestHennaItemInfo(r.readD());
 					case 0xbc -> new RequestHennaEquip(r.readD());
 					case 0xbd -> new RequestHennaRemove(r.readD());
+					case 0xc1 -> readMakeMacro(r);
+					case 0xc2 -> new RequestDeleteMacro(r.readD());
 					case 0xc7 -> r.remaining() >= 1 ? new RequestSSQStatus(r.readC()) : new Unknown(op, -1);
 					case 0xcd -> new RequestShowMiniMap();
 					case 0xd0 -> extended(r);
@@ -524,6 +552,7 @@ public sealed interface GameClientPacket {
 			case 0x2c -> r.remaining() >= 16 ? new RequestRefine(r.readD(), r.readD(), r.readD(), r.readD()) : new Unknown(0xd0, sub);
 			case 0x2d -> r.remaining() >= 4 ? new RequestConfirmCancelItem(r.readD()) : new Unknown(0xd0, sub);
 			case 0x2e -> r.remaining() >= 4 ? new RequestRefineCancel(r.readD()) : new Unknown(0xd0, sub);
+			case 0x18 -> r.remaining() >= 4 ? new RequestGetBossRecord(r.readD()) : new RequestGetBossRecord(0);
 			case 0x45 -> new RequestCursedWeaponList();
 			case 0x46 -> new RequestCursedWeaponLocation();
 			default -> new Unknown(0xd0, sub);
@@ -557,5 +586,27 @@ public sealed interface GameClientPacket {
 		}
 		byte[] data = r.readB(length);
 		return new RequestSetPledgeCrest(data);
+	}
+
+	private static RequestMakeMacro readMakeMacro(PacketReader r) {
+		int id = r.readD();
+		String name = r.readS();
+		String descr = r.readS();
+		String acronym = r.readS();
+		int icon = r.readC();
+		int count = r.readC();
+		if (count > 12) {
+			count = 12;
+		}
+		java.util.List<com.lopez.l2j.game.macro.MacroCmd> commands = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			int entry = r.readC();
+			int type = r.readC();
+			int d1 = r.readD();
+			int d2 = r.readC();
+			String cmd = r.readS();
+			commands.add(new com.lopez.l2j.game.macro.MacroCmd(entry, type, d1, d2, cmd));
+		}
+		return new RequestMakeMacro(new com.lopez.l2j.game.macro.Macro(id, icon, name, descr, acronym, commands));
 	}
 }
