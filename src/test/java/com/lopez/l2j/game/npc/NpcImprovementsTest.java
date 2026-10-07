@@ -136,6 +136,42 @@ class NpcImprovementsTest {
 	}
 
 	@Test
+	void shouldNotAggroFriendlyMobOnInnocentPlayer() {
+		// Bloody Pixy / Pixy: L2FriendlyMob
+		NpcTemplate tplBloodyPixy = new NpcTemplate(
+				31845, 31845, "Bloody Pixy", false, "", false,
+				5.0, 25.0, 80, "female", "L2FriendlyMob",
+				40, 3381, 1660, 1135, 278, 2360, 452, 278, 333,
+				0, 0, 0, 80, 120, 1000, false, "all_elemental2_clan", 300);
+
+		NpcInstance bloodyPixy = new NpcInstance(2003, tplBloodyPixy, 100, 100, 0, 0);
+		world.addNpc(bloodyPixy);
+
+		// Jogador inocente (karma = 0)
+		PlayerCharacter innocent = new PlayerCharacter(3003, "acc", "InnocentPlayer", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
+				200, 100, 100, 0, 0, 0, 0, "", 0, 0, 0, 100, 100, 0, 0, 200.0, 100.0, 100.0);
+		TestGameSession innocentSession = new TestGameSession(innocent);
+		world.add(innocentSession);
+
+		// Ciclos de IA / checagem de aggro
+		npcAiService.tick();
+		npcAiService.tick();
+
+		// Friendly mob NUNCA deve agrar jogador pacifico
+		assertThat(bloodyPixy.inCombat()).isFalse();
+
+		// Agora jogador vira PK (karma > 0)
+		innocent.karma(5000);
+
+		npcAiService.tick();
+		npcAiService.tick();
+
+		// Friendly mob agora protege a floresta atacando o PK
+		assertThat(bloodyPixy.inCombat()).isTrue();
+		assertThat(bloodyPixy.targetPlayerId()).isEqualTo(innocent.objectId());
+	}
+
+	@Test
 	void shouldRollAndSweepSpoilDrops() {
 		// Mock drop table com drop comum e spoil
 		int mobId = 20100;
