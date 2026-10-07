@@ -7,6 +7,7 @@ import static com.lopez.l2j.game.item.ItemSlots.SLOT_L_FINGER;
 import static com.lopez.l2j.game.item.ItemSlots.SLOT_L_HAND;
 import static com.lopez.l2j.game.item.ItemSlots.SLOT_NECK;
 
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -16,10 +17,41 @@ import java.util.Locale;
  * @param subType weaponType (sword, bow, none=escudo...), armor_type (light, heavy, magic, pet...) ou item_type
  *                (potion, arrow, quest...)
  */
-public record ItemTemplate(int id, int displayId, String name, Kind kind, String subType, int type1, int type2,
-		int bodyPart, int weight, boolean stackable, String crystalType, int price, int pAtk, int mAtk, int pDef,
-		int mDef, int atkSpeed, int critical, int shieldDef, boolean sellable, boolean dropable, boolean destroyable,
-		boolean tradeable) {
+public record ItemTemplate(
+		int id,
+		int displayId,
+		String name,
+		Kind kind,
+		String subType,
+		int type1,
+		int type2,
+		int bodyPart,
+		int weight,
+		boolean stackable,
+		String crystalType,
+		int price,
+		int pAtk,
+		int mAtk,
+		int pDef,
+		int mDef,
+		int atkSpeed,
+		int critical,
+		int hitModify,
+		int avoidModify,
+		int shieldDef,
+		int mpBonus,
+		int soulshots,
+		int spiritshots,
+		int rndDam,
+		List<ItemSkillHolder> itemSkills,
+		ItemSkillHolder enchant4Skill,
+		ItemSkillHolder onCritSkill,
+		ItemSkillHolder onCastSkill,
+		boolean sellable,
+		boolean dropable,
+		boolean destroyable,
+		boolean tradeable
+) {
 
 	public enum Kind {
 		WEAPON, ARMOR, ETC
@@ -41,10 +73,29 @@ public record ItemTemplate(int id, int displayId, String name, Kind kind, String
 	public static final int TYPE2_PET_STRIDER = 8;
 	public static final int TYPE2_PET_BABY = 9;
 
+	public ItemTemplate(int id, int displayId, String name, Kind kind, String subType, int type1, int type2,
+			int bodyPart, int weight, boolean stackable, String crystalType, int price, int pAtk, int mAtk, int pDef,
+			int mDef, int atkSpeed, int critical, int hitModify, int avoidModify, int shieldDef, boolean sellable,
+			boolean dropable, boolean destroyable, boolean tradeable) {
+		this(id, displayId, name, kind, subType, type1, type2, bodyPart, weight, stackable, crystalType, price, pAtk,
+				mAtk, pDef, mDef, atkSpeed, critical, hitModify, avoidModify, shieldDef, 0, 1, 1, 0, List.of(), null,
+				null, null, sellable, dropable, destroyable, tradeable);
+	}
+
+	public ItemTemplate(int id, int displayId, String name, Kind kind, String subType, int type1, int type2,
+			int bodyPart, int weight, boolean stackable, String crystalType, int price, int pAtk, int mAtk, int pDef,
+			int mDef, int atkSpeed, int critical, int shieldDef, boolean sellable, boolean dropable, boolean destroyable,
+			boolean tradeable) {
+		this(id, displayId, name, kind, subType, type1, type2, bodyPart, weight, stackable, crystalType, price, pAtk,
+				mAtk, pDef, mDef, atkSpeed, critical, 0, 0, shieldDef, 0, 1, 1, 0, List.of(), null, null, null, sellable,
+				dropable, destroyable, tradeable);
+	}
+
 	public ItemTemplate {
 		name = name == null ? "" : name;
 		subType = subType == null ? "none" : subType.toLowerCase(Locale.ROOT);
 		crystalType = crystalType == null ? "none" : crystalType.toLowerCase(Locale.ROOT);
+		itemSkills = itemSkills == null ? List.of() : List.copyOf(itemSkills);
 	}
 
 	/** Item que vai para o paperdoll de um jogador (itens de pet e etc comuns ficam de fora). */
@@ -60,6 +111,10 @@ public record ItemTemplate(int id, int displayId, String name, Kind kind, String
 		return type2 == TYPE2_QUEST;
 	}
 
+	public boolean isTradeable() {
+		return tradeable && !isQuestItem();
+	}
+
 	public boolean isArrow() {
 		return kind == Kind.ETC && "arrow".equals(subType);
 	}
@@ -68,8 +123,24 @@ public record ItemTemplate(int id, int displayId, String name, Kind kind, String
 		return stackable;
 	}
 
+	public int crystalGrade() {
+		if (crystalType == null) {
+			return 0;
+		}
+		return switch (crystalType.toLowerCase(Locale.ROOT)) {
+			case "d" -> 1;
+			case "c" -> 2;
+			case "b" -> 3;
+			case "a" -> 4;
+			case "s" -> 5;
+			default -> 0;
+		};
+	}
+
 	public static ItemTemplate weapon(int id, int displayId, String name, String bodyPartName, String weaponType,
-			int weight, String crystal, int pAtk, int mAtk, int atkSpeed, int critical, int shieldDef, int price,
+			int weight, String crystal, int pAtk, int mAtk, int atkSpeed, int critical, int hitModify, int avoidModify,
+			int shieldDef, int soulshots, int spiritshots, int rndDam, int price, List<ItemSkillHolder> itemSkills,
+			ItemSkillHolder enchant4Skill, ItemSkillHolder onCritSkill, ItemSkillHolder onCastSkill,
 			boolean sellable, boolean dropable, boolean destroyable, boolean tradeable) {
 		String type = weaponType == null ? "none" : weaponType.toLowerCase(Locale.ROOT);
 		int bodyPart = ItemSlots.parseBodyPart(bodyPartName);
@@ -87,13 +158,29 @@ public record ItemTemplate(int id, int displayId, String name, Kind kind, String
 			type2 = TYPE2_WEAPON;
 		}
 		return new ItemTemplate(id, displayId, name, Kind.WEAPON, type, type1, type2, bodyPart, weight, false,
-				crystal, price, pAtk, mAtk, 0, 0, atkSpeed, critical, shieldDef, sellable, dropable, destroyable,
-				tradeable);
+				crystal, price, pAtk, mAtk, 0, 0, atkSpeed, critical, hitModify, avoidModify, shieldDef, 0, soulshots,
+				spiritshots, rndDam, itemSkills, enchant4Skill, onCritSkill, onCastSkill, sellable, dropable,
+				destroyable, tradeable);
+	}
+
+	public static ItemTemplate weapon(int id, int displayId, String name, String bodyPartName, String weaponType,
+			int weight, String crystal, int pAtk, int mAtk, int atkSpeed, int critical, int hitModify, int avoidModify,
+			int shieldDef, int price, boolean sellable, boolean dropable, boolean destroyable, boolean tradeable) {
+		return weapon(id, displayId, name, bodyPartName, weaponType, weight, crystal, pAtk, mAtk, atkSpeed, critical,
+				hitModify, avoidModify, shieldDef, 1, 1, 0, price, List.of(), null, null, null, sellable, dropable,
+				destroyable, tradeable);
+	}
+
+	public static ItemTemplate weapon(int id, int displayId, String name, String bodyPartName, String weaponType,
+			int weight, String crystal, int pAtk, int mAtk, int atkSpeed, int critical, int shieldDef, int price,
+			boolean sellable, boolean dropable, boolean destroyable, boolean tradeable) {
+		return weapon(id, displayId, name, bodyPartName, weaponType, weight, crystal, pAtk, mAtk, atkSpeed, critical,
+				0, 0, shieldDef, 1, 1, 0, price, List.of(), null, null, null, sellable, dropable, destroyable, tradeable);
 	}
 
 	public static ItemTemplate armor(int id, int displayId, String name, String bodyPartName, String armorType,
-			int weight, String crystal, int pDef, int mDef, int price, boolean sellable, boolean dropable,
-			boolean destroyable, boolean tradeable) {
+			int weight, String crystal, int pDef, int mDef, int avoidModify, int mpBonus, int price,
+			List<ItemSkillHolder> itemSkills, boolean sellable, boolean dropable, boolean destroyable, boolean tradeable) {
 		String type = armorType == null ? "none" : armorType.toLowerCase(Locale.ROOT);
 		int bodyPart = ItemSlots.parseBodyPart(bodyPartName);
 		int type1;
@@ -112,12 +199,27 @@ public record ItemTemplate(int id, int displayId, String name, Kind kind, String
 			bodyPart = ItemSlots.SLOT_CHEST;
 		}
 		return new ItemTemplate(id, displayId, name, Kind.ARMOR, type, type1, type2, bodyPart, weight, false, crystal,
-				price, 0, 0, pDef, mDef, 0, 0, 0, sellable, dropable, destroyable, tradeable);
+				price, 0, 0, pDef, mDef, 0, 0, 0, avoidModify, 0, mpBonus, 0, 0, 0, itemSkills, null, null, null,
+				sellable, dropable, destroyable, tradeable);
+	}
+
+	public static ItemTemplate armor(int id, int displayId, String name, String bodyPartName, String armorType,
+			int weight, String crystal, int pDef, int mDef, int avoidModify, int price, boolean sellable, boolean dropable,
+			boolean destroyable, boolean tradeable) {
+		return armor(id, displayId, name, bodyPartName, armorType, weight, crystal, pDef, mDef, avoidModify, 0, price,
+				List.of(), sellable, dropable, destroyable, tradeable);
+	}
+
+	public static ItemTemplate armor(int id, int displayId, String name, String bodyPartName, String armorType,
+			int weight, String crystal, int pDef, int mDef, int price, boolean sellable, boolean dropable,
+			boolean destroyable, boolean tradeable) {
+		return armor(id, displayId, name, bodyPartName, armorType, weight, crystal, pDef, mDef, 0, 0, price,
+				List.of(), sellable, dropable, destroyable, tradeable);
 	}
 
 	public static ItemTemplate etc(int id, int displayId, String name, String itemType, String consumeType,
-			int weight, String crystal, int price, boolean sellable, boolean dropable, boolean destroyable,
-			boolean tradeable) {
+			int weight, String crystal, int price, List<ItemSkillHolder> itemSkills, boolean sellable, boolean dropable,
+			boolean destroyable, boolean tradeable) {
 		String type = itemType == null ? "none" : itemType.toLowerCase(Locale.ROOT);
 		String consume = consumeType == null ? "normal" : consumeType.toLowerCase(Locale.ROOT);
 		int type2 = type.equals("quest") ? TYPE2_QUEST : TYPE2_OTHER;
@@ -127,7 +229,15 @@ public record ItemTemplate(int id, int displayId, String name, Kind kind, String
 			type2 = TYPE2_MONEY;
 		}
 		return new ItemTemplate(id, displayId, name, Kind.ETC, type, TYPE1_ITEM_QUESTITEM_ADENA, type2, bodyPart,
-				weight, stackable, crystal, price, 0, 0, 0, 0, 0, 0, 0, sellable, dropable, destroyable, tradeable);
+				weight, stackable, crystal, price, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, itemSkills, null, null, null,
+				sellable, dropable, destroyable, tradeable);
+	}
+
+	public static ItemTemplate etc(int id, int displayId, String name, String itemType, String consumeType,
+			int weight, String crystal, int price, boolean sellable, boolean dropable, boolean destroyable,
+			boolean tradeable) {
+		return etc(id, displayId, name, itemType, consumeType, weight, crystal, price, List.of(), sellable, dropable,
+				destroyable, tradeable);
 	}
 
 	private static int petType2(int bodyPart) {
