@@ -59,6 +59,14 @@ public class SpawnService {
 				std, custom, raid, vanHalter, tomb, fort, random, minions, world.totalNpcs(), (System.nanoTime() - start) / 1_000_000);
 	}
 
+	public synchronized int reloadSpawns() {
+		int before = world.totalNpcs();
+		int std = loadSpawns("spawnlist");
+		int custom = loadSpawns("custom_spawnlist");
+		log.info("SpawnService: recarregados {} padrao e {} custom do banco. Total NPCs no mundo: {}", std, custom, world.totalNpcs());
+		return world.totalNpcs() - before;
+	}
+
 	public Optional<NpcInstance> spawn(int npcId, int x, int y, int z, int heading) {
 		return spawn(npcId, x, y, z, heading, false);
 	}
