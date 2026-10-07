@@ -103,29 +103,71 @@ class JdbcItemTemplateTable implements ItemTemplateTable {
 		}
 	}
 
+	private static String optString(ResultSet rs, String column) {
+		try {
+			String val = rs.getString(column);
+			return val == null ? "" : val;
+		} catch (SQLException e) {
+			return "";
+		}
+	}
+
+	private static int optInt(ResultSet rs, String column) {
+		try {
+			return rs.getInt(column);
+		} catch (SQLException e) {
+			return 0;
+		}
+	}
+
 	private static boolean flag(ResultSet rs, String column) throws SQLException {
 		String v = rs.getString(column);
 		return v == null || Boolean.parseBoolean(v);
 	}
 
 	private static ItemTemplate etc(ResultSet rs, int displayId) throws SQLException {
+		String skill = optString(rs, "skill");
 		return ItemTemplate.etc(rs.getInt("item_id"), displayId, rs.getString("name"), rs.getString("item_type"),
 				rs.getString("consume_type"), rs.getInt("weight"), rs.getString("crystal_type"), rs.getInt("price"),
-				flag(rs, "sellable"), flag(rs, "dropable"), flag(rs, "destroyable"), flag(rs, "tradeable"));
+				ItemSkillHolder.parseList(skill), flag(rs, "sellable"), flag(rs, "dropable"), flag(rs, "destroyable"),
+				flag(rs, "tradeable"));
 	}
 
 	private static ItemTemplate armor(ResultSet rs, int displayId) throws SQLException {
+		int avoidModify = optInt(rs, "avoid_modify");
+		int mpBonus = optInt(rs, "mp_bonus");
+		String skillsItem = optString(rs, "skills_item");
 		return ItemTemplate.armor(rs.getInt("item_id"), displayId, rs.getString("name"), rs.getString("bodypart"),
 				rs.getString("armor_type"), rs.getInt("weight"), rs.getString("crystal_type"), rs.getInt("p_def"),
-				rs.getInt("m_def"), rs.getInt("price"), flag(rs, "sellable"), flag(rs, "dropable"),
-				flag(rs, "destroyable"), flag(rs, "tradeable"));
+				rs.getInt("m_def"), avoidModify, mpBonus, rs.getInt("price"), ItemSkillHolder.parseList(skillsItem),
+				flag(rs, "sellable"), flag(rs, "dropable"), flag(rs, "destroyable"), flag(rs, "tradeable"));
 	}
 
 	private static ItemTemplate weapon(ResultSet rs, int displayId) throws SQLException {
+		int critical = rs.getInt("critical");
+		if (critical > 0 && critical <= 20) {
+			critical *= 10;
+		}
+		int hitModify = 0;
+		try {
+			hitModify = (int) Math.round(rs.getDouble("hit_modify"));
+		} catch (SQLException ignored) {
+		}
+		int avoidModify = optInt(rs, "avoid_modify");
+		int soulshots = Math.max(1, optInt(rs, "soulshots"));
+		int spiritshots = Math.max(1, optInt(rs, "spiritshots"));
+		int rndDam = optInt(rs, "rnd_dam");
+		String skillsItem = optString(rs, "skills_item");
+		String skillsEnchant4 = optString(rs, "skills_enchant4");
+		String skillsOnCrit = optString(rs, "skills_onCrit");
+		String skillsOnCast = optString(rs, "skills_onCast");
+
 		return ItemTemplate.weapon(rs.getInt("item_id"), displayId, rs.getString("name"), rs.getString("bodypart"),
 				rs.getString("weaponType"), rs.getInt("weight"), rs.getString("crystal_type"), rs.getInt("p_dam"),
-				rs.getInt("m_dam"), rs.getInt("atk_speed"), rs.getInt("critical"), rs.getInt("shield_def"),
-				rs.getInt("price"), flag(rs, "sellable"), flag(rs, "dropable"), flag(rs, "destroyable"),
-				flag(rs, "tradeable"));
+				rs.getInt("m_dam"), rs.getInt("atk_speed"), critical, hitModify, avoidModify, rs.getInt("shield_def"),
+				soulshots, spiritshots, rndDam, rs.getInt("price"), ItemSkillHolder.parseList(skillsItem),
+				ItemSkillHolder.parse(skillsEnchant4), ItemSkillHolder.parse(skillsOnCrit),
+				ItemSkillHolder.parse(skillsOnCast), flag(rs, "sellable"), flag(rs, "dropable"),
+				flag(rs, "destroyable"), flag(rs, "tradeable"));
 	}
 }
