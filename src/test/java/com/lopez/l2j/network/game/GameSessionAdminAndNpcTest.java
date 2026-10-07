@@ -272,6 +272,30 @@ class GameSessionAdminAndNpcTest {
 		}
 	}
 
+	@Test
+	void testAdminKickSendsServerCloseAndSystemMessage() {
+		player.accessLevel(100);
+		List<GameServerPacket> targetPackets = new java.util.concurrent.CopyOnWriteArrayList<>();
+		java.util.concurrent.atomic.AtomicReference<GameServerPacket> closePacket = new java.util.concurrent.atomic.AtomicReference<>();
+
+		PlayerCharacter targetChar = new PlayerCharacter(2002, "targetAcc", "TargetVictim", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
+				500, 300, 200, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 500.0, 300.0, 200.0);
+		targetChar.inventory(new Inventory(targetChar.objectId()));
+		GameSession targetSession = new GameSession(ctx, new byte[8], "127.0.0.1", targetPackets::add, closePacket::set);
+		setField(targetSession, "active", targetChar);
+		setField(targetSession, "inWorld", true);
+		world.add(targetSession);
+
+		invoke(session, "onSay", new Say2("//kick TargetVictim", 0, null));
+
+		assertTrue(targetPackets.stream().anyMatch(p -> p instanceof com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage sm
+				&& sm.id() == com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage.DISCONNECTED_FROM_SERVER),
+				"Deve enviar SystemMessage de desconexao (127)");
+		org.junit.jupiter.api.Assertions.assertNotNull(closePacket.get(), "Deve chamar close na sessao do alvo");
+		assertTrue(closePacket.get() instanceof com.lopez.l2j.network.game.packet.GameServerPacket.ServerClose,
+				"Deve enviar ServerClose (0x26) para exibir o dialogo de desconexao no cliente");
+	}
+
 	private static void setField(Object target, String name, Object val) {
 		try {
 			var f = target.getClass().getDeclaredField(name);
