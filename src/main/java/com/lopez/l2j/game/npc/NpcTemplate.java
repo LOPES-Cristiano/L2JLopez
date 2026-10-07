@@ -119,6 +119,10 @@ public record NpcTemplate(
 		return type != null && type.toLowerCase(java.util.Locale.ROOT).contains("guard");
 	}
 
+	public boolean isFriendlyMob() {
+		return type != null && "L2FriendlyMob".equalsIgnoreCase(type);
+	}
+
 	public boolean isAttackable() {
 		return isMonster() || isGuard();
 	}
