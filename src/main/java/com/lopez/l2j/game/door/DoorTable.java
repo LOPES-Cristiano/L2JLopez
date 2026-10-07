@@ -45,6 +45,17 @@ public class DoorTable {
 		}
 	}
 
+	public DoorTable() {
+		this(Path.of("data/xml/world/door.xml"), ObjectIdFactory.sequential(0x50000000));
+	}
+
+	public void register(DoorInstance door) {
+		if (door != null) {
+			byDoorId.put(door.doorId(), door);
+			byObjectId.put(door.objectId(), door);
+		}
+	}
+
 	public int size() {
 		return byDoorId.size();
 	}
@@ -59,6 +70,11 @@ public class DoorTable {
 
 	public DoorInstance getDoor(int doorId) {
 		return byDoorId.get(doorId);
+	}
+
+	public DoorInstance door(int id) {
+		DoorInstance d = byDoorId.get(id);
+		return d != null ? d : byObjectId.get(id);
 	}
 
 	public java.util.List<DoorInstance> findDoorsAround(int x, int y, int radius) {
