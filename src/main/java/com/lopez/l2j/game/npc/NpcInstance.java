@@ -44,9 +44,13 @@ public final class NpcInstance {
 	public int npcId() { return template.id(); }
 	public String name() { return template.name(); }
 	public int x() { return x; }
+	public void x(int value) { this.x = value; }
 	public int y() { return y; }
+	public void y(int value) { this.y = value; }
 	public int z() { return z; }
+	public void z(int value) { this.z = value; }
 	public int heading() { return heading; }
+	public void heading(int value) { this.heading = value; }
 	public int spawnX() { return spawnX; }
 	public int spawnY() { return spawnY; }
 	public int spawnZ() { return spawnZ; }
@@ -72,6 +76,7 @@ public final class NpcInstance {
 	public double pDef() { return template.pDef() * pDefMul; }
 	public double mDef() { return template.mDef() * mDefMul; }
 	public double pAtk() { return template.pAtk() * pAtkMul; }
+	public double mAtk() { return template.mAtk(); }
 	public void pDefMul(double value) { this.pDefMul = value; }
 	public void mDefMul(double value) { this.mDefMul = value; }
 	public void pAtkMul(double value) { this.pAtkMul = value; }
@@ -95,6 +100,41 @@ public final class NpcInstance {
 		this.z = z;
 		this.heading = heading;
 	}
+
+	// ---- controle de Spoil (Anões: Spoil / Sweeper) ----
+
+	private volatile boolean spoiled;
+	private volatile int spoilerPlayerId;
+	private volatile java.util.List<com.lopez.l2j.game.drop.DropReward> spoilRewards;
+
+	public boolean isSpoiled() { return spoiled; }
+	public void spoiled(boolean value) { this.spoiled = value; }
+	public int spoilerPlayerId() { return spoilerPlayerId; }
+	public void spoilerPlayerId(int value) { this.spoilerPlayerId = value; }
+	public java.util.List<com.lopez.l2j.game.drop.DropReward> spoilRewards() { return spoilRewards; }
+	public void spoilRewards(java.util.List<com.lopez.l2j.game.drop.DropReward> rewards) { this.spoilRewards = rewards; }
+
+	public void addMinion(NpcInstance minion) {
+		if (minion != null && !minions.contains(minion)) {
+			minion.masterObjectId(this.objectId);
+			minions.add(minion);
+		}
+	}
+
+	public void removeMinion(NpcInstance minion) {
+		if (minion != null) {
+			minions.remove(minion);
+		}
+	}
+
+	// ---- controle de efeitos anormais (AbnormalEffect bitmask) ----
+
+	private volatile int abnormalEffect;
+
+	public int abnormalEffect() { return abnormalEffect; }
+	public void abnormalEffect(int value) { this.abnormalEffect = value; }
+	public void startAbnormalEffect(int mask) { this.abnormalEffect |= mask; }
+	public void stopAbnormalEffect(int mask) { this.abnormalEffect &= ~mask; }
 
 	// ---- controle de debuffs de skills (Stun/Sleep/Paralyze/Root) ----
 
