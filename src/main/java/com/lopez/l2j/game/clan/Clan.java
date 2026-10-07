@@ -127,6 +127,14 @@ public class Clan {
 	public boolean isNoticeEnabled() { return noticeEnabled; }
 	public void setNoticeEnabled(boolean enabled) { this.noticeEnabled = enabled; }
 
+	public long charPenaltyExpiryTime() { return charPenaltyExpiryTime; }
+	public void charPenaltyExpiryTime(long time) { this.charPenaltyExpiryTime = time; }
+	public boolean hasCharPenalty() { return System.currentTimeMillis() < charPenaltyExpiryTime; }
+
+	public long allyPenaltyExpiryTime() { return allyPenaltyExpiryTime; }
+	public void allyPenaltyExpiryTime(long time) { this.allyPenaltyExpiryTime = time; }
+	public boolean hasAllyPenalty() { return System.currentTimeMillis() < allyPenaltyExpiryTime; }
+
 	public boolean isLeader(int objectId) {
 		return leaderId == objectId;
 	}
@@ -164,15 +172,12 @@ public class Clan {
 	public int auctionBiddedAt() { return auctionBiddedAt; }
 	public void auctionBiddedAt(int auctionBiddedAt) { this.auctionBiddedAt = auctionBiddedAt; }
 
-	public long allyPenaltyExpiryTime() { return allyPenaltyExpiryTime; }
 	public int allyPenaltyType() { return allyPenaltyType; }
 	public void setAllyPenalty(long expiryTime, int penaltyType) {
 		this.allyPenaltyExpiryTime = expiryTime;
 		this.allyPenaltyType = penaltyType;
 	}
 
-	public long charPenaltyExpiryTime() { return charPenaltyExpiryTime; }
-	public void charPenaltyExpiryTime(long time) { this.charPenaltyExpiryTime = time; }
 	public long dissolvingExpiryTime() { return dissolvingExpiryTime; }
 	public void dissolvingExpiryTime(long time) { this.dissolvingExpiryTime = time; }
 	public int newLeaderId() { return newLeaderId; }
