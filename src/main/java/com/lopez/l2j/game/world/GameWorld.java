@@ -33,12 +33,26 @@ public class GameWorld {
 
 		void send(GameServerPacket packet);
 
+		default void close(GameServerPacket packet) {
+		}
+
+		default String account() {
+			return null;
+		}
+
 		default GameServerPacket charInfo() {
 			return null;
 		}
 
 		default com.lopez.l2j.game.model.PlayerCharacter character() {
 			return null;
+		}
+
+		default void onAttacked(int attackerObjectId) {
+			onAttacked(attackerObjectId, 0);
+		}
+
+		default void onAttacked(int attackerObjectId, int damage) {
 		}
 	}
 
