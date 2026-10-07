@@ -134,7 +134,7 @@ public class PetDataTable {
 							int loadMax = Integer.parseInt(a.getNamedItem("loadMax").getNodeValue());
 							int hpRegen = Integer.parseInt(a.getNamedItem("hpregen").getNodeValue());
 							int mpRegen = Integer.parseInt(a.getNamedItem("mpregen").getNodeValue());
-							int ownerExpTaken = Integer.parseInt(a.getNamedItem("owner_exp_taken").getNodeValue());
+							double ownerExpTaken = Double.parseDouble(a.getNamedItem("owner_exp_taken").getNodeValue());
 
 							PetStatTemplate tpl = new PetStatTemplate(type, typeId, level, expMax, hpMax, mpMax,
 									pAtk, pDef, mAtk, mDef, acc, evasion, crit, speed, atkSpeed, castSpeed,
