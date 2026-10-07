@@ -29,6 +29,7 @@ import java.util.function.BiConsumer;
  * Maquina de estados de UMA conexao de login (porta de L2AuthClient + L2AuthPacketHandler + os
  * clientpackets). Nao conhece sockets: recebe o corpo ja decifrado de um pacote e devolve os pacotes de
  * resposta, o que a torna testavel sem rede. Nao e thread-safe; use uma thread por conexao.
+ * Suporta autenticacao RSA e comunicacao estrita com LoginAccountService.
  */
 public final class LoginSession {
 
