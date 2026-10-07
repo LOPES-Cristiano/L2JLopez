@@ -47,6 +47,26 @@ public record CharTemplate(
 		return classLevel == 1;
 	}
 
+	/**
+	 * Grau/Tier da classe:
+	 * 0 = Classe inicial (Human Fighter, etc. - class_lvl 1)
+	 * 1 = 1st Class Transfer (Warrior, Knight, etc. - class_lvl 20)
+	 * 2 = 2nd Class Transfer (Gladiator, Paladin, etc. - class_lvl 40)
+	 * 3 = 3rd Class Transfer (Duelist, Phoenix Knight, etc. - class_lvl 76)
+	 */
+	public int classTier() {
+		if (classLevel >= 76) {
+			return 3;
+		}
+		if (classLevel >= 40) {
+			return 2;
+		}
+		if (classLevel >= 20) {
+			return 1;
+		}
+		return 0;
+	}
+
 	public double collisionRadius(boolean female) {
 		return female ? femaleCollisionRadius : maleCollisionRadius;
 	}
