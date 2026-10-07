@@ -32,7 +32,9 @@ public record NpcTemplate(
 		int aggroRange,
 		boolean isUndead,
 		long exp,
-		int sp) {
+		int sp,
+		String factionId,
+		int factionRange) {
 
 	public NpcTemplate(
 			int id, int idTemplate, String name, boolean serverSideName, String title,
@@ -43,7 +45,33 @@ public record NpcTemplate(
 		this(id, idTemplate, name, serverSideName, title, serverSideTitle, collisionRadius,
 				collisionHeight, level, sex, type, attackRange, maxHp, maxMp, pAtk, pDef,
 				mAtk, mDef, pAtkSpd, mAtkSpd, rhand, lhand, armor, walkSpd, runSpd,
-				aggroRange, isUndead, 0L, 0);
+				aggroRange, isUndead, 0L, 0, null, 0);
+	}
+
+	public NpcTemplate(
+			int id, int idTemplate, String name, boolean serverSideName, String title,
+			boolean serverSideTitle, double collisionRadius, double collisionHeight, int level,
+			String sex, String type, int attackRange, int maxHp, int maxMp, int pAtk,
+			int pDef, int mAtk, int mDef, int pAtkSpd, int mAtkSpd, int rhand,
+			int lhand, int armor, int walkSpd, int runSpd, int aggroRange, boolean isUndead,
+			long exp, int sp) {
+		this(id, idTemplate, name, serverSideName, title, serverSideTitle, collisionRadius,
+				collisionHeight, level, sex, type, attackRange, maxHp, maxMp, pAtk, pDef,
+				mAtk, mDef, pAtkSpd, mAtkSpd, rhand, lhand, armor, walkSpd, runSpd,
+				aggroRange, isUndead, exp, sp, null, 0);
+	}
+
+	public NpcTemplate(
+			int id, int idTemplate, String name, boolean serverSideName, String title,
+			boolean serverSideTitle, double collisionRadius, double collisionHeight, int level,
+			String sex, String type, int attackRange, int maxHp, int maxMp, int pAtk,
+			int pDef, int mAtk, int mDef, int pAtkSpd, int mAtkSpd, int rhand,
+			int lhand, int armor, int walkSpd, int runSpd, int aggroRange, boolean isUndead,
+			String factionId, int factionRange) {
+		this(id, idTemplate, name, serverSideName, title, serverSideTitle, collisionRadius,
+				collisionHeight, level, sex, type, attackRange, maxHp, maxMp, pAtk, pDef,
+				mAtk, mDef, pAtkSpd, mAtkSpd, rhand, lhand, armor, walkSpd, runSpd,
+				aggroRange, isUndead, 0L, 0, factionId, factionRange);
 	}
 
 	public NpcTemplate {
@@ -51,6 +79,7 @@ public record NpcTemplate(
 		title = title == null ? "" : title;
 		type = type == null ? "L2Npc" : type;
 		sex = sex == null ? "male" : sex;
+		factionId = factionId == null || factionId.isBlank() ? null : factionId.trim();
 	}
 
 	public boolean isMonster() {
