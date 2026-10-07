@@ -53,4 +53,21 @@ class GrandBossManagerTest {
 		manager.setStatus(GrandBossManager.ANTHARAS, BossStatus.WAITING);
 		assertThat(manager.getStatus(GrandBossManager.ANTHARAS)).isEqualTo(BossStatus.WAITING);
 	}
+
+	@Test
+	void bossCronScheduling() {
+		var baium = manager.getBoss(GrandBossManager.BAIUM).orElseThrow();
+		assertThat(baium.cronExpression()).isNullOrEmpty();
+
+		// Configura agendamento cron: todos os dias as 21:00
+		manager.setBossCron(GrandBossManager.BAIUM, "0 0 21 * * *");
+		assertThat(baium.cronExpression()).isEqualTo("0 0 21 * * *");
+
+		manager.onBossKilled(GrandBossManager.BAIUM);
+		assertThat(manager.getStatus(GrandBossManager.BAIUM)).isEqualTo(BossStatus.INTERVAL);
+		assertThat(baium.respawnTime()).isGreaterThan(System.currentTimeMillis());
+
+		String formatted = manager.getNextRespawnFormatted(GrandBossManager.BAIUM);
+		assertThat(formatted).matches("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}");
+	}
 }
