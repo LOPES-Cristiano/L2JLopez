@@ -172,6 +172,34 @@ class NpcImprovementsTest {
 	}
 
 	@Test
+	void shouldStopCombatForPlayerWhenTeleportingOrDying() {
+		NpcTemplate tplMob = new NpcTemplate(
+				20758, 20758, "Dragon Bearer Chief", false, "", false,
+				11.0, 27.0, 49, "male", "L2Monster",
+				40, 2168, 799, 437, 297, 247, 219, 278, 333,
+				0, 0, 0, 60, 174, 500, false, "cave_servant_clan", 300);
+
+		NpcInstance mob = new NpcInstance(5001, tplMob, 100, 100, 0, 0);
+		world.addNpc(mob);
+
+		PlayerCharacter player = new PlayerCharacter(3004, "acc", "Spell", 36, 0, 0, 0, 0, 0, false, 0, 0, 0,
+				1000, 500, 500, 0, 0, 0, 0, "", 0, 0, 0, 100, 100, 0, 0, 1000.0, 500.0, 500.0);
+		TestGameSession session = new TestGameSession(player);
+		world.add(session);
+
+		// Inicia combate
+		npcAiService.startCombat(mob, player.objectId());
+		assertThat(mob.inCombat()).isTrue();
+		assertThat(mob.targetPlayerId()).isEqualTo(player.objectId());
+
+		// Jogador teleporta ou morre: chama stopCombatForPlayer
+		npcAiService.stopCombatForPlayer(player.objectId());
+
+		assertThat(mob.inCombat()).isFalse();
+		assertThat(mob.targetPlayerId()).isEqualTo(0);
+	}
+
+	@Test
 	void shouldRollAndSweepSpoilDrops() {
 		// Mock drop table com drop comum e spoil
 		int mobId = 20100;
@@ -258,6 +286,33 @@ class NpcImprovementsTest {
 		var skills = table.getSkills(20079);
 		// Deve ter habilidades registradas
 		assertThat(skills).isNotEmpty();
+	}
+
+	@Test
+	void shouldNotTriggerFactionCallForNeutralMobsWithNullOrZeroRange() {
+		// Simula dois Gremlins proximos (raio 100) com faction_id "NULL" ou range 0
+		NpcTemplate tplGremlin = new NpcTemplate(
+				20001, 20001, "Gremlin", false, "", false,
+				8.0, 16.0, 1, "male", "L2Monster",
+				40, 62, 44, 9, 39, 3, 32, 278, 333,
+				0, 0, 0, 20, 50, 0, false, "NULL", 0);
+
+		NpcInstance gremlin1 = new NpcInstance(5001, tplGremlin, 100, 100, 0, 0);
+		NpcInstance gremlin2 = new NpcInstance(5002, tplGremlin, 150, 100, 0, 0);
+
+		world.addNpc(gremlin1);
+		world.addNpc(gremlin2);
+
+		// Jogador ataca o gremlin1
+		int targetPlayerId = 999;
+		npcAiService.startCombat(gremlin1, targetPlayerId);
+
+		// Apenas o gremlin atacado entra em combate
+		assertThat(gremlin1.inCombat()).isTrue();
+		assertThat(gremlin1.targetPlayerId()).isEqualTo(targetPlayerId);
+
+		// O outro gremlin proximo NAO deve entrar em combate (permanece neutro)
+		assertThat(gremlin2.inCombat()).isFalse();
 	}
 
 	/**
