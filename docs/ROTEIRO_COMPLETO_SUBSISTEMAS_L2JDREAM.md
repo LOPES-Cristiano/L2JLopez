@@ -87,5 +87,5 @@ A inicialização do L2JDream executa rigorosamente 23 seções ordenadas no mé
 | **Manor / Feudos** | `CastleManorManager`, `SeedTemplate` | `seeds.xml`, `castle_manor_*` | 100% (256 sementes) | ✅ Concluído |
 
 > **Status da Suíte de Testes Geral**:  
-> **262 testes executados**, **0 falhas**, **0 erros**, **100% de sucesso na compilação e execução Maven** (`.\mvnw.cmd test`).
+> **559 testes executados**, **0 falhas**, **0 erros**, **100% de sucesso na compilação e execução Maven** (`.\mvnw.cmd test`).
 
