@@ -27,6 +27,6 @@ public record PetStatTemplate(
 		int loadMax,
 		int hpRegen,
 		int mpRegen,
-		int ownerExpTaken
+		double ownerExpTaken
 ) {
 }
