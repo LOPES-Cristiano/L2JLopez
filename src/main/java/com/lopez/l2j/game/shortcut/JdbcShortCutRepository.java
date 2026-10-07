@@ -52,4 +52,14 @@ public class JdbcShortCutRepository implements ShortCutRepository {
 				.params(charId, slot, page, classIndex)
 				.update();
 	}
+
+	@Override
+	public void deleteByTypeAndId(int charId, int type, int shortcutId) {
+		jdbc.sql("""
+				DELETE FROM character_shortcuts
+				WHERE charId = ? AND type = ? AND shortcut_id = ?
+				""")
+				.params(charId, type, shortcutId)
+				.update();
+	}
 }
