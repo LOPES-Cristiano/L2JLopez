@@ -17,17 +17,63 @@ public class CombatService {
 
 	private final double rateXp;
 	private final double rateSp;
+	private final com.lopez.l2j.game.geodata.GeoEngine geoEngine;
 
 	public CombatService() {
-		this(1.0, 1.0);
+		this(1.0, 1.0, null);
+	}
+
+	public CombatService(double rateXp, double rateSp) {
+		this(rateXp, rateSp, null);
 	}
 
 	@org.springframework.beans.factory.annotation.Autowired
 	public CombatService(
 			@Value("${l2.rates.xp:1.0}") double rateXp,
-			@Value("${l2.rates.sp:1.0}") double rateSp) {
+			@Value("${l2.rates.sp:1.0}") double rateSp,
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.geodata.GeoEngine geoEngine) {
 		this.rateXp = rateXp;
 		this.rateSp = rateSp;
+		this.geoEngine = geoEngine;
+	}
+
+	public com.lopez.l2j.game.geodata.GeoEngine geoEngine() {
+		return geoEngine;
+	}
+
+	public boolean canSeeTarget(int x, int y, int z, int tx, int ty, int tz) {
+		if (geoEngine != null) {
+			return geoEngine.canSeeTarget(x, y, z, tx, ty, tz);
+		}
+		return true;
+	}
+
+	public boolean canSeeTarget(PlayerCharacter player, NpcInstance npc) {
+		if (geoEngine != null && player != null && npc != null) {
+			return geoEngine.canSeeTarget(player, npc);
+		}
+		return true;
+	}
+
+	public boolean canSeeTarget(NpcInstance npc, PlayerCharacter player) {
+		if (geoEngine != null && npc != null && player != null) {
+			return geoEngine.canSeeTarget(npc, player);
+		}
+		return true;
+	}
+
+	public boolean canSeeTarget(PlayerCharacter player, PlayerCharacter target) {
+		if (geoEngine != null && player != null && target != null) {
+			return geoEngine.canSeeTarget(player, target);
+		}
+		return true;
+	}
+
+	public short getHeight(int x, int y, int z) {
+		if (geoEngine != null) {
+			return geoEngine.getHeight(x, y, z);
+		}
+		return (short) z;
 	}
 
 	public record HitResult(int damage, int flags, boolean isDead, int remainingHp, int maxHp, long expReward,
@@ -45,18 +91,7 @@ public class CombatService {
 	 * entre o nivel magico do skill e o nivel do alvo (retail Lineage 2 / L2JDream Formulas.calcMagicSuccess).
 	 */
 	public static boolean calcMagicSuccess(int magicLevel, int attackerLevel, int targetLevel) {
-		int effMagicLvl = magicLevel > 0 ? Math.min(magicLevel, attackerLevel) : attackerLevel;
-		int lvlDiff = targetLevel - effMagicLvl;
-		if (lvlDiff <= 0) {
-			return true;
-		}
-		// Formula oficial L2J/Dream: taxa de falha (1.3 ^ lvlDiff) * 100 em base 10000 (bps).
-		// Se lvlDiff >= 18, rate >= 10000 (100% de falha garantida / resist total).
-		int rate = (int) Math.round(Math.pow(1.3, lvlDiff) * 100.0);
-		if (rate >= 10000) {
-			return false;
-		}
-		return ThreadLocalRandom.current().nextInt(10000) >= rate;
+		return Formulas.calcMagicSuccess(magicLevel, attackerLevel, targetLevel);
 	}
 
 	public HitResult attackNpc(PlayerCharacter attacker, CharTemplate template, NpcInstance target) {
@@ -99,8 +134,8 @@ public class CombatService {
 			baseDam *= 2.0;
 		}
 
-		// Variacao aleatoria (+/- 5%)
-		double rnd = 0.95 + (ThreadLocalRandom.current().nextDouble() * 0.10);
+		// Variacao aleatoria baseada no rnd_dam da arma (ex: 5% dagger, 10% sword, 20% blunt)
+		double rnd = calcRndMultiplier(attacker);
 		int damage = Math.max(1, (int) Math.round(baseDam * rnd));
 		int flags = crit ? 0x20 : 0x00;
 		if (soulshot) {
@@ -136,7 +171,7 @@ public class CombatService {
 		if (crit) {
 			baseDam *= 2.0;
 		}
-		double rnd = 0.95 + (ThreadLocalRandom.current().nextDouble() * 0.10);
+		double rnd = calcRndMultiplier(attacker);
 		int damage = Math.max(1, (int) Math.round(baseDam * rnd));
 		int flags = crit ? 0x20 : 0x00;
 		if (soulshot) {
@@ -154,6 +189,9 @@ public class CombatService {
 		if (target.isDead()) {
 			return new HitResult(0, 0, true, 0, target.template().maxHp(), 0, 0);
 		}
+		if (!canSeeTarget(attacker, target)) {
+			return new HitResult(0, 0x80, false, (int) target.currentHp(), target.template().maxHp(), 0, 0);
+		}
 		var plan = planAttackNpc(attacker, template, target, soulshotGrade);
 		if (plan.miss()) {
 			return new HitResult(0, plan.flags(), false, (int) target.currentHp(), target.template().maxHp(), 0, 0);
@@ -167,13 +205,24 @@ public class CombatService {
 	 */
 	public HitResult skillPhysicalNpc(PlayerCharacter attacker, CharTemplate template, NpcInstance target,
 			double power, boolean soulshot, boolean blow) {
+		return skillPhysicalNpc(attacker, template, target, power, soulshot, blow, false);
+	}
+
+	public HitResult skillPhysicalNpc(PlayerCharacter attacker, CharTemplate template, NpcInstance target,
+			double power, boolean soulshot, boolean blow, boolean chargeDam) {
 		if (target.isDead()) {
 			return new HitResult(0, 0, false, 0, target.template().maxHp(), 0, 0); // ja morto: nada a recompensar
+		}
+		if (!canSeeTarget(attacker, target)) {
+			return new HitResult(0, 0x80, false, (int) target.currentHp(), target.template().maxHp(), 0, 0, true);
 		}
 		var stats = PlayerStats.calculate(attacker, template);
 		double pAtk = stats.pAtk() * (soulshot ? 2.0 : 1.0);
 		double pDef = Math.max(1, target.pDef());
 		double dmg = (pAtk + power) * 70.0 / pDef;
+		if (chargeDam) {
+			dmg *= (0.8 + 0.201 * attacker.charges());
+		}
 		boolean crit = blow ? ThreadLocalRandom.current().nextInt(100) < 50
 				: ThreadLocalRandom.current().nextInt(1000) < Math.max(40, stats.critical()) / 2;
 		if (crit) {
@@ -201,6 +250,9 @@ public class CombatService {
 			double power, int magicLevel, boolean sps, boolean bss) {
 		if (target.isDead()) {
 			return new HitResult(0, 0, false, 0, target.template().maxHp(), 0, 0, false);
+		}
+		if (!canSeeTarget(attacker, target)) {
+			return new HitResult(0, 0x80, false, (int) target.currentHp(), target.template().maxHp(), 0, 0, true);
 		}
 		var stats = PlayerStats.calculate(attacker, template);
 		double mAtk = Math.max(1, stats.mAtk());
@@ -305,6 +357,9 @@ public class CombatService {
 		if (attacker.isDead() || target.isDead() || target.invul()) {
 			return new HitResult(0, 0, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
 		}
+		if (!canSeeTarget(attacker, target)) {
+			return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+		}
 
 		double pAtk = attacker.pAtk();
 		var targetStats = PlayerStats.calculate(target, targetTemplate);
@@ -334,6 +389,61 @@ public class CombatService {
 		return new HitResult(damage, flags, isDead, (int) newHp, target.maxHp(), 0, 0);
 	}
 
+	/**
+	 * Dano de habilidade de monstro/NPC contra um jogador (habilidade fisica ou magica).
+	 */
+	public HitResult skillAttackPlayer(NpcInstance attacker, PlayerCharacter target, CharTemplate targetTemplate,
+			double power, boolean magic, int magicLevel) {
+		if (attacker.isDead() || target.isDead() || target.invul()) {
+			return new HitResult(0, 0, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+		}
+
+		var targetStats = PlayerStats.calculate(target, targetTemplate);
+		double baseDam;
+		int flags = 0;
+
+		if (magic) {
+			double mAtk = Math.max(1, attacker.mAtk());
+			double mDef = Math.max(1, targetStats.mDef());
+			double pwr = power > 0 ? power : 50.0;
+			baseDam = 91.0 * Math.sqrt(mAtk) * pwr / mDef;
+
+			boolean crit = ThreadLocalRandom.current().nextInt(1000) < 50;
+			if (crit) {
+				baseDam *= 3.0;
+				flags |= 0x20;
+			}
+
+			int targetLvl = target.level();
+			int effMagicLvl = magicLevel > 0 ? magicLevel : attacker.template().level();
+			int lvlDiff = targetLvl - effMagicLvl;
+			if (lvlDiff > 0 && !calcMagicSuccess(effMagicLvl, attacker.template().level(), targetLvl)) {
+				baseDam /= 2.0;
+				flags |= 0x40;
+			}
+		} else {
+			double pDef = Math.max(1, targetStats.pDef());
+			double pAtk = attacker.pAtk();
+			baseDam = ((pAtk + power) * 70.0) / pDef;
+
+			boolean crit = ThreadLocalRandom.current().nextInt(1000) < 40;
+			if (crit) {
+				baseDam *= 2.0;
+				flags |= 0x20;
+			}
+		}
+
+		double rnd = 0.95 + (ThreadLocalRandom.current().nextDouble() * 0.10);
+		int damage = Math.max(1, (int) Math.round(baseDam * rnd));
+
+		double newHp = Math.max(0, target.currentHp() - damage);
+		target.currentHp(newHp);
+		target.onDamaged();
+		boolean isDead = newHp <= 0;
+
+		return new HitResult(damage, flags, isDead, (int) newHp, target.maxHp(), 0, 0);
+	}
+
 	// ==================== PVP COMBAT & SKILLS ====================
 
 	public record PlayerDamageResult(int damage, int cpDamage, int hpDamage, boolean isDead, int remainingHp,
@@ -342,7 +452,13 @@ public class CombatService {
 
 	public int skillPhysicalPlayer(PlayerCharacter attacker, CharTemplate attackerTemplate,
 			PlayerCharacter target, CharTemplate targetTemplate, double power, boolean soulshot, boolean blow) {
-		if (target.isDead()) {
+		return skillPhysicalPlayer(attacker, attackerTemplate, target, targetTemplate, power, soulshot, blow, false);
+	}
+
+	public int skillPhysicalPlayer(PlayerCharacter attacker, CharTemplate attackerTemplate,
+			PlayerCharacter target, CharTemplate targetTemplate, double power, boolean soulshot, boolean blow,
+			boolean chargeDam) {
+		if (target.isDead() || !canSeeTarget(attacker, target)) {
 			return 0;
 		}
 		var attackerStats = PlayerStats.calculate(attacker, attackerTemplate);
@@ -350,6 +466,9 @@ public class CombatService {
 		double pAtk = attackerStats.pAtk() * (soulshot ? 2.0 : 1.0);
 		double pDef = Math.max(1, targetStats.pDef());
 		double dmg = (pAtk + power) * 70.0 / pDef;
+		if (chargeDam) {
+			dmg *= (0.8 + 0.201 * attacker.charges());
+		}
 		boolean crit = blow ? ThreadLocalRandom.current().nextInt(100) < 50
 				: ThreadLocalRandom.current().nextInt(1000) < Math.max(40, attackerStats.critical()) / 2;
 		if (crit) {
@@ -366,7 +485,7 @@ public class CombatService {
 
 	public int skillMagicPlayer(PlayerCharacter attacker, CharTemplate attackerTemplate,
 			PlayerCharacter target, CharTemplate targetTemplate, double power, int magicLevel, boolean sps, boolean bss) {
-		if (target.isDead()) {
+		if (target.isDead() || !canSeeTarget(attacker, target)) {
 			return 0;
 		}
 		var attackerStats = PlayerStats.calculate(attacker, attackerTemplate);
@@ -534,5 +653,20 @@ public class CombatService {
 		boolean isDead = target.isDead();
 		return new PlayerDamageResult(damage, cpDamage, hpDamage, isDead, (int) target.currentHp(),
 				(int) target.currentCp());
+	}
+
+	private static double calcRndMultiplier(PlayerCharacter attacker) {
+		int rndDam = 5;
+		if (attacker != null && attacker.inventory() != null) {
+			var w = attacker.inventory().paperdoll(com.lopez.l2j.game.item.ItemSlots.RHAND);
+			if (w == null) {
+				w = attacker.inventory().paperdoll(com.lopez.l2j.game.item.ItemSlots.LRHAND);
+			}
+			if (w != null && w.template() != null && w.template().rndDam() > 0) {
+				rndDam = w.template().rndDam();
+			}
+		}
+		double spread = rndDam / 100.0;
+		return (1.0 - spread) + (ThreadLocalRandom.current().nextDouble() * 2.0 * spread);
 	}
 }
