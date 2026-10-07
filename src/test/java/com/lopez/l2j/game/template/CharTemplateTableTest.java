@@ -33,6 +33,15 @@ class CharTemplateTableTest {
 		assertEquals(9.0, t.collisionRadius(false));
 		assertEquals(8.0, t.collisionRadius(true));
 		assertTrue(t.isStartingClass());
+		assertEquals(0, t.classTier());
+	}
+
+	@Test
+	void classTiersReflectProgression() {
+		assertEquals(0, table.get(0).orElseThrow().classTier());   // Human Fighter (tier 0)
+		assertEquals(1, table.get(1).orElseThrow().classTier());   // Warrior (tier 1)
+		assertEquals(2, table.get(2).orElseThrow().classTier());   // Gladiator (tier 2)
+		assertEquals(3, table.get(88).orElseThrow().classTier());  // Duelist (tier 3)
 	}
 
 	@Test
