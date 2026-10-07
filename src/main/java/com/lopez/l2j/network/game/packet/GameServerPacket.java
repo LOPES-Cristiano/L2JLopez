@@ -83,7 +83,11 @@ public sealed interface GameServerPacket {
 				w.writeF(c.maxHp()).writeF(c.maxMp());
 				int deleteSeconds = c.deleteTime() > 0 ? (int) Math.max(0, (c.deleteTime() - now) / 1000) : 0;
 				w.writeD(deleteSeconds).writeD(c.classId()).writeD(i == activeIndex ? 0x01 : 0x00);
-				w.writeC(0x00).writeD(0x00); // enchant effect, augmentation
+				int enchant = 0;
+				if (i < paperdolls.size() && paperdolls.get(i) != null) {
+					enchant = Math.min(127, Math.max(0, paperdolls.get(i).enchant(ItemSlots.RHAND)));
+				}
+				w.writeC(enchant).writeD(0x00); // enchant effect, augmentation
 			}
 			return w.toByteArray();
 		}
@@ -226,7 +230,9 @@ public sealed interface GameServerPacket {
 			w.writeD(t.str() + c.hennaSTR() + c.augSTR()).writeD(t.dex() + c.hennaDEX()).writeD(t.con() + c.hennaCON() + c.augCON())
 					.writeD(t.intel() + c.hennaINT() + c.augINT()).writeD(t.wit() + c.hennaWIT()).writeD(t.men() + c.hennaMEN() + c.augMEN());
 			w.writeD(c.maxHp()).writeD((int) c.currentHp()).writeD(c.maxMp()).writeD((int) c.currentMp());
-			int maxLoad = (int) Math.min(Integer.MAX_VALUE, (long) (t.maxLoad() * (Config.ALT_WEIGHT_LIMIT > 0 ? Config.ALT_WEIGHT_LIMIT : 1.0f)));
+			int maxLoad = (stats != null && stats.maxLoad() > 0)
+					? stats.maxLoad()
+					: (int) Math.min(Integer.MAX_VALUE, (long) (t.maxLoad() * (Config.ALT_WEIGHT_LIMIT > 0 ? Config.ALT_WEIGHT_LIMIT : 1.0f)));
 			w.writeD(c.sp()).writeD(currentLoad).writeD(maxLoad);
 			w.writeD(0x28); // valor fixo do legado (posicao 0x28 do paperdoll)
 			writePaperdoll(w, paperdoll, ItemSlots.RHAND);
@@ -283,7 +289,16 @@ public sealed interface GameServerPacket {
 			w.writeH(INVENTORY_LIMIT);
 			w.writeD(c.classId()).writeD(0);
 			w.writeD(c.maxCp()).writeD((int) c.currentCp());
-			w.writeC(0); // enchant effect
+			int enchantEffect = 0;
+			if (paperdoll != null && paperdoll.enchant(ItemSlots.RHAND) > 0) {
+				enchantEffect = Math.min(127, paperdoll.enchant(ItemSlots.RHAND));
+			} else if (c.inventory() != null) {
+				var rw = c.inventory().paperdoll(ItemSlots.RHAND);
+				if (rw != null) {
+					enchantEffect = Math.min(127, Math.max(0, rw.enchant()));
+				}
+			}
+			w.writeC(enchantEffect); // enchant effect (weapon glow: 0=none, 4-15=blue, 16+=red)
 			w.writeC(0); // team
 			w.writeD(0); // large clan crest
 			w.writeC(0).writeC(0); // noble, hero
@@ -361,6 +376,8 @@ public sealed interface GameServerPacket {
 
 	/** 0x64 SystemMessage: mensagem do systemmsg.dat do cliente com parametros tipados. */
 	record SystemMessage(int id, List<Param> params) implements GameServerPacket {
+		public static final int YOU_HAVE_BEEN_DISCONNECTED = 0;
+		public static final int DISCONNECTED_FROM_SERVER = 127;
 		public static final int YOU_PICKED_UP_S1_ADENA = 28;
 		public static final int YOU_PICKED_UP_S1_S2 = 29;
 		public static final int YOU_PICKED_UP_S1 = 30;
@@ -370,6 +387,8 @@ public sealed interface GameServerPacket {
 		public static final int USE_S1 = 46;
 		public static final int S1_PREPARED_FOR_REUSE = 48;
 		public static final int S1_HAS_WORN_OFF = 92;
+		public static final int CANT_LOGOUT_WHILE_IN_COMBAT = 101;
+		public static final int CANT_RESTART_WHILE_IN_COMBAT = 102;
 		public static final int YOU_FEEL_S1_EFFECT = 110;
 		public static final int SOULSHOTS_GRADE_MISMATCH = 337;
 		public static final int NOT_ENOUGH_SOULSHOTS = 338;
@@ -399,10 +418,13 @@ public sealed interface GameServerPacket {
 		public static final int NOT_ENOUGH_HP = 23;
 		public static final int CASTING_INTERRUPTED = 27;
 		public static final int TARGET_IS_INCORRECT = 144;
+		public static final int CANT_SEE_TARGET = 181;
 		public static final int ITEM_MISSING_TO_LEARN_SKILL = 276;
 		public static final int LEARNED_SKILL_S1 = 277;
 		public static final int NOT_ENOUGH_SP_TO_LEARN_SKILL = 278;
 		public static final int S1_DISAPPEARED = 302;
+		public static final int UNABLE_TO_UNLOCK_DOOR = 319;
+		public static final int FAILED_TO_UNLOCK_DOOR = 320;
 		public static final int DO_NOT_HAVE_FURTHER_SKILLS_TO_LEARN = 607;
 		public static final int EFFECT_S1_DISAPPEARED = 749;
 		public static final int NO_MORE_SKILLS_TO_LEARN = 750;
@@ -423,6 +445,13 @@ public sealed interface GameServerPacket {
 		public static final int YOU_DONT_HAVE_ENOUGH_EXP_TO_ENCHANT_THAT_SKILL = 1444;
 		public static final int ADD_NEW_SUBCLASS = 1269;
 		public static final int SUBCLASS_TRANSFER_COMPLETED = 1270;
+		public static final int FORCE_INCREASED_TO_S1 = 323;
+		public static final int FORCE_MAXLEVEL_REACHED = 324;
+		public static final int YOU_MAY_CREATE_UP_TO_48_MACROS = 797;
+		public static final int INVALID_MACRO = 810;
+		public static final int MACRO_DESCRIPTION_MAX_32_CHARS = 837;
+		public static final int ENTER_THE_MACRO_NAME = 838;
+		public static final int MACRO_NAME_ALREADY_USED = 839;
 		public static final int YOU_INVITED_S1_TO_PARTY = 105;
 		public static final int YOU_JOINED_PARTY = 106;
 		public static final int S1_JOINED_PARTY = 107;
@@ -451,6 +480,9 @@ public sealed interface GameServerPacket {
 		public static final int SELECT_THE_ITEM_FROM_WHICH_YOU_WISH_TO_REMOVE_AUGMENTATION = 1963;
 		public static final int AUGMENTATION_REMOVAL_CAN_ONLY_BE_DONE_ON_AN_AUGMENTED_ITEM = 1964;
 		public static final int AUGMENTATION_HAS_BEEN_SUCCESSFULLY_REMOVED_FROM_YOUR_S1 = 1965;
+		public static final int SPOIL_SUCCESS = 612;
+		public static final int ALREADY_SPOILED = 357;
+		public static final int SWEEPER_FAILED_TARGET_NOT_SPOILED = 343;
 		public static final int FISHING_POLE_NOT_EQUIPPED = 1453;
 		public static final int BAIT_ON_HOOK_BEFORE_FISHING = 1454;
 		public static final int CANNOT_FISH_UNDER_WATER = 1455;
@@ -481,6 +513,11 @@ public sealed interface GameServerPacket {
 		public static final int NOTHING_INSIDE_THAT = 1669;
 		public static final int S1_NIGHT_EFFECT_APPLIES = 1131;
 		public static final int S1_NIGHT_EFFECT_DISAPPEARS = 1132;
+		public static final int S1_IS_BUSY_TRY_LATER = 153;
+		public static final int ALREADY_TRADING = 118;
+		public static final int TRADE_CANCELLED = 120;
+		public static final int TRADE_SUCCESSFUL = 121;
+		public static final int EARNED_S1_RAID_POINTS = 1725;
 
 		public static SystemMessage id(int id) {
 			return new SystemMessage(id, List.of());
@@ -551,11 +588,31 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0x80 QuestList (vazia). */
-	record QuestList() implements GameServerPacket {
+	/** 0x80 QuestList: envia lista de quests ativas e finalizadas do personagem. */
+	record QuestList(List<QuestEntry> quests) implements GameServerPacket {
+		public record QuestEntry(int questId, int cond) {}
+
+		public QuestList() {
+			this(List.of());
+		}
+
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0x80).writeH(0).toByteArray();
+			PacketWriter pw = new PacketWriter().writeC(0x80);
+			if (quests == null || quests.isEmpty()) {
+				pw.writeH(0);
+			} else {
+				pw.writeH(quests.size());
+				for (QuestEntry q : quests) {
+					pw.writeD(q.questId());
+					pw.writeD(q.cond());
+				}
+			}
+			// 32 bytes de mascara de quests completadas (bitmask retail)
+			for (int i = 0; i < 32; i++) {
+				pw.writeC(0);
+			}
+			return pw.toByteArray();
 		}
 	}
 
@@ -764,9 +821,12 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0x6d SetupGauge: barra de conjuracao (0 = azul). */
+	/** 0x6d SetupGauge: barra de progresso/conjuracao (0 = azul, 1 = vermelho, 2 = ciano/agua, 3 = verde). */
 	record SetupGauge(int color, int time) implements GameServerPacket {
 		public static final int BLUE = 0;
+		public static final int RED = 1;
+		public static final int CYAN = 2;
+		public static final int GREEN = 3;
 
 		@Override
 		public byte[] encode() {
@@ -859,15 +919,27 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0xF3 EtcStatusUpdate (sem penalidades). */
-	record EtcStatusUpdate() implements GameServerPacket {
+	/** 0xF3 EtcStatusUpdate: penalidades de peso (0-4), grau (0-4), charges etc. */
+	record EtcStatusUpdate(int charges, int weightPenalty, int messageRefusal, int dangerZone, int expertisePenalty,
+			int charmOfCourage, int deathPenalty) implements GameServerPacket {
+		public EtcStatusUpdate() {
+			this(0, 0, 0, 0, 0, 0, 0);
+		}
+
+		public EtcStatusUpdate(int weightPenalty, int expertisePenalty) {
+			this(0, weightPenalty, 0, 0, expertisePenalty, 0, 0);
+		}
+
+		public EtcStatusUpdate(com.lopez.l2j.game.model.PlayerCharacter c, com.lopez.l2j.game.model.PlayerStats stats) {
+			this(c != null ? c.charges() : 0, stats != null ? stats.weightPenalty() : 0, 0, 0,
+					stats != null ? stats.gradePenalty() : 0, 0, 0);
+		}
+
 		@Override
 		public byte[] encode() {
-			PacketWriter w = new PacketWriter().writeC(0xf3);
-			for (int i = 0; i < 7; i++) {
-				w.writeD(0);
-			}
-			return w.toByteArray();
+			return new PacketWriter().writeC(0xf3).writeD(charges).writeD(weightPenalty).writeD(messageRefusal)
+					.writeD(dangerZone).writeD(expertisePenalty).writeD(charmOfCourage).writeD(deathPenalty)
+					.toByteArray();
 		}
 	}
 
@@ -1046,7 +1118,15 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0x7e LeaveWorld: o cliente volta a tela de login. */
+	/** 0x26 ServerClose: fecha a conexao e faz o cliente exibir a caixa de dialogo "You have been disconnected from the server." */
+	record ServerClose() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new byte[] { 0x26 };
+		}
+	}
+
+	/** 0x7e LeaveWorld: o cliente sai do mundo / fecha para o desktop. */
 	record LeaveWorld() implements GameServerPacket {
 		@Override
 		public byte[] encode() {
@@ -1078,7 +1158,7 @@ public sealed interface GameServerPacket {
 			w.writeC(npc.isRunning() ? 1 : 0);
 			w.writeC(npc.isInCombat() ? 1 : 0);
 			w.writeC(npc.isDead() ? 1 : 0);
-			w.writeC(0); // isSummoned
+			w.writeC(npc.isSpoiled() ? 1 : 0); // isSummoned / isSpoiled (ativa textura azulada no cliente)
 			String name = (t.serverSideName() || t.id() >= 50000 || t.id() != t.idTemplate()) ? t.name() : "";
 			String title = t.serverSideTitle() ? t.title() : "";
 			if (t.isMonster()) {
@@ -1088,7 +1168,7 @@ public sealed interface GameServerPacket {
 			w.writeS(name);
 			w.writeS(title);
 			w.writeD(0x00).writeD(0x00).writeD(0x00);
-			w.writeD(0); // abnormal effect
+			w.writeD(npc.abnormalEffect()); // abnormal effect
 			w.writeD(0).writeD(0).writeD(0).writeD(0); // clan / ally
 			w.writeC(0); // fly / water
 			w.writeC(0); // team
@@ -1208,7 +1288,7 @@ public sealed interface GameServerPacket {
 			w.writeD(0);
 			w.writeC(c.sitting() ? 0 : 1);
 			w.writeC(c.running() ? 1 : 0);
-			w.writeC(0);
+			w.writeC(c.isInCombat() ? 1 : 0); // isInCombat: 1 combate / 0 normal
 			w.writeC(0);
 			w.writeC(0);
 			w.writeC(0);
@@ -1221,8 +1301,17 @@ public sealed interface GameServerPacket {
 			w.writeH(0);
 			w.writeD(c.classId());
 			w.writeD(c.maxCp()).writeD((int) c.currentCp());
-			w.writeC(0);
-			w.writeC(0);
+			int charEnchantEffect = 0;
+			if (paperdoll != null && paperdoll.enchant(ItemSlots.RHAND) > 0) {
+				charEnchantEffect = Math.min(127, paperdoll.enchant(ItemSlots.RHAND));
+			} else if (c.inventory() != null) {
+				var rw = c.inventory().paperdoll(ItemSlots.RHAND);
+				if (rw != null) {
+					charEnchantEffect = Math.min(127, Math.max(0, rw.enchant()));
+				}
+			}
+			w.writeC(charEnchantEffect); // enchant effect (weapon glow: 0=none, 4-15=blue, 16+=red)
+			w.writeC(0); // team
 			w.writeD(0);
 			w.writeC(0).writeC(0);
 			w.writeC(0).writeD(0).writeD(0).writeD(0);
@@ -1355,6 +1444,7 @@ public sealed interface GameServerPacket {
 		public static final int MAX_MP = 0x0c;
 		public static final int SP = 0x0d;
 		public static final int CUR_LOAD = 0x0e;
+		public static final int MAX_LOAD = 0x0f;
 		public static final int CUR_CP = 0x21;
 		public static final int MAX_CP = 0x22;
 
@@ -1815,11 +1905,14 @@ public sealed interface GameServerPacket {
 			w.writeD(c.classId());
 			w.writeD(c.level());
 			w.writeQ(c.exp());
-			w.writeD(t.str()).writeD(t.dex()).writeD(t.con()).writeD(t.intel()).writeD(t.wit()).writeD(t.men());
+			w.writeD(t.str() + c.hennaSTR() + c.augSTR()).writeD(t.dex() + c.hennaDEX()).writeD(t.con() + c.hennaCON() + c.augCON())
+					.writeD(t.intel() + c.hennaINT() + c.augINT()).writeD(t.wit() + c.hennaWIT()).writeD(t.men() + c.hennaMEN() + c.augMEN());
 			w.writeD(c.maxHp()).writeD((int) c.currentHp());
 			w.writeD(c.maxMp()).writeD((int) c.currentMp());
 			w.writeD(c.sp());
-			int maxLoad = (int) Math.min(Integer.MAX_VALUE, (long) (t.maxLoad() * (Config.ALT_WEIGHT_LIMIT > 0 ? Config.ALT_WEIGHT_LIMIT : 1.0f)));
+			int maxLoad = (stats != null && stats.maxLoad() > 0)
+					? stats.maxLoad()
+					: (int) Math.min(Integer.MAX_VALUE, (long) (t.maxLoad() * (Config.ALT_WEIGHT_LIMIT > 0 ? Config.ALT_WEIGHT_LIMIT : 1.0f)));
 			w.writeD(currentLoad).writeD(maxLoad);
 			w.writeD(0x28); // paperdoll start offset
 			writePaperdoll(w, paperdoll, ItemSlots.RHAND);
@@ -2400,4 +2493,102 @@ public sealed interface GameServerPacket {
 					.toByteArray();
 		}
 	}
+
+	/** 0xa0 TutorialShowHtml: exibe pagina HTML de tutorial. */
+	record TutorialShowHtml(String html) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter()
+					.writeC(0xa0)
+					.writeS(html != null ? html : "")
+					.toByteArray();
+		}
+	}
+
+	/** 0xa1 TutorialShowQuestionMark: exibe icone de interrogacao de tutorial. */
+	record TutorialShowQuestionMark(int markId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter()
+					.writeC(0xa1)
+					.writeD(markId)
+					.toByteArray();
+		}
+	}
+
+	/** 0xa3 TutorialCloseHtml: fecha janela de tutorial. */
+	record TutorialCloseHtml() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter()
+					.writeC(0xa3)
+					.toByteArray();
+		}
+	}
+
+	/** 0xeb RadarControl: adiciona ou remove marcador no radar do minimapa. */
+	record RadarControl(int show, int type, int x, int y, int z) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter()
+					.writeC(0xeb)
+					.writeD(show)
+					.writeD(type)
+					.writeD(x)
+					.writeD(y)
+					.writeD(z)
+					.toByteArray();
+		}
+	}
+
+	/** 0xe7 SendMacroList: lista de macros ou atualizacao de macro individual. */
+	record SendMacroList(int revision, int count, com.lopez.l2j.game.macro.Macro macro) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0xe7);
+			w.writeD(revision);
+			w.writeC(0);
+			w.writeC(count);
+			w.writeC(macro != null ? 1 : 0);
+			if (macro != null) {
+				w.writeD(macro.id());
+				w.writeS(macro.name());
+				w.writeS(macro.descr());
+				w.writeS(macro.acronym());
+				w.writeC(macro.icon());
+				var cmds = macro.commands();
+				w.writeC(cmds.size());
+				for (int i = 0; i < cmds.size(); i++) {
+					var cmd = cmds.get(i);
+					w.writeC(i + 1);
+					w.writeC(cmd.type());
+					w.writeD(cmd.d1());
+					w.writeC(cmd.d2());
+					w.writeS(cmd.cmd() != null ? cmd.cmd() : "");
+				}
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xfe:0x33 ExGetBossRecord: envia pontuacao e historico de raid bosses para o mapa mundi / janela de raids (Alt+M). */
+	record ExGetBossRecord(int ranking, int totalPoints, Map<Integer, Integer> bossPoints) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			int size = bossPoints != null ? bossPoints.size() : 0;
+			PacketWriter w = new PacketWriter().writeC(0xfe).writeH(0x33);
+			w.writeD(ranking);
+			w.writeD(totalPoints);
+			w.writeD(size);
+			if (bossPoints != null && !bossPoints.isEmpty()) {
+				for (var entry : bossPoints.entrySet()) {
+					w.writeD(entry.getKey());
+					w.writeD(entry.getValue());
+					w.writeD(0);
+				}
+			}
+			return w.toByteArray();
+		}
+	}
 }
+
