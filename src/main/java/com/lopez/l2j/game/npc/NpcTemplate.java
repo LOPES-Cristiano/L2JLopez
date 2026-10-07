@@ -79,7 +79,8 @@ public record NpcTemplate(
 		title = title == null ? "" : title;
 		type = type == null ? "L2Npc" : type;
 		sex = sex == null ? "male" : sex;
-		factionId = factionId == null || factionId.isBlank() ? null : factionId.trim();
+		factionId = (factionId == null || factionId.isBlank() || "null".equalsIgnoreCase(factionId.trim()) || "none".equalsIgnoreCase(factionId.trim()))
+				? null : factionId.trim();
 	}
 
 	public boolean isMonster() {
