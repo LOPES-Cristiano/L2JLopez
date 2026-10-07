@@ -36,12 +36,12 @@ final class GameConnection implements Runnable {
 	private final Object writeLock = new Object();
 	private OutputStream out;
 
-	/** @param sessionFactory recebe o sink de envio desta conexao e devolve a sessao */
+	/** @param sessionFactory recebe o sink de envio e a funcao de fechar conexao desta conexao e devolve a sessao */
 	GameConnection(Socket socket, byte[] cryptKey,
-			Function<java.util.function.Consumer<GameServerPacket>, GameSession> sessionFactory, Runnable onClose) {
+			java.util.function.BiFunction<java.util.function.Consumer<GameServerPacket>, java.util.function.Consumer<GameServerPacket>, GameSession> sessionFactory, Runnable onClose) {
 		this.socket = socket;
 		this.crypt = new GameCrypt(cryptKey);
-		this.session = sessionFactory.apply(this::send);
+		this.session = sessionFactory.apply(this::send, this::close);
 		this.onClose = onClose;
 	}
 
@@ -120,6 +120,30 @@ final class GameConnection implements Runnable {
 				} catch (IOException ignored) {
 					// ja estamos encerrando
 				}
+			}
+		}
+	}
+
+	/** Envia pacote final se fornecido e fecha o socket TCP imediatamente. */
+	void close(GameServerPacket packet) {
+		if (packet != null) {
+			send(packet);
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException ignored) {
+			}
+		}
+		synchronized (writeLock) {
+			if (socket.isClosed()) {
+				return;
+			}
+			try {
+				socket.shutdownOutput();
+			} catch (Exception ignored) {
+			}
+			try {
+				socket.close();
+			} catch (IOException ignored) {
 			}
 		}
 	}
