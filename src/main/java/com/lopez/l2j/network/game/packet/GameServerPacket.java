@@ -1162,7 +1162,8 @@ public sealed interface GameServerPacket {
 			String name = (t.serverSideName() || t.id() >= 50000 || t.id() != t.idTemplate()) ? t.name() : "";
 			String title = t.serverSideTitle() ? t.title() : "";
 			if (t.isMonster()) {
-				String lvlTitle = "Lv " + t.level() + (t.aggroRange() > 0 ? "*" : "");
+				boolean isAggressive = t.aggroRange() > 0 && !t.isFriendlyMob();
+				String lvlTitle = "Lv " + t.level() + (isAggressive ? "*" : "");
 				title = title.isEmpty() ? lvlTitle : lvlTitle + " " + title;
 			}
 			w.writeS(name);
