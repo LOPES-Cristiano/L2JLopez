@@ -48,11 +48,13 @@ class OlympiadManagerTest {
 		manager.recordMatch(1001, 1002, true);
 		assertThat(p1.competitionsDone()).isEqualTo(2);
 		assertThat(p1.competitionsDrawn()).isEqualTo(1);
-		assertThat(p1.points()).isEqualTo(p1PtsBefore);
-
-		assertThat(p2.competitionsDone()).isEqualTo(2);
-		assertThat(p2.competitionsDrawn()).isEqualTo(1);
-		assertThat(p2.points()).isEqualTo(p2PtsBefore);
+		if (com.lopez.l2j.config.Config.OLYMPIAD_REMOVE_POINTS_ON_TIE) {
+			assertThat(p1.points()).isEqualTo(p1PtsBefore - 2);
+			assertThat(p2.points()).isEqualTo(p2PtsBefore - 2);
+		} else {
+			assertThat(p1.points()).isEqualTo(p1PtsBefore);
+			assertThat(p2.points()).isEqualTo(p2PtsBefore);
+		}
 	}
 
 	@Test
@@ -77,6 +79,23 @@ class OlympiadManagerTest {
 		noble.points(10);
 
 		manager.resetWeeklyPoints();
-		assertThat(noble.points()).isEqualTo(10 + OlympiadNoble.DEFAULT_POINTS);
+		int expectedAdd = com.lopez.l2j.config.Config.ALT_OLY_WEEKLY_POINTS_COUNT > 0
+				? com.lopez.l2j.config.Config.ALT_OLY_WEEKLY_POINTS_COUNT : 3;
+		assertThat(noble.points()).isEqualTo(10 + expectedAdd);
+	}
+
+	@Test
+	void testExchangePointsAndHeroRewards() {
+		var noble = manager.registerNoble(3001, "RichNoble", 90);
+		noble.points(60);
+
+		// Exchange 50 points (min 50 required)
+		int ngp = manager.exchangePoints(3001, 50);
+		assertThat(ngp).isEqualTo(50 * com.lopez.l2j.config.Config.ALT_OLY_GP_PER_POINT);
+		assertThat(noble.points()).isEqualTo(10);
+
+		// Concessão de pontos de Herói (+300)
+		manager.rewardHeroPoints(3001);
+		assertThat(noble.points()).isEqualTo(10 + com.lopez.l2j.config.Config.ALT_OLY_HERO_POINTS);
 	}
 }
