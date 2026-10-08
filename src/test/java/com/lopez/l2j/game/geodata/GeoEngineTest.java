@@ -18,6 +18,7 @@ class GeoEngineTest {
 
 	@BeforeAll
 	static void setUp() {
+		com.lopez.l2j.config.Config.ENABLE_GEODATA = true;
 		doorTable = new DoorTable();
 		// Testa se a pasta data/geodata existe no diretorio raiz
 		File geodataDir = new File("data/geodata");
