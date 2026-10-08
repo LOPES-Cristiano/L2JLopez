@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.service;
 
+import com.lopez.l2j.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,13 @@ public class BotsPreventionService {
         private final int code;
         PunishmentType(int code) { this.code = code; }
         public int getCode() { return code; }
+
+        public static PunishmentType fromCode(int code) {
+            for (PunishmentType p : values()) {
+                if (p.code == code) return p;
+            }
+            return TOWN;
+        }
     }
 
     public static class CaptchaChallenge {
@@ -47,11 +55,11 @@ public class BotsPreventionService {
         public boolean isExpired() { return System.currentTimeMillis() > expirationTime; }
     }
 
-    private boolean enabled = true;
-    private int baseKillsCounter = 60;
-    private int killsRandomization = 20;
-    private int validationTimeoutSeconds = 60;
-    private PunishmentType punishment = PunishmentType.TOWN;
+    private boolean enabled = Config.ENABLE_CAPTCHA;
+    private int baseKillsCounter = Config.CAPTCHA_KILLS_COUNTER;
+    private int killsRandomization = Config.CAPTCHA_KILLS_COUNTER_RANDOMIZATION;
+    private int validationTimeoutSeconds = Config.CAPTCHA_VALIDATION_TIME;
+    private PunishmentType punishment = PunishmentType.fromCode(Config.CAPTCHA_PUNISHMENT);
 
     // Player objectId -> current mob kills count
     private final Map<Integer, Integer> playerKillCounters = new ConcurrentHashMap<>();
