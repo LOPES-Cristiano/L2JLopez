@@ -87,11 +87,36 @@ public class GroundItemService {
 		}
 		boolean isHerb = instance.template() != null && instance.template().name() != null
 				&& instance.template().name().toLowerCase(java.util.Locale.ROOT).contains("herb");
-		int lifetimeSec = isHerb ? Config.getInt("HerbAutoDestroyTime", 15) : Config.getInt("AutoDestroyItemAfter", 600);
+		int lifetimeSec = isHerb ? Config.getInt("HerbAutoDestroyTime", 15) : Config.AUTO_DESTROY_DROPPED_ITEM_AFTER;
 		long now = System.currentTimeMillis();
 		long expireMs = lifetimeSec > 0 ? now + (lifetimeSec * 1000L) : Long.MAX_VALUE;
 
 		boolean stackable = instance.template() != null && instance.template().isStackable();
+		if (Config.MULTIPLE_ITEM_DROP && stackable) {
+			for (GroundItem existing : itemsByObjectId.values()) {
+				if (existing.itemId() == instance.itemId()) {
+					long dx = existing.x() - x;
+					long dy = existing.y() - y;
+					if (dx * dx + dy * dy <= 150 * 150) {
+						int newCount = (int) Math.min(Integer.MAX_VALUE, (long) existing.count() + instance.count());
+						if (existing.itemInstance() != null) {
+							existing.itemInstance().count(newCount);
+						}
+						var merged = new GroundItem(existing.objectId(), existing.itemId(), newCount,
+								existing.x(), existing.y(), existing.z(), existing.dropperObjectId(),
+								existing.dropTimeMs(), expireMs, isHerb, existing.itemInstance());
+						itemsByObjectId.put(existing.objectId(), merged);
+						if (world != null) {
+							var dropPkt = new DropItem(existing.dropperObjectId(), existing.objectId(), existing.itemId(),
+									existing.x(), existing.y(), existing.z(), true, newCount);
+							world.broadcastAround(existing.x(), existing.y(), GameWorld.VISIBILITY_RADIUS, dropPkt);
+						}
+						return merged;
+					}
+				}
+			}
+		}
+
 		var gi = new GroundItem(instance.objectId(), instance.itemId(), instance.count(), x, y, z,
 				dropperId, now, expireMs, isHerb, instance);
 
@@ -105,14 +130,39 @@ public class GroundItemService {
 	}
 
 	public GroundItem dropItem(int dropperId, int itemId, int count, int x, int y, int z) {
-		int objectId = idFactory.nextId();
 		var tpl = templates != null ? templates.get(itemId).orElse(null) : null;
 		boolean stackable = tpl != null && tpl.isStackable();
 		boolean isHerb = tpl != null && tpl.name() != null && tpl.name().toLowerCase(java.util.Locale.ROOT).contains("herb");
-		int lifetimeSec = isHerb ? Config.getInt("HerbAutoDestroyTime", 15) : Config.getInt("AutoDestroyItemAfter", 600);
+		int lifetimeSec = isHerb ? Config.getInt("HerbAutoDestroyTime", 15) : Config.AUTO_DESTROY_DROPPED_ITEM_AFTER;
 		long now = System.currentTimeMillis();
 		long expireMs = lifetimeSec > 0 ? now + (lifetimeSec * 1000L) : Long.MAX_VALUE;
 
+		if (Config.MULTIPLE_ITEM_DROP && stackable) {
+			for (GroundItem existing : itemsByObjectId.values()) {
+				if (existing.itemId() == itemId) {
+					long dx = existing.x() - x;
+					long dy = existing.y() - y;
+					if (dx * dx + dy * dy <= 150 * 150) {
+						int newCount = (int) Math.min(Integer.MAX_VALUE, (long) existing.count() + count);
+						if (existing.itemInstance() != null) {
+							existing.itemInstance().count(newCount);
+						}
+						var merged = new GroundItem(existing.objectId(), existing.itemId(), newCount,
+								existing.x(), existing.y(), existing.z(), existing.dropperObjectId(),
+								existing.dropTimeMs(), expireMs, isHerb, existing.itemInstance());
+						itemsByObjectId.put(existing.objectId(), merged);
+						if (world != null) {
+							var dropPkt = new DropItem(existing.dropperObjectId(), existing.objectId(), existing.itemId(),
+									existing.x(), existing.y(), existing.z(), true, newCount);
+							world.broadcastAround(existing.x(), existing.y(), GameWorld.VISIBILITY_RADIUS, dropPkt);
+						}
+						return merged;
+					}
+				}
+			}
+		}
+
+		int objectId = idFactory.nextId();
 		ItemInstance inst = tpl != null ? new ItemInstance(objectId, tpl, 0, count) : null;
 		var gi = new GroundItem(objectId, itemId, count, x, y, z, dropperId, now, expireMs, isHerb, inst);
 		itemsByObjectId.put(objectId, gi);
