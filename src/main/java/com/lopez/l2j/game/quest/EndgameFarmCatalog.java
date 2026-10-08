@@ -68,6 +68,28 @@ public final class EndgameFarmCatalog {
 				"Imperial Tomb",
 				"Broken Relics exchangeable for S-Grade Armor Key Materials and Recipes"
 		));
+
+		// Quest 605: Alliance with Ketra Orcs
+		BY_ID.put(605, new EndgameQuestEntry(
+				605,
+				"Alliance with Ketra Orcs",
+				74,
+				31371,
+				"Hierarch Wahkan",
+				"Ketra Orc Outpost",
+				"Ketra Alliance Badges, Buffalo Horns and access to Ketra shops/Raid Bosses"
+		));
+
+		// Quest 611: Alliance with Varka Silenos
+		BY_ID.put(611, new EndgameQuestEntry(
+				611,
+				"Alliance with Varka Silenos",
+				74,
+				31378,
+				"Naran Ashanuk",
+				"Varka Silenos Stronghold",
+				"Varka Alliance Badges, Mane of Ketra Orcs and access to Varka shops/Raid Bosses"
+		));
 	}
 
 	private EndgameFarmCatalog() {
@@ -75,6 +97,10 @@ public final class EndgameFarmCatalog {
 
 	public static Map<Integer, EndgameQuestEntry> allEntries() {
 		return Collections.unmodifiableMap(BY_ID);
+	}
+
+	public static Map<Integer, EndgameQuestEntry> getAllEntries() {
+		return allEntries();
 	}
 
 	public static Optional<EndgameQuestEntry> findById(int questId) {
