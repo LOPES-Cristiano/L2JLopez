@@ -944,6 +944,16 @@ public final class PlayerCharacter {
 		this.buffShop = buffShop;
 	}
 
+	private volatile boolean phantom;
+
+	public boolean isPhantom() {
+		return phantom;
+	}
+
+	public void setPhantom(boolean phantom) {
+		this.phantom = phantom;
+	}
+
 	private volatile boolean fishing;
 	private volatile int fishX;
 	private volatile int fishY;
