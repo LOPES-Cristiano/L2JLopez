@@ -18,23 +18,34 @@ public class CombatService {
 	private final double rateXp;
 	private final double rateSp;
 	private final com.lopez.l2j.game.geodata.GeoEngine geoEngine;
+	private final com.lopez.l2j.game.olympiad.OlyClassDamageManager olyDamageManager;
 
 	public CombatService() {
-		this(1.0, 1.0, null);
+		this(1.0, 1.0, null, null);
 	}
 
 	public CombatService(double rateXp, double rateSp) {
-		this(rateXp, rateSp, null);
+		this(rateXp, rateSp, null, null);
+	}
+
+	public CombatService(double rateXp, double rateSp, com.lopez.l2j.game.geodata.GeoEngine geoEngine) {
+		this(rateXp, rateSp, geoEngine, null);
 	}
 
 	@org.springframework.beans.factory.annotation.Autowired
 	public CombatService(
 			@Value("${l2.rates.xp:1.0}") double rateXp,
 			@Value("${l2.rates.sp:1.0}") double rateSp,
-			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.geodata.GeoEngine geoEngine) {
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.geodata.GeoEngine geoEngine,
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.olympiad.OlyClassDamageManager olyDamageManager) {
 		this.rateXp = rateXp;
 		this.rateSp = rateSp;
 		this.geoEngine = geoEngine;
+		this.olyDamageManager = olyDamageManager;
+	}
+
+	public com.lopez.l2j.game.olympiad.OlyClassDamageManager olyDamageManager() {
+		return olyDamageManager;
 	}
 
 	public com.lopez.l2j.game.geodata.GeoEngine geoEngine() {
@@ -172,7 +183,11 @@ public class CombatService {
 			baseDam *= 2.0;
 		}
 		double rnd = calcRndMultiplier(attacker);
-		int damage = Math.max(1, (int) Math.round(baseDam * rnd));
+		double finalDam = baseDam * rnd;
+		if (attacker != null && target != null && attacker.isOlympiadMode() && target.isOlympiadMode() && olyDamageManager != null) {
+			finalDam *= olyDamageManager.getDamageMultiplier(attacker, target);
+		}
+		int damage = Math.max(1, (int) Math.round(finalDam));
 		int flags = crit ? 0x20 : 0x00;
 		if (soulshot) {
 			flags |= 0x10 | soulshotGrade;
@@ -475,6 +490,9 @@ public class CombatService {
 			dmg *= 2.0;
 		}
 		dmg *= 0.95 + ThreadLocalRandom.current().nextDouble() * 0.10;
+		if (attacker != null && target != null && attacker.isOlympiadMode() && target.isOlympiadMode() && olyDamageManager != null) {
+			dmg *= olyDamageManager.getDamageMultiplier(attacker, target);
+		}
 		return Math.max(1, (int) Math.round(dmg));
 	}
 
@@ -521,6 +539,9 @@ public class CombatService {
 			}
 		}
 
+		if (attacker != null && target != null && attacker.isOlympiadMode() && target.isOlympiadMode() && olyDamageManager != null) {
+			dmg *= olyDamageManager.getDamageMultiplier(attacker, target);
+		}
 		return Math.max(1, (int) Math.round(dmg));
 	}
 
@@ -602,6 +623,9 @@ public class CombatService {
 			}
 		}
 
+		if (attacker != null && target != null && attacker.isOlympiadMode() && target.isOlympiadMode() && olyDamageManager != null) {
+			dmg *= olyDamageManager.getDamageMultiplier(attacker, target);
+		}
 		return Math.max(1, (int) Math.round(dmg));
 	}
 
