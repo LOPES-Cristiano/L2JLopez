@@ -27,26 +27,35 @@ public class SpawnService {
 	private final ObjectIdFactory objectIds;
 	private final com.lopez.l2j.game.npc.minion.MinionTable minionTable;
 	private final com.lopez.l2j.game.champion.ChampionService championService;
+	private final com.lopez.l2j.game.geodata.GeoEngine geoEngine;
 
 	public SpawnService(JdbcClient jdbc, NpcTemplateTable templates, GameWorld world, ObjectIdFactory objectIds) {
-		this(jdbc, templates, world, objectIds, null, null);
+		this(jdbc, templates, world, objectIds, null, null, null);
 	}
 
 	public SpawnService(JdbcClient jdbc, NpcTemplateTable templates, GameWorld world, ObjectIdFactory objectIds,
 			com.lopez.l2j.game.npc.minion.MinionTable minionTable) {
-		this(jdbc, templates, world, objectIds, minionTable, null);
+		this(jdbc, templates, world, objectIds, minionTable, null, null);
+	}
+
+	public SpawnService(JdbcClient jdbc, NpcTemplateTable templates, GameWorld world, ObjectIdFactory objectIds,
+			com.lopez.l2j.game.npc.minion.MinionTable minionTable,
+			com.lopez.l2j.game.champion.ChampionService championService) {
+		this(jdbc, templates, world, objectIds, minionTable, championService, null);
 	}
 
 	@org.springframework.beans.factory.annotation.Autowired
 	public SpawnService(JdbcClient jdbc, NpcTemplateTable templates, GameWorld world, ObjectIdFactory objectIds,
 			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.npc.minion.MinionTable minionTable,
-			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.champion.ChampionService championService) {
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.champion.ChampionService championService,
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.geodata.GeoEngine geoEngine) {
 		this.jdbc = jdbc;
 		this.templates = templates;
 		this.world = world;
 		this.objectIds = objectIds;
 		this.minionTable = minionTable;
 		this.championService = championService;
+		this.geoEngine = geoEngine;
 	}
 
 	@PostConstruct
@@ -75,6 +84,16 @@ public class SpawnService {
 		return world.totalNpcs() - before;
 	}
 
+	private int correctZ(int x, int y, int z) {
+		if (geoEngine != null && geoEngine.isEnabled()) {
+			short geoZ = geoEngine.getHeight(x, y, z);
+			if (geoZ != (short) z && Math.abs(geoZ - z) < 500) {
+				return geoZ;
+			}
+		}
+		return z;
+	}
+
 	public Optional<NpcInstance> spawn(int npcId, int x, int y, int z, int heading) {
 		return spawn(npcId, x, y, z, heading, false);
 	}
@@ -82,7 +101,7 @@ public class SpawnService {
 	public Optional<NpcInstance> spawn(int npcId, int x, int y, int z, int heading, boolean storeInDb) {
 		return templates.get(npcId).map(template -> {
 			int objectId = objectIds.nextId();
-			NpcInstance npc = new NpcInstance(objectId, template, x, y, z, heading);
+			NpcInstance npc = new NpcInstance(objectId, template, x, y, correctZ(x, y, z), heading);
 			if (championService != null) {
 				championService.tryRollChampion(npc);
 			}
@@ -151,7 +170,7 @@ public class SpawnService {
 						sx += (int) (Math.cos(angle) * dist);
 						sy += (int) (Math.sin(angle) * dist);
 					}
-					NpcInstance npc = new NpcInstance(objectId, template, sx, sy, rec.z(), rec.heading());
+					NpcInstance npc = new NpcInstance(objectId, template, sx, sy, correctZ(sx, sy, rec.z()), rec.heading());
 					if (championService != null) {
 						championService.tryRollChampion(npc);
 					}
@@ -193,7 +212,7 @@ public class SpawnService {
 						sx += (int) (Math.cos(angle) * dist);
 						sy += (int) (Math.sin(angle) * dist);
 					}
-					NpcInstance npc = new NpcInstance(objectId, template, sx, sy, rec.z(), rec.heading());
+					NpcInstance npc = new NpcInstance(objectId, template, sx, sy, correctZ(sx, sy, rec.z()), rec.heading());
 					world.addNpc(npc);
 					spawned++;
 				}
@@ -222,7 +241,7 @@ public class SpawnService {
 				NpcTemplate template = templates.get(rec.npcTemplateId())
 						.orElseGet(() -> fallbackTemplate(rec.npcTemplateId(), "Fort NPC " + rec.npcTemplateId(), "L2FortSiegeGuard"));
 				int objectId = objectIds.nextId();
-				NpcInstance npc = new NpcInstance(objectId, template, rec.x(), rec.y(), rec.z(), rec.heading());
+				NpcInstance npc = new NpcInstance(objectId, template, rec.x(), rec.y(), correctZ(rec.x(), rec.y(), rec.z()), rec.heading());
 				world.addNpc(npc);
 				spawned++;
 			}
@@ -279,7 +298,7 @@ public class SpawnService {
 						sx += (int) (Math.cos(angle) * dist);
 						sy += (int) (Math.sin(angle) * dist);
 					}
-					NpcInstance npc = new NpcInstance(objectId, template, sx, sy, loc.z(), loc.heading());
+					NpcInstance npc = new NpcInstance(objectId, template, sx, sy, correctZ(sx, sy, loc.z()), loc.heading());
 					if (championService != null) {
 						championService.tryRollChampion(npc);
 					}
@@ -314,7 +333,7 @@ public class SpawnService {
 				int mHeading = master.heading();
 
 				int minionObjId = objectIds.nextId();
-				NpcInstance minion = new NpcInstance(minionObjId, minionTemplate, mx, my, mz, mHeading);
+				NpcInstance minion = new NpcInstance(minionObjId, minionTemplate, mx, my, correctZ(mx, my, mz), mHeading);
 				minion.masterObjectId(master.objectId());
 				master.minions().add(minion);
 				world.addNpc(minion);
