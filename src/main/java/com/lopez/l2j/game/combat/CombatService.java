@@ -426,6 +426,12 @@ public class CombatService {
 		if (attacker.isDead() || target.isDead() || target.invul()) {
 			return new HitResult(0, 0, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
 		}
+		// Validacao de alcance: ataque fisico nao pode acertar jogador distante
+		int attackRange = Math.max(40, attacker.template().attackRange());
+		double dist = Math.hypot(attacker.x() - target.x(), attacker.y() - target.y());
+		if (dist > (attackRange + 150)) {
+			return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+		}
 		if (!canSeeTarget(attacker, target)) {
 			return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
 		}
@@ -465,6 +471,11 @@ public class CombatService {
 			double power, boolean magic, int magicLevel) {
 		if (attacker.isDead() || target.isDead() || target.invul()) {
 			return new HitResult(0, 0, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+		}
+		// Validacao de alcance: skill ofensivo de monstro nao pode ultrapassar o limite maximo de combate (1500u)
+		double dist = Math.hypot(attacker.x() - target.x(), attacker.y() - target.y());
+		if (dist > 1500.0) {
+			return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
 		}
 
 		var targetStats = PlayerStats.calculate(target, targetTemplate);
