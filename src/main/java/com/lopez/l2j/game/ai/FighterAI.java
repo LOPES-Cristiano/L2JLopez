@@ -58,6 +58,9 @@ public class FighterAI extends AbstractNpcAI {
 	}
 
 	protected void executeAttack(com.lopez.l2j.game.world.GameWorld.OnlinePlayer player, com.lopez.l2j.game.model.PlayerCharacter character) {
+		if (character.isDead()) {
+			return;
+		}
 		int pAtkSpd = Math.max(100, npc.template().pAtkSpd());
 		long cooldownMs = 500_000L / pAtkSpd;
 		long now = System.currentTimeMillis();
@@ -71,7 +74,7 @@ public class FighterAI extends AbstractNpcAI {
 					castMonsterSkill(chosenSkill, player, character, template);
 				} else {
 					var counter = combatService.attackPlayer(npc, character, template);
-					if (counter != null) {
+					if (counter != null && (counter.damage() > 0 || (counter.flags() & 0x80) != 0)) {
 						player.onAttacked(npc.objectId(), counter.damage());
 						var atk = new Attack(npc.objectId(), character.objectId(), counter.damage(), counter.flags(),
 								npc.x(), npc.y(), npc.z());
@@ -82,12 +85,12 @@ public class FighterAI extends AbstractNpcAI {
 							player.send(SystemMessage.of(SystemMessage.S1_GAVE_YOU_S2_DMG,
 									new SystemMessage.NpcName(npc.npcId()),
 									new SystemMessage.Number(counter.damage())));
-						}
-						player.send(StatusUpdate.hp(character.objectId(), (int) character.currentHp(), character.maxHp()));
-						player.send(new UserInfo(character, template));
+							player.send(StatusUpdate.hp(character.objectId(), (int) character.currentHp(), character.maxHp()));
+							player.send(new UserInfo(character, template));
 
-						if (character.isDead()) {
-							player.onDeath(npc.objectId());
+							if (counter.isDead()) {
+								player.onDeath(npc.objectId());
+							}
 						}
 					}
 				}
@@ -97,6 +100,9 @@ public class FighterAI extends AbstractNpcAI {
 
 	protected void castMonsterSkill(SkillTemplate skill, com.lopez.l2j.game.world.GameWorld.OnlinePlayer player,
 			com.lopez.l2j.game.model.PlayerCharacter character, com.lopez.l2j.game.template.CharTemplate template) {
+		if (character.isDead() && !skill.isHeal()) {
+			return;
+		}
 		if (skill.mpConsume() > 0) {
 			npc.currentMp(Math.max(0, npc.currentMp() - skill.mpConsume()));
 		}
@@ -116,11 +122,11 @@ public class FighterAI extends AbstractNpcAI {
 
 			var counter = combatService.skillAttackPlayer(npc, character, template, skill.power(),
 					skill.isMagicDamage() || skill.magic(), skill.magicLevel());
-			if (counter != null) {
+			if (counter != null && counter.damage() > 0) {
 				player.onAttacked(npc.objectId(), counter.damage());
 				player.send(StatusUpdate.hp(character.objectId(), (int) character.currentHp(), character.maxHp()));
 				player.send(new UserInfo(character, template));
-				if (character.isDead()) {
+				if (counter.isDead()) {
 					player.onDeath(npc.objectId());
 				}
 			}
