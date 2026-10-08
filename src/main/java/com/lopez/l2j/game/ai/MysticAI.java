@@ -54,6 +54,9 @@ public class MysticAI extends FighterAI {
 	}
 
 	private void executeMagicAttack(com.lopez.l2j.game.world.GameWorld.OnlinePlayer player, com.lopez.l2j.game.model.PlayerCharacter character) {
+		if (character.isDead()) {
+			return;
+		}
 		int mAtkSpd = Math.max(100, npc.template().mAtkSpd());
 		long cooldownMs = 500_000L / mAtkSpd;
 		long now = System.currentTimeMillis();
@@ -66,8 +69,15 @@ public class MysticAI extends FighterAI {
 				if (chosenSkill != null) {
 					castMonsterSkill(chosenSkill, player, character, template);
 				} else {
-					// Fallback para ataque fisico se sem mana
-					executeAttack(player, character);
+					// Fallback para ataque fisico apenas se estiver no alcance de melee
+					int attackRange = Math.max(40, npc.template().attackRange());
+					int reach = attackRange + 30;
+					double dist = Math.hypot(player.x() - npc.x(), player.y() - npc.y());
+					if (dist <= reach) {
+						executeAttack(player, character);
+					} else if (!npc.isRooted()) {
+						moveTowards(player.x(), player.y(), player.z(), player.objectId(), attackRange, dist);
+					}
 				}
 			}
 		}
