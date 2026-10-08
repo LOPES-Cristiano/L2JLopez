@@ -51,6 +51,7 @@ public class NpcAiService {
 	private final CharTemplateTable charTemplates;
 	private final NpcSkillTable npcSkillTable;
 	private final SkillTable skillTable;
+	private final com.lopez.l2j.game.champion.ChampionService championService;
 
 	private final Set<NpcInstance> activeCombatNpcs = ConcurrentHashMap.newKeySet();
 	private final java.util.Map<Integer, AbstractNpcAI> aiArchetypes = new ConcurrentHashMap<>();
@@ -68,16 +69,27 @@ public class NpcAiService {
 			CombatService combatService,
 			CharTemplateTable charTemplates,
 			@org.springframework.beans.factory.annotation.Autowired(required = false) NpcSkillTable npcSkillTable,
-			@org.springframework.beans.factory.annotation.Autowired(required = false) SkillTable skillTable) {
+			@org.springframework.beans.factory.annotation.Autowired(required = false) SkillTable skillTable,
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.champion.ChampionService championService) {
 		this.world = world;
 		this.combatService = combatService;
 		this.charTemplates = charTemplates;
 		this.npcSkillTable = npcSkillTable;
 		this.skillTable = skillTable;
+		this.championService = championService;
+	}
+
+	public NpcAiService(
+			GameWorld world,
+			CombatService combatService,
+			CharTemplateTable charTemplates,
+			NpcSkillTable npcSkillTable,
+			SkillTable skillTable) {
+		this(world, combatService, charTemplates, npcSkillTable, skillTable, null);
 	}
 
 	public NpcAiService(GameWorld world, CombatService combatService, CharTemplateTable charTemplates) {
-		this(world, combatService, charTemplates, null, null);
+		this(world, combatService, charTemplates, null, null, null);
 	}
 
 	@PostConstruct
@@ -259,8 +271,12 @@ public class NpcAiService {
 
 	private void respawnNpc(NpcInstance npc) {
 		npc.dead(false);
-		npc.currentHp(npc.template().maxHp());
-		npc.currentMp(npc.template().maxMp());
+		if (championService != null) {
+			championService.tryRollChampion(npc);
+		} else {
+			npc.currentHp(npc.maxHp());
+			npc.currentMp(npc.template().maxMp());
+		}
 		npc.targetPlayerId(0);
 		npc.inCombat(false);
 
