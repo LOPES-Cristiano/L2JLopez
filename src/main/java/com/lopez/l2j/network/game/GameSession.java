@@ -2311,8 +2311,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				}
 
 				if (ctx.drops() != null) {
-					ctx.drops().rewardMonsterDeath(active, npc.npcId(),
-							npc.template() != null ? npc.template().level() : 0, ctx.inventories(), this::send);
+					ctx.drops().rewardMonsterDeath(active, npc, ctx.inventories(), this::send);
 				}
 
 				if (ctx.questManager() != null) {
@@ -5885,8 +5884,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				npc.spoilRewards(spoilDrops);
 			}
 			if (ctx.drops() != null) {
-				ctx.drops().rewardMonsterDeath(active, npc.npcId(), npc.template() != null ? npc.template().level() : 0,
-						ctx.inventories(), this::send);
+				ctx.drops().rewardMonsterDeath(active, npc, ctx.inventories(), this::send);
 			}
 			if (ctx.questManager() != null) {
 				ctx.questManager().onNpcKill(npc, this, false);
