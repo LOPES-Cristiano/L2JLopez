@@ -130,6 +130,7 @@ public class SchemeBufferService {
 			return;
 		}
 		player.effects().clear();
+		session.saveBuffs();
 		session.sendMagicEffectIcons();
 		session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Todos os seus buffs foram cancelados!"));
 	}
