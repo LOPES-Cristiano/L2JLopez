@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list>
+	<!-- SoloFarm Instanced Arena (Onda C9) -->
+	<soloFarm enabled="true" name="SoloFarm">
+		<entryNpc id="57008" />
+		<entryLocation x="147450" y="25620" z="-2000" />
+		<exitLocation x="82698" y="148638" z="-3473" />
+		<price itemId="57" countPerMob="1000" />
+		<limits minBuy="100" maxBuy="5000" customBuy="true" />
+		<timer instanceMinutes="30" />
+		<spawnControl maxAliveMonsters="20" respawnOnKillDelay="1" />
+		<rewards>
+			<reward itemId="57" min="1000" max="3000" chance="100" />
+			<reward itemId="4037" min="1" max="2" chance="25" />
+		</rewards>
+	</soloFarm>
+</list>
