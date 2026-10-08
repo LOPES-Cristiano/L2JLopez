@@ -32,6 +32,7 @@ public class DropService {
 	private final double rateSpoil;
 	private final boolean autoLoot;
 	private final com.lopez.l2j.game.champion.ChampionService championService;
+	private final com.lopez.l2j.game.item.GroundItemService groundItemService;
 
 	public DropService(
 			DropTable dropTable,
@@ -39,7 +40,17 @@ public class DropService {
 			@Value("${l2.rates.drop:1.0}") double rateDrop,
 			@Value("${l2.rates.spoil:1.0}") double rateSpoil,
 			@Value("${l2.game.autoloot:true}") boolean autoLoot) {
-		this(dropTable, rateAdena, rateDrop, rateSpoil, autoLoot, null);
+		this(dropTable, rateAdena, rateDrop, rateSpoil, autoLoot, null, null);
+	}
+
+	public DropService(
+			DropTable dropTable,
+			double rateAdena,
+			double rateDrop,
+			double rateSpoil,
+			boolean autoLoot,
+			com.lopez.l2j.game.champion.ChampionService championService) {
+		this(dropTable, rateAdena, rateDrop, rateSpoil, autoLoot, championService, null);
 	}
 
 	@org.springframework.beans.factory.annotation.Autowired
@@ -49,13 +60,15 @@ public class DropService {
 			@Value("${l2.rates.drop:1.0}") double rateDrop,
 			@Value("${l2.rates.spoil:1.0}") double rateSpoil,
 			@Value("${l2.game.autoloot:true}") boolean autoLoot,
-			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.champion.ChampionService championService) {
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.champion.ChampionService championService,
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.item.GroundItemService groundItemService) {
 		this.dropTable = dropTable;
 		this.rateAdena = Math.max(0.1, rateAdena);
 		this.rateDrop = Math.max(0.1, rateDrop);
 		this.rateSpoil = Math.max(0.1, rateSpoil);
 		this.autoLoot = autoLoot;
 		this.championService = championService;
+		this.groundItemService = groundItemService;
 	}
 
 	public List<DropData> getDrops(int mobId) {
@@ -76,7 +89,7 @@ public class DropService {
 		}
 
 		double levelPenalty = 1.0;
-		if (Config.getBoolean("UseDeepBlueDropRules", true) && playerLevel > 0 && mobLevel > 0) {
+		if (Config.USE_DEEP_BLUE_DROP_RULES && playerLevel > 0 && mobLevel > 0) {
 			int diff = playerLevel - mobLevel;
 			if (diff >= 9) {
 				levelPenalty = Math.max(0.0, 1.0 - ((diff - 8) * 0.2));
@@ -88,6 +101,7 @@ public class DropService {
 
 		List<DropReward> rewards = new ArrayList<>();
 		ThreadLocalRandom rng = ThreadLocalRandom.current();
+		boolean precise = Config.PRECISE_DROP_CALCULATION;
 
 		for (DropData rule : rules) {
 			if (rule.isSpoil()) {
@@ -113,10 +127,21 @@ public class DropService {
 			} else {
 				// Calculo de Itens / Materiais / Equipamentos
 				double rate = (rateDrop > 0 ? rateDrop : Config.RATE_DROP_ITEMS) * levelPenalty;
-				long effectiveChance = Math.round(rule.chance() * rate);
-				if (effectiveChance >= DropData.MAX_CHANCE || rng.nextInt(DropData.MAX_CHANCE) < effectiveChance) {
-					int count = randomCount(rng, rule.min(), rule.max());
-					rewards.add(new DropReward(rule.itemId(), count, false));
+				if (precise) {
+					double prob = ((double) rule.chance() * rate) / DropData.MAX_CHANCE;
+					int guaranteed = (int) prob;
+					double remainder = prob - guaranteed;
+					int totalMultiplier = guaranteed + (rng.nextDouble() < remainder ? 1 : 0);
+					if (totalMultiplier > 0) {
+						int baseCount = randomCount(rng, rule.min(), rule.max());
+						rewards.add(new DropReward(rule.itemId(), baseCount * totalMultiplier, false));
+					}
+				} else {
+					long effectiveChance = Math.round(rule.chance() * rate);
+					if (effectiveChance >= DropData.MAX_CHANCE || rng.nextInt(DropData.MAX_CHANCE) < effectiveChance) {
+						int count = randomCount(rng, rule.min(), rule.max());
+						rewards.add(new DropReward(rule.itemId(), count, false));
+					}
 				}
 			}
 		}
@@ -177,7 +202,17 @@ public class DropService {
 
 		for (DropReward reward : rewards) {
 			boolean shouldLoot = reward.isAdena() ? Config.AUTO_LOOT_ADENA : (autoLoot && Config.AUTO_LOOT);
-			if (shouldLoot && inventoryService != null) {
+			boolean hasSpace = true;
+			if (player != null && player.inventory() != null) {
+				boolean alreadyOwned = player.inventory().byItemId(reward.itemId()).isPresent();
+				var tpl = inventoryService != null ? inventoryService.templates().get(reward.itemId()).orElse(null) : null;
+				boolean stackable = tpl != null && tpl.isStackable();
+				if ((!stackable || !alreadyOwned) && player.inventory().size() >= player.maxInventorySlots()) {
+					hasSpace = false;
+				}
+			}
+
+			if (shouldLoot && hasSpace && inventoryService != null) {
 				try {
 					var addResult = inventoryService.addItem(player.inventory(), reward.itemId(), reward.count(), "Drop");
 					if (addResult != null) {
@@ -203,6 +238,14 @@ public class DropService {
 				} catch (Exception e) {
 					log.warn("Falha ao entregar drop {} x{} para {}: {}",
 							reward.itemId(), reward.count(), player.name(), e.getMessage());
+				}
+			} else {
+				String behavior = Config.PICKUP_FULL_INVENTORY;
+				if (!hasSpace && "destroy".equalsIgnoreCase(behavior)) {
+					continue;
+				}
+				if (groundItemService != null && player != null) {
+					groundItemService.dropItem(0, reward.itemId(), reward.count(), player.x(), player.y(), player.z());
 				}
 			}
 		}
