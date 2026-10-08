@@ -116,4 +116,37 @@ class PlayerStatsTest {
 		// DEX 30 bonus = 1.00 -> 120 * 1.00 = 120
 		assertEquals(120, stats.critical(), "Bow critical com DEX 30 deve ser 120");
 	}
+
+	@Test
+	void statsCapsRespectPlayerPropertiesConfiguration() {
+		// Configura limites restritivos
+		com.lopez.l2j.config.Config.setProperty("MaxPAtkSpeed", "300");
+		com.lopez.l2j.config.Config.setProperty("MaxRunSpeed", "100");
+		com.lopez.l2j.config.Config.setProperty("MaxEvasion", "20");
+		com.lopez.l2j.config.Config.setProperty("AltPCriticalCap", "50");
+
+		var swordTemplate = ItemTemplate.weapon(1, 1, "Short Sword", "rhand", "sword", 1300, "none",
+				35, 10, 379, 8, 0, 100, true, true, true, true);
+		var sword = new ItemInstance(0x20000001, swordTemplate, player.objectId(), 1);
+		inventory.add(sword);
+		inventory.equip(sword);
+
+		player.level(40);
+		var stats = PlayerStats.calculate(player, template);
+
+		// Sem limite seria 379, com cap deve ser 300
+		assertEquals(300, stats.pAtkSpd(), "PAtkSpd deve respeitar MaxPAtkSpeed");
+		// Sem limite seria template.runSpeed() (126), com cap deve ser 100
+		assertEquals(100, stats.runSpeed(), "RunSpeed deve respeitar MaxRunSpeed");
+		// Sem limite seria 33 + 40 = 73, com cap deve ser 20
+		assertEquals(20, stats.evasion(), "Evasion deve respeitar MaxEvasion");
+		// Sem limite seria 80, com cap deve ser 50
+		assertEquals(50, stats.critical(), "Critical deve respeitar AltPCriticalCap");
+
+		// Restaurar valores padrao
+		com.lopez.l2j.config.Config.setProperty("MaxPAtkSpeed", "9999");
+		com.lopez.l2j.config.Config.setProperty("MaxRunSpeed", "9999");
+		com.lopez.l2j.config.Config.setProperty("MaxEvasion", "200");
+		com.lopez.l2j.config.Config.setProperty("AltPCriticalCap", "500");
+	}
 }
