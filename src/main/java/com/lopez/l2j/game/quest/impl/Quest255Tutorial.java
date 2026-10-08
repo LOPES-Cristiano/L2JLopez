@@ -102,8 +102,19 @@ public class Quest255Tutorial extends Quest {
 			qs.setState(State.STARTED);
 			qs.setCond(1);
 			qs.set("ucMemo", 0);
-			qs.giveItems(TUTORIAL_GUIDE, 1);
-			qs.playTutorialVoice("tutorial_voice_001a");
+			String voice = switch (c.classId()) {
+				case 0 -> "tutorial_voice_001a"; // Human Fighter
+				case 10 -> "tutorial_voice_001b"; // Human Mystic
+				case 18 -> "tutorial_voice_001c"; // Elven Fighter
+				case 25 -> "tutorial_voice_001d"; // Elven Mystic
+				case 31 -> "tutorial_voice_001e"; // Dark Elven Fighter
+				case 38 -> "tutorial_voice_001f"; // Dark Elven Mystic
+				case 44 -> "tutorial_voice_001g"; // Orc Fighter
+				case 49 -> "tutorial_voice_001h"; // Orc Mystic
+				case 53 -> "tutorial_voice_001i"; // Dwarven Fighter
+				default -> "tutorial_voice_001a";
+			};
+			qs.playTutorialVoice(voice);
 			qs.showQuestionMark(1);
 			qs.playSound("ItemSound.quest_tutorial");
 		}
@@ -223,6 +234,17 @@ public class Quest255Tutorial extends Quest {
 			} catch (NumberFormatException ignored) {}
 
 			int classId = player.activeChar() != null ? player.activeChar().classId() : 0;
+			if (markId == 1) {
+				switch (classId) {
+					case 0, 10 -> qs.addRadar(-71424, 258336, -3104);
+					case 18, 25 -> qs.addRadar(46112, 41200, -3504);
+					case 31, 38 -> qs.addRadar(28384, 11056, -4224);
+					case 44, 49 -> qs.addRadar(-45032, -113598, -192);
+					case 53 -> qs.addRadar(108516, -174026, -400);
+					default -> qs.addRadar(-71424, 258336, -3104);
+				}
+			}
+
 			String file = switch (markId) {
 				case 1 -> switch (classId) {
 					case 0 -> "tutorial_human_fighter007.htm";
@@ -256,6 +278,8 @@ public class Quest255Tutorial extends Quest {
 						+ "Welcome to Lineage 2!<br><a action=\"link TE07\">Exit the Tutorial</a></body></html>";
 			}
 			qs.showTutorialHtml(html);
+		} else if ("CE1".equalsIgnoreCase(event)) {
+			qs.onTutorialClientEvent(2);
 		} else if (event.startsWith("TE")) {
 			qs.closeTutorialHtml();
 		}
