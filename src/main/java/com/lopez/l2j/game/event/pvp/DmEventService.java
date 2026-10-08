@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.event.pvp;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,23 +65,27 @@ public class DmEventService {
     }
 
     private volatile EventState state = EventState.INACTIVE;
-    private int minLevel = 20;
-    private int maxLevel = 80;
+    private int minLevel = Config.DM_MIN_LEVEL;
+    private int maxLevel = Config.DM_MAX_LEVEL;
     private int arenaX = 149457;
     private int arenaY = 46700;
     private int arenaZ = -3413;
 
     // Top 1, 2, 3 rewards
-    private int reward1ItemId = 57;
-    private int reward1Count = 100000;
-    private int reward2ItemId = 57;
-    private int reward2Count = 50000;
-    private int reward3ItemId = 57;
-    private int reward3Count = 25000;
+    private int reward1ItemId = Config.DM_REWARD_ID;
+    private int reward1Count = Config.DM_REWARD_AMOUNT;
+    private int reward2ItemId = Config.DM_REWARD_ID;
+    private int reward2Count = Config.DM_REWARD_AMOUNT / 2;
+    private int reward3ItemId = Config.DM_REWARD_ID;
+    private int reward3Count = Config.DM_REWARD_AMOUNT / 4;
 
     private final Map<Integer, Participant> participants = new ConcurrentHashMap<>();
 
     public DmEventService() {}
+
+    public synchronized void openRegistration() {
+        openRegistration(Config.DM_MIN_LEVEL, Config.DM_MAX_LEVEL);
+    }
 
     public synchronized void openRegistration(int minLvl, int maxLvl) {
         this.minLevel = minLvl;
@@ -91,7 +96,7 @@ public class DmEventService {
     }
 
     public RegisterResult register(PlayerCharacter player) {
-        if (state != EventState.REGISTRATION) {
+        if (!Config.DM_ENABLED || state != EventState.REGISTRATION) {
             return RegisterResult.NOT_IN_REGISTRATION;
         }
         if (participants.containsKey(player.getObjectId())) {
@@ -211,4 +216,6 @@ public class DmEventService {
     public int getReward2Count() { return reward2Count; }
     public int getReward3ItemId() { return reward3ItemId; }
     public int getReward3Count() { return reward3Count; }
+    public int getMinLevel() { return minLevel; }
+    public int getMaxLevel() { return maxLevel; }
 }
