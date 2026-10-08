@@ -64,35 +64,44 @@ public class CombatService {
 	}
 
 	public boolean canSeeTarget(int x, int y, int z, int tx, int ty, int tz) {
-		if (geoEngine != null) {
+		if (geoEngine != null && geoEngine.isEnabled()) {
 			return geoEngine.canSeeTarget(x, y, z, tx, ty, tz);
 		}
 		return true;
 	}
 
 	public boolean canSeeTarget(PlayerCharacter player, NpcInstance npc) {
-		if (geoEngine != null && player != null && npc != null) {
+		if (geoEngine != null && geoEngine.isEnabled()) {
+			if (player == null || npc == null) {
+				return false;
+			}
 			return geoEngine.canSeeTarget(player, npc);
 		}
 		return true;
 	}
 
 	public boolean canSeeTarget(NpcInstance npc, PlayerCharacter player) {
-		if (geoEngine != null && npc != null && player != null) {
+		if (geoEngine != null && geoEngine.isEnabled()) {
+			if (npc == null || player == null) {
+				return false;
+			}
 			return geoEngine.canSeeTarget(npc, player);
 		}
 		return true;
 	}
 
 	public boolean canSeeTarget(PlayerCharacter player, PlayerCharacter target) {
-		if (geoEngine != null && player != null && target != null) {
+		if (geoEngine != null && geoEngine.isEnabled()) {
+			if (player == null || target == null) {
+				return false;
+			}
 			return geoEngine.canSeeTarget(player, target);
 		}
 		return true;
 	}
 
 	public boolean canMoveToTarget(int x, int y, int z, int tx, int ty, int tz) {
-		if (geoEngine != null) {
+		if (geoEngine != null && geoEngine.isEnabled()) {
 			return geoEngine.canMoveToTarget(x, y, z, tx, ty, tz);
 		}
 		return true;
@@ -186,7 +195,8 @@ public class CombatService {
 
 		// Variacao aleatoria baseada no rnd_dam da arma (ex: 5% dagger, 10% sword, 20% blunt)
 		double rnd = calcRndMultiplier(attacker);
-		int damage = Math.max(1, (int) Math.round(baseDam * rnd));
+		double bowMult = calcBowDistanceMultiplier(attacker, target.x(), target.y());
+		int damage = Math.max(1, (int) Math.round(baseDam * rnd * bowMult));
 		int flags = crit ? 0x20 : 0x00;
 		if (soulshot) {
 			flags |= 0x10 | soulshotGrade;
@@ -222,7 +232,8 @@ public class CombatService {
 			baseDam *= 2.0;
 		}
 		double rnd = calcRndMultiplier(attacker);
-		double finalDam = baseDam * rnd;
+		double bowMult = calcBowDistanceMultiplier(attacker, target.x(), target.y());
+		double finalDam = baseDam * rnd * bowMult;
 		if (attacker != null && target != null && attacker.isOlympiadMode() && target.isOlympiadMode() && olyDamageManager != null) {
 			finalDam *= olyDamageManager.getDamageMultiplier(attacker, target);
 		}
@@ -735,5 +746,28 @@ public class CombatService {
 		}
 		double spread = rndDam / 100.0;
 		return (1.0 - spread) + (ThreadLocalRandom.current().nextDouble() * 2.0 * spread);
+	}
+
+	public static double calcBowDistanceMultiplier(PlayerCharacter attacker, int tx, int ty) {
+		if (!com.lopez.l2j.config.Config.USE_BOW_DISTANCE_PENALTY || attacker == null || attacker.inventory() == null) {
+			return 1.0;
+		}
+		var w = attacker.inventory().paperdoll(com.lopez.l2j.game.item.ItemSlots.LRHAND);
+		if (w == null) {
+			w = attacker.inventory().paperdoll(com.lopez.l2j.game.item.ItemSlots.RHAND);
+		}
+		if (w == null || w.template() == null || !"bow".equalsIgnoreCase(w.template().subType())) {
+			return 1.0;
+		}
+
+		double dx = attacker.x() - tx;
+		double dy = attacker.y() - ty;
+		double dist = Math.sqrt(dx * dx + dy * dy);
+		double maxRange = 850.0;
+		if (dist >= maxRange) {
+			return 1.0;
+		}
+		float minMult = com.lopez.l2j.config.Config.MAX_BOW_DISTANCE_PENALTY;
+		return minMult + (1.0 - minMult) * (dist / maxRange);
 	}
 }
