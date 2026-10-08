@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.olympiad;
 
+import com.lopez.l2j.config.Config;
 import jakarta.annotation.PostConstruct;
 import java.util.Collection;
 import java.util.Collections;
@@ -72,7 +73,8 @@ public class OlympiadManager {
 	}
 
 	public synchronized OlympiadNoble registerNoble(int charId, String charName, int classId) {
-		OlympiadNoble noble = nobles.computeIfAbsent(charId, id -> new OlympiadNoble(id, charName, classId));
+		int startPts = Config.ALT_OLY_START_POINTS_COUNT > 0 ? Config.ALT_OLY_START_POINTS_COUNT : OlympiadNoble.DEFAULT_POINTS;
+		OlympiadNoble noble = nobles.computeIfAbsent(charId, id -> new OlympiadNoble(id, charName, classId, startPts, 0, 0, 0, 0));
 		if (charName != null && !charName.isBlank()) {
 			noble.charName(charName);
 		}
@@ -90,6 +92,11 @@ public class OlympiadManager {
 		if (draw) {
 			winner.recordDraw();
 			loser.recordDraw();
+			if (Config.OLYMPIAD_REMOVE_POINTS_ON_TIE) {
+				int tiePenalty = 2;
+				winner.points(Math.max(0, winner.points() - tiePenalty));
+				loser.points(Math.max(0, loser.points() - tiePenalty));
+			}
 		} else {
 			int pointTransfer = Math.max(1, Math.min(10, Math.min(winner.points(), loser.points()) / 5));
 			winner.recordWin(pointTransfer);
@@ -109,9 +116,10 @@ public class OlympiadManager {
 	 */
 	public Map<Integer, OlympiadNoble> computeHeroes() {
 		Map<Integer, OlympiadNoble> heroes = new HashMap<>();
+		int minMatches = Config.ALT_OLY_MIN_MATCHES > 0 ? Config.ALT_OLY_MIN_MATCHES : MIN_MATCHES_FOR_HERO;
 
 		for (OlympiadNoble noble : nobles.values()) {
-			if (noble.competitionsDone() < MIN_MATCHES_FOR_HERO) {
+			if (noble.competitionsDone() < minMatches) {
 				continue;
 			}
 			OlympiadNoble existing = heroes.get(noble.classId());
@@ -124,11 +132,33 @@ public class OlympiadManager {
 	}
 
 	public void resetWeeklyPoints() {
+		int addPoints = Config.ALT_OLY_WEEKLY_POINTS_COUNT > 0 ? Config.ALT_OLY_WEEKLY_POINTS_COUNT : 3;
 		for (OlympiadNoble noble : nobles.values()) {
-			noble.points(noble.points() + OlympiadNoble.DEFAULT_POINTS);
+			noble.points(noble.points() + addPoints);
 			persistNoble(noble);
 		}
-		log.info("Olympiad: +{} pontos semanais concedidos aos nobress", OlympiadNoble.DEFAULT_POINTS);
+		log.info("Olympiad: +{} pontos semanais concedidos aos nobres", addPoints);
+	}
+
+	public synchronized int exchangePoints(int charId, int pointsToExchange) {
+		OlympiadNoble noble = nobles.get(charId);
+		if (noble == null) {
+			return 0;
+		}
+		if (noble.points() < Config.ALT_OLY_MIN_POINT_FOR_EXCHANGE || pointsToExchange <= 0 || pointsToExchange > noble.points()) {
+			return 0;
+		}
+		noble.points(noble.points() - pointsToExchange);
+		persistNoble(noble);
+		return pointsToExchange * Config.ALT_OLY_GP_PER_POINT;
+	}
+
+	public synchronized void rewardHeroPoints(int charId) {
+		OlympiadNoble noble = nobles.get(charId);
+		if (noble != null) {
+			noble.points(noble.points() + Config.ALT_OLY_HERO_POINTS);
+			persistNoble(noble);
+		}
 	}
 
 	private void loadFromDb() {
