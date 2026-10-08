@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -13,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * - bloquear buffs externos de terceiros (blockbuff)
  * - bloquear convites de grupo (party)
  * - alternar/travar ganho de experiência (EXP lock)
+ * Persiste preferências através do CharacterVariablesService.
  */
 @Service
 public class PlayerPreferencesService {
@@ -36,39 +38,74 @@ public class PlayerPreferencesService {
         public void setBlockExp(boolean blockExp) { this.blockExp = blockExp; }
     }
 
+    private final CharacterVariablesService characterVariables;
     private final Map<Integer, Preferences> preferencesMap = new ConcurrentHashMap<>();
 
+    public PlayerPreferencesService() {
+        this(null);
+    }
+
+    @Autowired(required = false)
+    public PlayerPreferencesService(CharacterVariablesService characterVariables) {
+        this.characterVariables = characterVariables;
+    }
+
     public Preferences getPreferences(int playerId) {
-        return preferencesMap.computeIfAbsent(playerId, k -> new Preferences());
+        return preferencesMap.computeIfAbsent(playerId, k -> {
+            Preferences p = new Preferences();
+            if (characterVariables != null) {
+                p.setAutoLoot(characterVariables.getBoolean(playerId, "pref_autoloot", true));
+                p.setTradeRefusal(characterVariables.getBoolean(playerId, "pref_traderefusal", false));
+                p.setBlockBuffs(characterVariables.getBoolean(playerId, "pref_blockbuff", false));
+                p.setBlockParty(characterVariables.getBoolean(playerId, "pref_blockparty", false));
+                p.setBlockExp(characterVariables.getBoolean(playerId, "pref_blockexp", false));
+            }
+            return p;
+        });
     }
 
     public boolean toggleAutoLoot(int playerId) {
         Preferences p = getPreferences(playerId);
         p.setAutoLoot(!p.isAutoLoot());
+        if (characterVariables != null) {
+            characterVariables.set(playerId, "pref_autoloot", p.isAutoLoot());
+        }
         return p.isAutoLoot();
     }
 
     public boolean toggleTradeRefusal(int playerId) {
         Preferences p = getPreferences(playerId);
         p.setTradeRefusal(!p.isTradeRefusal());
+        if (characterVariables != null) {
+            characterVariables.set(playerId, "pref_traderefusal", p.isTradeRefusal());
+        }
         return p.isTradeRefusal();
     }
 
     public boolean toggleBlockBuffs(int playerId) {
         Preferences p = getPreferences(playerId);
         p.setBlockBuffs(!p.isBlockBuffs());
+        if (characterVariables != null) {
+            characterVariables.set(playerId, "pref_blockbuff", p.isBlockBuffs());
+        }
         return p.isBlockBuffs();
     }
 
     public boolean toggleBlockParty(int playerId) {
         Preferences p = getPreferences(playerId);
         p.setBlockParty(!p.isBlockParty());
+        if (characterVariables != null) {
+            characterVariables.set(playerId, "pref_blockparty", p.isBlockParty());
+        }
         return p.isBlockParty();
     }
 
     public boolean toggleBlockExp(int playerId) {
         Preferences p = getPreferences(playerId);
         p.setBlockExp(!p.isBlockExp());
+        if (characterVariables != null) {
+            characterVariables.set(playerId, "pref_blockexp", p.isBlockExp());
+        }
         return p.isBlockExp();
     }
 
