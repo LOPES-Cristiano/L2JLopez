@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.ai;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.combat.CombatService;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.template.CharTemplateTable;
@@ -52,6 +53,7 @@ public class NpcAiService {
 	private final NpcSkillTable npcSkillTable;
 	private final SkillTable skillTable;
 	private final com.lopez.l2j.game.champion.ChampionService championService;
+	private final com.lopez.l2j.game.zone.ZoneTable zones;
 
 	private final Set<NpcInstance> activeCombatNpcs = ConcurrentHashMap.newKeySet();
 	private final java.util.Map<Integer, AbstractNpcAI> aiArchetypes = new ConcurrentHashMap<>();
@@ -70,13 +72,15 @@ public class NpcAiService {
 			CharTemplateTable charTemplates,
 			@org.springframework.beans.factory.annotation.Autowired(required = false) NpcSkillTable npcSkillTable,
 			@org.springframework.beans.factory.annotation.Autowired(required = false) SkillTable skillTable,
-			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.champion.ChampionService championService) {
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.champion.ChampionService championService,
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.zone.ZoneTable zones) {
 		this.world = world;
 		this.combatService = combatService;
 		this.charTemplates = charTemplates;
 		this.npcSkillTable = npcSkillTable;
 		this.skillTable = skillTable;
 		this.championService = championService;
+		this.zones = zones;
 	}
 
 	public NpcAiService(
@@ -85,11 +89,11 @@ public class NpcAiService {
 			CharTemplateTable charTemplates,
 			NpcSkillTable npcSkillTable,
 			SkillTable skillTable) {
-		this(world, combatService, charTemplates, npcSkillTable, skillTable, null);
+		this(world, combatService, charTemplates, npcSkillTable, skillTable, null, null);
 	}
 
 	public NpcAiService(GameWorld world, CombatService combatService, CharTemplateTable charTemplates) {
-		this(world, combatService, charTemplates, null, null, null);
+		this(world, combatService, charTemplates, null, null, null, null);
 	}
 
 	@PostConstruct
@@ -116,6 +120,13 @@ public class NpcAiService {
 	public void startCombat(NpcInstance npc, int targetPlayerId) {
 		if (npc == null || npc.isDead()) {
 			return;
+		}
+		var playerOpt = world.player(targetPlayerId);
+		if (playerOpt.isPresent()) {
+			var p = playerOpt.get();
+			if (zones != null && (zones.isInsidePeace(p.x(), p.y(), p.z()) || zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
+				return;
+			}
 		}
 		npc.targetPlayerId(targetPlayerId);
 		npc.inCombat(true);
@@ -208,7 +219,12 @@ public class NpcAiService {
 		if (playerId == 0) {
 			return;
 		}
-		for (NpcInstance npc : activeCombatNpcs) {
+		for (NpcInstance npc : java.util.List.copyOf(activeCombatNpcs)) {
+			if (npc != null && (npc.targetPlayerId() == playerId || (npc.targetPlayerId() == 0 && npc.inCombat()))) {
+				returnToSpawn(npc);
+			}
+		}
+		for (NpcInstance npc : world.npcs()) {
 			if (npc != null && npc.targetPlayerId() == playerId) {
 				returnToSpawn(npc);
 			}
@@ -361,6 +377,9 @@ public class NpcAiService {
 			if (character == null || character.isDead() || character.isGm()) {
 				continue;
 			}
+			if (zones != null && zones.isInsidePeace(player.x(), player.y(), player.z())) {
+				continue;
+			}
 			var nearbyNpcs = world.findNpcsAround(player.x(), player.y(), 1000);
 			for (var npc : nearbyNpcs) {
 				if (npc.isDead() || npc.inCombat() || !npc.isMonster()) {
@@ -372,10 +391,12 @@ public class NpcAiService {
 				}
 				int aggroRange = npc.template().aggroRange();
 				if (aggroRange > 0) {
-					// Regra oficial Lineage II / L2JDream:
-					// Monstros comuns nao agram jogadores 9+ niveis acima (com excecao de Raid Bosses e Grand Bosses)
+					// Regra oficial Lineage II / L2JDream / AltMobNoAttackWithLevelDifference:
+					// Monstros comuns nao agram jogadores alem do diferencial de nivel (com excecao de Raid Bosses e Grand Bosses)
 					if (!npc.template().isRaidBoss() && !npc.template().isGrandBoss()) {
-						if (character.level() >= npc.template().level() + 9) {
+						int diff = Config.ALT_MOB_NO_ATTACK_WITH_LEVEL_DIFFERENCE;
+						int delta = diff >= 0 ? diff : 9;
+						if (character.level() >= npc.template().level() + delta) {
 							continue;
 						}
 					}
@@ -401,7 +422,7 @@ public class NpcAiService {
 				if (npc.isMonster()) {
 					// 25% de chance de caminhar um pouco
 					if (rnd.nextInt(100) < 25) {
-						int maxOffset = 150;
+						int maxOffset = Config.MAX_DRIFT_RANGE > 0 ? Config.MAX_DRIFT_RANGE : 120;
 						int targetX = npc.spawnX() + rnd.nextInt(-maxOffset, maxOffset + 1);
 						int targetY = npc.spawnY() + rnd.nextInt(-maxOffset, maxOffset + 1);
 						int heading = (int) Math.round(Math.atan2(targetY - npc.y(), targetX - npc.x()) * 10430.378);
@@ -442,6 +463,15 @@ public class NpcAiService {
 		var character = player.character();
 		if (character == null || character.isDead()) {
 			returnToSpawn(npc);
+			return;
+		}
+
+		// Se o jogador ou o monstro estiver em zona de paz (ex: vila/cidade), interrompe combate imediatamente
+		if (zones != null && (zones.isInsidePeace(player.x(), player.y(), player.z()) || zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
+			returnToSpawn(npc);
+			var stopAtk = new AutoAttackStop(npc.objectId());
+			player.send(stopAtk);
+			world.broadcastAround(player, GameWorld.VISIBILITY_RADIUS, stopAtk, false);
 			return;
 		}
 
@@ -540,6 +570,7 @@ public class NpcAiService {
 			var movePkt = new MoveToLocation(npc.objectId(), sx, sy, sz, npc.x(), npc.y(), npc.z());
 			npc.moveTo(sx, sy, sz, sh);
 			world.updateNpcPosition(npc, fromX, fromY);
+			world.broadcastAround(fromX, fromY, GameWorld.VISIBILITY_RADIUS, movePkt);
 			world.broadcastAround(sx, sy, GameWorld.VISIBILITY_RADIUS, movePkt);
 		}
 
