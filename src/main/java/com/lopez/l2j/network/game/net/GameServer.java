@@ -134,7 +134,9 @@ public class GameServer implements SmartLifecycle {
 			@Autowired(required = false) com.lopez.l2j.network.game.handler.voiced.VoicedCommandHandlerRegistry voicedCommands,
 			@Autowired(required = false) com.lopez.l2j.network.game.handler.bypass.BypassHandlerRegistry bypassHandlers,
 			@Autowired(required = false) com.lopez.l2j.game.service.AcpService acpService,
-			@Autowired(required = false) com.lopez.l2j.game.service.SchemeBufferService schemeBuffer) {
+			@Autowired(required = false) com.lopez.l2j.game.service.SchemeBufferService schemeBuffer,
+			@Autowired(required = false) com.lopez.l2j.game.service.BankingService banking,
+			@Autowired(required = false) com.lopez.l2j.game.service.AwayStatusService away) {
 		this(p.network().gamePort(), new GameSession.Context(p.network().protocolMin(), p.network().protocolMax(),
 				sessionKeys, characters, inventories, world, htmls, teleports, buylists, combat, drops, shortcuts, skills, npcAi,
 				skillService, multisell, warehouse, buffRepository, spawns, p.admin().superusers(), mapRegions, announcements,
@@ -147,7 +149,7 @@ public class GameServer implements SmartLifecycle {
 				tvt, ctf, dm, partyFarm, botsPrevention, pvpColor, pvpRank, aio, preferences,
 				lottery, monsterRace, fishingChampionship, petition, boat, l2day, starterKit, questManager, subClasses,
 				macros, raidPoints, bypassEncoder, packetRateLimiter, characterVariables, adminCommands, voicedCommands, bypassHandlers,
-				acpService, schemeBuffer,
+				acpService, schemeBuffer, banking, away,
 				p.rates(), p.serverName()));
 	}
 
