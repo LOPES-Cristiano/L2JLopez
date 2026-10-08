@@ -22,6 +22,7 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.ActionFailed;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Attack;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ChangeWaitType;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
+import com.lopez.l2j.network.game.packet.GameServerPacket.MagicEffectIcons;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MyTargetSelected;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Revive;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SetupGauge;
@@ -275,6 +276,32 @@ class GameSessionFeaturesTest {
 				.findFirst();
 		assertTrue(dieOpt.isPresent(), "Deve enviar pacote Die quando o player morre");
 		assertTrue(dieOpt.get().toVillage(), "O pacote Die deve ter toVillage=true para exibir o botao To Nearest Village");
+	}
+
+	@Test
+	void playerDeathClearsBuffsWhenNoNoblesse() {
+		player.effects().addBuff(1068, 1, 1_200_000L); // Might
+		assertFalse(player.effects().active().isEmpty(), "Player deve ter buff ativo antes de morrer");
+
+		session.handlePlayerDeath(null);
+
+		assertTrue(player.isDead());
+		assertTrue(player.effects().active().isEmpty(), "Buffs devem ser limpos ao morrer sem Noblesse");
+		assertTrue(sent.stream().anyMatch(p -> p instanceof MagicEffectIcons mei && mei.icons().isEmpty()),
+				"Deve enviar MagicEffectIcons vazio ao morrer");
+	}
+
+	@Test
+	void playerDeathPreservesBuffsWithNoblesseBlessing() {
+		player.effects().addBuff(1068, 1, 1_200_000L); // Might
+		player.effects().addBuff(1323, 1, 1_200_000L); // Blessing of Noblesse
+		assertEquals(2, player.effects().active().size());
+
+		session.handlePlayerDeath(null);
+
+		assertTrue(player.isDead());
+		assertFalse(player.effects().hasSkill(1323), "Noblesse Blessing deve ser consumido na morte");
+		assertTrue(player.effects().hasSkill(1068), "Might deve ser preservado pela Noblesse Blessing");
 	}
 
 	@Test
