@@ -88,7 +88,7 @@ public class BypassTournamentHandler implements IBypassHandler {
 					session.send(new CreatureSay(0, CreatureSay.ALL, "Torneio", "Apenas o lider de um grupo pode inscrever a equipe em torneios!"));
 					return true;
 				}
-				if (party.memberCount() < mode.getRequiredMembers()) {
+				if (party.members().size() < mode.getRequiredMembers()) {
 					session.send(new CreatureSay(0, CreatureSay.ALL, "Torneio",
 							String.format("Seu grupo precisa de pelo menos %d membros para esta modalidade!", mode.getRequiredMembers())));
 					return true;
