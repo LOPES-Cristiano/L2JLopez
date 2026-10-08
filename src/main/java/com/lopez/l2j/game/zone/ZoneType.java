@@ -14,5 +14,6 @@ public enum ZoneType {
 	BOSS,
 	DAMAGE,
 	FISHING,
+	FLAG,
 	OTHER
 }
