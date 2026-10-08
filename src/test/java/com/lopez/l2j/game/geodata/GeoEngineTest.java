@@ -82,4 +82,43 @@ class GeoEngineTest {
 		assertEquals(83450, loc.x());
 		assertEquals(148000, loc.y());
 	}
+
+	@Test
+	@DisplayName("Verificacao de linha de visao em Talking Island Keltir spawn")
+	void testTalkingIslandLoS() {
+		int mobX = -74684;
+		int mobY = 252904;
+		int mobZ = -3451;
+
+		short geoMobZ = geoEngine.getHeight(mobX, mobY, mobZ);
+		System.out.println("DEBUG: Spawn mob Z: " + mobZ + ", Geo mob Z: " + geoMobZ);
+
+		int[] distances = {30, 50, 100, 150, 160, 200, 250, 300, 400, 500, 600};
+		double[] angles = {0, Math.PI / 4, Math.PI / 2, Math.PI, 3 * Math.PI / 2};
+
+		// 1. Quando desativado, LoS deve SEMPRE retornar true
+		com.lopez.l2j.config.Config.ENABLE_GEODATA = false;
+		assertFalse(geoEngine.isEnabled(), "Deve estar desativado");
+		for (int d : distances) {
+			for (double a : angles) {
+				int px = (int) (mobX + d * Math.cos(a));
+				int py = (int) (mobY + d * Math.sin(a));
+				assertTrue(geoEngine.canSeeTarget(px, py, -3336, mobX, mobY, mobZ),
+						"Com geodata desativado, canSeeTarget deve sempre ser true");
+			}
+		}
+
+		// 2. Quando ativado, com calibracao de Z no alvo, LoS em terreno aberto deve ser visivel
+		com.lopez.l2j.config.Config.ENABLE_GEODATA = true;
+		assertTrue(geoEngine.isEnabled(), "Deve estar ativado");
+		for (int d : distances) {
+			for (double a : angles) {
+				int px = (int) (mobX + d * Math.cos(a));
+				int py = (int) (mobY + d * Math.sin(a));
+				short pz = geoEngine.getHeight(px, py, mobZ);
+				assertTrue(geoEngine.canSeeTarget(px, py, pz, mobX, mobY, mobZ),
+						"Em terreno aberto plano, canSeeTarget deve ser true para d=" + d);
+			}
+		}
+	}
 }
