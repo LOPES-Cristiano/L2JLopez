@@ -17,10 +17,19 @@ class OfflineTradeServiceTest {
                 0, 0, 0, 1000, 500, 300, 0, 0, 0, 0, "", 0, 0L, 0L, 0, 0, 0, 0, 1000.0, 500.0, 300.0);
     }
 
+    private boolean originalAllowOfflineTrade;
+
     @BeforeEach
     void setUp() {
+        originalAllowOfflineTrade = com.lopez.l2j.config.Config.ALLOW_OFFLINE_TRADE;
+        com.lopez.l2j.config.Config.ALLOW_OFFLINE_TRADE = true;
         // Testando com jdbc nulo para focar na lógica de estado, validacao e ciclo de vida
         offlineTradeService = new OfflineTradeService(null);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        com.lopez.l2j.config.Config.ALLOW_OFFLINE_TRADE = originalAllowOfflineTrade;
     }
 
     @Test
