@@ -114,7 +114,7 @@ public class GeoEngine {
 	}
 
 	public boolean isEnabled() {
-		return enabled && Config.ENABLE_GEODATA;
+		return Config.ENABLE_GEODATA;
 	}
 
 	public static int getRegionX(int x) {
@@ -133,7 +133,7 @@ public class GeoEngine {
 	 * Obtem a altura exata Z do terreno para as coordenadas mundiais (X, Y, Z).
 	 */
 	public short getHeight(int x, int y, int z) {
-		if (!enabled) {
+		if (!isEnabled()) {
 			return (short) z;
 		}
 
@@ -197,6 +197,10 @@ public class GeoEngine {
 	 * Utiliza raycasting com amostragem de celulas e checagem de portas fechadas.
 	 */
 	public boolean canSeeTarget(int x, int y, int z, int tx, int ty, int tz) {
+		if (!isEnabled()) {
+			return true;
+		}
+
 		// Checagem de portas e barreiras dinamicas (GeoObject) no trajeto
 		for (GeoObject obj : dynamicGeoObjects) {
 			if (obj.isBlocking() && intersectsGeoObject(x, y, z, tx, ty, tz, obj)) {
@@ -212,8 +216,10 @@ public class GeoEngine {
 			}
 		}
 
-		if (!isEnabled()) {
-			return true;
+		// Ajusta altura do alvo caso haja pequena discrepancia de spawn z com a superficie
+		short geoTz = getHeight(tx, ty, tz);
+		if (Math.abs(geoTz - tz) < 500) {
+			tz = Math.max(tz, geoTz);
 		}
 
 		double dx = tx - x;
@@ -221,9 +227,9 @@ public class GeoEngine {
 		double dz = tz - z;
 		double dist2d = Math.sqrt(dx * dx + dy * dy);
 
-		// Em curta distancia (<= 150 unidades, combate melee / proximo), visao e garantida
+		// Em curta/media distancia (<= 250 unidades, combate melee / proximo), visao e garantida
 		// a menos que haja um desnivel vertical abrupto (> 150 unidades, ex: topo de muralha)
-		if (dist2d <= 150.0) {
+		if (dist2d <= 250.0) {
 			return Math.abs(dz) <= 150.0;
 		}
 
@@ -258,19 +264,48 @@ public class GeoEngine {
 		if (player == null || npc == null) {
 			return false;
 		}
-		return canSeeTarget(player.x(), player.y(), player.z(), npc.x(), npc.y(), npc.z());
+		if (!isEnabled()) {
+			return true;
+		}
+		int pz = player.z();
+		int nz = npc.z();
+		short geoNz = getHeight(npc.x(), npc.y(), nz);
+		if (Math.abs(geoNz - nz) < 500) {
+			nz = geoNz;
+		}
+		short geoPz = getHeight(player.x(), player.y(), pz);
+		if (Math.abs(geoPz - pz) < 500) {
+			pz = geoPz;
+		}
+		return canSeeTarget(player.x(), player.y(), pz, npc.x(), npc.y(), nz);
 	}
 
 	public boolean canSeeTarget(NpcInstance npc, PlayerCharacter player) {
 		if (npc == null || player == null) {
 			return false;
 		}
-		return canSeeTarget(npc.x(), npc.y(), npc.z(), player.x(), player.y(), player.z());
+		if (!isEnabled()) {
+			return true;
+		}
+		int nz = npc.z();
+		int pz = player.z();
+		short geoNz = getHeight(npc.x(), npc.y(), nz);
+		if (Math.abs(geoNz - nz) < 500) {
+			nz = geoNz;
+		}
+		short geoPz = getHeight(player.x(), player.y(), pz);
+		if (Math.abs(geoPz - pz) < 500) {
+			pz = geoPz;
+		}
+		return canSeeTarget(npc.x(), npc.y(), nz, player.x(), player.y(), pz);
 	}
 
 	public boolean canSeeTarget(PlayerCharacter player, PlayerCharacter target) {
 		if (player == null || target == null) {
 			return false;
+		}
+		if (!isEnabled()) {
+			return true;
 		}
 		return canSeeTarget(player.x(), player.y(), player.z(), target.x(), target.y(), target.z());
 	}
@@ -386,6 +421,10 @@ public class GeoEngine {
 	 * Se bloqueado por porta fechada ou desnivel intransponivel, retorna a ultima posicao valida.
 	 */
 	public Location moveCheck(int x, int y, int z, int tx, int ty, int tz) {
+		if (!isEnabled()) {
+			return new Location(tx, ty, tz);
+		}
+
 		for (GeoObject obj : dynamicGeoObjects) {
 			if (obj.isBlocking() && intersectsGeoObject(x, y, z, tx, ty, tz, obj)) {
 				return new Location(x, y, z);
@@ -398,10 +437,6 @@ public class GeoEngine {
 					return new Location(x, y, z);
 				}
 			}
-		}
-
-		if (!isEnabled()) {
-			return new Location(tx, ty, tz);
 		}
 
 		double dx = tx - x;
@@ -435,6 +470,9 @@ public class GeoEngine {
 	}
 
 	public boolean canMoveToTarget(int x, int y, int z, int tx, int ty, int tz) {
+		if (!isEnabled()) {
+			return true;
+		}
 		for (GeoObject obj : dynamicGeoObjects) {
 			if (obj.isBlocking() && intersectsGeoObject(x, y, z, tx, ty, tz, obj)) {
 				return false;
@@ -446,9 +484,6 @@ public class GeoEngine {
 					return false;
 				}
 			}
-		}
-		if (!isEnabled()) {
-			return true;
 		}
 		Location loc = moveCheck(x, y, z, tx, ty, tz);
 		double distToEnd = Math.hypot(loc.x() - tx, loc.y() - ty);
