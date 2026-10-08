@@ -235,7 +235,7 @@ public class ClanHallService {
 		if (!clan.isLeader(leader.objectId())) {
 			return BidResult.NOT_CLAN_LEADER;
 		}
-		if (clan.level() < 2) {
+		if (clan.level() < com.lopez.l2j.config.Config.LVL_FOR_USE_AUCTION) {
 			return BidResult.CLAN_LEVEL_TOO_LOW;
 		}
 		if (getClanHallByOwner(clan.clanId()).isPresent()) {
