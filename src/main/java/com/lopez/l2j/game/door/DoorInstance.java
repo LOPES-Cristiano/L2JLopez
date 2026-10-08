@@ -1,9 +1,11 @@
 package com.lopez.l2j.game.door;
 
+import com.lopez.l2j.game.geodata.GeoObject;
+
 /**
  * Representa uma porta no mundo (castelos, clanhalls, templos, fortes).
  */
-public class DoorInstance {
+public class DoorInstance implements GeoObject {
 
 	private final int objectId;
 	private final int doorId;
@@ -89,5 +91,30 @@ public class DoorInstance {
 	public boolean toggleDoor() {
 		open = !open;
 		return true;
+	}
+
+	@Override
+	public int geoX() {
+		return x >> 4;
+	}
+
+	@Override
+	public int geoY() {
+		return y >> 4;
+	}
+
+	@Override
+	public int geoZ() {
+		return z;
+	}
+
+	@Override
+	public int height() {
+		return zMax - zMin;
+	}
+
+	@Override
+	public boolean isBlocking() {
+		return !open && (currentHp > 0);
 	}
 }
