@@ -51,6 +51,16 @@ public class PartyClanPacketHandler {
 			session.send(new ActionFailed());
 			return;
 		}
+		if (ctx.away() != null && ctx.away().isAway(targetSession.character().objectId())) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", targetSession.character().name() + " esta no modo ausente (AFK)."));
+			session.send(new ActionFailed());
+			return;
+		}
+		if (ctx.preferences() != null && ctx.preferences().getPreferences(targetSession.character().objectId()).isBlockParty()) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", targetSession.character().name() + " esta recusando convites de grupo."));
+			session.send(new ActionFailed());
+			return;
+		}
 		if (targetSession.party() != null) {
 			session.send(SystemMessage.of(SystemMessage.PLAYER_ALREADY_IN_PARTY,
 					new SystemMessage.Text(targetSession.character().name())));
