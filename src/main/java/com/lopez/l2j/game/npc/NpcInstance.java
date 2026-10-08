@@ -77,6 +77,7 @@ public final class NpcInstance {
 	private volatile String championTitle;
 
 	public double maxHp() { return template.maxHp() * maxHpMul; }
+	public double maxHpMul() { return maxHpMul; }
 	public void maxHpMul(double value) { this.maxHpMul = value; }
 	public boolean isChampion() { return champion; }
 	public void champion(boolean value) { this.champion = value; }
