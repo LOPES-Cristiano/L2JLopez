@@ -114,6 +114,10 @@ public class GameWorld {
 		return list;
 	}
 
+	public void broadcast(GameServerPacket packet) {
+		broadcast(packet, p -> true);
+	}
+
 	public void broadcast(GameServerPacket packet, Predicate<OnlinePlayer> filter) {
 		for (OnlinePlayer p : playersById.values()) {
 			if (filter.test(p)) {
