@@ -133,6 +133,9 @@ public abstract class Quest {
 
 	public String onAdvEvent(String event, NpcInstance npc, GameSession player) {
 		QuestState qs = checkQuestState(player);
+		if (qs == null && player != null) {
+			qs = newQuestState(player);
+		}
 		if (qs != null) {
 			return onEvent(event, qs);
 		}
@@ -144,6 +147,17 @@ public abstract class Quest {
 	}
 
 	public String onTalk(NpcInstance npc, GameSession player) {
+		QuestState qs = player != null ? player.getQuestState(name) : null;
+		if (qs == null && player != null) {
+			qs = newQuestState(player);
+		}
+		if (qs != null) {
+			return onTalk(npc, qs);
+		}
+		return null;
+	}
+
+	public String onTalk(NpcInstance npc, QuestState qs) {
 		return null;
 	}
 
@@ -152,6 +166,14 @@ public abstract class Quest {
 	}
 
 	public String onKill(NpcInstance npc, GameSession player, boolean isPet) {
+		QuestState qs = player != null ? player.getQuestState(name) : null;
+		if (qs != null) {
+			return onKill(npc, qs, isPet);
+		}
+		return null;
+	}
+
+	public String onKill(NpcInstance npc, QuestState qs, boolean isPet) {
 		return null;
 	}
 
