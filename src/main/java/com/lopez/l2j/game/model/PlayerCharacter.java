@@ -39,6 +39,7 @@ public final class PlayerCharacter {
 	private int pkKills;
 	private int clanId;
 	private volatile long clanJoinExpiryTime;
+	private volatile long clanCreateExpiryTime;
 	private boolean clanLeader;
 	private String title;
 	private int accessLevel;
@@ -52,6 +53,9 @@ public final class PlayerCharacter {
 	private boolean diet;
 	private int polyNpcId;
 	private int charges;
+	private boolean noble;
+	private boolean hero;
+	private boolean subClassActive;
 
 	private int x;
 	private int y;
@@ -113,12 +117,20 @@ public final class PlayerCharacter {
 		return (System.currentTimeMillis() - lastCombatTime) < 15_000L;
 	}
 
+	public void setInCombat(boolean inCombat) {
+		if (inCombat) {
+			this.lastCombatTime = System.currentTimeMillis();
+		} else {
+			this.lastCombatTime = 0L;
+		}
+	}
+
 	public void enterCombat() {
-		this.lastCombatTime = System.currentTimeMillis();
+		setInCombat(true);
 	}
 
 	public void leaveCombat() {
-		this.lastCombatTime = 0L;
+		setInCombat(false);
 	}
 
 	public long lastCombatTime() {
@@ -227,12 +239,26 @@ public final class PlayerCharacter {
 		return race;
 	}
 
+	public int maxInventorySlots() {
+		if (isGm()) {
+			return com.lopez.l2j.config.Config.MAX_INVENTORY_SLOTS_FOR_GM;
+		}
+		if (race == 4) {
+			return com.lopez.l2j.config.Config.MAX_INVENTORY_SLOTS_FOR_DWARF;
+		}
+		return com.lopez.l2j.config.Config.MAX_INVENTORY_SLOTS_FOR_OTHER;
+	}
+
 	public int classId() {
 		return classId;
 	}
 
 	public void classId(int value) {
 		this.classId = value;
+	}
+
+	public int getClassId() {
+		return classId;
 	}
 
 	public int baseClassId() {
@@ -256,6 +282,38 @@ public final class PlayerCharacter {
 
 	public boolean isSubClassActive() {
 		return classIndex > 0;
+	}
+
+	public boolean isNoble() {
+		return noble;
+	}
+
+	public void setNoble(boolean noble) {
+		this.noble = noble;
+	}
+
+	public boolean noble() {
+		return noble;
+	}
+
+	public void noble(boolean noble) {
+		this.noble = noble;
+	}
+
+	public boolean isHero() {
+		return hero;
+	}
+
+	public void setHero(boolean hero) {
+		this.hero = hero;
+	}
+
+	public boolean hero() {
+		return hero;
+	}
+
+	public void hero(boolean hero) {
+		this.hero = hero;
 	}
 
 	public java.util.Map<Integer, com.lopez.l2j.game.subclass.SubClass> subClasses() {
@@ -369,6 +427,18 @@ public final class PlayerCharacter {
 		return System.currentTimeMillis() < clanJoinExpiryTime;
 	}
 
+	public long clanCreateExpiryTime() {
+		return clanCreateExpiryTime;
+	}
+
+	public void clanCreateExpiryTime(long value) {
+		this.clanCreateExpiryTime = value;
+	}
+
+	public boolean hasClanCreatePenalty() {
+		return System.currentTimeMillis() < clanCreateExpiryTime;
+	}
+
 	public String title() {
 		return title;
 	}
@@ -456,6 +526,9 @@ public final class PlayerCharacter {
 	}
 
 	private volatile boolean olympiadMode;
+	private volatile boolean inJail;
+	private volatile boolean inSiege;
+	private volatile boolean inTrade;
 
 	public boolean isOlympiadMode() {
 		return olympiadMode;
@@ -467,6 +540,30 @@ public final class PlayerCharacter {
 
 	public void setOlympiadMode(boolean value) {
 		this.olympiadMode = value;
+	}
+
+	public boolean isInJail() {
+		return inJail;
+	}
+
+	public void setInJail(boolean inJail) {
+		this.inJail = inJail;
+	}
+
+	public boolean isInSiege() {
+		return inSiege;
+	}
+
+	public void setInSiege(boolean inSiege) {
+		this.inSiege = inSiege;
+	}
+
+	public boolean isInTrade() {
+		return inTrade;
+	}
+
+	public void setInTrade(boolean inTrade) {
+		this.inTrade = inTrade;
 	}
 
 	public double currentMp() {
