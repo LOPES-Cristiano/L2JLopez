@@ -2325,7 +2325,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						for (GameSession member : party.members()) {
 							if (member != null && member.active != null) {
 								double dist = Math.hypot(member.active.x() - active.x(), member.active.y() - active.y());
-								if (dist <= com.lopez.l2j.game.party.Party.PARTY_RANGE) {
+								if (dist <= com.lopez.l2j.game.party.Party.getPartyRange()) {
 									ctx.raidPoints().addPoints(member.active.objectId(), npc.npcId(), points);
 									member.send(SystemMessage.of(SystemMessage.EARNED_S1_RAID_POINTS, new SystemMessage.Number(points)));
 								}
@@ -2553,6 +2553,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			sendUserInfoAndBroadcastCharInfo();
 			send(new StatusUpdate(active.objectId(), List.of(
 					new StatusUpdate.Attribute(StatusUpdate.LEVEL, newLevel),
+					new StatusUpdate.Attribute(StatusUpdate.EXP, (int) active.exp()),
 					new StatusUpdate.Attribute(StatusUpdate.SP, active.sp()),
 					new StatusUpdate.Attribute(StatusUpdate.CUR_HP, (int) active.currentHp()),
 					new StatusUpdate.Attribute(StatusUpdate.MAX_HP, active.maxHp()),
@@ -2561,10 +2562,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) active.currentCp()),
 					new StatusUpdate.Attribute(StatusUpdate.MAX_CP, active.maxCp()))));
 		} else {
+			if (t == null && ctx.characters() != null) {
+				t = ctx.characters().template(active);
+			}
 			if (t != null) {
 				send(new UserInfo(active, t));
 			}
 			send(new StatusUpdate(active.objectId(), List.of(
+					new StatusUpdate.Attribute(StatusUpdate.EXP, (int) active.exp()),
 					new StatusUpdate.Attribute(StatusUpdate.SP, active.sp()))));
 		}
 	}
@@ -5014,7 +5019,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		// Line of Sight (LoS) check for targeted skills
 		if (sk.isOffensive() && (npcTarget != null || (playerTarget != null && playerTarget != this))) {
-			if (ctx.combat() != null && !ctx.combat().canSeeTarget(active.x(), active.y(), active.z(), tx, ty, tz)) {
+			boolean canSee = true;
+			if (npcTarget != null) {
+				canSee = ctx.combat() == null || ctx.combat().canSeeTarget(active, npcTarget);
+			} else if (playerTarget != null && playerTarget.active != null) {
+				canSee = ctx.combat() == null || ctx.combat().canSeeTarget(active, playerTarget.active);
+			}
+			if (!canSee) {
 				send(SystemMessage.id(SystemMessage.CANT_SEE_TARGET));
 				send(new ActionFailed());
 				return;
@@ -5788,7 +5799,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		send(new StatusUpdate(active.objectId(), List.of(
 				new StatusUpdate.Attribute(StatusUpdate.CUR_HP, 0),
-				new StatusUpdate.Attribute(StatusUpdate.CUR_CP, 0))));
+				new StatusUpdate.Attribute(StatusUpdate.CUR_CP, 0),
+				new StatusUpdate.Attribute(StatusUpdate.EXP, (int) active.exp()),
+				new StatusUpdate.Attribute(StatusUpdate.SP, active.sp()))));
 
 		boolean hasClanHall = false;
 		boolean hasCastle = false;
@@ -5899,7 +5912,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					for (GameSession member : party.members()) {
 						if (member != null && member.active != null) {
 							double dist = Math.hypot(member.active.x() - active.x(), member.active.y() - active.y());
-							if (dist <= com.lopez.l2j.game.party.Party.PARTY_RANGE) {
+							if (dist <= com.lopez.l2j.game.party.Party.getPartyRange()) {
 								ctx.raidPoints().addPoints(member.active.objectId(), npc.npcId(), points);
 								member.send(SystemMessage.of(SystemMessage.EARNED_S1_RAID_POINTS, new SystemMessage.Number(points)));
 							}
