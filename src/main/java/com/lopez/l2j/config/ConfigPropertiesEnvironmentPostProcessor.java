@@ -70,6 +70,18 @@ public class ConfigPropertiesEnvironmentPostProcessor implements EnvironmentPost
 			mapIfPresent(raw, "CharMaxNumber", springProps, "l2.game.char-max-number");
 			mapIfPresent(raw, "DeleteCharAfterDays", springProps, "l2.game.delete-char-after-days");
 
+			// Geodata (options.properties)
+			mapIfPresent(raw, "EnableGeoData", springProps, "l2.geodata.enabled");
+			if (raw.containsKey("GeoDataRoot")) {
+				String root = raw.get("GeoDataRoot").trim();
+				String engine = raw.getOrDefault("GeoEngine", "geodata").trim();
+				if (!root.endsWith("geodata") && !root.endsWith("geodata/")) {
+					springProps.put("l2.geodata.dir", root.replaceAll("[/\\\\]+$", "") + "/" + engine);
+				} else {
+					springProps.put("l2.geodata.dir", root);
+				}
+			}
+
 			environment.getPropertySources().addFirst(new MapPropertySource(PROPERTY_SOURCE_NAME, springProps));
 			log.info("ConfigPropertiesEnvironmentPostProcessor: {} propriedades inseridas com alta prioridade no Spring Environment.",
 					springProps.size());
