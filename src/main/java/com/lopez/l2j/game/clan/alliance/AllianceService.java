@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.clan.alliance;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.clan.Clan;
 import com.lopez.l2j.game.clan.ClanMember;
 import com.lopez.l2j.game.clan.ClanTable;
@@ -28,10 +29,25 @@ public class AllianceService {
 	private static final Logger log = LoggerFactory.getLogger(AllianceService.class);
 	private static final Pattern ALLY_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9]{3,16}$");
 
-	public static final int MAX_CLANS_IN_ALLIANCE = 3;
-	public static final long PENALTY_CREATE_DAYS_MILLIS = 10L * 86_400_000L;
-	public static final long PENALTY_LEAVE_DAYS_MILLIS = 1L * 86_400_000L;
-	public static final long PENALTY_DISMISS_DAYS_MILLIS = 1L * 86_400_000L;
+	public static int getMaxClansInAlliance() {
+		return Config.ALT_MAX_NUM_OF_CLANS_IN_ALLY;
+	}
+
+	public static long getPenaltyCreateDaysMillis() {
+		return Math.max(1, Config.DAYS_BEFORE_CREATE_NEW_ALLY_WHEN_DISSOLVED) * 86_400_000L;
+	}
+
+	public static long getPenaltyLeaveDaysMillis() {
+		return Math.max(1, Config.DAYS_BEFORE_JOIN_ALLY_WHEN_LEAVED) * 86_400_000L;
+	}
+
+	public static long getPenaltyDismissDaysMillis() {
+		return Math.max(1, Config.DAYS_BEFORE_JOIN_ALLY_WHEN_DISMISSED) * 86_400_000L;
+	}
+
+	public static long getPenaltyAcceptNewClanDaysMillis() {
+		return Math.max(1, Config.DAYS_BEFORE_ACCEPT_NEW_CLAN_WHEN_DISMISSED) * 86_400_000L;
+	}
 
 	public enum CreateResult {
 		SUCCESS,
@@ -215,7 +231,7 @@ public class AllianceService {
 		if (leaderClan.isAtWarWith(targetClan.clanId())) {
 			return InviteResult.AT_WAR_WITH_TARGET;
 		}
-		if (clanTable.getClanAllies(leaderClan.allyId()).size() >= MAX_CLANS_IN_ALLIANCE) {
+		if (clanTable.getClanAllies(leaderClan.allyId()).size() >= getMaxClansInAlliance()) {
 			return InviteResult.ALLIANCE_FULL;
 		}
 
@@ -234,7 +250,7 @@ public class AllianceService {
 			return false;
 		}
 		Clan leaderClan = leaderClanOpt.get();
-		if (clanTable.getClanAllies(allyId).size() >= MAX_CLANS_IN_ALLIANCE) {
+		if (clanTable.getClanAllies(allyId).size() >= getMaxClansInAlliance()) {
 			return false;
 		}
 
@@ -293,7 +309,7 @@ public class AllianceService {
 		clan.allyId(0);
 		clan.allyName(null);
 		clan.allyCrestId(0);
-		clan.setAllyPenalty(now + PENALTY_LEAVE_DAYS_MILLIS, Clan.PENALTY_TYPE_CLAN_LEAVED);
+		clan.setAllyPenalty(now + getPenaltyLeaveDaysMillis(), Clan.PENALTY_TYPE_CLAN_LEAVED);
 
 		if (jdbc != null) {
 			try {
@@ -340,11 +356,11 @@ public class AllianceService {
 		}
 
 		long now = System.currentTimeMillis();
-		leaderClan.setAllyPenalty(now + PENALTY_DISMISS_DAYS_MILLIS, Clan.PENALTY_TYPE_DISMISS_CLAN);
+		leaderClan.setAllyPenalty(now + getPenaltyAcceptNewClanDaysMillis(), Clan.PENALTY_TYPE_DISMISS_CLAN);
 		targetClan.allyId(0);
 		targetClan.allyName(null);
 		targetClan.allyCrestId(0);
-		targetClan.setAllyPenalty(now + PENALTY_DISMISS_DAYS_MILLIS, Clan.PENALTY_TYPE_CLAN_DISMISSED);
+		targetClan.setAllyPenalty(now + getPenaltyDismissDaysMillis(), Clan.PENALTY_TYPE_CLAN_DISMISSED);
 
 		if (jdbc != null) {
 			try {
@@ -421,7 +437,7 @@ public class AllianceService {
 		leaderClan.allyId(0);
 		leaderClan.allyName(null);
 		leaderClan.allyCrestId(0);
-		leaderClan.setAllyPenalty(now + PENALTY_CREATE_DAYS_MILLIS, Clan.PENALTY_TYPE_DISSOLVE_ALLY);
+		leaderClan.setAllyPenalty(now + getPenaltyCreateDaysMillis(), Clan.PENALTY_TYPE_DISSOLVE_ALLY);
 
 		if (jdbc != null) {
 			try {
