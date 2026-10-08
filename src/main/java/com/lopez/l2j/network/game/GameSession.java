@@ -1832,15 +1832,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	private void onPlayerDeath() {
-		if (active == null) {
-			return;
-		}
-		active.currentHp(0);
-		stopAutoAttack();
-		cancelCast();
-		var die = new GameServerPacket.Die(active.objectId(), true);
-		send(die);
-		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, die, false);
+		handlePlayerDeath(null);
 	}
 
 	public void onAppearing() {
@@ -1853,6 +1845,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			ctx.npcAi().stopCombatForPlayer(active.objectId());
 		}
 		broadcastAppearance();
+		sendMagicEffectIcons();
 		updateKnownObjects();
 	}
 
@@ -4243,6 +4236,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (ctx != null && ctx.npcAi() != null) {
 			ctx.npcAi().stopCombatForPlayer(active.objectId());
 		}
+		if (!active.effects().hasSkill(1323)) {
+			active.effects().clear();
+			if (ctx != null && ctx.buffRepository() != null) {
+				ctx.buffRepository().deleteBuffs(active.objectId());
+			}
+		}
 		int[] townLoc = findNearestTown(active.x(), active.y());
 		active.sitting(false);
 		active.currentHp(active.maxHp() * 0.70);
@@ -4254,6 +4253,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, revive, false);
 
 		teleportToLocation(townLoc[0], townLoc[1], townLoc[2]);
+		sendMagicEffectIcons();
 	}
 
 	/**
@@ -5704,6 +5704,27 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
+	public void handlePlayerDeath() {
+		handlePlayerDeath(null);
+	}
+
+	@Override
+	public void onDeath() {
+		handlePlayerDeath(null);
+	}
+
+	@Override
+	public void onDeath(int killerObjectId) {
+		PlayerCharacter killer = null;
+		if (killerObjectId != 0 && ctx != null && ctx.world() != null) {
+			var opt = ctx.world().player(killerObjectId);
+			if (opt.isPresent()) {
+				killer = opt.get().character();
+			}
+		}
+		handlePlayerDeath(killer);
+	}
+
 	public void handlePlayerDeath(PlayerCharacter killer) {
 		if (active == null) {
 			return;
@@ -5718,6 +5739,29 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		active.invul(false);
 		active.currentHp(0);
 		active.currentCp(0);
+
+		// Limpa buffs ao morrer (regra retail Interlude):
+		// Se possuir Blessing of Noblesse (skill 1323), preserva os buffs e consome apenas o Noblesse.
+		boolean hasNoblesse = active.effects().hasSkill(1323);
+		if (hasNoblesse) {
+			active.effects().removeSkill(1323);
+			saveBuffs();
+		} else {
+			active.effects().clear();
+			if (ctx != null && ctx.buffRepository() != null) {
+				ctx.buffRepository().deleteBuffs(active.objectId());
+			}
+		}
+		long now = System.currentTimeMillis();
+		send(new MagicEffectIcons(hasNoblesse
+				? active.effects().active().stream()
+						.map(b -> new MagicEffectIcons.Icon(b.skillId(), b.level(), b.remainingSeconds(now)))
+						.toList()
+				: List.of()));
+		var tTemplate = ctx.characters().template(active);
+		if (ctx.skillService() != null) {
+			recalcMaxVitals(tTemplate);
+		}
 
 		if (active.level() >= 10 && !active.skills().containsKey(SkillService.SKILL_LUCKY)) {
 			long expForCurLevel = com.lopez.l2j.game.model.ExperienceTable.expForLevel(active.level());
