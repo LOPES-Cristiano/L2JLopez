@@ -50,6 +50,9 @@ public class ActionPacketHandler {
 			session.onAppearing();
 		}
 		var ctx = session.context();
+		if (ctx != null && ctx.away() != null) {
+			ctx.away().checkAndRemoveAway(session);
+		}
 		if (active.isFishing() && ctx != null && ctx.fishing() != null) {
 			ctx.fishing().stopFishing(active, session::send);
 		}
