@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.event.pvp;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,10 +93,10 @@ public class TvtEventService {
     }
 
     private volatile EventState state = EventState.INACTIVE;
-    private int minLevel = 20;
-    private int maxLevel = 80;
-    private int rewardItemId = 57; // Adena
-    private int rewardItemCount = 50000;
+    private int minLevel = Config.TVT_MIN_LEVEL;
+    private int maxLevel = Config.TVT_MAX_LEVEL;
+    private int rewardItemId = Config.TVT_REWARD_ID;
+    private int rewardItemCount = Config.TVT_REWARD_AMOUNT;
 
     private final Map<Integer, Participant> participants = new ConcurrentHashMap<>();
     private final Map<TeamType, Integer> teamScores = new ConcurrentHashMap<>();
@@ -103,6 +104,10 @@ public class TvtEventService {
     public TvtEventService() {
         teamScores.put(TeamType.BLUE, 0);
         teamScores.put(TeamType.RED, 0);
+    }
+
+    public synchronized void openRegistration() {
+        openRegistration(Config.TVT_MIN_LEVEL, Config.TVT_MAX_LEVEL);
     }
 
     public synchronized void openRegistration(int minLvl, int maxLvl) {
@@ -116,7 +121,7 @@ public class TvtEventService {
     }
 
     public RegisterResult register(PlayerCharacter player) {
-        if (state != EventState.REGISTRATION) {
+        if (!Config.TVT_ENABLED || state != EventState.REGISTRATION) {
             return RegisterResult.NOT_IN_REGISTRATION;
         }
         if (participants.containsKey(player.getObjectId())) {
