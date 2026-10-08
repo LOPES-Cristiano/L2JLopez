@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.event.pvp;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,10 +99,10 @@ public class CtfEventService {
     }
 
     private volatile EventState state = EventState.INACTIVE;
-    private int minLevel = 20;
-    private int maxLevel = 80;
-    private int rewardItemId = 57;
-    private int rewardItemCount = 50000;
+    private int minLevel = Config.CTF_MIN_LEVEL;
+    private int maxLevel = Config.CTF_MAX_LEVEL;
+    private int rewardItemId = Config.CTF_REWARD_ID;
+    private int rewardItemCount = Config.CTF_REWARD_AMOUNT;
 
     private final Map<Integer, Participant> participants = new ConcurrentHashMap<>();
     private final Map<TeamType, Integer> teamScores = new ConcurrentHashMap<>();
@@ -123,6 +124,10 @@ public class CtfEventService {
         flagCarriers.remove(TeamType.RED);
     }
 
+    public synchronized void openRegistration() {
+        openRegistration(Config.CTF_MIN_LEVEL, Config.CTF_MAX_LEVEL);
+    }
+
     public synchronized void openRegistration(int minLvl, int maxLvl) {
         this.minLevel = minLvl;
         this.maxLevel = maxLvl;
@@ -135,7 +140,7 @@ public class CtfEventService {
     }
 
     public RegisterResult register(PlayerCharacter player) {
-        if (state != EventState.REGISTRATION) {
+        if (!Config.CTF_ENABLED || state != EventState.REGISTRATION) {
             return RegisterResult.NOT_IN_REGISTRATION;
         }
         if (participants.containsKey(player.getObjectId())) {
@@ -358,4 +363,6 @@ public class CtfEventService {
     public void setRewardItemId(int rewardItemId) { this.rewardItemId = rewardItemId; }
     public int getRewardItemCount() { return rewardItemCount; }
     public void setRewardItemCount(int rewardItemCount) { this.rewardItemCount = rewardItemCount; }
+    public int getMinLevel() { return minLevel; }
+    public int getMaxLevel() { return maxLevel; }
 }
