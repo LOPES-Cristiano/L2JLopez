@@ -16,6 +16,8 @@ class SubClassServiceTest {
 
 	@BeforeEach
 	void setUp() {
+		com.lopez.l2j.config.Config.ALT_SUBCLASS_WITHOUT_QUESTS = true;
+		com.lopez.l2j.config.Config.MAX_SUBCLASSES = 3;
 		subClassService = new SubClassService(null);
 	}
 
@@ -140,5 +142,74 @@ class SubClassServiceTest {
 		List<Integer> gladSubs = subClassService.getAvailableSubClasses(gladiator);
 		assertFalse(gladSubs.contains(2)); // Própria classe
 		assertFalse(gladSubs.contains(3)); // Warlord (mesmo grupo)
+	}
+
+	@Test
+	@DisplayName("Validação de requisitos configuráveis de Subclasse (sem quest, com itens ou com quest)")
+	void testSubclassQuestAndItemConfigurations() {
+		PlayerCharacter player = new PlayerCharacter(1009, "QuestTester", "Hero", 75, 0, 0,
+				SubClassService.RACE_HUMAN, 2, 2, false, 0, 0, 0, 100, 50, 50, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 100.0, 50.0, 50.0);
+		player.inventory(new com.lopez.l2j.game.item.Inventory(player.objectId()));
+
+		// 1. AltSubClassWithoutQuests = true -> liberado direto
+		com.lopez.l2j.config.Config.ALT_SUBCLASS_WITHOUT_QUESTS = true;
+		assertTrue(subClassService.canAddSubClass(player));
+
+		// 2. AltSubClassWithoutQuests = false e sem itens/quest -> bloqueado
+		com.lopez.l2j.config.Config.ALT_SUBCLASS_WITHOUT_QUESTS = false;
+		com.lopez.l2j.config.Config.SUBCLASS_WITH_ITEM_AND_NO_QUEST = false;
+		com.lopez.l2j.config.Config.SUBCLASS_WITH_CUSTOM_ITEM = false;
+		assertFalse(subClassService.canAddSubClass(player));
+
+		// 3. SubclassWithItemAndNoQuest = true -> precisa de 5011 (Destiny) e 5904 (Mimir)
+		com.lopez.l2j.config.Config.SUBCLASS_WITH_ITEM_AND_NO_QUEST = true;
+		assertFalse(subClassService.canAddSubClass(player)); // Sem os itens ainda
+
+		var destinyTpl = com.lopez.l2j.game.item.ItemTemplate.etc(5011, 5011, "Star of Destiny", "quest", "normal", 0, "none", 0, java.util.List.of(), true, true, true, true);
+		var elixirTpl = com.lopez.l2j.game.item.ItemTemplate.etc(5904, 5904, "Mimir's Elixir", "quest", "normal", 0, "none", 0, java.util.List.of(), true, true, true, true);
+		player.inventory().add(new com.lopez.l2j.game.item.ItemInstance(9001, destinyTpl, player.objectId(), 1));
+		assertFalse(subClassService.canAddSubClass(player)); // Só tem Destiny
+
+		player.inventory().add(new com.lopez.l2j.game.item.ItemInstance(9002, elixirTpl, player.objectId(), 1));
+		assertTrue(subClassService.canAddSubClass(player)); // Agora possui ambos
+
+		// 4. SubclassWithCustomItem
+		com.lopez.l2j.config.Config.SUBCLASS_WITH_ITEM_AND_NO_QUEST = false;
+		com.lopez.l2j.config.Config.SUBCLASS_WITH_CUSTOM_ITEM = true;
+		com.lopez.l2j.config.Config.SUBCLASS_WITH_CUSTOM_ITEM_ID = 57;
+		com.lopez.l2j.config.Config.SUBCLASS_WITH_CUSTOM_ITEM_COUNT = 1000000;
+
+		assertFalse(subClassService.canAddSubClass(player)); // Não tem 1M de adena
+
+		var adenaTpl = com.lopez.l2j.game.item.ItemTemplate.etc(57, 57, "Adena", "none", "asset", 0, "none", 1, java.util.List.of(), true, true, true, true);
+		player.inventory().add(new com.lopez.l2j.game.item.ItemInstance(9003, adenaTpl, player.objectId(), 1000000));
+		assertTrue(subClassService.canAddSubClass(player));
+	}
+
+	@Test
+	@DisplayName("Configuração dinâmica de MaxSubClasses e níveis de Subclasse/Player")
+	void testDynamicMaxSubclassesAndLevelLimits() {
+		com.lopez.l2j.config.Config.ALT_SUBCLASS_WITHOUT_QUESTS = true;
+		com.lopez.l2j.config.Config.MAX_SUBCLASSES = 4;
+		com.lopez.l2j.config.Config.SUBCLASS_MAX_LEVEL = 80;
+		com.lopez.l2j.config.Config.PLAYER_MAX_LEVEL = 81;
+		com.lopez.l2j.config.Config.SUBCLASS_INIT_LEVEL = 40;
+
+		PlayerCharacter player = new PlayerCharacter(1010, "FourSubs", "Hero", 75, 0, 0,
+				SubClassService.RACE_HUMAN, 2, 2, false, 0, 0, 0, 100, 50, 50, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 100.0, 50.0, 50.0);
+
+		player.subClasses().put(1, new SubClass(5, 0, 0, 75, 1));
+		player.subClasses().put(2, new SubClass(8, 0, 0, 75, 2));
+		player.subClasses().put(3, new SubClass(12, 0, 0, 75, 3));
+
+		// Com MaxSubClasses = 4, tendo 3 ele ainda pode adicionar a 4ª
+		assertTrue(subClassService.canAddSubClass(player));
+
+		player.subClasses().put(4, new SubClass(14, 0, 0, 75, 4));
+		assertFalse(subClassService.canAddSubClass(player));
+
+		assertEquals(80, SubClassService.getMaxLevel(true));
+		assertEquals(81, SubClassService.getMaxLevel(false));
+		assertEquals(40, SubClassService.getInitialLevel());
 	}
 }
