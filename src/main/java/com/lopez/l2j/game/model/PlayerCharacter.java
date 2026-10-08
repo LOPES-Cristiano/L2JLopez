@@ -145,6 +145,10 @@ public final class PlayerCharacter {
 				|| (classId >= 110 && classId <= 112) || (classId >= 115 && classId <= 116);
 	}
 
+	public boolean isMageClass() {
+		return isMage();
+	}
+
 	public int getObjectId() { return objectId; }
 	public String getName() { return name; }
 	public int getLevel() { return level; }
