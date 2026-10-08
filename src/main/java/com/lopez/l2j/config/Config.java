@@ -394,6 +394,18 @@ public final class Config {
 	public static boolean ALT_DISABLE_BIG_SWORD = false;
 	public static List<Integer> DISABLE_BIG_SWORD_FOR_CLASSES = List.of(100, 101);
 
+	// Custom Private Store & PvP Mods (config/game/custom/add-on.properties)
+	public static boolean SELL_BY_ITEM = false;
+	public static int SELL_ITEM = 57;
+	public static String COIN_TEXT = "Adena";
+	public static boolean ALLOW_QUAKE_SYSTEM = false;
+	public static boolean QUAKE_RESET_ON_DIE = true;
+	public static boolean WAR_LEGEND_AURA = false;
+	public static int KILLS_TO_GET_WAR_LEGEND_AURA = 30;
+	public static boolean ALLOW_HERO_SKILL_ON_SUB = false;
+	public static boolean ALLOW_CUSTOM_CANCEL_TASK = false;
+	public static int CUSTOM_CANCEL_SECONDS = 5;
+
 	// =========================================================================
 	// STATS CAPS, HEROES & CRAFTING (config/game/main/player.properties)
 	// =========================================================================
@@ -479,6 +491,97 @@ public final class Config {
 	public static String ANNOUNCE_PK_MSG = "Player $killer has slaughtered $target .";
 	public static String ANNOUNCE_PVP_MSG = "Player $killer has defeated $target .";
 	public static boolean PVP_CONGRATULATIONS_MSG = true;
+
+	// =========================================================================
+	// ONDA 9: NPCS, RAID BOSSES & GRAND BOSSES (bosses.properties, npc.properties, altgame.properties)
+	// =========================================================================
+	public static boolean ANNOUNCE_RAID_SPAWN = false;
+	public static int ALT_MOB_NO_ATTACK_WITH_LEVEL_DIFFERENCE = -1;
+	public static int MAX_DRIFT_RANGE = 120;
+	public static boolean DISABLE_RAID_BOSS_FOSSILIZATION = false;
+	public static int MAX_LEVEL_RAID_BOSS_CURSE = 87;
+
+	// =========================================================================
+	// ONDA 10: OLIMPIADAS & CICLO DOS HEROIS (olympiad.properties)
+	// =========================================================================
+	public static boolean OLYMPIAD_ENABLED = true;
+	public static int ALT_OLY_START_TIME = 18;
+	public static int ALT_OLY_MIN = 0;
+	public static int ALT_OLY_CPERIOD = 6;
+	public static int ALT_OLY_WPERIOD = 7;
+	public static int ALT_OLY_VPERIOD = 24;
+	public static long ALT_OLY_BATTLE = 360000L;
+	public static int ALT_OLY_CLASSED_PARTICIPANTS = 5;
+	public static int ALT_OLY_CLASSED_REW_ITEM_COUNT = 50;
+	public static int ALT_OLY_NON_CLASSED_PARTICIPANTS = 9;
+	public static int ALT_OLY_NON_CLASSED_REW_ITEM_COUNT = 30;
+	public static boolean ALT_OLY_HEAL_ON_TELEPORT = true;
+	public static boolean ALT_OLY_HEAL_ON_FIGHT_START = true;
+	public static boolean ALT_OLY_RESET_SKILL_TIME = true;
+	public static boolean ALT_OLY_SAME_IP = true;
+	public static boolean ALT_OLY_REMOVE_CUBICS = true;
+	public static int ALT_OLY_ENCHANT_LIMIT = -1;
+	public static int ALT_OLY_REWARD_ITEM = 6651;
+	public static int ALT_OLY_HERO_POINTS = 300;
+	public static int ALT_OLY_MIN_POINT_FOR_EXCHANGE = 50;
+	public static int ALT_OLY_GP_PER_POINT = 1000;
+	public static int ALT_OLY_START_POINTS_COUNT = 18;
+	public static int ALT_OLY_WEEKLY_POINTS_COUNT = 3;
+	public static int ALT_OLY_MIN_MATCHES = 5;
+	public static boolean OLYMPIAD_REMOVE_POINTS_ON_TIE = true;
+
+	// =========================================================================
+	// ONDA 11: EVENTOS AUTOMATIZADOS (events_start.properties, tvtevent.properties, ctfevent.properties, dmevent.properties)
+	// =========================================================================
+	public static boolean TVT_AUTO_START = false;
+	public static boolean CTF_AUTO_START = false;
+	public static boolean DM_AUTO_START = false;
+	public static int TVT_DELAY_ON_BOOT = 10;
+	public static int CTF_DELAY_ON_BOOT = 10;
+	public static int DM_DELAY_ON_BOOT = 10;
+	public static int TVT_NEXT_DELAY = 60;
+	public static int CTF_NEXT_DELAY = 60;
+	public static int DM_NEXT_DELAY = 60;
+	public static boolean TVT_ENABLED = true;
+	public static boolean CTF_ENABLED = true;
+	public static boolean DM_ENABLED = true;
+	public static int TVT_MIN_LEVEL = 1;
+	public static int TVT_MAX_LEVEL = 85;
+	public static int TVT_MIN_PLAYERS = 8;
+	public static int TVT_MAX_PLAYERS = 60;
+	public static int TVT_REWARD_ID = 57;
+	public static int TVT_REWARD_AMOUNT = 100000;
+	public static int CTF_MIN_LEVEL = 1;
+	public static int CTF_MAX_LEVEL = 85;
+	public static int CTF_MIN_PLAYERS = 8;
+	public static int CTF_MAX_PLAYERS = 60;
+	public static int CTF_REWARD_ID = 57;
+	public static int CTF_REWARD_AMOUNT = 100000;
+	public static int DM_MIN_LEVEL = 1;
+	public static int DM_MAX_LEVEL = 80;
+	public static int DM_MIN_PLAYERS = 8;
+	public static int DM_MAX_PLAYERS = 60;
+	public static int DM_REWARD_ID = 57;
+	public static int DM_REWARD_AMOUNT = 50000;
+
+	// =========================================================================
+	// ONDA 12: CERCOS A CASTELOS (siege.properties)
+	// =========================================================================
+	public static int SIEGE_LENGTH = 120;
+	public static int COUNTDOWN_LENGTH = 10;
+	public static int MAX_FLAGS = 1;
+	public static int SIEGE_CLAN_MIN_LEVEL = 5;
+	public static int SIEGE_CLAN_MIN_MEMBERS_COUNT = 1;
+	public static int ATTACKER_MAX_CLANS = 500;
+	public static int DEFENDER_MAX_CLANS = 500;
+	public static int ATTACKER_RESPAWN = 0;
+	public static int BLOOD_ALLIANCE_REWARD = 1;
+	public static boolean SPAWN_SIEGE_GUARD = true;
+	public static int MAX_GUARD_COUNT = 400;
+	public static boolean ONLY_REGISTERED = false;
+	public static boolean ALT_FLYING_WYVERN_IN_SIEGE = false;
+	public static boolean ALLOW_GATE_CONTROL = false;
+	public static boolean DISABLE_CHANGE_SIEGE_TIME = false;
 
 	static {
 		load();
@@ -824,6 +927,18 @@ public final class Config {
 		ANNOUNCE_PVP_MSG = ConfigLoader.getProperty("AnnouncePvpMsg", "Player $killer has defeated $target .");
 		PVP_CONGRATULATIONS_MSG = ConfigLoader.getBoolean("PvPCongratulationsMsg", true);
 
+		// Custom Private Store & PvP Mods
+		SELL_BY_ITEM = ConfigLoader.getBoolean("SellByItem", false);
+		SELL_ITEM = ConfigLoader.getInt("SellItem", 57);
+		COIN_TEXT = ConfigLoader.getProperty("CoinText", "Adena");
+		ALLOW_QUAKE_SYSTEM = ConfigLoader.getBoolean("AllowQuakeSystem", false);
+		QUAKE_RESET_ON_DIE = ConfigLoader.getBoolean("QuakeResetOnDie", true);
+		WAR_LEGEND_AURA = ConfigLoader.getBoolean("WarLegendAura", false);
+		KILLS_TO_GET_WAR_LEGEND_AURA = ConfigLoader.getInt("KillsToGetWarLegendAura", 30);
+		ALLOW_HERO_SKILL_ON_SUB = ConfigLoader.getBoolean("AllowHeroSkillOnSub", false);
+		ALLOW_CUSTOM_CANCEL_TASK = ConfigLoader.getBoolean("AllowCustomCancelTask", false);
+		CUSTOM_CANCEL_SECONDS = ConfigLoader.getInt("CustomCancelSeconds", 5);
+
 		// Enchant System
 		ALLOW_CRYSTAL_SCROLL = ConfigLoader.getBoolean("AllowCrystalScroll", false);
 		NORMAL_WEAPON_ENCHANT_LEVEL = ConfigLoader.getProperty("NormalWeaponEnchantLevel", "1,100;2,100;3,100;4,96;5,92;6,88;7,84;8,80;9,76;10,72;11,68;12,64;13,60;14,56;15,62;16,58;");
@@ -920,6 +1035,89 @@ public final class Config {
 		MIN_BOSS_MANA_TO_CAST = ConfigLoader.getInt("MinBossManaToCast", 100);
 		GOLD_BAR_PRICE = ConfigLoader.getInt("GoldBarPrice", 250000000);
 		GOLD_BAR_ID = ConfigLoader.getInt("GoldBarId", 3470);
+
+		// Onda 9
+		ANNOUNCE_RAID_SPAWN = ConfigLoader.getBoolean("AnnounceRaidSpawn", false);
+		ALT_MOB_NO_ATTACK_WITH_LEVEL_DIFFERENCE = ConfigLoader.getInt("AltMobNoAttackWithLevelDifference", -1);
+		MAX_DRIFT_RANGE = ConfigLoader.getInt("MaxDriftRange", 120);
+		DISABLE_RAID_BOSS_FOSSILIZATION = ConfigLoader.getBoolean("DisableRaidBossFossilization", false);
+		MAX_LEVEL_RAID_BOSS_CURSE = ConfigLoader.getInt("MaxLevelRaidBossCurse", 87);
+
+		// Onda 10
+		OLYMPIAD_ENABLED = ConfigLoader.getBoolean("OlympiadEnabled", true);
+		ALT_OLY_START_TIME = ConfigLoader.getInt("AltOlyStartTime", 18);
+		ALT_OLY_MIN = ConfigLoader.getInt("AltOlyMin", 0);
+		ALT_OLY_CPERIOD = ConfigLoader.getInt("AltOlyCPeriod", 6);
+		ALT_OLY_WPERIOD = ConfigLoader.getInt("AltOlyWperiod", 7);
+		ALT_OLY_VPERIOD = ConfigLoader.getInt("AltOlyVperiod", 24);
+		ALT_OLY_BATTLE = ConfigLoader.getLong("AltOlyBattle", 360000L);
+		ALT_OLY_CLASSED_PARTICIPANTS = ConfigLoader.getInt("AltOlyClassedParticipants", 5);
+		ALT_OLY_CLASSED_REW_ITEM_COUNT = ConfigLoader.getInt("AltOlyClassedRewItemCount", 50);
+		ALT_OLY_NON_CLASSED_PARTICIPANTS = ConfigLoader.getInt("AltOlyNonClassedParticipants", 9);
+		ALT_OLY_NON_CLASSED_REW_ITEM_COUNT = ConfigLoader.getInt("AltOlyNonClassedRewItemCount", 30);
+		ALT_OLY_HEAL_ON_TELEPORT = ConfigLoader.getBoolean("AltOlyHealOnTeleport", true);
+		ALT_OLY_HEAL_ON_FIGHT_START = ConfigLoader.getBoolean("AltOlyHealOnFightStart", true);
+		ALT_OLY_RESET_SKILL_TIME = ConfigLoader.getBoolean("AltOlyResetSkillTime", true);
+		ALT_OLY_SAME_IP = ConfigLoader.getBoolean("AltOlySameIp", true);
+		ALT_OLY_REMOVE_CUBICS = ConfigLoader.getBoolean("AltOlyRemoveCubics", true);
+		ALT_OLY_ENCHANT_LIMIT = ConfigLoader.getInt("AltOlyEnchantLimit", -1);
+		ALT_OLY_REWARD_ITEM = ConfigLoader.getInt("AltOlyRewardItem", 6651);
+		ALT_OLY_HERO_POINTS = ConfigLoader.getInt("AltOlyHeroPoints", 300);
+		ALT_OLY_MIN_POINT_FOR_EXCHANGE = ConfigLoader.getInt("AltOlyMinPointForExchange", 50);
+		ALT_OLY_GP_PER_POINT = ConfigLoader.getInt("AltOlyGPPerPoint", 1000);
+		ALT_OLY_START_POINTS_COUNT = ConfigLoader.getInt("AltOlyStartPointsCount", 18);
+		ALT_OLY_WEEKLY_POINTS_COUNT = ConfigLoader.getInt("AltOlyWeeklyPointsCount", 3);
+		ALT_OLY_MIN_MATCHES = ConfigLoader.getInt("AltOlyMinMatches", 5);
+		OLYMPIAD_REMOVE_POINTS_ON_TIE = ConfigLoader.getBoolean("OlympiadRemovePointsOnTie", true);
+
+		// Onda 11
+		TVT_AUTO_START = ConfigLoader.getBoolean("TvT.AutoStart", false);
+		CTF_AUTO_START = ConfigLoader.getBoolean("CTF.AutoStart", false);
+		DM_AUTO_START = ConfigLoader.getBoolean("DeathMatch.AutoStart", false);
+		TVT_DELAY_ON_BOOT = ConfigLoader.getInt("TvT.DelayOnBoot", 10);
+		CTF_DELAY_ON_BOOT = ConfigLoader.getInt("CTF.DelayOnBoot", 10);
+		DM_DELAY_ON_BOOT = ConfigLoader.getInt("DeathMatch.DelayOnBoot", 10);
+		TVT_NEXT_DELAY = ConfigLoader.getInt("TvT.NextDelay", 60);
+		CTF_NEXT_DELAY = ConfigLoader.getInt("CTF.NextDelay", 60);
+		DM_NEXT_DELAY = ConfigLoader.getInt("DeathMatch.NextDelay", 60);
+		TVT_ENABLED = ConfigLoader.getBoolean("TvTEnabled", true);
+		CTF_ENABLED = ConfigLoader.getBoolean("CTFEnabled", true);
+		DM_ENABLED = ConfigLoader.getBoolean("DMEnabled", true);
+		TVT_MIN_LEVEL = ConfigLoader.getInt("TvTMinLevel", 1);
+		TVT_MAX_LEVEL = ConfigLoader.getInt("TvTMaxLevel", 85);
+		TVT_MIN_PLAYERS = ConfigLoader.getInt("TvTMinPlayers", 8);
+		TVT_MAX_PLAYERS = ConfigLoader.getInt("TvTMaxPlayers", 60);
+		TVT_REWARD_ID = ConfigLoader.getInt("TvTRewardId", 57);
+		TVT_REWARD_AMOUNT = ConfigLoader.getInt("TvTRewardAmount", 100000);
+		CTF_MIN_LEVEL = ConfigLoader.getInt("CTFMinLevel", 1);
+		CTF_MAX_LEVEL = ConfigLoader.getInt("CTFMaxLevel", 85);
+		CTF_MIN_PLAYERS = ConfigLoader.getInt("CTFMinPlayers", 8);
+		CTF_MAX_PLAYERS = ConfigLoader.getInt("CTFMaxPlayers", 60);
+		CTF_REWARD_ID = ConfigLoader.getInt("CTFRewardId", 57);
+		CTF_REWARD_AMOUNT = ConfigLoader.getInt("CTFRewardAmount", 100000);
+		DM_MIN_LEVEL = ConfigLoader.getInt("MinLevel", 1);
+		DM_MAX_LEVEL = ConfigLoader.getInt("MaxLevel", 80);
+		DM_MIN_PLAYERS = ConfigLoader.getInt("MinPlayers", 8);
+		DM_MAX_PLAYERS = ConfigLoader.getInt("MaxPlayers", 60);
+		DM_REWARD_ID = ConfigLoader.getInt("RewardItem", 57);
+		DM_REWARD_AMOUNT = ConfigLoader.getInt("RewardItemCount", 50000);
+
+		// Onda 12
+		SIEGE_LENGTH = ConfigLoader.getInt("SiegeLength", 120);
+		COUNTDOWN_LENGTH = ConfigLoader.getInt("CountDownLength", 10);
+		MAX_FLAGS = ConfigLoader.getInt("MaxFlags", 1);
+		SIEGE_CLAN_MIN_LEVEL = ConfigLoader.getInt("SiegeClanMinLevel", 5);
+		SIEGE_CLAN_MIN_MEMBERS_COUNT = ConfigLoader.getInt("SiegeClanMinMembersCount", 1);
+		ATTACKER_MAX_CLANS = ConfigLoader.getInt("AttackerMaxClans", 500);
+		DEFENDER_MAX_CLANS = ConfigLoader.getInt("DefenderMaxClans", 500);
+		ATTACKER_RESPAWN = ConfigLoader.getInt("AttackerRespawn", 0);
+		BLOOD_ALLIANCE_REWARD = ConfigLoader.getInt("BloodAllianceReward", 1);
+		SPAWN_SIEGE_GUARD = ConfigLoader.getBoolean("SpawnSiegeGuard", true);
+		MAX_GUARD_COUNT = ConfigLoader.getInt("MaxGuardCount", 400);
+		ONLY_REGISTERED = ConfigLoader.getBoolean("OnlyRegistered", false);
+		ALT_FLYING_WYVERN_IN_SIEGE = ConfigLoader.getBoolean("AltFlyingWyvernInSiege", false);
+		ALLOW_GATE_CONTROL = ConfigLoader.getBoolean("AllowGateControl", false);
+		DISABLE_CHANGE_SIEGE_TIME = ConfigLoader.getBoolean("DisableChangeSiegeTime", false);
 	}
 
 	// =========================================================================
