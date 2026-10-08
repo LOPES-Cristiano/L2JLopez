@@ -82,6 +82,18 @@ public class ZoneTable {
 	}
 
 	/**
+	 * Verifica se as coordenadas informadas estao dentro de uma Zona de Flag (nome roxo automatico).
+	 */
+	public boolean isInsideFlagZone(int x, int y, int z) {
+		for (Zone zone : allZones) {
+			if (zone.type() == ZoneType.FLAG && zone.contains(x, y, z)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Verifica se as coordenadas informadas estao dentro de uma Zona de Agua (nado/afogamento).
 	 */
 	public boolean isInsideWater(int x, int y, int z) {
@@ -275,6 +287,7 @@ public class ZoneTable {
 		if (lowerFile.contains("clanhall")) return ZoneType.CLANHALL;
 		if (lowerFile.contains("boss")) return ZoneType.BOSS;
 		if (lowerFile.contains("damage")) return ZoneType.DAMAGE;
+		if (lowerFile.contains("flag")) return ZoneType.FLAG;
 		return ZoneType.OTHER;
 	}
 }
