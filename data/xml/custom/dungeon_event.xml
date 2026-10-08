@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list>
+	<!-- Dungeon 1: Solo Dungeon "Heretic HexTec" (Onda C9) -->
+	<dungeon id="1" name="Heretic HexTec" type="solo" sharedInstance="false">
+		<story>
+			Heretic HexTec is an instanced solo dungeon with escalating stages.
+			Defeat each stage boss before the timer ends to unlock rewards.
+		</story>
+		<entryFee itemId="57" count="100000" mode="leader"/>
+		<cooldown minutes="30"/>
+		
+		<stage order="1" loc="112804,-76675,8" teleport="true" minutes="10">
+			<spawns>
+				<spawn npcId="20100" count="3" loc="113999,-76601,56" drops="57-50000-100;4037-1-50;"/>
+			</spawns>
+		</stage>
+		
+		<stage order="2" loc="112804,-76675,8" teleport="false" minutes="10">
+			<spawns>
+				<spawn npcId="20101" count="3" loc="113937,-75940,56" drops="57-100000-100;4037-2-50;"/>
+			</spawns>
+		</stage>
+		
+		<stage order="3" loc="112804,-76675,8" teleport="false" minutes="15">
+			<spawns>
+				<spawn npcId="25001" title="[Dungeon Boss]" count="1" loc="113177,-76850,8" drops="57-500000-100;4037-5-100;"/>
+			</spawns>
+		</stage>
+	</dungeon>
+
+	<!-- Dungeon 2: Party Dungeon "Team Trial" (Onda C9) -->
+	<dungeon id="2" name="Team Trial" type="party" sharedInstance="false" minPlayers="2" maxPlayers="9" leaderOnly="true">
+		<story>
+			Team Trial is an instanced party dungeon with escalating raid stages.
+			Defeat all bosses within the time limit.
+		</story>
+		<entryFee itemId="57" count="500000" mode="leader"/>
+		<cooldown minutes="60"/>
+		
+		<stage order="1" loc="81664,149056,-3472" teleport="true" minutes="20">
+			<spawns>
+				<spawn npcId="22126" count="2" loc="81664,149056,-3472" drops="57-300000-100;4037-5-100;"/>
+			</spawns>
+		</stage>
+		
+		<stage order="2" loc="81664,149056,-3472" teleport="false" minutes="20">
+			<spawns>
+				<spawn npcId="25002" title="[Trial Boss]" count="1" loc="81664,149056,-3472" drops="57-1000000-100;4037-10-100;"/>
+			</spawns>
+		</stage>
+	</dungeon>
+</list>
