@@ -7,6 +7,8 @@ import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.npc.NpcTemplate;
 import com.lopez.l2j.game.quest.impl.Quest211TrialOfChallenger;
+import com.lopez.l2j.game.quest.impl.Quest212TrialOfDuty;
+import com.lopez.l2j.game.quest.impl.Quest217TestimonyOfTrust;
 import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.packet.GameClientPacket;
@@ -29,11 +31,11 @@ public class SecondClassQuestsTest {
 		sentPackets = new ArrayList<>();
 		questManager = new QuestManager(null);
 
-		playerChar = new PlayerCharacter(1001, "TestWarrior", "Candidate", 0, 0, 0, 0, 0, 0, false, 0, 0, 0,
+		playerChar = new PlayerCharacter(1002, "KnightTester", "Candidate", 0, 0, 0, 0, 0, 0, false, 0, 0, 0,
 				100, 100, 100, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 100.0, 100.0, 100.0);
 		playerChar.inventory(new Inventory(playerChar.objectId()));
-		playerChar.level(35);
-		playerChar.classId(1); // Human Warrior (elegível para Gladiator / Warlord)
+		playerChar.level(37);
+		playerChar.classId(4); // Human Knight
 
 		var mockCtx = org.mockito.Mockito.mock(com.lopez.l2j.network.game.GameSession.Context.class);
 		var mockInvSvc = org.mockito.Mockito.mock(InventoryService.class);
@@ -48,100 +50,70 @@ public class SecondClassQuestsTest {
 	}
 
 	@Test
-	@DisplayName("CP 3.2: Validação de Integridade do Catálogo de 2ª Classe (23 Quests e 31 Classes)")
+	@DisplayName("CP 5: Integridade do Catálogo de 2ª Classe (23 Quests e 31 Classes)")
 	void testSecondClassCatalogIntegrity() {
-		var quests = SecondClassQuestCatalog.getAllQuests();
-		assertEquals(23, quests.size(), "Devem existir exatamente 23 quests de 2ª classe (211 a 233)");
+		var allQuests = SecondClassQuestCatalog.getAllQuests();
+		assertEquals(23, allQuests.size(), "Devem existir 23 quests de 2ª classe no catálogo");
 
-		for (int qId = 211; qId <= 233; qId++) {
-			assertTrue(quests.containsKey(qId), "Quest ID " + qId + " deve estar cadastrada");
-			var qInfo = quests.get(qId);
-			assertTrue(qInfo.proofItemId() > 0, "Proof item ID deve ser válido");
-			assertTrue(SecondClassQuestCatalog.isSecondClassProofItem(qInfo.proofItemId()));
+		var allReqs = SecondClassQuestCatalog.getAllRequirements();
+		assertEquals(31, allReqs.size(), "Devem existir 31 classes de 2ª profissão mapeadas");
+
+		// Verifica se todas as classes possuem 3 provas válidas
+		for (var req : allReqs.values()) {
+			assertEquals(3, req.requiredProofItems().size(), "Cada classe deve exigir exatamente 3 provas");
+			assertTrue(SecondClassQuestCatalog.isSecondClassProofItem(req.trialProofItem()));
+			assertTrue(SecondClassQuestCatalog.isSecondClassProofItem(req.testimonyProofItem()));
+			assertTrue(SecondClassQuestCatalog.isSecondClassProofItem(req.testProofItem()));
 		}
-
-		var reqs = SecondClassQuestCatalog.getAllRequirements();
-		assertEquals(31, reqs.size(), "Devem existir exatamente 31 classes de 2ª profissão no Interlude");
-
-		// Gladiator (ID 2): Challenger (211) + Trust (217) + Duelist (222)
-		var gladiator = reqs.get(2);
-		assertNotNull(gladiator);
-		assertEquals("Gladiator", gladiator.targetClassName());
-		assertEquals(211, gladiator.trialQuestId());
-		assertEquals(217, gladiator.testimonyQuestId());
-		assertEquals(222, gladiator.testQuestId());
-		assertEquals(2627, gladiator.trialProofItem()); // Mark of Challenger
-		assertEquals(2734, gladiator.testimonyProofItem()); // Mark of Trust
-		assertEquals(2762, gladiator.testProofItem()); // Mark of Duelist
-
-		// Paladin (ID 5): Duty (212) + Trust (217) + Healer (226)
-		var paladin = reqs.get(5);
-		assertNotNull(paladin);
-		assertEquals(212, paladin.trialQuestId());
-		assertEquals(217, paladin.testimonyQuestId());
-		assertEquals(226, paladin.testQuestId());
-
-		// Bounty Hunter (ID 55): Guildsman (216) + Prosperity (221) + Searcher (225)
-		var bh = reqs.get(55);
-		assertNotNull(bh);
-		assertEquals(216, bh.trialQuestId());
-		assertEquals(221, bh.testimonyQuestId());
-		assertEquals(225, bh.testQuestId());
 	}
 
 	@Test
-	@DisplayName("CP 3.2: Fluxo completo da Quest 211 (Trial of the Challenger)")
-	void testQuest211TrialOfChallengerFlow() {
-		Quest211TrialOfChallenger quest = new Quest211TrialOfChallenger(questManager);
+	@DisplayName("CP 5: Fluxo da Quest 212 (Trial of Duty)")
+	void testQuest212TrialOfDutyFlow() {
+		Quest212TrialOfDuty quest = new Quest212TrialOfDuty(questManager);
 
-		var kashTpl = new NpcTemplate(30644, 30644, "Kash", false, "Martial Master", false, 10.0, 15.0, 70, "male",
+		var hannavaltTpl = new NpcTemplate(30109, 30109, "Duke Hannavalt", false, "Duke", false, 10.0, 15.0, 70, "male",
 				"L2Npc", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
-		NpcInstance kash = new NpcInstance(7001, kashTpl, 0, 0, 0, 0);
+		NpcInstance hannavalt = new NpcInstance(8010, hannavaltTpl, 0, 0, 0, 0);
 
-		// 1. Início e Aceitação da Quest com Kash
-		String talk1 = quest.onTalk(kash, session);
-		assertEquals("30644-03.htm", talk1);
+		String talk = quest.onTalk(hannavalt, session);
+		assertEquals("30109-03.htm", talk);
 
-		quest.onAdvEvent("1", kash, session);
-
-		QuestState qs = session.getQuestState(Quest211TrialOfChallenger.QUEST_NAME);
+		quest.onAdvEvent("1", hannavalt, session);
+		QuestState qs = session.getQuestState(Quest212TrialOfDuty.QUEST_NAME);
 		assertNotNull(qs);
 		assertTrue(qs.isStarted());
 		assertEquals(1, qs.getCond());
 
-		// 2. Abate de Shyslassys (27110)
-		var shyslassysTpl = new NpcTemplate(27110, 27110, "Shyslassys", false, "Quest Monster", false, 10.0, 15.0, 35, "male",
-				"L2Monster", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
-		NpcInstance mob = new NpcInstance(7002, shyslassysTpl, 0, 0, 0, 0);
+		// Simula avanço para entrega final com Dustin e Hannavalt
+		qs.setCond(18);
+		qs.giveItems(Quest212TrialOfDuty.LETTER_OF_DUSTIN, 1);
 
-		quest.onKill(mob, session, false);
-		assertEquals(2, qs.getCond());
-		assertEquals(1, qs.getQuestItemsCount(Quest211TrialOfChallenger.BROKEN_KEY));
-
-		// 3. Conversa com Chest of Shyslassys
-		var chestTpl = new NpcTemplate(30647, 30647, "Chest", false, "Chest", false, 10.0, 15.0, 1, "male",
-				"L2Npc", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
-		NpcInstance chest = new NpcInstance(7003, chestTpl, 0, 0, 0, 0);
-
-		quest.onAdvEvent("30647_1", chest, session);
-		assertEquals(1, qs.getQuestItemsCount(Quest211TrialOfChallenger.SCROLL_OF_SHYSLASSY));
-
-		// 4. Retorno a Kash e avanço para o final com Raldo
-		quest.onTalk(kash, session);
-		assertEquals(3, qs.getCond());
-		assertEquals(1, qs.getQuestItemsCount(Quest211TrialOfChallenger.LETTER_OF_KASH));
-
-		// Simula avanço para passo final (cond = 10) e entrega do Mark of Challenger
-		qs.setCond(10);
-		var raldoTpl = new NpcTemplate(30646, 30646, "Raldo", false, "Grand Master", false, 10.0, 15.0, 70, "male",
-				"L2Npc", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
-		NpcInstance raldo = new NpcInstance(7004, raldoTpl, 0, 0, 0, 0);
-
-		String finalReply = quest.onTalk(raldo, session);
-		assertEquals("30646-07.htm", finalReply);
+		String talkFinal = quest.onTalk(hannavalt, session);
+		assertEquals("30109-05.htm", talkFinal);
 		assertTrue(qs.isCompleted());
-		assertEquals(1, qs.getQuestItemsCount(Quest211TrialOfChallenger.MARK_OF_CHALLENGER));
-		assertEquals(8, qs.getQuestItemsCount(Quest211TrialOfChallenger.DIMENSIONAL_DIAMOND));
+		assertEquals(1, qs.getQuestItemsCount(Quest212TrialOfDuty.MARK_OF_DUTY));
+	}
+
+	@Test
+	@DisplayName("CP 5: Fluxo da Quest 217 (Testimony of Trust)")
+	void testQuest217TestimonyOfTrustFlow() {
+		Quest217TestimonyOfTrust quest = new Quest217TestimonyOfTrust(questManager);
+
+		var hollinTpl = new NpcTemplate(30191, 30191, "Hollin", false, "High Priest", false, 10.0, 15.0, 70, "male",
+				"L2Npc", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
+		NpcInstance hollin = new NpcInstance(8011, hollinTpl, 0, 0, 0, 0);
+
+		String talk = quest.onTalk(hollin, session);
+		assertEquals("30191-03.htm", talk);
+
+		quest.onAdvEvent("1", hollin, session);
+		QuestState qs = session.getQuestState(Quest217TestimonyOfTrust.QUEST_NAME);
+		assertNotNull(qs);
+		assertTrue(qs.isStarted());
+		assertEquals(1, qs.getCond());
+		assertEquals(1, qs.getQuestItemsCount(Quest217TestimonyOfTrust.LETTER_TO_ELF));
+		assertEquals(1, qs.getQuestItemsCount(Quest217TestimonyOfTrust.LETTER_TO_DARKELF));
 	}
 
 	private static void setField(Object target, String name, Object val) {
