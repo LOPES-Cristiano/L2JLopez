@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.combat.CombatService;
 import com.lopez.l2j.game.item.Inventory;
 import com.lopez.l2j.game.item.ItemInstance;
@@ -57,6 +58,7 @@ class GameSessionFeaturesTest {
 
 	@BeforeEach
 	void setUp() {
+		Config.LEAVE_BUFFS_ON_DIE = true;
 		sent = new ArrayList<>();
 		world = new GameWorld();
 		var repo = new com.lopez.l2j.game.item.InMemoryItemRepository();
