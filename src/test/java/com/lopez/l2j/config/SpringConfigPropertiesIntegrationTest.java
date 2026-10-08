@@ -49,6 +49,17 @@ class SpringConfigPropertiesIntegrationTest {
 	@Autowired
 	GrandBossManager grandBossManager;
 
+	@Autowired(required = false)
+	com.lopez.l2j.game.geodata.GeoEngine geoEngine;
+
+	@Test
+	void geoEngineRespectsOptionsProperties() {
+		assertNotNull(geoEngine, "GeoEngine deve estar disponivel");
+		// options.properties tem EnableGeoData = False (ou Config.ENABLE_GEODATA)
+		assertEquals(Config.ENABLE_GEODATA, geoEngine.isEnabled(),
+				"GeoEngine.isEnabled() deve refletir fielmente o EnableGeoData de options.properties");
+	}
+
 	@Test
 	void serverPropertiesBoundFromPropertiesFiles() {
 		assertNotNull(serverProperties);
