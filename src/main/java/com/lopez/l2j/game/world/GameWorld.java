@@ -32,6 +32,12 @@ public class GameWorld {
 		int z();
 
 		void send(GameServerPacket packet);
+		
+		default void sendMessage(String text) {
+			if (text != null && !text.isBlank()) {
+				send(GameServerPacket.SystemMessage.sendString(text));
+			}
+		}
 
 		default void close(GameServerPacket packet) {
 		}
