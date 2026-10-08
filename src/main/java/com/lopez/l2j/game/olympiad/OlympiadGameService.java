@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.olympiad;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.network.game.GameSession;
 import java.util.ArrayList;
@@ -30,13 +31,15 @@ public class OlympiadGameService {
 
 	public enum RegisterResult {
 		SUCCESS,
+		DISABLED,
 		NOT_NOBLE,
 		LEVEL_TOO_LOW,
 		HAS_KARMA,
 		IN_CURSED_WEAPON,
 		ALREADY_REGISTERED,
 		SAME_IP_BLOCKED,
-		INSUFFICIENT_POINTS
+		INSUFFICIENT_POINTS,
+		ENCHANT_LIMIT_EXCEEDED
 	}
 
 	private final OlympiadManager olympiadManager;
@@ -54,6 +57,10 @@ public class OlympiadGameService {
 	}
 
 	public RegisterResult register(GameSession session, OlympiadMode mode) {
+		if (!Config.OLYMPIAD_ENABLED) {
+			return RegisterResult.DISABLED;
+		}
+
 		if (session == null || session.activeChar() == null) {
 			return RegisterResult.NOT_NOBLE;
 		}
@@ -84,20 +91,40 @@ public class OlympiadGameService {
 			}
 		}
 
-		// Verificacao anti-feed por IP na mesma fila
-		String clientIp = session.clientIp() != null ? session.clientIp() : "127.0.0.1";
-		List<OlympiadParticipant> queue = queues.get(mode);
-		synchronized (queue) {
-			boolean sameIpFound = queue.stream()
-					.anyMatch(p -> clientIp.equals(p.ipAddress()) && !"127.0.0.1".equals(clientIp));
-			if (sameIpFound) {
-				log.warn("Olympiad anti-feed: Jogador {} bloqueado por mesmo IP {} na fila {}",
-						player.name(), clientIp, mode);
-				return RegisterResult.SAME_IP_BLOCKED;
+		// Checa limite de enchant se configurado
+		if (Config.ALT_OLY_ENCHANT_LIMIT >= 0 && player.inventory() != null) {
+			for (var item : player.inventory().items()) {
+				if (item != null && item.isEquipped() && item.enchant() > Config.ALT_OLY_ENCHANT_LIMIT) {
+					String itemName = item.template() != null ? item.template().name() : "Item";
+					log.warn("Olympiad: Jogador {} tentou registrar com item {} enchant +{} (limite: +{})",
+							player.name(), itemName, item.enchant(), Config.ALT_OLY_ENCHANT_LIMIT);
+					return RegisterResult.ENCHANT_LIMIT_EXCEEDED;
+				}
 			}
+		}
 
-			OlympiadParticipant participant = new OlympiadParticipant(session, player.x(), player.y(), player.z());
-			queue.add(participant);
+		// Verificacao anti-feed por IP na mesma fila
+		if (Config.ALT_OLY_SAME_IP) {
+			String clientIp = session.clientIp() != null ? session.clientIp() : "127.0.0.1";
+			List<OlympiadParticipant> queue = queues.get(mode);
+			synchronized (queue) {
+				boolean sameIpFound = queue.stream()
+						.anyMatch(p -> clientIp.equals(p.ipAddress()) && !"127.0.0.1".equals(clientIp));
+				if (sameIpFound) {
+					log.warn("Olympiad anti-feed: Jogador {} bloqueado por mesmo IP {} na fila {}",
+							player.name(), clientIp, mode);
+					return RegisterResult.SAME_IP_BLOCKED;
+				}
+
+				OlympiadParticipant participant = new OlympiadParticipant(session, player.x(), player.y(), player.z());
+				queue.add(participant);
+			}
+		} else {
+			List<OlympiadParticipant> queue = queues.get(mode);
+			synchronized (queue) {
+				OlympiadParticipant participant = new OlympiadParticipant(session, player.x(), player.y(), player.z());
+				queue.add(participant);
+			}
 		}
 
 		log.info("Jogador {} (Classe {}) registrado com sucesso na fila {}", player.name(), player.classId(), mode);
@@ -258,10 +285,12 @@ public class OlympiadGameService {
 				PlayerCharacter ch = p.session().activeChar();
 				// Retail Interlude: strip outside buffs
 				ch.effects().clear();
-				// Full heal
-				ch.currentHp(ch.maxHp());
-				ch.currentMp(ch.maxMp());
-				ch.currentCp(ch.maxCp());
+				// Full heal if enabled
+				if (Config.ALT_OLY_HEAL_ON_TELEPORT || Config.ALT_OLY_HEAL_ON_FIGHT_START) {
+					ch.currentHp(ch.maxHp());
+					ch.currentMp(ch.maxMp());
+					ch.currentCp(ch.maxCp());
+				}
 			}
 		}
 	}
