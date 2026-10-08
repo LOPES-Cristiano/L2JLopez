@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.subclass;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -175,13 +176,14 @@ public class SubClassService {
 		if (player == null) {
 			return false;
 		}
+		int maxSubs = Config.MAX_SUBCLASSES > 0 ? Config.MAX_SUBCLASSES : MAX_SUBCLASSES;
 		if (player.isGm()) {
-			return player.subClasses().size() < MAX_SUBCLASSES;
+			return player.subClasses().size() < maxSubs;
 		}
 		if (player.level() < MIN_LEVEL_FOR_SUBCLASS) {
 			return false;
 		}
-		if (player.subClasses().size() >= MAX_SUBCLASSES) {
+		if (player.subClasses().size() >= maxSubs) {
 			return false;
 		}
 		// Todas as subclasses já existentes precisam estar nível 75 ou mais
@@ -190,7 +192,51 @@ public class SubClassService {
 				return false;
 			}
 		}
-		return true;
+		return checkSubclassRequirements(player);
+	}
+
+	/**
+	 * Valida requisitos de quest e itens especiais para liberacao de subclasse.
+	 */
+	public boolean checkSubclassRequirements(PlayerCharacter player) {
+		if (player == null) {
+			return false;
+		}
+		if (player.isGm() || Config.ALT_SUBCLASS_WITHOUT_QUESTS) {
+			return true;
+		}
+		if (Config.SUBCLASS_WITH_ITEM_AND_NO_QUEST) {
+			boolean hasDestiny = player.inventory() != null && player.inventory().byItemId(5011).isPresent();
+			boolean hasElixir = player.inventory() != null && player.inventory().byItemId(5904).isPresent();
+			return hasDestiny && hasElixir;
+		}
+		if (Config.SUBCLASS_WITH_CUSTOM_ITEM) {
+			if (player.inventory() == null) {
+				return false;
+			}
+			var itemOpt = player.inventory().byItemId(Config.SUBCLASS_WITH_CUSTOM_ITEM_ID);
+			return itemOpt.isPresent() && itemOpt.get().count() >= Config.SUBCLASS_WITH_CUSTOM_ITEM_COUNT;
+		}
+		return false;
+	}
+
+	public boolean checkSubclassRequirements(com.lopez.l2j.network.game.GameSession session) {
+		if (session == null || session.activeChar() == null) {
+			return false;
+		}
+		if (checkSubclassRequirements(session.activeChar())) {
+			return true;
+		}
+		var qs = session.getQuestState("Quest234FatesWhisper");
+		return qs != null && qs.isCompleted();
+	}
+
+	public static int getMaxLevel(boolean isSubClass) {
+		return isSubClass ? Config.SUBCLASS_MAX_LEVEL : Config.PLAYER_MAX_LEVEL;
+	}
+
+	public static int getInitialLevel() {
+		return Config.SUBCLASS_INIT_LEVEL > 0 ? Config.SUBCLASS_INIT_LEVEL : 40;
 	}
 
 	/**
