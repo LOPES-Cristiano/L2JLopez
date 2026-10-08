@@ -336,6 +336,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			com.lopez.l2j.network.game.handler.bypass.BypassHandlerRegistry bypassHandlers,
 			com.lopez.l2j.game.service.AcpService acpService,
 			com.lopez.l2j.game.service.SchemeBufferService schemeBuffer,
+			com.lopez.l2j.game.service.BankingService banking,
+			com.lopez.l2j.game.service.AwayStatusService away,
 			com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
@@ -430,7 +432,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					officialEvent, roulette, characterReset,
 					tvt, ctf, dm, partyFarm, botsPrevention, pvpColor, pvpRank, aio, preferences,
 					lottery, monsterRace, fishingChampionship, petition, boat, l2day, starterKit, questManager, subClasses,
-					macros, raidPoints, null, null, null, null, null, null, null, null, rates, serverName);
+					macros, raidPoints, null, null, null, null, null, null, null, null, null, null, rates, serverName);
 		}
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
