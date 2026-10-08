@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.clan.war;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.clan.Clan;
 import com.lopez.l2j.game.clan.ClanTable;
 import com.lopez.l2j.game.model.PlayerCharacter;
@@ -101,13 +102,14 @@ public class ClanWarService {
 		if (playerClan.enemyClanIds().size() >= MAX_CLAN_WARS) {
 			return DeclareResult.TOO_MANY_WARS;
 		}
-		if (playerClan.level() < MIN_CLAN_LEVEL || playerClan.membersCount() < MIN_CLAN_MEMBERS) {
+		int minMembers = Config.ALT_CLAN_MEMBERS_FOR_WAR > 0 ? Config.ALT_CLAN_MEMBERS_FOR_WAR : MIN_CLAN_MEMBERS;
+		if (playerClan.level() < MIN_CLAN_LEVEL || playerClan.membersCount() < minMembers) {
 			return DeclareResult.CLAN_LEVEL_OR_MEMBERS_TOO_LOW;
 		}
 
 		// Se o cla alvo ainda nao declarou contra este, checa nivel e membros do alvo
 		if (!playerClan.isAttackerClan(targetClan.clanId())
-				&& (targetClan.level() < MIN_CLAN_LEVEL || targetClan.membersCount() < MIN_CLAN_MEMBERS)) {
+				&& (targetClan.level() < MIN_CLAN_LEVEL || targetClan.membersCount() < minMembers)) {
 			return DeclareResult.TARGET_LEVEL_OR_MEMBERS_TOO_LOW;
 		}
 
@@ -185,7 +187,8 @@ public class ClanWarService {
 		}
 
 		long now = System.currentTimeMillis();
-		long penaltyExpiry = now + WAR_PENALTY_MILLIS;
+		long penaltyDays = Config.ALT_CLAN_WAR_PENALTY_WHEN_ENDED > 0 ? Config.ALT_CLAN_WAR_PENALTY_WHEN_ENDED : 5;
+		long penaltyExpiry = now + penaltyDays * 86_400_000L;
 
 		playerClan.removeEnemyClan(targetClan.clanId());
 		targetClan.removeAttackerClan(playerClan.clanId());
