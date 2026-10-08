@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.community;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.CharacterRepository;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.world.GameWorld;
@@ -75,7 +76,20 @@ public class CommunityBoardService {
             return "<html><body>Erro de sessao.</body></html>";
         }
 
-        String cmd = (command == null || command.isBlank()) ? "_bbshome" : command.trim();
+        if ("off".equalsIgnoreCase(Config.COMMUNITY_TYPE)) {
+            return "<html><body><br><center><font color=\"FF0000\">O Community Board esta desativado no momento.</font></center></body></html>";
+        }
+
+        if (isRestricted(player)) {
+            return "<html><body><br><center><font color=\"FF0000\">O Community Board esta restrito nesta condicao!</font></center></body></html>";
+        }
+
+        String defaultPage = (Config.BBS_DEFAULT != null && !Config.BBS_DEFAULT.isBlank()) ? Config.BBS_DEFAULT : "_bbshome";
+        String cmd = (command == null || command.isBlank()) ? defaultPage : command.trim();
+
+        if (isPageDisabled(cmd)) {
+            return "<html><body><br><center><font color=\"FF0000\">Esta secao do Community Board esta desativada pelo administrador.</font></center></body></html>";
+        }
 
         if (cmd.startsWith("_bbsteleport_to ")) {
             return handleTeleport(player, cmd.substring(16).trim());
@@ -136,7 +150,8 @@ public class CommunityBoardService {
                 .append(player.karma()).append("</font>");
         sb.append("</td>");
         sb.append("<td width=375><font color=\"00FF00\"><b>Status do Servidor:</b></font><br>");
-        sb.append("Jogadores Online: <font color=\"FFFF00\">").append(onlineCount).append("</font><br>");
+        String onlineDisplay = Config.ONLINE_COMMUNITY_BOARD ? String.valueOf(onlineCount) : "N/A";
+        sb.append("Jogadores Online: <font color=\"FFFF00\">").append(onlineDisplay).append("</font><br>");
         sb.append("Taxas: <font color=\"FFFFFF\">XP: 1x | SP: 1x | Adena: 1x | Drop: 1x</font><br>");
         sb.append("Plataforma: <font color=\"00FF99\">Java 21 / Spring Boot 3.5 High-Performance</font>");
         sb.append("</td>");
@@ -206,9 +221,11 @@ public class CommunityBoardService {
         sb.append("<tr><th width=35>#</th><th width=170>Nome</th><th width=70>Nivel</th><th width=90>PvPs</th></tr>");
         int rank = 1;
         for (PlayerCharacter p : topPvp) {
+            if (!Config.SHOW_KARMA_PLAYERS && p.karma() > 0) continue;
+            String lvlStr = Config.SHOW_LEVEL_ON_COMMUNITY_BOARD ? String.valueOf(p.level()) : "-";
             sb.append("<tr><td align=center>").append(rank++).append("</td>");
             sb.append("<td>").append(p.name()).append("</td>");
-            sb.append("<td align=center>").append(p.level()).append("</td>");
+            sb.append("<td align=center>").append(lvlStr).append("</td>");
             sb.append("<td align=center><font color=\"00FF00\">").append(p.pvpKills()).append("</font></td></tr>");
         }
         if (topPvp.isEmpty()) {
@@ -223,9 +240,11 @@ public class CommunityBoardService {
         sb.append("<tr><th width=35>#</th><th width=170>Nome</th><th width=70>Nivel</th><th width=90>PKs</th></tr>");
         rank = 1;
         for (PlayerCharacter p : topPk) {
+            if (!Config.SHOW_KARMA_PLAYERS && p.karma() > 0) continue;
+            String lvlStr = Config.SHOW_LEVEL_ON_COMMUNITY_BOARD ? String.valueOf(p.level()) : "-";
             sb.append("<tr><td align=center>").append(rank++).append("</td>");
             sb.append("<td>").append(p.name()).append("</td>");
-            sb.append("<td align=center>").append(p.level()).append("</td>");
+            sb.append("<td align=center>").append(lvlStr).append("</td>");
             sb.append("<td align=center><font color=\"FF4444\">").append(p.pkKills()).append("</font></td></tr>");
         }
         if (topPk.isEmpty()) {
@@ -242,6 +261,9 @@ public class CommunityBoardService {
      * Tela de Teleporte Comunitário para Cidades.
      */
     public String getTeleportHtml(PlayerCharacter player) {
+        if (isGatekeeperExcluded(player)) {
+            return "<html><body><br><center><font color=\"FF0000\">O servico de Teleporte esta desativado nesta condicao/area!</font></center></body></html>";
+        }
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body><br>");
         sb.append(renderNavigationBar());
@@ -354,6 +376,9 @@ public class CommunityBoardService {
     }
 
     private String handleTeleport(PlayerCharacter player, String arg) {
+        if (isGatekeeperExcluded(player)) {
+            return "<html><body><br><center><font color=\"FF0000\">O servico de Teleporte esta desativado nesta condicao/area!</font></center></body></html>";
+        }
         if (player.isDead()) {
             return "<html><body><br><center><font color=\"FF0000\">Voce nao pode se teletransportar enquanto estiver morto!</font></center></body></html>";
         }
@@ -378,6 +403,9 @@ public class CommunityBoardService {
      * Tela do Buffer Comunitário.
      */
     public String getBufferHtml(PlayerCharacter player) {
+        if (isBufferExcluded(player)) {
+            return "<html><body><br><center><font color=\"FF0000\">O servico de Buff esta desativado nesta condicao/area!</font></center></body></html>";
+        }
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body><br>");
         sb.append(renderNavigationBar());
@@ -402,6 +430,9 @@ public class CommunityBoardService {
     }
 
     private String handleBuff(PlayerCharacter player, String scheme) {
+        if (isBufferExcluded(player)) {
+            return "<html><body><br><center><font color=\"FF0000\">O servico de Buff esta desativado nesta condicao/area!</font></center></body></html>";
+        }
         if (player.isDead()) {
             return "<html><body><br><center><font color=\"FF0000\">Voce nao pode receber buffs enquanto estiver morto!</font></center></body></html>";
         }
@@ -488,5 +519,84 @@ public class CommunityBoardService {
                 "<td align=center><button value=\"Informações\" action=\"bypass _bbsinfo\" width=110 height=22 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
                 +
                 "</tr></table><br>";
+    }
+
+    public boolean isPageDisabled(String command) {
+        String disabled = Config.DISABLED_PAGES;
+        if (disabled == null || disabled.isBlank() || command == null) {
+            return false;
+        }
+        for (String token : disabled.split("[;,\\s]+")) {
+            if (!token.isBlank() && command.toLowerCase().contains(token.toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean isRestricted(PlayerCharacter player) {
+        if (player == null) return false;
+        String restrict = Config.RESTRICT_CB_WHEN;
+        if (restrict == null || restrict.isBlank()) {
+            return false;
+        }
+        String upper = restrict.toUpperCase();
+        if (upper.contains("JAIL") && player.isInJail()) {
+            return true;
+        }
+        if (upper.contains("COMBAT") && player.isInCombat()) {
+            return true;
+        }
+        if ((upper.contains("OLY") || upper.contains("OLYMPIAD")) && player.isOlympiadMode()) {
+            return true;
+        }
+        if (upper.contains("KARMA") && player.karma() > 0) {
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isBufferExcluded(PlayerCharacter player) {
+        if (player == null) return false;
+        String exclude = Config.COMMUNITY_BUFFER_EXCLUDE_ON;
+        if (exclude == null || exclude.isBlank()) {
+            return false;
+        }
+        String upper = exclude.toUpperCase();
+        if (upper.contains("OLYMPIAD") && player.isOlympiadMode()) {
+            return true;
+        }
+        if (upper.contains("SIEGE") && player.isInSiege()) {
+            return true;
+        }
+        if ((upper.contains("PVP") || upper.contains("ATTACK") || upper.contains("COMBAT")) && player.isInCombat()) {
+            return true;
+        }
+        if (upper.contains("TRADE") && player.isInTrade()) {
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isGatekeeperExcluded(PlayerCharacter player) {
+        if (player == null) return false;
+        String exclude = Config.GATEKEEPER_EXCLUDE_ON;
+        if (exclude == null || exclude.isBlank()) {
+            return false;
+        }
+        String upper = exclude.toUpperCase();
+        if (upper.contains("OLYMPIAD") && player.isOlympiadMode()) {
+            return true;
+        }
+        if (upper.contains("SIEGE") && player.isInSiege()) {
+            return true;
+        }
+        if ((upper.contains("PVP") || upper.contains("ATTACK") || upper.contains("COMBAT")) && player.isInCombat()) {
+            return true;
+        }
+        if (upper.contains("TRADE") && player.isInTrade()) {
+            return true;
+        }
+        return false;
     }
 }
