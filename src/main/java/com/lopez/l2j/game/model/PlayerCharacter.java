@@ -954,6 +954,16 @@ public final class PlayerCharacter {
 		this.phantom = phantom;
 	}
 
+	private volatile com.lopez.l2j.game.war.FactionType faction = com.lopez.l2j.game.war.FactionType.NONE;
+
+	public com.lopez.l2j.game.war.FactionType faction() {
+		return faction != null ? faction : com.lopez.l2j.game.war.FactionType.NONE;
+	}
+
+	public void faction(com.lopez.l2j.game.war.FactionType faction) {
+		this.faction = faction != null ? faction : com.lopez.l2j.game.war.FactionType.NONE;
+	}
+
 	private volatile boolean fishing;
 	private volatile int fishX;
 	private volatile int fishY;
