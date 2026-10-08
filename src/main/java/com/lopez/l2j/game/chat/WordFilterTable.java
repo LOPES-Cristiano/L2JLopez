@@ -86,15 +86,11 @@ public class WordFilterTable {
 	 * Filtra o texto informado substituindo ocorrencias proibidas pelos caracteres configurados.
 	 */
 	public String filter(String text) {
-		if (text == null || text.isEmpty()) {
-			return text;
-		}
-		boolean enabled = Config.getBoolean("UseSayFilter", false);
-		if (!enabled && patterns.isEmpty()) {
+		if (text == null || text.isEmpty() || patterns.isEmpty()) {
 			return text;
 		}
 
-		String replacement = Config.getString("ChatFilterChars", "...");
+		String replacement = Config.CHAT_FILTER_CHARS != null ? Config.CHAT_FILTER_CHARS : "...";
 		String result = text;
 		for (Pattern p : patterns) {
 			result = p.matcher(result).replaceAll(replacement);
