@@ -145,6 +145,7 @@ public final class Config {
 	public static boolean ALLOW_FISHING = true;
 	public static boolean ALLOW_PET_RENT = true;
 	public static int DELETE_CHAR_AFTER_DAYS = 7;
+	public static boolean ENABLE_GEODATA = false;
 
 	// =========================================================================
 	// NETWORK & GAMESERVER (config/game/main/gameserver.properties, network.properties)
@@ -307,6 +308,7 @@ public final class Config {
 		ALLOW_FISHING = ConfigLoader.getBoolean("AllowFishing", true);
 		ALLOW_PET_RENT = ConfigLoader.getBoolean("AllowPetRent", true);
 		DELETE_CHAR_AFTER_DAYS = ConfigLoader.getInt("DeleteCharAfterDays", 7);
+		ENABLE_GEODATA = ConfigLoader.getBoolean("EnableGeoData", false);
 
 		// Network & Gameserver
 		SERVER_NAME = ConfigLoader.getProperty("ServerName", "L2JLopez");
