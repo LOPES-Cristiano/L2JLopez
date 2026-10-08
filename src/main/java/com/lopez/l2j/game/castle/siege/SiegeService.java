@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.castle.siege;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.castle.Castle;
 import com.lopez.l2j.game.castle.CastleManager;
 import com.lopez.l2j.game.clan.Clan;
@@ -78,7 +79,14 @@ public class SiegeService {
 			return false;
 		}
 
-		if (clan.level() < MIN_CLAN_LEVEL || clan.membersCount() < MIN_CLAN_MEMBERS) {
+		int minLvl = Config.SIEGE_CLAN_MIN_LEVEL > 0 ? Config.SIEGE_CLAN_MIN_LEVEL : MIN_CLAN_LEVEL;
+		int minMembers = Config.SIEGE_CLAN_MIN_MEMBERS_COUNT > 0 ? Config.SIEGE_CLAN_MIN_MEMBERS_COUNT : MIN_CLAN_MEMBERS;
+		if (clan.level() < minLvl || clan.membersCount() < minMembers) {
+			return false;
+		}
+
+		if (Config.ATTACKER_MAX_CLANS > 0 && siege.attackers().size() >= Config.ATTACKER_MAX_CLANS) {
+			log.warn("Cerco ao Castelo {}: limite maximo de atacantes ({}) atingido", castleId, Config.ATTACKER_MAX_CLANS);
 			return false;
 		}
 
@@ -121,7 +129,13 @@ public class SiegeService {
 			return false; // Sem lorde, nao ha quem defenda alem de mercenarios/NPCs
 		}
 
-		if (clan.level() < MIN_CLAN_LEVEL) {
+		int minLvl = Config.SIEGE_CLAN_MIN_LEVEL > 0 ? Config.SIEGE_CLAN_MIN_LEVEL : MIN_CLAN_LEVEL;
+		if (clan.level() < minLvl) {
+			return false;
+		}
+
+		if (Config.DEFENDER_MAX_CLANS > 0 && (siege.defenders().size() + siege.waitingDefenders().size()) >= Config.DEFENDER_MAX_CLANS) {
+			log.warn("Cerco ao Castelo {}: limite maximo de defensores ({}) atingido", castleId, Config.DEFENDER_MAX_CLANS);
 			return false;
 		}
 
@@ -229,12 +243,17 @@ public class SiegeService {
 
 		Castle castle = castleManager.getCastleById(castleId).orElse(null);
 		if (castle != null && winnerClanId > 0) {
+			boolean defended = castle.hasOwner() && castle.ownerClanId() == winnerClanId;
 			castleManager.setOwner(castleId, winnerClanId);
 
 			if (clanTable != null) {
 				Clan winnerClan = clanTable.byClanId(winnerClanId).orElse(null);
 				if (winnerClan != null) {
 					clanTable.updateClanReputation(winnerClanId, winnerClan.reputationScore() + 1000);
+					if (defended && Config.BLOOD_ALLIANCE_REWARD > 0) {
+						log.info("Cerco ao Castelo {}: Defesa bem-sucedida! Cla {} premiado com {} Blood Alliance",
+								castleId, winnerClanId, Config.BLOOD_ALLIANCE_REWARD);
+					}
 				}
 			}
 		}
