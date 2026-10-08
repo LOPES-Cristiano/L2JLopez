@@ -3,6 +3,7 @@ package com.lopez.l2j.network.game.handler.voiced;
 import com.lopez.l2j.game.model.PlayerStats;
 import com.lopez.l2j.game.service.AwayStatusService;
 import com.lopez.l2j.game.service.BankingService;
+import com.lopez.l2j.game.tournament.TournamentService;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage;
@@ -14,7 +15,7 @@ import java.util.Locale;
 
 /**
  * Handler modular para comandos de voz gerais:
- * .online, .stats, .menu, .blockbuff, .bank, .deposit, .withdraw, .away, .back
+ * .online, .stats, .menu, .blockbuff, .bank, .deposit, .withdraw, .away, .back, .tournament
  */
 @Component
 public class VoicedGeneralHandler implements IVoicedCommandHandler {
@@ -28,20 +29,24 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 			"deposit",
 			"withdraw",
 			"away",
-			"back"
+			"back",
+			"tournament"
 	);
 
 	private final BankingService bankingService;
 	private final AwayStatusService awayStatusService;
+	private final TournamentService tournamentService;
 
 	public VoicedGeneralHandler() {
-		this(null, null);
+		this(null, null, null);
 	}
 
 	@Autowired(required = false)
-	public VoicedGeneralHandler(BankingService bankingService, AwayStatusService awayStatusService) {
+	public VoicedGeneralHandler(BankingService bankingService, AwayStatusService awayStatusService,
+								TournamentService tournamentService) {
 		this.bankingService = bankingService != null ? bankingService : new BankingService();
 		this.awayStatusService = awayStatusService != null ? awayStatusService : new AwayStatusService();
+		this.tournamentService = tournamentService != null ? tournamentService : new TournamentService();
 	}
 
 	@Override
@@ -113,6 +118,10 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 			}
 			case "back" -> {
 				awayStatusService.setBack(session);
+				return true;
+			}
+			case "tournament" -> {
+				session.send(new NpcHtmlMessage(0, tournamentService.buildTournamentHtml(active)));
 				return true;
 			}
 			default -> {
