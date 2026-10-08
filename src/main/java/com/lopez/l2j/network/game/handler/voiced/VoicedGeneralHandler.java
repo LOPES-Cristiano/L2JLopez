@@ -30,23 +30,28 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 			"withdraw",
 			"away",
 			"back",
-			"tournament"
+			"tournament",
+			"offlinefarm",
+			"offlinestop"
 	);
 
 	private final BankingService bankingService;
 	private final AwayStatusService awayStatusService;
 	private final TournamentService tournamentService;
+	private final com.lopez.l2j.game.offlinefarm.OfflineFarmService offlineFarmService;
 
 	public VoicedGeneralHandler() {
-		this(null, null, null);
+		this(null, null, null, null);
 	}
 
 	@Autowired(required = false)
 	public VoicedGeneralHandler(BankingService bankingService, AwayStatusService awayStatusService,
-								TournamentService tournamentService) {
+								TournamentService tournamentService,
+								com.lopez.l2j.game.offlinefarm.OfflineFarmService offlineFarmService) {
 		this.bankingService = bankingService != null ? bankingService : new BankingService();
 		this.awayStatusService = awayStatusService != null ? awayStatusService : new AwayStatusService();
 		this.tournamentService = tournamentService != null ? tournamentService : new TournamentService();
+		this.offlineFarmService = offlineFarmService != null ? offlineFarmService : new com.lopez.l2j.game.offlinefarm.OfflineFarmService();
 	}
 
 	@Override
@@ -122,6 +127,33 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 			}
 			case "tournament" -> {
 				session.send(new NpcHtmlMessage(0, tournamentService.buildTournamentHtml(active)));
+				return true;
+			}
+			case "offlinefarm" -> {
+				if (offlineFarmService != null && ctx != null) {
+					var result = offlineFarmService.startOfflineFarm(
+							active,
+							session.ip(),
+							ctx.world(),
+							ctx.combat(),
+							ctx.inventories()
+					);
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", result.message()));
+					if (result.success()) {
+						session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sessao de Offline Farm iniciada. Desconectando cliente em seguranca..."));
+						session.close(new com.lopez.l2j.network.game.packet.GameServerPacket.ServerClose());
+					}
+				} else {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Offline Farm indisponivel no momento."));
+				}
+				return true;
+			}
+			case "offlinestop" -> {
+				if (offlineFarmService != null) {
+					boolean stopped = offlineFarmService.stopOfflineFarm(active.objectId());
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							stopped ? "Offline Farm cancelado com sucesso." : "Voce nao possui sessao de Offline Farm ativa."));
+				}
 				return true;
 			}
 			default -> {
