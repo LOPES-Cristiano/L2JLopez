@@ -2,7 +2,10 @@ package com.lopez.l2j.game.olympiad;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.item.Inventory;
+import com.lopez.l2j.game.item.ItemInstance;
+import com.lopez.l2j.game.item.ItemTemplate;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.packet.GameClientPacket;
@@ -185,5 +188,44 @@ class OlympiadGameServiceTest {
 		match.teamB().forEach(p -> p.setDead(true));
 		var outcome = gameService.concludeMatch(match.matchId());
 		assertThat(outcome).isEqualTo(OlympiadMatch.MatchResult.TEAM_A_WIN);
+	}
+
+	@Test
+	@DisplayName("Validação das restrições de configuração da Olimpíada (OlympiadEnabled e AltOlyEnchantLimit)")
+	void testOlympiadConfigurableRestrictions() {
+		boolean origEnabled = Config.OLYMPIAD_ENABLED;
+		int origLimit = Config.ALT_OLY_ENCHANT_LIMIT;
+
+		try {
+			var session = createSession(901, "RestrictedHero", 88, 78, 0, "192.168.1.99");
+			olympiadManager.registerNoble(901, "RestrictedHero", 88);
+
+			// 1. OlympiadEnabled = false bloqueia registro
+			Config.OLYMPIAD_ENABLED = false;
+			assertThat(gameService.register(session, OlympiadMode.CLASS_FREE))
+					.isEqualTo(OlympiadGameService.RegisterResult.DISABLED);
+
+			Config.OLYMPIAD_ENABLED = true;
+
+			// 2. AltOlyEnchantLimit = 6
+			Config.ALT_OLY_ENCHANT_LIMIT = 6;
+			ItemTemplate swordTpl = ItemTemplate.weapon(1, 1, "Excalibur", "rhand", "sword", 1000, "s", 300, 150, 379, 10, 0, 1000000, true, true, true, true);
+			ItemInstance overEnchanted = new ItemInstance(9901, swordTpl, 901, 1);
+			overEnchanted.enchant(10); // +10 > +6
+			overEnchanted.location(ItemInstance.Location.PAPERDOLL, 0); // equipped
+			session.activeChar().inventory().add(overEnchanted);
+
+			assertThat(gameService.register(session, OlympiadMode.CLASS_FREE))
+					.isEqualTo(OlympiadGameService.RegisterResult.ENCHANT_LIMIT_EXCEEDED);
+
+			// Reduz o enchant para +6 (dentro do limite)
+			overEnchanted.enchant(6);
+			assertThat(gameService.register(session, OlympiadMode.CLASS_FREE))
+					.isEqualTo(OlympiadGameService.RegisterResult.SUCCESS);
+
+		} finally {
+			Config.OLYMPIAD_ENABLED = origEnabled;
+			Config.ALT_OLY_ENCHANT_LIMIT = origLimit;
+		}
 	}
 }
