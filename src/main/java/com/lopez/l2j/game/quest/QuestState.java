@@ -1,6 +1,7 @@
 package com.lopez.l2j.game.quest;
 
 import com.lopez.l2j.game.item.ItemInstance;
+import com.lopez.l2j.game.item.ItemSlots;
 import com.lopez.l2j.game.item.ItemTemplate;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.network.game.GameSession;
@@ -9,11 +10,21 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Estado individual de uma quest em execucao ou completada para um jogador.
  */
 public class QuestState {
+
+	private static final Logger log = LoggerFactory.getLogger(QuestState.class);
+	private static final ScheduledExecutorService QUEST_TIMER_POOL =
+			Executors.newScheduledThreadPool(4, Thread.ofVirtual().name("QuestTimer-", 0).factory());
 
 	public static final String SOUND_ACCEPT = "ItemSound.quest_accept";
 	public static final String SOUND_MIDDLE = "ItemSound.quest_middle";
@@ -25,6 +36,7 @@ public class QuestState {
 	private GameSession player;
 	private State state;
 	private final Map<String, String> variables = new ConcurrentHashMap<>();
+	private final Map<String, ScheduledFuture<?>> activeTimers = new ConcurrentHashMap<>();
 
 	public QuestState(Quest quest, GameSession player, State state) {
 		this.quest = quest;
@@ -133,13 +145,19 @@ public class QuestState {
 		playSound(SOUND_MIDDLE);
 	}
 
-	public void exitQuest(boolean repeatable) {
+	public QuestState exitQuest(boolean repeatable) {
 		if (repeatable) {
 			state = State.CREATED;
 			variables.clear();
 		} else {
 			state = State.COMPLETED;
 		}
+		cancelQuestTimers();
+		return this;
+	}
+
+	public QuestState exitCurrentQuest(boolean repeatable) {
+		return exitQuest(repeatable);
 	}
 
 	public long getQuestItemsCount(int itemId) {
@@ -185,6 +203,26 @@ public class QuestState {
 				player.send(SystemMessage.of(SystemMessage.EARNED_S1, new SystemMessage.ItemName(itemId)));
 			}
 		}
+	}
+
+	public void rewardItems(int itemId, int count) {
+		giveItems(itemId, count);
+	}
+
+	public PlayerCharacter getPlayerCharacter() {
+		return player != null ? player.activeChar() : null;
+	}
+
+	public PlayerCharacter playerChar() {
+		return player != null ? player.activeChar() : null;
+	}
+
+	public int playerClassId() {
+		return playerChar() != null ? playerChar().classId() : -1;
+	}
+
+	public int playerLevel() {
+		return playerChar() != null ? playerChar().level() : 0;
 	}
 
 	public void takeItems(int itemId, int count) {
@@ -294,5 +332,62 @@ public class QuestState {
 		if (player != null) {
 			player.send(new RadarControl(1, 1, x, y, z));
 		}
+	}
+
+	public void onTutorialClientEvent(int eventId) {
+		if (player != null) {
+			player.send(new TutorialEnableClientEvent(eventId));
+		}
+	}
+
+	public void startQuestTimer(String name, long timeMillis) {
+		cancelQuestTimer(name);
+		ScheduledFuture<?> future = QUEST_TIMER_POOL.schedule(() -> {
+			try {
+				if (player != null && player.activeChar() != null) {
+					quest.notifyEvent(name, null, player);
+				}
+			} catch (Exception e) {
+				log.error("Erro executando quest timer {} na quest {}", name, quest.getName(), e);
+			} finally {
+				activeTimers.remove(name);
+			}
+		}, timeMillis, TimeUnit.MILLISECONDS);
+		activeTimers.put(name, future);
+	}
+
+	public void cancelQuestTimer(String name) {
+		ScheduledFuture<?> future = activeTimers.remove(name);
+		if (future != null) {
+			future.cancel(false);
+		}
+	}
+
+	public void cancelQuestTimers() {
+		for (ScheduledFuture<?> future : activeTimers.values()) {
+			future.cancel(false);
+		}
+		activeTimers.clear();
+	}
+
+	public int getItemEquipped(int slot) {
+		if (player == null || player.activeChar() == null) {
+			return 0;
+		}
+		var inv = player.activeChar().inventory();
+		if (inv == null) {
+			return 0;
+		}
+		for (var item : inv.items()) {
+			if (item.isEquipped()) {
+				int bodyPart = item.template() != null ? item.template().bodyPart() : 0;
+				if (slot == 7 || slot == ItemSlots.RHAND || slot == ItemSlots.LRHAND) {
+					if (bodyPart == ItemSlots.SLOT_R_HAND || bodyPart == ItemSlots.SLOT_LR_HAND) {
+						return item.itemId();
+					}
+				}
+			}
+		}
+		return 0;
 	}
 }
