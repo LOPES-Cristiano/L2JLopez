@@ -1161,7 +1161,12 @@ public sealed interface GameServerPacket {
 			w.writeC(npc.isSpoiled() ? 1 : 0); // isSummoned / isSpoiled (ativa textura azulada no cliente)
 			String name = (t.serverSideName() || t.id() >= 50000 || t.id() != t.idTemplate()) ? t.name() : "";
 			String title = t.serverSideTitle() ? t.title() : "";
-			if (t.isMonster()) {
+			if (npc.isChampion()) {
+				String cTitle = npc.championTitle() != null ? npc.championTitle() : "Champion";
+				boolean isAggressive = t.aggroRange() > 0 && !t.isFriendlyMob();
+				String lvlTitle = "Lv " + t.level() + (isAggressive ? "*" : "");
+				title = cTitle + " " + lvlTitle;
+			} else if (t.isMonster()) {
 				boolean isAggressive = t.aggroRange() > 0 && !t.isFriendlyMob();
 				String lvlTitle = "Lv " + t.level() + (isAggressive ? "*" : "");
 				title = title.isEmpty() ? lvlTitle : lvlTitle + " " + title;
@@ -1172,7 +1177,7 @@ public sealed interface GameServerPacket {
 			w.writeD(npc.abnormalEffect()); // abnormal effect
 			w.writeD(0).writeD(0).writeD(0).writeD(0); // clan / ally
 			w.writeC(0); // fly / water
-			w.writeC(0); // team
+			w.writeC(npc.isChampion() ? 2 : 0); // team (2 = aura vermelha para Champion mob)
 			w.writeF(t.collisionRadius()).writeF(t.collisionHeight());
 			w.writeD(0x00).writeD(0x00);
 			return w.toByteArray();
