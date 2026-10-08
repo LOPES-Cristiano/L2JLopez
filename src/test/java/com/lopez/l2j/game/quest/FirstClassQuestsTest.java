@@ -143,6 +143,116 @@ public class FirstClassQuestsTest {
 		assertEquals(1, qs.getCond());
 	}
 
+	@Test
+	@DisplayName("CP 3.1: Aceitação da Quest 414 (Path to Orc Raider)")
+	void testQuest414PathToOrcRaider() {
+		com.lopez.l2j.game.quest.impl.Quest414PathToOrcRaider quest = new com.lopez.l2j.game.quest.impl.Quest414PathToOrcRaider(questManager);
+		playerChar.classId(44); // Orc Fighter
+		playerChar.level(18);
+
+		var karukiaTpl = new NpcTemplate(30570, 30570, "Karukia", false, "Prefect", false, 10.0, 15.0, 70, "male",
+				"L2Npc", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
+		NpcInstance karukia = new NpcInstance(7001, karukiaTpl, 0, 0, 0, 0);
+
+		String talk = quest.onTalk(karukia, session);
+		assertEquals("30570-01.htm", talk);
+
+		quest.onAdvEvent("30570-05.htm", karukia, session);
+		QuestState qs = session.getQuestState(com.lopez.l2j.game.quest.impl.Quest414PathToOrcRaider.QUEST_NAME);
+		assertNotNull(qs);
+		assertTrue(qs.isStarted());
+		assertEquals(1, qs.getCond());
+		assertEquals(1, qs.getQuestItemsCount(com.lopez.l2j.game.quest.impl.Quest414PathToOrcRaider.GOBLIN_DWELLING_MAP));
+	}
+
+	@Test
+	@DisplayName("CP 3.1: Fluxo da Quest 415 (Path to Orc Monk)")
+	void testQuest415PathToOrcMonk() {
+		com.lopez.l2j.game.quest.impl.Quest415PathToOrcMonk quest = new com.lopez.l2j.game.quest.impl.Quest415PathToOrcMonk(questManager);
+		playerChar.classId(44); // Orc Fighter
+		playerChar.level(18);
+
+		var gantakiTpl = new NpcTemplate(30587, 30587, "Gantaki", false, "Urutu", false, 10.0, 15.0, 70, "male",
+				"L2Npc", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
+		NpcInstance gantaki = new NpcInstance(7002, gantakiTpl, 0, 0, 0, 0);
+
+		String talk = quest.onTalk(gantaki, session);
+		assertEquals("30587-01.htm", talk);
+
+		quest.onAdvEvent("1", gantaki, session);
+		QuestState qs = session.getQuestState(com.lopez.l2j.game.quest.impl.Quest415PathToOrcMonk.QUEST_NAME);
+		assertNotNull(qs);
+		assertTrue(qs.isStarted());
+		assertEquals(1, qs.getCond());
+		assertEquals(1, qs.getQuestItemsCount(com.lopez.l2j.game.quest.impl.Quest415PathToOrcMonk.POMEGRANATE));
+	}
+
+	@Test
+	@DisplayName("CP 3.1: Aceitação da Quest 416 (Path to Orc Shaman)")
+	void testQuest416PathToOrcShaman() {
+		com.lopez.l2j.game.quest.impl.Quest416PathToOrcShaman quest = new com.lopez.l2j.game.quest.impl.Quest416PathToOrcShaman(questManager);
+		playerChar.classId(49); // Orc Mystic
+		playerChar.level(18);
+
+		var tataruTpl = new NpcTemplate(30585, 30585, "Tataru", false, "Hestui", false, 10.0, 15.0, 70, "male",
+				"L2Npc", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
+		NpcInstance tataru = new NpcInstance(7003, tataruTpl, 0, 0, 0, 0);
+
+		String talk = quest.onTalk(tataru, session);
+		assertEquals("30585-01.htm", talk);
+
+		quest.onAdvEvent("30585-06.htm", tataru, session);
+		QuestState qs = session.getQuestState(com.lopez.l2j.game.quest.impl.Quest416PathToOrcShaman.QUEST_NAME);
+		assertNotNull(qs);
+		assertTrue(qs.isStarted());
+		assertEquals(1, qs.getCond());
+		assertEquals(1, qs.getQuestItemsCount(com.lopez.l2j.game.quest.impl.Quest416PathToOrcShaman.FIRE_CHARM));
+	}
+
+	@Test
+	@DisplayName("CP 3.1: Fluxo da Quest 417 (Path to Scavenger)")
+	void testQuest417PathToScavenger() {
+		com.lopez.l2j.game.quest.impl.Quest417PathToScavenger quest = new com.lopez.l2j.game.quest.impl.Quest417PathToScavenger(questManager);
+		playerChar.classId(53); // Dwarf Fighter
+		playerChar.level(18);
+
+		var pippiTpl = new NpcTemplate(30524, 30524, "Pippi", false, "Collector", false, 10.0, 15.0, 70, "female",
+				"L2Npc", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
+		NpcInstance pippi = new NpcInstance(7004, pippiTpl, 0, 0, 0, 0);
+
+		String talk = quest.onTalk(pippi, session);
+		assertEquals("30524-01.htm", talk);
+
+		quest.onAdvEvent("1", pippi, session);
+		QuestState qs = session.getQuestState(com.lopez.l2j.game.quest.impl.Quest417PathToScavenger.QUEST_NAME);
+		assertNotNull(qs);
+		assertTrue(qs.isStarted());
+		assertEquals(1, qs.getCond());
+		assertEquals(1, qs.getQuestItemsCount(com.lopez.l2j.game.quest.impl.Quest417PathToScavenger.PIPIS_LETTER));
+	}
+
+	@Test
+	@DisplayName("CP 3.1: Fluxo da Quest 418 (Path to Artisan)")
+	void testQuest418PathToArtisan() {
+		com.lopez.l2j.game.quest.impl.Quest418PathToArtisan quest = new com.lopez.l2j.game.quest.impl.Quest418PathToArtisan(questManager);
+		playerChar.classId(53); // Dwarf Fighter
+		playerChar.level(18);
+
+		var silveraTpl = new NpcTemplate(30527, 30527, "Silvera", false, "Blacksmith", false, 10.0, 15.0, 70, "female",
+				"L2Npc", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
+		NpcInstance silvera = new NpcInstance(7005, silveraTpl, 0, 0, 0, 0);
+
+		String talk = quest.onTalk(silvera, session);
+		assertEquals("30527-01.htm", talk);
+
+		quest.onAdvEvent("30527-06.htm", silvera, session);
+		QuestState qs = session.getQuestState(com.lopez.l2j.game.quest.impl.Quest418PathToArtisan.QUEST_NAME);
+		assertNotNull(qs);
+		assertTrue(qs.isStarted());
+		assertEquals(1, qs.getCond());
+		assertEquals(1, qs.getQuestItemsCount(com.lopez.l2j.game.quest.impl.Quest418PathToArtisan.SILVERYS_RING));
+	}
+
 	private static void setField(Object target, String name, Object val) {
 		try {
 			var f = target.getClass().getDeclaredField(name);
