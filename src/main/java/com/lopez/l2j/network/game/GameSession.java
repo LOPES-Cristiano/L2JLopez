@@ -5984,6 +5984,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	private void healHp(double amount) {
+		if (active != null && active.isOlympiadMode() && ctx != null && ctx.combat() != null && ctx.combat().olyDamageManager() != null) {
+			amount *= ctx.combat().olyDamageManager().getHealMultiplier(active.classId());
+		}
 		double before = active.currentHp();
 		active.currentHp(before + amount);
 		send(SystemMessage.of(SystemMessage.S1_HP_RESTORED,
@@ -8663,6 +8666,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 								"Spawns recarregados do banco de dados (" + added + " novos NPCs carregados)."));
 					} else {
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "SpawnService indisponivel."));
+					}
+				} else if (type.contains("oly") || type.contains("balance")) {
+					if (ctx != null && ctx.combat() != null && ctx.combat().olyDamageManager() != null) {
+						int count = ctx.combat().olyDamageManager().loadConfig();
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Balanceador de Olimpiadas recarregado (" + count + " classes configuradas)."));
+					} else {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "OlyClassDamageManager indisponivel."));
 					}
 				} else {
 					showAdminHtml("menus/submenus/reload_menu.htm");
