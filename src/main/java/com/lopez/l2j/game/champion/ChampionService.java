@@ -45,6 +45,32 @@ public class ChampionService {
 		loadFromConfig();
 	}
 
+	public ChampionService(
+			boolean enabled,
+			int frequency,
+			int minLevel,
+			int maxLevel,
+			int hpMultiplier,
+			double expSpMultiplier,
+			double dropMultiplier,
+			int specialItemChance,
+			int specialItemId,
+			int specialItemAmount,
+			int specialItemLevelDiff) {
+		this.enabled = enabled;
+		this.frequency = frequency;
+		this.minLevel = minLevel;
+		this.maxLevel = maxLevel;
+		this.hpMultiplier = hpMultiplier;
+		this.expSpMultiplier = expSpMultiplier;
+		this.dropMultiplier = dropMultiplier;
+		this.adenaMultiplier = dropMultiplier;
+		this.specialItemChance = specialItemChance;
+		this.specialItemId = specialItemId;
+		this.specialItemAmount = specialItemAmount;
+		this.specialItemLevelDiff = specialItemLevelDiff;
+	}
+
 	public void loadFromConfig() {
 		try {
 			if (Config.CHAMPION_ENABLE) {
