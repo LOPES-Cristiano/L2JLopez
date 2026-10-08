@@ -8,8 +8,10 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -228,6 +230,22 @@ public final class ConfigLoader {
 			}
 			return Double.parseDouble(clean);
 		} catch (NumberFormatException e) {
+			return defaultValue;
+		}
+	}
+
+	public static List<Integer> getIntList(String key, List<Integer> defaultValue) {
+		String val = getProperty(key);
+		if (val == null || val.isBlank()) {
+			return defaultValue;
+		}
+		try {
+			return Arrays.stream(val.split("[,;\\s]+"))
+					.map(String::trim)
+					.filter(s -> !s.isEmpty())
+					.map(Integer::parseInt)
+					.toList();
+		} catch (Exception e) {
 			return defaultValue;
 		}
 	}
