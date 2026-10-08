@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Fusion Items Declarative Configuration (Onda C9) -->
+<Fusions>
+	<!-- Category: Weapons -->
+	<fusion category="Weapons">
+		<ingredients>
+			<item id="6367" count="1"/>   <!-- Infinity Blade / Sword Base -->
+			<item id="6393" count="30"/>  <!-- Material / Scroll -->
+		</ingredients>
+		<result id="6590" count="1"/>     <!-- Enhanced Blade (preserva enchant base) -->
+		<chance>60</chance>
+		<failItem id="6367" count="1"/>   <!-- No fail devolve o item base -->
+	</fusion>
+
+	<!-- Category: Armor -->
+	<fusion category="Armor">
+		<ingredients>
+			<item id="2407" count="1"/>   <!-- Imperial Crusader Breastplate -->
+			<item id="57" count="5000000"/><!-- Adena fee -->
+		</ingredients>
+		<result id="6373" count="1"/>     <!-- Enhanced Breastplate -->
+		<chance>70</chance>
+		<failItem id="2407" count="1"/>
+	</fusion>
+
+	<!-- Category: Jewels -->
+	<fusion category="Jewels">
+		<ingredients>
+			<item id="858" count="1"/>    <!-- Tateossian Ring -->
+			<item id="57" count="2000000"/>
+		</ingredients>
+		<result id="6660" count="1"/>     <!-- Ring of Queen Ant -->
+		<chance>50</chance>
+		<failItem id="858" count="1"/>
+	</fusion>
+</Fusions>
