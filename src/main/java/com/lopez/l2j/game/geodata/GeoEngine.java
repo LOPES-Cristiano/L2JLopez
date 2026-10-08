@@ -197,10 +197,6 @@ public class GeoEngine {
 	 * Utiliza raycasting com amostragem de celulas e checagem de portas fechadas.
 	 */
 	public boolean canSeeTarget(int x, int y, int z, int tx, int ty, int tz) {
-		if (!isEnabled()) {
-			return true;
-		}
-
 		// Checagem de portas e barreiras dinamicas (GeoObject) no trajeto
 		for (GeoObject obj : dynamicGeoObjects) {
 			if (obj.isBlocking() && intersectsGeoObject(x, y, z, tx, ty, tz, obj)) {
@@ -214,6 +210,10 @@ public class GeoEngine {
 					return false;
 				}
 			}
+		}
+
+		if (!isEnabled()) {
+			return true;
 		}
 
 		double dx = tx - x;
@@ -386,9 +386,6 @@ public class GeoEngine {
 	 * Se bloqueado por porta fechada ou desnivel intransponivel, retorna a ultima posicao valida.
 	 */
 	public Location moveCheck(int x, int y, int z, int tx, int ty, int tz) {
-		if (!enabled) {
-			return new Location(tx, ty, tz);
-		}
 		for (GeoObject obj : dynamicGeoObjects) {
 			if (obj.isBlocking() && intersectsGeoObject(x, y, z, tx, ty, tz, obj)) {
 				return new Location(x, y, z);
@@ -401,6 +398,10 @@ public class GeoEngine {
 					return new Location(x, y, z);
 				}
 			}
+		}
+
+		if (!isEnabled()) {
+			return new Location(tx, ty, tz);
 		}
 
 		double dx = tx - x;
@@ -434,9 +435,6 @@ public class GeoEngine {
 	}
 
 	public boolean canMoveToTarget(int x, int y, int z, int tx, int ty, int tz) {
-		if (!enabled) {
-			return true;
-		}
 		for (GeoObject obj : dynamicGeoObjects) {
 			if (obj.isBlocking() && intersectsGeoObject(x, y, z, tx, ty, tz, obj)) {
 				return false;
@@ -448,6 +446,9 @@ public class GeoEngine {
 					return false;
 				}
 			}
+		}
+		if (!isEnabled()) {
+			return true;
 		}
 		Location loc = moveCheck(x, y, z, tx, ty, tz);
 		double distToEnd = Math.hypot(loc.x() - tx, loc.y() - ty);
