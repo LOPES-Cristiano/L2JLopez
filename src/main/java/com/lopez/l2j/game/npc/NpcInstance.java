@@ -72,6 +72,16 @@ public final class NpcInstance {
 	private volatile double pDefMul = 1.0;
 	private volatile double mDefMul = 1.0;
 	private volatile double pAtkMul = 1.0;
+	private volatile double maxHpMul = 1.0;
+	private volatile boolean champion;
+	private volatile String championTitle;
+
+	public double maxHp() { return template.maxHp() * maxHpMul; }
+	public void maxHpMul(double value) { this.maxHpMul = value; }
+	public boolean isChampion() { return champion; }
+	public void champion(boolean value) { this.champion = value; }
+	public String championTitle() { return championTitle; }
+	public void championTitle(String value) { this.championTitle = value; }
 
 	public double pDef() { return template.pDef() * pDefMul; }
 	public double mDef() { return template.mDef() * mDefMul; }
