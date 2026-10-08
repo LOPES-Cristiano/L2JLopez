@@ -1,7 +1,9 @@
 package com.lopez.l2j.game.npc;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.ObjectIdFactory;
 import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
 import jakarta.annotation.PostConstruct;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -109,6 +111,9 @@ public class SpawnService {
 			if (minionTable != null && minionTable.hasMinions(npcId)) {
 				spawnMinionsForMaster(npc);
 			}
+			if (Config.ANNOUNCE_RAID_SPAWN && (template.isRaidBoss() || template.isGrandBoss())) {
+				world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Raid Boss", "Raid Boss " + template.name() + " has spawned in the world!"), p -> true);
+			}
 			if (storeInDb && jdbc != null) {
 				try {
 					jdbc.sql("INSERT INTO custom_spawnlist (location, count, npc_templateid, locx, locy, locz, heading, respawn_delay) VALUES ('GM_Spawn', 1, ?, ?, ?, ?, ?, 60)")
@@ -215,6 +220,9 @@ public class SpawnService {
 					NpcInstance npc = new NpcInstance(objectId, template, sx, sy, correctZ(sx, sy, rec.z()), rec.heading());
 					world.addNpc(npc);
 					spawned++;
+					if (Config.ANNOUNCE_RAID_SPAWN && (template.isRaidBoss() || template.isGrandBoss())) {
+						world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Raid Boss", "Raid Boss " + template.name() + " has spawned in the world!"), p -> true);
+					}
 				}
 			}
 			return spawned;
