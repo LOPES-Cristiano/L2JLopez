@@ -260,6 +260,7 @@ class GameSessionFeaturesTest {
 
 		// Envia opcode 0x6d (RequestRestartPoint, tipo 0 = To Village)
 		session.handle(new byte[] { 0x6d, 0x00, 0x00, 0x00, 0x00 });
+		session.onAppearing();
 
 		assertFalse(player.isDead(), "Player deve estar vivo apos clicar To Village");
 		assertTrue(player.currentHp() > 0, "HP deve ser restaurado");
@@ -311,7 +312,8 @@ class GameSessionFeaturesTest {
 		// Envia opcode 0xaa (RequestUserCommand, id = 0 -> /loc)
 		session.handle(new byte[] { (byte) 0xaa, 0x00, 0x00, 0x00, 0x00 });
 
-		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.CreatureSay cs && cs.text().contains("Location:")),
+		assertTrue(sent.stream().anyMatch(p -> (p instanceof GameServerPacket.CreatureSay cs && cs.text().contains("Location:"))
+				|| (p instanceof GameServerPacket.SystemMessage sm && sm.text().contains("Location:"))),
 				"Comando /loc deve enviar as coordenadas atuais no chat");
 	}
 
@@ -352,7 +354,8 @@ class GameSessionFeaturesTest {
 		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
 				new GameClientPacket.Say2(".online", 0, null));
 
-		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.CreatureSay cs && cs.text().contains("Jogadores online:")),
+		assertTrue(sent.stream().anyMatch(p -> (p instanceof GameServerPacket.CreatureSay cs && cs.text().contains("Jogadores online:"))
+				|| (p instanceof GameServerPacket.SystemMessage sm && sm.text().contains("Jogadores online:"))),
 				"Comando .online deve informar a quantidade de jogadores");
 	}
 
@@ -659,8 +662,8 @@ class GameSessionFeaturesTest {
 		invokeMethod(session, "onSay", new Class<?>[] { GameClientPacket.Say2.class },
 				new GameClientPacket.Say2("//admin", 0, null));
 
-		boolean denied = sent.stream().anyMatch(p -> p instanceof GameServerPacket.CreatureSay cs
-				&& cs.text().contains("permissao"));
+		boolean denied = sent.stream().anyMatch(p -> (p instanceof GameServerPacket.CreatureSay cs
+				&& cs.text().contains("permissao")) || (p instanceof GameServerPacket.SystemMessage sm && sm.text().contains("permissao")));
 		assertTrue(denied, "Comando admin deve ser rejeitado para jogador normal");
 	}
 
@@ -1289,6 +1292,93 @@ class GameSessionFeaturesTest {
 	}
 
 	@Test
+	void testAttackSkillBlocksMoveDuringCast() throws Exception {
+		sent.clear();
+		var nuke = new com.lopez.l2j.game.skill.SkillTemplate(1177, 1, "Wind Strike",
+				com.lopez.l2j.game.skill.SkillTemplate.OperateType.ACTIVE, "MDAM", "TARGET_ONE", true,
+				10, 0, 0, 100.0, 600, 0, 0, 0, 0, 20, 0, false, List.of(), List.of(), null, null);
+		setField(session, "casting", true);
+		setField(session, "castingSkill", nuke);
+
+		int startX = player.x();
+		int startY = player.y();
+
+		var buf = ByteBuffer.allocate(29).order(ByteOrder.LITTLE_ENDIAN);
+		buf.put((byte) 0x01); // MoveBackwardToLocation
+		buf.putInt(startX + 500);
+		buf.putInt(startY + 500);
+		buf.putInt(player.z());
+		buf.putInt(startX);
+		buf.putInt(startY);
+		buf.putInt(player.z());
+		buf.putInt(1);
+		session.handle(buf.array());
+
+		// Casting NAO deve ser cancelado ao tentar andar usando skill de ataque
+		boolean isCasting = (boolean) getField(session, "casting");
+		assertTrue(isCasting, "Casting de skill de ataque deve permanecer ativo");
+		assertEquals(startX, player.x(), "Jogador nao deve andar durante cast de ataque");
+		assertEquals(startY, player.y(), "Jogador nao deve andar durante cast de ataque");
+
+		// Nao deve enviar MagicSkillCanceld nem MoveToLocation
+		boolean hasCancel = sent.stream().anyMatch(p -> p instanceof GameServerPacket.MagicSkillCanceld);
+		assertFalse(hasCancel, "Nao deve enviar MagicSkillCanceld para skill de ataque");
+		boolean hasMove = sent.stream().anyMatch(p -> p instanceof GameServerPacket.MoveToLocation);
+		assertFalse(hasMove, "Nao deve enviar MoveToLocation durante cast de ataque");
+		boolean hasActionFailed = sent.stream().anyMatch(p -> p instanceof GameServerPacket.ActionFailed);
+		assertTrue(hasActionFailed, "Deve enviar ActionFailed ao bloquear movimento durante cast de ataque");
+	}
+
+	@Test
+	void testHealSkillBlocksMoveDuringCastAndCompletes() throws Exception {
+		sent.clear();
+		var heal = new com.lopez.l2j.game.skill.SkillTemplate(1217, 1, "Greater Group Heal",
+				com.lopez.l2j.game.skill.SkillTemplate.OperateType.ACTIVE, "HEAL", "TARGET_PARTY", true,
+				10, 0, 0, 100.0, 0, 1000, 0, 0, 0, 40, 0, false, List.of(), List.of(), null, null);
+		setField(session, "casting", true);
+		setField(session, "castingSkill", heal);
+
+		int startX = player.x();
+		int startY = player.y();
+
+		var buf = ByteBuffer.allocate(29).order(ByteOrder.LITTLE_ENDIAN);
+		buf.put((byte) 0x01); // MoveBackwardToLocation
+		buf.putInt(startX + 500);
+		buf.putInt(startY + 500);
+		buf.putInt(player.z());
+		buf.putInt(startX);
+		buf.putInt(startY);
+		buf.putInt(player.z());
+		buf.putInt(1);
+		session.handle(buf.array());
+
+		// Ao andar durante o cast de cura, NAO deve cancelar o cast; personagem executa a skill
+		boolean isCasting = (boolean) getField(session, "casting");
+		assertTrue(isCasting, "Casting de cura deve permanecer ativo ao clicar para andar");
+
+		boolean hasCancel = sent.stream().anyMatch(p -> p instanceof GameServerPacket.MagicSkillCanceld);
+		assertFalse(hasCancel, "Nao deve enviar MagicSkillCanceld para skill de cura ao andar");
+		boolean hasMove = sent.stream().anyMatch(p -> p instanceof GameServerPacket.MoveToLocation);
+		assertFalse(hasMove, "Nao deve enviar MoveToLocation durante o cast");
+		boolean hasActionFailed = sent.stream().anyMatch(p -> p instanceof GameServerPacket.ActionFailed);
+		assertTrue(hasActionFailed, "Deve enviar ActionFailed ao tentar andar enquanto cura");
+	}
+
+	@Test
+	void testSkillStopsMovementOnCastStart() {
+		sent.clear();
+		var heal = new com.lopez.l2j.game.skill.SkillTemplate(1217, 1, "Greater Group Heal",
+				com.lopez.l2j.game.skill.SkillTemplate.OperateType.ACTIVE, "HEAL", "TARGET_PARTY", true,
+				10, 0, 0, 100.0, 0, 1000, 1000, 0, 0, 40, 0, false, List.of(), List.of(), null, null);
+
+		session.castSkill(heal, false);
+
+		// Deve enviar StopMove para o personagem parar ("dar uma paradinha") e conjurar
+		boolean hasStop = sent.stream().anyMatch(p -> p instanceof GameServerPacket.StopMove);
+		assertTrue(hasStop, "Deve enviar pacote StopMove para parar a movimentacao ao iniciar o cast");
+	}
+
+	@Test
 	void testAdminSoundsAndPlaySound() throws Exception {
 		player.accessLevel(100);
 		sent.clear();
@@ -1343,5 +1433,42 @@ class GameSessionFeaturesTest {
 		assertEquals(7, player.charges(), "Charges nao devem ultrapassar o maximo");
 		assertFalse(sent.stream().anyMatch(p -> p instanceof SystemMessage sm && sm.id() == SystemMessage.FORCE_MAXLEVEL_REACHED),
 				"Quando ja esta no maximo, nao deve enviar spam de FORCE_MAXLEVEL_REACHED");
+	}
+
+	@Test
+	void serverSysMessagesAreRoutedToSystemMessageInTopChatWindow() {
+		sent.clear();
+		// 1. Mensagem de SYS deve ser convertida para SystemMessage (ID 1987) e nao CreatureSay no chat branco
+		session.send(new GameServerPacket.CreatureSay(0, GameServerPacket.CreatureSay.ALL, "SYS", "Voce nao pode usar habilidades ofensivas em zona de paz."));
+		assertEquals(1, sent.size());
+		assertTrue(sent.get(0) instanceof GameServerPacket.SystemMessage sm
+				&& sm.id() == GameServerPacket.SystemMessage.S1
+				&& "Voce nao pode usar habilidades ofensivas em zona de paz.".equals(sm.text()),
+				"Mensagem de SYS deve ir como SystemMessage para a janela de sistema no topo");
+
+		// 2. session.sendMessage direto deve enviar SystemMessage
+		sent.clear();
+		session.sendMessage("Parabens! Voce agora e um Human Wizard!");
+		assertEquals(1, sent.size());
+		assertTrue(sent.get(0) instanceof GameServerPacket.SystemMessage sm
+				&& sm.id() == GameServerPacket.SystemMessage.S1
+				&& "Parabens! Voce agora e um Human Wizard!".equals(sm.text()));
+
+		// 3. Modulo como ACP/Seguranca com objectId 0 deve vir com tag no SystemMessage
+		sent.clear();
+		session.send(new GameServerPacket.CreatureSay(0, GameServerPacket.CreatureSay.ALL, "ACP", "Auto Combat Potion (ACP) ATIVADO."));
+		assertEquals(1, sent.size());
+		assertTrue(sent.get(0) instanceof GameServerPacket.SystemMessage sm
+				&& sm.id() == GameServerPacket.SystemMessage.S1
+				&& "[ACP] Auto Combat Potion (ACP) ATIVADO.".equals(sm.text()));
+
+		// 4. Chat comum de jogador (objectId > 0) NAO deve ser alterado e deve permanecer CreatureSay
+		sent.clear();
+		session.send(new GameServerPacket.CreatureSay(player.objectId(), GameServerPacket.CreatureSay.ALL, player.name(), "Ola mundo!"));
+		assertEquals(1, sent.size());
+		assertTrue(sent.get(0) instanceof GameServerPacket.CreatureSay cs
+				&& cs.channel() == GameServerPacket.CreatureSay.ALL
+				&& "Ola mundo!".equals(cs.text()),
+				"Chat de jogador deve continuar sendo CreatureSay no chat comum");
 	}
 }
