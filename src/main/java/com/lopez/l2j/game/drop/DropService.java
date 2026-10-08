@@ -30,6 +30,7 @@ public class DropService {
 	private final double rateAdena;
 	private final double rateDrop;
 	private final double rateSpoil;
+	private final boolean autoLoot;
 	private final com.lopez.l2j.game.champion.ChampionService championService;
 
 	public DropService(
