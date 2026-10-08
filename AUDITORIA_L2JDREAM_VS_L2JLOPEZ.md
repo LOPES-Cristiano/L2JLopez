@@ -155,6 +155,47 @@ Este documento consolida a pesquisa aprofundada de **todas as funcionalidades, s
 
 ---
 
+### 2.12. Recompensas Automáticas de PvP & PK (Item & Medal Rewards)
+- **Como funciona no L2JDream:**
+  - `AllowPvpRewardSystem = True`, `PvpRewardItem = 57,100;6392,1;`
+  - `AllowPkRewardSystem = True`, `PkRewardItem = 57,100;6393,1;`
+  - Ao abater um inimigo em combate válido de PvP ou PK (fora de zonas pacíficas e sem anti-feed), o jogador vencedor recebe itens configuráveis (Adena e Medalhas de Evento) diretamente em seu inventário com notificação no chat.
+- **Situação no L2JLopez:** O servidor apenas incrementa os contadores numéricos de `pvpKills` e `pkKills`, sem entrega direta de premiações em itens.
+
+---
+
+### 2.13. Morte do Barakiel Concede Noblesse Direto (Kill Barakiel Noblesse)
+- **Como funciona no L2JDream:**
+  - `KillBarakielSetNobless = True`
+  - Quando o Raid Boss *Flame of Splendor Barakiel* (ID 25325) é derrotado, todos os membros da party causadora do golpe final que tenham nível 75+ e subclasse ativa recebem imediatamente o status de *Noblesse* (e Tiara de Nobreza) sem necessidade da longa quest de 4 partes *Possessor of a Precious Soul*.
+- **Situação no L2JLopez:** O status de Noblesse exige a conclusão integral da quest de 4 etapas (`Possessor of a Precious Soul`) ou comando de administrador.
+
+---
+
+### 2.14. Anúncio Global de Spawns de Bosses (Global Boss Spawn Broadcast)
+- **Como funciona no L2JDream:**
+  - `AnnounceRaidSpawn = True`
+  - Quando qualquer Raid Boss ou Grand Boss dá spawn no mundo através do scheduler ou no boot, o servidor envia mensagem global automática para todos os jogadores online informando o nome do monstro e região.
+- **Situação no L2JLopez:** Spawns de bosses ocorrem de maneira silenciosa no servidor sem broadcast global.
+
+---
+
+### 2.15. Recompensas Automáticas aos Clãs Vitoriosos de Sieges (Siege Victor Clan Rewards)
+- **Como funciona no L2JDream:**
+  - `SiegeRewardManager.java` (`ActivateSystem = True`, `RewardOnlineOnly = True`, `RewardInfo = 57,2000;5575,2000000`)
+  - Ao final do cerco de um Castelo, os membros online do clã que conquistou ou defendeu com sucesso o castelo recebem um pacote de recompensas (Adena, Ancient Adena e medalhas), com cota extra diferenciada para o Clan Leader.
+- **Situação no L2JLopez:** Apenas os impostos acumulados no tesouro do castelo podem ser retirados pelo lorde.
+
+---
+
+### 2.16. Instância de Frintezza (Last Imperial Tomb Manager)
+- **Como funciona no L2JDream:**
+  - `LastImperialTombManager.java` e `FrintezzaManager.java`:
+  - Gerenciador com 3 fases de combate no *Last Imperial Tomb*: quebra das pinturas demoníacas com spawns sucessivos de guardas, confronto com o órgão e as canções do príncipe Frintezza, e batalha final em múltiplas formas com o *Scarlet van Halisha*.
+- **Situação no L2JLopez:** O GrandBossManager gerencia apenas a tabela genérica de status de bosses, não possuindo a orquestração completa da instância de Frintezza.
+
+---
+
 ## 🚀 3. Plano de Implementação Recomendado para o L2JLopez
 
 Para manter a consistência da arquitetura **Spring Boot**, a política estrita de **Zero Doações** (economia orientada exclusivamente a Adena, Gold Bars e drops) e a regra de **1 commit por arquivo com 100% de testes verdes**, estruturamos as novas fases recomendadas em ondas claras:
