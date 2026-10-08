@@ -40,6 +40,16 @@ public class ZoneTable {
 		loadFromDirectory(dirPath);
 	}
 
+	public ZoneTable(List<Zone> zones) {
+		if (zones != null) {
+			this.allZones.addAll(zones);
+			for (Zone z : zones) {
+				byId.put(z.id(), z);
+				byType.computeIfAbsent(z.type(), k -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(z);
+			}
+		}
+	}
+
 	public int size() {
 		return allZones.size();
 	}
@@ -61,6 +71,9 @@ public class ZoneTable {
 	 */
 	public boolean isInsidePeace(int x, int y, int z) {
 		for (Zone zone : allZones) {
+			if (zone.type() == ZoneType.TOWN && com.lopez.l2j.config.Config.ZONE_TOWN == 2) {
+				continue;
+			}
 			if ((zone.isPeace() || zone.type() == ZoneType.PEACE || zone.type() == ZoneType.TOWN)
 					&& !zone.isArena() && zone.contains(x, y, z)) {
 				return true;
@@ -74,7 +87,9 @@ public class ZoneTable {
 	 */
 	public boolean isInsideArena(int x, int y, int z) {
 		for (Zone zone : allZones) {
-			if ((zone.isArena() || zone.type() == ZoneType.ARENA) && zone.contains(x, y, z)) {
+			if ((zone.isArena() || zone.type() == ZoneType.ARENA
+					|| (zone.type() == ZoneType.TOWN && com.lopez.l2j.config.Config.ZONE_TOWN == 2))
+					&& zone.contains(x, y, z)) {
 				return true;
 			}
 		}
