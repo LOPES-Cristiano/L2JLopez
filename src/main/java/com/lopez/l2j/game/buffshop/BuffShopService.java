@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.buffshop;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.game.skill.SkillService;
@@ -189,15 +190,18 @@ public class BuffShopService {
 			return new PurchaseResult(false, "Preco total excede o limite de adena.", 0, List.of());
 		}
 
-		var adenaItem = buyer.inventory().byItemId(ADENA_ID).orElse(null);
-		if (adenaItem == null || adenaItem.count() < totalCost) {
-			return new PurchaseResult(false, "Voce nao possui Adena suficiente. Custo: " + totalCost, 0, List.of());
+		int currencyId = Config.SELL_BY_ITEM ? Config.SELL_ITEM : ADENA_ID;
+		String currencyName = Config.SELL_BY_ITEM ? Config.COIN_TEXT : "Adena";
+
+		var currencyItem = buyer.inventory().byItemId(currencyId).orElse(null);
+		if (currencyItem == null || currencyItem.count() < totalCost) {
+			return new PurchaseResult(false, "Voce nao possui " + currencyName + " suficiente. Custo: " + totalCost, 0, List.of());
 		}
 
 		if (inventories != null && totalCost > 0) {
-			inventories.consumeItem(buyer.inventory(), ADENA_ID, (int) totalCost, "BuffShopPurchase");
+			inventories.consumeItem(buyer.inventory(), currencyId, (int) totalCost, "BuffShopPurchase");
 			if (seller != null) {
-				inventories.addItem(seller.inventory(), ADENA_ID, (int) totalCost, "BuffShopRevenue");
+				inventories.addItem(seller.inventory(), currencyId, (int) totalCost, "BuffShopRevenue");
 			}
 		}
 
