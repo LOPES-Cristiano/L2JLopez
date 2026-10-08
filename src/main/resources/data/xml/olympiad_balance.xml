@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list>
+	<!-- Balanceador Exclusivo de Olimpiadas L2JLopez (Onda C5) -->
+	<!-- Isolamento Total: Estes multiplicadores afetam EXCLUSIVAMENTE o estagio das Olimpiadas -->
+	<!-- No mundo aberto (PvE, Bosses, Sieges, PvP Livre), as formulas permanecem 100% retail Chronicle 6 -->
+
+	<!-- Human Fighters -->
+	<balance classId="88" className="Duelist" toFighter="1.0" toMage="0.88" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="89" className="DreadNought" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="90" className="Phoenix Knight" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="91" className="Hell Knight" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="92" className="Sagittarius" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="93" className="Adventurer" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+
+	<!-- Human Mystics -->
+	<balance classId="94" className="Archmage" toFighter="1.0" toMage="1.20" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="95" className="Soultaker" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="96" className="Arcana Lord" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="97" className="Cardinal" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="98" className="Hierophant" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+
+	<!-- Elf Fighters -->
+	<balance classId="99" className="Eva Templar" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="100" className="Sword Muse" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="101" className="Wind Rider" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="102" className="Moonlight Sentinel" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+
+	<!-- Elf Mystics -->
+	<balance classId="103" className="Mystic Muse" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="104" className="Elemental Master" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="105" className="Eva Saint" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+
+	<!-- Dark Elf Fighters -->
+	<balance classId="106" className="Shillien Templar" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="107" className="Spectral Dancer" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="108" className="Ghost Hunter" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="109" className="Ghost Sentinel" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+
+	<!-- Dark Elf Mystics -->
+	<balance classId="110" className="Storm Screamer" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="111" className="Spectral Master" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="112" className="Shillien Saint" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+
+	<!-- Orcs -->
+	<balance classId="113" className="Titan" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="114" className="Grand Khauatari" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="115" className="Dominator" toFighter="0.80" toMage="0.68" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="116" className="Doomcryer" toFighter="0.80" toMage="0.50" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+
+	<!-- Dwarves -->
+	<balance classId="117" className="Fortune Seeker" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+	<balance classId="118" className="Maestro" toFighter="1.0" toMage="1.0" byFighter="1.0" byMage="1.0" pAtkMul="1.0" mAtkMul="1.0" critMul="1.0" healMul="1.0" />
+</list>
