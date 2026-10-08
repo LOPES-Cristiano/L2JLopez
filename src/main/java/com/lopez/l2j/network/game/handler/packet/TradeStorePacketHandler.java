@@ -1,5 +1,6 @@
 package com.lopez.l2j.network.game.handler.packet;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.buffshop.BuffShopService.BuffShopItem;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
 import com.lopez.l2j.game.item.ItemInstance;
@@ -65,8 +66,9 @@ public class TradeStorePacketHandler {
 				currentItems.add(new PrivateStoreItem(buff.skillId(), buff.skillId(), 1, buff.price(), 0, 0));
 			}
 		});
-		int adena = active.inventory().byItemId(57).map(ItemInstance::count).orElse(0);
-		session.send(new PrivateStoreManageListSell(active.objectId(), false, adena, availableItems, currentItems));
+		int currencyId = Config.SELL_BY_ITEM ? Config.SELL_ITEM : 57;
+		int coinCount = active.inventory().byItemId(currencyId).map(ItemInstance::count).orElse(0);
+		session.send(new PrivateStoreManageListSell(active.objectId(), false, coinCount, availableItems, currentItems));
 	}
 
 	public void handleSetPrivateStoreListSell(SetPrivateStoreListSell p) {
@@ -155,9 +157,10 @@ public class TradeStorePacketHandler {
 					sellerOpt.get().send(anim);
 				}
 			}
-			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce comprou buffs por " + result.totalCost() + " Adena."));
+			String coinName = Config.SELL_BY_ITEM ? Config.COIN_TEXT : "Adena";
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce comprou buffs por " + result.totalCost() + " " + coinName + "."));
 			sellerOpt.get().send(new CreatureSay(0, CreatureSay.ALL, "SYS",
-					active.name() + " comprou buffs na sua loja por " + result.totalCost() + " Adena."));
+					active.name() + " comprou buffs na sua loja por " + result.totalCost() + " " + coinName + "."));
 		} else {
 			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", result.message()));
 		}
