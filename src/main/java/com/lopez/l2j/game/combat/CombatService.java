@@ -80,6 +80,34 @@ public class CombatService {
 		return true;
 	}
 
+	public boolean canMoveToTarget(int x, int y, int z, int tx, int ty, int tz) {
+		if (geoEngine != null) {
+			return geoEngine.canMoveToTarget(x, y, z, tx, ty, tz);
+		}
+		return true;
+	}
+
+	public boolean canMoveToTarget(PlayerCharacter player, PlayerCharacter target) {
+		if (geoEngine != null && player != null && target != null) {
+			return geoEngine.canMoveToTarget(player, target);
+		}
+		return true;
+	}
+
+	public boolean canMoveToTarget(PlayerCharacter player, NpcInstance npc) {
+		if (geoEngine != null && player != null && npc != null) {
+			return geoEngine.canMoveToTarget(player, npc);
+		}
+		return true;
+	}
+
+	public boolean canMoveToTarget(NpcInstance npc, PlayerCharacter player) {
+		if (geoEngine != null && npc != null && player != null) {
+			return geoEngine.canMoveToTarget(npc, player);
+		}
+		return true;
+	}
+
 	public short getHeight(int x, int y, int z) {
 		if (geoEngine != null) {
 			return geoEngine.getHeight(x, y, z);
