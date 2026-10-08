@@ -1109,6 +1109,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private PlayerCharacter active;
 	private boolean inWorld;
 	private volatile boolean teleporting;
+	private volatile boolean pendingRevive;
 	private int targetObjectId;
 	private final List<String> sessionBypasses = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
 	private final com.lopez.l2j.network.game.security.PacketRateLimiter.SessionRateState rateState = new com.lopez.l2j.network.game.security.PacketRateLimiter.SessionRateState();
@@ -1322,6 +1323,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		this.casting = casting;
 	}
 
+	public SkillTemplate castingSkill() {
+		return castingSkill;
+	}
+
+	public void castingSkill(SkillTemplate castingSkill) {
+		this.castingSkill = castingSkill;
+	}
+
 	public ScheduledFuture<?> castTask() {
 		return castTask;
 	}
@@ -1336,6 +1345,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	public void teleporting(boolean teleporting) {
 		this.teleporting = teleporting;
+	}
+
+	public boolean pendingRevive() {
+		return pendingRevive;
+	}
+
+	public void pendingRevive(boolean pendingRevive) {
+		this.pendingRevive = pendingRevive;
 	}
 
 	public int pendingNpcInteractObjectId() {
@@ -1856,6 +1873,21 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (ctx != null && ctx.npcAi() != null) {
 			ctx.npcAi().stopCombatForPlayer(active.objectId());
 		}
+		if (pendingRevive || active.isDead()) {
+			pendingRevive = false;
+			active.sitting(false);
+			active.currentHp(active.maxHp() * 0.70);
+			active.currentMp(active.maxMp() * 0.30);
+			active.currentCp(0.0);
+
+			var revive = new Revive(active.objectId());
+			send(revive);
+			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, revive, false);
+			var su = StatusUpdate.forPlayer(active);
+			if (su != null) {
+				send(su);
+			}
+		}
 		broadcastAppearance();
 		sendMagicEffectIcons();
 		updateKnownObjects();
@@ -1993,7 +2025,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	public void startAutoAttack(NpcInstance npc) {
-		if (npc == null || npc.isDead() || !npc.template().isAttackable()) {
+		if (casting || npc == null || npc.isDead() || !npc.template().isAttackable()) {
 			send(new ActionFailed());
 			return;
 		}
@@ -2027,7 +2059,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	public void startAutoAttack(GameSession targetPlayer) {
-		if (targetPlayer == null || targetPlayer.active == null || targetPlayer.active.isDead() || targetPlayer == this) {
+		if (casting || targetPlayer == null || targetPlayer.active == null || targetPlayer.active.isDead() || targetPlayer == this) {
 			send(new ActionFailed());
 			return;
 		}
@@ -2117,6 +2149,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 			if (shouldBreak) {
 				casting = false;
+				castingSkill = null;
 				castTask.cancel(false);
 				castTask = null;
 				var cancel = new MagicSkillCanceld(active.objectId());
@@ -2273,7 +2306,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		// Agenda a aplicacao do dano e atualizacoes no momento exato do impacto
 		// (timeToHit)
 		autoAttackScheduler.schedule(() -> {
-			if (!inWorld || active == null || npc == null) {
+			if (!inWorld || active == null || active.isDead() || npc == null) {
 				return;
 			}
 			if (npc.isDead()) {
@@ -2371,7 +2404,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		autoAttackScheduler.schedule(() -> {
-			if (!autoAttacking || active == null || !inWorld || targetObjectId != npc.objectId() || npc.isDead()) {
+			if (!autoAttacking || active == null || active.isDead() || !inWorld || targetObjectId != npc.objectId() || npc.isDead()) {
 				return;
 			}
 			double dx = active.x() - npc.x();
@@ -2400,7 +2433,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		autoAttackScheduler.schedule(() -> {
-			if (!autoAttacking || active == null || !inWorld || targetObjectId != targetPlayer.objectId() || targetPlayer.active == null || targetPlayer.active.isDead()) {
+			if (!autoAttacking || active == null || active.isDead() || !inWorld || targetObjectId != targetPlayer.objectId() || targetPlayer.active == null || targetPlayer.active.isDead()) {
 				return;
 			}
 			double dx = active.x() - targetPlayer.x();
@@ -2479,7 +2512,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, atk, false);
 
 		autoAttackScheduler.schedule(() -> {
-			if (!inWorld || active == null || targetPlayer.active == null) {
+			if (!inWorld || active == null || active.isDead() || targetPlayer.active == null) {
 				return;
 			}
 			if (targetPlayer.active.isDead()) {
@@ -4267,16 +4300,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				ctx.buffRepository().deleteBuffs(active.objectId());
 			}
 		}
+		pendingRevive = true;
 		int[] townLoc = findNearestTown(active.x(), active.y());
-		active.sitting(false);
-		active.currentHp(active.maxHp() * 0.70);
-		active.currentMp(active.maxMp() * 0.30);
-		active.currentCp(0.0);
-
-		var revive = new Revive(active.objectId());
-		send(revive);
-		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, revive, false);
-
 		teleportToLocation(townLoc[0], townLoc[1], townLoc[2]);
 		sendMagicEffectIcons();
 	}
@@ -4660,6 +4685,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			cast.cancel(false);
 		}
 		casting = false;
+		castingSkill = null;
 		if (active.isDead()) {
 			if (ctx.buffRepository() != null) {
 				ctx.buffRepository().deleteBuffs(active.objectId());
@@ -4806,6 +4832,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	/** Conjuracao em andamento (um skill por vez, como no cliente). */
 	private volatile boolean casting;
+	private volatile SkillTemplate castingSkill;
 	private volatile ScheduledFuture<?> castTask;
 	/** Reuse por skillId (epoch ms em que libera). */
 	private final Map<Integer, Long> skillReuse = new ConcurrentHashMap<>();
@@ -5076,6 +5103,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		boolean resumeAttack = autoAttacking && (npcTarget != null || playerTarget != null) && sk.isOffensive();
 		autoAttacking = false; // o auto-ataque para durante o cast
 
+		// Para a movimentacao do personagem para conjurar a habilidade ("da uma paradinha")
+		var stop = new StopMove(active.objectId(), active.x(), active.y(), active.z(), active.heading());
+		send(stop);
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, stop, false);
+
 		int mainTargetId = npcTarget != null ? npcTarget.objectId()
 				: (doorTarget != null ? doorTarget.objectId()
 				: (playerTarget != null ? playerTarget.objectId() : active.objectId()));
@@ -5102,6 +5134,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 		casting = true;
+		castingSkill = sk;
 		PlayerCharacter owner = active;
 		NpcInstance npc = npcTarget;
 		DoorInstance door = doorTarget;
@@ -5111,6 +5144,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				return;
 			}
 			casting = false;
+			castingSkill = null;
 			castTask = null;
 			try {
 				finishCast(sk, npc, door, targetSess, resumeAttack, sps, bss);
@@ -5881,6 +5915,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	public void cancelCast() {
 		if (casting) {
 			casting = false;
+			castingSkill = null;
 			var task = castTask;
 			if (task != null) {
 				task.cancel(false);
@@ -6543,6 +6578,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(SystemMessage.of(SystemMessage.USE_S1, new SystemMessage.ItemName(itemId)));
 		send(new GameServerPacket.SetupGauge(GameServerPacket.SetupGauge.BLUE, hitTime));
 
+		var stop = new StopMove(active.objectId(), active.x(), active.y(), active.z(), active.heading());
+		send(stop);
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, stop, false);
+
 		var msu = new MagicSkillUse(active.objectId(), active.objectId(), 2014, 1, hitTime, 0,
 				active.x(), active.y(), active.z(), active.x(), active.y(), active.z());
 		send(msu);
@@ -6680,6 +6719,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				}
 				int hitTime = 30_000; // 30 segundos
 				send(new GameServerPacket.SetupGauge(GameServerPacket.SetupGauge.BLUE, hitTime));
+				var stop = new StopMove(active.objectId(), active.x(), active.y(), active.z(), active.heading());
+				send(stop);
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, stop, false);
 				var msu = new MagicSkillUse(active.objectId(), active.objectId(), 2099, 1, hitTime, 0,
 						active.x(), active.y(), active.z(), active.x(), active.y(), active.z());
 				send(msu);
@@ -9445,7 +9487,24 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			sink.accept(new NpcHtmlMessage(htmlMsg.npcObjectId(), encoded, htmlMsg.itemId()));
 			return;
 		}
+		if (packet instanceof CreatureSay say && say.channel() == CreatureSay.ALL && say.objectId() == 0) {
+			String name = say.name();
+			String text = say.text();
+			if (name == null || name.isBlank() || "SYS".equalsIgnoreCase(name) || "System".equalsIgnoreCase(name)) {
+				sink.accept(SystemMessage.sendString(text));
+			} else {
+				sink.accept(SystemMessage.sendString("[" + name + "] " + text));
+			}
+			return;
+		}
 		sink.accept(packet);
+	}
+
+	@Override
+	public void sendMessage(String text) {
+		if (text != null && !text.isBlank()) {
+			send(SystemMessage.sendString(text));
+		}
 	}
 
 	public void onEnchantItem(RequestEnchantItem p) {
