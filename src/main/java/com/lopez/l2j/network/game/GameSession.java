@@ -1083,6 +1083,16 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					combat, drops, shortcuts, skills, npcAi, skillService, multisell, warehouse, null, rates,
 					serverName);
 		}
+
+		private static volatile com.lopez.l2j.game.service.PvpRewardService globalPvpRewardService;
+
+		public static void setGlobalPvpRewardService(com.lopez.l2j.game.service.PvpRewardService service) {
+			globalPvpRewardService = service;
+		}
+
+		public com.lopez.l2j.game.service.PvpRewardService pvpRewards() {
+			return globalPvpRewardService;
+		}
 	}
 
 	private final Context ctx;
@@ -2337,6 +2347,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					}
 				}
 
+				if (npc.npcId() == 25325 && Config.KILL_BARAKIEL_SET_NOBLESS) {
+					rewardBarakielNoblesse(party, active);
+				}
+
 				ctx.characters().save(active, true);
 				saveBuffs();
 			} else {
@@ -3586,8 +3600,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			sb.append("<font color=\"LEVEL\">Subclass Management</font><br><br>");
 			sb.append("A master is capable of awakening latent heroic powers through subclasses.<br><br>");
 			sb.append("<table width=260>");
+			int maxSubs = Config.MAX_SUBCLASSES > 0 ? Config.MAX_SUBCLASSES : 3;
 			int subCount = active.getSubClasses().size();
-			if (subCount < 3) {
+			if (subCount < maxSubs) {
 				sb.append("<tr><td><a action=\"bypass -h npc_").append(npcObjId).append("_Subclass 1\">Add a Subclass</a></td></tr>");
 			}
 			if (subCount > 0) {
@@ -3600,21 +3615,19 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 		if (args.equals("1")) {
+			int maxSubs = Config.MAX_SUBCLASSES > 0 ? Config.MAX_SUBCLASSES : 3;
 			if (!active.isGm()) {
 				if (active.level() < 75) {
 					send(new NpcHtmlMessage(npcObjId, "<html><body>You must be at least level 75 to acquire a subclass.</body></html>"));
 					return;
 				}
-				if (!com.lopez.l2j.config.Config.ALT_SUBCLASS_WITHOUT_QUESTS) {
-					var qs = getQuestState("Quest234FatesWhisper");
-					if (qs == null || !qs.isCompleted()) {
-						send(new NpcHtmlMessage(npcObjId, "<html><body>You must complete the Fate's Whisper quest to qualify for a subclass.</body></html>"));
-						return;
-					}
+				if (ctx.subClasses() != null && !ctx.subClasses().checkSubclassRequirements(active)) {
+					send(new NpcHtmlMessage(npcObjId, "<html><body>You do not meet the requirements or quests to acquire a subclass.</body></html>"));
+					return;
 				}
 			}
-			if (active.subClasses().size() >= 3) {
-				send(new NpcHtmlMessage(npcObjId, "<html><body>You cannot add more than 3 subclasses.</body></html>"));
+			if (active.subClasses().size() >= maxSubs) {
+				send(new NpcHtmlMessage(npcObjId, "<html><body>You cannot add more than " + maxSubs + " subclasses.</body></html>"));
 				return;
 			}
 			var subs = ctx.subClasses() != null ? ctx.subClasses().getAvailableSubClasses(active) : java.util.List.<Integer>of();
@@ -3635,21 +3648,23 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		if (args.startsWith("1_")) {
 			try {
+				int maxSubs = Config.MAX_SUBCLASSES > 0 ? Config.MAX_SUBCLASSES : 3;
 				int targetClassId = Integer.parseInt(args.substring(2).trim());
 				int nextIndex = 1;
-				for (int i = 1; i <= 3; i++) {
+				for (int i = 1; i <= maxSubs; i++) {
 					if (!active.subClasses().containsKey(i)) {
 						nextIndex = i;
 						break;
 					}
 				}
-				long baseExp40 = com.lopez.l2j.game.model.ExperienceTable.expForLevel(40);
-				SubClass sc = new SubClass(targetClassId, baseExp40, 0, 40, nextIndex);
+				int initLvl = Config.SUBCLASS_INIT_LEVEL > 0 ? Config.SUBCLASS_INIT_LEVEL : 40;
+				long baseExp = com.lopez.l2j.game.model.ExperienceTable.expForLevel(initLvl);
+				SubClass sc = new SubClass(targetClassId, baseExp, 0, initLvl, nextIndex);
 				if (ctx.subClasses() != null) {
 					ctx.subClasses().saveSubClass(active.objectId(), sc);
 				}
 				active.subClasses().put(nextIndex, sc);
-				applySubClassSwitch(nextIndex, targetClassId, 40, baseExp40, 0);
+				applySubClassSwitch(nextIndex, targetClassId, initLvl, baseExp, 0);
 
 				send(SystemMessage.id(SystemMessage.ADD_NEW_SUBCLASS));
 				send(new PlaySound("ItemSound.quest_fanfare_2"));
@@ -3762,13 +3777,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				String[] parts = args.substring(2).split("_");
 				int replaceIndex = Integer.parseInt(parts[0]);
 				int newClassId = Integer.parseInt(parts[1]);
-				long baseExp40 = com.lopez.l2j.game.model.ExperienceTable.expForLevel(40);
-				SubClass sc = new SubClass(newClassId, baseExp40, 0, 40, replaceIndex);
+				int initLvl = Config.SUBCLASS_INIT_LEVEL > 0 ? Config.SUBCLASS_INIT_LEVEL : 40;
+				long baseExp = com.lopez.l2j.game.model.ExperienceTable.expForLevel(initLvl);
+				SubClass sc = new SubClass(newClassId, baseExp, 0, initLvl, replaceIndex);
 				if (ctx.subClasses() != null) {
 					ctx.subClasses().saveSubClass(active.objectId(), sc);
 				}
 				active.subClasses().put(replaceIndex, sc);
-				applySubClassSwitch(replaceIndex, newClassId, 40, baseExp40, 0);
+				applySubClassSwitch(replaceIndex, newClassId, initLvl, baseExp, 0);
 				send(SystemMessage.id(SystemMessage.SUBCLASS_TRANSFER_COMPLETED));
 				send(new PlaySound("ItemSound.quest_fanfare_2"));
 				if (Config.SHOW_CLASS_CHANGE_MESSAGE) {
@@ -5756,9 +5772,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		active.currentCp(0);
 
 		// Limpa buffs ao morrer (regra retail Interlude):
-		// Se possuir Blessing of Noblesse (skill 1323), preserva os buffs e consome apenas o Noblesse.
+		// Se LeaveBuffsOnDie = False, preserva os buffs.
+		boolean preserveBuffs = !Config.LEAVE_BUFFS_ON_DIE;
 		boolean hasNoblesse = active.effects().hasSkill(1323);
-		if (hasNoblesse) {
+		if (preserveBuffs) {
+			saveBuffs();
+		} else if (hasNoblesse) {
 			active.effects().removeSkill(1323);
 			saveBuffs();
 		} else {
@@ -5768,7 +5787,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 		}
 		long now = System.currentTimeMillis();
-		send(new MagicEffectIcons(hasNoblesse
+		send(new MagicEffectIcons((preserveBuffs || hasNoblesse)
 				? active.effects().active().stream()
 						.map(b -> new MagicEffectIcons.Icon(b.skillId(), b.level(), b.remainingSeconds(now)))
 						.toList()
@@ -5816,7 +5835,47 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(die);
 		var dieObserver = new Die(active.objectId(), false);
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, dieObserver, false);
+
+		if (killer != null && ctx != null && ctx.world() != null) {
+			ctx.world().player(killer.objectId()).ifPresent(op -> {
+				if (op instanceof GameSession killerSession && ctx.pvpRewards() != null) {
+					ctx.pvpRewards().handleKill(killerSession, this);
+				}
+			});
+		}
+
 		ctx.characters().save(active, true);
+	}
+
+	private void rewardBarakielNoblesse(com.lopez.l2j.game.party.Party party, PlayerCharacter active) {
+		if (party != null) {
+			for (GameSession member : party.members()) {
+				if (member != null && member.active != null) {
+					double dist = Math.hypot(member.active.x() - active.x(), member.active.y() - active.y());
+					if (dist <= com.lopez.l2j.game.party.Party.getPartyRange()) {
+						grantNoblesseStatus(member);
+					}
+				}
+			}
+		} else {
+			grantNoblesseStatus(this);
+		}
+	}
+
+	private void grantNoblesseStatus(GameSession session) {
+		if (session == null || session.active == null) {
+			return;
+		}
+		PlayerCharacter c = session.active;
+		if (!c.isNoble() && c.level() >= 75) {
+			c.setNoble(true);
+			session.send(SystemMessage.id(SystemMessage.YOU_HAVE_BECOME_A_NOBLESSE));
+			session.send(new SocialAction(c.objectId(), 16));
+			session.sendUserInfoAndBroadcastCharInfo();
+			if (session.ctx != null && session.ctx.characters() != null) {
+				session.ctx.characters().save(c, true);
+			}
+		}
 	}
 
 	public void cancelCast() {
@@ -5923,6 +5982,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					send(SystemMessage.of(SystemMessage.EARNED_S1_RAID_POINTS, new SystemMessage.Number(points)));
 				}
 			}
+
+			if (npc.npcId() == 25325 && Config.KILL_BARAKIEL_SET_NOBLESS) {
+				rewardBarakielNoblesse(party, active);
+			}
+
 			ctx.characters().save(active, true);
 		} else if (!npc.isDead() && ctx.npcAi() != null) {
 			ctx.npcAi().startCombat(npc, active.objectId());
