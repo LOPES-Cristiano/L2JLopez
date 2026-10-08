@@ -218,6 +218,30 @@ public class QuestEngineAndTutorialTest {
 		assertEquals(32, mask.length);
 	}
 
+	@Test
+	@DisplayName("CP 2.4: Suporte multi-raças e radar correto para Elfos, Orcs e Anões")
+	void testMultiRaceTutorialAndRadar() {
+		Quest255Tutorial tutorial = new Quest255Tutorial(questManager);
+
+		playerChar.classId(25); // Elven Mage
+		tutorial.onEnterWorld(session);
+		QuestState qs = session.getQuestState(Quest255Tutorial.QUEST_NAME);
+		assertNotNull(qs);
+		assertTrue(sentPackets.stream().anyMatch(p -> p instanceof GameServerPacket.PlaySound ps && ps.soundFile().equals("tutorial_voice_001d")),
+				"Deve tocar tutorial_voice_001d para Elven Mage");
+
+		sentPackets.clear();
+		tutorial.onAdvEvent("QM1", null, session);
+		assertTrue(sentPackets.stream().anyMatch(p -> p instanceof GameServerPacket.RadarControl rc && rc.x() == 46112 && rc.y() == 41200),
+				"Radar de Elfo deve apontar para as coordenadas de Elven Village");
+
+		// Testa Client Event CE1 (movimento)
+		sentPackets.clear();
+		tutorial.onAdvEvent("CE1", null, session);
+		assertTrue(sentPackets.stream().anyMatch(p -> p instanceof GameServerPacket.TutorialEnableClientEvent te && te.eventId() == 2),
+				"CE1 deve disparar TutorialEnableClientEvent(2)");
+	}
+
 	private static void setField(Object target, String name, Object val) {
 		try {
 			var f = target.getClass().getDeclaredField(name);
