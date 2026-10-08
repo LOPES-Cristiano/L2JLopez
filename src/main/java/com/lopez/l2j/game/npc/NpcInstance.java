@@ -42,6 +42,7 @@ public final class NpcInstance {
 	public int objectId() { return objectId; }
 	public NpcTemplate template() { return template; }
 	public int npcId() { return template.id(); }
+	public int getNpcId() { return template.id(); }
 	public String name() { return template.name(); }
 	public int x() { return x; }
 	public void x(int value) { this.x = value; }
