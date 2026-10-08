@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Boss Dolls Declarative Configuration (Onda C9) -->
+<Dolls>
+	<Doll Id="6392" Boss="Baium" SkillId="27504" SkillLvl="1" SkillPower="2.0"/>
+	<Doll Id="20701" Boss="Baium" SkillId="27504" SkillLvl="2" SkillPower="4.0"/>
+	<Doll Id="20702" Boss="Baium" SkillId="27504" SkillLvl="3" SkillPower="6.0"/>
+	<Doll Id="20703" Boss="Core" SkillId="27506" SkillLvl="1" SkillPower="2.0"/>
+	<Doll Id="20704" Boss="Core" SkillId="27506" SkillLvl="2" SkillPower="4.0"/>
+	<Doll Id="20705" Boss="Core" SkillId="27506" SkillLvl="3" SkillPower="6.0"/>
+	<Doll Id="20706" Boss="Frintezza" SkillId="27505" SkillLvl="1" SkillPower="2.0"/>
+	<Doll Id="20707" Boss="Frintezza" SkillId="27505" SkillLvl="2" SkillPower="4.0"/>
+	<Doll Id="20708" Boss="Frintezza" SkillId="27505" SkillLvl="3" SkillPower="6.0"/>
+	<Doll Id="20709" Boss="Orfen" SkillId="27507" SkillLvl="1" SkillPower="2.0"/>
+	<Doll Id="20710" Boss="Orfen" SkillId="27507" SkillLvl="2" SkillPower="4.0"/>
+	<Doll Id="20711" Boss="Orfen" SkillId="27507" SkillLvl="3" SkillPower="6.0"/>
+	<Doll Id="20712" Boss="Antharas" SkillId="27501" SkillLvl="1" SkillPower="3.0"/>
+	<Doll Id="20713" Boss="Antharas" SkillId="27501" SkillLvl="2" SkillPower="6.0"/>
+	<Doll Id="20714" Boss="Antharas" SkillId="27501" SkillLvl="3" SkillPower="10.0"/>
+	<Doll Id="20715" Boss="QueenAnt" SkillId="27503" SkillLvl="1" SkillPower="2.0"/>
+	<Doll Id="20716" Boss="QueenAnt" SkillId="27503" SkillLvl="2" SkillPower="4.0"/>
+	<Doll Id="20717" Boss="QueenAnt" SkillId="27503" SkillLvl="3" SkillPower="6.0"/>
+	<Doll Id="20721" Boss="Zaken" SkillId="27502" SkillLvl="1" SkillPower="2.0"/>
+	<Doll Id="20722" Boss="Zaken" SkillId="27502" SkillLvl="2" SkillPower="4.0"/>
+	<Doll Id="20723" Boss="Zaken" SkillId="27502" SkillLvl="3" SkillPower="6.0"/>
+</Dolls>
