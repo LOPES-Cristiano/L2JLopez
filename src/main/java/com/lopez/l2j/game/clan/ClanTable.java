@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.clan;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.ObjectIdFactory;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import java.util.Collection;
@@ -75,11 +76,11 @@ public class ClanTable {
 			log.warn("{} tentou criar cla '{}' mas ja pertence a um cla ({})", leader.name(), clanName, leader.clanId());
 			return null;
 		}
-		if (leader.hasClanJoinPenalty()) {
+		if (leader.hasClanJoinPenalty() || leader.hasClanCreatePenalty()) {
 			log.warn("{} tentou criar cla '{}' mas possui penalidade de cla ativa", leader.name(), clanName);
 			return null;
 		}
-		if (leader.level() < 10 && !leader.isGm()) {
+		if (leader.level() < Config.MIN_LEVEL_TO_CREATE_PLEDGE && !leader.isGm()) {
 			log.warn("{} tentou criar cla '{}' com nivel insuficiente ({})", leader.name(), clanName, leader.level());
 			return null;
 		}
@@ -280,14 +281,7 @@ public class ClanTable {
 			return false;
 		}
 
-		int maxMembers;
-		switch (clan.level()) {
-			case 0 -> maxMembers = 10;
-			case 1 -> maxMembers = 15;
-			case 2 -> maxMembers = 20;
-			case 3 -> maxMembers = 30;
-			default -> maxMembers = 40;
-		}
+		int maxMembers = clan.getMaxMembers(clan.level());
 		if (clan.membersCount() >= maxMembers) {
 			log.warn("Cla {} atingiu o limite maximo de membros ({}) para o nivel {}", clan.name(), maxMembers, clan.level());
 			return false;
@@ -336,7 +330,7 @@ public class ClanTable {
 		}
 
 		player.clanId(0);
-		long penaltyTime = System.currentTimeMillis() + 86_400_000L; // 24 horas de penalidade
+		long penaltyTime = System.currentTimeMillis() + (Math.max(1, Config.DAYS_BEFORE_JOIN_A_CLAN) * 86_400_000L);
 		player.clanJoinExpiryTime(penaltyTime);
 
 		if (isDismissed) {
