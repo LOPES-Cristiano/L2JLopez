@@ -2561,6 +2561,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) active.currentCp()),
 					new StatusUpdate.Attribute(StatusUpdate.MAX_CP, active.maxCp()))));
 		} else {
+			sendUserInfoAndBroadcastCharInfo();
 			send(new StatusUpdate(active.objectId(), List.of(
 					new StatusUpdate.Attribute(StatusUpdate.SP, active.sp()))));
 		}
