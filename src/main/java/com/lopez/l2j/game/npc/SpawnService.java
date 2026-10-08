@@ -26,19 +26,27 @@ public class SpawnService {
 	private final GameWorld world;
 	private final ObjectIdFactory objectIds;
 	private final com.lopez.l2j.game.npc.minion.MinionTable minionTable;
+	private final com.lopez.l2j.game.champion.ChampionService championService;
 
 	public SpawnService(JdbcClient jdbc, NpcTemplateTable templates, GameWorld world, ObjectIdFactory objectIds) {
-		this(jdbc, templates, world, objectIds, null);
+		this(jdbc, templates, world, objectIds, null, null);
+	}
+
+	public SpawnService(JdbcClient jdbc, NpcTemplateTable templates, GameWorld world, ObjectIdFactory objectIds,
+			com.lopez.l2j.game.npc.minion.MinionTable minionTable) {
+		this(jdbc, templates, world, objectIds, minionTable, null);
 	}
 
 	@org.springframework.beans.factory.annotation.Autowired
 	public SpawnService(JdbcClient jdbc, NpcTemplateTable templates, GameWorld world, ObjectIdFactory objectIds,
-			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.npc.minion.MinionTable minionTable) {
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.npc.minion.MinionTable minionTable,
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.champion.ChampionService championService) {
 		this.jdbc = jdbc;
 		this.templates = templates;
 		this.world = world;
 		this.objectIds = objectIds;
 		this.minionTable = minionTable;
+		this.championService = championService;
 	}
 
 	@PostConstruct
@@ -75,6 +83,9 @@ public class SpawnService {
 		return templates.get(npcId).map(template -> {
 			int objectId = objectIds.nextId();
 			NpcInstance npc = new NpcInstance(objectId, template, x, y, z, heading);
+			if (championService != null) {
+				championService.tryRollChampion(npc);
+			}
 			world.addNpc(npc);
 			if (minionTable != null && minionTable.hasMinions(npcId)) {
 				spawnMinionsForMaster(npc);
@@ -141,6 +152,9 @@ public class SpawnService {
 						sy += (int) (Math.sin(angle) * dist);
 					}
 					NpcInstance npc = new NpcInstance(objectId, template, sx, sy, rec.z(), rec.heading());
+					if (championService != null) {
+						championService.tryRollChampion(npc);
+					}
 					world.addNpc(npc);
 					spawned++;
 				}
@@ -266,6 +280,9 @@ public class SpawnService {
 						sy += (int) (Math.sin(angle) * dist);
 					}
 					NpcInstance npc = new NpcInstance(objectId, template, sx, sy, loc.z(), loc.heading());
+					if (championService != null) {
+						championService.tryRollChampion(npc);
+					}
 					world.addNpc(npc);
 					spawned++;
 				}
