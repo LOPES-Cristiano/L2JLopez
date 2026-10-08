@@ -29,7 +29,8 @@ public class SiegeRecord {
 		this.castleId = castleId;
 		this.status = SiegeStatus.REGISTRATION;
 		this.siegeDate = siegeDate;
-		this.siegeEndDate = siegeDate + (2 * 60 * 60 * 1000L); // 2 horas padrao
+		long duration = com.lopez.l2j.config.Config.SIEGE_LENGTH > 0 ? (long) com.lopez.l2j.config.Config.SIEGE_LENGTH * 60 * 1000L : (2 * 60 * 60 * 1000L);
+		this.siegeEndDate = siegeDate + duration;
 		this.registrationOver = false;
 	}
 
@@ -51,7 +52,8 @@ public class SiegeRecord {
 
 	public void siegeDate(long siegeDate) {
 		this.siegeDate = siegeDate;
-		this.siegeEndDate = siegeDate + (2 * 60 * 60 * 1000L);
+		long duration = com.lopez.l2j.config.Config.SIEGE_LENGTH > 0 ? (long) com.lopez.l2j.config.Config.SIEGE_LENGTH * 60 * 1000L : (2 * 60 * 60 * 1000L);
+		this.siegeEndDate = siegeDate + duration;
 	}
 
 	public long siegeEndDate() {
