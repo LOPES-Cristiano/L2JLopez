@@ -55,6 +55,7 @@ public final class PlayerCharacter {
 	private int charges;
 	private boolean noble;
 	private boolean hero;
+	private long heroExpiration;
 	private boolean subClassActive;
 
 	private int x;
@@ -107,9 +108,12 @@ public final class PlayerCharacter {
 	public void titleColor(int titleColor) { this.titleColor = titleColor; }
 
 	private boolean aio;
+	private long aioExpiration;
 	public boolean isAio() { return aio; }
 	public void setAio(boolean aio) { this.aio = aio; }
 	public void aio(boolean aio) { this.aio = aio; }
+	public long aioExpiration() { return aioExpiration; }
+	public void aioExpiration(long aioExpiration) { this.aioExpiration = aioExpiration; }
 
 	private boolean vip;
 	private long vipExpiration;
@@ -322,6 +326,14 @@ public final class PlayerCharacter {
 
 	public void hero(boolean hero) {
 		this.hero = hero;
+	}
+
+	public long heroExpiration() {
+		return heroExpiration;
+	}
+
+	public void heroExpiration(long heroExpiration) {
+		this.heroExpiration = heroExpiration;
 	}
 
 	public java.util.Map<Integer, com.lopez.l2j.game.subclass.SubClass> subClasses() {
@@ -542,6 +554,10 @@ public final class PlayerCharacter {
 		return olympiadMode;
 	}
 
+	public boolean olympiadMode() {
+		return olympiadMode;
+	}
+
 	public void inOlympiadMode(boolean value) {
 		this.olympiadMode = value;
 	}
@@ -572,6 +588,16 @@ public final class PlayerCharacter {
 
 	public void setInTrade(boolean inTrade) {
 		this.inTrade = inTrade;
+	}
+
+	private volatile boolean flying;
+
+	public boolean isFlying() {
+		return flying;
+	}
+
+	public void flying(boolean flying) {
+		this.flying = flying;
 	}
 
 	public double currentMp() {
@@ -707,6 +733,10 @@ public final class PlayerCharacter {
 
 	public void stopAbnormalEffect(int mask) {
 		this.abnormalEffect &= ~mask;
+	}
+
+	public void stopAllAbnormalEffects() {
+		this.abnormalEffect = 0;
 	}
 
 	private volatile long disabledUntil;
@@ -911,7 +941,54 @@ public final class PlayerCharacter {
 	public int hennaDEX() { return hennaDex; }
 	public int hennaWIT() { return hennaWit; }
 
+	public void clearHennas() {
+		java.util.Arrays.fill(hennas, 0);
+		hennaInt = 0;
+		hennaStr = 0;
+		hennaCon = 0;
+		hennaMen = 0;
+		hennaDex = 0;
+		hennaWit = 0;
+	}
+
+	/**
+	 * Retorna o numero de slots vazios disponiveis para gravacao de simbolos:
+	 * Tier 0 (classe base / lvl < 20): 0 slots
+	 * Tier 1 (1a classe / lvl 20-39): 2 slots maximos
+	 * Tier 2 ou 3 (2a ou 3a classe / lvl 40+): 3 slots maximos
+	 */
+	public int getHennaEmptySlots(int classLevel) {
+		int maxSlots = 0;
+		if (classLevel == 1) {
+			maxSlots = 2;
+		} else if (classLevel >= 2) {
+			maxSlots = 3;
+		} else {
+			return 0;
+		}
+		int count = 0;
+		for (int i = 0; i < maxSlots; i++) {
+			if (hennas[i] > 0) {
+				count++;
+			}
+		}
+		return Math.max(0, maxSlots - count);
+	}
+
+	public int getMaxHennaSlots(int classLevel) {
+		if (classLevel == 1) {
+			return 2;
+		} else if (classLevel >= 2) {
+			return 3;
+		}
+		return 0;
+	}
+
 	public void recalcHennaStats(com.lopez.l2j.game.henna.HennaTable table) {
+		recalcHennaStats(table, null);
+	}
+
+	public void recalcHennaStats(com.lopez.l2j.game.henna.HennaTable table, com.lopez.l2j.game.henna.HennaTreeTable treeTable) {
 		hennaInt = 0;
 		hennaStr = 0;
 		hennaCon = 0;
@@ -925,6 +1002,9 @@ public final class PlayerCharacter {
 
 		for (int symbolId : hennas) {
 			if (symbolId > 0) {
+				if (treeTable != null && !treeTable.isAllowed(classId, symbolId)) {
+					continue;
+				}
 				var h = table.get(symbolId);
 				if (h != null) {
 					hennaInt += h.statInt();
@@ -937,13 +1017,14 @@ public final class PlayerCharacter {
 			}
 		}
 
-		// Regra oficial do Lineage II Interlude: bonus positivo limitado a no maximo +5
-		hennaInt = Math.min(5, hennaInt);
-		hennaStr = Math.min(5, hennaStr);
-		hennaCon = Math.min(5, hennaCon);
-		hennaMen = Math.min(5, hennaMen);
-		hennaDex = Math.min(5, hennaDex);
-		hennaWit = Math.min(5, hennaWit);
+		// Regra oficial do Lineage II Interlude: bonus positivo limitado a no maximo +5 (ou configurado)
+		// Penalidades negativas nao sao limitadas (ex.: -8, -12 sao permitidos normalmente)
+		hennaInt = Math.min(com.lopez.l2j.config.Config.LIMIT_HENNA_INT, hennaInt);
+		hennaStr = Math.min(com.lopez.l2j.config.Config.LIMIT_HENNA_STR, hennaStr);
+		hennaCon = Math.min(com.lopez.l2j.config.Config.LIMIT_HENNA_CON, hennaCon);
+		hennaMen = Math.min(com.lopez.l2j.config.Config.LIMIT_HENNA_MEN, hennaMen);
+		hennaDex = Math.min(com.lopez.l2j.config.Config.LIMIT_HENNA_DEX, hennaDex);
+		hennaWit = Math.min(com.lopez.l2j.config.Config.LIMIT_HENNA_WIT, hennaWit);
 	}
 
 	public int recomHave() {

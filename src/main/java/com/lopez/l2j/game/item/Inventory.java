@@ -61,6 +61,17 @@ public final class Inventory {
 		return changed;
 	}
 
+	public Set<ItemInstance> remove(ItemInstance item, int count) {
+		if (item == null) {
+			return Collections.emptySet();
+		}
+		if (item.count() > count) {
+			item.count(item.count() - count);
+			return Set.of(item);
+		}
+		return remove(item);
+	}
+
 	public int getItemCount(int itemId) {
 		return items.values().stream()
 				.filter(i -> i.itemId() == itemId)
@@ -105,6 +116,18 @@ public final class Inventory {
 		} else {
 			ItemTemplate dummy = ItemTemplate.etc(ItemTemplate.ADENA_ID, ItemTemplate.ADENA_ID, "Adena", "asset", "asset", 0, "none", 0, false, false, false, false);
 			add(new ItemInstance(0x40000000 + ItemTemplate.ADENA_ID, dummy, ownerId, count));
+		}
+	}
+
+	public synchronized void addItem(int itemId, int count) {
+		if (count <= 0) return;
+		var opt = byItemId(itemId);
+		if (opt.isPresent()) {
+			opt.get().count(opt.get().count() + count);
+		} else {
+			ItemTemplate dummy = ItemTemplate.etc(itemId, itemId, "Item_" + itemId, "etcitem", "none", 0, "none", 0, false, false, true, false);
+			int objId = 0x40000000 + (itemId * 31) + java.util.concurrent.ThreadLocalRandom.current().nextInt(10000);
+			add(new ItemInstance(objId, dummy, ownerId, count));
 		}
 	}
 

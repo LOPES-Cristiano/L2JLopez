@@ -57,6 +57,10 @@ public record ItemTemplate(
 		WEAPON, ARMOR, ETC
 	}
 
+	public String itemType() {
+		return subType;
+	}
+
 	public static final int ADENA_ID = 57;
 
 	public static final int TYPE1_WEAPON_RING_EARRING_NECKLACE = 0;

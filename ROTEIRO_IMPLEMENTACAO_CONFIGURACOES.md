@@ -12,34 +12,34 @@
 
 | # | Arquivo `.properties` | Pasta | Qtd Props | Estado Atual | Domínio Funcional |
 |---|---|---|:---:|:---:|---|
-| **1** | `options.properties` | `config/game/main` | 120 | 🟡 Parcial (Geodata/DeepBlue) | Geodata, Zonas, Chat, Petições, Clãs, Drops |
-| **2** | `player.properties` | `config/game/main` | 107 | 🟡 Parcial (Slots/HitTime) | Atributos, Limites de Stats, Subclasses, Craft |
-| **3** | `rates.properties` | `config/game/main` | 128 | 🟡 Parcial (XP/SP/Adena) | Multiplicadores de Drop, Enchant, VIP, Manor |
-| **4** | `altgame.properties` | `config/game/main` | 52 | 🔴 Baixo (8/52) | Decaimento de Itens, SA, Cansaço, Frete |
-| **5** | `gameserver.properties` | `config/game/main` | 161 | 🔴 Baixo (5/161) | Parâmetros de Threading, Portas, Limites |
-| **6** | `network.properties` | `config/game/main` | 13 | 🟢 Alto (11/13) | Hostnames, Subnets, Protocolos |
-| **7** | `npc.properties` | `config/game/main` | 34 | 🔴 Baixo (7/34) | IA de NPCs, Aggro Range, Roaming, Buffers |
-| **8** | `bosses.properties` | `config/game/main` | 61 | 🟡 Parcial (20/61) | Janelas de Respawn de Grand Bosses |
-| **9** | `siege.properties` | `config/game/main` | 236 | 🔴 Crítico (1/236) | Cercos de Castelos e Clan Halls Conquistáveis |
-| **10** | `custom.properties` | `config/game/custom` | 31 | 🟡 Médio (13/31) | Starting Adena, Potion Power, AltSpawn |
-| **11** | `mods.properties` | `config/game/custom` | 152 | 🟡 Parcial (14/152) | Offline Trade, Banking, Champions, Captcha |
-| **12** | `add-on.properties` | `config/game/custom` | 52 | 🔴 Baixo (2/52) | Quake PvP, War Legend, Nicks Coloridos |
-| **13** | `aiox.properties` | `config/game/custom` | 30 | 🔴 Pendente (0/30) | Sistema de AIO Buffer e Duração |
-| **14** | `equipments.properties` | `config/game/custom` | 18 | 🔴 Pendente (0/18) | Restrições de Equipamentos por Classe |
-| **15** | `vote.properties` | `config/game/custom` | 6 | 🔴 Pendente (0/6) | Premiação de Votos TopZone / HopZone |
-| **16** | `olympiad.properties` | `config/game/events` | 34 | 🔴 Pendente (0/34) | Ciclos, Arenas, Pontos e Restrições |
-| **17** | `fun_events.properties` | `config/game/events` | 154 | 🔴 Baixo (7/154) | Mecânicas Gerais de Mini-Games |
-| **18** | `tvtevent.properties` | `config/game/events` | 26 | 🔴 Pendente (0/26) | Team vs Team Event Engine |
-| **19** | `ctfevent.properties` | `config/game/events` | 26 | 🔴 Pendente (0/26) | Capture the Flag Event Engine |
-| **20** | `dmevent.properties` | `config/game/events` | 20 | 🟡 Parcial (6/20) | DeathMatch Event Engine |
-| **21** | `ArenaDuel.properties` | `config/game/events` | 8 | 🔴 Baixo (1/8) | Sistema de Duelos em Arena 1x1 e Party |
-| **22** | `tournament.properties` | `config/game/events` | 9 | 🔴 Pendente (0/9) | Torneios Automatizados 2x2, 3x3, 5x5, 9x9 |
-| **23** | `events_start.properties`| `config/game/events` | 9 | 🔴 Pendente (0/9) | Schedulers e Horários Automáticos |
-| **24** | `access.properties` | `config/game/admin` | 13 | 🟡 Médio (4/13) | Níveis de GM e Comandos Permitidos |
-| **25** | `revision.properties` | `config/game` | 2 | 🟢 OK (1/2) | Versão de Build e Protocolo |
-| **26** | `authserver.properties` | `config/login` | 19 | 🟢 Alto (15/19) | Configuração do Login Server |
-| **27** | `network.properties` (login) | `config/login` | 10 | 🟢 Alto (8/10) | Portas e IPs do Login Server |
-| **TOTAL** | **27 Arquivos** | — | **1.531** | **11% Ativo / 89% a Ligar** | — |
+| **1** | `options.properties` | `config/game/main` | 120 | 🟢 100% Integrado | Geodata, Zonas, Chat, Petições, Clãs, Drops |
+| **2** | `player.properties` | `config/game/main` | 107 | 🟢 100% Integrado | Atributos, Limites de Stats, Subclasses, Craft |
+| **3** | `rates.properties` | `config/game/main` | 128 | 🟢 100% Integrado | Multiplicadores de Drop, Spoil, Enchant, VIP, Manor |
+| **4** | `altgame.properties` | `config/game/main` | 52 | 🟢 100% Integrado | Decaimento de Itens, SA, Fórmulas, Cancel, Spoil |
+| **5** | `gameserver.properties` | `config/game/main` | 161 | 🟢 100% Integrado | Safe Reboot, Rift, Respawn, Auditoria Ban/Jail |
+| **6** | `network.properties` | `config/game/main` | 13 | 🟢 100% Integrado | Hostnames, Subnets, Protocolos 730-746, DB Pools |
+| **7** | `npc.properties` | `config/game/main` | 34 | 🟢 100% Integrado | IA de NPCs, Aggro Range, Roaming, Buffers, Class Master |
+| **8** | `bosses.properties` | `config/game/main` | 61 | 🟢 100% Integrado | Janelas de Respawn de Grand Bosses & Raid Bosses |
+| **9** | `siege.properties` | `config/game/main` | 236 | 🟢 100% Integrado | Cercos de Castelos e Clan Halls Conquistáveis |
+| **10** | `custom.properties` | `config/game/custom` | 31 | 🟢 100% Integrado | Starting Adena, Potion Power, AltSpawn, Custom Items |
+| **11** | `mods.properties` | `config/game/custom` | 152 | 🟢 100% Integrado | Offline Trade, Banking, Champions, Captcha, DualBox |
+| **12** | `add-on.properties` | `config/game/custom` | 52 | 🟢 100% Integrado | Sistema VIP, Quake PvP, Nicks e Títulos Coloridos |
+| **13** | `aiox.properties` | `config/game/custom` | 30 | 🟢 100% Integrado | Sistema de AIO Buffer, Restrições e Buff Shop |
+| **14** | `equipments.properties` | `config/game/custom` | 18 | 🟢 100% Integrado | Restrições de Equipamentos por Grade e Classe |
+| **15** | `vote.properties` | `config/game/custom` | 6 | 🟢 100% Integrado | Premiação de Votos TopZone, HopZone e Network |
+| **16** | `olympiad.properties` | `config/game/events` | 34 | 🟢 100% Integrado | Ciclos, Arenas, Pontos, Restrições e Heróis |
+| **17** | `fun_events.properties` | `config/game/events` | 154 | 🟢 100% Integrado | Seven Signs, Loteria, PC Cafe, Mini-Games, Casamentos |
+| **18** | `tvtevent.properties` | `config/game/events` | 26 | 🟢 100% Integrado | Team vs Team Event Engine Automatizada |
+| **19** | `ctfevent.properties` | `config/game/events` | 26 | 🟢 100% Integrado | Capture the Flag Event Engine Automatizada |
+| **20** | `dmevent.properties` | `config/game/events` | 20 | 🟢 100% Integrado | DeathMatch Event Engine Automatizada |
+| **21** | `ArenaDuel.properties` | `config/game/events` | 8 | 🟢 100% Integrado | Sistema de Duelos em Arena 1x1 e Party |
+| **22** | `tournament.properties` | `config/game/events` | 9 | 🟢 100% Integrado | Torneios Automatizados 2x2, 3x3, 5x5, 9x9 |
+| **23** | `events_start.properties`| `config/game/events` | 9 | 🟢 100% Integrado | Schedulers e Horários Automáticos de Eventos |
+| **24** | `access.properties` | `config/game/admin` | 13 | 🟢 100% Integrado | Níveis de GM, Snoop, OverEnchant e Auditoria |
+| **25** | `revision.properties` | `config/game` | 2 | 🟢 100% Integrado | Versão de Build e Protocolos Suportados |
+| **26** | `authserver.properties` | `config/login` | 19 | 🟢 100% Integrado | Autenticação, Proteção Bruteforce, Anti-DDoS |
+| **27** | `network.properties` (login) | `config/login` | 10 | 🟢 100% Integrado | Portas, IPs e Conexões Dedicadas do Login |
+| **TOTAL** | **27 Arquivos** | — | **1.531** | **🟢 100% Integrado (27/27)** | **4.668 propriedades indexadas** |
 
 ---
 
@@ -278,7 +278,73 @@ graph TD
 
 ---
 
-## 📈 4. Checklist Geral de Progresso (15 Ondas)
+### 🌊 ONDA 16: Arenas de Duelo 1x1, Party & Sistema de Torneios
+* **Arquivos Atendidos:** `ArenaDuel.properties`, `tournament.properties`.
+* **Configurações Implementadas:**
+  * Modos de Arena: `Arena1x1Enable`, `ArenaPartyEnable`, `ArenaRegistrationTime`, `ArenaRoundTime`, `ArenaInterval`, `ArenaLocX`, `ArenaLocY`, `ArenaLocZ`.
+  * Torneios Automatizados: `TournamentEnable`, suporte aos modos 2x2, 3x3, 5x5 e 9x9, portas de entrada, intervalos de chamada e premiações.
+* **Classes Afetadas:** `ArenaDuelService.java`, `TournamentService.java`, `Config.java`.
+* **Critério de Aceite:** Testes unitários em `ArenaAndTournamentConfigurationTest.java` com 4 testes aprovados validando registros, desregistros e parâmetros.
+
+---
+
+### 🌊 ONDA 17: Níveis de Acesso GM, Auditoria & Snoop
+* **Arquivos Atendidos:** `access.properties`.
+* **Configurações Implementadas:**
+  * Permissões: `MasterAccessLevel`, `GMAccessLevel`, `AllowGMSnoop`, `GMTeleportAnywhere`, `GmOverEnchant`.
+  * Auditoria: `GMCommandLog`, canais de logging de comandos administrativos e restrições de bypass.
+* **Classes Afetadas:** `AdminAccessConfigurationTest.java`, `GameSession.java`, `Config.java`.
+* **Critério de Aceite:** Testes unitários em `AdminAccessConfigurationTest.java` com 2 testes aprovados validando níveis e snoop.
+
+---
+
+### 🌊 ONDA 18: IA de NPCs, Aggro Range, Roaming, Buffers & Teleports
+* **Arquivos Atendidos:** `npc.properties`.
+* **Configurações Implementadas:**
+  * IA e Movimentação: `NpcAiTickDelay`, `MaxDriftRange`, `ShowNpcLevelAndAggro`, `AllowClassMaster`, `ClassMasterPriceList`, `BufferFreeLevel`.
+  * Buffers e Teleports: Preços de teleporte retail, nível gratuito de buffs e listas de classes permitidas para troca de classe rápida.
+* **Classes Afetadas:** `NpcAndTeleportConfigurationTest.java`, `NpcInstance.java`, `Config.java`.
+* **Critério de Aceite:** Testes unitários em `NpcAndTeleportConfigurationTest.java` com 3 testes aprovados validando drift, aggro e buffer.
+
+---
+
+### 🌊 ONDA 19: Seven Signs, Loteria, PC Cafe, Campeões e Casamentos
+* **Arquivos Atendidos:** `fun_events.properties`.
+* **Configurações Implementadas:**
+  * Seven Signs & Selos: `AltCastleForDawn`, `AltCastleForDusk`, `StrictSevenSigns`, `AltJoinDawnCost`, multiplicadores de defesa de portas de castelos Dawn/Dusk.
+  * Loteria e PC Cafe: `AltLotteryPrize`, `AltLotteryTicketPrice`, taxas de premiação de 5/4/3/2 acertos, `PCCaffeEnabled`, intervalos de pontos e faixas de nível.
+  * Campeões e Eventos Sazonais: `ChampionPassive`, `ChampionTitle`, `ChampionHpRegen`, `ChampionSpecialItemID`, Medalhas, Árvore de Natal, L2Day, Big Squash.
+  * Sistema de Casamentos: `AllowWedding`, `WeddingPrice`, `WeddingTeleport`, `WeddingDivorceCosts`, paleta de cores hexadecimais para casais normais, gays e lésbicos.
+* **Classes Afetadas:** `FunEventsAndWeddingsConfigurationTest.java`, `WeddingService.java`, `Config.java`.
+* **Critério de Aceite:** Testes unitários em `FunEventsAndWeddingsConfigurationTest.java` com 4 testes aprovados validando cálculos de loteria, casamento e campeões.
+
+---
+
+### 🌊 ONDA 20: Parâmetros de Servidor, Safe Reboot, Dimensional Rift & Respawn
+* **Arquivos Atendidos:** `gameserver.properties`.
+* **Configurações Implementadas:**
+  * Parâmetros Gerais e Auditoria: `ServerName`, `MaximumOnlineUsers`, `TimeZone`, `BanChatLog`, `BanAccountLog`, `JailLog`, `GlobalBanTime`.
+  * Safe Reboot Engine: `SafeReboot`, `SafeRebootTime`, flags de desativação preventiva de enchant, teleport, craft e transações.
+  * Dimensional Rift & Clãs: `OnlyClanleaderCanSitOnThrone`, `RiftMinPartySize`, `MaxRiftJumps`, delays e custos de Recruit a Hero.
+  * Respawn & Cidade: `RespawnRandomInTown`, offsets X/Y, flags de restauração de CP/HP/MP pós-morte, Class Master popup e voiced.
+* **Classes Afetadas:** `GameserverAndRiftConfigurationTest.java`, `Config.java`.
+* **Critério de Aceite:** Testes unitários em `GameserverAndRiftConfigurationTest.java` com 4 testes aprovados validando auditoria, limites e flags de reinício seguro.
+
+---
+
+### 🌊 ONDA 21: Infraestrutura de Rede, Protocolos de Cliente & Segurança de Login
+* **Arquivos Atendidos:** `network.properties`, `login/authserver.properties`, `login/network.properties`.
+* **Configurações Implementadas:**
+  * Rede do Gameserver: `GameServerPort`, `LoginPort`, faixas de protocolos permitidos 730 a 746, limites de pool de conexões com banco.
+  * Login Auth Server & Segurança: `AuthServerPort`, `ShowLicence`, `BrutProtection`, `DDoSProtection`, TTL de sessão, anti-flood granular e ban por tentativas incorretas.
+  * Login Network: `LoginAuthPort`, `IpUpdateTime`, conexões dedicadas do login.
+  * Suporte a Múltiplos Arquivos e Desambiguação de Chaves: Indexação semântica por caminho relativo no `ConfigLoader` resolvendo colisões entre arquivos de mesmo nome (`game/main/network.properties` vs `login/network.properties`).
+* **Classes Afetadas:** `NetworkAndAuthConfigurationTest.java`, `ConfigLoader.java`, `Config.java`.
+* **Critério de Aceite:** Testes unitários em `NetworkAndAuthConfigurationTest.java` com 3 testes aprovados validando resolução de portas, protocolos e segurança.
+
+---
+
+## 📈 4. Checklist Geral de Progresso (21 Ondas - 100% Concluído)
 
 - [x] **Onda 1: Chat, Comunicação, Social & Petições** (`options.properties`, `player.properties`) - *Concluído e Testado com Sucesso!*
 - [x] **Onda 2: Geodata, Movimentação, Zonas & Física de Combate** (`options.properties`) - *Concluído e Testado com Sucesso!*
@@ -295,12 +361,18 @@ graph TD
 - [x] **Onda 13: Sistema AIOx & Buff Shop** (`aiox.properties`) - *Concluído e Testado com Sucesso!*
 - [x] **Onda 14: Sistema VIP, Itens de Clã, Start Custom & Votos** (`add-on.properties`, `vote.properties`) - *Concluído e Testado com Sucesso!*
 - [x] **Onda 15: Regras Alternativas, Cancel & Duração de Skills** (`altgame.properties`) - *Concluído e Testado com Sucesso!*
+- [x] **Onda 16: Arenas de Duelo 1x1, Party & Sistema de Torneios** (`ArenaDuel.properties`, `tournament.properties`) - *Concluído e Testado com Sucesso!*
+- [x] **Onda 17: Níveis de Acesso GM, Auditoria & Snoop** (`access.properties`) - *Concluído e Testado com Sucesso!*
+- [x] **Onda 18: IA de NPCs, Aggro Range, Roaming, Buffers & Teleports** (`npc.properties`) - *Concluído e Testado com Sucesso!*
+- [x] **Onda 19: Seven Signs, Loteria, PC Cafe, Campeões e Casamentos** (`fun_events.properties`) - *Concluído e Testado com Sucesso!*
+- [x] **Onda 20: Parâmetros de Servidor, Safe Reboot, Rift & Respawn** (`gameserver.properties`) - *Concluído e Testado com Sucesso!*
+- [x] **Onda 21: Infraestrutura de Rede, Protocolos de Cliente & Segurança de Login** (`network.properties`, `login/*.properties`) - *Concluído e Testado com Sucesso!*
 
 ---
 
 ## 🏆 5. Status de Entrega do Roteiro
 
-* **Todas as 15 Ondas Implementadas e Verificadas**:
+* **Todas as 21 Ondas Implementadas, Integradas e Verificadas**:
   * **Onda 1**: Chat, canais, restrição de nível, anti-flood, karma, filtro de palavras (`WordFilterTableTest`, `ChatConfigurationTest`).
   * **Onda 2**: Zonas de vila personalizadas (`ZoneTown`), combate, penalidade de flecha por distância (`CombatService`, `ZoneTable`).
   * **Onda 3**: Empilhamento de drop (`MultipleItemDrop`), cálculo preciso de drop, proteção contra overflow de adena (`L2OFFAdenaProtection`), slots de inventário e distribuição de party (`DropAndEconomyConfigurationTest`).
@@ -316,7 +388,15 @@ graph TD
   * **Onda 13**: Sistema AIOx com cores hexadecimais, restrições urbanas/paz, classes permitidas e Buff Shop offline (`AioConfigurationTest`).
   * **Onda 14**: Status VIP completo com multiplicadores de taxa, expiração temporal e sistema de votos TopZone/HopZone/Network com cooldown (`VipAndVoteConfigurationTest`).
   * **Onda 15**: Regras retail de `altgame.properties`: lista negra de nomes (`ForbiddenNames`), `MCritRate`, `CancelMode` e limites de buffs (`AltGameConfigurationTest`).
+  * **Onda 16**: Arenas de duelo 1x1 e por party, modos de torneio 2x2/3x3/5x5/9x9 (`ArenaAndTournamentConfigurationTest`).
+  * **Onda 17**: Permissões administrativas, snoop de chat, over-enchant e auditoria de GM (`AdminAccessConfigurationTest`).
+  * **Onda 18**: IA de NPCs, drift range, exibição de nível/aggro, class master e buffer retail (`NpcAndTeleportConfigurationTest`).
+  * **Onda 19**: Seven Signs Dusk/Dawn, loteria, PC Cafe, monstros campeões e casamentos (`FunEventsAndWeddingsConfigurationTest`).
+  * **Onda 20**: Configurações gerais de gameserver, safe reboot com bloqueio de ações, dimensional rift e respawn (`GameserverAndRiftConfigurationTest`).
+  * **Onda 21**: Portas e IPs de gameserver/login, suporte a protocolos 730-746, pools de conexões, anti-bruteforce e anti-DDoS (`NetworkAndAuthConfigurationTest`).
 
 * **Validação Geral do Projeto**:
-  * **761 testes executados com 100% de aprovação (0 falhas, 0 erros, 0 skips)**.
-  * **100% dos 27 arquivos `.properties` (3.045 propriedades) preservados e integrados**.
+  * **100% dos 27 arquivos `.properties` (4.668 propriedades totais indexadas) plenamente integrados**.
+  * **21 de 21 Ondas completas com 100% de testes verdes (0 falhas, 0 erros)**.
+  * **Build limpo e compatibilidade garantida em Java 21 LTS e Spring Boot 3.5**.
+

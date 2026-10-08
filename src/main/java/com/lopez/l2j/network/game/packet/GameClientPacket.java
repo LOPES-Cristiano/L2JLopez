@@ -226,15 +226,26 @@ public sealed interface GameClientPacket {
 	record RequestHennaList() implements GameClientPacket {
 	}
 
-	/** 0xbb - solicitacao de detalhes de uma tatuagem. */
+	/** 0xbb - solicitacao de detalhes de uma tatuagem para gravacao. */
 	record RequestHennaItemInfo(int symbolId) implements GameClientPacket {
 	}
 
-	/** 0xbc - equipar tatuagem. */
+	/** 0xbc - confirmacao de gravacao de tatuagem. */
 	record RequestHennaEquip(int symbolId) implements GameClientPacket {
 	}
 
-	/** 0xbd - remover tatuagem. */
+	/** 0xbd - solicitacao da lista de tatuagens atuais para remocao. */
+	record RequestHennaUnequipList(int symbolId) implements GameClientPacket {
+	}
+
+	/** 0xbe - solicitacao de detalhes de remocao de uma tatuagem. */
+	record RequestHennaUnequipInfo(int symbolId) implements GameClientPacket {
+	}
+
+	/** 0xbf - confirmacao de remocao de tatuagem. */
+	record RequestHennaUnequip(int symbolId) implements GameClientPacket {
+	}
+
 	record RequestHennaRemove(int symbolId) implements GameClientPacket {
 	}
 
@@ -438,7 +449,9 @@ public sealed interface GameClientPacket {
 					case 0xba -> new RequestHennaList();
 					case 0xbb -> new RequestHennaItemInfo(r.readD());
 					case 0xbc -> new RequestHennaEquip(r.readD());
-					case 0xbd -> new RequestHennaRemove(r.readD());
+					case 0xbd -> new RequestHennaUnequipList(r.remaining() >= 4 ? r.readD() : 0);
+					case 0xbe -> new RequestHennaUnequipInfo(r.readD());
+					case 0xbf -> new RequestHennaUnequip(r.readD());
 					case 0xc1 -> readMakeMacro(r);
 					case 0xc2 -> new RequestDeleteMacro(r.readD());
 					case 0xc7 -> r.remaining() >= 1 ? new RequestSSQStatus(r.readC()) : new Unknown(op, -1);

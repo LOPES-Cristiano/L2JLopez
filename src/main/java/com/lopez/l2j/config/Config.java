@@ -3,6 +3,7 @@ package com.lopez.l2j.config;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -33,6 +34,8 @@ public final class Config {
 	public static float RATE_DROP_MANOR = 1.0f;
 	public static float RATE_RAID_DROP_ITEMS = 1.0f;
 	public static int RATE_EXTR_FISH = 1;
+	public static int MAX_ONLINE_USERS = 1000;
+	public static int GEODATA = 0;
 
 	public static boolean ALLOW_VIP_XPSP = false;
 	public static float VIP_XP = 1.0f;
@@ -78,12 +81,6 @@ public final class Config {
 	public static int BANKING_SYSTEM_GOLDBARS = 1;
 	public static int BANKING_SYSTEM_ADENA = 500000000;
 
-	public static boolean CHAMPION_ENABLE = false;
-	public static int CHAMPION_FREQUENCY = 5;
-	public static int CHAMPION_MIN_LVL = 20;
-	public static int CHAMPION_MAX_LVL = 70;
-	public static int CHAMPION_HP = 8;
-	public static int CHAMPION_REWARDS = 8;
 
 	public static boolean ANNOUNCE_PK_PVP = false;
 	public static boolean ANNOUNCE_PK_PVP_NORMAL_MESSAGE = true;
@@ -493,13 +490,69 @@ public final class Config {
 	public static boolean PVP_CONGRATULATIONS_MSG = true;
 
 	// =========================================================================
+	// HENNA & DYES (formulas.properties / altgame.properties)
+	// =========================================================================
+	public static int LIMIT_HENNA_INT = 5;
+	public static int LIMIT_HENNA_STR = 5;
+	public static int LIMIT_HENNA_MEN = 5;
+	public static int LIMIT_HENNA_CON = 5;
+	public static int LIMIT_HENNA_WIT = 5;
+	public static int LIMIT_HENNA_DEX = 5;
+
+	// =========================================================================
 	// ONDA 9: NPCS, RAID BOSSES & GRAND BOSSES (bosses.properties, npc.properties, altgame.properties)
 	// =========================================================================
 	public static boolean ANNOUNCE_RAID_SPAWN = false;
+	public static boolean ANNOUNCE_RAID_DEATH = true;
 	public static int ALT_MOB_NO_ATTACK_WITH_LEVEL_DIFFERENCE = -1;
 	public static int MAX_DRIFT_RANGE = 120;
 	public static boolean DISABLE_RAID_BOSS_FOSSILIZATION = false;
 	public static int MAX_LEVEL_RAID_BOSS_CURSE = 87;
+
+	// Raid Boss Penalties & Curse (Dream / Lucera)
+	public static int RAID_MAX_LEVEL_DIFF = 8;
+	public static boolean PARALIZE_ON_RAID_LEVEL_DIFF = true;
+	public static int DEEP_BLUE_DROP_RAID_MAX_DIFF = 2;
+
+	// Raid Boss Rate & Stat Modifiers
+	public static float RAID_MIN_RESPAWN_MULTIPLIER = 1.0f;
+	public static float RAID_MAX_RESPAWN_MULTIPLIER = 1.0f;
+	public static float RATE_RAID_EXP = 1.0f;
+	public static float RATE_RAID_SP = 1.0f;
+	public static float RATE_RAID_REGEN = 1.0f;
+	public static float RATE_RAID_DEFENSE = 1.0f;
+	public static float RATE_RAID_ATTACK = 1.0f;
+	public static float RAID_BOSS_P_ATK_MODIFIER = 1.0f;
+	public static float RAID_BOSS_M_ATK_MODIFIER = 1.0f;
+	public static float RAID_BOSS_MAX_HP_MODIFIER = 1.0f;
+	public static float RAID_BOSS_MAX_MP_MODIFIER = 1.0f;
+	public static float RAID_BOSS_P_DEF_MODIFIER = 1.0f;
+	public static float RAID_BOSS_M_DEF_MODIFIER = 1.0f;
+
+	// Raid AI & Home behavior
+	public static boolean RETURN_HOME_BOSSES_FROM_PVP = false;
+	public static boolean RETURN_HOME_BOSSES_FROM_TOWN = true;
+	public static int ALL_MINIONS_RESPAWN_INTERVAL = 5; // minutos
+
+	// Grand Boss Entry & Mechanics (Dream / Lucera)
+	public static boolean QUEST_REQUIRED_FOR_BOSS = true;
+	public static boolean AUTO_LOOT_GRAND = false;
+	public static boolean CAN_ATTACK_FROM_ANOTHER_ZONE_TO_EPIC = false;
+
+	public static int QUEEN_ANT_MAX_SAFE_LEVEL = 48;
+	public static boolean ZAKEN_DOOR_CLOSED_DEFAULT = true;
+	public static String ZAKEN_DOOR_OPEN_HOUR = "0";
+	public static int ZAKEN_DOOR_OPEN_TIME = 5; // minutos
+	public static int ZAKEN_MAX_LEVEL_IN_ZONE = 80;
+	public static boolean ZAKEN_USE_TELEPORT = true;
+	public static boolean ORFEN_USE_TELEPORT = true;
+	public static int VALAKAS_LAIR_CAPACITY = 500;
+	public static boolean BAIUM_CHECK_QUEST_FOR_AWAKE = true;
+	public static int BAIUM_UNSPAWN_CUBE = 300; // segundos
+	public static int FRINTEZZA_MIN_PARTY_IN_CC = 1;
+	public static int FRINTEZZA_MAX_PARTY_IN_CC = 222;
+	public static int FRINTEZZA_TOMB_PASS_TIME = 35; // minutos
+
 
 	// =========================================================================
 	// ONDA 10: OLIMPIADAS & CICLO DOS HEROIS (olympiad.properties)
@@ -657,6 +710,7 @@ public final class Config {
 	public static int ALT_HERO_TIME = 100;
 	public static int ALT_CH_TIME = 1;
 	public static boolean ENABLE_MODIFY_SKILL_DURATION = true;
+	public static Map<Integer, Integer> SKILL_DURATION_LIST = Collections.emptyMap();
 	public static int MAX_BUFF_AMOUNT = 50;
 	public static boolean CANCEL_LESSER_EFFECT = true;
 	public static boolean STORE_SKILL_COOLTIME = true;
@@ -675,6 +729,218 @@ public final class Config {
 	public static String CANCEL_MODE = "new";
 	public static boolean JAIL_IS_PVP_ZONE = false;
 	public static List<String> FORBIDDEN_NAMES = List.of("admin", "gm", "gamemaster", "annoucements");
+
+	// =========================================================================
+	// ONDA 16: DUELOS EM ARENA & TORNEIOS (ArenaDuel.properties, tournament.properties)
+	// =========================================================================
+	public static boolean ARENA_DUEL_ENABLE = true;
+	public static int ARENA_DUEL_CHECK_INTERVAL = 15;
+	public static int ARENA_DUEL_CALL_INTERVAL = 60;
+	public static int ARENA_DUEL_WAIT_INTERVAL = 20;
+	public static List<Integer> ARENA_DUEL_ITEMS_RESTRICTION = List.of(1538, 5858);
+	public static boolean ARENA_ALLOW_S = true;
+	public static String ARENA_DUEL_REWARD = "3470,5";
+	public static boolean TOURNAMENT_1X1_ENABLE = false;
+	public static int TOURNAMENT_CHECK_INTERVAL = 15;
+	public static int TOURNAMENT_CALL_INTERVAL = 60;
+	public static int TOURNAMENT_WAIT_INTERVAL = 20;
+	public static List<Integer> TOURNAMENT_ITEMS_RESTRICTION = List.of(1538, 5858);
+	public static String TOURNAMENT_1X1_REWARD = "3470,5";
+	public static boolean TOURNAMENT_1X1_HWID_BLOCK = false;
+
+	// =========================================================================
+	// ONDA 17: ADMINISTRACAO & ACESSO GM (access.properties)
+	// =========================================================================
+	public static boolean GM_STARTUP_INVISIBLE = false;
+	public static boolean GM_STARTUP_INVULNERABLE = false;
+	public static boolean GM_STARTUP_SILENCE = false;
+	public static boolean GM_STARTUP_AUTO_LIST = false;
+	public static boolean SHOW_GM_LOGIN = false;
+	public static boolean EVERYONE_HAS_ADMIN_RIGHTS = false;
+	public static boolean GM_ITEM_RESTRICTION = false;
+	public static int GM_MAX_ENCHANT = 65535;
+	public static int STANDARD_RESPAWN_DELAY = 60;
+	public static boolean GM_AUDIT = true;
+	public static boolean SHOW_HTML_CHAT = true;
+	public static String GM_NAME_COLOR = "FF9900";
+	public static String GM_TITLE_COLOR = "0099FF";
+
+	// =========================================================================
+	// ONDA 18: SERVICOS DE NPC, TELEPORTES & CLASS MASTER (npc.properties)
+	// =========================================================================
+	public static boolean FREE_TELEPORTING = false;
+	public static int FREE_TELEPORTING_MIN_LVL = 1;
+	public static int FREE_TELEPORTING_MAX_LVL = 99;
+	public static boolean NOBLE_PASS_FREE_TP = false;
+	public static int NOBLE_PASS_FREE_TP_MIN_LVL = 1;
+	public static int NOBLE_PASS_FREE_TP_MAX_LVL = 99;
+	public static boolean CLASS_MASTER = true;
+	public static boolean ALT_CLASS_MASTER = true;
+	public static boolean CLASS_MASTER_UPDATE_STRIDER = false;
+	public static boolean CLASS_MASTER_ENTIRE_TREE = false;
+	public static boolean ALLOW_RENT_PET = false;
+	public static boolean ALLOW_WYVERN_UPGRADER = false;
+	public static boolean ALT_MOB_AGGRO_IN_PEACE_ZONE = true;
+	public static boolean ALT_ATTACKABLE_NPCS = false;
+	public static boolean ALLOW_PET_WALKER = true;
+	public static int MANAGER_CRYSTAL_COUNT = 25;
+	public static boolean ALLOW_LETHAL_PROTECTION_MOBS = false;
+	public static List<Integer> LETHAL_PROTECTED_MOBS = List.of(35062);
+
+	// =========================================================================
+	// ONDA 19: FUN EVENTS, MINIGAMES & CASAMENTO (fun_events.properties)
+	// =========================================================================
+	public static boolean ALT_CASTLE_FOR_DAWN = true;
+	public static boolean ALT_CASTLE_FOR_DUSK = true;
+	public static boolean ALT_REQUIRE_CLAN_CASTLE = false;
+	public static int ALT_JOIN_DAWN_COST = 50000;
+	public static boolean ANNOUNCE_MAMMON_SPAWN = false;
+	public static boolean STRICT_SEVEN_SIGNS = true;
+	public static boolean ANNOUNCE_7S = true;
+	public static int ALT_FESTIVAL_MIN_PLAYER = 5;
+	public static int ALT_MAX_PLAYER_CONTRIB = 1000000;
+	public static int ALT_FESTIVAL_MANAGER_START = 120000;
+	public static int ALT_FESTIVAL_LENGTH = 1080000;
+	public static int ALT_FESTIVAL_CYCLE_LENGTH = 2280000;
+	public static double ALT_DAWN_GATES_PDEF_MULT = 1.1;
+	public static double ALT_DUSK_GATES_PDEF_MULT = 0.8;
+	public static double ALT_DAWN_GATES_MDEF_MULT = 1.1;
+	public static double ALT_DUSK_GATES_MDEF_MULT = 0.8;
+	public static boolean PC_CAFFE_ENABLED = false;
+	public static int PC_CAFE_INTERVAL = 10;
+	public static int PC_CAFE_MIN_LEVEL = 20;
+	public static int PC_CAFE_MAX_LEVEL = 80;
+	public static int PC_CAFE_MIN_SCORE = 0;
+	public static int PC_CAFE_MAX_SCORE = 10;
+	public static int ALT_LOTTERY_PRIZE = 50000;
+	public static int ALT_LOTTERY_TICKET_PRICE = 2000;
+	public static double ALT_LOTTERY_5_NUMBER_RATE = 0.6;
+	public static double ALT_LOTTERY_4_NUMBER_RATE = 0.2;
+	public static double ALT_LOTTERY_3_NUMBER_RATE = 0.2;
+	public static int ALT_LOTTERY_2_AND_1_NUMBER_PRIZE = 200;
+	public static boolean CHAMPION_ENABLE = false;
+	public static int CHAMPION_FREQUENCY = 0;
+	public static int CHAMPION_MIN_LVL = 20;
+	public static int CHAMPION_MAX_LVL = 60;
+	public static int CHAMPION_HP = 7;
+	public static int CHAMPION_REWARDS = 8;
+	public static boolean CHAMPION_PASSIVE = false;
+	public static String CHAMPION_TITLE = "Champion";
+	public static double CHAMPION_HP_REGEN = 1.0;
+	public static double CHAMPION_ATK = 1.0;
+	public static double CHAMPION_SPD_ATK = 1.0;
+	public static int CHAMPION_ADENAS_REWARDS = 1;
+	public static int CHAMPION_EXP_SP = 8;
+	public static boolean CHAMPION_BOSS = false;
+	public static boolean CHAMPION_MINIONS = false;
+	public static int CHAMPION_SPECIAL_ITEM_LEVEL_DIFF = 0;
+	public static int CHAMPION_SPECIAL_ITEM_CHANCE = 0;
+	public static int CHAMPION_SPECIAL_ITEM_ID = 6393;
+	public static int CHAMPION_SPECIAL_ITEM_AMOUNT = 1;
+	public static boolean ALLOW_WEDDING = true;
+	public static boolean SPAWN_WEDDING_NPC = false;
+	public static int WEDDING_PRICE = 500000;
+	public static boolean WEDDING_PUNISH_INFIDELITY = true;
+	public static boolean WEDDING_TELEPORT = true;
+	public static int WEDDING_TELEPORT_PRICE = 500;
+	public static int WEDDING_TELEPORT_INTERVAL = 120;
+	public static boolean WEDDING_ALLOW_SAME_SEX = false;
+	public static boolean WEDDING_FORMAL_WEAR = true;
+	public static int WEDDING_DIVORCE_COSTS = 20;
+	public static boolean WEDDING_GIVE_BOW = true;
+	public static boolean WEDDING_HONEYMOON = false;
+	public static boolean WEDDING_USE_NICK_COLOR = true;
+	public static String WEDDING_NORMAL_PAIR_NICK_COLOR = "BF0000";
+	public static String WEDDING_GAY_PAIR_NICK_COLOR = "0000BF";
+	public static String WEDDING_LESBI_PAIR_NICK_COLOR = "BF00BF";
+	public static boolean MEDAL_ADD_DROP = false;
+	public static int MEDAL_1_DROP_CHANCE = 10;
+	public static int MEDAL_2_DROP_CHANCE = 2;
+	public static boolean CRISTMAS_ADD_DROP = false;
+	public static int CRISTMAS_DROP_CHANCE = 10;
+	public static int CRISTMAS_TREE_LIFE_TIME = 5;
+	public static boolean L2_DAY_ADD_DROP = false;
+	public static int L2_DAY_DROP_CHANCE = 10;
+	public static boolean BIG_SQUASH_ADD_DROP = false;
+	public static int BIG_SQUASH_DROP_CHANCE = 10;
+
+	// =========================================================================
+	// ONDA 20: GAMESERVER, SAFE REBOOT, DIMENSIONAL RIFT & RESPAWN (gameserver.properties)
+	// =========================================================================
+	public static int REQUEST_SERVER_ID = 1;
+	public static boolean ACCEPT_ALTERNATE_ID = true;
+	public static String TIME_ZONE = "America/Sao_Paulo";
+	public static boolean BAN_CHAT_LOG = true;
+	public static boolean BAN_ACCOUNT_LOG = true;
+	public static boolean JAIL_LOG = true;
+	public static boolean PLAYER_BAN_LOG = true;
+	public static boolean CLASSIC_ANNOUNCE_MODE = true;
+	public static boolean ANNOUNCE_BAN_CHAT = false;
+	public static boolean ANNOUNCE_UNBAN_CHAT = false;
+	public static boolean ANNOUNCE_BAN_ACCOUNT = false;
+	public static boolean ANNOUNCE_UNBAN_ACCOUNT = false;
+	public static boolean ANNOUNCE_JAIL = false;
+	public static boolean ANNOUNCE_UNJAIL = false;
+	public static boolean ANNOUNCE_BAN_CHAR = false;
+	public static boolean ANNOUNCE_UNBAN_CHAR = false;
+	public static int GLOBAL_BAN_TIME = 15;
+	public static boolean SAFE_REBOOT = true;
+	public static int SAFE_REBOOT_TIME = 30;
+	public static boolean SAFE_REBOOT_DISABLE_ENCHANT = true;
+	public static boolean SAFE_REBOOT_DISABLE_TELEPORT = true;
+	public static boolean SAFE_REBOOT_DISABLE_CREATE_ITEM = true;
+	public static boolean SAFE_REBOOT_DISABLE_TRANSACTION = true;
+	public static boolean SAFE_REBOOT_DISABLE_PC_INTERACTION = true;
+	public static boolean SAFE_REBOOT_DISABLE_NPC_INTERACTION = true;
+	public static boolean ONLY_CLAN_LEADER_CAN_SIT_ON_THRONE = true;
+	public static int RIFT_MIN_PARTY_SIZE = 2;
+	public static int MAX_RIFT_JUMPS = 4;
+	public static int RIFT_SPAWN_DELAY = 10000;
+	public static int AUTO_JUMPS_DELAY_MIN = 480;
+	public static int AUTO_JUMPS_DELAY_MAX = 600;
+	public static double BOSS_ROOM_TIME_MULTIPLY = 1.5;
+	public static int RECRUIT_COST = 18;
+	public static int SOLDIER_COST = 21;
+	public static int OFFICER_COST = 24;
+	public static int CAPTAIN_COST = 27;
+	public static int COMMANDER_COST = 30;
+	public static int HERO_COST = 33;
+	public static boolean RESPAWN_RANDOM_IN_TOWN = true;
+	public static int RESPAWN_RANDOM_MAX_OFFSET = 20;
+	public static int RESPAWN_RESTORE_CP = 30;
+	public static int RESPAWN_RESTORE_HP = 70;
+	public static int RESPAWN_RESTORE_MP = 40;
+	public static int RAID_MINION_RESPAWN_TIME = 300000;
+	public static int ALT_DEFAULT_RESTART_TOWN = 0;
+	public static boolean USE_MONSTER_RND_SPAWN = true;
+	public static int RND_SPAWN_ZONE = 300;
+	public static boolean SPAWN_CLASS_MASTER = true;
+	public static String CONFIG_CLASS_MASTER = "1;[57(100000)];[];2;[57(1000000)];[];3;[57(10000000)],[5575(1000000)];[6622(1)]";
+	public static boolean ALLOW_DIALOG_CLASS_MASTER = true;
+	public static boolean CLASS_MASTER_POPUP_WINDOW = true;
+
+	// =========================================================================
+	// ONDA 21: NETWORK & LOGIN PROTOCOLS (network.properties, authserver.properties)
+	// =========================================================================
+	public static int MIN_PROTOCOL_VERSION = 730;
+	public static int MAX_PROTOCOL_VERSION = 746;
+	public static int MAXIMUM_DB_CONNECTIONS = 500;
+	public static boolean ACCEPT_NEW_GAME_SERVER = false;
+	public static int GM_MIN_LEVEL = 1;
+	public static boolean BRUT_PROTECTION = true;
+	public static int SESSION_TTL = 15;
+	public static int MAX_SESSIONS = 100;
+	public static int MAX_ACCOUNT_REGISTRATION = 3000;
+	public static boolean ENABLE_FLOOD_PROTECTION = true;
+	public static int FAST_CONNECTION_LIMIT = 15;
+	public static int NORMAL_CONNECTION_TIME = 500;
+	public static int FAST_CONNECTION_TIME = 250;
+	public static int MAX_CONNECTION_PER_IP = 5;
+	public static int INACTIVE_TIMEOUT = 3;
+	public static int LOGIN_AUTH_PORT = 9014;
+	public static String LOGIN_AUTH_HOSTNAME = "127.0.0.1";
+	public static int IP_UPDATE_TIME = 10;
+	public static int LOGIN_MAX_DB_CONNECTIONS = 1000;
 
 	static {
 		load();
@@ -1112,8 +1378,15 @@ public final class Config {
 		ALT_SUBCLASS_SKILLS = ConfigLoader.getBoolean("AltSubClassSkills", false);
 		INCREASE_WEIGHT_LIMIT_BY_LEVEL = ConfigLoader.getBoolean("IncreaseWeightLimitByLevel", true);
 		PLAYER_SPAWN_PROTECTION = ConfigLoader.getInt("PlayerSpawnProtection", 0);
-		PLAYER_FAKE_DEATH_UP_PROTECTION = ConfigLoader.getInt("PlayerFakeDeathUpProtection", 0);
 		DEATH_PENALTY_CHANCE = ConfigLoader.getInt("DeathPenaltyChance", 20);
+
+		// Henna limits (formulas.properties / altgame.properties)
+		LIMIT_HENNA_INT = ConfigLoader.getInt("HennaLimitINT", 5);
+		LIMIT_HENNA_STR = ConfigLoader.getInt("HennaLimitSTR", 5);
+		LIMIT_HENNA_MEN = ConfigLoader.getInt("HennaLimitMEN", 5);
+		LIMIT_HENNA_CON = ConfigLoader.getInt("HennaLimitCON", 5);
+		LIMIT_HENNA_WIT = ConfigLoader.getInt("HennaLimitWIT", 5);
+		LIMIT_HENNA_DEX = ConfigLoader.getInt("HennaLimitDEX", 5);
 
 		// Custom properties (custom.properties)
 		WEAR_DELAY = ConfigLoader.getInt("WearDelay", 5);
@@ -1129,12 +1402,54 @@ public final class Config {
 		GOLD_BAR_PRICE = ConfigLoader.getInt("GoldBarPrice", 250000000);
 		GOLD_BAR_ID = ConfigLoader.getInt("GoldBarId", 3470);
 
-		// Onda 9
+		// Onda 9: Bosses, Raids e Grand Bosses
 		ANNOUNCE_RAID_SPAWN = ConfigLoader.getBoolean("AnnounceRaidSpawn", false);
+		ANNOUNCE_RAID_DEATH = ConfigLoader.getBoolean("AnnounceRaidDeath", true);
 		ALT_MOB_NO_ATTACK_WITH_LEVEL_DIFFERENCE = ConfigLoader.getInt("AltMobNoAttackWithLevelDifference", -1);
 		MAX_DRIFT_RANGE = ConfigLoader.getInt("MaxDriftRange", 120);
 		DISABLE_RAID_BOSS_FOSSILIZATION = ConfigLoader.getBoolean("DisableRaidBossFossilization", false);
 		MAX_LEVEL_RAID_BOSS_CURSE = ConfigLoader.getInt("MaxLevelRaidBossCurse", 87);
+
+		RAID_MAX_LEVEL_DIFF = ConfigLoader.getInt("RaidMaxLevelDiff", 8);
+		PARALIZE_ON_RAID_LEVEL_DIFF = ConfigLoader.getBoolean("ParalizeOnRaidLevelDiff", true);
+		DEEP_BLUE_DROP_RAID_MAX_DIFF = ConfigLoader.getInt("DeepBlueDropRaidMaxDiff", 2);
+
+		RAID_MIN_RESPAWN_MULTIPLIER = ConfigLoader.getFloat("RaidMinRespawnMultiplier", 1.0f);
+		RAID_MAX_RESPAWN_MULTIPLIER = ConfigLoader.getFloat("RaidMaxRespawnMultiplier", 1.0f);
+		RATE_RAID_EXP = ConfigLoader.getFloat("RateExpRaidBoss", 1.0f);
+		RATE_RAID_SP = ConfigLoader.getFloat("RateSpRaidBoss", 1.0f);
+		RATE_RAID_REGEN = ConfigLoader.getFloat("RateRaidRegen", 1.0f);
+		RATE_RAID_DEFENSE = ConfigLoader.getFloat("RateRaidDefense", 1.0f);
+		RATE_RAID_ATTACK = ConfigLoader.getFloat("RateRaidAttack", 1.0f);
+		RAID_BOSS_P_ATK_MODIFIER = ConfigLoader.getFloat("RaidBossPAtkModifier", 1.0f);
+		RAID_BOSS_M_ATK_MODIFIER = ConfigLoader.getFloat("RaidBossMAtkModifier", 1.0f);
+		RAID_BOSS_MAX_HP_MODIFIER = ConfigLoader.getFloat("RaidBossMaxHpModifier", 1.0f);
+		RAID_BOSS_MAX_MP_MODIFIER = ConfigLoader.getFloat("RaidBossMaxMpModifier", 1.0f);
+		RAID_BOSS_P_DEF_MODIFIER = ConfigLoader.getFloat("RaidBossPDefModifier", 1.0f);
+		RAID_BOSS_M_DEF_MODIFIER = ConfigLoader.getFloat("RaidBossMDefModifier", 1.0f);
+
+		RETURN_HOME_BOSSES_FROM_PVP = ConfigLoader.getBoolean("ReturnToHomeBossesFromPvPZones", false);
+		RETURN_HOME_BOSSES_FROM_TOWN = ConfigLoader.getBoolean("ReturnToHomeBossesFromTownZones", true);
+		ALL_MINIONS_RESPAWN_INTERVAL = ConfigLoader.getInt("AllMinionsRespawnInterval", 5);
+
+		QUEST_REQUIRED_FOR_BOSS = ConfigLoader.getBoolean("QuestRequired", true);
+		AUTO_LOOT_GRAND = ConfigLoader.getBoolean("AutoLootGrand", false);
+		CAN_ATTACK_FROM_ANOTHER_ZONE_TO_EPIC = ConfigLoader.getBoolean("CanAttackFromAnotherZoneToEpic", false);
+
+		QUEEN_ANT_MAX_SAFE_LEVEL = ConfigLoader.getInt("QueenAntMaxSafeLevel", 48);
+		ZAKEN_DOOR_CLOSED_DEFAULT = ConfigLoader.getBoolean("ZakenDoorClosedDefault", true);
+		ZAKEN_DOOR_OPEN_HOUR = ConfigLoader.getProperty("ZakenDoorOpenHour", "0");
+		ZAKEN_DOOR_OPEN_TIME = ConfigLoader.getInt("ZakenDoorOpenTime", 5);
+		ZAKEN_MAX_LEVEL_IN_ZONE = ConfigLoader.getInt("ZakenMaxLevelInZone", 80);
+		ZAKEN_USE_TELEPORT = ConfigLoader.getBoolean("ZakenUseTeleport", true);
+		ORFEN_USE_TELEPORT = ConfigLoader.getBoolean("OrfenUseTeleport", true);
+		VALAKAS_LAIR_CAPACITY = ConfigLoader.getInt("ValakasLairCapacity", 500);
+		BAIUM_CHECK_QUEST_FOR_AWAKE = ConfigLoader.getBoolean("BaiumCheckQuestForAwake", true);
+		BAIUM_UNSPAWN_CUBE = ConfigLoader.getInt("BaiumUnspawnCube", 300);
+		FRINTEZZA_MIN_PARTY_IN_CC = ConfigLoader.getInt("FrintezzaMinPartyInCC", 1);
+		FRINTEZZA_MAX_PARTY_IN_CC = ConfigLoader.getInt("FrintezzaMaxPartyInCC", 222);
+		FRINTEZZA_TOMB_PASS_TIME = ConfigLoader.getInt("FrintezzaTombPassTime", 35);
+
 
 		// Onda 10
 		OLYMPIAD_ENABLED = ConfigLoader.getBoolean("OlympiadEnabled", true);
@@ -1280,6 +1595,8 @@ public final class Config {
 		ALT_HERO_TIME = ConfigLoader.getInt("AltHeroTime", 100);
 		ALT_CH_TIME = ConfigLoader.getInt("AltChTime", 1);
 		ENABLE_MODIFY_SKILL_DURATION = ConfigLoader.getBoolean("EnableModifySkillDuration", true);
+		String skillDur = ConfigLoader.getProperty("SkillDurationList", "");
+		SKILL_DURATION_LIST = parseSkillDurationList(skillDur);
 		MAX_BUFF_AMOUNT = ConfigLoader.getInt("MaxBuffAmount", 50);
 		CANCEL_LESSER_EFFECT = ConfigLoader.getBoolean("CancelLesserEffect", true);
 		STORE_SKILL_COOLTIME = ConfigLoader.getBoolean("StoreSkillCooltime", true);
@@ -1302,6 +1619,206 @@ public final class Config {
 				.map(String::trim)
 				.filter(s -> !s.isEmpty())
 				.toList();
+
+		// Onda 16
+		ARENA_DUEL_ENABLE = ConfigLoader.getBoolean("ArenaDuelEnable", true);
+		ARENA_DUEL_CHECK_INTERVAL = ConfigLoader.getInt("ArenaDuelBattleCheckInterval", 15);
+		ARENA_DUEL_CALL_INTERVAL = ConfigLoader.getInt("ArenaDuelBattleCallInterval", 60);
+		ARENA_DUEL_WAIT_INTERVAL = ConfigLoader.getInt("ArenaDuelBattleWaitInterval", 20);
+		ARENA_DUEL_ITEMS_RESTRICTION = getIntList("ArenaDuelItemsRestriction", List.of(1538, 5858));
+		ARENA_ALLOW_S = ConfigLoader.getBoolean("ArenaAllowS", true);
+		ARENA_DUEL_REWARD = ConfigLoader.getProperty("ArenaDuelReward", "3470,5");
+		TOURNAMENT_1X1_ENABLE = ConfigLoader.getBoolean("Tournament1x1Enable", false);
+		TOURNAMENT_CHECK_INTERVAL = ConfigLoader.getInt("TournamentBattleCheckInterval", 15);
+		TOURNAMENT_CALL_INTERVAL = ConfigLoader.getInt("TournamentBattleCallInterval", 60);
+		TOURNAMENT_WAIT_INTERVAL = ConfigLoader.getInt("TournamentBattleWaitInterval", 20);
+		TOURNAMENT_ITEMS_RESTRICTION = getIntList("TournamentItemsRestriction", List.of(1538, 5858));
+		TOURNAMENT_1X1_REWARD = ConfigLoader.getProperty("Tournament1x1Reward", "3470,5");
+		TOURNAMENT_1X1_HWID_BLOCK = ConfigLoader.getBoolean("Tournament1x1HwidBlock", false);
+
+		// Onda 17
+		GM_STARTUP_INVISIBLE = ConfigLoader.getBoolean("GMStartupInvisible", false);
+		GM_STARTUP_INVULNERABLE = ConfigLoader.getBoolean("GMStartupInvulnerable", false);
+		GM_STARTUP_SILENCE = ConfigLoader.getBoolean("GMStartupSilence", false);
+		GM_STARTUP_AUTO_LIST = ConfigLoader.getBoolean("GMStartupAutoList", false);
+		SHOW_GM_LOGIN = ConfigLoader.getBoolean("ShowGMLogin", false);
+		EVERYONE_HAS_ADMIN_RIGHTS = ConfigLoader.getBoolean("EveryoneHasAdminRights", false);
+		GM_ITEM_RESTRICTION = ConfigLoader.getBoolean("GmItemRestriction", false);
+		GM_MAX_ENCHANT = ConfigLoader.getInt("GMMaxEnchant", 65535);
+		STANDARD_RESPAWN_DELAY = ConfigLoader.getInt("StandardRespawnDelay", 60);
+		GM_AUDIT = ConfigLoader.getBoolean("GMAudit", true);
+		SHOW_HTML_CHAT = ConfigLoader.getBoolean("ShowHTMLChat", true);
+		GM_NAME_COLOR = ConfigLoader.getProperty("GmNameColor", "FF9900");
+		GM_TITLE_COLOR = ConfigLoader.getProperty("GmTitleColor", "0099FF");
+
+		// Onda 18
+		FREE_TELEPORTING = ConfigLoader.getBoolean("FreeTeleporting", false);
+		FREE_TELEPORTING_MIN_LVL = ConfigLoader.getInt("FreeTeleportingMinLvL", 1);
+		FREE_TELEPORTING_MAX_LVL = ConfigLoader.getInt("FreeTeleportingMaxLvL", 99);
+		NOBLE_PASS_FREE_TP = ConfigLoader.getBoolean("NoblePassFreeTp", false);
+		NOBLE_PASS_FREE_TP_MIN_LVL = ConfigLoader.getInt("NoblePassFreeTpMinLvL", 1);
+		NOBLE_PASS_FREE_TP_MAX_LVL = ConfigLoader.getInt("NoblePassFreeTpMaxLvL", 99);
+		CLASS_MASTER = ConfigLoader.getBoolean("ClassMaster", true);
+		ALT_CLASS_MASTER = ConfigLoader.getBoolean("AltClassMaster", true);
+		CLASS_MASTER_UPDATE_STRIDER = ConfigLoader.getBoolean("ClassMasterUpdateStrider", false);
+		CLASS_MASTER_ENTIRE_TREE = ConfigLoader.getBoolean("ClassMasterEntireTree", false);
+		ALLOW_RENT_PET = ConfigLoader.getBoolean("AllowRentPet", false);
+		ALLOW_WYVERN_UPGRADER = ConfigLoader.getBoolean("AllowWyvernUpgrader", false);
+		ALT_MOB_AGGRO_IN_PEACE_ZONE = ConfigLoader.getBoolean("AltMobAggroInPeaceZone", true);
+		ALT_ATTACKABLE_NPCS = ConfigLoader.getBoolean("AltAttackableNpcs", false);
+		ALLOW_PET_WALKER = ConfigLoader.getBoolean("AllowPetWalker", true);
+		MANAGER_CRYSTAL_COUNT = ConfigLoader.getInt("ManagerCrystalCount", 25);
+		ALLOW_LETHAL_PROTECTION_MOBS = ConfigLoader.getBoolean("AllowLethalProtectionMobs", false);
+		LETHAL_PROTECTED_MOBS = getIntList("LethalProtectedMobs", List.of(35062));
+
+		// Onda 19 (fun_events.properties)
+		ALT_CASTLE_FOR_DAWN = ConfigLoader.getBoolean("AltCastleForDawn", true);
+		ALT_CASTLE_FOR_DUSK = ConfigLoader.getBoolean("AltCastleForDusk", true);
+		ALT_REQUIRE_CLAN_CASTLE = ConfigLoader.getBoolean("AltRequireClanCastle", false);
+		ALT_JOIN_DAWN_COST = ConfigLoader.getInt("AltJoinDawnCost", 50000);
+		ANNOUNCE_MAMMON_SPAWN = ConfigLoader.getBoolean("AnnounceMammonSpawn", false);
+		STRICT_SEVEN_SIGNS = ConfigLoader.getBoolean("StrictSevenSigns", true);
+		ANNOUNCE_7S = ConfigLoader.getBoolean("Announce7s", true);
+		ALT_FESTIVAL_MIN_PLAYER = ConfigLoader.getInt("AltFestivalMinPlayer", 5);
+		ALT_MAX_PLAYER_CONTRIB = ConfigLoader.getInt("AltMaxPlayerContrib", 1000000);
+		ALT_FESTIVAL_MANAGER_START = ConfigLoader.getInt("AltFestivalManagerStart", 120000);
+		ALT_FESTIVAL_LENGTH = ConfigLoader.getInt("AltFestivalLength", 1080000);
+		ALT_FESTIVAL_CYCLE_LENGTH = ConfigLoader.getInt("AltFestivalCycleLength", 2280000);
+		ALT_DAWN_GATES_PDEF_MULT = ConfigLoader.getDouble("AltDawnGatesPdefMult", 1.1);
+		ALT_DUSK_GATES_PDEF_MULT = ConfigLoader.getDouble("AltDuskGatesPdefMult", 0.8);
+		ALT_DAWN_GATES_MDEF_MULT = ConfigLoader.getDouble("AltDawnGatesMdefMult", 1.1);
+		ALT_DUSK_GATES_MDEF_MULT = ConfigLoader.getDouble("AltDuskGatesMdefMult", 0.8);
+		PC_CAFFE_ENABLED = ConfigLoader.getBoolean("PCCaffeEnabled", false);
+		PC_CAFE_INTERVAL = ConfigLoader.getInt("PCCafeInterval", 10);
+		PC_CAFE_MIN_LEVEL = ConfigLoader.getInt("PCCafeMinLevel", 20);
+		PC_CAFE_MAX_LEVEL = ConfigLoader.getInt("PCCafeMaxLevel", 80);
+		PC_CAFE_MIN_SCORE = ConfigLoader.getInt("PCCafeMinScore", 0);
+		PC_CAFE_MAX_SCORE = ConfigLoader.getInt("PCCafeMaxScore", 10);
+		ALT_LOTTERY_PRIZE = ConfigLoader.getInt("AltLotteryPrize", 50000);
+		ALT_LOTTERY_TICKET_PRICE = ConfigLoader.getInt("AltLotteryTicketPrice", 2000);
+		ALT_LOTTERY_5_NUMBER_RATE = ConfigLoader.getDouble("AltLottery5NumberRate", 0.6);
+		ALT_LOTTERY_4_NUMBER_RATE = ConfigLoader.getDouble("AltLottery4NumberRate", 0.2);
+		ALT_LOTTERY_3_NUMBER_RATE = ConfigLoader.getDouble("AltLottery3NumberRate", 0.2);
+		ALT_LOTTERY_2_AND_1_NUMBER_PRIZE = ConfigLoader.getInt("AltLottery2and1NumberPrize", 200);
+		CHAMPION_ENABLE = ConfigLoader.getBoolean("ChampionEnable", false);
+		CHAMPION_FREQUENCY = ConfigLoader.getInt("ChampionFrequency", 0);
+		CHAMPION_PASSIVE = ConfigLoader.getBoolean("ChampionPassive", false);
+		CHAMPION_TITLE = ConfigLoader.getProperty("ChampionTitle", "Champion");
+		CHAMPION_HP = ConfigLoader.getInt("ChampionHp", 7);
+		CHAMPION_HP_REGEN = ConfigLoader.getDouble("ChampionHpRegen", 1.0);
+		CHAMPION_ATK = ConfigLoader.getDouble("ChampionAtk", 1.0);
+		CHAMPION_SPD_ATK = ConfigLoader.getDouble("ChampionSpdAtk", 1.0);
+		CHAMPION_REWARDS = ConfigLoader.getInt("ChampionRewards", 8);
+		CHAMPION_ADENAS_REWARDS = ConfigLoader.getInt("ChampionAdenasRewards", 1);
+		CHAMPION_EXP_SP = ConfigLoader.getInt("ChampionExpSp", 8);
+		CHAMPION_BOSS = ConfigLoader.getBoolean("ChampionBoss", false);
+		CHAMPION_MINIONS = ConfigLoader.getBoolean("ChampionMinions", false);
+		CHAMPION_MIN_LVL = ConfigLoader.getInt("ChampionMinLevel", 20);
+		CHAMPION_MAX_LVL = ConfigLoader.getInt("ChampionMaxLevel", 60);
+		CHAMPION_SPECIAL_ITEM_LEVEL_DIFF = ConfigLoader.getInt("ChampionSpecialItemLevelDiff", 0);
+		CHAMPION_SPECIAL_ITEM_CHANCE = ConfigLoader.getInt("ChampionSpecialItemChance", 0);
+		CHAMPION_SPECIAL_ITEM_ID = ConfigLoader.getInt("ChampionSpecialItemID", 6393);
+		CHAMPION_SPECIAL_ITEM_AMOUNT = ConfigLoader.getInt("ChampionSpecialItemAmount", 1);
+		ALLOW_WEDDING = ConfigLoader.getBoolean("AllowWedding", true);
+		SPAWN_WEDDING_NPC = ConfigLoader.getBoolean("SpawnWeddingNpc", false);
+		WEDDING_PRICE = ConfigLoader.getInt("WeddingPrice", 500000);
+		WEDDING_PUNISH_INFIDELITY = ConfigLoader.getBoolean("WeddingPunishInfidelity", true);
+		WEDDING_TELEPORT = ConfigLoader.getBoolean("WeddingTeleport", true);
+		WEDDING_TELEPORT_PRICE = ConfigLoader.getInt("WeddingTeleportPrice", 500);
+		WEDDING_TELEPORT_INTERVAL = ConfigLoader.getInt("WeddingTeleportInterval", 120);
+		WEDDING_ALLOW_SAME_SEX = ConfigLoader.getBoolean("WeddingAllowSameSex", false);
+		WEDDING_FORMAL_WEAR = ConfigLoader.getBoolean("WeddingFormalWear", true);
+		WEDDING_DIVORCE_COSTS = ConfigLoader.getInt("WeddingDivorceCosts", 20);
+		WEDDING_GIVE_BOW = ConfigLoader.getBoolean("WeddingGiveBow", true);
+		WEDDING_HONEYMOON = ConfigLoader.getBoolean("WeddingHoneyMoon", false);
+		WEDDING_USE_NICK_COLOR = ConfigLoader.getBoolean("WeddingUseNickColor", true);
+		WEDDING_NORMAL_PAIR_NICK_COLOR = ConfigLoader.getProperty("WeddingNormalPairNickColor", "BF0000");
+		WEDDING_GAY_PAIR_NICK_COLOR = ConfigLoader.getProperty("WeddingGayPairNickColor", "0000BF");
+		WEDDING_LESBI_PAIR_NICK_COLOR = ConfigLoader.getProperty("WeddingLesbiPairNickColor", "BF00BF");
+		MEDAL_ADD_DROP = ConfigLoader.getBoolean("MedalAddDrop", false);
+		MEDAL_1_DROP_CHANCE = ConfigLoader.getInt("Medal1DropChance", 10);
+		MEDAL_2_DROP_CHANCE = ConfigLoader.getInt("Medal2DropChance", 2);
+		CRISTMAS_ADD_DROP = ConfigLoader.getBoolean("CristmasAddDrop", false);
+		CRISTMAS_DROP_CHANCE = ConfigLoader.getInt("CristmasDropChance", 10);
+		CRISTMAS_TREE_LIFE_TIME = ConfigLoader.getInt("CristmasTreeLifeTime", 5);
+		L2_DAY_ADD_DROP = ConfigLoader.getBoolean("L2DayAddDrop", false);
+		L2_DAY_DROP_CHANCE = ConfigLoader.getInt("L2DayDropChance", 10);
+		BIG_SQUASH_ADD_DROP = ConfigLoader.getBoolean("BigSquashAddDrop", false);
+		BIG_SQUASH_DROP_CHANCE = ConfigLoader.getInt("BigSquashDropChance", 10);
+
+		// Onda 20 (gameserver.properties)
+		REQUEST_SERVER_ID = ConfigLoader.getInt("RequestServerId", 1);
+		ACCEPT_ALTERNATE_ID = ConfigLoader.getBoolean("AcceptAlternateId", true);
+		TIME_ZONE = ConfigLoader.getProperty("TimeZone", "America/Sao_Paulo");
+		BAN_CHAT_LOG = ConfigLoader.getBoolean("BanChatLog", true);
+		BAN_ACCOUNT_LOG = ConfigLoader.getBoolean("BanAccountLog", true);
+		JAIL_LOG = ConfigLoader.getBoolean("JailLog", true);
+		PLAYER_BAN_LOG = ConfigLoader.getBoolean("PlayerBanLog", true);
+		CLASSIC_ANNOUNCE_MODE = ConfigLoader.getBoolean("ClassicAnnounceMode", true);
+		ANNOUNCE_BAN_CHAT = ConfigLoader.getBoolean("AnnounceBanChat", false);
+		ANNOUNCE_UNBAN_CHAT = ConfigLoader.getBoolean("AnnounceUnbanChat", false);
+		ANNOUNCE_BAN_ACCOUNT = ConfigLoader.getBoolean("AnnounceBanAccount", false);
+		ANNOUNCE_UNBAN_ACCOUNT = ConfigLoader.getBoolean("AnnounceUnBanAccount", false);
+		ANNOUNCE_JAIL = ConfigLoader.getBoolean("AnnounceJail", false);
+		ANNOUNCE_UNJAIL = ConfigLoader.getBoolean("AnnounceUnJail", false);
+		ANNOUNCE_BAN_CHAR = ConfigLoader.getBoolean("AnnounceBanChar", false);
+		ANNOUNCE_UNBAN_CHAR = ConfigLoader.getBoolean("AnnounceUnbanChar", false);
+		GLOBAL_BAN_TIME = ConfigLoader.getInt("GlobalBanTime", 15);
+		SAFE_REBOOT = ConfigLoader.getBoolean("SafeReboot", true);
+		SAFE_REBOOT_TIME = ConfigLoader.getInt("SafeRebootTime", 30);
+		SAFE_REBOOT_DISABLE_ENCHANT = ConfigLoader.getBoolean("SafeRebootDisableEnchant", true);
+		SAFE_REBOOT_DISABLE_TELEPORT = ConfigLoader.getBoolean("SafeRebootDisableTeleport", true);
+		SAFE_REBOOT_DISABLE_CREATE_ITEM = ConfigLoader.getBoolean("SafeRebootDisableCreateItem", true);
+		SAFE_REBOOT_DISABLE_TRANSACTION = ConfigLoader.getBoolean("SafeRebootDisableTransaction", true);
+		SAFE_REBOOT_DISABLE_PC_INTERACTION = ConfigLoader.getBoolean("SafeRebootDisablePcIteraction", true);
+		SAFE_REBOOT_DISABLE_NPC_INTERACTION = ConfigLoader.getBoolean("SafeRebootDisableNpcIteraction", true);
+		ONLY_CLAN_LEADER_CAN_SIT_ON_THRONE = ConfigLoader.getBoolean("OnlyClanleaderCanSitOnThrone", true);
+		RIFT_MIN_PARTY_SIZE = ConfigLoader.getInt("RiftMinPartySize", 2);
+		MAX_RIFT_JUMPS = ConfigLoader.getInt("MaxRiftJumps", 4);
+		RIFT_SPAWN_DELAY = ConfigLoader.getInt("RiftSpawnDelay", 10000);
+		AUTO_JUMPS_DELAY_MIN = ConfigLoader.getInt("AutoJumpsDelayMin", 480);
+		AUTO_JUMPS_DELAY_MAX = ConfigLoader.getInt("AutoJumpsDelayMax", 600);
+		BOSS_ROOM_TIME_MULTIPLY = ConfigLoader.getDouble("BossRoomTimeMultiply", 1.5);
+		RECRUIT_COST = ConfigLoader.getInt("RecruitCost", 18);
+		SOLDIER_COST = ConfigLoader.getInt("SoldierCost", 21);
+		OFFICER_COST = ConfigLoader.getInt("OfficerCost", 24);
+		CAPTAIN_COST = ConfigLoader.getInt("CaptainCost", 27);
+		COMMANDER_COST = ConfigLoader.getInt("CommanderCost", 30);
+		HERO_COST = ConfigLoader.getInt("HeroCost", 33);
+		RESPAWN_RANDOM_IN_TOWN = ConfigLoader.getBoolean("RespawnRandomInTown", true);
+		RESPAWN_RANDOM_MAX_OFFSET = ConfigLoader.getInt("RespawnRandomMaxOffset", 20);
+		RESPAWN_RESTORE_CP = ConfigLoader.getInt("RespawnRestoreCP", 30);
+		RESPAWN_RESTORE_HP = ConfigLoader.getInt("RespawnRestoreHP", 70);
+		RESPAWN_RESTORE_MP = ConfigLoader.getInt("RespawnRestoreMP", 40);
+		RAID_MINION_RESPAWN_TIME = ConfigLoader.getInt("RaidMinionRespawnTime", 300000);
+		ALT_DEFAULT_RESTART_TOWN = ConfigLoader.getInt("AltDefaultRestartTown", 0);
+		USE_MONSTER_RND_SPAWN = ConfigLoader.getBoolean("UseMonsterRndSpawn", true);
+		RND_SPAWN_ZONE = ConfigLoader.getInt("RndSpawnZone", 300);
+		SPAWN_CLASS_MASTER = ConfigLoader.getBoolean("SpawnClassMaster", true);
+		CONFIG_CLASS_MASTER = ConfigLoader.getProperty("ConfigClassMaster", "1;[57(100000)];[];2;[57(1000000)];[];3;[57(10000000)],[5575(1000000)];[6622(1)]");
+		ALLOW_DIALOG_CLASS_MASTER = ConfigLoader.getBoolean("AllowDialogClassMater", true);
+		CLASS_MASTER_POPUP_WINDOW = ConfigLoader.getBoolean("ClassMasterPopupWindow", true);
+
+		// Onda 21 (network.properties, authserver.properties)
+		MIN_PROTOCOL_VERSION = ConfigLoader.getInt("MinProtocolVersion", 730);
+		MAX_PROTOCOL_VERSION = ConfigLoader.getInt("MaxProtocolVersion", 746);
+		MAXIMUM_DB_CONNECTIONS = ConfigLoader.getInt("game/main/network.properties", "MaximumDbConnections", 500);
+		ACCEPT_NEW_GAME_SERVER = ConfigLoader.getBoolean("AcceptNewGameServer", false);
+		GM_MIN_LEVEL = ConfigLoader.getInt("GMMinLevel", 1);
+		BRUT_PROTECTION = ConfigLoader.getBoolean("BrutProtection", true);
+		SESSION_TTL = ConfigLoader.getInt("SessionTTL", 15);
+		MAX_SESSIONS = ConfigLoader.getInt("MaxSessions", 100);
+		MAX_ACCOUNT_REGISTRATION = ConfigLoader.getInt("MaxAccountRegistration", 3000);
+		ENABLE_FLOOD_PROTECTION = ConfigLoader.getBoolean("EnableFloodProtection", true);
+		FAST_CONNECTION_LIMIT = ConfigLoader.getInt("FastConnectionLimit", 15);
+		NORMAL_CONNECTION_TIME = ConfigLoader.getInt("NormalConnectionTime", 500);
+		FAST_CONNECTION_TIME = ConfigLoader.getInt("FastConnectionTime", 250);
+		MAX_CONNECTION_PER_IP = ConfigLoader.getInt("MaxConnectionPerIP", 5);
+		INACTIVE_TIMEOUT = ConfigLoader.getInt("InactiveTimeOut", 3);
+		LOGIN_AUTH_PORT = ConfigLoader.getInt("AuthPort", 9014);
+		LOGIN_AUTH_HOSTNAME = ConfigLoader.getProperty("AuthHostName", "127.0.0.1");
+		IP_UPDATE_TIME = ConfigLoader.getInt("IpUpdateTime", 10);
+		LOGIN_MAX_DB_CONNECTIONS = ConfigLoader.getInt("login/network.properties", "MaximumDbConnections", 1000);
 	}
 
 	// =========================================================================
@@ -1374,5 +1891,26 @@ public final class Config {
 
 	public static Map<String, String> getAllProperties() {
 		return ConfigLoader.getAllRawProperties();
+	}
+
+	private static Map<Integer, Integer> parseSkillDurationList(String str) {
+		if (str == null || str.isBlank()) {
+			return Collections.emptyMap();
+		}
+		Map<Integer, Integer> map = new HashMap<>();
+		String[] entries = str.split(";");
+		for (String entry : entries) {
+			String clean = entry.trim();
+			if (clean.isEmpty()) continue;
+			String[] parts = clean.split(",");
+			if (parts.length == 2) {
+				try {
+					int skillId = Integer.parseInt(parts[0].trim());
+					int durationSec = Integer.parseInt(parts[1].trim());
+					map.put(skillId, durationSec);
+				} catch (Exception ignored) {}
+			}
+		}
+		return Collections.unmodifiableMap(map);
 	}
 }

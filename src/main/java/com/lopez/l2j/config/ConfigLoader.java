@@ -79,32 +79,52 @@ public final class ConfigLoader {
 				? filename.substring(0, filename.length() - ".properties".length()).toLowerCase(Locale.ROOT)
 				: filename.toLowerCase(Locale.ROOT);
 
+		String relPath = configRootDir != null
+				? configRootDir.relativize(file).toString().replace('\\', '/')
+				: filename;
+		if (relPath.endsWith(".properties")) {
+			relPath = relPath.substring(0, relPath.length() - ".properties".length());
+		}
+		relPath = relPath.toLowerCase(Locale.ROOT);
+
 		Map<String, String> perFile = new LinkedHashMap<>();
 
 		// Tenta UTF-8 primeiro, depois ISO-8859-1 se falhar
 		try {
-			readPropertiesFile(file, StandardCharsets.UTF_8, filePrefix, perFile);
+			readPropertiesFile(file, StandardCharsets.UTF_8, filePrefix, relPath, perFile);
 		} catch (Exception e) {
 			try {
-				readPropertiesFile(file, StandardCharsets.ISO_8859_1, filePrefix, perFile);
+				readPropertiesFile(file, StandardCharsets.ISO_8859_1, filePrefix, relPath, perFile);
 			} catch (Exception ex) {
 				log.error("Falha ao ler arquivo de configuracao: {}", file, ex);
 			}
 		}
 
 		FILE_PROPERTIES.put(filename, perFile);
+		FILE_PROPERTIES.put(relPath, perFile);
+		FILE_PROPERTIES.put(relPath + ".properties", perFile);
 	}
 
-	private static void readPropertiesFile(Path file, Charset charset, String filePrefix, Map<String, String> perFile)
+	private static void readPropertiesFile(Path file, Charset charset, String filePrefix, String relPath, Map<String, String> perFile)
 			throws IOException {
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(Files.newInputStream(file), charset))) {
 			String line;
 			int lineNum = 0;
+			StringBuilder continuation = new StringBuilder();
 			while ((line = reader.readLine()) != null) {
 				lineNum++;
 				String trimmed = line.trim();
-				if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith("!")) {
+				if (continuation.isEmpty() && (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith("!"))) {
 					continue;
+				}
+
+				if (trimmed.endsWith("\\")) {
+					continuation.append(trimmed, 0, trimmed.length() - 1);
+					continue;
+				} else if (!continuation.isEmpty()) {
+					continuation.append(trimmed);
+					trimmed = continuation.toString();
+					continuation.setLength(0);
 				}
 
 				int eqIndex = trimmed.indexOf('=');
@@ -124,6 +144,7 @@ public final class ConfigLoader {
 				if (!key.isEmpty()) {
 					RAW_PROPERTIES.put(key, value);
 					RAW_PROPERTIES.put(filePrefix + "." + key, value);
+					RAW_PROPERTIES.put(relPath + "." + key, value);
 
 					String normKey = normalizeKey(key);
 					NORMALIZED_PROPERTIES.put(normKey, value);
@@ -176,6 +197,43 @@ public final class ConfigLoader {
 		}
 		String lower = val.trim().toLowerCase(Locale.ROOT);
 		return lower.equals("true") || lower.equals("1") || lower.equals("yes") || lower.equals("on");
+	}
+
+	public static String getProperty(String fileOrPath, String key, String defaultValue) {
+		if (!loaded) {
+			load();
+		}
+		if (fileOrPath != null && key != null) {
+			String clean = fileOrPath.replace('\\', '/').toLowerCase(Locale.ROOT);
+			if (clean.endsWith(".properties")) {
+				clean = clean.substring(0, clean.length() - ".properties".length());
+			}
+			String val = RAW_PROPERTIES.get(clean + "." + key);
+			if (val != null) {
+				return val;
+			}
+			var map = FILE_PROPERTIES.get(clean);
+			if (map != null && map.containsKey(key)) {
+				return map.get(key);
+			}
+			map = FILE_PROPERTIES.get(clean + ".properties");
+			if (map != null && map.containsKey(key)) {
+				return map.get(key);
+			}
+		}
+		return getProperty(key, defaultValue);
+	}
+
+	public static int getInt(String fileOrPath, String key, int defaultValue) {
+		String val = getProperty(fileOrPath, key, null);
+		if (val == null) {
+			return defaultValue;
+		}
+		try {
+			return Integer.parseInt(val.trim());
+		} catch (NumberFormatException e) {
+			return defaultValue;
+		}
 	}
 
 	public static int getInt(String key, int defaultValue) {

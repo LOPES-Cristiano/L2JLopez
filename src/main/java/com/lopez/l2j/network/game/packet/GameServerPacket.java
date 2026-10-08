@@ -12,6 +12,8 @@ import com.lopez.l2j.game.template.CharTemplate;
 import com.lopez.l2j.network.login.packet.PacketWriter;
 import com.lopez.l2j.game.skill.SkillService;
 import com.lopez.l2j.game.skill.SkillTemplate;
+import java.util.ArrayList;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -168,11 +170,12 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0xF8 SSQInfo (ceu dos Seven Signs): 256 = neutro. */
+	/** 0xF8 SSQInfo (ceu dos Seven Signs): 256 = neutro, 257 = dusk/red, 258 = dawn/blue. */
 	record SsqInfo(int state) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xf8).writeH(256 + state).toByteArray();
+			int sky = state >= 256 ? state : (state == 2 ? 258 : (state == 1 ? 257 : 256));
+			return new PacketWriter().writeC(0xf8).writeH(sky).toByteArray();
 		}
 	}
 
@@ -442,6 +445,10 @@ public sealed interface GameServerPacket {
 		public static final int YOU_HAVE_SUCCEEDED_IN_ENCHANTING_THE_SKILL_S1 = 1440;
 		public static final int YOU_HAVE_FAILED_TO_ENCHANT_THE_SKILL = 1441;
 		public static final int YOU_DONT_HAVE_ENOUGH_SP_TO_ENCHANT_THAT_SKILL = 1443;
+		public static final int THE_SYMBOL_HAS_BEEN_ADDED = 877;
+		public static final int THE_SYMBOL_HAS_BEEN_DELETED = 878;
+		public static final int THE_SYMBOL_CANNOT_BE_DRAWN = 899;
+		public static final int NO_SLOT_EXISTS_TO_DRAW_THE_SYMBOL = 900;
 		public static final int YOU_DONT_HAVE_ENOUGH_EXP_TO_ENCHANT_THAT_SKILL = 1444;
 		public static final int ADD_NEW_SUBCLASS = 1269;
 		public static final int SUBCLASS_TRANSFER_COMPLETED = 1270;
@@ -534,6 +541,10 @@ public sealed interface GameServerPacket {
 				}
 			}
 			return "";
+		}
+
+		public SystemMessage(int id) {
+			this(id, List.of());
 		}
 
 		public static SystemMessage id(int id) {
@@ -853,16 +864,36 @@ public sealed interface GameServerPacket {
 
 	/** 0xe4 HennaInfo: informacoes de tatuagens e modificadores de status do jogador */
 	record HennaInfo(int intAdd, int strAdd, int conAdd, int menAdd, int dexAdd, int witAdd,
-			List<Integer> symbols) implements GameServerPacket {
+			int maxSlots, List<EquippedSlot> slots) implements GameServerPacket {
+
+		public record EquippedSlot(int symbolId, boolean activeForClass) {}
 
 		public HennaInfo() {
-			this(0, 0, 0, 0, 0, 0, List.of());
+			this(0, 0, 0, 0, 0, 0, 0, List.of());
 		}
 
 		public HennaInfo(PlayerCharacter player) {
+			this(player, 2, null);
+		}
+
+		public HennaInfo(PlayerCharacter player, int classLevel,
+				com.lopez.l2j.game.henna.HennaTreeTable treeTable) {
 			this(player.hennaINT(), player.hennaSTR(), player.hennaCON(), player.hennaMEN(),
 					player.hennaDEX(), player.hennaWIT(),
-					java.util.Arrays.stream(player.hennas()).filter(id -> id > 0).boxed().toList());
+					classLevel < 1 ? 0 : (classLevel == 1 ? 2 : 3),
+					buildSlots(player, treeTable));
+		}
+
+		private static List<EquippedSlot> buildSlots(PlayerCharacter player,
+				com.lopez.l2j.game.henna.HennaTreeTable treeTable) {
+			List<EquippedSlot> list = new java.util.ArrayList<>();
+			for (int id : player.hennas()) {
+				if (id > 0) {
+					boolean allowed = treeTable == null || treeTable.isAllowed(player.classId(), id);
+					list.add(new EquippedSlot(id, allowed));
+				}
+			}
+			return list;
 		}
 
 		@Override
@@ -874,29 +905,39 @@ public sealed interface GameServerPacket {
 					.writeC(menAdd)
 					.writeC(dexAdd)
 					.writeC(witAdd)
-					.writeD(3) // 3 slots max
-					.writeD(symbols.size());
-			for (int id : symbols) {
-				w.writeD(id).writeD(id);
+					.writeD(maxSlots)
+					.writeD(slots.size());
+			for (var s : slots) {
+				w.writeD(s.symbolId())
+						.writeD(s.activeForClass() ? s.symbolId() : 0);
 			}
 			return w.toByteArray();
 		}
 	}
 
 	/** 0xe2 HennaEquipList: lista de tatuagens disponiveis no Symbol Maker */
-	record HennaEquipList(int adena, int maxSlots, List<com.lopez.l2j.game.henna.Henna> hennas) implements GameServerPacket {
+	record HennaEquipList(int adena, int emptySlots, List<com.lopez.l2j.game.henna.Henna> hennas) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			var w = new PacketWriter().writeC(0xe2)
 					.writeD(adena)
-					.writeD(maxSlots)
-					.writeD(hennas.size());
-			for (var h : hennas) {
-				w.writeD(h.symbolId())
-						.writeD(h.dyeId())
-						.writeD(h.dyeAmount())
-						.writeD(h.price())
-						.writeD(1);
+					.writeD(emptySlots);
+			if (hennas != null && !hennas.isEmpty()) {
+				w.writeD(hennas.size());
+				for (var h : hennas) {
+					w.writeD(h.symbolId())
+							.writeD(h.dyeId())
+							.writeD(h.dyeAmount())
+							.writeD(h.price())
+							.writeD(1);
+				}
+			} else {
+				w.writeD(1)
+						.writeD(0)
+						.writeD(0)
+						.writeD(0)
+						.writeD(0)
+						.writeD(0);
 			}
 			return w.toByteArray();
 		}
@@ -906,12 +947,13 @@ public sealed interface GameServerPacket {
 	record HennaItemInfo(com.lopez.l2j.game.henna.Henna henna, PlayerCharacter player, CharTemplate tpl) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
-			int curInt = tpl.intel() + player.hennaINT();
-			int curStr = tpl.str() + player.hennaSTR();
-			int curCon = tpl.con() + player.hennaCON();
-			int curMen = tpl.men() + player.hennaMEN();
-			int curDex = tpl.dex() + player.hennaDEX();
-			int curWit = tpl.wit() + player.hennaWIT();
+			int curInt = tpl != null ? tpl.intel() + player.hennaINT() : player.hennaINT();
+			int curStr = tpl != null ? tpl.str() + player.hennaSTR() : player.hennaSTR();
+			int curCon = tpl != null ? tpl.con() + player.hennaCON() : player.hennaCON();
+			int curMen = tpl != null ? tpl.men() + player.hennaMEN() : player.hennaMEN();
+			int curDex = tpl != null ? tpl.dex() + player.hennaDEX() : player.hennaDEX();
+			int curWit = tpl != null ? tpl.wit() + player.hennaWIT() : player.hennaWIT();
+			int adena = (int) (player.inventory() != null ? player.inventory().adena() : 0);
 
 			return new PacketWriter().writeC(0xe3)
 					.writeD(henna.symbolId())
@@ -919,7 +961,7 @@ public sealed interface GameServerPacket {
 					.writeD(henna.dyeAmount())
 					.writeD(henna.price())
 					.writeD(1)
-					.writeD((int) player.inventory().adena())
+					.writeD(adena)
 					.writeD(curInt)
 					.writeC(curInt + henna.statInt())
 					.writeD(curStr)
@@ -932,6 +974,62 @@ public sealed interface GameServerPacket {
 					.writeC(curDex + henna.statDex())
 					.writeD(curWit)
 					.writeC(curWit + henna.statWit())
+					.toByteArray();
+		}
+	}
+
+	/** 0xe5 HennaUnequipList: lista de tatuagens atualmente equipadas para remocao no Symbol Maker */
+	record HennaUnequipList(int adena, int emptySlots, List<com.lopez.l2j.game.henna.Henna> hennas) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			var w = new PacketWriter().writeC(0xe5)
+					.writeD(adena)
+					.writeD(emptySlots)
+					.writeD(hennas != null ? hennas.size() : 0);
+			if (hennas != null) {
+				for (var h : hennas) {
+					w.writeD(h.symbolId())
+							.writeD(h.dyeId())
+							.writeD(h.dyeAmount() / 2)
+							.writeD(h.price() / 5)
+							.writeD(1);
+				}
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xe6 HennaUnequipInfo: detalhes e alteracao de atributos apos remover uma tatuagem */
+	record HennaUnequipInfo(com.lopez.l2j.game.henna.Henna henna, PlayerCharacter player, CharTemplate tpl) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			int curInt = tpl != null ? tpl.intel() + player.hennaINT() : player.hennaINT();
+			int curStr = tpl != null ? tpl.str() + player.hennaSTR() : player.hennaSTR();
+			int curCon = tpl != null ? tpl.con() + player.hennaCON() : player.hennaCON();
+			int curMen = tpl != null ? tpl.men() + player.hennaMEN() : player.hennaMEN();
+			int curDex = tpl != null ? tpl.dex() + player.hennaDEX() : player.hennaDEX();
+			int curWit = tpl != null ? tpl.wit() + player.hennaWIT() : player.hennaWIT();
+			int adena = (int) (player.inventory() != null ? player.inventory().adena() : 0);
+
+			return new PacketWriter().writeC(0xe6)
+					.writeD(henna.symbolId())
+					.writeD(henna.dyeId())
+					.writeD(henna.dyeAmount() / 2)
+					.writeD(henna.price() / 5)
+					.writeD(1)
+					.writeD(adena)
+					.writeD(curInt)
+					.writeC(curInt - henna.statInt())
+					.writeD(curStr)
+					.writeC(curStr - henna.statStr())
+					.writeD(curCon)
+					.writeC(curCon - henna.statCon())
+					.writeD(curMen)
+					.writeC(curMen - henna.statMen())
+					.writeD(curDex)
+					.writeC(curDex - henna.statDex())
+					.writeD(curWit)
+					.writeC(curWit - henna.statWit())
 					.toByteArray();
 		}
 	}
@@ -1077,6 +1175,7 @@ public sealed interface GameServerPacket {
 		public static final int ALLIANCE = 9;
 		public static final int ANNOUNCEMENT = 10;
 		public static final int HERO = 17;
+		public static final int CRITICAL_ANNOUNCE = 18;
 
 		@Override
 		public byte[] encode() {
@@ -1361,6 +1460,10 @@ public sealed interface GameServerPacket {
 
 	/** 0x28 TeleportToLocation: atualiza posicao instantanea do objeto no cliente. */
 	record TeleportToLocation(int objectId, int x, int y, int z) implements GameServerPacket {
+		public TeleportToLocation(int objectId, int x, int y, int z, int heading) {
+			this(objectId, x, y, z);
+		}
+
 		@Override
 		public byte[] encode() {
 			return new PacketWriter().writeC(0x28).writeD(objectId).writeD(x).writeD(y).writeD(z).toByteArray();
@@ -1470,6 +1573,14 @@ public sealed interface GameServerPacket {
 		public static final int MAX_LOAD = 0x0f;
 		public static final int CUR_CP = 0x21;
 		public static final int MAX_CP = 0x22;
+
+		public StatusUpdate(int objectId, int id1, int val1) {
+			this(objectId, List.of(new Attribute(id1, val1)));
+		}
+
+		public StatusUpdate(int objectId, int id1, int val1, int id2, int val2) {
+			this(objectId, List.of(new Attribute(id1, val1), new Attribute(id2, val2)));
+		}
 
 		public static StatusUpdate hp(int objectId, int curHp, int maxHp) {
 			return new StatusUpdate(objectId, List.of(new Attribute(CUR_HP, curHp), new Attribute(MAX_HP, maxHp)));
@@ -2283,8 +2394,125 @@ public sealed interface GameServerPacket {
 	}
 
 	/** 0xf5 SSQStatus: exibe a pagina solicitada do Registro dos Sete Selos */
-	record SSQStatus(int page, int period, int cycle, int playerCabal, int playerSeal,
-			int stoneContrib, int adenaCollect, long dawnScore, long duskScore) implements GameServerPacket {
+	record SSQStatus(
+			int page,
+			int period,
+			int cycle,
+			int periodMsgId,
+			int timeMsgId,
+			int playerCabal,
+			int playerSeal,
+			int stoneContrib,
+			int adenaCollect,
+			int duskStoneScoreProp,
+			int duskFestivalScore,
+			int duskTotalScore,
+			int duskPercent,
+			int dawnStoneScoreProp,
+			int dawnFestivalScore,
+			int dawnTotalScore,
+			int dawnPercent,
+			int winningCabal,
+			int totalDawnMembers,
+			int totalDuskMembers,
+			int[] sealOwners,
+			int[] duskSealProportions,
+			int[] dawnSealProportions,
+			int[] festivalLevelScores,
+			int[] duskFestivalHighScores,
+			int[] dawnFestivalHighScores,
+			List<List<String>> duskFestivalMembers,
+			List<List<String>> dawnFestivalMembers
+	) implements GameServerPacket {
+
+		public SSQStatus(int page, int period, int cycle, int playerCabal, int playerSeal,
+				int stoneContrib, int adenaCollect, long dawnScore, long duskScore) {
+			this(page, period, cycle, 1176, 1180, playerCabal, playerSeal, stoneContrib, adenaCollect,
+					(int) Math.min(500, duskScore), 0, (int) Math.min(1000, duskScore), 50,
+					(int) Math.min(500, dawnScore), 0, (int) Math.min(1000, dawnScore), 50,
+					0, 0, 0,
+					new int[4], new int[4], new int[4],
+					new int[] { 60, 70, 100, 120, 150 },
+					new int[5], new int[5],
+					List.of(List.of(), List.of(), List.of(), List.of(), List.of()),
+					List.of(List.of(), List.of(), List.of(), List.of(), List.of()));
+		}
+
+		public static SSQStatus of(int page, com.lopez.l2j.game.sevensigns.SevenSignsManager ss, int playerObjectId) {
+			if (ss == null) {
+				return new SSQStatus(page, 0, 1, 0, 0, 0, 0, 0, 0);
+			}
+
+			int period = ss.activePeriod();
+			int cycle = ss.currentCycle();
+
+			int periodMsgId = switch (period) {
+				case com.lopez.l2j.game.sevensigns.SevenSignsManager.PERIOD_COMP_RECRUITING -> 1183;
+				case com.lopez.l2j.game.sevensigns.SevenSignsManager.PERIOD_COMPETITION -> 1176;
+				case com.lopez.l2j.game.sevensigns.SevenSignsManager.PERIOD_COMP_RESULTS -> 1184;
+				case com.lopez.l2j.game.sevensigns.SevenSignsManager.PERIOD_SEAL_VALIDATION -> 1185;
+				default -> 1176;
+			};
+
+			int timeMsgId = switch (period) {
+				case com.lopez.l2j.game.sevensigns.SevenSignsManager.PERIOD_COMP_RECRUITING,
+				     com.lopez.l2j.game.sevensigns.SevenSignsManager.PERIOD_COMP_RESULTS -> 1181;
+				default -> 1180;
+			};
+
+			var pData = ss.getPlayerData(playerObjectId).orElse(null);
+			int playerCabal = pData != null ? pData.cabal() : 0;
+			int playerSeal = pData != null ? pData.seal() : 0;
+			int stoneContrib = pData != null ? (pData.redStones() + pData.greenStones() + pData.blueStones()) : 0;
+			int adenaCollect = pData != null ? pData.ancientAdena() : 0;
+
+			int duskStoneProp = ss.getStoneScoreProp(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DUSK);
+			int dawnStoneProp = ss.getStoneScoreProp(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DAWN);
+			int duskFest = ss.getCurrentFestivalScore(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DUSK);
+			int dawnFest = ss.getCurrentFestivalScore(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DAWN);
+			int duskTotal = ss.getCurrentScore(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DUSK);
+			int dawnTotal = ss.getCurrentScore(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DAWN);
+			int totalOverall = duskTotal + dawnTotal;
+			int duskPercent = totalOverall > 0 ? Math.round((float) duskTotal / totalOverall * 100) : 0;
+			int dawnPercent = totalOverall > 0 ? Math.round((float) dawnTotal / totalOverall * 100) : 0;
+
+			int winningCabal = ss.getCabalHighestScore();
+			int totalDawnMembers = ss.getTotalMembers(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DAWN);
+			int totalDuskMembers = ss.getTotalMembers(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DUSK);
+
+			int[] sealOwners = new int[] { 0, ss.avariceOwner(), ss.gnosisOwner(), ss.strifeOwner() };
+			int[] duskSealProportions = new int[] { 0,
+					ss.getSealProportion(1, com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DUSK),
+					ss.getSealProportion(2, com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DUSK),
+					ss.getSealProportion(3, com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DUSK) };
+			int[] dawnSealProportions = new int[] { 0,
+					ss.getSealProportion(1, com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DAWN),
+					ss.getSealProportion(2, com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DAWN),
+					ss.getSealProportion(3, com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DAWN) };
+
+			int[] duskFestivalHighScores = new int[5];
+			int[] dawnFestivalHighScores = new int[5];
+			List<List<String>> duskFestivalMembers = new java.util.ArrayList<>(5);
+			List<List<String>> dawnFestivalMembers = new java.util.ArrayList<>(5);
+			for (int i = 0; i < 5; i++) {
+				duskFestivalHighScores[i] = ss.getHighestScore(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DUSK, i);
+				dawnFestivalHighScores[i] = ss.getHighestScore(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DAWN, i);
+				duskFestivalMembers.add(ss.getHighestScoreMembers(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DUSK, i));
+				dawnFestivalMembers.add(ss.getHighestScoreMembers(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DAWN, i));
+			}
+
+			return new SSQStatus(
+					page, period, cycle, periodMsgId, timeMsgId, playerCabal, playerSeal,
+					stoneContrib, adenaCollect, duskStoneProp, duskFest, duskTotal, duskPercent,
+					dawnStoneProp, dawnFest, dawnTotal, dawnPercent,
+					winningCabal, totalDawnMembers, totalDuskMembers,
+					sealOwners, duskSealProportions, dawnSealProportions,
+					com.lopez.l2j.game.sevensigns.SevenSignsManager.FESTIVAL_LEVEL_SCORES,
+					duskFestivalHighScores, dawnFestivalHighScores,
+					duskFestivalMembers, dawnFestivalMembers
+			);
+		}
+
 		@Override
 		public byte[] encode() {
 			var w = new PacketWriter()
@@ -2295,20 +2523,106 @@ public sealed interface GameServerPacket {
 			switch (page) {
 				case 1 -> {
 					w.writeD(cycle);
-					w.writeD(257); // msgId periodo
-					w.writeD(258); // msgId tempo
+					w.writeD(periodMsgId);
+					w.writeD(timeMsgId);
 					w.writeC(playerCabal);
 					w.writeC(playerSeal);
 					w.writeD(stoneContrib);
 					w.writeD(adenaCollect);
-					w.writeD((int) Math.min(Integer.MAX_VALUE, duskScore));
-					w.writeD(0);
-					w.writeD((int) Math.min(Integer.MAX_VALUE, duskScore));
-					w.writeC(50);
-					w.writeD((int) Math.min(Integer.MAX_VALUE, dawnScore));
-					w.writeD(0);
-					w.writeD((int) Math.min(Integer.MAX_VALUE, dawnScore));
-					w.writeC(50);
+					w.writeD(duskStoneScoreProp);
+					w.writeD(duskFestivalScore);
+					w.writeD(duskTotalScore);
+					w.writeC(duskPercent);
+					w.writeD(dawnStoneScoreProp);
+					w.writeD(dawnFestivalScore);
+					w.writeD(dawnTotalScore);
+					w.writeC(dawnPercent);
+				}
+				case 2 -> {
+					w.writeH(1);
+					w.writeC(5);
+					for (int i = 0; i < 5; i++) {
+						w.writeC(i + 1);
+						w.writeD(festivalLevelScores != null && i < festivalLevelScores.length ? festivalLevelScores[i] : 60);
+
+						int duskScore = duskFestivalHighScores != null && i < duskFestivalHighScores.length ? duskFestivalHighScores[i] : 0;
+						w.writeD(duskScore);
+						var duskMems = (duskFestivalMembers != null && i < duskFestivalMembers.size()) ? duskFestivalMembers.get(i) : List.<String>of();
+						w.writeC(duskMems.size());
+						for (String m : duskMems) {
+							w.writeS(m);
+						}
+
+						int dawnScore = dawnFestivalHighScores != null && i < dawnFestivalHighScores.length ? dawnFestivalHighScores[i] : 0;
+						w.writeD(dawnScore);
+						var dawnMems = (dawnFestivalMembers != null && i < dawnFestivalMembers.size()) ? dawnFestivalMembers.get(i) : List.<String>of();
+						w.writeC(dawnMems.size());
+						for (String m : dawnMems) {
+							w.writeS(m);
+						}
+					}
+				}
+				case 3 -> {
+					w.writeC(10);
+					w.writeC(35);
+					w.writeC(3);
+					for (int i = 1; i <= 3; i++) {
+						int dawnProp = dawnSealProportions != null && i < dawnSealProportions.length ? dawnSealProportions[i] : 0;
+						int duskProp = duskSealProportions != null && i < duskSealProportions.length ? duskSealProportions[i] : 0;
+						int owner = sealOwners != null && i < sealOwners.length ? sealOwners[i] : 0;
+
+						w.writeC(i);
+						w.writeC(owner);
+
+						int duskPct = totalDuskMembers > 0 ? Math.round((float) duskProp / totalDuskMembers * 100) : 0;
+						int dawnPct = totalDawnMembers > 0 ? Math.round((float) dawnProp / totalDawnMembers * 100) : 0;
+						w.writeC(duskPct);
+						w.writeC(dawnPct);
+					}
+				}
+				case 4 -> {
+					w.writeC(winningCabal);
+					w.writeC(3);
+					for (int i = 1; i <= 3; i++) {
+						int dawnProp = dawnSealProportions != null && i < dawnSealProportions.length ? dawnSealProportions[i] : 0;
+						int duskProp = duskSealProportions != null && i < duskSealProportions.length ? duskSealProportions[i] : 0;
+						int dawnPct = totalDawnMembers > 0 ? Math.round((float) dawnProp / totalDawnMembers * 100) : 0;
+						int duskPct = totalDuskMembers > 0 ? Math.round((float) duskProp / totalDuskMembers * 100) : 0;
+						int owner = sealOwners != null && i < sealOwners.length ? sealOwners[i] : 0;
+
+						w.writeC(i);
+						w.writeC(owner);
+
+						int sysMsgId;
+						if (owner == 0) { // CABAL_NULL
+							if (winningCabal == 0) {
+								sysMsgId = 1266; // COMPETITION_TIE_SEAL_NOT_AWARDED
+							} else if (winningCabal == 2) { // DAWN
+								sysMsgId = dawnPct >= 35 ? 1267 : 1268;
+							} else { // DUSK
+								sysMsgId = duskPct >= 35 ? 1267 : 1268;
+							}
+						} else if (owner == 2) { // DAWN
+							if (winningCabal == 0) {
+								sysMsgId = dawnPct >= 10 ? 1269 : 1266;
+							} else if (winningCabal == 2) {
+								sysMsgId = dawnPct >= 10 ? 1269 : 1270;
+							} else {
+								sysMsgId = duskPct >= 35 ? 1267 : (dawnPct >= 10 ? 1269 : 1270);
+							}
+						} else { // DUSK
+							if (winningCabal == 0) {
+								sysMsgId = duskPct >= 10 ? 1269 : 1266;
+							} else if (winningCabal == 2) {
+								sysMsgId = dawnPct >= 35 ? 1267 : (duskPct >= 10 ? 1269 : 1270);
+							} else {
+								sysMsgId = duskPct >= 10 ? 1269 : 1270;
+							}
+						}
+
+						w.writeH(sysMsgId);
+						w.writeH(0);
+					}
 				}
 				default -> {
 					w.writeH(1);
