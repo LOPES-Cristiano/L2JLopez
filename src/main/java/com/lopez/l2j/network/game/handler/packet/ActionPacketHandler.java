@@ -2,6 +2,7 @@ package com.lopez.l2j.network.game.handler.packet;
 
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.npc.NpcInstance;
+import com.lopez.l2j.game.skill.SkillTemplate;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.packet.GameClientPacket;
@@ -44,6 +45,14 @@ public class ActionPacketHandler {
 			return;
 		}
 		if (session.casting()) {
+			SkillTemplate currentSk = session.castingSkill();
+			// Ao conjurar qualquer habilidade (ataque, cura, buff), o personagem para ("da uma paradinha")
+			// e executa a habilidade ate o fim, sem cancelar o cast por cliques de movimentacao no chao.
+			if (currentSk != null) {
+				session.send(new ActionFailed());
+				return;
+			}
+			// Apenas comandos especiais sem SkillTemplate (como /unstuck e Scroll of Escape) cancelam ao andar
 			session.cancelCast();
 		}
 		if (session.teleporting()) {
@@ -90,8 +99,20 @@ public class ActionPacketHandler {
 		if (!session.inWorld() || active == null || (p.x() == 0 && p.y() == 0)) {
 			return;
 		}
-		if (session.teleporting()) {
-			session.onAppearing();
+		// Personagem morto ou em processo de teleporte nao tem posicao sobrescrita por pacotes residuais
+		if (active.isDead() || session.teleporting()) {
+			return;
+		}
+		int realX = active.x();
+		int realY = active.y();
+		double dx = p.x() - realX;
+		double dy = p.y() - realY;
+		double diffSq = dx * dx + dy * dy;
+		// Se a diferenca for muito grande (> 1000 unidades), o pacote esta dessincronizado
+		// Nao aceita a posicao defasada do cliente e sincroniza a posicao real do servidor
+		if (diffSq > 1_000_000.0) {
+			session.send(new ValidateLocation(active.objectId(), realX, realY, active.z(), active.heading()));
+			return;
 		}
 		active.moveTo(p.x(), p.y(), p.z());
 		active.heading(p.heading());
