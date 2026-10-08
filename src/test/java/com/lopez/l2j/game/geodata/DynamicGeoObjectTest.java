@@ -27,6 +27,7 @@ class DynamicGeoObjectTest {
 
 	@BeforeEach
 	void setUp() {
+		com.lopez.l2j.config.Config.ENABLE_GEODATA = true;
 		geoEngine = new GeoEngine("target/empty_geodata", true, null);
 		combatService = new CombatService(1.0, 1.0, geoEngine, null);
 	}
