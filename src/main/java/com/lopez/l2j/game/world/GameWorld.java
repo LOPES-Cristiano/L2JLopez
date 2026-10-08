@@ -54,6 +54,13 @@ public class GameWorld {
 
 		default void onAttacked(int attackerObjectId, int damage) {
 		}
+
+		default void onDeath() {
+		}
+
+		default void onDeath(int killerObjectId) {
+			onDeath();
+		}
 	}
 
 	public static final int LOCAL_CHAT_RANGE = 1250;
