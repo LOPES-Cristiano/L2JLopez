@@ -14,6 +14,7 @@ class BotsPreventionServiceTest {
     @BeforeEach
     void setUp() {
         botsService = new BotsPreventionService();
+        botsService.setEnabled(true);
         botsService.setBaseKillsCounter(5);
         botsService.setKillsRandomization(0); // Fixo em 5 kills para testes deterministicos
         botsService.setValidationTimeoutSeconds(60);
