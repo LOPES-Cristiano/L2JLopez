@@ -33,7 +33,16 @@ public class PvpRewardService {
 	private final PvPColorService pvpColorService;
 
 	private final Map<String, Long> lastKillTimes = new ConcurrentHashMap<>();
+	private final Map<Integer, Integer> killStreaks = new ConcurrentHashMap<>();
 	private int cooldownMinutes = 5;
+
+	public int getKillStreak(int playerId) {
+		return killStreaks.getOrDefault(playerId, 0);
+	}
+
+	public void setKillStreak(int playerId, int streak) {
+		killStreaks.put(playerId, streak);
+	}
 
 	@Autowired
 	public PvpRewardService(@Autowired(required = false) PvPRankService pvpRankService,
@@ -137,6 +146,22 @@ public class PvpRewardService {
 				broadcastAnnounce(killerSession, msg);
 			}
 
+			if (Config.ALLOW_QUAKE_SYSTEM) {
+				int streak = killStreaks.merge(killer.objectId(), 1, Integer::sum);
+				String quakeMsg = getQuakeMessage(killer.name(), streak);
+				if (quakeMsg != null) {
+					broadcastAnnounce(killerSession, quakeMsg);
+				}
+			}
+
+			if (Config.WAR_LEGEND_AURA && killer.pvpKills() >= Config.KILLS_TO_GET_WAR_LEGEND_AURA) {
+				if (!killer.hero()) {
+					killer.hero(true);
+					killerSession.send(new CreatureSay(0, CreatureSay.ALL, "WarLegend",
+							"Parabens! Voce atingiu a marca de " + Config.KILLS_TO_GET_WAR_LEGEND_AURA + " PvPs e recebeu a Aura de Heroi!"));
+				}
+			}
+
 			if (Config.ALLOW_PVP_REWARD_SYSTEM && checkAntiFarm(killerSession, victimSession)) {
 				List<RewardItem> rewards = parseRewardItems(Config.PVP_REWARD_ITEM);
 				giveRewards(killerSession, rewards, "PvPReward");
@@ -176,6 +201,10 @@ public class PvpRewardService {
 			if (newTitleColor != killer.titleColor()) {
 				killer.titleColor(newTitleColor);
 			}
+		}
+
+		if (Config.QUAKE_RESET_ON_DIE) {
+			killStreaks.remove(victim.objectId());
 		}
 
 		killerSession.sendUserInfoAndBroadcastCharInfo();
@@ -224,5 +253,20 @@ public class PvpRewardService {
 
 	public void clearCooldowns() {
 		lastKillTimes.clear();
+	}
+
+	public static String getQuakeMessage(String playerName, int streak) {
+		return switch (streak) {
+			case 2 -> playerName + " is on a Double Kill!";
+			case 3 -> playerName + " is on a Triple Kill!";
+			case 4 -> playerName + " is on an Ultra Kill!";
+			case 5 -> playerName + " is on a Rampage!";
+			case 6 -> playerName + " is on a Killing Spree!";
+			case 7 -> playerName + " is Dominating!";
+			case 8 -> playerName + " is Unstoppable!";
+			case 9 -> playerName + " is Wicked Sick!";
+			case 10 -> playerName + " is GODLIKE!";
+			default -> streak > 10 ? playerName + " is HOLY SHIT (Streak: " + streak + ")!" : null;
+		};
 	}
 }
