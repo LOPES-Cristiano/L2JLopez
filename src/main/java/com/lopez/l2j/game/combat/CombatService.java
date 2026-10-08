@@ -19,17 +19,26 @@ public class CombatService {
 	private final double rateSp;
 	private final com.lopez.l2j.game.geodata.GeoEngine geoEngine;
 	private final com.lopez.l2j.game.olympiad.OlyClassDamageManager olyDamageManager;
+	private final com.lopez.l2j.game.champion.ChampionService championService;
 
 	public CombatService() {
-		this(1.0, 1.0, null, null);
+		this(1.0, 1.0, null, null, null);
 	}
 
 	public CombatService(double rateXp, double rateSp) {
-		this(rateXp, rateSp, null, null);
+		this(rateXp, rateSp, null, null, null);
 	}
 
 	public CombatService(double rateXp, double rateSp, com.lopez.l2j.game.geodata.GeoEngine geoEngine) {
-		this(rateXp, rateSp, geoEngine, null);
+		this(rateXp, rateSp, geoEngine, null, null);
+	}
+
+	public CombatService(
+			double rateXp,
+			double rateSp,
+			com.lopez.l2j.game.geodata.GeoEngine geoEngine,
+			com.lopez.l2j.game.olympiad.OlyClassDamageManager olyDamageManager) {
+		this(rateXp, rateSp, geoEngine, olyDamageManager, null);
 	}
 
 	@org.springframework.beans.factory.annotation.Autowired
@@ -37,11 +46,13 @@ public class CombatService {
 			@Value("${l2.rates.xp:1.0}") double rateXp,
 			@Value("${l2.rates.sp:1.0}") double rateSp,
 			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.geodata.GeoEngine geoEngine,
-			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.olympiad.OlyClassDamageManager olyDamageManager) {
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.olympiad.OlyClassDamageManager olyDamageManager,
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.champion.ChampionService championService) {
 		this.rateXp = rateXp;
 		this.rateSp = rateSp;
 		this.geoEngine = geoEngine;
 		this.olyDamageManager = olyDamageManager;
+		this.championService = championService;
 	}
 
 	public com.lopez.l2j.game.olympiad.OlyClassDamageManager olyDamageManager() {
@@ -389,11 +400,15 @@ public class CombatService {
 		boolean isDead = newHp <= 0;
 		long baseExp = target.template().exp() > 0 ? target.template().exp() : (long) target.template().level() * 150L + 50L;
 		int baseSp = target.template().sp() > 0 ? target.template().sp() : (int) (baseExp / 10);
+		if (target.isChampion() && championService != null) {
+			baseExp = championService.calculateExp(target, baseExp);
+			baseSp = championService.calculateSp(target, baseSp);
+		}
 		double activeRateXp = Config.RATE_XP > 0 ? Config.RATE_XP : (rateXp > 0 ? rateXp : 1.0);
 		double activeRateSp = Config.RATE_SP > 0 ? Config.RATE_SP : (rateSp > 0 ? rateSp : 1.0);
 		long exp = isDead ? (long) Math.round(baseExp * activeRateXp) : 0;
 		int sp = isDead ? (int) Math.round(baseSp * activeRateSp) : 0;
-		return new HitResult(damage, flags, isDead, newHp, target.template().maxHp(), exp, sp, resisted);
+		return new HitResult(damage, flags, isDead, newHp, (int) target.maxHp(), exp, sp, resisted);
 	}
 
 	public HitResult attackPlayer(NpcInstance attacker, PlayerCharacter target, CharTemplate targetTemplate) {
