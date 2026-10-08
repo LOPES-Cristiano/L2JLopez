@@ -88,4 +88,40 @@ class SiegeServiceTest {
 		assertTrue(siegeService.endSiege(castleId, 600));
 		assertEquals(SiegeStatus.FINISHED, siegeService.getSiege(castleId).orElseThrow().status());
 	}
+
+	@Test
+	void testSiegeConfigurationProperties() {
+		assertEquals(120, com.lopez.l2j.config.Config.SIEGE_LENGTH);
+		assertEquals(10, com.lopez.l2j.config.Config.COUNTDOWN_LENGTH);
+		assertEquals(1, com.lopez.l2j.config.Config.MAX_FLAGS);
+		assertEquals(5, com.lopez.l2j.config.Config.SIEGE_CLAN_MIN_LEVEL);
+		assertEquals(1, com.lopez.l2j.config.Config.SIEGE_CLAN_MIN_MEMBERS_COUNT);
+		assertEquals(500, com.lopez.l2j.config.Config.ATTACKER_MAX_CLANS);
+		assertEquals(500, com.lopez.l2j.config.Config.DEFENDER_MAX_CLANS);
+		assertEquals(1, com.lopez.l2j.config.Config.BLOOD_ALLIANCE_REWARD);
+	}
+
+	@Test
+	void testAttackerClanLimitsAndDurationFromConfig() {
+		int origMax = com.lopez.l2j.config.Config.ATTACKER_MAX_CLANS;
+		int origLen = com.lopez.l2j.config.Config.SIEGE_LENGTH;
+		try {
+			com.lopez.l2j.config.Config.ATTACKER_MAX_CLANS = 1;
+			Clan c1 = new Clan(701, "ClanOne", 10, "LeaderA", 5);
+			c1.addMember(new com.lopez.l2j.game.clan.ClanMember(10, "LeaderA", 75, 10, "", false, 0));
+			Clan c2 = new Clan(702, "ClanTwo", 11, "LeaderB", 5);
+			c2.addMember(new com.lopez.l2j.game.clan.ClanMember(11, "LeaderB", 75, 10, "", false, 0));
+
+			assertTrue(siegeService.registerAttacker(CastleManager.OREN, c1));
+			// Segundo cla eh recusado pois o limite eh 1
+			assertFalse(siegeService.registerAttacker(CastleManager.OREN, c2));
+
+			// Duracao do cerco
+			var siege = siegeService.getSiege(CastleManager.OREN).orElseThrow();
+			assertEquals(120 * 60 * 1000L, siege.siegeEndDate() - siege.siegeDate());
+		} finally {
+			com.lopez.l2j.config.Config.ATTACKER_MAX_CLANS = origMax;
+			com.lopez.l2j.config.Config.SIEGE_LENGTH = origLen;
+		}
+	}
 }
