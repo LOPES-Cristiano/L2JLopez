@@ -519,6 +519,22 @@ public sealed interface GameServerPacket {
 		public static final int TRADE_CANCELLED = 120;
 		public static final int TRADE_SUCCESSFUL = 121;
 		public static final int EARNED_S1_RAID_POINTS = 1725;
+		public static final int YOU_MAY_NOT_ATTACK_IN_A_PEACEFUL_ZONE = 84;
+		public static final int YOU_MAY_NOT_ATTACK_THIS_TARGET_IN_A_PEACEFUL_ZONE = 85;
+		public static final int S1 = 1987;
+
+		public static SystemMessage sendString(String text) {
+			return of(S1, new Text(text != null ? text : ""));
+		}
+
+		public String text() {
+			for (Param p : params) {
+				if (p instanceof Text t) {
+					return t.value();
+				}
+			}
+			return "";
+		}
 
 		public static SystemMessage id(int id) {
 			return new SystemMessage(id, List.of());
@@ -1461,6 +1477,19 @@ public sealed interface GameServerPacket {
 
 		public static StatusUpdate mp(int objectId, int curMp, int maxMp) {
 			return new StatusUpdate(objectId, List.of(new Attribute(CUR_MP, curMp), new Attribute(MAX_MP, maxMp)));
+		}
+
+		public static StatusUpdate forPlayer(PlayerCharacter p) {
+			if (p == null) {
+				return null;
+			}
+			return new StatusUpdate(p.objectId(), List.of(
+					new Attribute(CUR_HP, (int) p.currentHp()),
+					new Attribute(MAX_HP, p.maxHp()),
+					new Attribute(CUR_MP, (int) p.currentMp()),
+					new Attribute(MAX_MP, p.maxMp()),
+					new Attribute(CUR_CP, (int) p.currentCp()),
+					new Attribute(MAX_CP, p.maxCp())));
 		}
 
 		public StatusUpdate {
