@@ -30,7 +30,7 @@ public class DropService {
 	private final double rateAdena;
 	private final double rateDrop;
 	private final double rateSpoil;
-	private final boolean autoLoot;
+	private final com.lopez.l2j.game.champion.ChampionService championService;
 
 	public DropService(
 			DropTable dropTable,
@@ -38,11 +38,23 @@ public class DropService {
 			@Value("${l2.rates.drop:1.0}") double rateDrop,
 			@Value("${l2.rates.spoil:1.0}") double rateSpoil,
 			@Value("${l2.game.autoloot:true}") boolean autoLoot) {
+		this(dropTable, rateAdena, rateDrop, rateSpoil, autoLoot, null);
+	}
+
+	@org.springframework.beans.factory.annotation.Autowired
+	public DropService(
+			DropTable dropTable,
+			@Value("${l2.rates.adena:1.0}") double rateAdena,
+			@Value("${l2.rates.drop:1.0}") double rateDrop,
+			@Value("${l2.rates.spoil:1.0}") double rateSpoil,
+			@Value("${l2.game.autoloot:true}") boolean autoLoot,
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.champion.ChampionService championService) {
 		this.dropTable = dropTable;
 		this.rateAdena = Math.max(0.1, rateAdena);
 		this.rateDrop = Math.max(0.1, rateDrop);
 		this.rateSpoil = Math.max(0.1, rateSpoil);
 		this.autoLoot = autoLoot;
+		this.championService = championService;
 	}
 
 	public List<DropData> getDrops(int mobId) {
@@ -119,6 +131,23 @@ public class DropService {
 		return rewardMonsterDeath(player, mobId, 0, inventoryService, packetSender);
 	}
 
+	public List<DropReward> rewardMonsterDeath(
+			PlayerCharacter player,
+			NpcInstance npc,
+			InventoryService inventoryService,
+			Consumer<GameServerPacket> packetSender) {
+		if (npc == null) {
+			return List.of();
+		}
+		int mobId = npc.npcId();
+		int mobLevel = npc.template() != null ? npc.template().level() : 0;
+		List<DropReward> rewards = rollDrops(mobId, player != null ? player.level() : 0, mobLevel);
+		if (npc.isChampion() && championService != null) {
+			rewards = championService.applyDropMultipliers(npc, rewards, player != null ? player.level() : 0);
+		}
+		return deliverRewards(player, rewards, inventoryService, packetSender);
+	}
+
 	/**
 	 * Processa a entrega das recompensas de drop ao jogador que abateu o monstro.
 	 */
@@ -130,6 +159,15 @@ public class DropService {
 			Consumer<GameServerPacket> packetSender) {
 
 		List<DropReward> rewards = rollDrops(mobId, player != null ? player.level() : 0, mobLevel);
+		return deliverRewards(player, rewards, inventoryService, packetSender);
+	}
+
+	private List<DropReward> deliverRewards(
+			PlayerCharacter player,
+			List<DropReward> rewards,
+			InventoryService inventoryService,
+			Consumer<GameServerPacket> packetSender) {
+
 		if (rewards.isEmpty()) {
 			return List.of();
 		}
