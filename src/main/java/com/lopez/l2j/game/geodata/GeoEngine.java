@@ -114,7 +114,7 @@ public class GeoEngine {
 	}
 
 	public boolean isEnabled() {
-		return enabled;
+		return enabled && Config.ENABLE_GEODATA;
 	}
 
 	public static int getRegionX(int x) {
@@ -197,17 +197,7 @@ public class GeoEngine {
 	 * Utiliza raycasting com amostragem de celulas e checagem de portas fechadas.
 	 */
 	public boolean canSeeTarget(int x, int y, int z, int tx, int ty, int tz) {
-		if (!enabled) {
-			return true;
-		}
-
-		double dx = tx - x;
-		double dy = ty - y;
-		double dz = tz - z;
-		double dist2d = Math.sqrt(dx * dx + dy * dy);
-
-		// Alvos extremamente proximos tem visao garantida
-		if (dist2d < 30.0) {
+		if (!isEnabled()) {
 			return true;
 		}
 
@@ -226,7 +216,18 @@ public class GeoEngine {
 			}
 		}
 
-		// Raycasting em passos de RAY_STEP_SIZE
+		double dx = tx - x;
+		double dy = ty - y;
+		double dz = tz - z;
+		double dist2d = Math.sqrt(dx * dx + dy * dy);
+
+		// Em curta distancia (<= 150 unidades, combate melee / proximo), visao e garantida
+		// a menos que haja um desnivel vertical abrupto (> 150 unidades, ex: topo de muralha)
+		if (dist2d <= 150.0) {
+			return Math.abs(dz) <= 150.0;
+		}
+
+		// Raycasting em passos de RAY_STEP_SIZE para alvos a longa distancia
 		int steps = Math.max(1, (int) Math.round(dist2d / RAY_STEP_SIZE));
 		double stepX = dx / steps;
 		double stepY = dy / steps;
@@ -235,7 +236,6 @@ public class GeoEngine {
 		double curX = x;
 		double curY = y;
 		double curZ = z + ELEVATION_EYE_OFFSET;
-		double targetEyeZ = tz + ELEVATION_EYE_OFFSET;
 
 		for (int i = 1; i < steps; i++) {
 			curX += stepX;
@@ -244,9 +244,10 @@ public class GeoEngine {
 
 			short groundZ = getHeight((int) Math.round(curX), (int) Math.round(curY), (int) Math.round(curZ));
 
-			// Se o terreno neste ponto ultrapassar a linha de visao do raio:
-			if (groundZ > curZ + 20) {
-				return false; // Visao obstruida por obstaculo/relevo
+			// O terreno so obstrui a visao se ultrapassar significativamente a linha de visao
+			// dos olhos (tolerancia retail de 64 unidades para ignorar colinas suaves)
+			if (groundZ > curZ + 64) {
+				return false;
 			}
 		}
 
