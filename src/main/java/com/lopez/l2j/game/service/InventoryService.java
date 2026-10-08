@@ -146,6 +146,24 @@ public class InventoryService {
 		if (Config.STARTING_AA > 0) {
 			addItem(inv, 5575, Config.STARTING_AA, "Init");
 		}
+		if (Config.CUSTOM_STARTER_ITEMS_ENABLED) {
+			boolean isMage = (classId >= 10 && classId <= 17) || (classId >= 25 && classId <= 30)
+					|| (classId >= 38 && classId <= 43) || (classId >= 49 && classId <= 52);
+			String customItems = isMage ? Config.STARTING_CUSTOM_ITEMS_MAGE : Config.STARTING_CUSTOM_ITEMS_FIGHTER;
+			if (customItems != null && !customItems.isBlank()) {
+				for (String entry : customItems.split(";")) {
+					if (entry.isBlank()) continue;
+					String[] parts = entry.split(",");
+					if (parts.length == 2) {
+						try {
+							int itemId = Integer.parseInt(parts[0].trim());
+							int count = Integer.parseInt(parts[1].trim());
+							addItem(inv, itemId, count, "CustomStarter");
+						} catch (NumberFormatException ignored) {}
+					}
+				}
+			}
+		}
 		return inv;
 	}
 

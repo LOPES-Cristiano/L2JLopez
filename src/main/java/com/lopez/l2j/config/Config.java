@@ -583,6 +583,99 @@ public final class Config {
 	public static boolean ALLOW_GATE_CONTROL = false;
 	public static boolean DISABLE_CHANGE_SIEGE_TIME = false;
 
+	// =========================================================================
+	// ONDA 13: SISTEMA AIOX & BUFF SHOP (aiox.properties)
+	// =========================================================================
+	public static boolean ENABLE_AIO_SYSTEM = true;
+	public static boolean ENABLE_AIO_DELEVEL = false;
+	public static int AIO_SET_DELEVEL = 1;
+	public static boolean ALLOW_AIO_SPEAK_NPC = false;
+	public static boolean ALLOW_AIO_LEAVE_TOWN = false;
+	public static boolean ALLOW_AIO_TELEPORT = false;
+	public static boolean ALLOW_AIO_NAME_COLOR = true;
+	public static String AIO_NAME_COLOR = "88AA88";
+	public static boolean ALLOW_AIO_TITLE_COLOR = true;
+	public static String AIO_TITLE_COLOR = "88AA88";
+	public static boolean ALLOW_AIO_DUAL = true;
+	public static int AIO_DIAS = 30;
+	public static int AIO_DIAS_2 = 60;
+	public static int AIO_DIAS_3 = 90;
+	public static List<Integer> AIO_ALLOWED_CLASS_IDS = List.of(10, 25, 38);
+	public static String AIO_CLASSES_NAME = "Human Mystic, Elf Mystic or Dark Elf Mystic";
+	public static int AIO_ITEM_ID = 9225;
+	public static int AIO_ITEM_COUNT = 15;
+	public static int AIO_ITEM_COUNT_2 = 30;
+	public static int AIO_ITEM_COUNT_3 = 45;
+	public static String AIO_COIN_TEXT = "Donate Coin";
+	public static boolean BUFF_SHOP_ENABLE = true;
+	public static int BUFF_SHOP_MAX_DAYS = 14;
+	public static boolean ALLOW_OFFLINE_BUFF = true;
+	public static int DEFAULT_BUFF_SHOP_SLOTS = 24;
+	public static String BUFF_SHOP_NAME_COLOR = "808080";
+	public static String BUFF_SHOP_TITLE_COLOR = "00DD00";
+	public static int BUFF_SHOP_EFFECT = 80;
+
+	// =========================================================================
+	// ONDA 14: SISTEMA VIP, ITENS DE CLÃ, START CUSTOM & VOTOS (add-on.properties, vote.properties)
+	// =========================================================================
+	public static boolean ALLOW_VIP_NAME_COLOR = true;
+	public static String VIP_NAME_COLOR = "0088FF";
+	public static boolean ALLOW_VIP_TITLE_COLOR = true;
+	public static String VIP_TITLE_COLOR = "0088FF";
+	public static int VIP_DIAS = 30;
+	public static int VIP_DIAS_2 = 60;
+	public static int VIP_DIAS_3 = 90;
+	public static int CLAN_SKILL_BY_ITEM = 0;
+	public static List<Integer> CLAN_SKILL_ID = List.of(0, 0);
+	public static int RAID_BOSS_INFO_PAGE_LIMIT = 12;
+	public static int RAID_BOSS_DROP_PAGE_LIMIT = 12;
+	public static String RAID_BOSS_DATE_FORMAT = "(MMM dd, HH:mm)";
+	public static boolean CUSTOM_STARTER_ITEMS_ENABLED = false;
+	public static String STARTING_CUSTOM_ITEMS_FIGHTER = "57,1000;";
+	public static String STARTING_CUSTOM_ITEMS_MAGE = "57,1000;";
+	public static boolean ANNOUNCE_HERO_LOGIN = false;
+	public static boolean ANNOUNCE_AIOX_LOGIN = false;
+	public static boolean ANNOUNCE_VIP_LOGIN = false;
+	public static boolean ANNOUNCE_LORD_LOGIN = false;
+	public static boolean ANNOUNCE_NEWBIE_LOGIN = false;
+	public static String API_KEY_TOPZONE = "e2ec0d41791613092ac03b6243ec6b87";
+	public static String SERVER_ID_KEY_TOPZONE = "14093";
+	public static String API_KEY_HOPZONE = "0vocH6Te6bpQ89H8";
+	public static String SERVER_ID_NETWORK = "l2nightmare";
+	public static int VOTE_SYSTEM_REWARD_ID = 3470;
+	public static int VOTE_SYSTEM_REWARD_COUNT = 5;
+
+	// =========================================================================
+	// ONDA 15: REGRAS ALTERNATIVAS, CANCEL, ESCUDO & DURAÇÃO (altgame.properties)
+	// =========================================================================
+	public static boolean CANCEL_AUGMENTATION_EFFECT = true;
+	public static boolean ALT_DANCE_MP_CONSUME = true;
+	public static int ALT_BUFFER_TIME = 100;
+	public static int ALT_5MIN_TIME = 100;
+	public static int ALT_DANCE_TIME = 100;
+	public static int ALT_SONG_TIME = 100;
+	public static int ALT_HERO_TIME = 100;
+	public static int ALT_CH_TIME = 1;
+	public static boolean ENABLE_MODIFY_SKILL_DURATION = true;
+	public static int MAX_BUFF_AMOUNT = 50;
+	public static boolean CANCEL_LESSER_EFFECT = true;
+	public static boolean STORE_SKILL_COOLTIME = true;
+	public static boolean GRADE_PENALTY = true;
+	public static String ALT_GAME_CANCEL_BY_HIT = "all";
+	public static boolean ALT_SHIELD_BLOCKS = false;
+	public static int ALT_PERFECT_SHIELD_BLOCK_RATE = 5;
+	public static boolean CONSUME_ON_SUCCESS = true;
+	public static boolean ENABLE_STATIC_REUSE = false;
+	public static boolean OLY_USE_STATIC_REUSE = false;
+	public static int SKILL_REUSE_DELAY = 70;
+	public static boolean USE_LEVEL_PENALTY = true;
+	public static int M_CRIT_RATE = 2;
+	public static boolean DISABLE_SKILLS_ON_LEVEL_LOST = false;
+	public static boolean USE_CHAR_LEVEL_MODIFIER = true;
+	public static String CANCEL_MODE = "new";
+	public static boolean JAIL_IS_PVP_ZONE = false;
+	public static List<String> FORBIDDEN_NAMES = List.of("admin", "gm", "gamemaster", "annoucements");
+
 	static {
 		load();
 	}
@@ -1118,6 +1211,97 @@ public final class Config {
 		ALT_FLYING_WYVERN_IN_SIEGE = ConfigLoader.getBoolean("AltFlyingWyvernInSiege", false);
 		ALLOW_GATE_CONTROL = ConfigLoader.getBoolean("AllowGateControl", false);
 		DISABLE_CHANGE_SIEGE_TIME = ConfigLoader.getBoolean("DisableChangeSiegeTime", false);
+
+		// Onda 13
+		ENABLE_AIO_SYSTEM = ConfigLoader.getBoolean("EnableAioSystem", true);
+		ENABLE_AIO_DELEVEL = ConfigLoader.getBoolean("EnableAioDelevel", false);
+		AIO_SET_DELEVEL = ConfigLoader.getInt("AioSetDelevel", 1);
+		ALLOW_AIO_SPEAK_NPC = ConfigLoader.getBoolean("AllowAioSpeakNpc", false);
+		ALLOW_AIO_LEAVE_TOWN = ConfigLoader.getBoolean("AllowAioLeaveTown", false);
+		ALLOW_AIO_TELEPORT = ConfigLoader.getBoolean("AllowAioTeleport", false);
+		ALLOW_AIO_NAME_COLOR = ConfigLoader.getBoolean("AllowAioNameColor", true);
+		AIO_NAME_COLOR = ConfigLoader.getProperty("AioNameColor", "88AA88");
+		ALLOW_AIO_TITLE_COLOR = ConfigLoader.getBoolean("AllowAioTitleColor", true);
+		AIO_TITLE_COLOR = ConfigLoader.getProperty("AioTitleColor", "88AA88");
+		ALLOW_AIO_DUAL = ConfigLoader.getBoolean("AllowAIODual", true);
+		AIO_DIAS = ConfigLoader.getInt("AioDias", 30);
+		AIO_DIAS_2 = ConfigLoader.getInt("AioDias2", 60);
+		AIO_DIAS_3 = ConfigLoader.getInt("AioDias3", 90);
+		AIO_ALLOWED_CLASS_IDS = getIntList("AllowedClassId", List.of(10, 25, 38));
+		AIO_CLASSES_NAME = ConfigLoader.getProperty("AioClassesName", "Human Mystic, Elf Mystic or Dark Elf Mystic");
+		AIO_ITEM_ID = ConfigLoader.getInt("AioItemId", 9225);
+		AIO_ITEM_COUNT = ConfigLoader.getInt("AioItemCount", 15);
+		AIO_ITEM_COUNT_2 = ConfigLoader.getInt("AioItemCount2", 30);
+		AIO_ITEM_COUNT_3 = ConfigLoader.getInt("AioItemCount3", 45);
+		AIO_COIN_TEXT = ConfigLoader.getProperty("AioCoinText", "Donate Coin");
+		BUFF_SHOP_ENABLE = ConfigLoader.getBoolean("BuffShopEnable", true);
+		BUFF_SHOP_MAX_DAYS = ConfigLoader.getInt("BuffShopMaxDays", 14);
+		ALLOW_OFFLINE_BUFF = ConfigLoader.getBoolean("AllowOfflineBuff", true);
+		DEFAULT_BUFF_SHOP_SLOTS = ConfigLoader.getInt("DefaultBuffShopSlots", 24);
+		BUFF_SHOP_NAME_COLOR = ConfigLoader.getProperty("BuffShopNameColor", "808080");
+		BUFF_SHOP_TITLE_COLOR = ConfigLoader.getProperty("BuffShopTitleColor", "00DD00");
+		BUFF_SHOP_EFFECT = ConfigLoader.getInt("BuffShopEffect", 80);
+
+		// Onda 14
+		ALLOW_VIP_NAME_COLOR = ConfigLoader.getBoolean("AllowVipNameColor", true);
+		VIP_NAME_COLOR = ConfigLoader.getProperty("VipNameColor", "0088FF");
+		ALLOW_VIP_TITLE_COLOR = ConfigLoader.getBoolean("AllowVipTitleColor", true);
+		VIP_TITLE_COLOR = ConfigLoader.getProperty("VipTitleColor", "0088FF");
+		VIP_DIAS = ConfigLoader.getInt("VipDias", 30);
+		VIP_DIAS_2 = ConfigLoader.getInt("VipDias2", 60);
+		VIP_DIAS_3 = ConfigLoader.getInt("VipDias3", 90);
+		CLAN_SKILL_BY_ITEM = ConfigLoader.getInt("ClanSkillByItem", 0);
+		CLAN_SKILL_ID = getIntList("ClanSkillID", List.of(0, 0));
+		RAID_BOSS_INFO_PAGE_LIMIT = ConfigLoader.getInt("RaidBossInfoPageLimit", 12);
+		RAID_BOSS_DROP_PAGE_LIMIT = ConfigLoader.getInt("RaidBossDropPageLimit", 12);
+		RAID_BOSS_DATE_FORMAT = ConfigLoader.getProperty("RaidBossDateFormat", "(MMM dd, HH:mm)");
+		CUSTOM_STARTER_ITEMS_ENABLED = ConfigLoader.getBoolean("CustomStarterItemsEnabled", false);
+		STARTING_CUSTOM_ITEMS_FIGHTER = ConfigLoader.getProperty("StartingCustomItemsFighter", "57,1000;");
+		STARTING_CUSTOM_ITEMS_MAGE = ConfigLoader.getProperty("StartingCustomItemsMage", "57,1000;");
+		ANNOUNCE_HERO_LOGIN = ConfigLoader.getBoolean("AnnounceHeroLogin", false);
+		ANNOUNCE_AIOX_LOGIN = ConfigLoader.getBoolean("AnnounceAIOxLogin", false);
+		ANNOUNCE_VIP_LOGIN = ConfigLoader.getBoolean("AnnounceVIPLogin", false);
+		ANNOUNCE_LORD_LOGIN = ConfigLoader.getBoolean("AnnounceLordLogin", false);
+		ANNOUNCE_NEWBIE_LOGIN = ConfigLoader.getBoolean("AnnounceNewbieLogin", false);
+		API_KEY_TOPZONE = ConfigLoader.getProperty("ApiKeyTOPZONE", "e2ec0d41791613092ac03b6243ec6b87");
+		SERVER_ID_KEY_TOPZONE = ConfigLoader.getProperty("ServerIdKeyTOPZONE", "14093");
+		API_KEY_HOPZONE = ConfigLoader.getProperty("ApiKeyHOPZONE", "0vocH6Te6bpQ89H8");
+		SERVER_ID_NETWORK = ConfigLoader.getProperty("ServerIdNETWORK", "l2nightmare");
+		VOTE_SYSTEM_REWARD_ID = ConfigLoader.getInt("VoteSystemRewardId", 3470);
+		VOTE_SYSTEM_REWARD_COUNT = ConfigLoader.getInt("VoteSystemRewardCount", 5);
+
+		// Onda 15
+		CANCEL_AUGMENTATION_EFFECT = ConfigLoader.getBoolean("CancelAugumentionEffect", true);
+		ALT_DANCE_MP_CONSUME = ConfigLoader.getBoolean("AltDanceMpConsume", true);
+		ALT_BUFFER_TIME = ConfigLoader.getInt("AltBufferTime", 100);
+		ALT_5MIN_TIME = ConfigLoader.getInt("Alt5MinTime", 100);
+		ALT_DANCE_TIME = ConfigLoader.getInt("AltDanceTime", 100);
+		ALT_SONG_TIME = ConfigLoader.getInt("AltSongTime", 100);
+		ALT_HERO_TIME = ConfigLoader.getInt("AltHeroTime", 100);
+		ALT_CH_TIME = ConfigLoader.getInt("AltChTime", 1);
+		ENABLE_MODIFY_SKILL_DURATION = ConfigLoader.getBoolean("EnableModifySkillDuration", true);
+		MAX_BUFF_AMOUNT = ConfigLoader.getInt("MaxBuffAmount", 50);
+		CANCEL_LESSER_EFFECT = ConfigLoader.getBoolean("CancelLesserEffect", true);
+		STORE_SKILL_COOLTIME = ConfigLoader.getBoolean("StoreSkillCooltime", true);
+		GRADE_PENALTY = ConfigLoader.getBoolean("GradePenalty", true);
+		ALT_GAME_CANCEL_BY_HIT = ConfigLoader.getProperty("AltGameCancelByHit", "all");
+		ALT_SHIELD_BLOCKS = ConfigLoader.getBoolean("AltShieldBlocks", false);
+		ALT_PERFECT_SHIELD_BLOCK_RATE = ConfigLoader.getInt("AltPerfectShieldBlockRate", 5);
+		CONSUME_ON_SUCCESS = ConfigLoader.getBoolean("ConsumeOnSuccess", true);
+		ENABLE_STATIC_REUSE = ConfigLoader.getBoolean("EnableSaticReuse", false);
+		OLY_USE_STATIC_REUSE = ConfigLoader.getBoolean("OlyUseStaticReuse", false);
+		SKILL_REUSE_DELAY = ConfigLoader.getInt("SkillReuseDelay", 70);
+		USE_LEVEL_PENALTY = ConfigLoader.getBoolean("UseLevelPenalty", true);
+		M_CRIT_RATE = ConfigLoader.getInt("MCritRate", 2);
+		DISABLE_SKILLS_ON_LEVEL_LOST = ConfigLoader.getBoolean("DisableSkillsOnLevelLost", false);
+		USE_CHAR_LEVEL_MODIFIER = ConfigLoader.getBoolean("UseCharLevelModifier", true);
+		CANCEL_MODE = ConfigLoader.getProperty("CancelMode", "new");
+		JAIL_IS_PVP_ZONE = ConfigLoader.getBoolean("JailIsPvpZone", false);
+		String forbidden = ConfigLoader.getProperty("ForbiddenNames", "admin,gm,gamemaster,annoucements");
+		FORBIDDEN_NAMES = Arrays.stream(forbidden.split("[,;\\s]+"))
+				.map(String::trim)
+				.filter(s -> !s.isEmpty())
+				.toList();
 	}
 
 	// =========================================================================

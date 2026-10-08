@@ -75,6 +75,14 @@ public class CharacterService {
 		if (!VALID_NAME.matcher(r.name()).matches()) {
 			return CreateResult.fail(CharCreateFailReason.INCORRECT_NAME);
 		}
+		if (Config.FORBIDDEN_NAMES != null) {
+			String lower = r.name().toLowerCase(java.util.Locale.ROOT);
+			for (String forbidden : Config.FORBIDDEN_NAMES) {
+				if (!forbidden.isBlank() && lower.contains(forbidden.toLowerCase(java.util.Locale.ROOT))) {
+					return CreateResult.fail(CharCreateFailReason.INCORRECT_NAME);
+				}
+			}
+		}
 		if (r.face() < 0 || r.face() > 2 || r.hairColor() < 0 || r.hairColor() > 3 || r.hairStyle() < 0
 				|| (r.sex() == 0 && r.hairStyle() > 4) || (r.sex() != 0 && r.hairStyle() > 6)
 				|| (r.sex() != 0 && r.sex() != 1)) {

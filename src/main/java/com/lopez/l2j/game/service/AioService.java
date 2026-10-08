@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.service;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,14 +81,79 @@ public class AioService {
         aioGoods.add(new ConsumableReward(736, 10, "Scroll of Escape"));
     }
 
+    public boolean isAioEnabled() {
+        return Config.ENABLE_AIO_SYSTEM;
+    }
+
+    public boolean isClassAllowed(int classId) {
+        return Config.AIO_ALLOWED_CLASS_IDS.isEmpty() || Config.AIO_ALLOWED_CLASS_IDS.contains(classId);
+    }
+
+    public boolean canLeaveTown(PlayerCharacter player) {
+        if (!player.isAio()) {
+            return true;
+        }
+        return Config.ALLOW_AIO_LEAVE_TOWN;
+    }
+
+    public boolean canSpeakNpc(PlayerCharacter player) {
+        if (!player.isAio()) {
+            return true;
+        }
+        return Config.ALLOW_AIO_SPEAK_NPC;
+    }
+
+    public boolean canTeleport(PlayerCharacter player) {
+        if (!player.isAio()) {
+            return true;
+        }
+        return Config.ALLOW_AIO_TELEPORT;
+    }
+
+    public boolean canEquipWeapon(PlayerCharacter player, int itemId) {
+        if (itemId == 9209) { // AIO Dual
+            return Config.ALLOW_AIO_DUAL;
+        }
+        return true;
+    }
+
+    public boolean isBuffShopEnabled() {
+        return Config.BUFF_SHOP_ENABLE;
+    }
+
+    public int getBuffShopMaxDays() {
+        return Config.BUFF_SHOP_MAX_DAYS;
+    }
+
+    public int getDefaultBuffShopSlots() {
+        return Config.DEFAULT_BUFF_SHOP_SLOTS;
+    }
+
     public void setAioStatus(PlayerCharacter player, boolean active) {
         if (active) {
+            if (!Config.ENABLE_AIO_SYSTEM) {
+                log.warn("AIO: Tentativa de ativar AIOx com EnableAioSystem=False");
+                return;
+            }
             aioPlayers.add(player.getObjectId());
             player.setAio(true);
+            if (Config.ALLOW_AIO_NAME_COLOR && Config.AIO_NAME_COLOR != null && !Config.AIO_NAME_COLOR.isBlank()) {
+                try {
+                    player.nameColor(Integer.decode("0x" + Config.AIO_NAME_COLOR));
+                } catch (Exception ignored) {}
+            }
+            if (Config.ALLOW_AIO_TITLE_COLOR && Config.AIO_TITLE_COLOR != null && !Config.AIO_TITLE_COLOR.isBlank()) {
+                try {
+                    player.titleColor(Integer.decode("0x" + Config.AIO_TITLE_COLOR));
+                } catch (Exception ignored) {}
+            }
             log.info("AIO: Status AIOx concedido ao jogador {} [{}]", player.getName(), player.getObjectId());
         } else {
             aioPlayers.remove(player.getObjectId());
             player.setAio(false);
+            if (Config.ENABLE_AIO_DELEVEL && Config.AIO_SET_DELEVEL > 0) {
+                player.level(Config.AIO_SET_DELEVEL);
+            }
             log.info("AIO: Status AIOx removido do jogador {} [{}]", player.getName(), player.getObjectId());
         }
     }

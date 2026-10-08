@@ -111,6 +111,14 @@ public final class PlayerCharacter {
 	public void setAio(boolean aio) { this.aio = aio; }
 	public void aio(boolean aio) { this.aio = aio; }
 
+	private boolean vip;
+	private long vipExpiration;
+	public boolean isVip() { return vip; }
+	public void setVip(boolean vip) { this.vip = vip; }
+	public void vip(boolean vip) { this.vip = vip; }
+	public long vipExpiration() { return vipExpiration; }
+	public void vipExpiration(long vipExpiration) { this.vipExpiration = vipExpiration; }
+
 	private volatile long lastCombatTime;
 
 	public boolean isInCombat() {

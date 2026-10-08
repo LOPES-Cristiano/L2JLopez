@@ -332,7 +332,7 @@ public class CombatService {
 		int mCritRate = (int) Math.min(mCritCap, Math.max(10, Math.round(template.wit() * 1.5)));
 		boolean crit = ThreadLocalRandom.current().nextInt(1000) < mCritRate;
 		if (crit) {
-			dmg *= 3.0;
+			dmg *= Config.M_CRIT_RATE > 0 ? (double) Config.M_CRIT_RATE : 3.0;
 		}
 		dmg *= 0.95 + ThreadLocalRandom.current().nextDouble() * 0.10;
 

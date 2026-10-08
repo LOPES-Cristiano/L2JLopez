@@ -241,7 +241,44 @@ graph TD
 
 ---
 
-## 📈 4. Checklist Geral de Progresso (12 Ondas)
+### 🌊 ONDA 13: Sistema AIOx & Buff Shop
+* **Arquivos Atendidos:** `aiox.properties`.
+* **Configurações Implementadas:**
+  * Status e ciclo de vida AIOx: `EnableAioSystem`, `EnableAioDelevel`, `AioSetDelevel`.
+  * Restrições rígidas: `AllowAioLeaveTown`, `AllowAioSpeakNpc`, `AllowAioTeleport`, `canCastBuffs` (somente em Peace Zone).
+  * Aparência e dual: `AllowAioNameColor`, `AioNameColor` (88AA88), `AllowAioTitleColor`, `AioTitleColor`, `AllowAIODual` (Item 9209).
+  * Classes permitidas e itens: `AllowedClassId` (10, 25, 38), `AioItemId` (9225), `AioItemCount`.
+  * Buff Shop: `BuffShopEnable`, `BuffShopMaxDays` (14 dias), `DefaultBuffShopSlots` (24 slots), `AllowOfflineBuff`.
+* **Classes Afetadas:** `AioService.java`, `PlayerCharacter.java`, `Config.java`.
+* **Critério de Aceite:** Testes unitários em `AioConfigurationTest.java` com 6 testes aprovados validando restrições, classes permitidas e cores.
+
+---
+
+### 🌊 ONDA 14: Sistema VIP, Itens de Clã, Start Custom & Votos
+* **Arquivos Atendidos:** `add-on.properties`, `vote.properties`, `rates.properties`.
+* **Configurações Implementadas:**
+  * Sistema VIP completo: `AllowVipNameColor`, `VipNameColor` (0088FF), `AllowVipTitleColor`, `VipTitleColor`, `VipDias` (30/60/90).
+  * Multiplicadores VIP: `AllowVipXpSp`, `VipXp`, `VipSp`, `VipDropRate`, `VipSpoilRate`.
+  * Sistema de Votos: Cooldown de 12h por personagem/IP, premiação configurável com `VoteSystemRewardId` (3470 - Gold Bar) e `VoteSystemRewardCount` (5), credenciais TopZone/HopZone/Network.
+  * Start Customizado e Clã: `CustomStarterItemsEnabled`, `StartingCustomItemsFighter`, `StartingCustomItemsMage`, `ClanSkillByItem`, `RaidBossInfoPageLimit`.
+* **Classes Afetadas:** `VipService.java` (novo), `VoteRewardService.java` (novo), `InventoryService.java`, `PlayerCharacter.java`.
+* **Critério de Aceite:** Testes unitários em `VipAndVoteConfigurationTest.java` com 5 testes aprovados validando status, expiração e cooldown.
+
+---
+
+### 🌊 ONDA 15: Regras Alternativas de Combate, Cancel & Duração de Skills
+* **Arquivos Atendidos:** `altgame.properties`.
+* **Configurações Implementadas:**
+  * Modos de Cancel: `CancelMode` (`new` com até 5 buffs individuais vs `old`), integração com `CancelRestoreService`.
+  * Restrição de Nomes: `ForbiddenNames` (`admin`, `gm`, `gamemaster`, `annoucements`) bloqueando criação em `CharacterService`.
+  * Multiplicador Crítico Mágico: `MCritRate` (2x) integrado a `CombatService.skillMagicNpc`.
+  * Modificadores de Buffs e Defesa: `MaxBuffAmount` (50), `AltShieldBlocks`, `AltPerfectShieldBlockRate`, `GradePenalty`, `SkillReuseDelay` (70).
+* **Classes Afetadas:** `CharacterService.java`, `CombatService.java`, `CancelRestoreService.java`, `Config.java`.
+* **Critério de Aceite:** Testes unitários em `AltGameConfigurationTest.java` com 4 testes aprovados validando bloqueio de nomes e fórmulas.
+
+---
+
+## 📈 4. Checklist Geral de Progresso (15 Ondas)
 
 - [x] **Onda 1: Chat, Comunicação, Social & Petições** (`options.properties`, `player.properties`) - *Concluído e Testado com Sucesso!*
 - [x] **Onda 2: Geodata, Movimentação, Zonas & Física de Combate** (`options.properties`) - *Concluído e Testado com Sucesso!*
@@ -255,12 +292,15 @@ graph TD
 - [x] **Onda 10: Olimpíadas & Ciclo dos Heróis** (`olympiad.properties`) - *Concluído e Testado com Sucesso!*
 - [x] **Onda 11: Eventos Automatizados (TvT, CTF, DM, Torneios)** (`events_*.properties`, `tvt/ctf/dm`) - *Concluído e Testado com Sucesso!*
 - [x] **Onda 12: Cercos a Castelos & Clan Halls Conquistáveis** (`siege.properties`) - *Concluído e Testado com Sucesso!*
+- [x] **Onda 13: Sistema AIOx & Buff Shop** (`aiox.properties`) - *Concluído e Testado com Sucesso!*
+- [x] **Onda 14: Sistema VIP, Itens de Clã, Start Custom & Votos** (`add-on.properties`, `vote.properties`) - *Concluído e Testado com Sucesso!*
+- [x] **Onda 15: Regras Alternativas, Cancel & Duração de Skills** (`altgame.properties`) - *Concluído e Testado com Sucesso!*
 
 ---
 
 ## 🏆 5. Status de Entrega do Roteiro
 
-* **Todas as 12 Ondas Implementadas e Verificadas**:
+* **Todas as 15 Ondas Implementadas e Verificadas**:
   * **Onda 1**: Chat, canais, restrição de nível, anti-flood, karma, filtro de palavras (`WordFilterTableTest`, `ChatConfigurationTest`).
   * **Onda 2**: Zonas de vila personalizadas (`ZoneTown`), combate, penalidade de flecha por distância (`CombatService`, `ZoneTable`).
   * **Onda 3**: Empilhamento de drop (`MultipleItemDrop`), cálculo preciso de drop, proteção contra overflow de adena (`L2OFFAdenaProtection`), slots de inventário e distribuição de party (`DropAndEconomyConfigurationTest`).
@@ -273,7 +313,10 @@ graph TD
   * **Onda 10**: Olimpíadas completas com pontos iniciais, reset semanal, restrição de IP, limite de enchant em arena e desempates (`OlympiadManagerTest`, `OlympiadGameServiceTest`).
   * **Onda 11**: Eventos PvP TvT, CTF e DM com configuração automática, faixas de nível e premiação (`PvPEventConfigurationTest`).
   * **Onda 12**: Sistema de Cercos a Castelos com duração configurável (`SiegeLength`), limites de membros/nível de clã atacante e recompensa Blood Alliance (`SiegeServiceTest`).
+  * **Onda 13**: Sistema AIOx com cores hexadecimais, restrições urbanas/paz, classes permitidas e Buff Shop offline (`AioConfigurationTest`).
+  * **Onda 14**: Status VIP completo com multiplicadores de taxa, expiração temporal e sistema de votos TopZone/HopZone/Network com cooldown (`VipAndVoteConfigurationTest`).
+  * **Onda 15**: Regras retail de `altgame.properties`: lista negra de nomes (`ForbiddenNames`), `MCritRate`, `CancelMode` e limites de buffs (`AltGameConfigurationTest`).
 
 * **Validação Geral do Projeto**:
-  * **742 testes executados com 100% de aprovação (0 falhas, 0 erros)**.
+  * **761 testes executados com 100% de aprovação (0 falhas, 0 erros, 0 skips)**.
   * **100% dos 27 arquivos `.properties` (3.045 propriedades) preservados e integrados**.
