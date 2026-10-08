@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.clan;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
 import java.util.Collection;
@@ -163,6 +164,37 @@ public class Clan {
 
 	public ClanMember removeMember(int objectId) {
 		return members.remove(objectId);
+	}
+
+	public static int getMaxMembers(int level) {
+		return switch (level) {
+			case 0 -> Config.MAX_MEMBERS_CLAN_0;
+			case 1 -> Config.MAX_MEMBERS_CLAN_1;
+			case 2 -> Config.MAX_MEMBERS_CLAN_2;
+			case 3 -> Config.MAX_MEMBERS_CLAN_3;
+			case 4 -> Config.MAX_MEMBERS_CLAN_4;
+			case 5 -> Config.MAX_MEMBERS_CLAN_5;
+			case 6 -> Config.MAX_MEMBERS_CLAN_6;
+			case 7 -> Config.MAX_MEMBERS_CLAN_7;
+			case 8 -> Config.MAX_MEMBERS_CLAN_8;
+			default -> level > 8 ? Config.MAX_MEMBERS_CLAN_8 : Config.MAX_MEMBERS_CLAN_0;
+		};
+	}
+
+	public int getMaxMembers() {
+		return getMaxMembers(this.level);
+	}
+
+	public static int getMaxRoyalMembers() {
+		return Config.MAX_MEMBERS_ROYALS;
+	}
+
+	public static int getMaxKnightMembers() {
+		return Config.MAX_MEMBERS_KNIGHTS;
+	}
+
+	public static boolean canMemberWithdrawFromWarehouse() {
+		return Config.ALT_MEMBERS_CAN_WITHDRAW_FROM_CLAN_WH;
 	}
 
 	public int clanHallId() { return clanHallId; }
