@@ -87,9 +87,7 @@ public class FighterAI extends AbstractNpcAI {
 						player.send(new UserInfo(character, template));
 
 						if (character.isDead()) {
-							var die = new Die(character.objectId(), true);
-							player.send(die);
-							world.broadcastAround(player, GameWorld.VISIBILITY_RADIUS, die, false);
+							player.onDeath(npc.objectId());
 						}
 					}
 				}
@@ -123,9 +121,7 @@ public class FighterAI extends AbstractNpcAI {
 				player.send(StatusUpdate.hp(character.objectId(), (int) character.currentHp(), character.maxHp()));
 				player.send(new UserInfo(character, template));
 				if (character.isDead()) {
-					var die = new Die(character.objectId(), true);
-					player.send(die);
-					world.broadcastAround(player, GameWorld.VISIBILITY_RADIUS, die, false);
+					player.onDeath(npc.objectId());
 				}
 			}
 		}
