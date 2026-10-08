@@ -52,12 +52,13 @@ secrets/
 *.pts
 *.dat
 *.bak
-geodata/
-data/geodata/
-**/geodata/**
-pathnode/
-data/pathnode/
-**/pathnode/**
+/geodata/
+/data/geodata/
+/pathnode/
+/data/pathnode/
+!src/**/geodata/**
+!src/**/pathnode/**
+
 
 ### Logs / SO ###
 *.log
