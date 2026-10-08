@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.offlinetrade;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,9 +56,30 @@ public class OfflineTradeService {
             return false;
         }
 
+        if (!Config.ALLOW_OFFLINE_TRADE) {
+            log.warn("Offline Trade desativado nas configuracoes");
+            return false;
+        }
+
+        if (mode == STORE_PRIVATE_MANUFACTURE && !Config.ALLOW_OFFLINE_TRADE_CRAFT) {
+            log.warn("Offline Craft desativado nas configuracoes para {}", player.name());
+            return false;
+        }
+
         if (items == null || items.isEmpty()) {
             log.warn("Offline Trade recusado para {}: lista de itens vazia", player.name());
             return false;
+        }
+
+        if (Config.ALLOW_OFFLINE_TRADE_COLOR_NAME && Config.OFFLINE_TRADE_COLOR_NAME != null) {
+            try {
+                int color = Integer.decode("0x" + Config.OFFLINE_TRADE_COLOR_NAME.trim());
+                player.nameColor(color);
+            } catch (Exception ignored) {}
+        }
+
+        if (Config.ALLOW_OFFLINE_TRADE_PROTECTION) {
+            player.invul(true);
         }
 
         int charId = player.objectId();
@@ -137,6 +159,10 @@ public class OfflineTradeService {
      * Carrega comerciantes offline ativos do banco de dados na inicializacao.
      */
     public synchronized int loadOfflineTraders() {
+        if (!Config.RESTORE_OFFLINE_TRADERS) {
+            log.info("Restauracao de comerciantes offline desativada por configuracao.");
+            return 0;
+        }
         if (jdbc == null) {
             return 0;
         }
