@@ -301,7 +301,7 @@ public sealed interface GameServerPacket {
 			w.writeC(enchantEffect); // enchant effect (weapon glow: 0=none, 4-15=blue, 16+=red)
 			w.writeC(0); // team
 			w.writeD(0); // large clan crest
-			w.writeC(0).writeC(0); // noble, hero
+			w.writeC(c.isNoble() ? 1 : 0).writeC(c.isHero() ? 1 : 0); // noble, hero
 			w.writeC(0).writeD(0).writeD(0).writeD(0); // fishing
 			w.writeD(c.isGm() ? 0x00FFFF : (c.nameColor() != 0 ? c.nameColor() : NAME_COLOR));
 			w.writeC(c.running() ? 1 : 0);
@@ -478,6 +478,7 @@ public sealed interface GameServerPacket {
 		public static final int GEMSTONE_QUANTITY_IS_INCORRECT = 1961;
 		public static final int THE_ITEM_WAS_SUCCESSFULLY_AUGMENTED = 1962;
 		public static final int SELECT_THE_ITEM_FROM_WHICH_YOU_WISH_TO_REMOVE_AUGMENTATION = 1963;
+		public static final int YOU_HAVE_BECOME_A_NOBLESSE = 1665;
 		public static final int AUGMENTATION_REMOVAL_CAN_ONLY_BE_DONE_ON_AN_AUGMENTED_ITEM = 1964;
 		public static final int AUGMENTATION_HAS_BEEN_SUCCESSFULLY_REMOVED_FROM_YOUR_S1 = 1965;
 		public static final int SPOIL_SUCCESS = 612;
@@ -2518,6 +2519,17 @@ public sealed interface GameServerPacket {
 			return new PacketWriter()
 					.writeC(0xa1)
 					.writeD(markId)
+					.toByteArray();
+		}
+	}
+
+	/** 0xa2 TutorialEnableClientEvent: habilita gatilho de evento no cliente para o tutorial. */
+	record TutorialEnableClientEvent(int eventId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter()
+					.writeC(0xa2)
+					.writeD(eventId)
 					.toByteArray();
 		}
 	}
