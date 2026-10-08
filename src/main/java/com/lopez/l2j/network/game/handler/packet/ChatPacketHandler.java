@@ -14,9 +14,12 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
  */
 public class ChatPacketHandler {
 
-	public static final int MAX_CHAT_LENGTH = 105;
+	public static final int DEFAULT_CHAT_LENGTH = 120;
 
 	private final GameSession session;
+	private long lastShoutTime = 0;
+	private long lastTradeTime = 0;
+	private long lastHeroTime = 0;
 
 	public ChatPacketHandler(GameSession session) {
 		this.session = session;
@@ -28,7 +31,11 @@ public class ChatPacketHandler {
 			return;
 		}
 
-		String raw = p.text().length() > MAX_CHAT_LENGTH ? p.text().substring(0, MAX_CHAT_LENGTH) : p.text();
+		int maxLen = com.lopez.l2j.config.Config.CHAT_LENGTH > 0 ? com.lopez.l2j.config.Config.CHAT_LENGTH : DEFAULT_CHAT_LENGTH;
+		String raw = p.text().length() > maxLen ? p.text().substring(0, maxLen) : p.text();
+		if (!com.lopez.l2j.config.Config.ALLOW_MULTILINE_CHAT) {
+			raw = raw.replace('\r', ' ').replace('\n', ' ');
+		}
 		raw = raw.trim();
 
 		if (raw.startsWith("//")) {
@@ -69,9 +76,13 @@ public class ChatPacketHandler {
 		}
 
 		var ctx = session.context();
-		// Aplica filtro de palavras censuradas (SayFilter)
-		if (ctx != null && ctx.wordFilter() != null) {
-			text = ctx.wordFilter().filter(text);
+		// Aplica filtro de palavras censuradas (SayFilter) e penalidade de Karma
+		if (com.lopez.l2j.config.Config.USE_CHAT_FILTER && ctx != null && ctx.wordFilter() != null) {
+			String filtered = ctx.wordFilter().filter(text);
+			if (!text.equals(filtered) && com.lopez.l2j.config.Config.CHAT_FILTER_KARMA > 0) {
+				active.karma(active.karma() + com.lopez.l2j.config.Config.CHAT_FILTER_KARMA);
+			}
+			text = filtered;
 		}
 
 		if (text.isBlank()) {
@@ -82,13 +93,94 @@ public class ChatPacketHandler {
 			return;
 		}
 
+		long now = System.currentTimeMillis();
+
 		switch (channel) {
-			case CreatureSay.SHOUT -> ctx.world().broadcast(
-					new CreatureSay(active.objectId(), CreatureSay.SHOUT, active.name(), text), x -> true);
-			case CreatureSay.TRADE -> ctx.world().broadcast(
-					new CreatureSay(active.objectId(), CreatureSay.TRADE, active.name(), text), x -> true);
-			case CreatureSay.HERO -> ctx.world().broadcast(
-					new CreatureSay(active.objectId(), CreatureSay.HERO, active.name(), text), x -> true);
+			case CreatureSay.SHOUT -> {
+				if (!active.isGm()) {
+					if (active.level() < com.lopez.l2j.config.Config.SHOUT_CHAT_LEVEL) {
+						session.send(new CreatureSay(0, CreatureSay.ALL, "System",
+								"Voce precisa de nivel " + com.lopez.l2j.config.Config.SHOUT_CHAT_LEVEL + " para usar o chat shout (!)."));
+						return;
+					}
+					if ("OFF".equalsIgnoreCase(com.lopez.l2j.config.Config.GLOBAL_CHAT)) {
+						session.send(new CreatureSay(0, CreatureSay.ALL, "System", "Chat shout esta desativado."));
+						return;
+					}
+					if ("GM".equalsIgnoreCase(com.lopez.l2j.config.Config.GLOBAL_CHAT)) {
+						session.send(new CreatureSay(0, CreatureSay.ALL, "System", "Apenas Administradores podem usar o chat shout."));
+						return;
+					}
+					if (com.lopez.l2j.config.Config.SHOUT_CHAT_REUSE_DELAY > 0) {
+						if (now - lastShoutTime < com.lopez.l2j.config.Config.SHOUT_CHAT_REUSE_DELAY * 1000L) {
+							session.send(new ActionFailed());
+							return;
+						}
+						lastShoutTime = now;
+					}
+				}
+
+				boolean isGlobal = "GLOBAL".equalsIgnoreCase(com.lopez.l2j.config.Config.GLOBAL_CHAT);
+				ctx.world().broadcast(new CreatureSay(active.objectId(), CreatureSay.SHOUT, active.name(), text), s -> {
+					if (s.character() == null) return false;
+					if (com.lopez.l2j.config.Config.REGION_CHAT_ALSO_BLOCKED && ctx.friends() != null && ctx.friends().isBlocked(s.character(), active)) {
+						return false;
+					}
+					if (isGlobal || s.character().isGm() || active.isGm()) return true;
+					double dx = s.character().x() - active.x();
+					double dy = s.character().y() - active.y();
+					return (dx * dx + dy * dy) <= (15000.0 * 15000.0);
+				});
+			}
+			case CreatureSay.TRADE -> {
+				if (!active.isGm()) {
+					if (active.level() < com.lopez.l2j.config.Config.TRADE_CHAT_LEVEL) {
+						session.send(new CreatureSay(0, CreatureSay.ALL, "System",
+								"Voce precisa de nivel " + com.lopez.l2j.config.Config.TRADE_CHAT_LEVEL + " para usar o chat trade (+)."));
+						return;
+					}
+					if ("OFF".equalsIgnoreCase(com.lopez.l2j.config.Config.TRADE_CHAT)) {
+						session.send(new CreatureSay(0, CreatureSay.ALL, "System", "Chat trade esta desativado."));
+						return;
+					}
+					if ("GM".equalsIgnoreCase(com.lopez.l2j.config.Config.TRADE_CHAT)) {
+						session.send(new CreatureSay(0, CreatureSay.ALL, "System", "Apenas Administradores podem usar o chat trade."));
+						return;
+					}
+					if (com.lopez.l2j.config.Config.TRADE_CHAT_REUSE_DELAY > 0) {
+						if (now - lastTradeTime < com.lopez.l2j.config.Config.TRADE_CHAT_REUSE_DELAY * 1000L) {
+							session.send(new ActionFailed());
+							return;
+						}
+						lastTradeTime = now;
+					}
+				}
+
+				boolean isGlobal = "GLOBAL".equalsIgnoreCase(com.lopez.l2j.config.Config.TRADE_CHAT);
+				ctx.world().broadcast(new CreatureSay(active.objectId(), CreatureSay.TRADE, active.name(), text), s -> {
+					if (s.character() == null) return false;
+					if (com.lopez.l2j.config.Config.REGION_CHAT_ALSO_BLOCKED && ctx.friends() != null && ctx.friends().isBlocked(s.character(), active)) {
+						return false;
+					}
+					if (isGlobal || s.character().isGm() || active.isGm()) return true;
+					double dx = s.character().x() - active.x();
+					double dy = s.character().y() - active.y();
+					return (dx * dx + dy * dy) <= (15000.0 * 15000.0);
+				});
+			}
+			case CreatureSay.HERO -> {
+				if (!active.isGm()) {
+					if (com.lopez.l2j.config.Config.HERO_CHAT_REUSE_DELAY > 0) {
+						if (now - lastHeroTime < com.lopez.l2j.config.Config.HERO_CHAT_REUSE_DELAY * 1000L) {
+							session.send(new ActionFailed());
+							return;
+						}
+						lastHeroTime = now;
+					}
+				}
+				ctx.world().broadcast(
+						new CreatureSay(active.objectId(), CreatureSay.HERO, active.name(), text), x -> true);
+			}
 			case CreatureSay.PARTY -> {
 				Party party = session.party();
 				if (party != null) {
