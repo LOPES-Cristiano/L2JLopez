@@ -5,6 +5,8 @@ import com.lopez.l2j.game.effect.PlayerEffects.ActiveBuff;
 import com.lopez.l2j.game.effect.ConsumableTable;
 import com.lopez.l2j.game.effect.ConsumableTable.Consumable;
 import com.lopez.l2j.game.item.EnchantScrollTable;
+import com.lopez.l2j.game.item.EnchantTableService;
+import com.lopez.l2j.game.item.EquipmentRestrictionService;
 import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.item.ItemSkillHolder;
 import com.lopez.l2j.game.item.ItemSlots;
@@ -36,6 +38,7 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.ItemList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MagicEffectIcons;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SellList;
+import com.lopez.l2j.network.game.packet.GameServerPacket.SocialAction;
 import com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import org.slf4j.Logger;
@@ -183,6 +186,10 @@ public class ItemPacketHandler {
 				useThiefKey(item);
 				return;
 			}
+			if (Config.NOBLESSE_ITEM_ID > 0 && item.itemId() == Config.NOBLESSE_ITEM_ID) {
+				useNoblesseItem(item);
+				return;
+			}
 			var consumable = ConsumableTable.get(item.itemId());
 			if (consumable.isPresent()) {
 				useConsumable(consumable.get());
@@ -193,6 +200,11 @@ public class ItemPacketHandler {
 			return;
 		}
 		if (active.sitting()) {
+			session.send(new ActionFailed());
+			return;
+		}
+		if (!item.isEquipped() && !EquipmentRestrictionService.canEquip(active, item)) {
+			session.send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(item.itemId())));
 			session.send(new ActionFailed());
 			return;
 		}
@@ -279,6 +291,18 @@ public class ItemPacketHandler {
 			return;
 		}
 
+		if (!EnchantTableService.isScrollAllowed(scrollInfo)) {
+			session.send(SystemMessage.id(SystemMessage.INAPPROPRIATE_ENCHANT_CONDITION));
+			session.send(EnchantResult.CANCEL);
+			return;
+		}
+
+		if (EnchantTableService.isOverEnchant(target, scrollInfo)) {
+			session.send(SystemMessage.id(SystemMessage.INAPPROPRIATE_ENCHANT_CONDITION));
+			session.send(EnchantResult.CANCEL);
+			return;
+		}
+
 		String targetGrade = target.template().crystalType();
 		if (targetGrade == null || !targetGrade.equalsIgnoreCase(scrollInfo.grade())) {
 			session.send(SystemMessage.id(SystemMessage.INAPPROPRIATE_ENCHANT_CONDITION));
@@ -301,13 +325,8 @@ public class ItemPacketHandler {
 		session.send(new InventoryUpdate(List.of(
 				ItemInfo.of(consumedScroll.item(), consumedScroll.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
 
-		int safeLimit = (target.template().bodyPart() == ItemSlots.SLOT_FULL_ARMOR) ? 4 : 3;
-		boolean success;
-		if (target.enchant() < safeLimit) {
-			success = true;
-		} else {
-			success = java.util.concurrent.ThreadLocalRandom.current().nextInt(100) < 66;
-		}
+		int chance = EnchantTableService.getEnchantChance(scrollInfo, target, active.race());
+		boolean success = java.util.concurrent.ThreadLocalRandom.current().nextInt(100) < chance;
 
 		if (success) {
 			target.enchant(target.enchant() + 1);
@@ -328,8 +347,9 @@ public class ItemPacketHandler {
 			}
 			session.broadcastAppearance();
 		} else {
-			if (scrollInfo.isBlessed()) {
-				target.enchant(0);
+			int failEnchant = EnchantTableService.calculateFailureEnchant(scrollInfo, target);
+			if (failEnchant >= 0) {
+				target.enchant(failEnchant);
 				ctx.inventories().saveItem(target);
 				session.send(SystemMessage.id(SystemMessage.BLESSED_ENCHANT_FAILED));
 				session.send(EnchantResult.BLESSED_FAIL);
@@ -437,7 +457,7 @@ public class ItemPacketHandler {
 			return;
 		}
 
-		if (active.inventory().size() + slots > 80) {
+		if (active.inventory().size() + slots > active.maxInventorySlots()) {
 			session.send(SystemMessage.id(SystemMessage.SLOTS_FULL));
 			session.send(new ActionFailed());
 			return;
@@ -472,6 +492,29 @@ public class ItemPacketHandler {
 			return;
 		}
 		long totalEarned = 0;
+		for (var req : p.items()) {
+			var itOpt = active.inventory().byObjectId(req.objectId());
+			if (itOpt.isEmpty()) {
+				continue;
+			}
+			var item = itOpt.get();
+			if (item.isEquipped() || item.template().type2() == ItemTemplate.TYPE2_QUEST) {
+				continue;
+			}
+			int count = Math.min((int) item.count(), Math.max(1, req.count()));
+			if (Config.SET_MAX_ETC_ITEM_SELL && item.template().type2() == ItemTemplate.TYPE2_OTHER) {
+				count = Math.min(count, Config.SET_MAX_ETC_ITEM_SELL_QNT);
+			}
+			int pricePerItem = Math.max(1, item.template().price() / 2);
+			totalEarned += (long) pricePerItem * count;
+		}
+
+		if (Config.L2OFF_ADENA_PROTECTION && ((long) active.inventory().adena() + totalEarned > Integer.MAX_VALUE)) {
+			session.send(SystemMessage.id(SystemMessage.SLOTS_FULL));
+			session.send(new ActionFailed());
+			return;
+		}
+
 		List<ItemInfo> updates = new ArrayList<>();
 		for (var req : p.items()) {
 			var itOpt = active.inventory().byObjectId(req.objectId());
@@ -483,8 +526,9 @@ public class ItemPacketHandler {
 				continue;
 			}
 			int count = Math.min((int) item.count(), Math.max(1, req.count()));
-			int pricePerItem = Math.max(1, item.template().price() / 2);
-			totalEarned += (long) pricePerItem * count;
+			if (Config.SET_MAX_ETC_ITEM_SELL && item.template().type2() == ItemTemplate.TYPE2_OTHER) {
+				count = Math.min(count, Config.SET_MAX_ETC_ITEM_SELL_QNT);
+			}
 			var upd = ctx.inventories().destroyItem(active.inventory(), item.objectId(), count, "Sell");
 			if (upd != null) {
 				updates.add(upd.removed()
@@ -1155,5 +1199,31 @@ public class ItemPacketHandler {
 		}
 
 		session.castSkill(sk, true);
+	}
+
+	private void useNoblesseItem(ItemInstance item) {
+		PlayerCharacter active = session.activeChar();
+		if (!session.inWorld() || active == null || active.isDead()) {
+			session.send(new ActionFailed());
+			return;
+		}
+		if (active.isNoble()) {
+			session.send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(item.itemId())));
+			session.send(new ActionFailed());
+			return;
+		}
+		if (!consumeItem(item.itemId(), 1)) {
+			session.send(new ActionFailed());
+			return;
+		}
+		active.setNoble(true);
+		session.send(SystemMessage.id(SystemMessage.YOU_HAVE_BECOME_A_NOBLESSE));
+		session.send(new SocialAction(active.objectId(), 16));
+		session.sendUserInfoAndBroadcastCharInfo();
+		var ctx = session.context();
+		if (ctx != null && ctx.characters() != null) {
+			ctx.characters().save(active, true);
+		}
+		session.send(new ActionFailed());
 	}
 }
