@@ -160,12 +160,12 @@ Este documento consolida a pesquisa aprofundada de **todas as funcionalidades, s
 Para manter a consistência da arquitetura **Spring Boot**, a política estrita de **Zero Doações** (economia orientada exclusivamente a Adena, Gold Bars e drops) e a regra de **1 commit por arquivo com 100% de testes verdes**, estruturamos as novas fases recomendadas em ondas claras:
 
 ### 🌟 Fase 1: PvE & QoL de Combate de Alto Impacto
-1. **Onda C12 - Mobs Champion System:**
-   - Criar `ChampionService.java` com injeção de dependência e persistência de taxas.
-   - Conectar no `SpawnService` para sortear o estado Champion ao nascer.
-   - Aplicar multiplicadores de HP, P.Atk, M.Atk e títulos coloridos no pacote `NpcInfo`.
-   - Modificar distribuição de recompensas para aplicar multiplicadores de EXP, SP, Adena e drop de Event Medals.
-   - Criar testes unitários completos em `ChampionServiceTest.java`.
+1. **Onda C12 - Mobs Champion System: [CONCLUÍDO ✅]**
+   - [x] Criado `ChampionService.java` com injeção Spring, suporte a multiplicadores de HP (x8), P.Atk/M.Atk (x1.25), P.Def/M.Def (x1.1), EXP/SP (x8), Drops/Adena (x8) e roll de Medalha de Evento (ID 6392).
+   - [x] Conectado no `SpawnService` e `NpcAiService` para sortear o estado Champion ao nascer ou respawnar.
+   - [x] Conectado no `GameServerPacket` (`NpcInfo`) com título `Champion` e aura vermelha circular de time (`team = 2`).
+   - [x] Conectado no `CombatService`, `DropService` e `GameSession` para multiplicar dano/HP, EXP/SP e drops.
+   - [x] Testes unitários com 100% de aprovação em `ChampionServiceTest.java`.
 
 2. **Onda C13 - Custom Cancel Return (5s):**
    - Implementar `CancelRecoveryService.java` para capturar efeitos cancelados e reagendá-los com Virtual Threads.
