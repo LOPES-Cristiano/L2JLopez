@@ -196,18 +196,24 @@ public final class Party {
 		}
 	}
 
+	public static double getPartyRange() {
+		return com.lopez.l2j.config.Config.ALT_PARTY_RANGE > 0 ? com.lopez.l2j.config.Config.ALT_PARTY_RANGE : PARTY_RANGE;
+	}
+
 	/**
 	 * Divide a experiencia e SP entre os membros do grupo presentes no raio do monstro derrotado,
-	 * aplicando o bonus de grupo proporcional a quantidade de jogadores e seus niveis.
+	 * aplicando o bonus de grupo proporcional a quantidade de jogadores e seus niveis,
+	 * respeitando limites de diferenca de nivel e cutoff do options.properties.
 	 */
 	public void distributeExpAndSp(long totalExp, int totalSp, PlayerCharacter killer, double ratePartyXp,
 			double ratePartySp) {
+		double range = getPartyRange();
 		List<GameSession> inRange = new ArrayList<>();
 		for (var s : members) {
 			var c = s.character();
 			if (c != null && !c.isDead()) {
 				double dist = Math.hypot(c.x() - killer.x(), c.y() - killer.y());
-				if (dist <= PARTY_RANGE) {
+				if (dist <= range) {
 					inRange.add(s);
 				}
 			}
@@ -222,18 +228,52 @@ public final class Party {
 			return;
 		}
 
-		int count = inRange.size();
+		int highestLevel = inRange.stream().mapToInt(s -> s.character().level()).max().orElse(1);
+
+		// Filtra membros por limite de nível e método de cutoff do options.properties
+		List<GameSession> eligible = new ArrayList<>();
+		for (var s : inRange) {
+			int lvl = s.character().level();
+			if (com.lopez.l2j.config.Config.PARTY_LEVEL_LIMIT && (highestLevel - lvl) > com.lopez.l2j.config.Config.PARTY_MAX_LEVEL_DIFFERENCE) {
+				continue;
+			}
+
+			String method = com.lopez.l2j.config.Config.PARTY_XP_CUTOFF_METHOD;
+			if ("level".equalsIgnoreCase(method)) {
+				if ((highestLevel - lvl) > com.lopez.l2j.config.Config.PARTY_XP_CUTOFF_LEVEL) {
+					continue;
+				}
+			}
+			eligible.add(s);
+		}
+
+		if (eligible.isEmpty()) {
+			return;
+		}
+
+		if (eligible.size() == 1) {
+			eligible.get(0).applyExpAndSp(totalExp, totalSp);
+			return;
+		}
+
+		int count = eligible.size();
 		double bonusMultiplier = BONUS_EXP_SP[Math.min(count - 1, BONUS_EXP_SP.length - 1)];
 		long partyExp = Math.round(totalExp * bonusMultiplier * ratePartyXp);
 		int partySp = (int) Math.round(totalSp * bonusMultiplier * ratePartySp);
 
-		long sumLevels = inRange.stream().mapToLong(s -> s.character().level()).sum();
+		long sumLevels = eligible.stream().mapToLong(s -> s.character().level()).sum();
 		if (sumLevels <= 0) {
 			sumLevels = count;
 		}
 
-		for (var s : inRange) {
+		String method = com.lopez.l2j.config.Config.PARTY_XP_CUTOFF_METHOD;
+		double minSharePercent = ("percentage".equalsIgnoreCase(method)) ? (com.lopez.l2j.config.Config.PARTY_XP_CUTOFF_PERCENT / 100.0) : 0.0;
+
+		for (var s : eligible) {
 			double share = (double) s.character().level() / sumLevels;
+			if (minSharePercent > 0.0 && share < minSharePercent) {
+				continue;
+			}
 			long memberExp = Math.max(1, Math.round(partyExp * share));
 			int memberSp = Math.max(1, (int) Math.round(partySp * share));
 			s.applyExpAndSp(memberExp, memberSp);
