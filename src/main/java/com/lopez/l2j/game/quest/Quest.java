@@ -10,7 +10,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Classe base representativa de uma Quest no Lineage II Interlude.
- * Provê os hooks de eventos de NPC, combate, entrada no mundo e despacho de eventos assíncronos.
+ * Provê os hooks de eventos de NPC, combate, entrada no mundo e despacho de
+ * eventos assíncronos.
  */
 public abstract class Quest {
 
@@ -56,6 +57,10 @@ public abstract class Quest {
 		}
 	}
 
+	public int getFirstStartNpc() {
+		return startNpcIds.isEmpty() ? 0 : startNpcIds.iterator().next();
+	}
+
 	public void addStartNpc(int... npcIds) {
 		if (npcIds != null) {
 			for (int id : npcIds) {
@@ -71,6 +76,14 @@ public abstract class Quest {
 				talkNpcIds.add(id);
 			}
 		}
+	}
+
+	public void addTalkNpc(int... npcIds) {
+		addTalkId(npcIds);
+	}
+
+	public void addQuestItem(int... itemIds) {
+		registerQuestItems(itemIds);
 	}
 
 	public void addKillId(int... npcIds) {
@@ -95,6 +108,10 @@ public abstract class Quest {
 
 	public boolean hasTalkNpc(int npcId) {
 		return talkNpcIds.contains(npcId);
+	}
+
+	public void addAttackId(int... npcIds) {
+		// Optional attack hook
 	}
 
 	public boolean hasKillNpc(int npcId) {
@@ -162,6 +179,17 @@ public abstract class Quest {
 	}
 
 	public String onFirstTalk(NpcInstance npc, GameSession player) {
+		QuestState qs = player != null ? player.getQuestState(name) : null;
+		if (qs == null && player != null) {
+			qs = newQuestState(player);
+		}
+		if (qs != null) {
+			return onFirstTalk(npc, qs);
+		}
+		return null;
+	}
+
+	public String onFirstTalk(NpcInstance npc, QuestState qs) {
 		return null;
 	}
 
@@ -173,7 +201,15 @@ public abstract class Quest {
 		return null;
 	}
 
+	public String onKill(NpcInstance npc, QuestState qs) {
+		return null;
+	}
+
 	public String onKill(NpcInstance npc, QuestState qs, boolean isPet) {
+		return onKill(npc, qs);
+	}
+
+	public String onAttack(NpcInstance npc, QuestState qs) {
 		return null;
 	}
 
@@ -219,5 +255,37 @@ public abstract class Quest {
 			log.error("Erro ao despachar onKill na quest {}: {}", name, e.getMessage(), e);
 			return null;
 		}
+	}
+
+	public static int packInt(int[] nArray, int n) {
+		int n2 = 32 / n;
+		int n3 = 0;
+		for (int i = 0; i < n2; ++i) {
+			n3 <<= n;
+			int n5 = (nArray != null && nArray.length > i) ? nArray[i] : 0;
+			n3 += n5;
+		}
+		return n3;
+	}
+
+	public static int[] unpackInt(int n, int n2) {
+		int n3 = 32 / n2;
+		int n4 = (int) Math.pow(2.0, n2);
+		int[] nArray = new int[n3];
+		int curr = n;
+		for (int i = n3; i > 0; --i) {
+			int n5 = curr;
+			curr >>= n2;
+			nArray[i - 1] = n5 - curr * n4;
+		}
+		return nArray;
+	}
+
+	public String str(long n) {
+		return String.valueOf(n);
+	}
+
+	public String str(int n) {
+		return String.valueOf(n);
 	}
 }

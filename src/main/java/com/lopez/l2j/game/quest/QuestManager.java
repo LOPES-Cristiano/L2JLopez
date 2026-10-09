@@ -37,8 +37,26 @@ public class QuestManager {
 		if (quest == null) {
 			return;
 		}
-		questsById.put(quest.getQuestId(), quest);
-		questsByName.put(quest.getName().toLowerCase(java.util.Locale.ROOT), quest);
+		int qid = quest.getQuestId();
+		String qName = quest.getName().toLowerCase(java.util.Locale.ROOT);
+
+		questsById.put(qid, quest);
+		questsByName.put(qName, quest);
+
+		// Alias com ID direto e padronizado
+		questsByName.putIfAbsent(String.valueOf(qid), quest);
+		questsByName.putIfAbsent(String.format("%03d", qid), quest);
+		questsByName.putIfAbsent("q" + qid, quest);
+		questsByName.putIfAbsent("q" + String.format("%03d", qid), quest);
+		questsByName.putIfAbsent("quest" + qid, quest);
+
+		// Variacoes com ou sem underscore inicial
+		if (qName.startsWith("_")) {
+			questsByName.putIfAbsent(qName.substring(1), quest);
+		} else {
+			questsByName.putIfAbsent("_" + qName, quest);
+		}
+
 		log.info("Quest registrada: [{}] {}", quest.getQuestId(), quest.getName());
 	}
 
@@ -47,10 +65,39 @@ public class QuestManager {
 	}
 
 	public Quest getQuest(String name) {
-		if (name == null) {
+		if (name == null || name.isBlank()) {
 			return null;
 		}
-		return questsByName.get(name.toLowerCase(java.util.Locale.ROOT));
+		String clean = name.trim().toLowerCase(java.util.Locale.ROOT);
+		Quest q = questsByName.get(clean);
+		if (q != null) {
+			return q;
+		}
+
+		// Tenta remover prefixo '_' ou 'q'
+		if (clean.startsWith("_")) {
+			q = questsByName.get(clean.substring(1));
+			if (q != null) return q;
+		}
+		if (clean.startsWith("q")) {
+			q = questsByName.get(clean.substring(1));
+			if (q != null) return q;
+		}
+
+		// Tenta extrair numero de missao do inicio (ex: "_021_...", "21_...", "21")
+		java.util.regex.Matcher m = java.util.regex.Pattern.compile("^[_qQ]*(\\d+)").matcher(clean);
+		if (m.find()) {
+			try {
+				int parsedId = Integer.parseInt(m.group(1));
+				Quest byId = questsById.get(parsedId);
+				if (byId != null) {
+					return byId;
+				}
+			} catch (NumberFormatException ignored) {
+			}
+		}
+
+		return null;
 	}
 
 	public Collection<Quest> getAllQuests() {

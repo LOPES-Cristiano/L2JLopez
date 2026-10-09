@@ -4,6 +4,7 @@ import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.item.ItemSlots;
 import com.lopez.l2j.game.item.ItemTemplate;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.packet.GameServerPacket.*;
 import java.util.Collections;
@@ -31,6 +32,9 @@ public class QuestState {
 	public static final String SOUND_FINISH = "ItemSound.quest_finish";
 	public static final String SOUND_ITEMGET = "ItemSound.quest_itemget";
 	public static final String SOUND_FANFARE = "ItemSound.quest_fanfare_2";
+	public static final String SOUND_JACKPOT = "ItemSound.quest_jackpot";
+	public static final String SOUND_HORROR2 = "SkillSound5.horror_02";
+	public static final String SOUND_BEFORE_BATTLE = "Itemsound.quest_before_battle";
 
 	private final Quest quest;
 	private GameSession player;
@@ -76,6 +80,15 @@ public class QuestState {
 		return state;
 	}
 
+	public int getStateId() {
+		if (state == State.COMPLETED) {
+			return 3;
+		} else if (state == State.STARTED) {
+			return 2;
+		}
+		return 1;
+	}
+
 	public void setState(State state) {
 		this.state = state;
 	}
@@ -116,7 +129,15 @@ public class QuestState {
 		}
 	}
 
+	public void set(String var, String val, boolean store) {
+		set(var, val);
+	}
+
 	public void set(String var, int val) {
+		set(var, String.valueOf(val));
+	}
+
+	public void set(String var, int val, boolean store) {
 		set(var, String.valueOf(val));
 	}
 
@@ -134,6 +155,46 @@ public class QuestState {
 
 	public Map<String, String> getAllVars() {
 		return Collections.unmodifiableMap(variables);
+	}
+
+	public int calculateLevelDiffForDrop(int mobLevel, int playerLevel) {
+		int diff = playerLevel - mobLevel;
+		return Math.max(0, diff);
+	}
+
+	public double getRateQuestsAdenaReward() {
+		return 1.0;
+	}
+
+	public double getRateQuestsReward() {
+		return 1.0;
+	}
+
+	public double getRateQuestsDrop() {
+		return 1.0;
+	}
+
+	public void dropItemDelay(com.lopez.l2j.game.npc.NpcInstance npc, int itemId, int count) {
+		giveItems(itemId, count);
+	}
+
+	public QuestState getQuestState(String questName) {
+		return player != null ? player.getQuestState(questName) : null;
+	}
+
+	public QuestState getQuestState(Class<?> clazz) {
+		if (clazz != null) {
+			String cname = clazz.getSimpleName();
+			if (cname.startsWith("_")) {
+				cname = cname.substring(1);
+			}
+			return getQuestState(cname);
+		}
+		return null;
+	}
+
+	public PlayerCharacter getRandomPartyMember(int state, double range) {
+		return playerChar();
 	}
 
 	public int getCond() {
@@ -205,6 +266,10 @@ public class QuestState {
 		}
 	}
 
+	public void giveItems(int itemId, long count) {
+		giveItems(itemId, (int) Math.min(Integer.MAX_VALUE, count));
+	}
+
 	public void rewardItems(int itemId, int count) {
 		giveItems(itemId, count);
 	}
@@ -255,22 +320,80 @@ public class QuestState {
 		}
 	}
 
+	public void takeItems(int itemId, long count) {
+		takeItems(itemId, (int) Math.min(Integer.MAX_VALUE, count));
+	}
+
+	public void takeAllItems(int... itemIds) {
+		if (itemIds != null) {
+			for (int id : itemIds) {
+				takeItems(id, -1);
+			}
+		}
+	}
+
+	public boolean rollAndGive(int itemId, int count, double chance) {
+		if (chance <= 0) return false;
+		if (chance >= 100.0 || java.util.concurrent.ThreadLocalRandom.current().nextDouble(100.0) < chance) {
+			giveItems(itemId, count);
+			playSound(SOUND_ITEMGET);
+			return true;
+		}
+		return false;
+	}
+
+	public boolean rollAndGive(int itemId, int count, int countMax, int limit, double chance) {
+		if (chance <= 0) return false;
+		long current = getQuestItemsCount(itemId);
+		if (limit > 0 && current >= limit) return false;
+		if (chance >= 100.0 || java.util.concurrent.ThreadLocalRandom.current().nextDouble(100.0) < chance) {
+			int add = countMax > count ? java.util.concurrent.ThreadLocalRandom.current().nextInt(count, countMax + 1) : count;
+			if (limit > 0 && current + add > limit) {
+				add = (int) (limit - current);
+			}
+			if (add > 0) {
+				giveItems(itemId, add);
+				playSound(SOUND_ITEMGET);
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public void addExpAndSp(long exp, int sp) {
 		if (player == null || player.activeChar() == null) {
 			return;
 		}
 		PlayerCharacter c = player.activeChar();
-		c.exp(c.exp() + exp);
-		c.sp(c.sp() + sp);
+		c.addExpAndSp(exp, sp);
 		player.send(new StatusUpdate(c.objectId(), List.of(
 				new StatusUpdate.Attribute(StatusUpdate.EXP, (int) c.exp()),
 				new StatusUpdate.Attribute(StatusUpdate.SP, c.sp()))));
+	}
+
+	public void addExpAndSp(long exp, long sp) {
+		addExpAndSp(exp, (int) sp);
 	}
 
 	public void playSound(String sound) {
 		if (player != null && sound != null) {
 			player.send(new PlaySound(sound));
 		}
+	}
+
+	public NpcInstance addSpawn(int npcId) {
+		if (player != null && player.activeChar() != null) {
+			return addSpawn(npcId, player.activeChar().x(), player.activeChar().y(), player.activeChar().z(), 0);
+		}
+		return null;
+	}
+
+	public NpcInstance addSpawn(int npcId, int x, int y, int z, int despawnDelay) {
+		return null;
+	}
+
+	public NpcInstance addSpawn(int npcId, int x, int y, int z) {
+		return addSpawn(npcId, x, y, z, 0);
 	}
 
 	public void playTutorialVoice(String voice) {
@@ -356,6 +479,30 @@ public class QuestState {
 		activeTimers.put(name, future);
 	}
 
+	public void startQuestTimer(String name, long timeMillis, NpcInstance npc) {
+		cancelQuestTimer(name);
+		ScheduledFuture<?> future = QUEST_TIMER_POOL.schedule(() -> {
+			try {
+				if (player != null && player.activeChar() != null) {
+					quest.notifyEvent(name, npc, player);
+				}
+			} catch (Exception e) {
+				log.error("Erro executando quest timer {} na quest {}", name, quest.getName(), e);
+			} finally {
+				activeTimers.remove(name);
+			}
+		}, timeMillis, TimeUnit.MILLISECONDS);
+		activeTimers.put(name, future);
+	}
+
+	public boolean isRunningQuestTimer(String name) {
+		return activeTimers.containsKey(name);
+	}
+
+	public NpcInstance addSpawn(int npcId, int count) {
+		return addSpawn(npcId);
+	}
+
 	public void cancelQuestTimer(String name) {
 		ScheduledFuture<?> future = activeTimers.remove(name);
 		if (future != null) {
@@ -389,5 +536,22 @@ public class QuestState {
 			}
 		}
 		return 0;
+	}
+
+	public void giveItems(int itemId, long count, boolean notify) {
+		giveItems(itemId, count);
+	}
+
+	public long getQuestItemsCount(int... itemIds) {
+		if (itemIds == null) return 0;
+		long total = 0;
+		for (int id : itemIds) {
+			total += getQuestItemsCount(id);
+		}
+		return total;
+	}
+
+	public NpcInstance addSpawn(int npcId, int x, int y, int z, int heading, int randomOffset, int despawnDelay) {
+		return addSpawn(npcId, x, y, z, despawnDelay);
 	}
 }
