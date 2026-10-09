@@ -7,17 +7,25 @@ import com.lopez.l2j.game.boss.epic.CoreAndOrfenService;
 import com.lopez.l2j.game.boss.epic.QueenAntService;
 import com.lopez.l2j.game.boss.epic.SailrenService;
 import com.lopez.l2j.game.boss.epic.ValakasService;
+import com.lopez.l2j.game.boss.epic.VanHalterService;
 import com.lopez.l2j.game.boss.epic.ZakenService;
+import com.lopez.l2j.game.instance.foursepulchers.FourSepulchersService;
 import com.lopez.l2j.game.instance.frintezza.FrintezzaService;
+import com.lopez.l2j.game.model.ObjectIdFactory;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.npc.NpcInstance;
+import com.lopez.l2j.game.npc.NpcTemplateTable;
 import com.lopez.l2j.game.party.Party;
+import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ActionFailed;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import jakarta.annotation.PostConstruct;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +66,17 @@ public class BossManager {
 	private final ZakenService zakenService;
 	private final CoreAndOrfenService coreAndOrfenService;
 	private final FrintezzaService frintezzaService;
+	private final VanHalterService vanHalterService;
+	private final FourSepulchersService fourSepulchersService;
+	private final GameWorld world;
+	private final NpcTemplateTable templates;
+	private final ObjectIdFactory objectIds;
+
+	private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+		Thread t = new Thread(r, "SubclassChest-Scheduler");
+		t.setDaemon(true);
+		return t;
+	});
 
 	@Autowired
 	public BossManager(
@@ -70,7 +89,12 @@ public class BossManager {
 			@Autowired(required = false) QueenAntService queenAntService,
 			@Autowired(required = false) ZakenService zakenService,
 			@Autowired(required = false) CoreAndOrfenService coreAndOrfenService,
-			@Autowired(required = false) FrintezzaService frintezzaService) {
+			@Autowired(required = false) FrintezzaService frintezzaService,
+			@Autowired(required = false) VanHalterService vanHalterService,
+			@Autowired(required = false) FourSepulchersService fourSepulchersService,
+			@Autowired(required = false) GameWorld world,
+			@Autowired(required = false) NpcTemplateTable templates,
+			@Autowired(required = false) ObjectIdFactory objectIds) {
 		this.raidBossSpawnManager = raidBossSpawnManager;
 		this.grandBossManager = grandBossManager;
 		this.antharasService = antharasService;
@@ -81,6 +105,27 @@ public class BossManager {
 		this.zakenService = zakenService;
 		this.coreAndOrfenService = coreAndOrfenService;
 		this.frintezzaService = frintezzaService;
+		this.vanHalterService = vanHalterService;
+		this.fourSepulchersService = fourSepulchersService;
+		this.world = world;
+		this.templates = templates;
+		this.objectIds = objectIds;
+	}
+
+	public BossManager(
+			GrandBossManager grandBossManager,
+			RaidBossSpawnManager raidBossSpawnManager,
+			AntharasService antharasService,
+			ValakasService valakasService,
+			BaiumService baiumService,
+			SailrenService sailrenService,
+			QueenAntService queenAntService,
+			ZakenService zakenService,
+			CoreAndOrfenService coreAndOrfenService,
+			FrintezzaService frintezzaService) {
+		this(raidBossSpawnManager, grandBossManager, antharasService, valakasService,
+				baiumService, sailrenService, queenAntService, zakenService,
+				coreAndOrfenService, frintezzaService, null, null, null, null, null);
 	}
 
 	@PostConstruct
@@ -133,6 +178,14 @@ public class BossManager {
 		return frintezzaService;
 	}
 
+	public VanHalterService vanHalterService() {
+		return vanHalterService;
+	}
+
+	public FourSepulchersService fourSepulchersService() {
+		return fourSepulchersService;
+	}
+
 	/**
 	 * Processa a morte de qualquer monstro/chefe no servidor.
 	 */
@@ -177,6 +230,56 @@ public class BossManager {
 				coreAndOrfenService.onOrfenKilled(killer);
 			}
 		}
+
+		if (vanHalterService != null && npcId == VanHalterService.VAN_HALTER) {
+			vanHalterService.onVanHalterKilled(killer);
+		}
+
+		if (fourSepulchersService != null) {
+			if (npcId == FourSepulchersService.SHADOW_OF_HALISHA_CONQUERORS) {
+				fourSepulchersService.defeatShadowOfHalisha(FourSepulchersService.SEPULCHER_CONQUERORS, killer);
+			} else if (npcId == FourSepulchersService.SHADOW_OF_HALISHA_EMPERORS) {
+				fourSepulchersService.defeatShadowOfHalisha(FourSepulchersService.SEPULCHER_EMPERORS, killer);
+			} else if (npcId == FourSepulchersService.SHADOW_OF_HALISHA_SAGES) {
+				fourSepulchersService.defeatShadowOfHalisha(FourSepulchersService.SEPULCHER_SAGES, killer);
+			} else if (npcId == FourSepulchersService.SHADOW_OF_HALISHA_JUDGES) {
+				fourSepulchersService.defeatShadowOfHalisha(FourSepulchersService.SEPULCHER_JUDGES, killer);
+			}
+		}
+
+		// Fate's Whisper (Quest 234) Subclass Boss Chests: Cabrio (25035), Kernon (25054), Golkonda (25126), Hallate (25220)
+		checkSpawnSubclassChest(npc);
+	}
+
+	private void checkSpawnSubclassChest(NpcInstance boss) {
+		if (world == null || templates == null || objectIds == null || boss == null) {
+			return;
+		}
+		int chestNpcId = switch (boss.npcId()) {
+			case 25035 -> 31027; // Shax / Cabrio -> Coffer of the Dead
+			case 25054 -> 31028; // Kernon -> Kernon's Chest
+			case 25126 -> 31029; // Golkonda -> Golkonda's Chest
+			case 25220 -> 31030; // Hallate -> Hallate's Chest
+			default -> 0;
+		};
+		if (chestNpcId == 0) {
+			return;
+		}
+
+		templates.get(chestNpcId).ifPresent(tpl -> {
+			NpcInstance chest = new NpcInstance(objectIds.nextId(), tpl, boss.x(), boss.y(), boss.z(), boss.heading());
+			world.addNpc(chest);
+			log.info("Spawned quest chest {} ({}) at ({}, {}, {}) after {} death.",
+					chestNpcId, tpl.name(), boss.x(), boss.y(), boss.z(), boss.template().name());
+			scheduler.schedule(() -> {
+				try {
+					world.removeNpc(chest);
+					log.info("Quest chest {} despawned after 120 seconds.", chestNpcId);
+				} catch (Exception e) {
+					log.error("Error despawning quest chest {}: {}", chestNpcId, e.getMessage());
+				}
+			}, 120, TimeUnit.SECONDS);
+		});
 	}
 
 	/**

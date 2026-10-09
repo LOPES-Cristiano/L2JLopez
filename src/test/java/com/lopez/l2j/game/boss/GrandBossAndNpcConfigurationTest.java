@@ -29,6 +29,7 @@ class GrandBossAndNpcConfigurationTest {
 
 	@BeforeEach
 	void setUp() {
+		Config.load();
 		origAnnounceRaid = Config.ANNOUNCE_RAID_SPAWN;
 		origDeltaAggro = Config.ALT_MOB_NO_ATTACK_WITH_LEVEL_DIFFERENCE;
 	}
@@ -37,6 +38,7 @@ class GrandBossAndNpcConfigurationTest {
 	void tearDown() {
 		Config.ANNOUNCE_RAID_SPAWN = origAnnounceRaid;
 		Config.ALT_MOB_NO_ATTACK_WITH_LEVEL_DIFFERENCE = origDeltaAggro;
+		Config.load();
 	}
 
 	@Test

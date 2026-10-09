@@ -8,7 +8,8 @@ public enum BossStatus {
 	ALIVE(1),
 	DEAD(2),
 	INTERVAL(3),
-	WAITING(4);
+	WAITING(4),
+	FIGHTING(5);
 
 	private final int id;
 

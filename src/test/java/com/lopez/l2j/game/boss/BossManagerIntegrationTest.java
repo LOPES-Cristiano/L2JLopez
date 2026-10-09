@@ -86,6 +86,6 @@ public class BossManagerIntegrationTest {
 		NpcInstance antBoss = new NpcInstance(5001, antTpl, 0, 0, 0, 0);
 
 		assertDoesNotThrow(() -> bossManager.onBossKilled(antBoss, killer, null));
-		assertEquals(BossStatus.DEAD, antharas.getStatus());
+		assertEquals(BossStatus.INTERVAL, antharas.getStatus());
 	}
 }

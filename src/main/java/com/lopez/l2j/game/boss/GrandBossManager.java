@@ -56,34 +56,34 @@ public class GrandBossManager {
 
 	private void initDefinitions() {
 		register(new GrandBossInfo(QUEEN_ANT, "Queen Ant", -21610, 181594, -5734, 0,
-				Config.getInt("QueenAntMinRespawn", 1140), Config.getInt("QueenAntMaxRespawn", 2160),
+				Config.QUEEN_ANT_MIN_RESPAWN, Config.QUEEN_ANT_MAX_RESPAWN,
 				Config.getString("QueenAntCron", "")));
 		register(new GrandBossInfo(CORE, "Core", 17726, 108915, -6480, 0,
-				Config.getInt("CoreMinRespawn", 2220), Config.getInt("CoreMaxRespawn", 3600),
+				Config.CORE_MIN_RESPAWN, Config.CORE_MAX_RESPAWN,
 				Config.getString("CoreCron", "")));
 		register(new GrandBossInfo(ORFEN, "Orfen", 55024, 17368, -5412, 0,
-				Config.getInt("OrfenMinRespawn", 1680), Config.getInt("OrfenMaxRespawn", 2880),
+				Config.ORFEN_MIN_RESPAWN, Config.ORFEN_MAX_RESPAWN,
 				Config.getString("OrfenCron", "")));
 		register(new GrandBossInfo(ANTHARAS, "Antharas", 181323, 114850, -7670, 32542,
-				Config.getInt("AntharasMinRespawn", 11520), Config.getInt("AntharasMaxRespawn", 15840),
+				Config.ANTHARAS_MIN_RESPAWN, Config.ANTHARAS_MAX_RESPAWN,
 				Config.getString("AntharasCron", "")));
 		register(new GrandBossInfo(BAIUM, "Baium", 116033, 17447, 10107, 40188,
-				Config.getInt("BaiumMinRespawn", 7200), Config.getInt("BaiumMaxRespawn", 10080),
+				Config.BAIUM_MIN_RESPAWN, Config.BAIUM_MAX_RESPAWN,
 				Config.getString("BaiumCron", "")));
 		register(new GrandBossInfo(ZAKEN, "Zaken", 55312, 219168, -3223, 0,
-				Config.getInt("ZakenMinRespawn", 2400), Config.getInt("ZakenMaxRespawn", 3600),
+				Config.ZAKEN_MIN_RESPAWN, Config.ZAKEN_MAX_RESPAWN,
 				Config.getString("ZakenCron", "")));
 		register(new GrandBossInfo(VALAKAS, "Valakas", 212852, -114842, -1632, 833,
-				Config.getInt("ValakasMinRespawn", 11520), Config.getInt("ValakasMaxRespawn", 15840),
+				Config.VALAKAS_MIN_RESPAWN, Config.VALAKAS_MAX_RESPAWN,
 				Config.getString("ValakasCron", "")));
 		register(new GrandBossInfo(FRINTEZZA, "Frintezza", -87784, -155083, -9083, 16048,
-				Config.getInt("FrintezzaMinRespawn", 2400), Config.getInt("FrintezzaMaxRespawn", 3600),
+				Config.FRINTEZZA_MIN_RESPAWN, Config.FRINTEZZA_MAX_RESPAWN,
 				Config.getString("FrintezzaCron", "")));
 		register(new GrandBossInfo(VAN_HALTER, "High Priestess van Halter", -16375, -53658, 10448, 0,
-				Config.getInt("VanHalterMinRespawn", 720), Config.getInt("VanHalterMaxRespawn", 2160),
+				Config.VAN_HALTER_MIN_RESPAWN, Config.VAN_HALTER_MAX_RESPAWN,
 				Config.getString("VanHalterCron", "")));
 		register(new GrandBossInfo(SAILREN, "Sailren", 27333, -6835, -1970, 0,
-				Config.getInt("SailrenMinRespawn", 720), Config.getInt("SailrenMaxRespawn", 2160),
+				Config.SAILREN_MIN_RESPAWN, Config.SAILREN_MAX_RESPAWN,
 				Config.getString("SailrenCron", "")));
 	}
 

@@ -22,6 +22,9 @@ public class GrandBossServicesTest {
 		Config.BAIUM_CHECK_QUEST_FOR_AWAKE = true;
 		Config.QUEEN_ANT_MAX_SAFE_LEVEL = 48;
 		Config.ZAKEN_MAX_LEVEL_IN_ZONE = 80;
+		Config.ZAKEN_DOOR_CLOSED_DEFAULT = true;
+		Config.ZAKEN_DOOR_OPEN_HOUR = "0";
+		Config.ZAKEN_DOOR_OPEN_TIME = 5;
 	}
 
 	private PlayerCharacter createPlayer(int id, String name, int level) {
