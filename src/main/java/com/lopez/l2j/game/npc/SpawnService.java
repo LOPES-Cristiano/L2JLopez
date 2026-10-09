@@ -191,46 +191,11 @@ public class SpawnService {
 	}
 
 	private int loadRaidBossSpawns() {
-		try {
-			List<SpawnRecord> spawns = jdbc.sql("SELECT boss_id, loc_x, loc_y, loc_z, heading, amount FROM raidboss_spawnlist")
-					.query((rs, i) -> new SpawnRecord(
-							rs.getInt("boss_id"),
-							rs.getInt("loc_x"),
-							rs.getInt("loc_y"),
-							rs.getInt("loc_z"),
-							rs.getInt("heading"),
-							rs.getInt("amount")))
-					.list();
-
-			int spawned = 0;
-			for (SpawnRecord rec : spawns) {
-				NpcTemplate template = templates.get(rec.npcTemplateId())
-						.orElseGet(() -> fallbackTemplate(rec.npcTemplateId(), "Raid Boss " + rec.npcTemplateId(), "L2RaidBoss"));
-				int count = Math.max(1, rec.count());
-				for (int c = 0; c < count; c++) {
-					int objectId = objectIds.nextId();
-					int sx = rec.x();
-					int sy = rec.y();
-					if (c > 0) {
-						double angle = (2 * Math.PI * c) / count;
-						int dist = 50 + (c * 30);
-						sx += (int) (Math.cos(angle) * dist);
-						sy += (int) (Math.sin(angle) * dist);
-					}
-					NpcInstance npc = new NpcInstance(objectId, template, sx, sy, correctZ(sx, sy, rec.z()), rec.heading());
-					world.addNpc(npc);
-					spawned++;
-					if (Config.ANNOUNCE_RAID_SPAWN && (template.isRaidBoss() || template.isGrandBoss())) {
-						world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Raid Boss", "Raid Boss " + template.name() + " has spawned in the world!"), p -> true);
-					}
-				}
-			}
-			return spawned;
-		} catch (Exception e) {
-			log.warn("Tabela raidboss_spawnlist nao carregada: {}", e.getMessage());
-			return 0;
-		}
+		// Raid Bosses e seus ciclos de vida / respawns sao gerenciados pelo RaidBossSpawnManager
+		// com calculo de respawn_time, atrasos aleatorios e persistencia no banco.
+		return 0;
 	}
+
 
 	private int loadFortSpawns() {
 		try {

@@ -36,6 +36,11 @@ class JdbcNpcTemplateTable implements NpcTemplateTable {
 		return cache().size();
 	}
 
+	@Override
+	public java.util.Collection<NpcTemplate> all() {
+		return cache().values();
+	}
+
 	private Map<Integer, NpcTemplate> cache() {
 		Map<Integer, NpcTemplate> c = cache;
 		if (c == null) {

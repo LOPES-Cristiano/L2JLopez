@@ -41,8 +41,10 @@ public final class NpcInstance {
 
 	public int objectId() { return objectId; }
 	public NpcTemplate template() { return template; }
+	public NpcTemplate getTemplate() { return template; }
 	public int npcId() { return template.id(); }
 	public int getNpcId() { return template.id(); }
+	public int getLevel() { return template != null ? template.level() : 1; }
 	public String name() { return template.name(); }
 	public int x() { return x; }
 	public void x(int value) { this.x = value; }
@@ -61,21 +63,100 @@ public final class NpcInstance {
 	public double currentMp() { return currentMp; }
 	public void currentMp(double value) { this.currentMp = value; }
 	public boolean isDead() { return dead; }
-	public void dead(boolean value) { this.dead = value; }
+	public void dead(boolean value) {
+		this.dead = value;
+		if (value) {
+			abortAttack();
+			abortCast();
+		}
+	}
 	public boolean isInCombat() { return inCombat; }
 	public boolean inCombat() { return inCombat; }
-	public void inCombat(boolean value) { this.inCombat = value; }
+	public void inCombat(boolean value) {
+		this.inCombat = value;
+		if (!value) {
+			abortAttack();
+			abortCast();
+		}
+	}
 	public boolean isRunning() { return running; }
 	public void running(boolean value) { this.running = value; }
 	public boolean isAttackable() { return template.isAttackable(); }
 	public boolean isMonster() { return template.isMonster(); }
 
+	private volatile java.util.concurrent.ScheduledFuture<?> currentAttackTask;
+	private volatile java.util.concurrent.ScheduledFuture<?> currentCastTask;
+	private volatile boolean casting;
+
+	public boolean isCasting() {
+		return casting;
+	}
+
+	public void casting(boolean value) {
+		this.casting = value;
+	}
+
+	public java.util.concurrent.ScheduledFuture<?> currentAttackTask() {
+		return currentAttackTask;
+	}
+
+	public void currentAttackTask(java.util.concurrent.ScheduledFuture<?> task) {
+		var old = this.currentAttackTask;
+		if (old != null && old != task && !old.isDone()) {
+			old.cancel(false);
+		}
+		this.currentAttackTask = task;
+	}
+
+	public java.util.concurrent.ScheduledFuture<?> currentCastTask() {
+		return currentCastTask;
+	}
+
+	public void currentCastTask(java.util.concurrent.ScheduledFuture<?> task) {
+		var old = this.currentCastTask;
+		if (old != null && old != task && !old.isDone()) {
+			old.cancel(false);
+		}
+		this.currentCastTask = task;
+	}
+
+	public void abortAttack() {
+		var task = this.currentAttackTask;
+		if (task != null) {
+			task.cancel(false);
+			this.currentAttackTask = null;
+		}
+	}
+
+	public void abortCast() {
+		this.casting = false;
+		var task = this.currentCastTask;
+		if (task != null) {
+			task.cancel(false);
+			this.currentCastTask = null;
+		}
+	}
+
+	public void deleteMe() {
+		this.dead = true;
+	}
+
+	public int getX() { return (int) x; }
+	public int getY() { return (int) y; }
+	public int getZ() { return (int) z; }
+	public int getHeading() { return heading; }
+
 	private volatile double pDefMul = 1.0;
 	private volatile double mDefMul = 1.0;
 	private volatile double pAtkMul = 1.0;
+	private volatile double mAtkMul = 1.0;
+	private volatile double runSpdMul = 1.0;
+	private volatile double pAtkSpdMul = 1.0;
+	private volatile double mAtkSpdMul = 1.0;
 	private volatile double maxHpMul = 1.0;
 	private volatile boolean champion;
 	private volatile String championTitle;
+	private volatile boolean invul;
 
 	public double maxHp() { return template.maxHp() * maxHpMul; }
 	public double maxHpMul() { return maxHpMul; }
@@ -84,14 +165,31 @@ public final class NpcInstance {
 	public void champion(boolean value) { this.champion = value; }
 	public String championTitle() { return championTitle; }
 	public void championTitle(String value) { this.championTitle = value; }
+	public boolean invul() { return invul; }
+	public void invul(boolean value) { this.invul = value; }
 
 	public double pDef() { return template.pDef() * pDefMul; }
 	public double mDef() { return template.mDef() * mDefMul; }
 	public double pAtk() { return template.pAtk() * pAtkMul; }
-	public double mAtk() { return template.mAtk(); }
+	public double mAtk() { return template.mAtk() * mAtkMul; }
+	public int runSpd() { return (int) Math.max(1, template.runSpd() * runSpdMul); }
+	public int walkSpd() { return (int) Math.max(1, template.walkSpd() * runSpdMul); }
+	public int pAtkSpd() { return (int) Math.max(1, template.pAtkSpd() * pAtkSpdMul); }
+	public int mAtkSpd() { return (int) Math.max(1, template.mAtkSpd() * mAtkSpdMul); }
 	public void pDefMul(double value) { this.pDefMul = value; }
+	public double pDefMul() { return pDefMul; }
 	public void mDefMul(double value) { this.mDefMul = value; }
+	public double mDefMul() { return mDefMul; }
 	public void pAtkMul(double value) { this.pAtkMul = value; }
+	public double pAtkMul() { return pAtkMul; }
+	public void mAtkMul(double value) { this.mAtkMul = value; }
+	public double mAtkMul() { return mAtkMul; }
+	public void runSpdMul(double value) { this.runSpdMul = value; }
+	public double runSpdMul() { return runSpdMul; }
+	public void pAtkSpdMul(double value) { this.pAtkSpdMul = value; }
+	public double pAtkSpdMul() { return pAtkSpdMul; }
+	public void mAtkSpdMul(double value) { this.mAtkSpdMul = value; }
+	public double mAtkSpdMul() { return mAtkSpdMul; }
 	public int targetPlayerId() { return targetPlayerId; }
 	public void targetPlayerId(int value) { this.targetPlayerId = value; }
 	public long lastAttackTime() { return lastAttackTime; }
@@ -153,6 +251,8 @@ public final class NpcInstance {
 	private volatile long disabledUntil;
 	private volatile boolean sleeping;
 	private volatile long rootedUntil;
+	private volatile long mutedUntil;
+	private volatile long physicalMutedUntil;
 
 	/** Stun/Paralyze/Sleep: nao anda nem ataca ate {@code until}. Sleep quebra ao tomar dano. */
 	public void disable(long until, boolean sleep) {
@@ -164,6 +264,14 @@ public final class NpcInstance {
 		this.rootedUntil = Math.max(rootedUntil, until);
 	}
 
+	public void mute(long until) {
+		this.mutedUntil = Math.max(mutedUntil, until);
+	}
+
+	public void physicalMute(long until) {
+		this.physicalMutedUntil = Math.max(physicalMutedUntil, until);
+	}
+
 	public boolean isDisabled() {
 		return System.currentTimeMillis() < disabledUntil;
 	}
@@ -172,11 +280,20 @@ public final class NpcInstance {
 		return System.currentTimeMillis() < rootedUntil;
 	}
 
+	public boolean isMuted() {
+		return System.currentTimeMillis() < mutedUntil;
+	}
+
+	public boolean isPhysicalMuted() {
+		return System.currentTimeMillis() < physicalMutedUntil;
+	}
+
 	/** Chamado quando o monstro toma dano: acorda do Sleep. */
 	public void onDamaged() {
 		if (sleeping) {
 			sleeping = false;
 			disabledUntil = 0;
+			stopAbnormalEffect(0x0080);
 		}
 	}
 

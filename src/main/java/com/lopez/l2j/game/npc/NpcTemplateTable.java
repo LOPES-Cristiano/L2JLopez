@@ -12,6 +12,10 @@ public interface NpcTemplateTable {
 
 	int size();
 
+	default Collection<NpcTemplate> all() {
+		return java.util.List.of();
+	}
+
 	static NpcTemplateTable of(Collection<NpcTemplate> templates) {
 		Map<Integer, NpcTemplate> byId = new HashMap<>();
 		templates.forEach(t -> byId.put(t.id(), t));
@@ -24,6 +28,11 @@ public interface NpcTemplateTable {
 			@Override
 			public int size() {
 				return byId.size();
+			}
+
+			@Override
+			public Collection<NpcTemplate> all() {
+				return byId.values();
 			}
 		};
 	}
