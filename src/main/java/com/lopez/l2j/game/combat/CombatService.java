@@ -20,17 +20,18 @@ public class CombatService {
 	private final com.lopez.l2j.game.geodata.GeoEngine geoEngine;
 	private final com.lopez.l2j.game.olympiad.OlyClassDamageManager olyDamageManager;
 	private final com.lopez.l2j.game.champion.ChampionService championService;
+	private final com.lopez.l2j.game.zone.ZoneTable zones;
 
 	public CombatService() {
-		this(1.0, 1.0, null, null, null);
+		this(1.0, 1.0, null, null, null, null);
 	}
 
 	public CombatService(double rateXp, double rateSp) {
-		this(rateXp, rateSp, null, null, null);
+		this(rateXp, rateSp, null, null, null, null);
 	}
 
 	public CombatService(double rateXp, double rateSp, com.lopez.l2j.game.geodata.GeoEngine geoEngine) {
-		this(rateXp, rateSp, geoEngine, null, null);
+		this(rateXp, rateSp, geoEngine, null, null, null);
 	}
 
 	public CombatService(
@@ -38,7 +39,16 @@ public class CombatService {
 			double rateSp,
 			com.lopez.l2j.game.geodata.GeoEngine geoEngine,
 			com.lopez.l2j.game.olympiad.OlyClassDamageManager olyDamageManager) {
-		this(rateXp, rateSp, geoEngine, olyDamageManager, null);
+		this(rateXp, rateSp, geoEngine, olyDamageManager, null, null);
+	}
+
+	public CombatService(
+			double rateXp,
+			double rateSp,
+			com.lopez.l2j.game.geodata.GeoEngine geoEngine,
+			com.lopez.l2j.game.olympiad.OlyClassDamageManager olyDamageManager,
+			com.lopez.l2j.game.champion.ChampionService championService) {
+		this(rateXp, rateSp, geoEngine, olyDamageManager, championService, null);
 	}
 
 	@org.springframework.beans.factory.annotation.Autowired
@@ -47,12 +57,14 @@ public class CombatService {
 			@Value("${l2.rates.sp:1.0}") double rateSp,
 			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.geodata.GeoEngine geoEngine,
 			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.olympiad.OlyClassDamageManager olyDamageManager,
-			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.champion.ChampionService championService) {
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.champion.ChampionService championService,
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.zone.ZoneTable zones) {
 		this.rateXp = rateXp;
 		this.rateSp = rateSp;
 		this.geoEngine = geoEngine;
 		this.olyDamageManager = olyDamageManager;
 		this.championService = championService;
+		this.zones = zones;
 	}
 
 	public com.lopez.l2j.game.olympiad.OlyClassDamageManager olyDamageManager() {
@@ -153,8 +165,94 @@ public class CombatService {
 		return Formulas.calcMagicSuccess(magicLevel, attackerLevel, targetLevel);
 	}
 
+	public enum RelativePosition {
+		FRONT,
+		SIDE,
+		BEHIND
+	}
+
+	public static RelativePosition getRelativePosition(int attackerX, int attackerY, int targetX, int targetY, int targetHeading) {
+		double dx = attackerX - targetX;
+		double dy = attackerY - targetY;
+		double targetFacingRad = (targetHeading / 65536.0) * 2 * Math.PI;
+		double attackAngleRad = Math.atan2(dy, dx);
+		double diff = attackAngleRad - targetFacingRad;
+		while (diff <= -Math.PI) diff += 2 * Math.PI;
+		while (diff > Math.PI) diff -= 2 * Math.PI;
+		double deg = Math.toDegrees(Math.abs(diff));
+		if (deg <= 60.0) {
+			return RelativePosition.FRONT;
+		} else if (deg >= 120.0) {
+			return RelativePosition.BEHIND;
+		} else {
+			return RelativePosition.SIDE;
+		}
+	}
+
+	public static int getBlowChance(RelativePosition pos) {
+		return switch (pos) {
+			case BEHIND -> Config.BLOW_BEHIND;
+			case SIDE -> Config.BLOW_SIDE;
+			case FRONT -> Config.BLOW_FRONT;
+		};
+	}
+
+	public static boolean calcBlowSuccess(int attackerX, int attackerY, int targetX, int targetY, int targetHeading) {
+		RelativePosition pos = getRelativePosition(attackerX, attackerY, targetX, targetY, targetHeading);
+		int chance = getBlowChance(pos);
+		return ThreadLocalRandom.current().nextInt(100) < chance;
+	}
+
+	public static double getLethalRateMultiplier(boolean isDagger, boolean isBow) {
+		if (isDagger) {
+			return Config.ALT_LETHAL_RATE_DAGGER;
+		} else if (isBow) {
+			return Config.ALT_LETHAL_RATE_ARCHERY;
+		} else {
+			return Config.ALT_LETHAL_RATE_OTHER;
+		}
+	}
+
+	public static boolean calcLethalSuccess(double baseChance, boolean isDagger, boolean isBow) {
+		double rate = baseChance * getLethalRateMultiplier(isDagger, isBow);
+		return ThreadLocalRandom.current().nextDouble(100.0) < Math.min(100.0, rate);
+	}
+
 	public HitResult attackNpc(PlayerCharacter attacker, CharTemplate template, NpcInstance target) {
 		return attackNpc(attacker, template, target, -1);
+	}
+
+	public static final int RAID_CURSE_SILENCE = 4215;
+	public static final int RAID_CURSE_PETRIFY = 4515;
+
+	/**
+	 * Verifica se o jogador sofre a Maldicao de Raid Boss (Raid Curse)
+	 * por estar em nivel muito superior ao chefe (Lucera / Dream / retail L2).
+	 */
+	public boolean checkRaidCurse(PlayerCharacter attacker, NpcInstance target) {
+		if (attacker == null || target == null || target.template() == null) {
+			return false;
+		}
+		boolean isRaid = target.template().isRaidBoss() || target.template().isGrandBoss()
+				|| (target.isMinion() && target.masterObjectId() != 0);
+		if (!isRaid) {
+			return false;
+		}
+
+		// Verificacao especial Queen Ant: nivel maximo seguro (retail: 48)
+		if (target.npcId() >= 29001 && target.npcId() <= 29005) {
+			if (attacker.level() > Config.QUEEN_ANT_MAX_SAFE_LEVEL) {
+				return true;
+			}
+		}
+
+		if (Config.PARALIZE_ON_RAID_LEVEL_DIFF) {
+			int diff = attacker.level() - target.template().level();
+			if (diff > Config.RAID_MAX_LEVEL_DIFF) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -166,6 +264,11 @@ public class CombatService {
 		if (target.isDead()) {
 			return new HitPlan(0, 0, false, false);
 		}
+
+		if (checkRaidCurse(attacker, target)) {
+			return new HitPlan(0, 0, false, false);
+		}
+
 
 		var stats = PlayerStats.calculate(attacker, template);
 		boolean soulshot = soulshotGrade >= 0;
@@ -278,6 +381,9 @@ public class CombatService {
 		if (target.isDead()) {
 			return new HitResult(0, 0, false, 0, target.template().maxHp(), 0, 0); // ja morto: nada a recompensar
 		}
+		if (checkRaidCurse(attacker, target)) {
+			return new HitResult(0, 0, false, (int) target.currentHp(), target.template().maxHp(), 0, 0, false);
+		}
 		if (!canSeeTarget(attacker, target)) {
 			return new HitResult(0, 0x80, false, (int) target.currentHp(), target.template().maxHp(), 0, 0, true);
 		}
@@ -288,8 +394,16 @@ public class CombatService {
 		if (chargeDam) {
 			dmg *= (0.8 + 0.201 * attacker.charges());
 		}
-		boolean crit = blow ? ThreadLocalRandom.current().nextInt(100) < 50
-				: ThreadLocalRandom.current().nextInt(1000) < Math.max(40, stats.critical()) / 2;
+		boolean crit;
+		if (blow) {
+			boolean blowSuccess = calcBlowSuccess(attacker.x(), attacker.y(), target.x(), target.y(), target.heading());
+			if (!blowSuccess) {
+				return new HitResult(0, 0x80, false, (int) target.currentHp(), target.template().maxHp(), 0, 0, false);
+			}
+			crit = true;
+		} else {
+			crit = ThreadLocalRandom.current().nextInt(1000) < Math.max(40, stats.critical()) / 2;
+		}
 		if (crit) {
 			dmg *= 2.0;
 		}
@@ -313,8 +427,11 @@ public class CombatService {
 
 	public HitResult skillMagicNpc(PlayerCharacter attacker, CharTemplate template, NpcInstance target,
 			double power, int magicLevel, boolean sps, boolean bss) {
-		if (target.isDead()) {
-			return new HitResult(0, 0, false, 0, target.template().maxHp(), 0, 0, false);
+		if (target.isDead() || target.invul()) {
+			return new HitResult(0, 0, false, (int) target.currentHp(), target.template().maxHp(), 0, 0, false);
+		}
+		if (checkRaidCurse(attacker, target)) {
+			return new HitResult(0, 0, false, (int) target.currentHp(), target.template().maxHp(), 0, 0, false);
 		}
 		if (!canSeeTarget(attacker, target)) {
 			return new HitResult(0, 0x80, false, (int) target.currentHp(), target.template().maxHp(), 0, 0, true);
@@ -398,8 +515,8 @@ public class CombatService {
 	public HitResult applyDamage(NpcInstance target, int damage, int flags, boolean resisted) {
 		int newHp;
 		synchronized (target) {
-			if (target.isDead()) {
-				return new HitResult(0, 0, false, 0, target.template().maxHp(), 0, 0, false); // ja morto: nada a recompensar
+			if (target.isDead() || target.invul()) {
+				return new HitResult(0, 0, false, (int) target.currentHp(), target.template().maxHp(), 0, 0, false); // ja morto ou invulneravel: nada a recompensar
 			}
 			newHp = (int) Math.max(0, target.currentHp() - damage);
 			target.currentHp(newHp);
@@ -422,18 +539,21 @@ public class CombatService {
 		return new HitResult(damage, flags, isDead, newHp, (int) target.maxHp(), exp, sp, resisted);
 	}
 
-	public HitResult attackPlayer(NpcInstance attacker, PlayerCharacter target, CharTemplate targetTemplate) {
+	public HitPlan planAttackPlayerByNpc(NpcInstance attacker, PlayerCharacter target, CharTemplate targetTemplate) {
 		if (attacker.isDead() || target.isDead() || target.invul()) {
-			return new HitResult(0, 0, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+			return new HitPlan(0, 0, false, false);
 		}
-		// Validacao de alcance: ataque fisico nao pode acertar jogador distante
+		if (zones != null && (zones.isInsidePeace(attacker.x(), attacker.y(), attacker.z())
+				|| zones.isInsidePeace(target.x(), target.y(), target.z()))) {
+			return new HitPlan(0, 0x80, true, false);
+		}
 		int attackRange = Math.max(40, attacker.template().attackRange());
 		double dist = Math.hypot(attacker.x() - target.x(), attacker.y() - target.y());
 		if (dist > (attackRange + 150)) {
-			return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+			return new HitPlan(0, 0x80, true, false);
 		}
 		if (!canSeeTarget(attacker, target)) {
-			return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+			return new HitPlan(0, 0x80, true, false);
 		}
 
 		double pAtk = attacker.pAtk();
@@ -443,7 +563,7 @@ public class CombatService {
 		int hitChance = 80;
 		boolean miss = ThreadLocalRandom.current().nextInt(100) >= hitChance;
 		if (miss) {
-			return new HitResult(0, 0x80, false, (int) target.currentHp(), target.maxHp(), 0, 0);
+			return new HitPlan(0, 0x80, true, false);
 		}
 
 		boolean crit = ThreadLocalRandom.current().nextInt(1000) < 40;
@@ -456,12 +576,48 @@ public class CombatService {
 		int damage = Math.max(1, (int) Math.round(baseDam * rnd));
 		int flags = crit ? 0x20 : 0x00;
 
-		double newHp = Math.max(0, target.currentHp() - damage);
-		target.currentHp(newHp);
-		target.onDamaged();
-		boolean isDead = newHp <= 0;
+		return new HitPlan(damage, flags, false, crit);
+	}
 
-		return new HitResult(damage, flags, isDead, (int) newHp, target.maxHp(), 0, 0);
+	public HitResult applyDamageToPlayer(NpcInstance attacker, PlayerCharacter target, int damage, int flags) {
+		if (target.isDead() || target.invul()) {
+			return new HitResult(0, flags, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+		}
+		if (zones != null && (zones.isInsidePeace(attacker.x(), attacker.y(), attacker.z())
+				|| zones.isInsidePeace(target.x(), target.y(), target.z()))) {
+			if (!(Config.ALT_KARMA_PLAYER_CAN_BE_KILLED_IN_PEACE_ZONE && target.karma() > 0)) {
+				return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+			}
+		}
+		var res = applyDamagePlayer(target, damage);
+		return new HitResult(res.damage(), flags, res.isDead(), res.remainingHp(), target.maxHp(), 0, 0);
+	}
+
+	public HitResult attackPlayer(NpcInstance attacker, PlayerCharacter target, CharTemplate targetTemplate) {
+		if (attacker.isDead() || target.isDead() || target.invul()) {
+			return new HitResult(0, 0, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+		}
+		if (zones != null && (zones.isInsidePeace(attacker.x(), attacker.y(), attacker.z())
+				|| zones.isInsidePeace(target.x(), target.y(), target.z()))) {
+			if (!(Config.ALT_KARMA_PLAYER_CAN_BE_KILLED_IN_PEACE_ZONE && target.karma() > 0)) {
+				return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+			}
+		}
+		// Validacao de alcance: ataque fisico nao pode acertar jogador distante
+		int attackRange = Math.max(40, attacker.template().attackRange());
+		double dist = Math.hypot(attacker.x() - target.x(), attacker.y() - target.y());
+		if (dist > (attackRange + 150)) {
+			return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+		}
+		if (!canSeeTarget(attacker, target)) {
+			return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+		}
+
+		var plan = planAttackPlayerByNpc(attacker, target, targetTemplate);
+		if (plan.miss()) {
+			return new HitResult(0, plan.flags(), false, (int) target.currentHp(), target.maxHp(), 0, 0);
+		}
+		return applyDamageToPlayer(attacker, target, plan.damage(), plan.flags());
 	}
 
 	/**
@@ -469,12 +625,21 @@ public class CombatService {
 	 */
 	public HitResult skillAttackPlayer(NpcInstance attacker, PlayerCharacter target, CharTemplate targetTemplate,
 			double power, boolean magic, int magicLevel) {
-		if (attacker.isDead() || target.isDead() || target.invul()) {
+		if (attacker.isDead() || target.isDead() || target.invul() || power <= 0) {
 			return new HitResult(0, 0, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+		}
+		if (zones != null && (zones.isInsidePeace(attacker.x(), attacker.y(), attacker.z())
+				|| zones.isInsidePeace(target.x(), target.y(), target.z()))) {
+			if (!(Config.ALT_KARMA_PLAYER_CAN_BE_KILLED_IN_PEACE_ZONE && target.karma() > 0)) {
+				return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+			}
 		}
 		// Validacao de alcance: skill ofensivo de monstro nao pode ultrapassar o limite maximo de combate (1500u)
 		double dist = Math.hypot(attacker.x() - target.x(), attacker.y() - target.y());
 		if (dist > 1500.0) {
+			return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
+		}
+		if (!canSeeTarget(attacker, target)) {
 			return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
 		}
 
@@ -485,7 +650,7 @@ public class CombatService {
 		if (magic) {
 			double mAtk = Math.max(1, attacker.mAtk());
 			double mDef = Math.max(1, targetStats.mDef());
-			double pwr = power > 0 ? power : 50.0;
+			double pwr = power;
 			baseDam = 91.0 * Math.sqrt(mAtk) * pwr / mDef;
 
 			boolean crit = ThreadLocalRandom.current().nextInt(1000) < 50;
@@ -516,12 +681,7 @@ public class CombatService {
 		double rnd = 0.95 + (ThreadLocalRandom.current().nextDouble() * 0.10);
 		int damage = Math.max(1, (int) Math.round(baseDam * rnd));
 
-		double newHp = Math.max(0, target.currentHp() - damage);
-		target.currentHp(newHp);
-		target.onDamaged();
-		boolean isDead = newHp <= 0;
-
-		return new HitResult(damage, flags, isDead, (int) newHp, target.maxHp(), 0, 0);
+		return applyDamageToPlayer(attacker, target, damage, flags);
 	}
 
 	// ==================== PVP COMBAT & SKILLS ====================
@@ -538,7 +698,7 @@ public class CombatService {
 	public int skillPhysicalPlayer(PlayerCharacter attacker, CharTemplate attackerTemplate,
 			PlayerCharacter target, CharTemplate targetTemplate, double power, boolean soulshot, boolean blow,
 			boolean chargeDam) {
-		if (target.isDead() || !canSeeTarget(attacker, target)) {
+		if (target.isDead() || target.invul() || !canSeeTarget(attacker, target)) {
 			return 0;
 		}
 		var attackerStats = PlayerStats.calculate(attacker, attackerTemplate);
@@ -549,8 +709,16 @@ public class CombatService {
 		if (chargeDam) {
 			dmg *= (0.8 + 0.201 * attacker.charges());
 		}
-		boolean crit = blow ? ThreadLocalRandom.current().nextInt(100) < 50
-				: ThreadLocalRandom.current().nextInt(1000) < Math.max(40, attackerStats.critical()) / 2;
+		boolean crit;
+		if (blow) {
+			boolean blowSuccess = calcBlowSuccess(attacker.x(), attacker.y(), target.x(), target.y(), target.heading());
+			if (!blowSuccess) {
+				return 0;
+			}
+			crit = true;
+		} else {
+			crit = ThreadLocalRandom.current().nextInt(1000) < Math.max(40, attackerStats.critical()) / 2;
+		}
 		if (crit) {
 			dmg *= 2.0;
 		}
@@ -568,7 +736,7 @@ public class CombatService {
 
 	public int skillMagicPlayer(PlayerCharacter attacker, CharTemplate attackerTemplate,
 			PlayerCharacter target, CharTemplate targetTemplate, double power, int magicLevel, boolean sps, boolean bss) {
-		if (target.isDead() || !canSeeTarget(attacker, target)) {
+		if (target.isDead() || target.invul() || !canSeeTarget(attacker, target)) {
 			return 0;
 		}
 		var attackerStats = PlayerStats.calculate(attacker, attackerTemplate);
@@ -612,7 +780,7 @@ public class CombatService {
 
 	public int skillManaDamNpc(PlayerCharacter attacker, CharTemplate attackerTemplate,
 			NpcInstance target, double power, int magicLevel, boolean sps, boolean bss) {
-		if (target.isDead()) {
+		if (target.isDead() || target.invul()) {
 			return 0;
 		}
 		var attackerStats = PlayerStats.calculate(attacker, attackerTemplate);
@@ -623,7 +791,7 @@ public class CombatService {
 			mAtk *= 2.0;
 		}
 		double mDef = Math.max(1, target.template().mDef());
-		double targetMp = Math.max(1, target.template().maxMp());
+		double targetMp = Math.min(3500.0, Math.max(1.0, target.template().maxMp()));
 		double dmg = (Math.sqrt(mAtk) * power * (targetMp / 97.0)) / mDef;
 		boolean crit = ThreadLocalRandom.current().nextInt(100) < 5;
 		if (crit) {
@@ -652,7 +820,7 @@ public class CombatService {
 
 	public int skillManaDamPlayer(PlayerCharacter attacker, CharTemplate attackerTemplate,
 			PlayerCharacter target, CharTemplate targetTemplate, double power, int magicLevel, boolean sps, boolean bss) {
-		if (target.isDead()) {
+		if (target.isDead() || target.invul()) {
 			return 0;
 		}
 		var attackerStats = PlayerStats.calculate(attacker, attackerTemplate);
@@ -691,6 +859,41 @@ public class CombatService {
 		if (attacker != null && target != null && attacker.isOlympiadMode() && target.isOlympiadMode() && olyDamageManager != null) {
 			dmg *= olyDamageManager.getDamageMultiplier(attacker, target);
 		}
+		return Math.max(1, (int) Math.round(dmg));
+	}
+
+	public int skillManaDamNpcToPlayer(NpcInstance attacker, PlayerCharacter target, CharTemplate targetTemplate,
+			double power, int magicLevel) {
+		if (target.isDead() || target.invul() || power <= 0) {
+			return 0;
+		}
+		var targetStats = PlayerStats.calculate(target, targetTemplate);
+		double mAtk = Math.max(1, attacker.mAtk());
+		double mDef = Math.max(1, targetStats.mDef());
+		double targetMp = Math.max(1, target.maxMp());
+		double dmg = (Math.sqrt(mAtk) * power * (targetMp / 97.0)) / mDef;
+		boolean crit = ThreadLocalRandom.current().nextInt(100) < 5;
+		if (crit) {
+			dmg *= 3.0;
+		}
+		dmg *= 0.95 + ThreadLocalRandom.current().nextDouble() * 0.10;
+
+		int effMagicLvl = magicLevel > 0 ? magicLevel : attacker.template().level();
+		int lvlDiff = target.level() - effMagicLvl;
+		if (lvlDiff > 0) {
+			boolean success = calcMagicSuccess(magicLevel, attacker.template().level(), target.level());
+			if (!success) {
+				if (lvlDiff <= 9) {
+					dmg /= 2.0;
+				} else {
+					dmg = 1.0;
+				}
+			} else if (lvlDiff > 9) {
+				double penaltyMod = Math.max(0.05, 1.0 - ((lvlDiff - 9) * 0.10));
+				dmg *= penaltyMod;
+			}
+		}
+
 		return Math.max(1, (int) Math.round(dmg));
 	}
 

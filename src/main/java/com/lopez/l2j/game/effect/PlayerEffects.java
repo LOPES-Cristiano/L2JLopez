@@ -21,17 +21,27 @@ public final class PlayerEffects {
 	 * @param funcs funcoes de stat vindas do skill (buffs/debuffs/toggles); as pocoes usam os campos fixos
 	 */
 	public record ActiveBuff(int skillId, int level, String stackType, long endTimeMillis, int runSpdAdd,
-			double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd, List<StatFunc> funcs) {
+			double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd, List<StatFunc> funcs, boolean isDebuff) {
+
+		public ActiveBuff(int skillId, int level, String stackType, long endTimeMillis, int runSpdAdd,
+				double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd, List<StatFunc> funcs) {
+			this(skillId, level, stackType, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, funcs, false);
+		}
 
 		public ActiveBuff(int skillId, int level, String stackType, long endTimeMillis, int runSpdAdd,
 				double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd) {
-			this(skillId, level, stackType, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, List.of());
+			this(skillId, level, stackType, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, List.of(), false);
 		}
 
 		/** Buff de skill: so funcoes de stat. */
 		public static ActiveBuff ofSkill(int skillId, int level, String stackType, long endTimeMillis,
 				List<StatFunc> funcs) {
-			return new ActiveBuff(skillId, level, stackType, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs));
+			return new ActiveBuff(skillId, level, stackType, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), false);
+		}
+
+		public static ActiveBuff ofSkill(int skillId, int level, String stackType, long endTimeMillis,
+				List<StatFunc> funcs, boolean isDebuff) {
+			return new ActiveBuff(skillId, level, stackType, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), isDebuff);
 		}
 
 		public boolean isPermanent() {
@@ -49,6 +59,25 @@ public final class PlayerEffects {
 	private final Map<String, ActiveBuff> byStack = new ConcurrentHashMap<>();
 
 	public void put(ActiveBuff buff) {
+		put(buff, com.lopez.l2j.config.Config.MAX_BUFF_AMOUNT);
+	}
+
+	public void put(ActiveBuff buff, int maxBuffs) {
+		if (buff == null || buff.stackType() == null) return;
+		if (!buff.isDebuff() && !buff.isPermanent() && maxBuffs > 0 && !byStack.containsKey(buff.stackType())) {
+			List<ActiveBuff> current = active().stream().filter(b -> !b.isDebuff() && !b.isPermanent()).toList();
+			if (current.size() >= maxBuffs) {
+				ActiveBuff oldest = null;
+				for (ActiveBuff b : current) {
+					if (oldest == null || b.endTimeMillis() < oldest.endTimeMillis()) {
+						oldest = b;
+					}
+				}
+				if (oldest != null) {
+					remove(oldest);
+				}
+			}
+		}
 		byStack.put(buff.stackType(), buff);
 	}
 
@@ -69,6 +98,27 @@ public final class PlayerEffects {
 
 	public void clear() {
 		byStack.clear();
+	}
+
+	public void clearDebuffs() {
+		byStack.values().removeIf(ActiveBuff::isDebuff);
+	}
+
+	public void removeDebuffsByStackOrName(String... keywords) {
+		byStack.values().removeIf(b -> {
+			if (!b.isDebuff()) return false;
+			String st = b.stackType().toLowerCase(java.util.Locale.ROOT);
+			for (String kw : keywords) {
+				if (st.contains(kw.toLowerCase(java.util.Locale.ROOT))) {
+					return true;
+				}
+			}
+			return false;
+		});
+	}
+
+	public void stopAllEffects() {
+		clear();
 	}
 
 	public void addBuff(int skillId, int level, long durationMs) {
