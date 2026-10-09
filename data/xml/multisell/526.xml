@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- Golden Ram Mercenary Force Supply Shop (NPC 31555 Abercrombie) -->
+<list>
+  <!-- Greater Healing Potion x10 for 5 Splinter Stakato Chitin -->
+  <item id="1">
+    <ingredient id="7248" count="5"/>
+    <production id="1539" count="10"/>
+  </item>
+
+  <!-- Greater Haste Potion x2 for 6 Splinter Stakato Chitin -->
+  <item id="2">
+    <ingredient id="7248" count="6"/>
+    <production id="1374" count="2"/>
+  </item>
+
+  <!-- Greater Swift Attack Potion x2 for 6 Splinter Stakato Chitin -->
+  <item id="3">
+    <ingredient id="7248" count="6"/>
+    <production id="1375" count="2"/>
+  </item>
+
+  <!-- Blessed Scroll of Escape for 10 Needle Stakato Chitin -->
+  <item id="4">
+    <ingredient id="7249" count="10"/>
+    <production id="1538" count="1"/>
+  </item>
+
+  <!-- Quick Healing Potion x3 for 8 Needle Stakato Chitin -->
+  <item id="5">
+    <ingredient id="7249" count="8"/>
+    <production id="1540" count="3"/>
+  </item>
+
+  <!-- Soulshot: A-Grade x1000 for 15 Needle Stakato Chitin -->
+  <item id="6">
+    <ingredient id="7249" count="15"/>
+    <production id="1466" count="1000"/>
+  </item>
+
+  <!-- Blessed Spiritshot: A-Grade x500 for 15 Needle Stakato Chitin -->
+  <item id="7">
+    <ingredient id="7249" count="15"/>
+    <production id="3951" count="500"/>
+  </item>
+</list>

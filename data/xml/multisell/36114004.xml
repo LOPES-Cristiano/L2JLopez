@@ -1,0 +1,5 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- Fortress Support Unit Captain - Enchanted Shirts Trade -->
+<list>
+	<item id="1"><ingredient id="22" count="1" /><ingredient id="57" count="50000" /><production id="23" count="1" /></item>
+</list>

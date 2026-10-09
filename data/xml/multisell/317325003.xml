@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- Adventure guildsman - Exchange previous Life Crystals for new Life Crystals -->
+<list>
+	<item id="1"><ingredient id="8158" count="1" /><production id="8176" count="1" /></item>
+	<item id="2"><ingredient id="8159" count="1" /><production id="8176" count="2" /></item>
+	<item id="3"><ingredient id="8160" count="1" /><production id="8176" count="3" /></item>
+	<item id="4"><ingredient id="8161" count="1" /><production id="8176" count="1" /></item>
+	<item id="5"><ingredient id="8162" count="1" /><production id="8176" count="2" /></item>
+	<item id="6"><ingredient id="8163" count="1" /><production id="8176" count="3" /></item>
+	<item id="7"><ingredient id="8164" count="1" /><production id="8176" count="1" /></item>
+	<item id="8"><ingredient id="8165" count="1" /><production id="8176" count="2" /></item>
+	<item id="9"><ingredient id="8166" count="1" /><production id="8176" count="3" /></item>
+	<item id="10"><ingredient id="8167" count="1" /><production id="8176" count="1" /></item>
+	<item id="11"><ingredient id="8168" count="1" /><production id="8176" count="2" /></item>
+	<item id="12"><ingredient id="8169" count="1" /><production id="8176" count="3" /></item>
+	<item id="13"><ingredient id="8170" count="1" /><production id="8176" count="1" /></item>
+	<item id="14"><ingredient id="8171" count="1" /><production id="8176" count="2" /></item>
+	<item id="15"><ingredient id="8172" count="1" /><production id="8176" count="3" /></item>
+</list>
