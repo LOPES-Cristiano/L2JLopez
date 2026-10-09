@@ -8,24 +8,24 @@ Este documento consolida a pesquisa aprofundada de **todas as funcionalidades, s
 
 | Categoria | Funcionalidade no L2JDream | Origem (Classes/Configs) | Estado no L2JLopez | Impacto & Valor |
 |---|---|---|---|---|
-| **PvE** | **Mobs Champion System** | `L2Spawn`, `L2Attackable`, `fun_events.properties` | 🔴 **Ausente** (flags declaradas em `Config.java` mas sem código) | ⭐️⭐️⭐️⭐️⭐️ (Altíssimo) |
-| **QoL / PvE** | **Live In-Game AutoFarm** | `L2FarmPlayableAI.java`, `AutoFarm.java` | 🔴 **Ausente** (possui apenas `OfflineFarmService`) | ⭐️⭐️⭐️⭐️⭐️ (Altíssimo) |
-| **Combate** | **Custom Cancel Return (5s)** | `Disablers.java`, `CustomCancelTask` | 🔴 **Ausente** (cancelamento no Lopez é permanente) | ⭐️⭐️⭐️⭐️⭐️ (Altíssimo no PvP) |
-| **Economia** | **Tabela de Enchant Granular por Nível** | `rates.properties`, `RequestEnchantItem` | 🔴 **Incompleto** (Lopez tem taxa fixa em 66%) | ⭐️⭐️⭐️⭐️⭐️ (Altíssimo) |
-| **PvP** | **Quake PvP Announce & Killstreaks** | `L2PcInstance.java`, `add-on.properties` | 🔴 **Ausente** | ⭐️⭐️⭐️⭐️ (Muito Alto) |
-| **PvP** | **War Legend (Hero Aura por Kills)** | `L2PcInstance.java`, `add-on.properties` | 🔴 **Ausente** | ⭐️⭐️⭐️⭐️ (Muito Alto) |
-| **PvP** | **Progressão de Cor de Nick/Título por PvP** | `mods.properties`, `L2PcInstance.java` | 🔴 **Ausente** | ⭐️⭐️⭐️⭐️ (Alto) |
-| **Segurança** | **Anti-Bot Captcha Verification** | `BotsPreventionManager.java`, `mods.properties` | 🔴 **Ausente** | ⭐️⭐️⭐️⭐️ (Muito Alto) |
-| **Social** | **Sistema de Casamento (Wedding & Couple)** | `CoupleManager.java`, `Wedding.java` | 🔴 **Ausente** | ⭐️⭐️⭐️⭐️ (Alto) |
-| **Economia** | **Lojas Privadas com Moedas Alternativas** | `TradeStorePacketHandler`, `mods.properties` | 🔴 **Ausente** (apenas Adena 57 suportada) | ⭐️⭐️⭐️⭐️ (Alto) |
-| **Endgame** | **Cercos de Clan Halls Conquistáveis** | `com.dream.game.manager.clanhallsiege.*` | 🔴 **Ausente** (apenas Castelos têm cerco) | ⭐️⭐️⭐️⭐️ (Alto) |
-| **Endgame** | **Dungeon Four Sepulchers (4S)** | `FourSepulchersManager.java` | 🔴 **Ausente** | ⭐️⭐️⭐️⭐️ (Alto) |
-| **Recompensas** | **Automated Siege Rewards & Offline Queue** | `SiegeRewardManager.java` | 🔴 **Ausente** | ⭐️⭐️⭐️ (Médio/Alto) |
-| **QoL** | **Barakiel Direct Noblesse Reward** | `L2Boss.java`, `KillBarakielSetNobless` | 🔴 **Ausente** | ⭐️⭐️⭐️ (Médio/Alto) |
-| **Minigame** | **Lucky Roulette / Cassino In-Game** | `RoletaData.java`, `Roulette.java`, `roulette.xml` | 🔴 **Ausente** | ⭐️⭐️⭐️ (Médio) |
-| **PvE** | **Deep Blue Drop Rules & Delta Aggro** | `options.properties`, `AltMobNoAttack...` | 🔴 **Ausente** | ⭐️⭐️⭐️ (Médio) |
-| **Visual** | **DressMe / Visual Skins System** | `DressMeData.java`, `applySkins.java` | 🔴 **Ausente** | ⭐️⭐️⭐️ (Médio) |
-| **Evolução** | **Character Reset / Rebirth System** | `ResetData.java`, `resetData.xml` | 🔴 **Ausente** | ⭐️⭐️⭐️ (Médio) |
+| **PvE** | **Mobs Champion System** | `L2Spawn`, `L2Attackable`, `fun_events.properties` | 🟢 **100% Integrado** (`ChampionService`, drops, aura, x8 rates) | ⭐️⭐️⭐️⭐️⭐️ (Altíssimo) |
+| **QoL / PvE** | **Live In-Game AutoFarm** | `L2FarmPlayableAI.java`, `AutoFarm.java` | 🟢 **100% Integrado** (`AutoFarmService`, `.autofarm` in-game & offline) | ⭐️⭐️⭐️⭐️⭐️ (Altíssimo) |
+| **Combate** | **Custom Cancel Return (5s)** | `Disablers.java`, `CustomCancelTask` | 🟢 **100% Integrado** (`CancelRestoreService` com tempo configurável) | ⭐️⭐️⭐️⭐️⭐️ (Altíssimo no PvP) |
+| **Economia** | **Tabela de Enchant Granular por Nível** | `rates.properties`, `RequestEnchantItem` | 🟢 **100% Integrado** (`EnchantTableService` por scroll e nível) | ⭐️⭐️⭐️⭐️⭐️ (Altíssimo) |
+| **PvP** | **Quake PvP Announce & Killstreaks** | `L2PcInstance.java`, `add-on.properties` | 🟢 **100% Integrado** (`PvpRewardService`, streak e sons) | ⭐️⭐️⭐️⭐️ (Muito Alto) |
+| **PvP** | **War Legend (Hero Aura por Kills)** | `L2PcInstance.java`, `add-on.properties` | 🟢 **100% Integrado** (`PvpRewardService`, 30 kills para aura de herói) | ⭐️⭐️⭐️⭐️ (Muito Alto) |
+| **PvP** | **Progressão de Cor de Nick/Título por PvP** | `mods.properties`, `L2PcInstance.java` | 🟢 **100% Integrado** (`PlayerPreferencesService`, cores progressivas) | ⭐️⭐️⭐️⭐️ (Alto) |
+| **Segurança** | **Anti-Bot Captcha Verification** | `BotsPreventionManager.java`, `mods.properties` | 🟢 **100% Integrado** (`BotsPreventionService`, kills, UI HTML e punição) | ⭐️⭐️⭐️⭐️ (Muito Alto) |
+| **Social** | **Sistema de Casamento (Wedding & Couple)** | `CoupleManager.java`, `Wedding.java` | 🟢 **100% Integrado** (`WeddingService`, `.gotolove`, `.engage`, `.divorce`) | ⭐️⭐️⭐️⭐️ (Alto) |
+| **Economia** | **Lojas Privadas com Moedas Alternativas** | `TradeStorePacketHandler`, `mods.properties` | 🟢 **100% Integrado** (`TradeStorePacketHandler`, Adena e Gold Bar 3470) | ⭐️⭐️⭐️⭐️ (Alto) |
+| **Endgame** | **Cercos de Clan Halls Conquistáveis** | `com.dream.game.manager.clanhallsiege.*` | 🟢 **100% Integrado** (`ClanHallSiegeService`, 6 CHs conquistáveis) | ⭐️⭐️⭐️⭐️ (Alto) |
+| **Endgame** | **Dungeon Four Sepulchers (4S)** | `FourSepulchersManager.java` | 🟢 **100% Integrado** (`FourSepulchersService`, 4 alas no Imperial Tomb) | ⭐️⭐️⭐️⭐️ (Alto) |
+| **Recompensas** | **Automated Siege Rewards & Offline Queue** | `SiegeRewardManager.java` | 🟢 **100% Integrado** (`SiegeRewardService`, Blood Alliance e medalhas) | ⭐️⭐️⭐️ (Médio/Alto) |
+| **QoL** | **Barakiel Direct Noblesse Reward** | `L2Boss.java`, `KillBarakielSetNobless` | 🟢 **100% Integrado** (`GameSession`, party kill concede Noblesse) | ⭐️⭐️⭐️ (Médio/Alto) |
+| **Minigame** | **Lucky Roulette / Cassino In-Game** | `RoletaData.java`, `Roulette.java`, `roulette.xml` | 🟢 **100% Integrado** (`RouletteService`, `.roulette`) | ⭐️⭐️⭐️ (Médio) |
+| **PvE** | **Deep Blue Drop Rules & Delta Aggro** | `options.properties`, `AltMobNoAttack...` | 🟢 **100% Integrado** (`CombatService`, `DropService`, penalidades de nível) | ⭐️⭐️⭐️ (Médio) |
+| **Visual** | **DressMe / Visual Skins System** | `DressMeData.java`, `applySkins.java` | 🟢 **100% Integrado** (`DressMeService`, `.dressme`, `.undressme`) | ⭐️⭐️⭐️ (Médio) |
+| **Evolução** | **Character Reset / Rebirth System** | `ResetData.java`, `resetData.xml` | 🟢 **100% Integrado** (`ResetService`, `.reset`) | ⭐️⭐️⭐️ (Médio) |
 
 ---
 
@@ -208,39 +208,39 @@ Para manter a consistência da arquitetura **Spring Boot**, a política estrita 
    - [x] Conectado no `CombatService`, `DropService` e `GameSession` para multiplicar dano/HP, EXP/SP e drops.
    - [x] Testes unitários com 100% de aprovação em `ChampionServiceTest.java`.
 
-2. **Onda C13 - Custom Cancel Return (5s):**
-   - Implementar `CancelRecoveryService.java` para capturar efeitos cancelados e reagendá-los com Virtual Threads.
-   - Integrar nas rotinas de cálculo de efeito de desativação (`ActionPacketHandler` / `SkillEffects`).
-   - Teste unitário de verificação temporal e integridade de slots em `CancelRecoveryServiceTest.java`.
+2. **Onda C13 - Custom Cancel Return (5s): [CONCLUÍDO ✅]**
+   - [x] Implementado `CancelRestoreService.java` para capturar efeitos cancelados e reagendá-los com Virtual Threads e delay configurável (`Config.CANCEL_RETURN_TIME`).
+   - [x] Integrado nas rotinas de combate e cálculo de efeitos.
+   - [x] Testes unitários com 100% de aprovação em `CancelRestoreServiceTest.java`.
 
-3. **Onda C14 - Tabela Granular de Enchant por Nível:**
-   - Criar `EnchantTableService.java` gerenciando probabilidades nível a nível para armas/armaduras/joias (Normal, Blessed, Crystal) com limites máximos.
-   - Conectar em `ItemPacketHandler.java` substituindo o valor fixo de 66%.
-   - Testes unitários de curva de probabilidade e segurança em `EnchantTableServiceTest.java`.
+3. **Onda C14 - Tabela Granular de Enchant por Nível: [CONCLUÍDO ✅]**
+   - [x] Criado `EnchantTableService.java` gerenciando probabilidades nível a nível para armas/armaduras/joias (Normal, Blessed, Crystal) com limites máximos.
+   - [x] Conectado em `ItemPacketHandler.java` e `EnchantScrollTable.java` respeitando safe e max enchant.
+   - [x] Testes unitários de curva de probabilidade e segurança em `EnchantAndEquipmentConfigurationTest.java`.
 
 ---
 
 ### ⚔️ Fase 2: PvP & Competitivo
-4. **Onda C15 - Quake PvP & War Legend Engine:**
-   - Implementar `PvPStreakService.java` gerenciando abates consecutivos, mensagens globais Quake, e concessão da Hero Aura aos 30 kills.
-   - Conectar com `PlayerCharacter` e pacotes `CreatureSay` / `UserInfo`.
-   - Testes unitários em `PvPStreakServiceTest.java`.
+4. **Onda C15 - Quake PvP & War Legend Engine: [CONCLUÍDO ✅]**
+   - [x] Implementado `PvpRewardService.java` gerenciando abates consecutivos, mensagens globais Quake, e concessão da Hero Aura temporária aos 30 kills.
+   - [x] Conectado com `PlayerCharacter` e pacotes `CreatureSay` / `UserInfo`.
+   - [x] Testes unitários em `PvpRewardServiceTest.java`.
 
-5. **Onda C16 - Lojas Privadas com Moedas Alternativas:**
-   - Expandir `TradeStorePacketHandler.java` para permitir a seleção de moeda entre Adena (57) e Gold Bar (3470).
-   - Testes unitários de balanço e transação em `AlternativeStoreCurrencyTest.java`.
+5. **Onda C16 - Lojas Privadas com Moedas Alternativas: [CONCLUÍDO ✅]**
+   - [x] Expandido `TradeStorePacketHandler.java` permitindo seleção de moeda entre Adena (57) e Gold Bar (3470).
+   - [x] Testes unitários de balanço e transação validados no pipeline.
 
 ---
 
 ### 🛡️ Fase 3: Segurança, Social & Endgame
-6. **Onda C17 - Anti-Bot Captcha Service:**
-   - Criar `AntiBotCaptchaService.java` com contadores por jogador, gerador de códigos visuais em `PledgeCrest` e diálogos HTML responsivos.
-   - Testes unitários de validação e timeout em `AntiBotCaptchaServiceTest.java`.
+6. **Onda C17 - Anti-Bot Captcha Service: [CONCLUÍDO ✅]**
+   - [x] Criado `BotsPreventionService.java` com contadores por jogador, gerador de desafios de verificação e diálogos HTML responsivos.
+   - [x] Testes unitários de validação e timeout em `BotsPreventionServiceTest.java` e `ModsAndSecurityConfigurationTest.java`.
 
-7. **Onda C18 - Wedding & Couple Service:**
-   - Criar `WeddingService.java` com repositório de casais, NPC cerimonial e comandos de voz `.engage`, `.gotolove` e `.divorce` com validação de zonas.
-   - Testes unitários em `WeddingServiceTest.java`.
+7. **Onda C18 - Wedding & Couple Service: [CONCLUÍDO ✅]**
+   - [x] Criado `WeddingService.java` com repositório de casais, NPC cerimonial e comandos de voz `.engage`, `.gotolove` e `.divorce` com validação de zonas.
+   - [x] Testes unitários em `WeddingServiceTest.java`.
 
-8. **Onda C19 - In-Game Live AutoFarm (.autofarm):**
-   - Criar `LiveAutoFarmService.java` executando varredura e rotação de shortcuts dos jogadores online ativos com failsafes em threads virtuais.
-   - Testes unitários em `LiveAutoFarmServiceTest.java`.
+8. **Onda C19 - In-Game Live AutoFarm (.autofarm): [CONCLUÍDO ✅]**
+   - [x] Criado `AutoFarmService.java` executando varredura e rotação de shortcuts dos jogadores online ativos com failsafes em threads virtuais.
+   - [x] Testes unitários validados no pipeline de gameplay.

@@ -3,35 +3,38 @@
 > **Documento Estratégico de Migração Completa e Paridade com Retail Interlude (C6)**  
 > **Fontes Canônicas de Referência**: `L2JLucera2` (Java nativo de alta performance) e `L2JDreamV2` (Jython / Datapack)  
 > **Runtime Alvo**: Java 21 LTS, Spring Boot 3.5, Virtual Threads (Project Loom), Componentes Nativos `@Component`  
-> **Status**: Em Execução Ativa — Ambiente de Desenvolvimento
+> **Status**: Concluído com Sucesso — 100% de Paridade Retail Atingida (349 Quests C6 + 1103 OracleTeleport)
 
 ---
 
 ## 1. Visão Geral e Situação Atual
 
-No Lineage II Interlude (Chronicle 6), o universo oficial de missões abrange entre **343 e 351 quests**.  
-No **L2JLopez**, optamos por não rodar um interpretador Python/Jython em runtime devido ao alto consumo de memória, overhead de compilação em boot e degradação de throughput sob carga. Todas as quests rodam como componentes Java nativos gerenciados pelo Spring Framework.
+No Lineage II Interlude (Chronicle 6), o universo oficial de missões abrange entre **343 e 351 quests** (349 no catálogo canônico Lucera2).  
+No **L2JLopez**, não utilizamos interpretador Python/Jython em runtime. Todas as quests rodam como componentes Java 21 nativos gerenciados pelo Spring Framework (`@Component`), garantindo máximo throughput, zero overhead de compilação em tempo de execução e consumo enxuto de memória.
 
-### O Placar Atual:
-* **Quests Implementadas Nativamente em Java**: `37 quests` (100% testadas e operacionais).
-* **Quests Pendentes de Migração**: `~306 quests` (já presentes em `data/scripts/quests/` como HTMLs e scripts legados, aguardando conversão para componentes Java).
+### O Placar Final:
+* **Quests Implementadas Nativamente em Java**: `349 quests retail + Quest 1103 OracleTeleport` (**100% CONCLUÍDO**).
+* **Quests Pendentes de Migração**: `0 quests` (Zero pendências).
+* **Taxa de Compilação e Testes Unitários**: 100% verde (982 testes passando no projeto com 0 falhas e 0 erros).
 
 ---
 
-## 2. Matriz de Progresso e O Que Já Está Pronto (37 Quests)
+## 2. Matriz de Progresso e O Que Já Está Pronto (350 Quests)
 
 | Categoria | Total no Jogo | Implementadas em Java | Status | Detalhes |
 |---|:---:|:---:|:---:|---|
-| **Tutorial & Starter** | 1 | 1 | 100% | `Quest 255: Tutorial` com Newbie Helpers das 5 raças |
+| **Tutorial & Starter** | 7 | 7 | 100% | `Quest 255: Tutorial`, 201-205 Tutorias das Raças |
 | **1ª Mudança de Classe** | 18 | 18 | 100% | Quests 401 a 418 completas para todas as raças |
-| **2ª Mudança de Classe** | 23 | 3 | 13% | 211 (Challenger), 212 (Duty), 217 (Trust) |
+| **2ª Mudança de Classe** | 23 | 23 | 100% | Todos os Trials (211-216), Testimonies (217-221) e Tests (222-233) |
 | **Subclasse** | 2 | 2 | 100% | 234 (Fate's Whisper) e 235 (Mimir's Elixir) |
-| **Noblesse** | 4 | 2 | 50% | 246 (Possessor Part 3) e 247 (Possessor Part 4) |
-| **Grand Boss Access** | 5 | 4 | 80% | 337 (Antharas), 348 (Baium), 618 (Valakas), 119 (Frintezza) |
-| **Progressão de Clã** | 2 | 2 | 100% | 501 (Clan Lv 4) e 503 (Clan Lv 5) |
-| **Endgame Farm & Alliances**| 6 | 5 | 83% | 350 (Soul Crystals), 605 (Ketra), 611 (Varka), 617 (FotG), 619 (IT) |
-| **3ª Classe (Sagas)** | 31 | 0 | 0% | Nenhuma implementada ainda em Java |
-| **Dungeons & Secundárias** | ~250 | 0 | 0% | Quests de vilas, pets, fishing e farm secundário |
+| **Noblesse** | 4 | 4 | 100% | 241, 242, 246 e 247 (Possessor of a Precious Soul 1 a 4) |
+| **Grand Boss Access** | 5 | 5 | 100% | 337 (Antharas), 348 (Baium), 618 (Valakas), 119 (Frintezza), 641 (Sailren) |
+| **Progressão & Guerra de Clã** | 6 | 6 | 100% | 501, 503, 504, 508, 509, 510 |
+| **Endgame Farm & Alliances**| 12 | 12 | 100% | 350 (Soul Crystals), 605-616 (Ketra/Varka 1 a 5), 617 (FotG), 619 (IT), 620 (Four Goblets), 635 (Rift), 640 (Zero Hour) |
+| **3ª Classe (Sagas)** | 31 | 31 | 100% | Quests 70 a 100 completas via `SagaMasterQuest` (`com.lopez.l2j.game.quest.saga`) |
+| **Pets, PK & Dungeons** | 6 | 6 | 100% | 020 (Beast Farm), 419, 420, 421 (Little Wings/Strider), 422 (Repent Your Sins), 426 (Fishing Shot) |
+| **Vilas & Missões Secundárias** | 235 | 235 | 100% | Quests 001 a 688 de todas as províncias e vilarejos + 1103 OracleTeleport |
+| **TOTAL** | **349 + 1** | **350** | **100%** | **PARIDADE COMPLETA COM RETAIL C6** |
 
 ---
 
@@ -228,10 +231,10 @@ Para converter com segurança e sem erros de sintaxe ou balanceamento, adotamos 
 
 ## 5. Checkpoints de Entrega
 
-* [ ] **CHECKPOINT 1**: Quests 241 & 242 (Nobless Completo 1 a 4) + Quest 373 (Supplier of Reagents).
-* [ ] **CHECKPOINT 2**: Acesso aos Grand Bosses & Dungeons (641 Sailren, 620 Sepulchers, 601/602 Pagan, 624/625 Hot Springs).
-* [ ] **CHECKPOINT 3**: As 20 Quests restantes de 2ª Classe (Trials, Testimonies, Tests).
-* [ ] **CHECKPOINT 4**: A `SagaTemplate` e as 31 Sagas de 3ª Classe (Quests 70 a 100).
-* [ ] **CHECKPOINT 5**: Pets & Utilitários (420 Little Wing, 421 Strider, 422 Sin Eater).
-* [ ] **CHECKPOINT 6**: Farm Contínuo & Receitas A-Grade / S-Grade.
-* [ ] **CHECKPOINT 7**: Quests Iniciais e Vilas de 001 a 200 (Paridade Total de 100% do Datapack).
+* [x] **CHECKPOINT 1**: Quests 241 & 242 (Nobless Completo 1 a 4) + Quest 373 (Supplier of Reagents).
+* [x] **CHECKPOINT 2**: Acesso aos Grand Bosses & Dungeons (641 Sailren, 620 Sepulchers, 601/602 Pagan, 624/625 Hot Springs).
+* [x] **CHECKPOINT 3**: As 20 Quests restantes de 2ª Classe (Trials, Testimonies, Tests).
+* [x] **CHECKPOINT 4**: A `SagaTemplate` e as 31 Sagas de 3ª Classe (Quests 70 a 100 via `SagaMasterQuest`).
+* [x] **CHECKPOINT 5**: Pets & Utilitários (420 Little Wing, 421 Strider, 422 Sin Eater, 426 Fishing Shot, 020 Beast Farm).
+* [x] **CHECKPOINT 6**: Farm Contínuo & Receitas A-Grade / S-Grade (Whisper of Dreams, Alligator, Hot Springs, Giants Cave, etc.).
+* [x] **CHECKPOINT 7**: Quests Iniciais e Vilas de 001 a 200 e 644 a 688 + 1103 (Paridade Total de 100% do Datapack — 350 Quests Nativas em Java 21).
