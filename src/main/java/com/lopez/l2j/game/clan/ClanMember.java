@@ -44,4 +44,9 @@ public class ClanMember {
 	public void sponsor(int sponsor) { this.sponsor = sponsor; }
 	public int apprentice() { return apprentice; }
 	public void apprentice(int apprentice) { this.apprentice = apprentice; }
+
+	public com.lopez.l2j.game.model.PlayerCharacter getPlayer() {
+		com.lopez.l2j.game.world.GameWorld world = com.lopez.l2j.game.world.GameWorld.getInstance();
+		return world != null ? world.getPlayer(objectId) : null;
+	}
 }

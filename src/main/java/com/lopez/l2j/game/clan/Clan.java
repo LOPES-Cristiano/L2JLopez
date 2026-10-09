@@ -98,12 +98,22 @@ public class Clan {
 	}
 
 	public int clanId() { return clanId; }
+	public int getClanId() { return clanId; }
 	public String name() { return name; }
+	public String getName() { return name != null ? name : ""; }
 	public int leaderId() { return leaderId; }
+	public int getLeaderId() { return leaderId; }
 	public void leaderId(int leaderId) { this.leaderId = leaderId; }
 	public String leaderName() { return leaderName; }
 	public void leaderName(String leaderName) { this.leaderName = leaderName; }
 	public int level() { return level; }
+	public int getLevel() { return level; }
+	public int incReputation(int amount, boolean store, String title) {
+		this.reputationScore += amount;
+		return this.reputationScore;
+	}
+	public int getHasHideout() { return clanHallId; }
+	public ClanMember getLeader() { return leader(); }
 	public void level(int level) { this.level = level; }
 	public int castleId() { return castleId; }
 	public void castleId(int castleId) { this.castleId = castleId; }

@@ -25,6 +25,8 @@ public class ClanTable {
 	private static final Logger log = LoggerFactory.getLogger(ClanTable.class);
 	private static final Pattern CLAN_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9]{3,16}$");
 
+	private static volatile ClanTable instance;
+
 	private final Map<Integer, Clan> byClanId = new ConcurrentHashMap<>();
 	private final Map<String, Clan> byClanName = new ConcurrentHashMap<>();
 	private final JdbcClient jdbc;
@@ -41,7 +43,16 @@ public class ClanTable {
 		this.jdbc = jdbc;
 		this.idFactory = idFactory != null ? idFactory : ObjectIdFactory.sequential(0x40000000);
 		this.pricesTable = pricesTable != null ? pricesTable : new ClanLevelUpPricesTable();
+		instance = this;
 		loadClans();
+	}
+
+	public static ClanTable getInstance() {
+		return instance;
+	}
+
+	public static void setInstance(ClanTable table) {
+		instance = table;
 	}
 
 	public int size() {
@@ -54,6 +65,10 @@ public class ClanTable {
 
 	public Optional<Clan> byClanId(int clanId) {
 		return Optional.ofNullable(byClanId.get(clanId));
+	}
+
+	public Clan getClan(int clanId) {
+		return byClanId.get(clanId);
 	}
 
 	public Optional<Clan> byName(String name) {
