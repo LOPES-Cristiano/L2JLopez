@@ -49,12 +49,12 @@ public class Quest628HuntGoldenRam extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		if ("quest_accept".equalsIgnoreCase(event)) {
+		if (("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event))) {
 			qs.setState(State.STARTED);
 			qs.setCond(1);
 			qs.playSound(QuestState.SOUND_ACCEPT);
 			return "merc_kahmun_q0628_03.htm";
-		} else if ("reply_1".equalsIgnoreCase(event)) {
+		} else if ("reply_1".equalsIgnoreCase(event) || "upgrade_badge".equalsIgnoreCase(event)) {
 			if (qs.getQuestItemsCount(SPLINTER_STAKATO_CHITIN) >= 100) {
 				qs.takeItems(SPLINTER_STAKATO_CHITIN, -1);
 				qs.giveItems(RECRUIT_BADGE, 1);

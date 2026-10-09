@@ -49,15 +49,17 @@ public class Quest642APowerfulPrimevalCreature extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		if ("quest_accept".equalsIgnoreCase(event)) {
+		if (("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event))) {
 			qs.setState(State.STARTED);
 			qs.setCond(1);
 			qs.playSound(QuestState.SOUND_ACCEPT);
 			return "dindin_q0642_04.htm";
-		} else if ("reward_fb".equalsIgnoreCase(event)) {
-			if (qs.getQuestItemsCount(DINOSAUR_TISSUE) >= 150 && qs.hasQuestItems(DINOSAUR_EGG)) {
+		} else if ("reward_fb".equalsIgnoreCase(event) || "reward_recipe".equalsIgnoreCase(event)) {
+			if (qs.getQuestItemsCount(DINOSAUR_TISSUE) >= 150) {
 				qs.takeItems(DINOSAUR_TISSUE, 150);
-				qs.takeItems(DINOSAUR_EGG, 1);
+				if (qs.hasQuestItems(DINOSAUR_EGG)) {
+					qs.takeItems(DINOSAUR_EGG, 1);
+				}
 				qs.giveItems(REC_FORGOTTEN_BLADE, 1);
 				qs.playSound(QuestState.SOUND_FINISH);
 				return "dindin_q0642_12.htm";

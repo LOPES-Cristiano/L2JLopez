@@ -43,12 +43,12 @@ public class Quest632NecromancersRequest extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		if ("quest_accept".equalsIgnoreCase(event)) {
+		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event)) {
 			qs.setState(State.STARTED);
 			qs.setCond(1);
 			qs.playSound(QuestState.SOUND_ACCEPT);
 			return "shadow_hardin_q0632_0104.htm";
-		} else if ("632_3".equalsIgnoreCase(event)) {
+		} else if ("632_3".equalsIgnoreCase(event) || "reward_exchange".equalsIgnoreCase(event)) {
 			if (qs.getQuestItemsCount(VAMPIRE_HEART) >= 200) {
 				qs.takeItems(VAMPIRE_HEART, 200);
 				qs.giveItems(57, 120000); // 120k adena

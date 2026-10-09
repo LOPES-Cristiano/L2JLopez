@@ -41,7 +41,7 @@ public class Quest621EggDelivery extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		if ("jeremy_q0621_0104.htm".equalsIgnoreCase(event)) {
+		if ("jeremy_q0621_0104.htm".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event)) {
 			qs.setState(State.STARTED);
 			qs.setCond(1);
 			qs.giveItems(EGG_BASKET, 5);

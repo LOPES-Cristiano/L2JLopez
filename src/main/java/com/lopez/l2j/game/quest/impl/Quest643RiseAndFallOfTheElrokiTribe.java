@@ -47,7 +47,7 @@ public class Quest643RiseAndFallOfTheElrokiTribe extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		if ("quest_accept".equalsIgnoreCase(event)) {
+		if (("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event))) {
 			qs.setState(State.STARTED);
 			qs.setCond(1);
 			qs.playSound(QuestState.SOUND_ACCEPT);
@@ -60,7 +60,7 @@ public class Quest643RiseAndFallOfTheElrokiTribe extends Quest {
 				qs.playSound(QuestState.SOUND_ITEMGET);
 				return "singsing_q0643_08.htm";
 			}
-		} else if ("reward_parts".equalsIgnoreCase(event) || "reply_7".equalsIgnoreCase(event)) {
+		} else if ("reward_parts".equalsIgnoreCase(event) || "reply_7".equalsIgnoreCase(event) || "reward_exchange".equalsIgnoreCase(event)) {
 			if (qs.getQuestItemsCount(DINOSAUR_BONES) >= 300) {
 				qs.takeItems(DINOSAUR_BONES, 300);
 				int partId = 8712 + ThreadLocalRandom.current().nextInt(11);

@@ -41,7 +41,7 @@ public class Quest622DeliveryOfSpecialLiquor extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		if ("jeremy_q0622_0104.htm".equalsIgnoreCase(event)) {
+		if ("jeremy_q0622_0104.htm".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event)) {
 			qs.setState(State.STARTED);
 			qs.setCond(1);
 			qs.giveItems(SPECIAL_LIQUOR, 5);
