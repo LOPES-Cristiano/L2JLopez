@@ -83,15 +83,26 @@ public class DropService {
 	}
 
 	public List<DropReward> rollDrops(int mobId, int playerLevel, int mobLevel) {
+		return rollDrops(mobId, playerLevel, mobLevel, false);
+	}
+
+	public List<DropReward> rollDrops(int mobId, int playerLevel, int mobLevel, boolean isRaid) {
 		List<DropData> rules = dropTable.getDrops(mobId);
 		if (rules.isEmpty()) {
 			return List.of();
 		}
 
 		double levelPenalty = 1.0;
-		if (Config.USE_DEEP_BLUE_DROP_RULES && playerLevel > 0 && mobLevel > 0) {
+		if (playerLevel > 0 && mobLevel > 0) {
 			int diff = playerLevel - mobLevel;
-			if (diff >= 9) {
+			if (isRaid) {
+				if (diff > Config.RAID_MAX_LEVEL_DIFF) {
+					return List.of();
+				}
+				if (diff > Config.DEEP_BLUE_DROP_RAID_MAX_DIFF) {
+					levelPenalty = Math.max(0.1, 1.0 - ((diff - Config.DEEP_BLUE_DROP_RAID_MAX_DIFF) * 0.15));
+				}
+			} else if (Config.USE_DEEP_BLUE_DROP_RULES && diff >= 9) {
 				levelPenalty = Math.max(0.0, 1.0 - ((diff - 8) * 0.2));
 			}
 		}
@@ -99,6 +110,7 @@ public class DropService {
 			return List.of();
 		}
 
+		double raidRateMult = isRaid ? Math.max(0.1, Config.RATE_RAID_DROP_ITEMS) : 1.0;
 		List<DropReward> rewards = new ArrayList<>();
 		ThreadLocalRandom rng = ThreadLocalRandom.current();
 		boolean precise = Config.PRECISE_DROP_CALCULATION;
@@ -126,7 +138,7 @@ public class DropService {
 				}
 			} else {
 				// Calculo de Itens / Materiais / Equipamentos
-				double rate = (rateDrop > 0 ? rateDrop : Config.RATE_DROP_ITEMS) * levelPenalty;
+				double rate = (rateDrop > 0 ? rateDrop : Config.RATE_DROP_ITEMS) * raidRateMult * levelPenalty;
 				if (precise) {
 					double prob = ((double) rule.chance() * rate) / DropData.MAX_CHANCE;
 					int guaranteed = (int) prob;
@@ -167,11 +179,12 @@ public class DropService {
 		}
 		int mobId = npc.npcId();
 		int mobLevel = npc.template() != null ? npc.template().level() : 0;
-		List<DropReward> rewards = rollDrops(mobId, player != null ? player.level() : 0, mobLevel);
+		boolean isRaid = npc.template() != null && (npc.template().isRaidBoss() || npc.template().isGrandBoss());
+		List<DropReward> rewards = rollDrops(mobId, player != null ? player.level() : 0, mobLevel, isRaid);
 		if (npc.isChampion() && championService != null) {
 			rewards = championService.applyDropMultipliers(npc, rewards, player != null ? player.level() : 0);
 		}
-		return deliverRewards(player, rewards, inventoryService, packetSender);
+		return deliverRewards(player, rewards, inventoryService, packetSender, npc.x(), npc.y(), npc.z(), isRaid);
 	}
 
 	/**
@@ -184,15 +197,22 @@ public class DropService {
 			InventoryService inventoryService,
 			Consumer<GameServerPacket> packetSender) {
 
-		List<DropReward> rewards = rollDrops(mobId, player != null ? player.level() : 0, mobLevel);
-		return deliverRewards(player, rewards, inventoryService, packetSender);
+		List<DropReward> rewards = rollDrops(mobId, player != null ? player.level() : 0, mobLevel, false);
+		int px = player != null ? player.x() : 0;
+		int py = player != null ? player.y() : 0;
+		int pz = player != null ? player.z() : 0;
+		return deliverRewards(player, rewards, inventoryService, packetSender, px, py, pz, false);
 	}
 
 	private List<DropReward> deliverRewards(
 			PlayerCharacter player,
 			List<DropReward> rewards,
 			InventoryService inventoryService,
-			Consumer<GameServerPacket> packetSender) {
+			Consumer<GameServerPacket> packetSender,
+			int dropX,
+			int dropY,
+			int dropZ,
+			boolean isRaid) {
 
 		if (rewards.isEmpty()) {
 			return List.of();
@@ -201,7 +221,7 @@ public class DropService {
 		List<ItemInfo> itemUpdates = new ArrayList<>();
 
 		for (DropReward reward : rewards) {
-			boolean shouldLoot = reward.isAdena() ? Config.AUTO_LOOT_ADENA : (autoLoot && Config.AUTO_LOOT);
+			boolean shouldLoot = isRaid ? Config.AUTO_LOOT_RAID : (reward.isAdena() ? Config.AUTO_LOOT_ADENA : (autoLoot && Config.AUTO_LOOT));
 			boolean hasSpace = true;
 			if (player != null && player.inventory() != null) {
 				boolean alreadyOwned = player.inventory().byItemId(reward.itemId()).isPresent();
@@ -244,8 +264,8 @@ public class DropService {
 				if (!hasSpace && "destroy".equalsIgnoreCase(behavior)) {
 					continue;
 				}
-				if (groundItemService != null && player != null) {
-					groundItemService.dropItem(0, reward.itemId(), reward.count(), player.x(), player.y(), player.z());
+				if (groundItemService != null) {
+					groundItemService.dropItem(0, reward.itemId(), reward.count(), dropX, dropY, dropZ);
 				}
 			}
 		}
