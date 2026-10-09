@@ -119,4 +119,133 @@ class BuffShopServiceTest {
 		assertThat(result.success()).isFalse();
 		assertThat(result.message()).contains("propria loja");
 	}
+
+	@Test
+	@DisplayName("getSkillIcon formata corretamente os ícones para Interlude sem alteração de system")
+	void testGetSkillIcon() {
+		assertThat(BuffShopService.getSkillIcon(1)).isEqualTo("icon.skill0001");
+		assertThat(BuffShopService.getSkillIcon(395)).isEqualTo("icon.skill0395");
+		assertThat(BuffShopService.getSkillIcon(1068)).isEqualTo("icon.skill1068");
+		assertThat(BuffShopService.getSkillIcon(1388)).isEqualTo("icon.skill1388");
+	}
+
+	@Test
+	@DisplayName("Controle de rascunho de buffs permite alternar, alterar preços e títulos")
+	void testDraftManagement() {
+		service.setDraftTitle(seller, "Minha Loja Top");
+		assertThat(service.getDraftTitle(seller)).isEqualTo("Minha Loja Top");
+
+		seller.skills().put(1068, 1);
+		seller.skills().put(1040, 1);
+
+		com.lopez.l2j.game.skill.SkillTable mockSkillTable = mock(com.lopez.l2j.game.skill.SkillTable.class);
+		var mightTpl = mock(com.lopez.l2j.game.skill.SkillTemplate.class);
+		when(mightTpl.name()).thenReturn("Might");
+		when(mightTpl.level()).thenReturn(1);
+		when(mightTpl.target()).thenReturn("TARGET_ONE");
+		when(mightTpl.skillType()).thenReturn("BUFF");
+
+		var shieldTpl = mock(com.lopez.l2j.game.skill.SkillTemplate.class);
+		when(shieldTpl.name()).thenReturn("Shield");
+		when(shieldTpl.level()).thenReturn(1);
+		when(shieldTpl.target()).thenReturn("TARGET_ONE");
+		when(shieldTpl.skillType()).thenReturn("BUFF");
+
+		when(mockSkillTable.get(1068, 1)).thenReturn(java.util.Optional.of(mightTpl));
+		when(mockSkillTable.get(1040, 1)).thenReturn(java.util.Optional.of(shieldTpl));
+
+		var draft = service.getDraftOrActiveItems(seller, mockSkillTable);
+		assertThat(draft).containsKey(1068);
+		assertThat(draft).containsKey(1040);
+
+		service.setDraftPrice(seller, 1068, 25000);
+		assertThat(draft.get(1068).price()).isEqualTo(25000);
+
+		service.setAllDraftPrices(seller, 75000, mockSkillTable);
+		assertThat(draft.get(1068).price()).isEqualTo(75000);
+		assertThat(draft.get(1040).price()).isEqualTo(75000);
+
+		service.toggleDraftBuff(seller, 1068, mockSkillTable);
+		assertThat(draft).doesNotContainKey(1068);
+
+		service.toggleDraftBuff(seller, 1068, mockSkillTable);
+		assertThat(draft).containsKey(1068);
+
+		service.clearDraftBuffs(seller);
+		assertThat(draft).isEmpty();
+	}
+
+	@Test
+	@DisplayName("renderSellerManageHtml gera HTML com ícones de skill e controles de loja")
+	void testRenderSellerManageHtml() {
+		seller.skills().put(1068, 1);
+		com.lopez.l2j.game.skill.SkillTable mockSkillTable = mock(com.lopez.l2j.game.skill.SkillTable.class);
+		var mightTpl = mock(com.lopez.l2j.game.skill.SkillTemplate.class);
+		when(mightTpl.name()).thenReturn("Might");
+		when(mightTpl.level()).thenReturn(1);
+		when(mightTpl.target()).thenReturn("TARGET_ONE");
+		when(mightTpl.skillType()).thenReturn("BUFF");
+		when(mockSkillTable.get(1068, 1)).thenReturn(java.util.Optional.of(mightTpl));
+
+		String html = service.renderSellerManageHtml(seller, mockSkillTable, 1);
+		assertThat(html).contains("Buff Store Manager");
+		assertThat(html).contains("icon.skill1068");
+		assertThat(html).contains("Might");
+		assertThat(html).contains("INICIAR BUFF STORE");
+	}
+
+	@Test
+	@DisplayName("renderBuyerShopHtml gera HTML com dados do vendedor e botões de compra")
+	void testRenderBuyerShopHtml() {
+		service.startShop(seller, "Buffs do Lopez", List.of(
+				new BuffShopItem(1068, 1, 10000, "Might"),
+				new BuffShopItem(1040, 1, 15000, "Shield")
+		));
+
+		String html = service.renderBuyerShopHtml(buyer, seller.objectId(), null, 1);
+		assertThat(html).contains("Buffs do Lopez");
+		assertThat(html).contains("BuffProphet");
+		assertThat(html).contains("icon.skill1068");
+		assertThat(html).contains("icon.skill1040");
+		assertThat(html).contains("Comprar Todos");
+	}
+
+	@Test
+	@DisplayName("getAvailableBuffSkills permite buffs transferíveis e bloqueia self skills de combate como Frenzy/Guts")
+	void testAvailableBuffSkillsFilters() {
+		com.lopez.l2j.game.skill.SkillTable mockSkillTable = mock(com.lopez.l2j.game.skill.SkillTable.class);
+
+		// Might (1068) - buff transferivel
+		var might = mock(com.lopez.l2j.game.skill.SkillTemplate.class);
+		when(might.name()).thenReturn("Might");
+		when(might.target()).thenReturn("TARGET_ONE");
+		when(might.skillType()).thenReturn("BUFF");
+		when(might.isBuff()).thenReturn(true);
+		when(mockSkillTable.get(1068, 3)).thenReturn(java.util.Optional.of(might));
+
+		// Frenzy (176) - self combat skill (deve ser excluido)
+		var frenzy = mock(com.lopez.l2j.game.skill.SkillTemplate.class);
+		when(frenzy.name()).thenReturn("Frenzy");
+		when(frenzy.target()).thenReturn("TARGET_SELF");
+		when(frenzy.skillType()).thenReturn("BUFF");
+		when(mockSkillTable.get(176, 3)).thenReturn(java.util.Optional.of(frenzy));
+
+		// Song of Earth (264) - buff de grupo transferivel
+		var song = mock(com.lopez.l2j.game.skill.SkillTemplate.class);
+		when(song.name()).thenReturn("Song of Earth");
+		when(song.target()).thenReturn("TARGET_PARTY");
+		when(song.skillType()).thenReturn("BUFF");
+		when(song.isBuff()).thenReturn(true);
+		when(mockSkillTable.get(264, 1)).thenReturn(java.util.Optional.of(song));
+
+		seller.skills().put(1068, 3);
+		seller.skills().put(176, 3);
+		seller.skills().put(264, 1);
+
+		var available = service.getAvailableBuffSkills(seller, mockSkillTable);
+		var ids = available.stream().map(BuffShopItem::skillId).toList();
+
+		assertThat(ids).contains(1068, 264);
+		assertThat(ids).doesNotContain(176);
+	}
 }
