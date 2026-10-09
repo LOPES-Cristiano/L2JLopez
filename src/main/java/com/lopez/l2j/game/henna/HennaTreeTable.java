@@ -45,6 +45,10 @@ public class HennaTreeTable {
 		return list.stream().anyMatch(h -> h.symbolId() == symbolId);
 	}
 
+	public boolean isHennaAllowed(int classId, int symbolId) {
+		return isAllowed(classId, symbolId);
+	}
+
 	private void load(JdbcClient jdbc) {
 		if (jdbc == null) {
 			log.info("JdbcClient nao fornecido para HennaTreeTable (modo standalone/teste)");
