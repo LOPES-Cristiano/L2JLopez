@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.augmentation;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.item.ItemTemplate;
 import java.io.File;
@@ -335,23 +336,23 @@ public class AugmentationService {
 
 		var rnd = ThreadLocalRandom.current();
 		int skillChance = switch (grade) {
-			case 0 -> 15;
-			case 1 -> 30;
-			case 2 -> 45;
-			default -> 60;
+			case 0 -> Config.AUGMENTATION_NG_SKILL_CHANCE;
+			case 1 -> Config.AUGMENTATION_MID_SKILL_CHANCE;
+			case 2 -> Config.AUGMENTATION_HIGH_SKILL_CHANCE;
+			default -> Config.AUGMENTATION_TOP_SKILL_CHANCE;
 		};
 		int glowChance = switch (grade) {
-			case 0 -> 0;
-			case 1 -> 40;
-			case 2 -> 70;
-			default -> 100;
+			case 0 -> Config.AUGMENTATION_NG_GLOW_CHANCE;
+			case 1 -> Config.AUGMENTATION_MID_GLOW_CHANCE;
+			case 2 -> Config.AUGMENTATION_HIGH_GLOW_CHANCE;
+			default -> Config.AUGMENTATION_TOP_GLOW_CHANCE;
 		};
 
 		boolean generateSkill = rnd.nextInt(100) < skillChance;
 		boolean generateGlow = rnd.nextInt(100) < glowChance;
 
 		int stat34 = 0;
-		if (!generateSkill && rnd.nextInt(100) < 1) { // 1% chance de atributo base
+		if (!generateSkill && rnd.nextInt(100) < Config.AUGMENTATION_BASE_STAT_CHANCE) {
 			stat34 = rnd.nextInt(BASESTAT_STR, BASESTAT_MEN + 1);
 		}
 
