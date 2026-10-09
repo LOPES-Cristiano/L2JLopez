@@ -75,7 +75,7 @@ public record SkillTemplate(int id, int level, String name, OperateType operateT
 			"DEATHLINK", "MANADAM", "DOT", "MDOT", "POISON", "BLEED", "DEBUFF", "STUN", "SLEEP", "ROOT", "PARALYZE",
 			"MUTE", "FEAR", "CONFUSION", "WEAKNESS", "AGGDEBUFF", "AGGDAMAGE", "CANCEL", "MAGE_BANE", "WARRIOR_BANE",
 			"SPOIL", "ERASE", "BETRAY", "DISARM", "CONFUSE_MOB_ONLY", "DRAIN_SOUL", "AGGREDUCE", "AGGREDUCE_CHAR",
-			"AGGREMOVE", "STEAL_BUFF", "SWITCH", "FATAL", "SOW", "HARVEST");
+			"AGGREMOVE", "STEAL_BUFF", "SWITCH", "FATAL", "SOW", "HARVEST", "CPDAM");
 
 	private static final Set<String> PHYSICAL_DAMAGE = Set.of("PDAM", "BLOW", "CHARGEDAM", "FATALCOUNTER");
 	private static final Set<String> MAGIC_DAMAGE = Set.of("MDAM", "DEATHLINK", "DRAIN");
@@ -108,6 +108,10 @@ public record SkillTemplate(int id, int level, String name, OperateType operateT
 		return "MANADAM".equalsIgnoreCase(skillType);
 	}
 
+	public boolean isCpDamage() {
+		return "CPDAM".equalsIgnoreCase(skillType);
+	}
+
 	public boolean isHeal() {
 		return "HEAL".equalsIgnoreCase(skillType) || "HEAL_PERCENT".equalsIgnoreCase(skillType)
 				|| "HOT".equalsIgnoreCase(skillType);
@@ -120,7 +124,11 @@ public record SkillTemplate(int id, int level, String name, OperateType operateT
 	public boolean isDebuff() {
 		return "DEBUFF".equalsIgnoreCase(skillType) || "STUN".equalsIgnoreCase(skillType)
 				|| "ROOT".equalsIgnoreCase(skillType) || "SLEEP".equalsIgnoreCase(skillType)
-				|| "PARALYZE".equalsIgnoreCase(skillType);
+				|| "PARALYZE".equalsIgnoreCase(skillType) || "MUTE".equalsIgnoreCase(skillType)
+				|| "FEAR".equalsIgnoreCase(skillType) || "CONFUSION".equalsIgnoreCase(skillType)
+				|| "WEAKNESS".equalsIgnoreCase(skillType) || "POISON".equalsIgnoreCase(skillType)
+				|| "BLEED".equalsIgnoreCase(skillType) || "DOT".equalsIgnoreCase(skillType)
+				|| "MDOT".equalsIgnoreCase(skillType) || "AGGDEBUFF".equalsIgnoreCase(skillType);
 	}
 
 	public boolean isAreaAroundSelf() {

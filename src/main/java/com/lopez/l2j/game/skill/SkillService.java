@@ -33,7 +33,7 @@ public class SkillService {
 	private final int autoLearnMaxLevel;
 	private final boolean spBookNeeded;
 
-	@Autowired
+	@org.springframework.beans.factory.annotation.Autowired
 	public SkillService(SkillTable table, SkillTreeTable trees, SkillRepository repository,
 			@Value("${l2.skills.auto-learn:true}") boolean autoLearn,
 			@Value("${l2.skills.auto-learn-max-level:0}") int autoLearnMaxLevel,
@@ -45,6 +45,11 @@ public class SkillService {
 		this.autoLearnMaxLevel = autoLearnMaxLevel;
 		this.spBookNeeded = spBookNeeded;
 	}
+
+	public SkillService(SkillTable table, SkillTreeTable trees, SkillRepository repository, boolean autoLearn) {
+		this(table, trees, repository, autoLearn, 0, true);
+	}
+
 
 	public SkillTable table() {
 		return table;
@@ -152,6 +157,22 @@ public class SkillService {
 		if (grant(p, id, level)) {
 			refreshPassives(p);
 		}
+	}
+
+	/**
+	 * Define o skill exatamente no nivel informado (usado para enchant e downgrade na falha).
+	 */
+	public void setSkill(PlayerCharacter p, int id, int level) {
+		var t = table.get(id, level);
+		if (t.isEmpty()) {
+			log.debug("Skill {} nivel {} nao existe no datapack; ignorado", id, level);
+			return;
+		}
+		p.skills().put(id, level);
+		if (repository != null) {
+			repository.save(p.objectId(), 0, new Skill(id, level, t.get().name(), t.get().isPassive()));
+		}
+		refreshPassives(p);
 	}
 
 	public void removeSkill(PlayerCharacter p, int id) {

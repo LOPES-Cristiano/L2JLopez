@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -71,7 +72,14 @@ public class SkillTable {
 		}
 		if (level >= 100) {
 			var ench = enchantedById.get(id);
-			return ench != null ? Optional.ofNullable(ench.get(level)) : Optional.empty();
+			if (ench != null && ench.containsKey(level)) {
+				return Optional.ofNullable(ench.get(level));
+			}
+			SkillTemplate[] levels = byId.get(id);
+			if (levels != null && levels.length > 0) {
+				return Optional.ofNullable(levels[levels.length - 1]);
+			}
+			return Optional.empty();
 		}
 		SkillTemplate[] levels = byId.get(id);
 		if (levels == null || level > levels.length) {
@@ -87,6 +95,19 @@ public class SkillTable {
 
 	public int size() {
 		return byId.size();
+	}
+
+	public Collection<SkillTemplate> allSkillsMaxLevel() {
+		List<SkillTemplate> list = new ArrayList<>(byId.size());
+		for (SkillTemplate[] arr : byId.values()) {
+			if (arr != null && arr.length > 0) {
+				SkillTemplate last = arr[arr.length - 1];
+				if (last != null) {
+					list.add(last);
+				}
+			}
+		}
+		return list;
 	}
 
 	public void register(SkillTemplate skill) {
