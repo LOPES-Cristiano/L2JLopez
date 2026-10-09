@@ -1,5 +1,7 @@
 package com.lopez.l2j.game.model;
 
+import com.lopez.l2j.game.clan.Clan;
+import com.lopez.l2j.game.clan.ClanTable;
 import com.lopez.l2j.game.effect.PlayerEffects;
 import com.lopez.l2j.game.item.Inventory;
 import com.lopez.l2j.game.skill.StatFunc;
@@ -102,26 +104,67 @@ public final class PlayerCharacter {
 	private int nameColor = 0xFFFFFF;
 	private int titleColor = 0xFFFF77;
 
-	public int nameColor() { return nameColor; }
-	public void nameColor(int nameColor) { this.nameColor = nameColor; }
-	public int titleColor() { return titleColor; }
-	public void titleColor(int titleColor) { this.titleColor = titleColor; }
+	public int nameColor() {
+		return nameColor;
+	}
+
+	public void nameColor(int nameColor) {
+		this.nameColor = nameColor;
+	}
+
+	public int titleColor() {
+		return titleColor;
+	}
+
+	public void titleColor(int titleColor) {
+		this.titleColor = titleColor;
+	}
 
 	private boolean aio;
 	private long aioExpiration;
-	public boolean isAio() { return aio; }
-	public void setAio(boolean aio) { this.aio = aio; }
-	public void aio(boolean aio) { this.aio = aio; }
-	public long aioExpiration() { return aioExpiration; }
-	public void aioExpiration(long aioExpiration) { this.aioExpiration = aioExpiration; }
+
+	public boolean isAio() {
+		return aio;
+	}
+
+	public void setAio(boolean aio) {
+		this.aio = aio;
+	}
+
+	public void aio(boolean aio) {
+		this.aio = aio;
+	}
+
+	public long aioExpiration() {
+		return aioExpiration;
+	}
+
+	public void aioExpiration(long aioExpiration) {
+		this.aioExpiration = aioExpiration;
+	}
 
 	private boolean vip;
 	private long vipExpiration;
-	public boolean isVip() { return vip; }
-	public void setVip(boolean vip) { this.vip = vip; }
-	public void vip(boolean vip) { this.vip = vip; }
-	public long vipExpiration() { return vipExpiration; }
-	public void vipExpiration(long vipExpiration) { this.vipExpiration = vipExpiration; }
+
+	public boolean isVip() {
+		return vip;
+	}
+
+	public void setVip(boolean vip) {
+		this.vip = vip;
+	}
+
+	public void vip(boolean vip) {
+		this.vip = vip;
+	}
+
+	public long vipExpiration() {
+		return vipExpiration;
+	}
+
+	public void vipExpiration(long vipExpiration) {
+		this.vipExpiration = vipExpiration;
+	}
 
 	private volatile long lastCombatTime;
 
@@ -154,11 +197,16 @@ public final class PlayerCharacter {
 	}
 
 	public static int expertiseGrade(int level) {
-		if (level >= 76) return 5; // S
-		if (level >= 61) return 4; // A
-		if (level >= 52) return 3; // B
-		if (level >= 40) return 2; // C
-		if (level >= 20) return 1; // D
+		if (level >= 76)
+			return 5; // S
+		if (level >= 61)
+			return 4; // A
+		if (level >= 52)
+			return 3; // B
+		if (level >= 40)
+			return 2; // C
+		if (level >= 20)
+			return 1; // D
 		return 0; // None
 	}
 
@@ -169,21 +217,91 @@ public final class PlayerCharacter {
 				|| (classId >= 110 && classId <= 112) || (classId >= 115 && classId <= 116);
 	}
 
+	public int race() {
+		return race;
+	}
+
+	public Race getRace() {
+		return switch (race) {
+			case 0 -> Race.human;
+			case 1 -> Race.elf;
+			case 2 -> Race.darkelf;
+			case 3 -> Race.orc;
+			case 4 -> Race.dwarf;
+			default -> Race.human;
+		};
+	}
+
+	public Clan getClan() {
+		return clanId > 0 && ClanTable.getInstance() != null ? ClanTable.getInstance().getClan(clanId) : null;
+	}
+
 	public boolean isMageClass() {
 		return isMage();
 	}
 
-	public int getObjectId() { return objectId; }
-	public String getName() { return name; }
-	public int getLevel() { return level; }
-	public int getX() { return x; }
-	public int getY() { return y; }
-	public int getZ() { return z; }
-	public void setX(int x) { this.x = x; }
-	public void setY(int y) { this.y = y; }
-	public void setZ(int z) { this.z = z; }
-	public int getKarma() { return karma; }
-	public String accountName() { return account; }
+	public int getObjectId() {
+		return objectId;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public int getLevel() {
+		return level;
+	}
+
+	public void teleToLocation(int x, int y, int z) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+	}
+
+	public void teleToLocation(int[] coords) {
+		if (coords != null && coords.length >= 3) {
+			teleToLocation(coords[0], coords[1], coords[2]);
+		}
+	}
+
+	public void teleToLocation(Object loc) {
+	}
+
+	public com.lopez.l2j.game.npc.NpcInstance getLastNpc() {
+		return null;
+	}
+
+	public int getX() {
+		return x;
+	}
+
+	public int getY() {
+		return y;
+	}
+
+	public int getZ() {
+		return z;
+	}
+
+	public void setX(int x) {
+		this.x = x;
+	}
+
+	public void setY(int y) {
+		this.y = y;
+	}
+
+	public void setZ(int z) {
+		this.z = z;
+	}
+
+	public int getKarma() {
+		return karma;
+	}
+
+	public String accountName() {
+		return account;
+	}
 
 	public PlayerCharacter(int objectId, String account, String name, int level, long exp, int sp, int race,
 			int classId, int baseClassId, boolean female, int face, int hairStyle, int hairColor, int maxHp,
@@ -223,6 +341,11 @@ public final class PlayerCharacter {
 		this.currentCp = currentCp;
 	}
 
+	public PlayerCharacter(int objectId, String name, int level, int x, int y, int z) {
+		this(objectId, "account_" + objectId, name, level, 0L, 0, 0, 0, 0, false, 0, 0, 0, 100, 100, 100, 0, 0, 0, 0,
+				"", 0, 0L, 0L, x, y, z, 0, 100.0, 100.0, 100.0);
+	}
+
 	public int objectId() {
 		return objectId;
 	}
@@ -247,8 +370,9 @@ public final class PlayerCharacter {
 		return sp;
 	}
 
-	public int race() {
-		return race;
+	public void addExpAndSp(long addExp, int addSp) {
+		this.exp += addExp;
+		this.sp += addSp;
 	}
 
 	public int maxInventorySlots() {
@@ -415,8 +539,25 @@ public final class PlayerCharacter {
 		return pkKills;
 	}
 
+	private volatile com.lopez.l2j.game.clan.Clan clan;
+
+	public com.lopez.l2j.game.clan.Clan clan() {
+		return clan;
+	}
+
+	public void clan(com.lopez.l2j.game.clan.Clan value) {
+		this.clan = value;
+		this.clanId = value != null ? value.clanId() : 0;
+	}
+
+	public void stopAllEffects() {
+		if (effects != null) {
+			effects.stopAllEffects();
+		}
+	}
+
 	public int clanId() {
-		return clanId;
+		return clan != null ? clan.clanId() : clanId;
 	}
 
 	public void clanId(int value) {
@@ -558,6 +699,10 @@ public final class PlayerCharacter {
 		return olympiadMode;
 	}
 
+	public void olympiadMode(boolean value) {
+		this.olympiadMode = value;
+	}
+
 	public void inOlympiadMode(boolean value) {
 		this.olympiadMode = value;
 	}
@@ -696,17 +841,45 @@ public final class PlayerCharacter {
 		this.augmentationFuncs = funcs == null ? List.of() : List.copyOf(funcs);
 	}
 
-	public int augSTR() { return augStr; }
-	public void augSTR(int val) { this.augStr = val; }
-	public int augCON() { return augCon; }
-	public void augCON(int val) { this.augCon = val; }
-	public int augINT() { return augInt; }
-	public void augINT(int val) { this.augInt = val; }
-	public int augMEN() { return augMen; }
-	public void augMEN(int val) { this.augMen = val; }
+	public int augSTR() {
+		return augStr;
+	}
 
-	public int activeAugmentationSkillId() { return activeAugmentationSkillId; }
-	public int activeAugmentationSkillLevel() { return activeAugmentationSkillLevel; }
+	public void augSTR(int val) {
+		this.augStr = val;
+	}
+
+	public int augCON() {
+		return augCon;
+	}
+
+	public void augCON(int val) {
+		this.augCon = val;
+	}
+
+	public int augINT() {
+		return augInt;
+	}
+
+	public void augINT(int val) {
+		this.augInt = val;
+	}
+
+	public int augMEN() {
+		return augMen;
+	}
+
+	public void augMEN(int val) {
+		this.augMen = val;
+	}
+
+	public int activeAugmentationSkillId() {
+		return activeAugmentationSkillId;
+	}
+
+	public int activeAugmentationSkillLevel() {
+		return activeAugmentationSkillLevel;
+	}
 
 	public void setAugmentationSkill(int id, int level) {
 		this.activeAugmentationSkillId = id;
@@ -743,6 +916,7 @@ public final class PlayerCharacter {
 	private volatile boolean sleeping;
 	private volatile long rootedUntil;
 	private volatile long mutedUntil;
+	private volatile long physicalMutedUntil;
 
 	public void disable(long until, boolean sleep) {
 		this.disabledUntil = Math.max(disabledUntil, until);
@@ -757,6 +931,10 @@ public final class PlayerCharacter {
 		this.mutedUntil = Math.max(mutedUntil, until);
 	}
 
+	public void physicalMute(long until) {
+		this.physicalMutedUntil = Math.max(physicalMutedUntil, until);
+	}
+
 	public boolean isDisabled() {
 		return System.currentTimeMillis() < disabledUntil;
 	}
@@ -769,11 +947,41 @@ public final class PlayerCharacter {
 		return System.currentTimeMillis() < mutedUntil;
 	}
 
+	public boolean isPhysicalMuted() {
+		return System.currentTimeMillis() < physicalMutedUntil;
+	}
+
 	public void onDamaged() {
 		if (sleeping) {
 			sleeping = false;
 			disabledUntil = 0;
+			stopAbnormalEffect(0x0080);
 		}
+	}
+
+	public void clearControls() {
+		this.disabledUntil = 0;
+		this.sleeping = false;
+		this.rootedUntil = 0;
+		this.mutedUntil = 0;
+		this.physicalMutedUntil = 0;
+		stopAbnormalEffect(0x0040 | 0x0080 | 0x0400 | 0x0010 | 0x0800 | 0x0020 | 0x0004);
+	}
+
+	public void clearParalyze() {
+		this.disabledUntil = 0;
+		stopAbnormalEffect(0x0010);
+	}
+
+	public void clearRoot() {
+		this.rootedUntil = 0;
+		stopAbnormalEffect(0x0040);
+	}
+
+	public void clearSilence() {
+		this.mutedUntil = 0;
+		this.physicalMutedUntil = 0;
+		stopAbnormalEffect(0x0020);
 	}
 
 	/**
@@ -792,7 +1000,8 @@ public final class PlayerCharacter {
 	}
 
 	/**
-	 * Nivel de encantamento da arma equipada (0..127) para exibicao de brilho/aura visual no cliente
+	 * Nivel de encantamento da arma equipada (0..127) para exibicao de brilho/aura
+	 * visual no cliente
 	 * (Interlude: 0=sem brilho, 4..15=azul, 16+=vermelho).
 	 */
 	public int enchantEffect() {
@@ -934,12 +1143,29 @@ public final class PlayerCharacter {
 		return hennas;
 	}
 
-	public int hennaINT() { return hennaInt; }
-	public int hennaSTR() { return hennaStr; }
-	public int hennaCON() { return hennaCon; }
-	public int hennaMEN() { return hennaMen; }
-	public int hennaDEX() { return hennaDex; }
-	public int hennaWIT() { return hennaWit; }
+	public int hennaINT() {
+		return hennaInt;
+	}
+
+	public int hennaSTR() {
+		return hennaStr;
+	}
+
+	public int hennaCON() {
+		return hennaCon;
+	}
+
+	public int hennaMEN() {
+		return hennaMen;
+	}
+
+	public int hennaDEX() {
+		return hennaDex;
+	}
+
+	public int hennaWIT() {
+		return hennaWit;
+	}
 
 	public void clearHennas() {
 		java.util.Arrays.fill(hennas, 0);
@@ -988,7 +1214,8 @@ public final class PlayerCharacter {
 		recalcHennaStats(table, null);
 	}
 
-	public void recalcHennaStats(com.lopez.l2j.game.henna.HennaTable table, com.lopez.l2j.game.henna.HennaTreeTable treeTable) {
+	public void recalcHennaStats(com.lopez.l2j.game.henna.HennaTable table,
+			com.lopez.l2j.game.henna.HennaTreeTable treeTable) {
 		hennaInt = 0;
 		hennaStr = 0;
 		hennaCon = 0;
@@ -1017,8 +1244,10 @@ public final class PlayerCharacter {
 			}
 		}
 
-		// Regra oficial do Lineage II Interlude: bonus positivo limitado a no maximo +5 (ou configurado)
-		// Penalidades negativas nao sao limitadas (ex.: -8, -12 sao permitidos normalmente)
+		// Regra oficial do Lineage II Interlude: bonus positivo limitado a no maximo +5
+		// (ou configurado)
+		// Penalidades negativas nao sao limitadas (ex.: -8, -12 sao permitidos
+		// normalmente)
 		hennaInt = Math.min(com.lopez.l2j.config.Config.LIMIT_HENNA_INT, hennaInt);
 		hennaStr = Math.min(com.lopez.l2j.config.Config.LIMIT_HENNA_STR, hennaStr);
 		hennaCon = Math.min(com.lopez.l2j.config.Config.LIMIT_HENNA_CON, hennaCon);
@@ -1114,6 +1343,10 @@ public final class PlayerCharacter {
 		this.privateStoreType = privateStoreType;
 	}
 
+	public boolean isStoreOpen() {
+		return privateStoreType != 0;
+	}
+
 	public String storeTitle() {
 		return storeTitle;
 	}
@@ -1128,6 +1361,16 @@ public final class PlayerCharacter {
 
 	public void setBuffShop(boolean buffShop) {
 		this.buffShop = buffShop;
+	}
+
+	private volatile boolean autoAttacking;
+
+	public boolean autoAttacking() {
+		return autoAttacking;
+	}
+
+	public void autoAttacking(boolean autoAttacking) {
+		this.autoAttacking = autoAttacking;
 	}
 
 	private volatile boolean phantom;

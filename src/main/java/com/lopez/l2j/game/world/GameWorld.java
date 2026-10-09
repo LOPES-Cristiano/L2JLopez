@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.world;
 
+import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
 import java.util.ArrayList;
@@ -18,6 +19,20 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class GameWorld {
+
+	private static volatile GameWorld instance;
+
+	public GameWorld() {
+		instance = this;
+	}
+
+	public static GameWorld getInstance() {
+		return instance;
+	}
+
+	public static void setInstance(GameWorld world) {
+		instance = world;
+	}
 
 	/** Visao minima de um jogador online, implementada pela sessao. */
 	public interface OnlinePlayer {
@@ -67,6 +82,10 @@ public class GameWorld {
 		default void onDeath(int killerObjectId) {
 			onDeath();
 		}
+
+		default boolean isTeleporting() {
+			return false;
+		}
 	}
 
 	public static final int LOCAL_CHAT_RANGE = 1250;
@@ -95,8 +114,16 @@ public class GameWorld {
 		return playersById.size();
 	}
 
+	public int onlineCount() {
+		return online();
+	}
+
 	public Collection<OnlinePlayer> players() {
 		return playersById.values();
+	}
+
+	public Collection<OnlinePlayer> allPlayers() {
+		return players();
 	}
 
 	public Optional<OnlinePlayer> byName(String name) {
@@ -105,6 +132,19 @@ public class GameWorld {
 
 	public Optional<OnlinePlayer> player(int objectId) {
 		return Optional.ofNullable(playersById.get(objectId));
+	}
+
+	public PlayerCharacter getPlayer(int objectId) {
+		OnlinePlayer p = playersById.get(objectId);
+		return p != null ? p.character() : null;
+	}
+
+	public PlayerCharacter getPlayer(String name) {
+		if (name == null) {
+			return null;
+		}
+		OnlinePlayer p = playersByName.get(key(name));
+		return p != null ? p.character() : null;
 	}
 
 	public List<OnlinePlayer> findPlayersAround(int x, int y, int range) {

@@ -19,7 +19,8 @@ class JdbcCharacterRepository implements CharacterRepository {
 	private static final String COLUMNS = """
 			account_name, charId, char_name, level, exp, sp, race, classid, base_class, sex, face, hairStyle,
 			hairColor, maxHp, maxMp, maxCp, curHp, curMp, curCp, karma, pvpkills, pkkills, clanid, title,
-			accesslevel, lastAccess, deletetime, x, y, z, heading, rec_have, rec_left, last_recom_date""";
+			accesslevel, lastAccess, deletetime, x, y, z, heading, rec_have, rec_left, last_recom_date,
+			vip, vip_end, aio, aio_end""";
 
 	private final JdbcClient jdbc;
 	private final ObjectIdFactory ids;
@@ -100,7 +101,8 @@ class JdbcCharacterRepository implements CharacterRepository {
 				  exp = :exp, sp = :sp, maxHp = :maxHp, maxMp = :maxMp, maxCp = :maxCp, curHp = :hp,
 				  curMp = :mp, curCp = :cp, face = :face, hairStyle = :hairStyle, hairColor = :hairColor,
 				  online = :online, lastAccess = :now, accesslevel = :accesslevel,
-				  rec_have = :recHave, rec_left = :recLeft, last_recom_date = :lastRecomDate WHERE charId = :id
+				  rec_have = :recHave, rec_left = :recLeft, last_recom_date = :lastRecomDate,
+				  vip = :vip, vip_end = :vipEnd, aio = :aio, aio_end = :aioEnd WHERE charId = :id
 				""")
 				.param("classId", c.classId())
 				.param("x", c.x())
@@ -125,6 +127,10 @@ class JdbcCharacterRepository implements CharacterRepository {
 				.param("recHave", c.recomHave())
 				.param("recLeft", c.recomLeft())
 				.param("lastRecomDate", c.lastRecomDate())
+				.param("vip", c.isVip() ? 1 : 0)
+				.param("vipEnd", c.vipExpiration())
+				.param("aio", c.isAio() ? 1 : 0)
+				.param("aioEnd", c.aioExpiration())
 				.param("id", c.objectId())
 				.update();
 	}
@@ -190,6 +196,16 @@ class JdbcCharacterRepository implements CharacterRepository {
 		c.recomHave(rs.getInt("rec_have"));
 		c.recomLeft(rs.getInt("rec_left"));
 		c.lastRecomDate(rs.getLong("last_recom_date"));
+		try {
+			c.setVip(rs.getInt("vip") == 1);
+			c.vipExpiration(rs.getLong("vip_end"));
+		} catch (SQLException ignored) {
+		}
+		try {
+			c.setAio(rs.getInt("aio") == 1);
+			c.aioExpiration(rs.getLong("aio_end"));
+		} catch (SQLException ignored) {
+		}
 		return c;
 	}
 }
