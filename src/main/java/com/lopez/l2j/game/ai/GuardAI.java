@@ -19,6 +19,12 @@ public class GuardAI extends FighterAI {
 		super(npc, world, combatService, charTemplates, npcSkillTable, skillTable);
 	}
 
+	public GuardAI(NpcInstance npc, GameWorld world, CombatService combatService,
+			CharTemplateTable charTemplates, NpcSkillTable npcSkillTable, SkillTable skillTable,
+			java.util.concurrent.ScheduledExecutorService scheduler, com.lopez.l2j.game.zone.ZoneTable zones) {
+		super(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler, zones);
+	}
+
 	@Override
 	public AiArchetype getArchetype() {
 		return AiArchetype.GUARD;

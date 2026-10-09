@@ -23,6 +23,12 @@ public class RangerAI extends FighterAI {
 		super(npc, world, combatService, charTemplates, npcSkillTable, skillTable);
 	}
 
+	public RangerAI(NpcInstance npc, GameWorld world, CombatService combatService,
+			CharTemplateTable charTemplates, NpcSkillTable npcSkillTable, SkillTable skillTable,
+			java.util.concurrent.ScheduledExecutorService scheduler, com.lopez.l2j.game.zone.ZoneTable zones) {
+		super(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler, zones);
+	}
+
 	@Override
 	public AiArchetype getArchetype() {
 		return AiArchetype.RANGER;
@@ -30,13 +36,17 @@ public class RangerAI extends FighterAI {
 
 	@Override
 	public void processCombat() {
-		if (npc.isDead() || npc.targetPlayerId() == 0) return;
+		if (npc.isDead() || npc.isCasting() || npc.targetPlayerId() == 0) return;
 		var playerOpt = world.player(npc.targetPlayerId());
 		if (playerOpt.isEmpty()) return;
 
 		var player = playerOpt.get();
 		var character = player.character();
-		if (character == null || character.isDead()) return;
+		if (character == null || character.isDead() || player.isTeleporting()) return;
+		if (zones != null && (zones.isInsidePeace(player.x(), player.y(), player.z())
+				|| zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
+			return;
+		}
 
 		double dx = player.x() - npc.x();
 		double dy = player.y() - npc.y();

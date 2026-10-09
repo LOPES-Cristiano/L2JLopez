@@ -32,15 +32,25 @@ public abstract class AbstractNpcAI {
 	protected final CharTemplateTable charTemplates;
 	protected final NpcSkillTable npcSkillTable;
 	protected final SkillTable skillTable;
+	protected final java.util.concurrent.ScheduledExecutorService scheduler;
+	protected final com.lopez.l2j.game.zone.ZoneTable zones;
 
 	public AbstractNpcAI(NpcInstance npc, GameWorld world, CombatService combatService,
 			CharTemplateTable charTemplates, NpcSkillTable npcSkillTable, SkillTable skillTable) {
+		this(npc, world, combatService, charTemplates, npcSkillTable, skillTable, null, null);
+	}
+
+	public AbstractNpcAI(NpcInstance npc, GameWorld world, CombatService combatService,
+			CharTemplateTable charTemplates, NpcSkillTable npcSkillTable, SkillTable skillTable,
+			java.util.concurrent.ScheduledExecutorService scheduler, com.lopez.l2j.game.zone.ZoneTable zones) {
 		this.npc = npc;
 		this.world = world;
 		this.combatService = combatService;
 		this.charTemplates = charTemplates;
 		this.npcSkillTable = npcSkillTable;
 		this.skillTable = skillTable;
+		this.scheduler = scheduler != null ? scheduler : com.lopez.l2j.network.game.GameSession.autoAttackScheduler();
+		this.zones = zones;
 	}
 
 	public abstract AiArchetype getArchetype();

@@ -23,6 +23,12 @@ public class PriestAI extends MysticAI {
 		super(npc, world, combatService, charTemplates, npcSkillTable, skillTable);
 	}
 
+	public PriestAI(NpcInstance npc, GameWorld world, CombatService combatService,
+			CharTemplateTable charTemplates, NpcSkillTable npcSkillTable, SkillTable skillTable,
+			java.util.concurrent.ScheduledExecutorService scheduler, com.lopez.l2j.game.zone.ZoneTable zones) {
+		super(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler, zones);
+	}
+
 	@Override
 	public AiArchetype getArchetype() {
 		return AiArchetype.PRIEST;
@@ -30,6 +36,7 @@ public class PriestAI extends MysticAI {
 
 	@Override
 	public void processCombat() {
+		if (npc.isDead() || npc.isCasting() || npc.targetPlayerId() == 0) return;
 		// 1. Antes de atacar, checa se ha aliados feridos necessitando de cura imediata
 		NpcInstance woundedAlly = findWoundedAlly();
 		if (woundedAlly != null) {

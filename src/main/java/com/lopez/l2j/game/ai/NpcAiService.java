@@ -12,6 +12,7 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.Attack;
 import com.lopez.l2j.network.game.packet.GameServerPacket.AutoAttackStop;
 import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
+import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillCanceld;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToLocation;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToPawn;
@@ -60,9 +61,16 @@ public class NpcAiService {
 	private ScheduledExecutorService scheduler;
 	private long tickCount = 0;
 
+	public ScheduledExecutorService scheduler() {
+		if (scheduler != null && !scheduler.isShutdown()) {
+			return scheduler;
+		}
+		return com.lopez.l2j.network.game.GameSession.autoAttackScheduler();
+	}
+
 	public AbstractNpcAI getOrAssignAI(NpcInstance npc) {
 		return aiArchetypes.computeIfAbsent(npc.objectId(), id ->
-				NpcAiFactory.createAI(npc, world, combatService, charTemplates, npcSkillTable, skillTable));
+				NpcAiFactory.createAI(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler(), zones));
 	}
 
 	@org.springframework.beans.factory.annotation.Autowired
@@ -202,12 +210,19 @@ public class NpcAiService {
 	 */
 	public void stopCombat(NpcInstance npc) {
 		if (npc != null) {
+			boolean wasCasting = npc.isCasting();
+			npc.abortCast();
+			npc.abortAttack();
 			npc.inCombat(false);
 			npc.targetPlayerId(0);
 			activeCombatNpcs.remove(npc);
 			aiArchetypes.remove(npc.objectId());
 			var stopAtk = new AutoAttackStop(npc.objectId());
 			world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, stopAtk);
+			if (wasCasting) {
+				var cancelPkt = new MagicSkillCanceld(npc.objectId());
+				world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, cancelPkt);
+			}
 		}
 	}
 
@@ -219,13 +234,28 @@ public class NpcAiService {
 		if (playerId == 0) {
 			return;
 		}
+		var playerOpt = world.player(playerId);
 		for (NpcInstance npc : java.util.List.copyOf(activeCombatNpcs)) {
 			if (npc != null && (npc.targetPlayerId() == playerId || (npc.targetPlayerId() == 0 && npc.inCombat()))) {
+				if (npc.isCasting()) {
+					var cancelPkt = new MagicSkillCanceld(npc.objectId());
+					playerOpt.ifPresent(p -> p.send(cancelPkt));
+					world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, cancelPkt);
+				}
+				npc.abortCast();
+				npc.abortAttack();
 				returnToSpawn(npc);
 			}
 		}
 		for (NpcInstance npc : world.npcs()) {
 			if (npc != null && npc.targetPlayerId() == playerId) {
+				if (npc.isCasting()) {
+					var cancelPkt = new MagicSkillCanceld(npc.objectId());
+					playerOpt.ifPresent(p -> p.send(cancelPkt));
+					world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, cancelPkt);
+				}
+				npc.abortCast();
+				npc.abortAttack();
 				returnToSpawn(npc);
 			}
 		}
@@ -254,6 +284,12 @@ public class NpcAiService {
 				world.removeNpc(npc);
 			} catch (Exception e) {
 				log.warn("Erro ao executar decay do monstro {}: {}", npc.name(), e.getMessage());
+			}
+
+			// Se for Raid Boss ou Grand Boss, o respawn NAO e gerido pelo NpcAiService!
+			// O renascimento e controlado pelo RaidBossSpawnManager ou GrandBossManager com horas/dias.
+			if (npc.template() != null && (npc.template().isRaidBoss() || npc.template().isGrandBoss())) {
+				return;
 			}
 
 			// 2. Respawn: Apos o tempo de renascimento, revive com HP total no spawn original
