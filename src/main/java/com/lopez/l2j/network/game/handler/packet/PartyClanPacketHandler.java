@@ -61,6 +61,11 @@ public class PartyClanPacketHandler {
 			session.send(new ActionFailed());
 			return;
 		}
+		if (com.lopez.l2j.config.Config.BLOCK_PARTY_INVITE_ON_COMBAT && (active.isInCombat() || targetSession.character().isInCombat())) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao e permitido convidar ou aceitar grupo durante o modo combate."));
+			session.send(new ActionFailed());
+			return;
+		}
 		if (targetSession.party() != null) {
 			session.send(SystemMessage.of(SystemMessage.PLAYER_ALREADY_IN_PARTY,
 					new SystemMessage.Text(targetSession.character().name())));

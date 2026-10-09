@@ -3,6 +3,7 @@ package com.lopez.l2j.network.security;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.handler.admin.AdminCommandHandlerRegistry;
 import com.lopez.l2j.network.game.handler.admin.AdminGeneralHandler;
+import com.lopez.l2j.network.game.handler.admin.IAdminCommandHandler;
 import com.lopez.l2j.network.game.handler.bypass.BypassHandlerRegistry;
 import com.lopez.l2j.network.game.handler.bypass.BypassPreferencesHandler;
 import com.lopez.l2j.network.game.handler.voiced.VoicedCommandHandlerRegistry;
@@ -26,7 +27,10 @@ public class GameSessionModularSecurityTest {
 
 	@BeforeEach
 	void setUp() {
-		adminRegistry = new AdminCommandHandlerRegistry(List.of(new AdminGeneralHandler()));
+		adminRegistry = new AdminCommandHandlerRegistry(List.<IAdminCommandHandler>of(
+				new AdminGeneralHandler(),
+				new com.lopez.l2j.network.game.handler.admin.AdminStatusHandler(null, null, null, null)
+		));
 		voicedRegistry = new VoicedCommandHandlerRegistry(List.of(new VoicedGeneralHandler()));
 		bypassRegistry = new BypassHandlerRegistry(List.of(new BypassPreferencesHandler()));
 		bypassEncoder = new BypassEncoderService();
@@ -40,6 +44,18 @@ public class GameSessionModularSecurityTest {
 		assertTrue(adminRegistry.hasCommand("delete"));
 		assertTrue(adminRegistry.hasCommand("del"));
 		assertTrue(adminRegistry.hasCommand("unspawn"));
+
+		// AIO / Hero / VIP commands
+		assertTrue(adminRegistry.hasCommand("setaio"));
+		assertTrue(adminRegistry.hasCommand("removeaio"));
+		assertTrue(adminRegistry.hasCommand("set_massaio"));
+		assertTrue(adminRegistry.hasCommand("sethero"));
+		assertTrue(adminRegistry.hasCommand("removehero"));
+		assertTrue(adminRegistry.hasCommand("set_masshero"));
+		assertTrue(adminRegistry.hasCommand("setvip"));
+		assertTrue(adminRegistry.hasCommand("removevip"));
+		assertTrue(adminRegistry.hasCommand("set_massvip"));
+
 		assertFalse(adminRegistry.hasCommand("unknown_cmd"));
 	}
 

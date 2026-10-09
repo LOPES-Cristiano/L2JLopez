@@ -623,6 +623,20 @@ class GameServerEndToEndTest {
 			String html = hr.readS();
 			assertTrue(html.contains("Roxxy") || html.contains("Quest"), "html contem texto do NPC: " + html);
 
+			// Testa abertura de loja (Buy 1) enquanto perto do NPC
+			c.send(new PacketWriter().writeC(0x21).writeS("npc_" + npc.objectId() + "_Buy 1").toByteArray());
+			byte[] buyListBytes = c.readUntil(0x11);
+			PacketReader blr = new PacketReader(buyListBytes);
+			assertEquals(0x11, blr.readC());
+			int currentMoney = blr.readD();
+			assertEquals(5000, currentMoney); // 5000 inicial
+			assertEquals(1, blr.readD()); // listId
+
+			// Compra item 1 (preço 883) usando RequestBuyItem (0x1f)
+			c.send(new PacketWriter().writeC(0x1f).writeD(1).writeD(1).writeD(1).writeD(1).toByteArray());
+			byte[] buyUpdateBytes = c.readUntil(0x27);
+			assertEquals(0x27, buyUpdateBytes[0] & 0xff);
+
 			// Clica no botao de Teleport (bypass npc_%objectId%_Chat 1)
 			c.send(new PacketWriter().writeC(0x21).writeS("npc_" + npc.objectId() + "_Chat 1").toByteArray());
 
@@ -644,20 +658,6 @@ class GameServerEndToEndTest {
 			assertEquals(0x28, tr.readC());
 			assertEquals(0x10000000, tr.readD()); // objectId do player
 			assertTrue(tr.remaining() >= 12); // x, y, z
-
-			// Testa abertura de loja (Buy 1)
-			c.send(new PacketWriter().writeC(0x21).writeS("npc_" + npc.objectId() + "_Buy 1").toByteArray());
-			byte[] buyListBytes = c.readUntil(0x11);
-			PacketReader blr = new PacketReader(buyListBytes);
-			assertEquals(0x11, blr.readC());
-			int currentMoney = blr.readD();
-			assertEquals(4000, currentMoney); // 5000 inicial - 1000 teleporte = 4000
-			assertEquals(1, blr.readD()); // listId
-
-			// Compra item 1 (preço 883) usando RequestBuyItem (0x1f)
-			c.send(new PacketWriter().writeC(0x1f).writeD(1).writeD(1).writeD(1).writeD(1).toByteArray());
-			byte[] buyUpdateBytes = c.readUntil(0x27);
-			assertEquals(0x27, buyUpdateBytes[0] & 0xff);
 		}
 	}
 

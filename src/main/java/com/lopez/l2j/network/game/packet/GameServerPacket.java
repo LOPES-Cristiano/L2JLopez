@@ -528,6 +528,8 @@ public sealed interface GameServerPacket {
 		public static final int EARNED_S1_RAID_POINTS = 1725;
 		public static final int YOU_MAY_NOT_ATTACK_IN_A_PEACEFUL_ZONE = 84;
 		public static final int YOU_MAY_NOT_ATTACK_THIS_TARGET_IN_A_PEACEFUL_ZONE = 85;
+		public static final int S2_MP_HAS_BEEN_DRAINED_BY_S1 = 970;
+		public static final int YOUR_OPPONENTS_MP_WAS_REDUCED_BY_S1 = 1867;
 		public static final int S1 = 1987;
 
 		public static SystemMessage sendString(String text) {
@@ -1261,11 +1263,11 @@ public sealed interface GameServerPacket {
 			w.writeD(t.isAttackable() ? 1 : 0);
 			w.writeD(npc.x()).writeD(npc.y()).writeD(npc.z()).writeD(npc.heading());
 			w.writeD(0x00);
-			w.writeD(t.mAtkSpd()).writeD(t.pAtkSpd());
-			w.writeD(t.runSpd()).writeD(t.walkSpd());
-			w.writeD(t.runSpd()).writeD(t.walkSpd()); // swim run/walk
-			w.writeD(t.runSpd()).writeD(t.walkSpd()); // fl run/walk
-			w.writeD(t.runSpd()).writeD(t.walkSpd()); // fly run/walk
+			w.writeD(npc.mAtkSpd()).writeD(npc.pAtkSpd());
+			w.writeD(npc.runSpd()).writeD(npc.walkSpd());
+			w.writeD(npc.runSpd()).writeD(npc.walkSpd()); // swim run/walk
+			w.writeD(npc.runSpd()).writeD(npc.walkSpd()); // fl run/walk
+			w.writeD(npc.runSpd()).writeD(npc.walkSpd()); // fly run/walk
 			w.writeF(1.1);
 			w.writeF(t.pAtkSpd() / 277.478340719);
 			w.writeF(t.collisionRadius()).writeF(t.collisionHeight());
@@ -1588,6 +1590,10 @@ public sealed interface GameServerPacket {
 
 		public static StatusUpdate mp(int objectId, int curMp, int maxMp) {
 			return new StatusUpdate(objectId, List.of(new Attribute(CUR_MP, curMp), new Attribute(MAX_MP, maxMp)));
+		}
+
+		public static StatusUpdate cp(int objectId, int curCp, int maxCp) {
+			return new StatusUpdate(objectId, List.of(new Attribute(CUR_CP, curCp), new Attribute(MAX_CP, maxCp)));
 		}
 
 		public static StatusUpdate forPlayer(PlayerCharacter p) {

@@ -158,6 +158,11 @@ public class ItemPacketHandler {
 				session.onShowMiniMap();
 				return;
 			}
+			if (item.itemId() == 5707) {
+				session.onSSQStatus(1);
+				session.send(new ActionFailed());
+				return;
+			}
 			if (EnchantScrollTable.isEnchantScroll(item.itemId())) {
 				activeEnchantScrollObjectId = item.objectId();
 				session.send(new ChooseInventoryItem(item.itemId()));
@@ -208,6 +213,10 @@ public class ItemPacketHandler {
 			session.send(new ActionFailed());
 			return;
 		}
+		if (Config.BLOCK_CHANGE_WEAPON_WHILE_ATTACKING && item.template().type2() == ItemTemplate.TYPE2_WEAPON && session.isAutoAttacking()) {
+			session.send(new ActionFailed());
+			return;
+		}
 		if (ctx != null && ctx.inventories() != null) {
 			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), item.objectId()));
 		}
@@ -219,13 +228,17 @@ public class ItemPacketHandler {
 		if (!session.inWorld() || active == null || ctx == null || ctx.inventories() == null) {
 			return;
 		}
+		if (Config.BLOCK_CHANGE_WEAPON_WHILE_ATTACKING && (p.bodyPart() == ItemSlots.SLOT_R_HAND || p.bodyPart() == ItemSlots.SLOT_LR_HAND) && session.isAutoAttacking()) {
+			session.send(new ActionFailed());
+			return;
+		}
 		afterEquipChange(ctx.inventories().unequipBodyPart(active.inventory(), p.bodyPart()));
 	}
 
 	public void handleDestroyItem(RequestDestroyItem p) {
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
-		if (!session.inWorld() || active == null || active.isDead() || ctx == null || ctx.inventories() == null) {
+		if (!session.inWorld() || active == null || active.isDead() || active.isStoreOpen() || active.isBuffShop() || ctx == null || ctx.inventories() == null) {
 			session.send(new ActionFailed());
 			return;
 		}
@@ -253,7 +266,9 @@ public class ItemPacketHandler {
 	public void handleEnchantItem(RequestEnchantItem p) {
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
-		if (!session.inWorld() || active == null || active.isDead() || ctx == null || ctx.inventories() == null) {
+		if (!session.inWorld() || active == null || active.isDead() || active.isOlympiadMode()
+				|| active.isStoreOpen() || active.isBuffShop() || ctx == null || ctx.inventories() == null) {
+			session.send(EnchantResult.CANCEL);
 			session.send(new ActionFailed());
 			return;
 		}
@@ -304,7 +319,15 @@ public class ItemPacketHandler {
 		}
 
 		String targetGrade = target.template().crystalType();
-		if (targetGrade == null || !targetGrade.equalsIgnoreCase(scrollInfo.grade())) {
+		boolean gradeMatch = scrollInfo.isDonator() || "all".equalsIgnoreCase(scrollInfo.grade())
+				|| (targetGrade != null && targetGrade.equalsIgnoreCase(scrollInfo.grade()));
+		if (!gradeMatch) {
+			session.send(SystemMessage.id(SystemMessage.INAPPROPRIATE_ENCHANT_CONDITION));
+			session.send(EnchantResult.CANCEL);
+			return;
+		}
+
+		if (!Config.HERO_WEAPONS_CAN_BE_ENCHANTED && target.itemId() >= 6611 && target.itemId() <= 6621) {
 			session.send(SystemMessage.id(SystemMessage.INAPPROPRIATE_ENCHANT_CONDITION));
 			session.send(EnchantResult.CANCEL);
 			return;
@@ -376,6 +399,19 @@ public class ItemPacketHandler {
 				}
 				session.send(EnchantResult.FAIL);
 				session.send(new InventoryUpdate(List.of(ItemInfo.of(target, ItemInfo.REMOVED))));
+
+				// Cristais gerados pela quebra do item
+				int crystalId = EnchantTableService.getCrystalId(target.template().crystalType());
+				int crystalCount = EnchantTableService.calculateCrystalsOnBreak(target);
+				if (crystalId > 0 && crystalCount > 0) {
+					var addedCrystals = ctx.inventories().addItem(active.inventory(), crystalId, crystalCount, "EnchantBreak");
+					if (addedCrystals != null) {
+						session.send(new InventoryUpdate(List.of(
+								ItemInfo.of(addedCrystals.item(), addedCrystals.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
+					}
+					session.send(SystemMessage.of(SystemMessage.EARNED_S2_S1_S,
+							new SystemMessage.ItemName(crystalId), new SystemMessage.Number(crystalCount)));
+				}
 				session.broadcastAppearance();
 			}
 		}
@@ -413,7 +449,12 @@ public class ItemPacketHandler {
 	public void handleBuyItem(RequestBuyItem p) {
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
-		if (!session.inWorld() || p.items().isEmpty() || active == null || ctx == null || ctx.buylists() == null) {
+		if (!session.inWorld() || p.items().isEmpty() || active == null || active.isDead() || active.isOlympiadMode()
+				|| active.isStoreOpen() || active.isBuffShop() || ctx == null || ctx.buylists() == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		if (!Config.ALT_KARMA_PLAYER_CAN_SHOP && active.karma() > 0) {
 			session.send(new ActionFailed());
 			return;
 		}
@@ -427,6 +468,10 @@ public class ItemPacketHandler {
 		int slots = 0;
 
 		for (var itemReq : p.items()) {
+			if (itemReq.count() <= 0) {
+				session.send(new ActionFailed());
+				return;
+			}
 			var prodOpt = bl.getProduct(itemReq.itemId());
 			if (prodOpt.isEmpty()) {
 				session.send(new ActionFailed());
@@ -487,12 +532,18 @@ public class ItemPacketHandler {
 	public void handleSellItem(RequestSellItem p) {
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
-		if (!session.inWorld() || p.items().isEmpty() || active == null || ctx == null || ctx.inventories() == null) {
+		if (!session.inWorld() || p.items().isEmpty() || active == null || active.isDead() || active.isOlympiadMode()
+				|| active.isStoreOpen() || active.isBuffShop() || ctx == null || ctx.inventories() == null) {
 			session.send(new ActionFailed());
 			return;
 		}
+		java.util.Set<Integer> processedObjects = new java.util.HashSet<>();
 		long totalEarned = 0;
 		for (var req : p.items()) {
+			if (req.count() <= 0 || !processedObjects.add(req.objectId())) {
+				session.send(new ActionFailed());
+				return;
+			}
 			var itOpt = active.inventory().byObjectId(req.objectId());
 			if (itOpt.isEmpty()) {
 				continue;
@@ -1014,14 +1065,16 @@ public class ItemPacketHandler {
 			return false;
 		}
 		int count = weapon.template().soulshots() > 0 ? weapon.template().soulshots() : 1;
-		if (!consumeItem(itemId, count)) {
-			if (autoSoulShots.remove(itemId)) {
-				session.send(new ExAutoSoulShot(itemId, 0));
-				session.send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, new SystemMessage.ItemName(itemId)));
-			} else {
-				session.send(SystemMessage.id(SystemMessage.NOT_ENOUGH_SOULSHOTS));
+		if (Config.CONSUME_SOUL_SHOT) {
+			if (!consumeItem(itemId, count)) {
+				if (autoSoulShots.remove(itemId)) {
+					session.send(new ExAutoSoulShot(itemId, 0));
+					session.send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, new SystemMessage.ItemName(itemId)));
+				} else {
+					session.send(SystemMessage.id(SystemMessage.NOT_ENOUGH_SOULSHOTS));
+				}
+				return false;
 			}
-			return false;
 		}
 		chargedGrade = weaponGrade;
 		soulshotCharged = true;

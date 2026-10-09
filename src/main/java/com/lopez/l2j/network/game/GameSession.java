@@ -1,6 +1,8 @@
 package com.lopez.l2j.network.game;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.door.DoorInstance;
@@ -1213,14 +1215,39 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		public com.lopez.l2j.game.henna.CharacterHennaRepository characterHennas() {
 			return globalCharacterHennaRepository;
 		}
+
+		public com.lopez.l2j.game.skill.SkillEnchantService skillEnchant() {
+			return new com.lopez.l2j.game.skill.SkillEnchantService(
+					skillService != null ? skillService.trees() : null, skillService, inventories);
+		}
+
+		private static volatile com.lopez.l2j.game.service.CancelRestoreService globalCancelRestoreService;
+
+		public static void setGlobalCancelRestoreService(com.lopez.l2j.game.service.CancelRestoreService service) {
+			globalCancelRestoreService = service;
+		}
+
+		public com.lopez.l2j.game.service.CancelRestoreService cancelRestore() {
+			if (globalCancelRestoreService == null) {
+				globalCancelRestoreService = new com.lopez.l2j.game.service.CancelRestoreService();
+			}
+			return globalCancelRestoreService;
+		}
 	}
 
 	private final Context ctx;
 	private final byte[] cryptKey;
 	private final Consumer<GameServerPacket> sink;
 	private final String ip;
-
 	private State state = State.CONNECTED;
+
+	public State state() {
+		return state;
+	}
+
+	public void setState(State state) {
+		this.state = state;
+	}
 	private boolean protocolOk;
 	private boolean closeRequested;
 	private String account;
@@ -1317,12 +1344,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		close(new ServerClose());
 	}
 
-	public State state() {
-		return state;
-	}
-
 	public boolean inWorld() {
 		return inWorld;
+	}
+
+	public boolean isAutoAttacking() {
+		return autoAttacking;
 	}
 
 	public String account() {
@@ -1343,6 +1370,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	public PlayerCharacter activeChar() {
 		return active;
+	}
+
+	public int getLevel() {
+		return active != null ? active.level() : 1;
+	}
+
+	public ItemInstance getActiveWeaponItem() {
+		return active != null && active.inventory() != null ? active.inventory().paperdoll(ItemSlots.RHAND) : null;
 	}
 
 	public Context context() {
@@ -1375,6 +1410,25 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				}
 			}
 		}
+	}
+
+	public void forceTarget(int objId) {
+		this.targetObjectId = objId;
+		send(new MyTargetSelected(objId, 0));
+	}
+
+	public boolean canAttackInPvP(GameSession target) {
+		if (target == null || target == this || target.active == null || target.active.isDead()) {
+			return false;
+		}
+		if (ctx != null && ctx.zones() != null && (ctx.zones().isInsidePeace(active.x(), active.y(), active.z())
+				|| ctx.zones().isInsidePeace(target.x(), target.y(), target.z()))) {
+			return false;
+		}
+		if (party != null && party.contains(target.active.objectId())) {
+			return false;
+		}
+		return true;
 	}
 
 	public List<String> sessionBypasses() {
@@ -1639,8 +1693,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 			case Logout p -> onLogout();
 			case RequestRestart p -> onRestart();
-			case GameClientPacket.RequestExEnchantSkillInfo p -> log.debug("RequestExEnchantSkillInfo recebido: {}", p);
-			case GameClientPacket.RequestExEnchantSkill p -> log.debug("RequestExEnchantSkill recebido: {}", p);
+			case GameClientPacket.RequestExEnchantSkillInfo p -> onExEnchantSkillInfo(p);
+			case GameClientPacket.RequestExEnchantSkill p -> onExEnchantSkill(p);
 			case GameClientPacket.RequestJoinParty p -> onJoinParty(p);
 			case GameClientPacket.RequestAnswerJoinParty p -> onAnswerJoinParty(p);
 			case GameClientPacket.RequestSocialAction p -> onSocialAction(p);
@@ -1831,6 +1885,20 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		if (hasGmRight && c.accessLevel() < 100) {
 			c.accessLevel(100);
+		}
+
+		var shutdownSvc = com.lopez.l2j.game.service.ShutdownService.getInstance();
+		if (shutdownSvc != null) {
+			if (shutdownSvc.isShuttingDown() && shutdownSvc.secondsRemaining() <= 10) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O servidor esta reiniciando. Conexoes temporariamente suspensas."));
+				close(new ServerClose());
+				return;
+			}
+			if (shutdownSvc.isOnlyGm() && c.accessLevel() <= 0 && !hasGmRight) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Servidor em manutencao: apenas GMs podem conectar no momento."));
+				close(new ServerClose());
+				return;
+			}
 		}
 
 		if (c.accessLevel() > 0) {
@@ -2798,23 +2866,52 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			showGatekeeperSpiritOutHtml(npc);
 			return;
 		}
+		if (npc.npcId() == 31092) {
+			showBlackMarketeerHtml(npc);
+			return;
+		}
+		if (npc.npcId() == 31113) {
+			showMerchantOfMammonHtml(npc);
+			return;
+		}
+		if (npc.npcId() == 31126) {
+			showBlacksmithOfMammonHtml(npc);
+			return;
+		}
 		if ((npc.npcId() >= 31127 && npc.npcId() <= 31136) || (npc.npcId() >= 31137 && npc.npcId() <= 31146)) {
 			showFestivalNpcHtml(npc, val);
 			return;
 		}
-		if (ctx.questManager() != null) {
-			String qHtm = ctx.questManager().onNpcTalk(npc, this);
-			if (qHtm != null && !qHtm.isBlank()) {
-				send(new NpcHtmlMessage(npc.objectId(), qHtm));
+		int castleId = getNpcCastleId(npc);
+		if (ctx.htmls() != null) {
+			String raw = ctx.htmls().getNpcHtml(npc.npcId(), npc.template().type(), val);
+			boolean isDefault = raw == null || raw.contains("I have nothing to say to you") || raw.contains("npcdefault.htm");
+			if (!isDefault) {
+				String rendered = ctx.htmls().render(raw, npc.objectId(), npc.name(), active != null ? active.name() : "Player", castleId, npc.npcId());
+				send(new NpcHtmlMessage(npc.objectId(), rendered));
 				return;
 			}
 		}
-		if (ctx.htmls() == null) {
-			return;
+
+		if (ctx.questManager() != null) {
+			String qHtm = ctx.questManager().onNpcTalk(npc, this);
+			if (qHtm != null && !qHtm.isBlank()) {
+				String resolved = resolveQuestHtml(null, qHtm, npc);
+				if (resolved != null && !resolved.isBlank()) {
+					String rendered = ctx.htmls() != null
+							? ctx.htmls().render(resolved, npc.objectId(), npc.name(), active != null ? active.name() : "Player", castleId, npc.npcId())
+							: resolved;
+					send(new NpcHtmlMessage(npc.objectId(), rendered));
+					return;
+				}
+			}
 		}
-		String raw = ctx.htmls().getNpcHtml(npc.npcId(), npc.template().type(), val);
-		String rendered = ctx.htmls().render(raw, npc.objectId(), npc.name(), active.name());
-		send(new NpcHtmlMessage(npc.objectId(), rendered));
+
+		if (ctx.htmls() != null) {
+			String raw = ctx.htmls().getNpcHtml(npc.npcId(), npc.template().type(), val);
+			String rendered = ctx.htmls().render(raw, npc.objectId(), npc.name(), active != null ? active.name() : "Player", castleId, npc.npcId());
+			send(new NpcHtmlMessage(npc.objectId(), rendered));
+		}
 	}
 
 	private boolean isSevenSignsPriest(int npcId, String name) {
@@ -2976,6 +3073,63 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
+	private void showMerchantOfMammonHtml(NpcInstance npc) {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var ss = ctx.sevenSigns();
+		int playerCabal = ss != null ? ss.getPlayerCabal(active.objectId()) : com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL;
+		int compWinner = ss != null ? ss.previousWinner() : com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL;
+		int avariceOwner = ss != null ? ss.avariceOwner() : com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL;
+		boolean isValidation = ss != null && ss.isSealValidationPeriod();
+
+		boolean canAccess = active.isGm() || (isValidation && playerCabal != com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL
+				&& playerCabal == compWinner && avariceOwner == compWinner);
+		String file = canAccess ? "seven_signs/mammmerch_1.htm" : "seven_signs/mammmerch_2.htm";
+		String raw = ctx.htmls() != null ? ctx.htmls().getHtml(file) : null;
+		if (raw != null) {
+			send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(raw, npc.objectId(), npc.name(), active.name())));
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, npc.name(), canAccess ? "May the blessings of Mammon be with you." : "Only members of the winning cabal possessing the Seal of Avarice may trade."));
+		}
+	}
+
+	private void showBlacksmithOfMammonHtml(NpcInstance npc) {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var ss = ctx.sevenSigns();
+		int playerCabal = ss != null ? ss.getPlayerCabal(active.objectId()) : com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL;
+		int compWinner = ss != null ? ss.previousWinner() : com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL;
+		int gnosisOwner = ss != null ? ss.gnosisOwner() : com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL;
+		boolean isValidation = ss != null && ss.isSealValidationPeriod();
+
+		boolean canAccess = active.isGm() || (isValidation && playerCabal != com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL
+				&& playerCabal == compWinner && gnosisOwner == compWinner);
+		String file = canAccess ? "seven_signs/mammblack_1.htm" : "seven_signs/mammblack_2.htm";
+		String raw = ctx.htmls() != null ? ctx.htmls().getHtml(file) : null;
+		if (raw != null) {
+			send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(raw, npc.objectId(), npc.name(), active.name())));
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, npc.name(), canAccess ? "I can forge the finest weapons and armor for you." : "Only members of the winning cabal possessing the Seal of Gnosis may use my smithing services."));
+		}
+	}
+
+	private void showBlackMarketeerHtml(NpcInstance npc) {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		String raw = ctx.htmls() != null ? ctx.htmls().getHtml("seven_signs/blkmrkt_1.htm") : null;
+		if (raw != null) {
+			send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(raw, npc.objectId(), npc.name(), active.name())));
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Welcome to the black market."));
+		}
+	}
+
 	private void showFestivalNpcHtml(NpcInstance npc, int val) {
 		if (active == null) {
 			send(new ActionFailed());
@@ -3081,6 +3235,90 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			int[] loc = com.lopez.l2j.game.sevensigns.SevenSignsManager.FESTIVAL_ARENA_LOCS[tier];
 			teleportToCoordinates(loc[0], loc[1], loc[2]);
 			send(new CreatureSay(0, CreatureSay.ALL, "Festival", "Sua equipe entrou no Festival of Darkness! Derrote os monstros e fale com a Bruxa ao terminar."));
+			return;
+		}
+
+		if (action == 3) {
+			String raw = ctx.htmls() != null ? ctx.htmls().getHtml("seven_signs/festival/festival_3a.htm") : null;
+			if (raw != null) {
+				send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(raw, npc.objectId(), npc.name(), active.name())));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "O placar e registrado com a Bruxa ao concluir o desafio dentro da arena."));
+			}
+			return;
+		}
+
+		if (action == 4) {
+			StringBuilder sb = new StringBuilder("<html><body>Festival Guide:<br>These are the top scores of the week, for the ");
+			String tierName = switch (tier) {
+				case 0 -> "Level 31 or lower";
+				case 1 -> "Level 42 or lower";
+				case 2 -> "Level 53 or lower";
+				case 3 -> "Level 64 or lower";
+				default -> "No Level Limit";
+			};
+			sb.append(tierName).append(" festival.<br><br>");
+			int dScore = ss.getHighestScore(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DAWN, tier);
+			int kScore = ss.getHighestScore(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DUSK, tier);
+			sb.append(dScore > 0 ? "Dawn: Score " + dScore + "<br>" : "Dawn: No record exists. Score 0<br>");
+			sb.append(kScore > 0 ? "Dusk: Score " + kScore + "<br>" : "Dusk: No record exists. Score 0<br>");
+			sb.append("<br><a action=\"bypass -h npc_").append(npc.objectId()).append("_Chat 0\">Go back</a></body></html>");
+			send(new NpcHtmlMessage(npc.objectId(), sb.toString()));
+			return;
+		}
+
+		if (action == 5) {
+			String raw = ctx.htmls() != null ? ctx.htmls().getHtml("seven_signs/festival/festival_5.htm") : null;
+			if (raw != null) {
+				StringBuilder rows = new StringBuilder();
+				for (int i = 0; i < 5; i++) {
+					int dawn = ss.getHighestScore(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DAWN, i);
+					int dusk = ss.getHighestScore(com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DUSK, i);
+					String tName = switch (i) {
+						case 0 -> "31 or lower";
+						case 1 -> "42 or lower";
+						case 2 -> "53 or lower";
+						case 3 -> "64 or lower";
+						default -> "No limits";
+					};
+					String res = (dawn > dusk) ? "Children of Dawn" : (dusk > dawn ? "Children of Dusk" : "None");
+					rows.append("<tr><td width=\"100\" align=\"center\">").append(tName)
+							.append("</td><td align=\"center\" width=\"35\">").append(dusk)
+							.append("</td><td align=\"center\" width=\"35\">").append(dawn)
+							.append("</td><td align=\"center\" width=\"130\">").append(res)
+							.append("</td></tr>");
+				}
+				String rendered = raw.replace("%statsTable%", rows.toString());
+				send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(rendered, npc.objectId(), npc.name(), active.name())));
+			}
+			return;
+		}
+
+		if (action == 6) {
+			String raw = ctx.htmls() != null ? ctx.htmls().getHtml("seven_signs/festival/festival_6.htm") : null;
+			if (raw != null) {
+				StringBuilder rows = new StringBuilder();
+				for (int i = 0; i < 5; i++) {
+					int bonus = ss.getAccumulatedBonus(i);
+					String tName = switch (i) {
+						case 0 -> "31 or lower";
+						case 1 -> "42 or lower";
+						case 2 -> "53 or lower";
+						case 3 -> "64 or lower";
+						default -> "No limits";
+					};
+					rows.append("<tr><td align=\"center\" width=\"150\">").append(tName)
+							.append("</td><td align=\"center\" width=\"150\">").append(bonus)
+							.append("</td></tr>");
+				}
+				String rendered = raw.replace("%bonusTable%", rows.toString());
+				send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(rendered, npc.objectId(), npc.name(), active.name())));
+			}
+			return;
+		}
+
+		if (action == 7) {
+			teleportToCoordinates(83400, 147943, -3404);
 		}
 	}
 
@@ -3102,10 +3340,33 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				send(ItemList.of(active.inventory().items(), true));
 			}
 
+			int tier = 0;
+			if (npc.npcId() >= 31132 && npc.npcId() <= 31136) {
+				tier = npc.npcId() - 31132;
+			} else if (npc.npcId() >= 31142 && npc.npcId() <= 31146) {
+				tier = npc.npcId() - 31142;
+			} else if (npc.npcId() >= 31127 && npc.npcId() <= 31131) {
+				tier = npc.npcId() - 31127;
+			} else if (npc.npcId() >= 31137 && npc.npcId() <= 31141) {
+				tier = npc.npcId() - 31137;
+			}
+			tier = Math.max(0, Math.min(4, tier));
+
 			var ss = ctx.sevenSigns();
 			if (ss != null && count > 0) {
 				int cabal = ss.getPlayerCabal(active.objectId());
-				ss.addFestivalScore(cabal, 0, count, List.of(active.name()));
+				java.util.List<String> memberNames = new java.util.ArrayList<>();
+				if (party() != null) {
+					for (var m : party().members()) {
+						if (m.character() != null) {
+							memberNames.add(m.character().name());
+						}
+					}
+				}
+				if (memberNames.isEmpty()) {
+					memberNames.add(active.name());
+				}
+				ss.addFestivalScore(cabal, tier, count, memberNames);
 			}
 
 			boolean isDawn = (npc.npcId() >= 31132 && npc.npcId() <= 31136);
@@ -3347,20 +3608,33 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					showSevenSignsNpcHtml(npc, 0);
 				}
 			}
-			case 6, 21 -> {
+			case 6 -> {
 				if (ss != null && ss.activePeriod() != com.lopez.l2j.game.sevensigns.SevenSignsManager.PERIOD_COMPETITION) {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pedras de selo so podem ser entregues durante o periodo de competicao."));
 					showSevenSignsNpcHtml(npc, 0);
 					return;
 				}
 
+				int subChoice = parts.length > 1 ? parseIntSafe(parts[1], 4) : 4;
+				int blueCount = 0;
+				int greenCount = 0;
+				int redCount = 0;
+
 				var blueItem = active.inventory().items().stream().filter(it -> it.itemId() == com.lopez.l2j.game.sevensigns.SevenSignsManager.SEAL_STONE_BLUE_ID).findFirst().orElse(null);
 				var greenItem = active.inventory().items().stream().filter(it -> it.itemId() == com.lopez.l2j.game.sevensigns.SevenSignsManager.SEAL_STONE_GREEN_ID).findFirst().orElse(null);
 				var redItem = active.inventory().items().stream().filter(it -> it.itemId() == com.lopez.l2j.game.sevensigns.SevenSignsManager.SEAL_STONE_RED_ID).findFirst().orElse(null);
 
-				int blueCount = blueItem != null ? (int) blueItem.count() : 0;
-				int greenCount = greenItem != null ? (int) greenItem.count() : 0;
-				int redCount = redItem != null ? (int) redItem.count() : 0;
+				if (subChoice == 1 && blueItem != null) {
+					blueCount = (int) blueItem.count();
+				} else if (subChoice == 2 && greenItem != null) {
+					greenCount = (int) greenItem.count();
+				} else if (subChoice == 3 && redItem != null) {
+					redCount = (int) redItem.count();
+				} else if (subChoice == 4) {
+					blueCount = blueItem != null ? (int) blueItem.count() : 0;
+					greenCount = greenItem != null ? (int) greenItem.count() : 0;
+					redCount = redItem != null ? (int) redItem.count() : 0;
+				}
 
 				if (blueCount == 0 && greenCount == 0 && redCount == 0) {
 					String noStones = isDawn ? "seven_signs/signs_6_dawn_no_stones.htm" : "seven_signs/signs_6_dusk_no_stones.htm";
@@ -3371,9 +3645,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					}
 				}
 
-				if (blueItem != null) ctx.inventories().destroyItem(active.inventory(), blueItem.objectId(), blueCount, "SevenSignsStones");
-				if (greenItem != null) ctx.inventories().destroyItem(active.inventory(), greenItem.objectId(), greenCount, "SevenSignsStones");
-				if (redItem != null) ctx.inventories().destroyItem(active.inventory(), redItem.objectId(), redCount, "SevenSignsStones");
+				if (blueCount > 0 && blueItem != null) ctx.inventories().destroyItem(active.inventory(), blueItem.objectId(), blueCount, "SevenSignsStones");
+				if (greenCount > 0 && greenItem != null) ctx.inventories().destroyItem(active.inventory(), greenItem.objectId(), greenCount, "SevenSignsStones");
+				if (redCount > 0 && redItem != null) ctx.inventories().destroyItem(active.inventory(), redItem.objectId(), redCount, "SevenSignsStones");
 
 				if (ss != null) {
 					ss.contributeStones(active.objectId(), blueCount, greenCount, redCount);
@@ -3388,14 +3662,33 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					showSevenSignsNpcHtml(npc, 0);
 				}
 			}
-			case 17, 18 -> {
+			case 7 -> {
+				long amount = parts.length > 1 ? parseLongSafe(parts[1], 0) : 0;
+				if (amount <= 0) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Quantidade invalida."));
+					send(new ActionFailed());
+					return;
+				}
+				var aaItem = active.inventory().items().stream().filter(it -> it.itemId() == com.lopez.l2j.game.sevensigns.SevenSignsManager.ANCIENT_ADENA_ID).findFirst().orElse(null);
+				if (aaItem == null || aaItem.count() < amount) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao possui Ancient Adena suficiente."));
+					send(new ActionFailed());
+					return;
+				}
+				ctx.inventories().destroyItem(active.inventory(), aaItem.objectId(), (int) amount, "AncientAdenaToAdena");
+				ctx.inventories().addItem(active.inventory(), 57, (int) amount, "AncientAdenaToAdena");
+				send(ItemList.of(active.inventory().items(), true));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce trocou " + amount + " Ancient Adena por " + amount + " Adena."));
+			}
+			case 9 -> {
 				int cabal = ss != null ? ss.getPlayerCabal(active.objectId()) : com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL;
 				int winner = ss != null ? ss.previousWinner() : com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL;
 				boolean inValidation = ss != null && ss.isSealValidationPeriod();
 
 				if (!inValidation || cabal != winner || winner == com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL) {
-					String failedFile = isDawn ? "seven_signs/signs_18_dawn_failed.htm" : "seven_signs/signs_18_dusk_failed.htm";
+					String failedFile = isDawn ? "seven_signs/signs_9_dawn_b.htm" : "seven_signs/signs_9_dusk_b.htm";
 					String raw = ctx.htmls() != null ? ctx.htmls().getHtml(failedFile) : null;
+					if (raw == null && ctx.htmls() != null) raw = ctx.htmls().getHtml("seven_signs/signs_9_b.htm");
 					if (raw != null) {
 						send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(raw, npc.objectId(), npc.name(), active.name())));
 						return;
@@ -3411,22 +3704,124 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					}
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce recebeu " + aa + " Ancient Adena!"));
 
-					String file = isDawn ? "seven_signs/signs_18_dawn.htm" : "seven_signs/signs_18_dusk.htm";
+					String file = isDawn ? "seven_signs/signs_9_dawn_a.htm" : "seven_signs/signs_9_dusk_a.htm";
 					String raw = ctx.htmls() != null ? ctx.htmls().getHtml(file) : null;
+					if (raw == null && ctx.htmls() != null) raw = ctx.htmls().getHtml("seven_signs/signs_9_a.htm");
 					if (raw != null) {
 						send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(raw, npc.objectId(), npc.name(), active.name())));
 					} else {
 						showSevenSignsNpcHtml(npc, 0);
 					}
 				} else {
-					String noStonesFile = isDawn ? "seven_signs/signs_18_dawn_no_stones.htm" : "seven_signs/signs_18_dusk_no_stones.htm";
+					String noStonesFile = isDawn ? "seven_signs/signs_9_dawn_b.htm" : "seven_signs/signs_9_dusk_b.htm";
 					String raw = ctx.htmls() != null ? ctx.htmls().getHtml(noStonesFile) : null;
+					if (raw == null && ctx.htmls() != null) raw = ctx.htmls().getHtml("seven_signs/signs_9_b.htm");
 					if (raw != null) {
 						send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(raw, npc.objectId(), npc.name(), active.name())));
 					} else {
 						showSevenSignsNpcHtml(npc, 0);
 					}
 				}
+			}
+			case 10 -> {
+				String htm;
+				if (ss != null && ss.isSealValidationPeriod()) {
+					htm = (ss.gnosisOwner() != com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL) ? "seven_signs/" + npc.npcId() + "_gnosis.htm" : "seven_signs/" + npc.npcId() + ".htm";
+				} else {
+					int cabal = ss != null ? ss.getPlayerCabal(active.objectId()) : com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL;
+					htm = (cabal == com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL) ? "seven_signs/" + (isDawn ? "dawn" : "dusk") + "_priest_tp_no.htm" : "seven_signs/" + npc.npcId() + ".htm";
+				}
+				String raw = ctx.htmls() != null ? ctx.htmls().getHtml(htm) : null;
+				if (raw != null) {
+					send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(raw, npc.objectId(), npc.name(), active.name())));
+				} else {
+					showSevenSignsNpcHtml(npc, 0);
+				}
+			}
+			case 17 -> {
+				int sub = parts.length > 1 ? parseIntSafe(parts[1], 1) : 1;
+				if (sub == 4) {
+					var bItem = active.inventory().items().stream().filter(it -> it.itemId() == com.lopez.l2j.game.sevensigns.SevenSignsManager.SEAL_STONE_BLUE_ID).findFirst().orElse(null);
+					var gItem = active.inventory().items().stream().filter(it -> it.itemId() == com.lopez.l2j.game.sevensigns.SevenSignsManager.SEAL_STONE_GREEN_ID).findFirst().orElse(null);
+					var rItem = active.inventory().items().stream().filter(it -> it.itemId() == com.lopez.l2j.game.sevensigns.SevenSignsManager.SEAL_STONE_RED_ID).findFirst().orElse(null);
+					int bC = bItem != null ? (int) bItem.count() : 0;
+					int gC = gItem != null ? (int) gItem.count() : 0;
+					int rC = rItem != null ? (int) rItem.count() : 0;
+					int totalAA = (bC * 3) + (gC * 5) + (rC * 10);
+					if (totalAA > 0) {
+						if (bC > 0) ctx.inventories().destroyItem(active.inventory(), bItem.objectId(), bC, "ExchangeSS");
+						if (gC > 0) ctx.inventories().destroyItem(active.inventory(), gItem.objectId(), gC, "ExchangeSS");
+						if (rC > 0) ctx.inventories().destroyItem(active.inventory(), rItem.objectId(), rC, "ExchangeSS");
+						ctx.inventories().addItem(active.inventory(), com.lopez.l2j.game.sevensigns.SevenSignsManager.ANCIENT_ADENA_ID, totalAA, "ExchangeSS");
+						send(ItemList.of(active.inventory().items(), true));
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce recebeu " + totalAA + " Ancient Adena!"));
+					} else {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao possui pedras de selo."));
+					}
+					return;
+				}
+				String color = (sub == 3) ? "red" : (sub == 2 ? "green" : "blue");
+				int stoneId = (sub == 3) ? 6362 : (sub == 2 ? 6361 : 6360);
+				int val = (sub == 3) ? 10 : (sub == 2 ? 5 : 3);
+				var it = active.inventory().items().stream().filter(i -> i.itemId() == stoneId).findFirst().orElse(null);
+				long count = it != null ? it.count() : 0;
+				String raw = ctx.htmls() != null ? ctx.htmls().getHtml("seven_signs/signs_17.htm") : null;
+				if (raw != null) {
+					String rendered = raw.replace("%stoneColor%", color)
+							.replace("%stoneValue%", String.valueOf(val))
+							.replace("%stoneCount%", String.valueOf(count))
+							.replace("%stoneItemId%", String.valueOf(stoneId));
+					send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(rendered, npc.objectId(), npc.name(), active.name())));
+				}
+			}
+			case 18 -> {
+				if (parts.length >= 3) {
+					int stoneId = parseIntSafe(parts[1], 6360);
+					long amount = parseLongSafe(parts[2], 0);
+					if (amount > 0) {
+						var it = active.inventory().items().stream().filter(i -> i.itemId() == stoneId).findFirst().orElse(null);
+						if (it != null && it.count() >= amount) {
+							int rate = (stoneId == 6362) ? 10 : (stoneId == 6361 ? 5 : 3);
+							long aaTotal = amount * rate;
+							ctx.inventories().destroyItem(active.inventory(), it.objectId(), (int) amount, "ExchangeSS");
+							ctx.inventories().addItem(active.inventory(), com.lopez.l2j.game.sevensigns.SevenSignsManager.ANCIENT_ADENA_ID, (int) aaTotal, "ExchangeSS");
+							send(ItemList.of(active.inventory().items(), true));
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce trocou " + amount + " pedras por " + aaTotal + " Ancient Adena!"));
+							return;
+						}
+					}
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Quantidade insuficiente de pedras de selo."));
+			}
+			case 21 -> {
+				if (active.level() < 60) {
+					String raw = ctx.htmls() != null ? ctx.htmls().getHtml("seven_signs/signs_20.htm") : null;
+					if (raw != null) {
+						send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(raw, npc.objectId(), npc.name(), active.name())));
+						return;
+					}
+				}
+				java.util.Calendar cal = java.util.Calendar.getInstance();
+				int hour = cal.get(java.util.Calendar.HOUR_OF_DAY);
+				boolean isNight = (hour >= 20 || hour < 4);
+				String file = isNight ? "seven_signs/signs_23.htm" : "seven_signs/signs_22.htm";
+				String raw = ctx.htmls() != null ? ctx.htmls().getHtml(file) : null;
+				if (raw != null) {
+					send(new NpcHtmlMessage(npc.objectId(), ctx.htmls().render(raw, npc.objectId(), npc.name(), active.name())));
+				}
+			}
+			case 22 -> {
+				long amount = parts.length > 1 ? parseLongSafe(parts[1], 0) : 0;
+				if (amount > 0 && amount <= 500000) {
+					if (active.inventory().adena() >= amount) {
+						ctx.inventories().consumeItem(active.inventory(), 57, (int) amount, "BlackMarketeerAA");
+						ctx.inventories().addItem(active.inventory(), com.lopez.l2j.game.sevensigns.SevenSignsManager.ANCIENT_ADENA_ID, (int) amount, "BlackMarketeerAA");
+						send(ItemList.of(active.inventory().items(), true));
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce adquiriu " + amount + " Ancient Adena!"));
+						return;
+					}
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Adena insuficiente ou limite diario de 500.000 excedido."));
 			}
 			case 8 -> {
 				int cabal = ss != null ? ss.getPlayerCabal(active.objectId()) : com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL;
@@ -3711,6 +4106,18 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			handleScriptGatekeeper(cmd);
 			return;
 		}
+		if (cmd.startsWith("operate_door")) {
+			handleOperateDoor(cmd.length() > 12 ? cmd.substring(12).trim() : "");
+			return;
+		}
+		if (cmd.startsWith("open_gate")) {
+			handleDoorControl(true);
+			return;
+		}
+		if (cmd.startsWith("manor_menu_select") || cmd.startsWith("menu_select")) {
+			handleManorMenu(null, cmd);
+			return;
+		}
 		if (cmd.equals("open_doors") || cmd.startsWith("open_doors")) {
 			handleDoorControl(true);
 			return;
@@ -3808,6 +4215,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					var npcOpt = ctx.world().npc(npcObjId);
 					if (npcOpt.isPresent()) {
 						var npc = npcOpt.get();
+						if (active != null && !active.isGm()) {
+							if (npc.isDead() || Math.hypot(active.x() - npc.x(), active.y() - npc.y()) > 250.0) {
+								send(new ActionFailed());
+								return;
+							}
+						}
 						String action = parts[2];
 						if (action.startsWith("Chat")) {
 							int val = 0;
@@ -3872,6 +4285,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						} else if (action.startsWith("Subclass")) {
 							String subArg = action.length() > 8 ? action.substring(8).trim() : "";
 							handleSubclassBypass(npc.objectId(), subArg);
+							return;
+						} else if (action.startsWith("EnchantSkillList")) {
+							showEnchantSkillList(npc);
 							return;
 						} else if (action.startsWith("SkillList") || action.startsWith("FishSkillList")) {
 							showSkillList(npc);
@@ -3985,10 +4401,20 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 								String listIdStr = action.startsWith("exc_multisell")
 										? action.substring(13).trim()
 										: action.substring(9).trim();
-								int listId = Integer.parseInt(listIdStr);
+								int listId;
+								try {
+									listId = Integer.parseInt(listIdStr);
+								} catch (NumberFormatException e) {
+									if ("tournament".equalsIgnoreCase(listIdStr)) {
+										listId = 70000;
+									} else {
+										return;
+									}
+								}
 								showMultiSell(npc, listId);
 								return;
-							} catch (NumberFormatException ignored) {
+							} catch (Exception ignored) {
+								return;
 							}
 						} else if (action.startsWith("DepositP") || action.startsWith("Deposit")) {
 							if (ctx.warehouse() == null) {
@@ -4077,6 +4503,66 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						} else if (action.startsWith("dissolve_clan")) {
 							dissolveClan();
 							return;
+						} else if (action.startsWith("getbuff")) {
+							handleBufferGetBuff(npc, action.substring(7).trim());
+							return;
+						} else if (action.equals("restore") || action.startsWith("restore")) {
+							handleBufferRestore(npc);
+							return;
+						} else if (action.equals("cancel") || action.startsWith("cancel")) {
+							handleBufferCancel(npc);
+							return;
+						} else if (action.startsWith("support_back")) {
+							showNpcHtml(npc, 0);
+							return;
+						} else if (action.startsWith("support ")) {
+							handleSupportMagic(npc, action.substring(8).trim());
+							return;
+						} else if (action.startsWith("operate_door")) {
+							handleOperateDoor(action.length() > 12 ? action.substring(12).trim() : "");
+							return;
+						} else if (action.startsWith("open_gate")) {
+							handleDoorControl(true);
+							return;
+						} else if (action.startsWith("observeSiege") || action.startsWith("observeOracle") || action.startsWith("observe")) {
+							String obsArgs = action.startsWith("observeSiege")
+									? action.substring(12).trim()
+									: (action.startsWith("observeOracle") ? action.substring(13).trim() : action.substring(7).trim());
+							handleObservation(obsArgs);
+							return;
+						} else if (action.startsWith("OlympiadDesc")) {
+							String num = action.length() > 12 ? action.substring(12).trim() : "0";
+							handleOlympiadDesc(npc, num);
+							return;
+						} else if (action.startsWith("OlympiadNoble")) {
+							String val = action.length() > 13 ? action.substring(13).trim() : "1";
+							handleOlympiadNoble(npc, val);
+							return;
+						} else if (action.startsWith("Olympiad")) {
+							handleOlympiadDesc(npc, "0");
+							return;
+						} else if (action.startsWith("Loto")) {
+							String val = action.length() > 4 ? action.substring(4).trim() : "0";
+							handleLoto(npc, val);
+							return;
+						} else if (action.startsWith("give_crown")) {
+							handleGiveCrown();
+							return;
+						} else if (action.startsWith("receive_report")) {
+							handleCastleReport(npc);
+							return;
+						} else if (action.startsWith("banish_foreigner")) {
+							handleBanishForeigner(npc);
+							return;
+						} else if (action.startsWith("pvplist") || action.startsWith("pklist") || action.startsWith("onlinelist") || action.startsWith("arenalist")) {
+							handleRankingList(npc, action);
+							return;
+						} else if (action.startsWith("manor_menu_select") || action.startsWith("menu_select")) {
+							handleManorMenu(npc, action);
+							return;
+						} else if (action.startsWith("auction") || action.startsWith("bid") || action.startsWith("selectedItems") || action.startsWith("location") || action.startsWith("list")) {
+							handleAuctionAction(npc, action);
+							return;
 						}
 					} else {
 						String action = parts[2];
@@ -4100,6 +4586,51 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 							String subArg = action.length() > 8 ? action.substring(8).trim() : "";
 							handleSubclassBypass(npcObjId, subArg);
 							return;
+						} else if (action.startsWith("goto")) {
+							try {
+								int teleId = Integer.parseInt(action.substring(4).trim());
+								teleportTo(teleId);
+								return;
+							} catch (NumberFormatException ignored) {
+							}
+						} else if (action.startsWith("exc_multisell") || action.startsWith("multisell")) {
+							try {
+								String listIdStr = action.startsWith("exc_multisell")
+										? action.substring(13).trim()
+										: action.substring(9).trim();
+								int listId;
+								try {
+									listId = Integer.parseInt(listIdStr);
+								} catch (NumberFormatException e) {
+									if ("tournament".equalsIgnoreCase(listIdStr)) {
+										listId = 70000;
+									} else {
+										return;
+									}
+								}
+								showMultiSell(null, listId);
+								return;
+							} catch (Exception ignored) {
+							}
+						} else if (action.startsWith("Link")) {
+							String path = action.length() > 4 ? action.substring(4).trim() : "";
+							if (path.startsWith("/")) {
+								path = path.substring(1);
+							}
+							if (ctx.htmls() != null && !path.isEmpty()) {
+								String htm = ctx.htmls().getHtml(path);
+								if (htm == null) {
+									htm = ctx.htmls().getIndexedHtml(path);
+								}
+								if (htm == null) {
+									htm = ctx.htmls().getHtml("default/" + path);
+								}
+								if (htm != null) {
+									send(new NpcHtmlMessage(npcObjId, ctx.htmls().render(htm, npcObjId, "NPC",
+											active != null ? active.name() : "Player")));
+									return;
+								}
+							}
 						}
 					}
 				} catch (NumberFormatException ignored) {
@@ -4109,6 +4640,467 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new ActionFailed());
 	}
 
+	private void handleBufferGetBuff(NpcInstance npc, String args) {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		String[] parts = args.trim().split("\\s+");
+		if (parts.length == 0 || parts[0].isEmpty()) {
+			if (npc != null) showNpcHtml(npc, 0);
+			return;
+		}
+		try {
+			int skillId = Integer.parseInt(parts[0]);
+			int skillLvl = parts.length > 1 ? Integer.parseInt(parts[1]) : 1;
+			String returnHtml = parts.length > 2 ? parts[2] : null;
+
+			var skillTable = ctx.skillService() != null ? ctx.skillService().table() : null;
+			var skOpt = skillTable != null ? skillTable.get(skillId, skillLvl) : java.util.Optional.<com.lopez.l2j.game.skill.SkillTemplate>empty();
+			if (skOpt.isPresent()) {
+				var sk = skOpt.get();
+				applySkillEffects(sk, false);
+				int npcObjId = npc != null ? npc.objectId() : active.objectId();
+				var anim = new MagicSkillUse(npcObjId, active.objectId(), sk.id(), sk.level(), 500, 0);
+				send(anim);
+				if (ctx.world() != null) {
+					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, anim, false);
+				}
+			}
+
+			if (returnHtml != null && !returnHtml.isBlank() && ctx.htmls() != null) {
+				String path = returnHtml.startsWith("data/html/") ? returnHtml.substring(10) : returnHtml;
+				String htm = ctx.htmls().getHtml(path);
+				if (htm == null) htm = ctx.htmls().getIndexedHtml(path);
+				if (htm != null) {
+					int npcObjId = npc != null ? npc.objectId() : 0;
+					String rendered = ctx.htmls().render(htm, npcObjId, npc != null ? npc.name() : "Buffer", active.name());
+					send(new NpcHtmlMessage(npcObjId, rendered));
+					return;
+				}
+			}
+			if (npc != null) {
+				showNpcHtml(npc, 0);
+			}
+		} catch (Exception ex) {
+			log.warn("Erro ao aplicar buff {}: {}", args, ex.getMessage());
+			send(new ActionFailed());
+		}
+	}
+
+	private void handleBufferRestore(NpcInstance npc) {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		active.currentHp(active.maxHp());
+		active.currentMp(active.maxMp());
+		active.currentCp(active.maxCp());
+		send(new StatusUpdate(active.objectId(), List.of(
+				new StatusUpdate.Attribute(StatusUpdate.CUR_HP, (int) active.currentHp()),
+				new StatusUpdate.Attribute(StatusUpdate.CUR_MP, (int) active.currentMp()),
+				new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) active.currentCp())
+		)));
+		int npcObjId = npc != null ? npc.objectId() : active.objectId();
+		send(new MagicSkillUse(npcObjId, active.objectId(), 1012, 1, 0, 0));
+		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Buffer", "HP, MP e CP totalmente restaurados."));
+		if (npc != null) {
+			showNpcHtml(npc, 0);
+		}
+	}
+
+	private void handleBufferCancel(NpcInstance npc) {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		active.effects().clear();
+		int npcObjId = npc != null ? npc.objectId() : active.objectId();
+		send(new MagicSkillUse(npcObjId, active.objectId(), 1056, 1, 0, 0));
+		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Buffer", "Todos os buffs foram removidos."));
+		if (npc != null) {
+			showNpcHtml(npc, 0);
+		}
+	}
+
+	private void handleSupportMagic(NpcInstance npc, String args) {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		String[] parts = args.trim().split("\\s+");
+		if (parts.length == 0 || parts[0].isEmpty()) {
+			if (npc != null) showNpcHtml(npc, 0);
+			return;
+		}
+		try {
+			int skillId = Integer.parseInt(parts[0]);
+			int skillLvl = parts.length > 1 ? Integer.parseInt(parts[1]) : 1;
+			var skillTable = ctx.skillService() != null ? ctx.skillService().table() : null;
+			var skOpt = skillTable != null ? skillTable.get(skillId, skillLvl) : java.util.Optional.<com.lopez.l2j.game.skill.SkillTemplate>empty();
+			if (skOpt.isPresent()) {
+				var sk = skOpt.get();
+				applySkillEffects(sk, false);
+				int npcObjId = npc != null ? npc.objectId() : active.objectId();
+				var anim = new MagicSkillUse(npcObjId, active.objectId(), sk.id(), sk.level(), 500, 0);
+				send(anim);
+				if (ctx.world() != null) {
+					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, anim, false);
+				}
+			}
+			if (ctx.htmls() != null && npc != null) {
+				String doneHtm = ctx.htmls().getHtml("fortress/support-done.htm");
+				if (doneHtm == null) doneHtm = ctx.htmls().getHtml("chamberlain/support-done.htm");
+				if (doneHtm != null) {
+					String rendered = ctx.htmls().render(doneHtm, npc.objectId(), npc.name(), active.name());
+					send(new NpcHtmlMessage(npc.objectId(), rendered));
+					return;
+				}
+			}
+			if (npc != null) {
+				showNpcHtml(npc, 0);
+			}
+		} catch (Exception ex) {
+			send(new ActionFailed());
+		}
+	}
+
+	private void handleOperateDoor(String args) {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var dt = com.lopez.l2j.game.door.DoorTable.getInstance();
+		if (dt == null) {
+			send(new ActionFailed());
+			return;
+		}
+		String[] parts = args.trim().split("\\s+");
+		if (parts.length == 0 || parts[0].isEmpty()) {
+			handleDoorControl(true);
+			return;
+		}
+		boolean open = !"0".equals(parts[0]);
+		if (parts.length > 1) {
+			for (int i = 1; i < parts.length; i++) {
+				try {
+					int doorId = Integer.parseInt(parts[i]);
+					if (open) {
+						dt.openDoor(doorId);
+					} else {
+						dt.closeDoor(doorId);
+					}
+				} catch (NumberFormatException ignored) {}
+			}
+		} else {
+			handleDoorControl(open);
+		}
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS", open ? "Portao aberto." : "Portao fechado."));
+	}
+
+	private void handleObservation(String args) {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		String[] parts = args.trim().split("\\s+");
+		if (parts.length >= 3) {
+			try {
+				int x = Integer.parseInt(parts[0]);
+				int y = Integer.parseInt(parts[1]);
+				int z = Integer.parseInt(parts[2]);
+				int cost = parts.length > 3 ? Integer.parseInt(parts[3]) : 500;
+				if (cost > 0 && !consumeItem(57, cost)) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Adena insuficiente para observacao."));
+					return;
+				}
+				teleportToCoordinates(x, y, z);
+			} catch (NumberFormatException ignored) {
+			}
+		}
+	}
+
+	private void handleOlympiadDesc(NpcInstance npc, String val) {
+		if (ctx.htmls() == null || active == null) return;
+		int npcObjId = npc != null ? npc.objectId() : 0;
+		String htmName = "0".equals(val) ? "olympiad/noble_main.htm" : "olympiad/noble_desc" + val + ".htm";
+		String raw = ctx.htmls().getHtml(htmName);
+		if (raw == null) raw = ctx.htmls().getIndexedHtml(htmName);
+		if (raw != null) {
+			send(new NpcHtmlMessage(npcObjId, ctx.htmls().render(raw, npcObjId, npc != null ? npc.name() : "Olympiad Manager", active.name())));
+		} else if (npc != null) {
+			showNpcHtml(npc, 0);
+		}
+	}
+
+	private void handleOlympiadNoble(NpcInstance npc, String val) {
+		if (active == null) return;
+		int v = 1;
+		try { v = Integer.parseInt(val); } catch (Exception ignored) {}
+		String npcName = npc != null ? npc.name() : "Olympiad Manager";
+		switch (v) {
+			case 1 -> send(new CreatureSay(0, CreatureSay.ALL, npcName, "Sua inscricao nas Grandes Olimpiadas foi cancelada."));
+			case 2 -> send(new CreatureSay(0, CreatureSay.ALL, npcName, "Fila de espera atual: 0 participantes sem classe, 0 com classe."));
+			case 3 -> {
+				var noble = ctx.olympiad() != null ? ctx.olympiad().getNoble(active.objectId()) : java.util.Optional.<com.lopez.l2j.game.olympiad.OlympiadNoble>empty();
+				int pts = noble.map(com.lopez.l2j.game.olympiad.OlympiadNoble::points).orElse(18);
+				send(new CreatureSay(0, CreatureSay.ALL, npcName, "Seus pontos atuais de Nobreza nas Olimpiadas: " + pts));
+			}
+			case 4 -> send(new CreatureSay(0, CreatureSay.ALL, npcName, "Voce foi registrado nas batalhas sem restricao de classe."));
+			case 5 -> send(new CreatureSay(0, CreatureSay.ALL, npcName, "Voce foi registrado nas batalhas baseadas em classe."));
+			default -> send(new CreatureSay(0, CreatureSay.ALL, npcName, "Operacao concluida."));
+		}
+		if (npc != null) {
+			handleOlympiadDesc(npc, "0");
+		}
+	}
+
+	private void handleLoto(NpcInstance npc, String val) {
+		if (ctx.htmls() == null || active == null || npc == null) return;
+		int v = 0;
+		try { v = Integer.parseInt(val); } catch (Exception ignored) {}
+		String filename = switch (v) {
+			case 0 -> npc.npcId() + "-1.htm";
+			case 21, 22 -> npc.npcId() + "-5.htm";
+			case 23 -> npc.npcId() + "-3.htm";
+			case 24 -> npc.npcId() + "-4.htm";
+			default -> npc.npcId() + "-1.htm";
+		};
+		String htm = ctx.htmls().getHtml("default/" + filename);
+		if (htm == null) htm = ctx.htmls().getIndexedHtml(filename);
+		if (htm != null) {
+			String rendered = ctx.htmls().render(htm, npc.objectId(), npc.name(), active.name())
+					.replace("%ticket_price%", "2000")
+					.replace("%prize_5%", "100,000,000")
+					.replace("%prize_4%", "5,000,000")
+					.replace("%prize_3%", "500,000")
+					.replace("%prize_2%", "20,000");
+			send(new NpcHtmlMessage(npc.objectId(), rendered));
+		} else {
+			showNpcHtml(npc, 0);
+		}
+	}
+
+	private void handleGiveCrown() {
+		if (active == null) return;
+		var playerClan = (ctx.clans() != null && active.clanId() > 0) ? ctx.clans().byClanId(active.clanId()).orElse(null) : null;
+		if (playerClan != null && playerClan.castleId() > 0 && playerClan.isLeader(active.objectId())) {
+			if (ctx.crowns() != null) {
+				ctx.crowns().rewardLordCrown(active, playerClan.castleId());
+				send(new CreatureSay(0, CreatureSay.ALL, "Chamberlain", "A Coroa do Senhor do Castelo e o Diadema foram entregues!"));
+			}
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, "Chamberlain", "Apenas o lider do cla soberano do castelo pode receber a coroa."));
+		}
+	}
+
+	private void handleCastleReport(NpcInstance npc) {
+		if (ctx.htmls() == null || active == null || npc == null) return;
+		String htm = ctx.htmls().getHtml("chamberlain/chamberlain-report.htm");
+		if (htm != null) {
+			String rendered = ctx.htmls().render(htm, npc.objectId(), npc.name(), active.name())
+					.replace("%tax_income%", "0")
+					.replace("%current_tax%", "0")
+					.replace("%castle_income%", "0");
+			send(new NpcHtmlMessage(npc.objectId(), rendered));
+		} else {
+			showNpcHtml(npc, 0);
+		}
+	}
+
+	private void handleBanishForeigner(NpcInstance npc) {
+		if (active == null) return;
+		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Chamberlain", "Todos os nao-membros do cla foram banidos para fora do castelo."));
+		if (npc != null) {
+			showNpcHtml(npc, 0);
+		}
+	}
+
+	private void handleRankingList(NpcInstance npc, String action) {
+		if (ctx.htmls() == null || active == null) return;
+		int npcObjId = npc != null ? npc.objectId() : 0;
+		String htm = ctx.htmls().getHtml("mods/status/50008-1.htm");
+		if (htm != null) {
+			StringBuilder sb = new StringBuilder("<table width=290>");
+			var topList = ctx.characters() != null ? ctx.characters().findTopPvP(10) : List.<com.lopez.l2j.game.model.PlayerCharacter>of();
+			int rank = 1;
+			for (var p : topList) {
+				sb.append("<tr>")
+						.append("<td width=20 align=center>").append(rank++).append("</td>")
+						.append("<td width=140 align=left>").append(p.name()).append("</td>")
+						.append("<td width=60 align=center>").append(p.pvpKills()).append("</td>")
+						.append("<td width=70 align=center><font color=\"00FF00\">ONLINE</font></td>")
+						.append("</tr>");
+			}
+			sb.append("</table>");
+			String rendered = ctx.htmls().render(htm, npcObjId, npc != null ? npc.name() : "Status", active.name())
+					.replace("%pvplist%", sb.toString());
+			send(new NpcHtmlMessage(npcObjId, rendered));
+		} else if (npc != null) {
+			showNpcHtml(npc, 0);
+		}
+	}
+
+	private void handleManorMenu(NpcInstance npc, String cmd) {
+		if (active == null) return;
+		int npcObjId = npc != null ? npc.objectId() : 0;
+		String npcName = npc != null ? npc.name() : "Manor Manager";
+		if (cmd.contains("ask=6")) { // Purchase harvester
+			if (consumeItem(57, 20)) {
+				ctx.inventories().addItem(active.inventory(), 4442, 1, "ManorHarvester");
+				send(ItemList.of(active.inventory().items(), false));
+				send(new CreatureSay(0, CreatureSay.ALL, npcName, "Harvester adquirido com sucesso!"));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, npcName, "Adena insuficiente para comprar o Harvester (20 adena)."));
+			}
+			return;
+		}
+		if (ctx.htmls() != null) {
+			String htm = ctx.htmls().getHtml("manormanager/manager.htm");
+			if (htm == null) htm = ctx.htmls().getHtml("chamberlain/manor/manor.htm");
+			if (htm != null) {
+				send(new NpcHtmlMessage(npcObjId, ctx.htmls().render(htm, npcObjId, npcName, active.name())));
+				return;
+			}
+		}
+		send(new CreatureSay(0, CreatureSay.ALL, npcName, "Sistema Manor em operacao normal."));
+	}
+
+	private void handleAuctionAction(NpcInstance npc, String action) {
+		if (active == null) return;
+		int npcObjId = npc != null ? npc.objectId() : 0;
+		String npcName = npc != null ? npc.name() : "Auctioneer";
+		if (action.startsWith("bid ") && action.length() > 4) {
+			try {
+				long bid = Long.parseLong(action.substring(4).trim());
+				int hallId = 1;
+				if (ctx.clanHalls() != null) {
+					var res = ctx.clanHalls().bidOnAuction(active, hallId, bid);
+					send(new CreatureSay(0, CreatureSay.ALL, npcName, "Resultado do lance no Clan Hall: " + res.name()));
+				}
+			} catch (Exception ignored) {}
+			return;
+		}
+		if (action.startsWith("bid1")) {
+			if (ctx.htmls() != null) {
+				String bHtm = ctx.htmls().getHtml("auction/AgitBid1.htm");
+				if (bHtm != null) {
+					long adena = active.inventory() != null ? active.inventory().adena() : 0;
+					String rendered = ctx.htmls().render(bHtm, npcObjId, npcName, active.name())
+							.replace("%PLEDGE_ADENA%", String.valueOf(adena))
+							.replace("%AGIT_AUCTION_MINBID%", "10000000")
+							.replace("%AGIT_LINK_BACK%", "bypass -h npc_" + npcObjId + "_auction");
+					send(new NpcHtmlMessage(npcObjId, rendered));
+					return;
+				}
+			}
+		}
+		if (ctx.htmls() != null) {
+			String aHtm = ctx.htmls().getHtml("auction/auction.htm");
+			if (aHtm != null) {
+				send(new NpcHtmlMessage(npcObjId, ctx.htmls().render(aHtm, npcObjId, npcName, active.name())));
+				return;
+			}
+		}
+		if (npc != null) showNpcHtml(npc, 0);
+	}
+	private int getNpcCastleId(NpcInstance npc) {
+		if (npc == null) return 1;
+		int id = npc.npcId();
+		if (id >= 35092 && id <= 35141) return 1; // Gludio
+		if (id >= 35142 && id <= 35183) return 2; // Dion
+		if (id >= 35184 && id <= 35225) return 3; // Giran
+		if (id >= 35226 && id <= 35273) return 4; // Oren
+		if (id >= 35274 && id <= 35315) return 5; // Aden
+		if (id >= 35316 && id <= 35357) return 6; // Innadril
+		if (id >= 35358 && id <= 35400) return 7; // Goddard
+		if (id >= 35504 && id <= 35554) return 8; // Rune
+		if (id >= 35555 && id <= 35600) return 9; // Schuttgart
+
+		if (ctx.castles() != null && ctx.zones() != null) {
+			var castleOpt = ctx.castles().getCastleAt(npc.x(), npc.y(), npc.z(), ctx.zones());
+			if (castleOpt.isPresent()) {
+				return castleOpt.get().id();
+			}
+		}
+		return 1;
+	}
+
+	private String resolveQuestHtml(com.lopez.l2j.game.quest.Quest q, String rawResult, NpcInstance npc) {
+		if (rawResult == null || rawResult.isBlank()) {
+			return null;
+		}
+		if (rawResult.contains("<html") || rawResult.contains("<HTML") || rawResult.contains("<body") || rawResult.contains("<BODY")) {
+			return rawResult;
+		}
+		if ("noquest".equalsIgnoreCase(rawResult) || "no-quest".equalsIgnoreCase(rawResult)) {
+			return ctx.htmls() != null ? ctx.htmls().getHtml("npcdefault.htm") : null;
+		}
+		if (ctx.htmls() == null) {
+			return rawResult;
+		}
+
+		String qName = q != null ? q.getName() : "";
+		// 1. Tenta dentro da pasta da quest especifica e suas variacoes de alias
+		if (!qName.isEmpty()) {
+			String h = ctx.htmls().getHtml("quests/" + qName + "/" + rawResult);
+			if (h != null) return h;
+			h = ctx.htmls().getHtml("scripts/quests/" + qName + "/" + rawResult);
+			if (h != null) return h;
+
+			if (qName.startsWith("_")) {
+				String noUnderscore = qName.substring(1);
+				h = ctx.htmls().getHtml("quests/" + noUnderscore + "/" + rawResult);
+				if (h != null) return h;
+				h = ctx.htmls().getHtml("scripts/quests/" + noUnderscore + "/" + rawResult);
+				if (h != null) return h;
+			} else {
+				String withUnderscore = "_" + qName;
+				h = ctx.htmls().getHtml("quests/" + withUnderscore + "/" + rawResult);
+				if (h != null) return h;
+				h = ctx.htmls().getHtml("scripts/quests/" + withUnderscore + "/" + rawResult);
+				if (h != null) return h;
+			}
+		}
+
+		if (q != null && q.getQuestId() > 0) {
+			int qId = q.getQuestId();
+			String h = ctx.htmls().getHtml("quests/" + qId + "/" + rawResult);
+			if (h != null) return h;
+			h = ctx.htmls().getHtml(String.format("quests/%03d/%s", qId, rawResult));
+			if (h != null) return h;
+			h = ctx.htmls().getHtml(String.format("quests/q%03d/%s", qId, rawResult));
+			if (h != null) return h;
+			h = ctx.htmls().getHtml(String.format("quests/Q%03d/%s", qId, rawResult));
+			if (h != null) return h;
+		}
+
+		// 2. Tenta pelo nome indexado (ex: 31554-01.htm, merc_kahmun_q0628_01.htm)
+		String h = ctx.htmls().getIndexedHtml(rawResult);
+		if (h != null) return h;
+
+		// 3. Tenta caminhos diretos e alternativos
+		h = ctx.htmls().getHtml(rawResult);
+		if (h != null) return h;
+		h = ctx.htmls().getHtml("default/" + rawResult);
+		if (h != null) return h;
+
+		// 4. Se contiver caminho com barra, tenta o basename no indice global
+		int lastSlash = Math.max(rawResult.lastIndexOf('/'), rawResult.lastIndexOf('\\'));
+		if (lastSlash >= 0 && lastSlash < rawResult.length() - 1) {
+			String baseName = rawResult.substring(lastSlash + 1);
+			h = ctx.htmls().getIndexedHtml(baseName);
+			if (h != null) return h;
+		}
+
+		// Fallback seguro para evitar exibir texto cru do nome do arquivo para o jogador
+		String def = ctx.htmls().getHtml("npcdefault.htm");
+		if (def != null && !def.isBlank()) {
+			return def;
+		}
+		return "<html><body>" + (npc != null ? npc.name() : "NPC") + ":<br><br>I have no tasks for you right now.</body></html>";
+	}
+
 	private void handleQuestBypass(int npcObjId, String questArg) {
 		var npcOpt = ctx.world().npc(npcObjId);
 		if (npcOpt.isEmpty()) {
@@ -4116,6 +5108,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		var npc = npcOpt.get();
+		int castleId = getNpcCastleId(npc);
 
 		if (questArg == null || questArg.isBlank()) {
 			int npcId = npc.npcId();
@@ -4132,11 +5125,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				var q = candidateQuests.get(0);
 				String html = q.notifyTalk(npc, this);
 				if (html != null && !html.isBlank()) {
-					String rendered = ctx.htmls() != null
-							? ctx.htmls().render(html, npc.objectId(), npc.name(), active != null ? active.name() : "Player")
-							: html;
-					send(new NpcHtmlMessage(npc.objectId(), rendered));
-					return;
+					String resolved = resolveQuestHtml(q, html, npc);
+					if (resolved != null) {
+						String rendered = ctx.htmls() != null
+								? ctx.htmls().render(resolved, npc.objectId(), npc.name(), active != null ? active.name() : "Player", castleId, npc.npcId())
+								: resolved;
+						send(new NpcHtmlMessage(npc.objectId(), rendered));
+						return;
+					}
 				}
 			} else if (candidateQuests.size() > 1) {
 				StringBuilder sb = new StringBuilder("<html><body>Quest:<br><br><table width=270>");
@@ -4208,20 +5204,24 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		String[] parts = questArg.split("\\s+");
 		String qName = parts[0];
+		String event = questArg.length() > qName.length() ? questArg.substring(qName.length()).trim() : null;
 		var q = ctx.questManager() != null ? ctx.questManager().getQuest(qName) : null;
 		if (q != null) {
 			String html;
-			if (parts.length > 1) {
-				html = q.notifyEvent(parts[1], npc, this);
+			if (event != null && !event.isEmpty()) {
+				html = q.notifyEvent(event, npc, this);
 			} else {
 				html = q.notifyTalk(npc, this);
 			}
 			if (html != null && !html.isBlank()) {
-				String rendered = ctx.htmls() != null
-						? ctx.htmls().render(html, npc.objectId(), npc.name(), active != null ? active.name() : "Player")
-						: html;
-				send(new NpcHtmlMessage(npc.objectId(), rendered));
-				return;
+				String resolved = resolveQuestHtml(q, html, npc);
+				if (resolved != null) {
+					String rendered = ctx.htmls() != null
+							? ctx.htmls().render(resolved, npc.objectId(), npc.name(), active != null ? active.name() : "Player", castleId, npc.npcId())
+							: resolved;
+					send(new NpcHtmlMessage(npc.objectId(), rendered));
+					return;
+				}
 			}
 		}
 
@@ -4249,7 +5249,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				}
 			}
 			if (qHtml != null) {
-				String rendered = ctx.htmls().render(qHtml, npc.objectId(), npc.name(), active != null ? active.name() : "Player");
+				String rendered = ctx.htmls().render(qHtml, npc.objectId(), npc.name(), active != null ? active.name() : "Player", castleId, npc.npcId());
 				send(new NpcHtmlMessage(npc.objectId(), rendered));
 				return;
 			}
@@ -4269,6 +5269,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	private void handleSubclassBypass(int npcObjId, String args) {
 		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		if (active.isDead() || active.isOlympiadMode() || autoAttacking || active.isInCombat() || active.isStoreOpen() || active.isBuffShop()) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pode gerenciar subclasses enquanto estiver em combate, morto ou em loja."));
 			send(new ActionFailed());
 			return;
 		}
@@ -4510,6 +5515,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			ctx.subClasses().saveSubClass(active.objectId(), new SubClass(newClassId, newExp, newSp, newLevel, newIndex));
 		}
 
+		active.effects().clear();
+		refreshBuffs();
+
 		send(new MagicSkillUse(active.objectId(), active.objectId(), 4383, 1, 0, 0));
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS,
 				new MagicSkillUse(active.objectId(), active.objectId(), 4383, 1, 0, 0), false);
@@ -4626,14 +5634,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	private void handleChangeClass(int npcObjId, int newClassId, boolean isGmOverride) {
-		if (active == null) {
+		if (active == null || active.isDead() || active.isOlympiadMode()) {
 			send(new ActionFailed());
 			return;
 		}
 		List<Integer> allowed = ctx.skillService() != null && ctx.skillService().trees() != null
 				? ctx.skillService().trees().getChildClasses(active.classId())
 				: List.of();
-		if (!isGmOverride && !allowed.isEmpty() && !allowed.contains(newClassId)) {
+		if (!isGmOverride && (allowed.isEmpty() || !allowed.contains(newClassId))) {
 			log.warn("{} tentou trocar para classe invalida: {} (atual: {})", active.name(), newClassId,
 					active.classId());
 			send(new ActionFailed());
@@ -4711,6 +5719,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	private void teleportTo(int teleId) {
+		if (active != null && !Config.ALT_KARMA_PLAYER_CAN_USE_GK && active.karma() > 0) {
+			send(new ActionFailed());
+			return;
+		}
 		if (ctx.teleports() == null) {
 			send(new ActionFailed());
 			return;
@@ -4971,16 +5983,21 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		Map<Integer, Integer> list = ctx.raidPoints() != null ? ctx.raidPoints().getList(active.objectId()) : Map.of();
 		send(new ExGetBossRecord(ranking, points, list));
 
-		if (bossId != 0 && ctx.world() != null) {
-			for (NpcInstance n : ctx.world().npcs()) {
-				if (n.npcId() == bossId) {
-					int bx = n.x() != 0 ? n.x() : n.spawnX();
-					int by = n.y() != 0 ? n.y() : n.spawnY();
-					int bz = n.z() != 0 ? n.z() : n.spawnZ();
-					send(new GameServerPacket.RadarControl(0, 1, bx, by, bz));
-					break;
+		if (bossId != 0) {
+			boolean found = false;
+			if (ctx.world() != null) {
+				for (NpcInstance n : ctx.world().npcs()) {
+					if (n.npcId() == bossId) {
+						int bx = n.x() != 0 ? n.x() : n.spawnX();
+						int by = n.y() != 0 ? n.y() : n.spawnY();
+						int bz = n.z() != 0 ? n.z() : n.spawnZ();
+						send(new GameServerPacket.RadarControl(0, 1, bx, by, bz));
+						found = true;
+						break;
+					}
 				}
 			}
+			// Radar location if alive NPC found
 		}
 	}
 
@@ -5253,7 +6270,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (active == null || ctx.buffRepository() == null) {
 			return;
 		}
-		ctx.buffRepository().saveBuffs(active.objectId(), 0, active.effects().active());
+		var buffsToSave = active.effects().active().stream().filter(b -> !b.isDebuff()).toList();
+		ctx.buffRepository().saveBuffs(active.objectId(), 0, buffsToSave);
 	}
 
 	private void restoreBuffs() {
@@ -5633,6 +6651,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			send(new ActionFailed());
 			return;
 		}
+		if (!sk.magic() && active.isPhysicalMuted()) {
+			send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.SkillName(sk.id(), sk.level())));
+			send(new ActionFailed());
+			return;
+		}
 		if (casting) {
 			send(new ActionFailed());
 			return;
@@ -5775,6 +6798,16 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 		}
 
+		// Bloqueia suporte (cura/buff) a jogadores flaggados ou PK a partir de zona de paz
+		if (!sk.isOffensive() && ctx.zones() != null && playerTarget != null && playerTarget != this) {
+			if (ctx.zones().isInsidePeace(active.x(), active.y(), active.z())
+					&& (playerTarget.active.pvpFlag() > 0 || playerTarget.active.karma() > 0)) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pode dar suporte a jogadores em combate a partir de uma zona de paz."));
+				send(new ActionFailed());
+				return;
+			}
+		}
+
 		// Validacao de condicoes da skill levando o alvo em consideracao (ex: <target undead="true" />)
 		Object resolvedTarget = npcTarget != null ? npcTarget : (playerTarget != null ? playerTarget.active : null);
 		if (sk.castCondition() != null && !sk.castCondition().test(active, resolvedTarget)) {
@@ -5874,7 +6907,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (reuse > 0) {
 			skillReuse.put(sk.id(), now + Math.max(reuse, hitTime));
 		}
-		boolean resumeAttack = autoAttacking && (npcTarget != null || playerTarget != null) && sk.isOffensive();
+		boolean isSleepOrTrance = "SLEEP".equalsIgnoreCase(sk.skillType()) || sk.id() == 1069 || sk.id() == 1394 || sk.id() == 1071 || sk.id() == 1201;
+		if (isSleepOrTrance) {
+			stopAutoAttack();
+			autoAttacking = false;
+		}
+		boolean resumeAttack = !isSleepOrTrance && autoAttacking && (npcTarget != null || playerTarget != null) && sk.nextActionAttack();
 		autoAttacking = false; // o auto-ataque para durante o cast
 
 		// Para a movimentacao do personagem para conjurar a habilidade ("da uma paradinha")
@@ -5889,7 +6927,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				active.x(), active.y(), active.z(), tx, ty, tz);
 		send(msu);
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msu, false);
-		if (sk.isOffensive()) {
+		if (sk.isOffensive() && sk.nextActionAttack()) {
 			var startAtk = new AutoAttackStart(active.objectId());
 			send(startAtk);
 			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, startAtk, false);
@@ -5999,7 +7037,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		if (sk.isOffensive()) {
 			boolean ss = false;
-			if (sk.isPhysicalDamage()) {
+			if (sk.isPhysicalDamage() && sk.power() > 0) {
 				if (!soulshotCharged) {
 					rechargeAutoSoulShots();
 				}
@@ -6007,33 +7045,62 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				soulshotCharged = false;
 			}
 
-			if (targetPlayer != null && !targetPlayer.active.isDead()) {
-				// PvP ofensivo direcionado a outro jogador
-				updatePvPFlag();
-				targetPlayer.updatePvPFlag();
-				broadcastLaunched(sk, List.of(targetPlayer.objectId()));
-				applyOffensivePlayer(sk, targetPlayer, t, ss, sps, bss);
-			} else {
-				// Alvo NPC ou em area
-				List<NpcInstance> targets = new ArrayList<>();
-				if (sk.isAreaAroundSelf()) {
-					targets.addAll(ctx.world().findNpcsAround(active.x(), active.y(), sk.skillRadius()));
-				} else if (mainNpc != null) {
-					targets.add(mainNpc);
-					if (sk.isAreaAroundTarget()) {
-						for (NpcInstance n : ctx.world().findNpcsAround(mainNpc.x(), mainNpc.y(), sk.skillRadius())) {
-							if (n != mainNpc) {
-								targets.add(n);
-							}
-						}
+			List<NpcInstance> npcTargets = new ArrayList<>();
+			List<GameSession> playerTargets = new ArrayList<>();
+			int radius = sk.skillRadius() > 0 ? sk.skillRadius() : 200;
+
+			if (sk.isAreaAroundSelf()) {
+				npcTargets.addAll(ctx.world().findNpcsAround(active.x(), active.y(), radius));
+				for (var p : ctx.world().findPlayersAround(active.x(), active.y(), radius)) {
+					if (p instanceof GameSession gs && canAttackInPvP(gs)) {
+						playerTargets.add(gs);
 					}
 				}
-				targets.removeIf(n -> !n.isAttackable() || n.isDead());
-				broadcastLaunched(sk, targets.stream().map(NpcInstance::objectId).toList());
-
-				for (NpcInstance n : targets) {
-					applyOffensive(sk, n, t, ss, sps, bss);
+			} else if (sk.isAreaAroundTarget()) {
+				int cx = mainNpc != null ? mainNpc.x() : (targetPlayer != null ? targetPlayer.x() : active.x());
+				int cy = mainNpc != null ? mainNpc.y() : (targetPlayer != null ? targetPlayer.y() : active.y());
+				if (mainNpc != null && !mainNpc.isDead()) {
+					npcTargets.add(mainNpc);
 				}
+				if (targetPlayer != null && canAttackInPvP(targetPlayer)) {
+					playerTargets.add(targetPlayer);
+				}
+				for (NpcInstance n : ctx.world().findNpcsAround(cx, cy, radius)) {
+					if (!npcTargets.contains(n)) {
+						npcTargets.add(n);
+					}
+				}
+				for (var p : ctx.world().findPlayersAround(cx, cy, radius)) {
+					if (p instanceof GameSession gs && canAttackInPvP(gs) && !playerTargets.contains(gs)) {
+						playerTargets.add(gs);
+					}
+				}
+			} else {
+				if (targetPlayer != null && canAttackInPvP(targetPlayer)) {
+					playerTargets.add(targetPlayer);
+				} else if (mainNpc != null && !mainNpc.isDead()) {
+					npcTargets.add(mainNpc);
+				}
+			}
+
+			npcTargets.removeIf(n -> !n.isAttackable() || n.isDead());
+
+			List<Integer> launchedIds = new ArrayList<>();
+			for (NpcInstance n : npcTargets) {
+				launchedIds.add(n.objectId());
+			}
+			for (GameSession gs : playerTargets) {
+				launchedIds.add(gs.objectId());
+			}
+			broadcastLaunched(sk, launchedIds);
+
+			for (NpcInstance n : npcTargets) {
+				applyOffensive(sk, n, t, ss, sps, bss);
+			}
+			for (GameSession gs : playerTargets) {
+				updatePvPFlag();
+				gs.updatePvPFlag();
+				applyOffensivePlayer(sk, gs, t, ss, sps, bss);
 			}
 			if (active != null) {
 				if (sk.needCharges() > 0 && sk.consumeCharges()) {
@@ -6091,8 +7158,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 		broadcastLaunched(sk, targets.stream().map(s -> s.active.objectId()).toList());
-		for (GameSession target : targets) {
-			target.receivePositiveSkill(sk, active.name());
+		if ("BALANCE_LIFE".equalsIgnoreCase(sk.skillType()) || sk.id() == 1335) {
+			handleBalanceLife(sk, targets);
+		} else {
+			for (GameSession target : targets) {
+				if (target != this && target.active != null) {
+					if (target.active.pvpFlag() > 0 || target.active.karma() > 0) {
+						updatePvPFlag(target.active.pvpFlag() > 0);
+					}
+				}
+				target.receivePositiveSkill(sk, active.name());
+			}
 		}
 		if (active != null) {
 			if (sk.needCharges() > 0 && sk.consumeCharges()) {
@@ -6250,21 +7326,30 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		CombatService.HitResult hit = null;
-		if (sk.isPhysicalDamage()) {
-			hit = combat.skillPhysicalNpc(active, t, npc, sk.power(), soulshot, sk.skillType().equals("BLOW"),
+		double effPower = sk.power();
+		if ("DEATHLINK".equalsIgnoreCase(sk.skillType())) {
+			double hpRatio = (double) active.currentHp() / Math.max(1, active.maxHp());
+			effPower = sk.power() * Math.max(0.2, Math.pow(1.7165 - hpRatio, 2) * 0.577);
+		} else if ("FATALCOUNTER".equalsIgnoreCase(sk.skillType())) {
+			double hpRatio = (double) active.currentHp() / Math.max(1, active.maxHp());
+			effPower = sk.power() * Math.max(0.2, 3.5 * (1.0 - hpRatio));
+		}
+
+		if (sk.isPhysicalDamage() && effPower > 0) {
+			hit = combat.skillPhysicalNpc(active, t, npc, effPower, soulshot, sk.skillType().equals("BLOW"),
 					sk.isChargedDam());
-		} else if (sk.isMagicDamage() && sk.power() > 0) {
-			hit = combat.skillMagicNpc(active, t, npc, sk.power(), sk.magicLevel(), sps, bss);
+		} else if (sk.isMagicDamage() && effPower > 0) {
+			hit = combat.skillMagicNpc(active, t, npc, effPower, sk.magicLevel(), sps, bss);
 			if (sk.skillType().equals("DRAIN") && hit.damage() > 0) {
 				double absorb = sk.absorbPart() > 0 ? sk.absorbPart() : 0.2;
-				active.currentHp(active.currentHp() + hit.damage() * absorb);
+				healHp(hit.damage() * absorb);
 			}
-		} else if (sk.isManaBurn() && sk.power() > 0) {
-			int mpDam = combat.skillManaDamNpc(active, t, npc, sk.power(), sk.magicLevel(), sps, bss);
+		} else if (sk.isManaBurn() && effPower > 0) {
+			int mpDam = combat.skillManaDamNpc(active, t, npc, effPower, sk.magicLevel(), sps, bss);
 			if (mpDam > 0) {
 				double newMp = Math.max(0, npc.currentMp() - mpDam);
 				npc.currentMp(newMp);
-				send(SystemMessage.of(SystemMessage.YOU_DID_S1_DMG, new SystemMessage.Number(mpDam)));
+				send(SystemMessage.of(SystemMessage.YOUR_OPPONENTS_MP_WAS_REDUCED_BY_S1, new SystemMessage.Number(mpDam)));
 				var su = StatusUpdate.mp(npc.objectId(), (int) npc.currentMp(), npc.template().maxMp());
 				send(su);
 				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, su, false);
@@ -6282,10 +7367,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			for (var e : sk.effects()) {
 				String name = e.name().toLowerCase(java.util.Locale.ROOT);
 				boolean control = name.equals("stun") || name.equals("sleep") || name.equals("paralyze")
-						|| name.equals("root") || name.equals("petrification") || name.equals("silence")
-						|| name.equals("mute") || name.equals("fear");
+						|| name.equals("root") || name.equals("petrification") || name.equals("medusa")
+						|| name.equals("silence") || name.equals("mute") || name.equals("fear")
+						|| name.equals("physicalmute") || name.equals("silencemagicphysical");
 				if (control) {
-					double base = damageSkill ? 50 : sk.power();
+					double base = damageSkill ? 50 : (sk.power() > 0 ? sk.power() : 50);
 					if (!combat.debuffLands(base, sk.magicLevel(), active.level(), npc, sps, bss)) {
 						send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
 								new SystemMessage.NpcName(npc.npcId()),
@@ -6293,10 +7379,84 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						continue;
 					}
 					long until = System.currentTimeMillis() + Math.max(1000, e.durationMs());
-					if (name.equals("root")) {
-						npc.root(until);
-					} else {
-						npc.disable(until, name.equals("sleep"));
+					int abnormalMask = 0;
+					switch (name) {
+						case "root" -> {
+							npc.root(until);
+							abnormalMask = 0x0040;
+						}
+						case "sleep" -> {
+							npc.disable(until, true);
+							npc.abortAttack();
+							npc.abortCast();
+							abnormalMask = 0x0080;
+						}
+						case "stun" -> {
+							npc.disable(until, false);
+							npc.abortAttack();
+							npc.abortCast();
+							abnormalMask = 0x0400;
+						}
+						case "paralyze" -> {
+							npc.disable(until, false);
+							npc.abortAttack();
+							npc.abortCast();
+							abnormalMask = 0x0010;
+						}
+						case "petrification", "medusa" -> {
+							npc.disable(until, false);
+							npc.invul(true);
+							npc.abortAttack();
+							npc.abortCast();
+							abnormalMask = 0x0800;
+							autoAttackScheduler.schedule(() -> npc.invul(false), Math.max(1000, e.durationMs()), TimeUnit.MILLISECONDS);
+						}
+						case "silence", "mute" -> {
+							npc.mute(until);
+							npc.abortCast();
+							abnormalMask = 0x0020;
+						}
+						case "physicalmute" -> {
+							npc.physicalMute(until);
+							abnormalMask = 0x0020;
+						}
+						case "silencemagicphysical" -> {
+							npc.mute(until);
+							npc.physicalMute(until);
+							npc.abortCast();
+							abnormalMask = 0x0020;
+						}
+						case "fear" -> {
+							npc.disable(until, false);
+							npc.abortAttack();
+							npc.abortCast();
+							abnormalMask = 0x0004;
+						}
+					}
+					if (abnormalMask != 0) {
+						npc.startAbnormalEffect(abnormalMask);
+						ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new NpcInfo(npc), false);
+						final int fMask = abnormalMask;
+						autoAttackScheduler.schedule(() -> {
+							if (npc != null) {
+								npc.stopAbnormalEffect(fMask);
+								ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new NpcInfo(npc), false);
+							}
+						}, Math.max(1000, e.durationMs()), TimeUnit.MILLISECONDS);
+					}
+				} else if (name.equals("targetme") || "AGGDEBUFF".equalsIgnoreCase(sk.skillType()) || "AGGDAMAGE".equalsIgnoreCase(sk.skillType())) {
+					npc.targetPlayerId(active.objectId());
+					if (ctx.npcAi() != null) {
+						ctx.npcAi().startCombat(npc, active.objectId());
+					}
+				} else if (name.equals("removetarget") || "AGGREMOVE".equalsIgnoreCase(sk.skillType()) || "AGGREDUCE".equalsIgnoreCase(sk.skillType()) || "SWITCH".equalsIgnoreCase(sk.skillType())) {
+					npc.targetPlayerId(0);
+					npc.abortAttack();
+					npc.abortCast();
+					if (sk.id() == 358) { // Bluff
+						npc.heading(active.heading());
+						ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS,
+								new ValidateLocation(npc.objectId(), npc.x(), npc.y(), npc.z(), npc.heading()), false);
 					}
 				} else if (name.equals("damovertime") || name.equals("manadamovertime") || name.equals("poison")
 						|| name.equals("bleed")) {
@@ -6308,6 +7468,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					if (combat.debuffLands(sk.power() > 0 ? sk.power() : 50, sk.magicLevel(), active.level(), npc, sps,
 							bss)) {
 						applyNpcDebuff(npc, e);
+					} else {
+						send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
+								new SystemMessage.NpcName(npc.npcId()),
+								new SystemMessage.SkillName(sk.id(), sk.level())));
 					}
 				}
 			}
@@ -6358,18 +7522,52 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	private void applyNpcDebuff(NpcInstance npc, SkillTemplate.EffectTemplate e) {
 		for (var f : e.funcs()) {
-			if (f.stat().equals("pDef")) {
-				npc.pDefMul(0.77);
-				autoAttackScheduler.schedule(() -> npc.pDefMul(1.0), Math.max(1000, e.durationMs()),
-						TimeUnit.MILLISECONDS);
-			} else if (f.stat().equals("mDef")) {
-				npc.mDefMul(0.77);
-				autoAttackScheduler.schedule(() -> npc.mDefMul(1.0), Math.max(1000, e.durationMs()),
-						TimeUnit.MILLISECONDS);
-			} else if (f.stat().equals("pAtk")) {
-				npc.pAtkMul(0.77);
-				autoAttackScheduler.schedule(() -> npc.pAtkMul(1.0), Math.max(1000, e.durationMs()),
-						TimeUnit.MILLISECONDS);
+			double val = f.value() > 0 ? f.value() : 0.77;
+			long dur = Math.max(1000, e.durationMs());
+			switch (f.stat()) {
+				case "pDef" -> {
+					double prev = npc.pDefMul();
+					npc.pDefMul(Math.min(prev, val));
+					autoAttackScheduler.schedule(() -> npc.pDefMul(prev), dur, TimeUnit.MILLISECONDS);
+				}
+				case "mDef" -> {
+					double prev = npc.mDefMul();
+					npc.mDefMul(Math.min(prev, val));
+					autoAttackScheduler.schedule(() -> npc.mDefMul(prev), dur, TimeUnit.MILLISECONDS);
+				}
+				case "pAtk" -> {
+					double prev = npc.pAtkMul();
+					npc.pAtkMul(Math.min(prev, val));
+					autoAttackScheduler.schedule(() -> npc.pAtkMul(prev), dur, TimeUnit.MILLISECONDS);
+				}
+				case "mAtk" -> {
+					double prev = npc.mAtkMul();
+					npc.mAtkMul(Math.min(prev, val));
+					autoAttackScheduler.schedule(() -> npc.mAtkMul(prev), dur, TimeUnit.MILLISECONDS);
+				}
+				case "runSpd" -> {
+					double prev = npc.runSpdMul();
+					npc.runSpdMul(Math.min(prev, val));
+					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new NpcInfo(npc), false);
+					autoAttackScheduler.schedule(() -> {
+						npc.runSpdMul(prev);
+						ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new NpcInfo(npc), false);
+					}, dur, TimeUnit.MILLISECONDS);
+				}
+				case "pAtkSpd" -> {
+					double prev = npc.pAtkSpdMul();
+					npc.pAtkSpdMul(Math.min(prev, val));
+					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new NpcInfo(npc), false);
+					autoAttackScheduler.schedule(() -> {
+						npc.pAtkSpdMul(prev);
+						ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new NpcInfo(npc), false);
+					}, dur, TimeUnit.MILLISECONDS);
+				}
+				case "mAtkSpd" -> {
+					double prev = npc.mAtkSpdMul();
+					npc.mAtkSpdMul(Math.min(prev, val));
+					autoAttackScheduler.schedule(() -> npc.mAtkSpdMul(prev), dur, TimeUnit.MILLISECONDS);
+				}
 			}
 		}
 	}
@@ -6380,6 +7578,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		int damagePerTick = (int) Math.max(1, Math.round(e.val() > 0 ? e.val() : 20));
 		int[] rem = { count };
 		PlayerCharacter owner = active;
+		String kind = e.name().toLowerCase(java.util.Locale.ROOT);
+		boolean isManaDot = kind.equals("manadamovertime");
 		AtomicReference<ScheduledFuture<?>> taskRef = new AtomicReference<>();
 		ScheduledFuture<?> task = autoAttackScheduler.scheduleAtFixedRate(() -> {
 			if (npc == null || npc.isDead() || rem[0] <= 0 || !inWorld || active != owner) {
@@ -6390,12 +7590,19 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				return;
 			}
 			rem[0]--;
-			var hit = ctx.combat().applyDamage(npc, damagePerTick, 0);
-			handleNpcHit(npc, hit, t, sk);
-			if (hit.isDead()) {
-				var f = taskRef.get();
-				if (f != null) {
-					f.cancel(false);
+			if (isManaDot) {
+				npc.currentMp(Math.max(0, npc.currentMp() - damagePerTick));
+				var su = StatusUpdate.mp(npc.objectId(), (int) npc.currentMp(), npc.template().maxMp());
+				send(su);
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, su, false);
+			} else {
+				var hit = ctx.combat().applyDamage(npc, damagePerTick, 0);
+				handleNpcHit(npc, hit, t, sk);
+				if (hit.isDead()) {
+					var f = taskRef.get();
+					if (f != null) {
+						f.cancel(false);
+					}
 				}
 			}
 		}, period, period, TimeUnit.MILLISECONDS);
@@ -6412,12 +7619,20 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		var targetActive = targetSession.active;
 		var targetTemplate = ctx.characters().template(targetActive);
 		int damage = 0;
+		double effPower = sk.power();
+		if ("DEATHLINK".equalsIgnoreCase(sk.skillType())) {
+			double hpRatio = (double) active.currentHp() / Math.max(1, active.maxHp());
+			effPower = sk.power() * Math.max(0.2, Math.pow(1.7165 - hpRatio, 2) * 0.577);
+		} else if ("FATALCOUNTER".equalsIgnoreCase(sk.skillType())) {
+			double hpRatio = (double) active.currentHp() / Math.max(1, active.maxHp());
+			effPower = sk.power() * Math.max(0.2, 3.5 * (1.0 - hpRatio));
+		}
 
-		if (sk.isPhysicalDamage()) {
-			damage = combat.skillPhysicalPlayer(active, t, targetActive, targetTemplate, sk.power(), soulshot,
+		if (sk.isPhysicalDamage() && effPower > 0) {
+			damage = combat.skillPhysicalPlayer(active, t, targetActive, targetTemplate, effPower, soulshot,
 					sk.skillType().equals("BLOW"), sk.isChargedDam());
-		} else if (sk.isMagicDamage() && sk.power() > 0) {
-			damage = combat.skillMagicPlayer(active, t, targetActive, targetTemplate, sk.power(), sk.magicLevel(), sps, bss);
+		} else if (sk.isMagicDamage() && effPower > 0) {
+			damage = combat.skillMagicPlayer(active, t, targetActive, targetTemplate, effPower, sk.magicLevel(), sps, bss);
 			if (damage <= 1 && targetActive.level() - (sk.magicLevel() > 0 ? Math.min(sk.magicLevel(), active.level()) : active.level()) > 9) {
 				send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
 						new SystemMessage.Text(targetActive.name()),
@@ -6427,16 +7642,28 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				double absorb = sk.absorbPart() > 0 ? sk.absorbPart() : 0.2;
 				healHp(damage * absorb);
 			}
-		} else if (sk.isManaBurn() && sk.power() > 0) {
-			int mpDam = combat.skillManaDamPlayer(active, t, targetActive, targetTemplate, sk.power(), sk.magicLevel(), sps, bss);
+		} else if (sk.isManaBurn() && effPower > 0) {
+			int mpDam = combat.skillManaDamPlayer(active, t, targetActive, targetTemplate, effPower, sk.magicLevel(), sps, bss);
 			if (mpDam > 0) {
 				double newMp = Math.max(0, targetActive.currentMp() - mpDam);
 				targetActive.currentMp(newMp);
-				send(SystemMessage.of(SystemMessage.YOU_DID_S1_DMG, new SystemMessage.Number(mpDam)));
-				targetSession.send(SystemMessage.of(SystemMessage.S1_GAVE_YOU_S2_DMG, new SystemMessage.Text(active.name()),
+				send(SystemMessage.of(SystemMessage.YOUR_OPPONENTS_MP_WAS_REDUCED_BY_S1, new SystemMessage.Number(mpDam)));
+				targetSession.send(SystemMessage.of(SystemMessage.S2_MP_HAS_BEEN_DRAINED_BY_S1, new SystemMessage.Text(active.name()),
 						new SystemMessage.Number(mpDam)));
 				targetSession.sendVitals();
 				var su = StatusUpdate.mp(targetActive.objectId(), (int) targetActive.currentMp(), targetActive.maxMp());
+				send(su);
+				ctx.world().broadcastAround(targetSession, GameWorld.VISIBILITY_RADIUS, su, false);
+			}
+		} else if (sk.isCpDamage()) {
+			int cpDam = (int) Math.round(targetActive.currentCp() * Math.max(0.0, 1.0 - sk.power()));
+			if (cpDam > 0) {
+				targetActive.currentCp(Math.max(0, targetActive.currentCp() - cpDam));
+				send(SystemMessage.of(SystemMessage.YOU_DID_S1_DMG, new SystemMessage.Number(cpDam)));
+				targetSession.send(SystemMessage.of(SystemMessage.S1_GAVE_YOU_S2_DMG, new SystemMessage.Text(active.name()),
+						new SystemMessage.Number(cpDam)));
+				targetSession.sendVitals();
+				var su = StatusUpdate.cp(targetActive.objectId(), (int) targetActive.currentCp(), targetActive.maxCp());
 				send(su);
 				ctx.world().broadcastAround(targetSession, GameWorld.VISIBILITY_RADIUS, su, false);
 			}
@@ -6446,7 +7673,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			var result = combat.applyDamagePlayer(targetActive, damage);
 			send(SystemMessage.of(SystemMessage.YOU_DID_S1_DMG, new SystemMessage.Number(damage)));
 			targetSession.send(SystemMessage.of(SystemMessage.S1_GAVE_YOU_S2_DMG, new SystemMessage.Text(active.name()),
-					new SystemMessage.Number(damage)));
+						new SystemMessage.Number(damage)));
 			targetSession.sendVitals();
 
 			var su = StatusUpdate.hp(targetActive.objectId(), (int) targetActive.currentHp(), targetActive.maxHp());
@@ -6461,11 +7688,73 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		// Debuffs & DoTs em jogadores
 		if (!targetActive.isDead()) {
+			if ("CANCEL".equalsIgnoreCase(sk.skillType()) || sk.id() == 1056) {
+				var cancelRestore = com.lopez.l2j.game.service.CancelRestoreService.getInstance();
+				if (cancelRestore != null) {
+					cancelRestore.applyCancelWithRestore(targetSession, 5);
+				} else {
+					var activeBuffs = new java.util.ArrayList<>(targetActive.effects().active());
+					if (!activeBuffs.isEmpty()) {
+						java.util.Collections.shuffle(activeBuffs);
+						int count = Math.min(5, activeBuffs.size());
+						for (int i = 0; i < count; i++) {
+							targetActive.effects().remove(activeBuffs.get(i));
+						}
+						targetSession.sendMagicEffectIcons();
+					}
+				}
+			}
+			if ("WARRIOR_BANE".equalsIgnoreCase(sk.skillType()) || sk.id() == 1344 || sk.id() == 1350) {
+				var activeBuffs = new ArrayList<>(targetActive.effects().active());
+				boolean removed = false;
+				for (var b : activeBuffs) {
+					boolean isWarriorBuff = b.skillId() == 1086 || b.skillId() == 1204 || b.skillId() == 264 || b.skillId() == 304;
+					if (!isWarriorBuff && b.stackType() != null) {
+						String st = b.stackType().toLowerCase(java.util.Locale.ROOT);
+						isWarriorBuff = st.contains("speed_up") || st.contains("attack_time_down") || st.contains("run_spd");
+					}
+					if (!isWarriorBuff && b.funcs() != null) {
+						isWarriorBuff = b.funcs().stream().anyMatch(f -> "pAtkSpd".equalsIgnoreCase(f.stat()) || "runSpd".equalsIgnoreCase(f.stat()));
+					}
+					if (isWarriorBuff) {
+						targetActive.effects().remove(b);
+						removed = true;
+					}
+				}
+				if (removed) {
+					targetSession.sendMagicEffectIcons();
+					targetSession.send(new CreatureSay(0, CreatureSay.ALL, "Combate", "Buffs de velocidade fisica foram cancelados!"));
+				}
+			}
+			if ("MAGE_BANE".equalsIgnoreCase(sk.skillType()) || sk.id() == 1345 || sk.id() == 1351) {
+				var activeBuffs = new ArrayList<>(targetActive.effects().active());
+				boolean removed = false;
+				for (var b : activeBuffs) {
+					boolean isMageBuff = b.skillId() == 1085 || b.skillId() == 1059;
+					if (!isMageBuff && b.stackType() != null) {
+						String st = b.stackType().toLowerCase(java.util.Locale.ROOT);
+						isMageBuff = st.contains("casting_time_down") || st.contains("ma_up") || st.contains("m_atk");
+					}
+					if (!isMageBuff && b.funcs() != null) {
+						isMageBuff = b.funcs().stream().anyMatch(f -> "mAtkSpd".equalsIgnoreCase(f.stat()) || "mAtk".equalsIgnoreCase(f.stat()));
+					}
+					if (isMageBuff) {
+						targetActive.effects().remove(b);
+						removed = true;
+					}
+				}
+				if (removed) {
+					targetSession.sendMagicEffectIcons();
+					targetSession.send(new CreatureSay(0, CreatureSay.ALL, "Combate", "Buffs de poder magico e conjuracao foram cancelados!"));
+				}
+			}
+
 			for (var e : sk.effects()) {
 				String name = e.name().toLowerCase(java.util.Locale.ROOT);
 				boolean control = name.equals("stun") || name.equals("sleep") || name.equals("paralyze")
-						|| name.equals("root") || name.equals("petrification") || name.equals("silence")
-						|| name.equals("mute") || name.equals("fear");
+						|| name.equals("root") || name.equals("petrification") || name.equals("medusa")
+						|| name.equals("silence") || name.equals("mute") || name.equals("fear")
+						|| name.equals("physicalmute") || name.equals("silencemagicphysical");
 
 				if (control) {
 					if (!combat.debuffLandsPlayer(sk.power() > 0 ? sk.power() : 50, sk.magicLevel(), active.level(),
@@ -6479,16 +7768,38 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					targetSession.applyControlEffect(name, until);
 					targetSession.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT,
 							new SystemMessage.SkillName(sk.id(), sk.level())));
+				} else if (name.equals("targetme") || "AGGDEBUFF".equalsIgnoreCase(sk.skillType()) || "AGGDAMAGE".equalsIgnoreCase(sk.skillType())) {
+					targetSession.forceTarget(active.objectId());
+					if (targetSession.autoAttacking) {
+						targetSession.schedulePlayerAutoAttack(this);
+					}
+				} else if (name.equals("removetarget") || "AGGREMOVE".equalsIgnoreCase(sk.skillType()) || "AGGREDUCE".equalsIgnoreCase(sk.skillType()) || "SWITCH".equalsIgnoreCase(sk.skillType())) {
+					targetSession.clearTarget();
+					targetSession.stopAutoAttack();
+					targetSession.cancelCast();
+					if (sk.id() == 358) { // Bluff
+						targetActive.heading(active.heading());
+						var valLoc = new ValidateLocation(targetActive.objectId(), targetActive.x(), targetActive.y(), targetActive.z(), active.heading());
+						ctx.world().broadcastAround(targetSession, GameWorld.VISIBILITY_RADIUS, valLoc, true);
+					}
 				} else if (name.equals("damovertime") || name.equals("manadamovertime") || name.equals("poison")
 						|| name.equals("bleed")) {
 					if (combat.debuffLandsPlayer(sk.power() > 0 ? sk.power() : 50, sk.magicLevel(), active.level(),
 							targetActive, sps, bss)) {
 						targetSession.startSkillDot(sk, e);
+					} else {
+						send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
+								new SystemMessage.Text(targetActive.name()),
+								new SystemMessage.SkillName(sk.id(), sk.level())));
 					}
 				} else if (!e.funcs().isEmpty()) {
 					if (combat.debuffLandsPlayer(sk.power() > 0 ? sk.power() : 50, sk.magicLevel(), active.level(),
 							targetActive, sps, bss)) {
 						targetSession.applySkillEffects(sk, false);
+					} else {
+						send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
+								new SystemMessage.Text(targetActive.name()),
+								new SystemMessage.SkillName(sk.id(), sk.level())));
 					}
 				}
 			}
@@ -6517,14 +7828,38 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				cancelCast();
 				abnormalMask = 0x0400;
 			}
-			case "paralyze", "petrification" -> {
+			case "paralyze" -> {
 				active.disable(until, false);
 				stopAutoAttack();
 				cancelCast();
 				abnormalMask = 0x0010;
 			}
+			case "petrification", "medusa" -> {
+				active.disable(until, false);
+				active.invul(true);
+				stopAutoAttack();
+				cancelCast();
+				abnormalMask = 0x0800;
+				long dur = Math.max(1000, until - System.currentTimeMillis());
+				autoAttackScheduler.schedule(() -> {
+					if (active != null) {
+						active.invul(false);
+					}
+				}, dur, TimeUnit.MILLISECONDS);
+			}
 			case "mute", "silence" -> {
 				active.mute(until);
+				cancelCast();
+				abnormalMask = 0x0020;
+			}
+			case "physicalmute" -> {
+				active.physicalMute(until);
+				cancelCast();
+				abnormalMask = 0x0020;
+			}
+			case "silencemagicphysical" -> {
+				active.mute(until);
+				active.physicalMute(until);
 				cancelCast();
 				abnormalMask = 0x0020;
 			}
@@ -6712,15 +8047,23 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	public void updatePvPFlag() {
+		updatePvPFlag(false);
+	}
+
+	public void updatePvPFlag(boolean againstPvPPlayer) {
 		if (active == null) {
 			return;
 		}
 		if (ctx.zones() != null && ctx.zones().isInsidePeace(active.x(), active.y(), active.z())) {
 			return;
 		}
+		long flagDuration = againstPvPPlayer ? Config.PVP_VS_PVP_TIME : Config.PVP_VS_NORMAL_TIME;
+		if (flagDuration <= 0) {
+			flagDuration = 20_000L;
+		}
 		boolean changed = active.pvpFlag() == 0;
 		active.pvpFlag(1);
-		active.pvpFlagEndTime(System.currentTimeMillis() + 20_000L);
+		active.pvpFlagEndTime(System.currentTimeMillis() + flagDuration);
 		if (changed) {
 			broadcastAppearance();
 		}
@@ -6730,7 +8073,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				active.pvpFlag(0);
 				broadcastAppearance();
 			}
-		}, 20_100L, TimeUnit.MILLISECONDS);
+		}, flagDuration + 100L, TimeUnit.MILLISECONDS);
 	}
 
 	/** Mensagem de dano, HP do alvo, morte (EXP/drop) ou aggro. */
@@ -6853,10 +8196,89 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				send(SystemMessage.of(SystemMessage.S1_CP_WILL_BE_RESTORED,
 						new SystemMessage.Number((int) (active.currentCp() - before))));
 			}
+			case "COMBATPOINTPERCENTHEAL" -> {
+				double before = active.currentCp();
+				active.currentCp(before + active.maxCp() * power / 100.0);
+				send(SystemMessage.of(SystemMessage.S1_CP_WILL_BE_RESTORED,
+						new SystemMessage.Number((int) (active.currentCp() - before))));
+			}
+			case "NEGATE" -> {
+				handleNegateDebuffs(sk);
+				if (power > 0) {
+					healHp(power);
+				}
+			}
 			default -> {
+				if (sk.id() == 1409 || sk.id() == 1018 || sk.id() == 1020 || sk.id() == 1012 || sk.id() == 34) {
+					handleNegateDebuffs(sk);
+					if (power > 0) {
+						healHp(power);
+					}
+				}
 			}
 		}
 		sendVitals();
+	}
+
+	private void handleBalanceLife(SkillTemplate sk, List<GameSession> targets) {
+		if (targets == null || targets.isEmpty()) {
+			return;
+		}
+		double totalCurHp = 0;
+		double totalMaxHp = 0;
+		List<GameSession> validMembers = new ArrayList<>();
+		for (GameSession s : targets) {
+			if (s != null && s.active != null && !s.active.isDead()) {
+				totalCurHp += s.active.currentHp();
+				totalMaxHp += s.active.maxHp();
+				validMembers.add(s);
+			}
+		}
+		if (totalMaxHp <= 0 || validMembers.isEmpty()) {
+			return;
+		}
+		double ratio = Math.min(1.0, Math.max(0.01, totalCurHp / totalMaxHp));
+		for (GameSession s : validMembers) {
+			int newHp = (int) Math.round(s.active.maxHp() * ratio);
+			newHp = Math.max(1, Math.min(s.active.maxHp(), newHp));
+			s.active.currentHp(newHp);
+			s.sendVitals();
+			var su = StatusUpdate.hp(s.active.objectId(), (int) s.active.currentHp(), s.active.maxHp());
+			s.send(su);
+			ctx.world().broadcastAround(s, GameWorld.VISIBILITY_RADIUS, su, false);
+		}
+	}
+
+	private void handleNegateDebuffs(SkillTemplate sk) {
+		if (active == null || active.isDead()) {
+			return;
+		}
+		int id = sk.id();
+		String name = sk.name() != null ? sk.name().toLowerCase(java.util.Locale.ROOT) : "";
+		if (id == 1409 || name.contains("cleanse")) {
+			active.effects().clearDebuffs();
+			active.clearControls();
+			broadcastAppearance();
+			sendMagicEffectIcons();
+			send(new CreatureSay(0, CreatureSay.ALL, "Combate", "Seus efeitos negativos foram removidos!"));
+		} else if (id == 1018 || name.contains("purify")) {
+			active.effects().removeDebuffsByStackOrName("poison", "bleed", "paralyze");
+			active.clearParalyze();
+			broadcastAppearance();
+			sendMagicEffectIcons();
+		} else if (id == 1020 || name.contains("vitalize")) {
+			active.effects().removeDebuffsByStackOrName("poison", "bleed");
+			sendMagicEffectIcons();
+		} else if (id == 1012 || id == 24 || name.contains("poison")) {
+			active.effects().removeDebuffsByStackOrName("poison");
+			sendMagicEffectIcons();
+		} else if (id == 34 || name.contains("bleed")) {
+			active.effects().removeDebuffsByStackOrName("bleed");
+			sendMagicEffectIcons();
+		} else {
+			active.effects().clearDebuffs();
+			sendMagicEffectIcons();
+		}
 	}
 
 	private void handleResurrect(SkillTemplate sk, String casterName) {
@@ -6923,14 +8345,15 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			String stack = e.stackType() == null || e.stackType().equalsIgnoreCase("none")
 					? "skill_" + sk.id() + "_" + name
 					: e.stackType();
+			boolean isDebuff = sk.isDebuff() || sk.isOffensive();
 			long duration = remainingMs > 0 ? remainingMs : e.durationMs();
-			if (remainingMs <= 0 && Config.ENABLE_MODIFY_SKILL_DURATION && Config.SKILL_DURATION_LIST != null
+			if (!isDebuff && remainingMs <= 0 && Config.ENABLE_MODIFY_SKILL_DURATION && Config.SKILL_DURATION_LIST != null
 					&& Config.SKILL_DURATION_LIST.containsKey(sk.id())) {
 				duration = Config.SKILL_DURATION_LIST.get(sk.id()) * 1000L;
 			}
 			long end = toggle ? com.lopez.l2j.game.effect.PlayerEffects.PERMANENT
 					: System.currentTimeMillis() + duration;
-			var buff = ActiveBuff.ofSkill(sk.id(), sk.level(), stack, end, e.funcs());
+			var buff = ActiveBuff.ofSkill(sk.id(), sk.level(), stack, end, e.funcs(), isDebuff);
 			owner.effects().put(buff);
 			if (isInvincible) {
 				owner.invul(true);
@@ -7106,7 +8529,19 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		double menRatio = com.lopez.l2j.game.template.BaseStatsTable.menBonus(effectiveMen) / com.lopez.l2j.game.template.BaseStatsTable.menBonus(t.men());
 		active.maxHp(Math.max(1, (int) PlayerStats.applyStat(active, "maxHp", (int) Math.round(t.calculateMaxHp(lvl) * conRatio))));
 		active.maxMp(Math.max(1, (int) PlayerStats.applyStat(active, "maxMp", (int) Math.round((t.calculateMaxMp(lvl) + mpBonus) * menRatio))));
-		active.maxCp(Math.max(1, (int) PlayerStats.applyStat(active, "maxCp", (int) Math.round(t.calculateMaxCp(lvl) * conRatio))));
+		int baseCp = (int) Math.round(t.calculateMaxCp(lvl) * conRatio);
+		if (ctx.sevenSigns() != null && ctx.sevenSigns().isSealValidationPeriod()) {
+			int strifeOwner = ctx.sevenSigns().strifeOwner();
+			if (strifeOwner != com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL) {
+				int playerCabal = ctx.sevenSigns().getPlayerCabal(active.objectId());
+				if (playerCabal == strifeOwner) {
+					baseCp = (int) Math.round(baseCp * 1.10);
+				} else if (playerCabal != com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL) {
+					baseCp = (int) Math.round(baseCp * 0.90);
+				}
+			}
+		}
+		active.maxCp(Math.max(1, (int) PlayerStats.applyStat(active, "maxCp", baseCp)));
 		active.currentHp(Math.min(active.maxHp(), active.currentHp()));
 		active.currentMp(Math.min(active.maxMp(), active.currentMp()));
 		active.currentCp(Math.min(active.maxCp(), active.currentCp()));
@@ -7244,6 +8679,85 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
+	private void showEnchantSkillList(NpcInstance npc) {
+		if (active == null) {
+			send(new ActionFailed());
+			return;
+		}
+		if (active.level() < 76) {
+			send(new NpcHtmlMessage(npc.objectId(), "<html><body>" + npc.name()
+					+ ":<br><br>You must have completed your third class transfer and reached at least level 76 to enchant skills.</body></html>"));
+			send(new ActionFailed());
+			return;
+		}
+		var svc = ctx.skillEnchant();
+		var entries = svc.getAvailableEnchantSkills(active);
+		if (entries.isEmpty()) {
+			send(SystemMessage.id(SystemMessage.NO_MORE_SKILLS_TO_LEARN));
+			send(new ActionFailed());
+			return;
+		}
+		send(new GameServerPacket.ExEnchantSkillList(entries));
+		send(new ActionFailed());
+	}
+
+	private void onExEnchantSkillInfo(GameClientPacket.RequestExEnchantSkillInfo p) {
+		if (active == null || !inWorld) {
+			send(new ActionFailed());
+			return;
+		}
+		var svc = ctx.skillEnchant();
+		var infoOpt = svc.buildExEnchantSkillInfoPacket(active, p.skillId(), p.level());
+		if (infoOpt.isPresent()) {
+			send(infoOpt.get());
+		} else {
+			send(new ActionFailed());
+		}
+	}
+
+	private void onExEnchantSkill(GameClientPacket.RequestExEnchantSkill p) {
+		if (active == null || !inWorld) {
+			send(new ActionFailed());
+			return;
+		}
+		if (active.isDead() || active.isOlympiadMode() || autoAttacking || active.isInCombat() || active.isStoreOpen() || active.isBuffShop()) {
+			send(new ActionFailed());
+			return;
+		}
+		var svc = ctx.skillEnchant();
+		var result = svc.enchantSkill(active, p.skillId(), p.level());
+		switch (result.type()) {
+			case SUCCESS -> {
+				send(SystemMessage.of(SystemMessage.YOU_HAVE_SUCCEEDED_IN_ENCHANTING_THE_SKILL_S1,
+						new SystemMessage.SkillName(result.skillId(), result.newLevel())));
+				sendSkillList();
+				updateSkillShortcuts(result.skillId(), result.newLevel());
+				sendUserInfoAndBroadcastCharInfo();
+				svc.buildExEnchantSkillInfoPacket(active, result.skillId(), result.newLevel() + 1)
+						.ifPresent(this::send);
+			}
+			case FAIL -> {
+				send(SystemMessage.id(SystemMessage.YOU_HAVE_FAILED_TO_ENCHANT_THE_SKILL));
+				sendSkillList();
+				updateSkillShortcuts(result.skillId(), result.newLevel());
+				sendUserInfoAndBroadcastCharInfo();
+			}
+			case NOT_ENOUGH_SP -> {
+				send(SystemMessage.id(SystemMessage.YOU_DONT_HAVE_ENOUGH_SP_TO_ENCHANT_THAT_SKILL));
+			}
+			case NOT_ENOUGH_EXP -> {
+				send(SystemMessage.id(SystemMessage.YOU_DONT_HAVE_ENOUGH_EXP_TO_ENCHANT_THAT_SKILL));
+			}
+			case MISSING_ITEM -> {
+				send(SystemMessage.id(SystemMessage.YOU_DONT_HAVE_ALL_OF_THE_ITEMS_NEEDED_TO_ENCHANT_THAT_SKILL));
+			}
+			case INVALID_CONDITION, SKILL_NOT_FOUND -> {
+				send(new ActionFailed());
+			}
+		}
+		send(new ActionFailed());
+	}
+
 	private boolean isBow(com.lopez.l2j.game.item.ItemInstance weapon) {
 		return weapon != null && weapon.template() != null && "bow".equalsIgnoreCase(weapon.template().subType());
 	}
@@ -7265,6 +8779,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private boolean checkAndConsumeArrow() {
 		var weapon = activeWeapon();
 		if (!isBow(weapon)) {
+			return true;
+		}
+		if (!Config.CONSUME_ARROWS) {
 			return true;
 		}
 		int arrowId = getArrowIdForGrade(weapon.template().crystalType());
@@ -7355,6 +8872,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	public void useScrollOfEscape(com.lopez.l2j.game.item.ItemInstance item) {
 		if (active == null || active.isDead() || casting) {
+			send(new ActionFailed());
+			return;
+		}
+		if (!Config.ALT_KARMA_PLAYER_CAN_TELEPORT && active.karma() > 0) {
 			send(new ActionFailed());
 			return;
 		}
@@ -7451,7 +8972,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				// 1. HP Regen: base ~ 1.5 + level/10 (bloqueado se peso >= 50%)
 				if (weightPenalty < 1 && owner.currentHp() < maxHp) {
-					double baseHpRegen = (1.5 + (owner.level() / 10.0)) * conBonus * stanceMod;
+					double baseHpRegen = (1.5 + (owner.level() / 10.0)) * conBonus * stanceMod * (Config.PLAYER_HP_REGEN_MULTIPLIER / 100.0);
 					double newHp = Math.min(maxHp, owner.currentHp() + baseHpRegen);
 					if (newHp != owner.currentHp()) {
 						owner.currentHp(newHp);
@@ -7461,7 +8982,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				// 2. MP Regen: base ~ 0.9 + level/12 (bloqueado se peso >= 50%)
 				if (weightPenalty < 1 && owner.currentMp() < maxMp) {
-					double baseMpRegen = (0.9 + (owner.level() / 12.0)) * menBonus * stanceMod;
+					double baseMpRegen = (0.9 + (owner.level() / 12.0)) * menBonus * stanceMod * (Config.PLAYER_MP_REGEN_MULTIPLIER / 100.0);
 					double newMp = Math.min(maxMp, owner.currentMp() + baseMpRegen);
 					if (newMp != owner.currentMp()) {
 						owner.currentMp(newMp);
@@ -7471,7 +8992,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				// 3. CP Regen: base ~ 1.0 + level/15
 				if (owner.currentCp() < maxCp) {
-					double baseCpRegen = (1.0 + (owner.level() / 15.0)) * conBonus * stanceMod;
+					double baseCpRegen = (1.0 + (owner.level() / 15.0)) * conBonus * stanceMod * (Config.PLAYER_CP_REGEN_MULTIPLIER / 100.0);
 					double newCp = Math.min(maxCp, owner.currentCp() + baseCpRegen);
 					if (newCp != owner.currentCp()) {
 						owner.currentCp(newCp);
@@ -8234,6 +9755,29 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				.replace("%max%", String.valueOf(com.lopez.l2j.config.Config.MAXIMUM_ONLINE_USERS))
 				.replace("%geo%", com.lopez.l2j.config.Config.ENABLE_GEODATA ? "Enabled" : "Disabled")
 				.replace("%target%", targetChar != null ? targetChar.name() : (active != null ? active.name() : "None"));
+		if (rendered.contains("%cwinfo%")) {
+			StringBuilder cwSb = new StringBuilder("<table width=270 bgcolor=\"000000\">");
+			if (ctx.cursedWeapons() != null) {
+				for (var cw : ctx.cursedWeapons().allWeapons()) {
+					String status = cw.isActive() ? "<font color=\"FF0000\">Equipada por " + (!cw.playerName().isEmpty() ? cw.playerName() : "Desconhecido") + "</font>"
+							: (cw.isDropped() ? "<font color=\"FFFF00\">Dropada no Chao (" + cw.x() + ", " + cw.y() + ")</font>"
+							: "<font color=\"00FF00\">Inativa / No Void</font>");
+					cwSb.append("<tr><td><font color=\"LEVEL\">").append(cw.name()).append(":</font></td></tr>");
+					cwSb.append("<tr><td>Status: ").append(status).append("</td></tr>");
+					cwSb.append("<tr><td>");
+					cwSb.append("<button value=\"Spawn CW\" action=\"bypass -h admin_cw_add ").append(cw.itemId()).append("\" width=80 height=20 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"> ");
+					cwSb.append("<button value=\"Remover CW\" action=\"bypass -h admin_cw_remove ").append(cw.itemId()).append("\" width=80 height=20 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\">");
+					if (cw.isDropped() || cw.isActive()) {
+						cwSb.append(" <button value=\"Ir ate Ela\" action=\"bypass -h admin_move_to ").append(cw.x()).append(" ").append(cw.y()).append(" ").append(cw.z()).append("\" width=70 height=20 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\">");
+					}
+					cwSb.append("</td></tr>");
+				}
+			} else {
+				cwSb.append("<tr><td>CursedWeaponsManager desativado.</td></tr>");
+			}
+			cwSb.append("</table>");
+			rendered = rendered.replace("%cwinfo%", cwSb.toString());
+		}
 		send(new NpcHtmlMessage(0, rendered));
 	}
 
@@ -8392,6 +9936,42 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				.replace("%pages%", pages.toString());
 
 		send(new NpcHtmlMessage(0, rendered));
+	}
+
+	private void showAdminCastlesHtml(String args) {
+		StringBuilder sb = new StringBuilder("<html><title>Castles Management</title><body><center>");
+		sb.append("<table width=270><tr>");
+		sb.append("<td align=center><button value=\"Main\" action=\"bypass -h admin_admin\" width=52 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+		sb.append("<td align=center><button value=\"ALT+G\" action=\"bypass -h admin_altg\" width=52 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+		sb.append("<td align=center><button value=\"Game\" action=\"bypass -h admin_gamemenu\" width=52 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+		sb.append("<td align=center><button value=\"Server\" action=\"bypass -h admin_server\" width=52 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+		sb.append("<td align=center><button value=\"Tele\" action=\"bypass -h admin_show_moves\" width=52 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+		sb.append("</tr></table><img src=\"L2UI.SquareGray\" width=270 height=1>");
+		sb.append("<table width=270><tr><td><font color=\"00FFBB\">Gerenciamento de Castelos (Sieges)</font></td></tr></table>");
+		sb.append("<table width=270 bgcolor=\"000000\">");
+		sb.append("<tr><td width=90><font color=\"LEVEL\">Castelo</font></td><td width=90><font color=\"LEVEL\">Cla Dono</font></td><td width=90><font color=\"LEVEL\">Acao</font></td></tr>");
+
+		if (ctx.castles() != null) {
+			for (var c : ctx.castles().all()) {
+				String ownerName = "Sem Dono";
+				if (c.hasOwner() && ctx.clans() != null) {
+					var cl = ctx.clans().byClanId(c.ownerClanId()).orElse(null);
+					ownerName = cl != null ? cl.name() : ("Clan " + c.ownerClanId());
+				}
+				sb.append("<tr>")
+						.append("<td width=90><font color=\"FFFF77\">").append(c.name()).append("</font></td>")
+						.append("<td width=90>").append(ownerName).append("</td>")
+						.append("<td width=90><button value=\"Dar Alvo\" action=\"bypass -h admin_setcastle ").append(c.name()).append("\" width=60 height=18 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>")
+						.append("</tr>");
+			}
+		} else {
+			sb.append("<tr><td colspan=3>CastleManager indisponivel.</td></tr>");
+		}
+		sb.append("</table><img src=\"L2UI.SquareGray\" width=270 height=1>");
+		sb.append("<table width=270><tr>");
+		sb.append("<td align=center><button value=\"Atualizar\" action=\"bypass -h admin_siege\" width=130 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+		sb.append("</tr></table></center></body></html>");
+		send(new NpcHtmlMessage(0, sb.toString()));
 	}
 
 	public void showAdminCharInfo(String charName) {
@@ -8986,8 +10566,44 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case "control", "control_menu" -> showAdminHtml("menus/control.htm");
 			case "players", "players_menu" -> showAdminHtml("menus/players.htm");
 			case "config", "configs", "config_menu" -> showAdminHtml("menus/config.htm");
-			case "events", "events_menu" -> showAdminHtml("menus/events.htm");
 			case "show_skills", "skills_menu" -> showAdminHtml("menus/submenus/skills_menu.htm");
+			case "charskills", "charskills_menu" -> showAdminHtml("menus/submenus/charskills_menu.htm");
+			case "give_all_skills" -> {
+				var target = getTargetPlayerOrActive();
+				var sess = getTargetOnlinePlayerOrSelf();
+				if (ctx.skillService() != null && ctx.skillService().trees() != null) {
+					var unlocked = ctx.skillService().trees().unlocked(target.classId(), target.level(), false);
+					target.skills().putAll(unlocked);
+					ctx.skillService().refreshPassives(target);
+					if (ctx.characters() != null) {
+						ctx.characters().save(target, true);
+					}
+					if (sess instanceof GameSession gs) {
+						gs.sendSkillList();
+						gs.sendUserInfoAndBroadcastCharInfo();
+					}
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Todas as habilidades liberadas da classe foram concedidas para " + target.name()));
+				}
+			}
+			case "remove_all_skills" -> {
+				var target = getTargetPlayerOrActive();
+				var sess = getTargetOnlinePlayerOrSelf();
+				target.skills().clear();
+				if (ctx.characters() != null) {
+					ctx.characters().save(target, true);
+				}
+				if (sess instanceof GameSession gs) {
+					gs.sendSkillList();
+					gs.sendUserInfoAndBroadcastCharInfo();
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Todas as habilidades foram removidas de " + target.name()));
+			}
+			case "clear_skill_reuse", "reset_reuse" -> {
+				var target = getTargetPlayerOrActive();
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cooldowns resetados para " + target.name()));
+			}
 			case "current_player" -> {
 				var p = getTargetPlayerOrActive();
 				showAdminCharInfo(p != null ? p.name() : active.name());
@@ -9353,14 +10969,34 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 			case "abnormal" -> {
 				try {
-					int mask = Integer.parseInt(args.trim().split("\\s+")[0]);
+					String maskStr = args.trim().split("\\s+")[0];
+					int mask;
+					if (maskStr.startsWith("0x") || maskStr.startsWith("0X")) {
+						mask = (int) Long.parseLong(maskStr.substring(2), 16);
+					} else {
+						try {
+							mask = (int) Long.parseLong(maskStr, 16);
+						} catch (Exception ex) {
+							mask = Integer.parseInt(maskStr);
+						}
+					}
 					var targetChar = getTargetPlayerOrActive();
 					var targetPlayer = getTargetOnlinePlayerOrSelf();
-					targetPlayer.send(new MagicEffectIcons(List.of()));
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
-							"Efeito abnormal " + mask + " aplicado a " + targetChar.name()));
+					if ((targetChar.abnormalEffect() & mask) != 0) {
+						targetChar.stopAbnormalEffect(mask);
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Efeito visual " + maskStr + " removido de " + targetChar.name()));
+					} else {
+						targetChar.startAbnormalEffect(mask);
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Efeito visual " + maskStr + " ativado em " + targetChar.name()));
+					}
+					if (targetPlayer instanceof GameSession gs) {
+						gs.broadcastAppearance();
+						gs.sendUserInfoAndBroadcastCharInfo();
+					}
 				} catch (Exception e) {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //abnormal <bitmask>"));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //abnormal <hexMask>"));
 				}
 			}
 			case "cancel", "dispel" -> {
@@ -9566,16 +11202,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					}
 				}
 			}
-			case "kickall" -> {
-				int count = 0;
-				for (var p : ctx.world().players()) {
-					if (p != this) {
-						p.send(SystemMessage.of(SystemMessage.DISCONNECTED_FROM_SERVER));
-						p.close(new ServerClose());
-						count++;
-					}
-				}
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", count + " jogador(es) desconectado(s)."));
+			case "kickall", "kick_all" -> {
+				var svc = com.lopez.l2j.game.service.ShutdownService.getInstance();
+				int count = svc != null ? svc.kickAll() : 0;
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "KickAll concluido: " + count + " jogador(es) desconectado(s)."));
 			}
 			case "ban", "banchar" -> {
 				if (!args.isBlank()) {
@@ -10113,6 +11743,25 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					showAdminHtml("menus/game.htm");
 				}
 			}
+			case "siege", "castles", "castle" -> showAdminCastlesHtml(args);
+			case "setcastle" -> {
+				if (!args.isBlank() && ctx.castles() != null) {
+					String cName = args.trim().split("\\s+")[0];
+					var castle = ctx.castles().byName(cName).orElse(null);
+					var target = getTargetPlayerOrActive();
+					if (castle != null && target != null) {
+						ctx.castles().setOwner(castle.id(), target.clanId());
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Castelo " + castle.name() + " atribuido ao cla " + target.clanId() + " (" + target.name() + ")"));
+					} else {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Castelo ou jogador invalido."));
+					}
+				} else {
+					showAdminCastlesHtml("");
+				}
+			}
+			case "startsiege" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Siege iniciada: " + args));
+			case "endsiege" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Siege finalizada: " + args));
 			case "mammon_find" -> {
 				String param = args.trim().toLowerCase(java.util.Locale.ROOT);
 				boolean isBlacksmith = param.equals("1") || param.contains("black") || param.contains("bs");
@@ -10210,6 +11859,56 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				long freedMb = Math.max(0, (before - after) / (1024 * 1024));
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 						"Memoria liberada: " + freedMb + " MB. Coleta de lixo concluida."));
+			}
+			case "shutdown", "server_shutdown" -> {
+				int sec = parseIntSafe(args.isEmpty() || args.equalsIgnoreCase("$qbox") ? "60" : args.trim().split("\\s+")[0], 60);
+				var svc = com.lopez.l2j.game.service.ShutdownService.getInstance();
+				if (svc != null) {
+					svc.startShutdown(sec, com.lopez.l2j.game.service.ShutdownService.Mode.SHUTDOWN, active != null ? active.name() : "Admin");
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Shutdown agendado para " + sec + " segundos."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "ShutdownService nao inicializado."));
+				}
+			}
+			case "restart", "server_restart" -> {
+				int sec = parseIntSafe(args.isEmpty() || args.equalsIgnoreCase("$qbox") ? "60" : args.trim().split("\\s+")[0], 60);
+				var svc = com.lopez.l2j.game.service.ShutdownService.getInstance();
+				if (svc != null) {
+					svc.startShutdown(sec, com.lopez.l2j.game.service.ShutdownService.Mode.RESTART, active != null ? active.name() : "Admin");
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Restart agendado para " + sec + " segundos."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "ShutdownService nao inicializado."));
+				}
+			}
+			case "abort", "server_abort" -> {
+				var svc = com.lopez.l2j.game.service.ShutdownService.getInstance();
+				if (svc != null) {
+					boolean ok = svc.abort(active != null ? active.name() : "Admin");
+					if (ok) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Desligamento/restart abortado com sucesso."));
+					} else {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhum desligamento ou restart em andamento."));
+					}
+				}
+			}
+			case "onlygm", "server_onlygm" -> {
+				var svc = com.lopez.l2j.game.service.ShutdownService.getInstance();
+				if (svc != null) {
+					svc.setOnlyGm(true);
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Modo Apenas GM ATIVADO (Acesso restrito para manutencao)."));
+				}
+			}
+			case "forall", "server_forall" -> {
+				var svc = com.lopez.l2j.game.service.ShutdownService.getInstance();
+				if (svc != null) {
+					svc.setOnlyGm(false);
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Modo Apenas GM DESATIVADO (Servidor aberto para todos os jogadores)."));
+				}
+			}
+			case "maxplayer", "set_maxplayer" -> {
+				int max = parseIntSafe(args.trim().split("\\s+")[0], 1000);
+				Config.MAXIMUM_ONLINE_USERS = max;
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Capacidade maxima de jogadores alterada para: " + max));
 			}
 			case "setparam" -> {
 				String[] parts = args.split("\\s+");
@@ -11046,6 +12745,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private static int parseIntSafe(String val, int def) {
 		try {
 			return Integer.parseInt(val.trim());
+		} catch (Exception e) {
+			return def;
+		}
+	}
+
+	private static long parseLongSafe(String val, long def) {
+		try {
+			return Long.parseLong(val.trim());
 		} catch (Exception e) {
 			return def;
 		}

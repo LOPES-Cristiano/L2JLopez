@@ -187,6 +187,28 @@ public class ActionPacketHandler {
 		var playerOpt = ctx.world().player(p.objectId());
 		if (playerOpt.isPresent()) {
 			var other = playerOpt.get();
+			if (other.character() != null && (other.character().isBuffShop() || (ctx.buffShop() != null && ctx.buffShop().isBuffShop(other.objectId())))) {
+				session.targetObjectId(other.objectId());
+				session.send(new MyTargetSelected(other.objectId(), 0));
+				if (other.character() != null) {
+					session.send(StatusUpdate.hp(other.objectId(), (int) other.character().currentHp(), other.character().maxHp()));
+				}
+				session.send(new ValidateLocation(other.objectId(), other.x(), other.y(), other.z(), 0));
+
+				double dx = active.x() - other.x();
+				double dy = active.y() - other.y();
+				if (dx * dx + dy * dy <= 250.0 * 250.0) {
+					var skillTable = ctx.skillService() != null ? ctx.skillService().table() : null;
+					session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(0, ctx.buffShop().renderBuyerShopHtml(active, other.objectId(), skillTable, 1)));
+				} else {
+					var movePawn = new MoveToPawn(active.objectId(), other.objectId(), 200, active.x(), active.y(), active.z());
+					session.send(movePawn);
+					if (ctx.world() != null) {
+						ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, movePawn, false);
+					}
+				}
+				return;
+			}
 			if (session.targetObjectId() == other.objectId() && other instanceof GameSession targetSession && targetSession != session) {
 				session.startAutoAttack(targetSession);
 				return;
@@ -487,6 +509,11 @@ public class ActionPacketHandler {
 			return;
 		}
 		if (sk.magic() && active.isMuted()) {
+			session.send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.SkillName(sk.id(), sk.level())));
+			session.send(new ActionFailed());
+			return;
+		}
+		if (!sk.magic() && active.isPhysicalMuted()) {
 			session.send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.SkillName(sk.id(), sk.level())));
 			session.send(new ActionFailed());
 			return;

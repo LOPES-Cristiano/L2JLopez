@@ -1,6 +1,8 @@
 package com.lopez.l2j.network.game.handler.packet;
 
 import com.lopez.l2j.config.Config;
+import java.util.HashMap;
+import java.util.Map;
 import com.lopez.l2j.game.buffshop.BuffShopService.BuffShopItem;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
 import com.lopez.l2j.game.item.ItemInstance;
@@ -50,22 +52,22 @@ public class TradeStorePacketHandler {
 	public void handlePrivateStoreManageSell() {
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
-		if (!session.inWorld() || active == null || ctx == null || ctx.buffShop() == null) {
+		if (!session.inWorld() || active == null || ctx == null) {
 			session.send(new ActionFailed());
 			return;
 		}
-		var avail = ctx.buffShop().getAvailableBuffSkills(active,
-				ctx.skillService() != null ? ctx.skillService().table() : null);
+		if (active.isBuffShop() && ctx.buffShop() != null) {
+			var skillTable = ctx.skillService() != null ? ctx.skillService().table() : null;
+			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(0, ctx.buffShop().renderSellerManageHtml(active, skillTable, 1)));
+			return;
+		}
 		List<PrivateStoreItem> availableItems = new ArrayList<>();
-		for (var buff : avail) {
-			availableItems.add(new PrivateStoreItem(buff.skillId(), buff.skillId(), 1, buff.price(), 0, 0));
+		for (var it : active.inventory().items()) {
+			if (!it.isEquipped() && it.template().type2() != ItemTemplate.TYPE2_QUEST && it.template().price() > 0) {
+				availableItems.add(new PrivateStoreItem(it.objectId(), it.itemId(), it.count(), it.template().price(), 0, it.enchant()));
+			}
 		}
 		List<PrivateStoreItem> currentItems = new ArrayList<>();
-		ctx.buffShop().getShop(active.objectId()).ifPresent(shop -> {
-			for (var buff : shop.items().values()) {
-				currentItems.add(new PrivateStoreItem(buff.skillId(), buff.skillId(), 1, buff.price(), 0, 0));
-			}
-		});
 		int currencyId = Config.SELL_BY_ITEM ? Config.SELL_ITEM : 57;
 		int coinCount = active.inventory().byItemId(currencyId).map(ItemInstance::count).orElse(0);
 		session.send(new PrivateStoreManageListSell(active.objectId(), false, coinCount, availableItems, currentItems));
@@ -138,7 +140,26 @@ public class TradeStorePacketHandler {
 			session.send(new ActionFailed());
 			return;
 		}
+		if (active.isDead() || active.isOlympiadMode()) {
+			session.send(new ActionFailed());
+			return;
+		}
 		var sellerChar = sellerOpt.get().character();
+		if (sellerChar == active) {
+			session.send(new ActionFailed());
+			return;
+		}
+		if (sellerChar.isDead()) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O vendedor esta morto."));
+			session.send(new ActionFailed());
+			return;
+		}
+		double dist = Math.hypot(active.x() - sellerChar.x(), active.y() - sellerChar.y());
+		if (dist > 250.0) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce esta muito longe da loja para comprar buffs."));
+			session.send(new ActionFailed());
+			return;
+		}
 		List<Integer> skillIds = p.items().stream().map(GameClientPacket.StoreItemRequest::objectId).toList();
 		var skillTable = ctx.skillService() != null ? ctx.skillService().table() : null;
 		var result = ctx.buffShop().purchaseBuffs(active, p.sellerId(), skillIds, sellerChar, ctx.inventories(),
@@ -169,7 +190,8 @@ public class TradeStorePacketHandler {
 	public void handleMultiSellChoose(MultiSellChoose p) {
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
-		if (!session.inWorld() || active == null || p.amount() <= 0 || ctx == null || ctx.multisell() == null) {
+		if (!session.inWorld() || active == null || active.isDead() || active.isStoreOpen() || active.isBuffShop()
+				|| active.isOlympiadMode() || p.amount() <= 0 || ctx == null || ctx.multisell() == null) {
 			session.send(new ActionFailed());
 			return;
 		}
@@ -187,26 +209,60 @@ public class TradeStorePacketHandler {
 		var entry = entryOpt.get();
 		int amount = Math.min(5000, p.amount());
 
-		// 1. Verifica se o jogador possui todos os ingredientes na quantidade necessaria
+		// 1. Agrega ingredientes por itemId e valida quantidades totais necessarias
+		Map<Integer, Long> aggregatedIngredients = new HashMap<>();
 		for (var ing : entry.ingredients()) {
-			long needed = ing.count() * amount;
-			long count = active.inventory().byItemId(ing.itemId()).map(i -> (long) i.count()).orElse(0L);
-			if (count < needed) {
+			long needed = (long) ing.count() * amount;
+			if (needed <= 0 || needed > Integer.MAX_VALUE) {
+				session.send(new ActionFailed());
+				return;
+			}
+			aggregatedIngredients.merge(ing.itemId(), needed, Long::sum);
+		}
+
+		for (var ingEntry : aggregatedIngredients.entrySet()) {
+			long needed = ingEntry.getValue();
+			long count = active.inventory().byItemId(ingEntry.getKey()).map(i -> (long) i.count()).orElse(0L);
+			if (count < needed || needed > Integer.MAX_VALUE) {
 				session.send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
 				session.send(new ActionFailed());
 				return;
 			}
 		}
 
-		// 2. Consome os ingredientes
-		for (var ing : entry.ingredients()) {
-			long needed = ing.count() * amount;
-			ctx.inventories().consumeItem(active.inventory(), ing.itemId(), (int) needed, "MultiSell");
+		// 2. Valida capacidade de slots do inventario para os produtos
+		int slotsNeeded = 0;
+		for (var prod : entry.products()) {
+			long totalAdd = (long) prod.count() * amount;
+			if (totalAdd <= 0 || totalAdd > Integer.MAX_VALUE) {
+				session.send(new ActionFailed());
+				return;
+			}
+			var tmpl = ctx.inventories().templates().get(prod.itemId()).orElse(null);
+			if (tmpl == null) {
+				session.send(new ActionFailed());
+				return;
+			}
+			if (!tmpl.stackable()) {
+				slotsNeeded += (int) totalAdd;
+			} else if (active.inventory().byItemId(prod.itemId()).isEmpty()) {
+				slotsNeeded++;
+			}
+		}
+		if (active.inventory().size() + slotsNeeded > active.maxInventorySlots()) {
+			session.send(SystemMessage.id(SystemMessage.SLOTS_FULL));
+			session.send(new ActionFailed());
+			return;
 		}
 
-		// 3. Adiciona os produtos
+		// 3. Consome os ingredientes agregados
+		for (var ingEntry : aggregatedIngredients.entrySet()) {
+			ctx.inventories().consumeItem(active.inventory(), ingEntry.getKey(), ingEntry.getValue().intValue(), "MultiSell");
+		}
+
+		// 4. Adiciona os produtos
 		for (var prod : entry.products()) {
-			long totalAdd = prod.count() * amount;
+			long totalAdd = (long) prod.count() * amount;
 			ctx.inventories().addItem(active.inventory(), prod.itemId(), (int) totalAdd, "MultiSell");
 			session.send(SystemMessage.of(SystemMessage.YOU_PICKED_UP_S1_S2,
 					new SystemMessage.ItemName(prod.itemId()),
@@ -222,6 +278,14 @@ public class TradeStorePacketHandler {
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
 		if (!session.inWorld() || active == null || ctx == null || ctx.warehouse() == null || p.items().isEmpty()) {
+			session.send(new ActionFailed());
+			return;
+		}
+		if (active.isDead() || active.isOlympiadMode() || active.isStoreOpen() || active.isBuffShop() || active.isInCombat() || active.autoAttacking()) {
+			session.send(new ActionFailed());
+			return;
+		}
+		if (!com.lopez.l2j.config.Config.ALT_KARMA_PLAYER_CAN_USE_WAREHOUSE && active.karma() > 0) {
 			session.send(new ActionFailed());
 			return;
 		}
@@ -265,6 +329,14 @@ public class TradeStorePacketHandler {
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
 		if (!session.inWorld() || active == null || ctx == null || ctx.warehouse() == null || p.items().isEmpty()) {
+			session.send(new ActionFailed());
+			return;
+		}
+		if (active.isDead() || active.isOlympiadMode() || active.isStoreOpen() || active.isBuffShop() || active.isInCombat() || active.autoAttacking()) {
+			session.send(new ActionFailed());
+			return;
+		}
+		if (!com.lopez.l2j.config.Config.ALT_KARMA_PLAYER_CAN_USE_WAREHOUSE && active.karma() > 0) {
 			session.send(new ActionFailed());
 			return;
 		}
