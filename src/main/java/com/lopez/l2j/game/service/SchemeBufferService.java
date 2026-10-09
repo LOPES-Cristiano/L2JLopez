@@ -130,9 +130,12 @@ public class SchemeBufferService {
 			return;
 		}
 		player.effects().clear();
-		session.saveBuffs();
-		session.sendMagicEffectIcons();
-		session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Todos os seus buffs foram cancelados!"));
+		if (session != null) {
+			session.refreshBuffs();
+			session.saveBuffs();
+			session.sendMagicEffectIcons();
+			session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Todos os seus buffs foram cancelados!"));
+		}
 	}
 
 	/**
@@ -140,21 +143,29 @@ public class SchemeBufferService {
 	 */
 	public boolean applyScheme(PlayerCharacter player, GameSession session, int schemeIdx, boolean targetPet) {
 		if (player == null || player.isDead()) {
-			session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Nao e possivel receber buffs neste estado."));
+			if (session != null) {
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Nao e possivel receber buffs neste estado."));
+			}
 			return false;
 		}
 		if (player.isInCombat()) {
-			session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Voce nao pode receber buffs em combate!"));
+			if (session != null) {
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Voce nao pode receber buffs em combate!"));
+			}
 			return false;
 		}
 		if (player.isOlympiadMode()) {
-			session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Buffer desativado nas Olimpiadas!"));
+			if (session != null) {
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Buffer desativado nas Olimpiadas!"));
+			}
 			return false;
 		}
 
 		if (player.level() > 40 && SCHEME_COST_ADENA > 0) {
 			if (!consumeAdena(player, SCHEME_COST_ADENA)) {
-				session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Adena insuficiente (" + SCHEME_COST_ADENA + " Adena requerida)!"));
+				if (session != null) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Adena insuficiente (" + SCHEME_COST_ADENA + " Adena requerida)!"));
+				}
 				return false;
 			}
 		}
@@ -164,24 +175,56 @@ public class SchemeBufferService {
 			applyBuff(player, session, skillId);
 		}
 
-		session.sendMagicEffectIcons();
-		session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Esquema " + schemeIdx + " aplicado com sucesso!"));
+		if (session != null) {
+			session.refreshBuffs();
+			session.saveBuffs();
+			session.sendMagicEffectIcons();
+			session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Esquema " + schemeIdx + " aplicado com sucesso!"));
+		}
 		return true;
 	}
 
 	private void applyBuff(PlayerCharacter player, GameSession session, int skillId) {
 		if (skillService != null) {
-			var opt = skillService.skill(skillId, 1);
+			int maxLvl = skillService.table() != null ? skillService.table().maxLevel(skillId) : 1;
+			var opt = skillService.skill(skillId, maxLvl > 0 ? maxLvl : 1);
 			if (opt.isPresent()) {
 				SkillTemplate sk = opt.get();
-				// Aplica efeito do buff com duracao padrao de 20 minutos (1.200.000 ms) ou retail
-				player.effects().addBuff(sk.id(), sk.level(), 1_200_000L);
+				if (session != null) {
+					session.applySkillEffects(sk, false);
+				}
+				// Garante que o efeito com funcs e aplicado ao jogador mesmo em sessao mock/nula
+				boolean hasBuff = false;
+				for (var b : player.effects().active()) {
+					if (b.skillId() == sk.id()) {
+						hasBuff = true;
+						break;
+					}
+				}
+				if (!hasBuff) {
+					long duration = 1_200_000L;
+					if (com.lopez.l2j.config.Config.ENABLE_MODIFY_SKILL_DURATION
+							&& com.lopez.l2j.config.Config.SKILL_DURATION_LIST != null
+							&& com.lopez.l2j.config.Config.SKILL_DURATION_LIST.containsKey(sk.id())) {
+						duration = com.lopez.l2j.config.Config.SKILL_DURATION_LIST.get(sk.id()) * 1000L;
+					}
+					for (var e : sk.effects()) {
+						String stack = e.stackType() == null || e.stackType().equalsIgnoreCase("none")
+								? "skill_" + sk.id() + "_" + e.name()
+								: e.stackType();
+						long end = System.currentTimeMillis() + duration;
+						player.effects().put(com.lopez.l2j.game.effect.PlayerEffects.ActiveBuff.ofSkill(sk.id(), sk.level(), stack, end, e.funcs()));
+					}
+					if (!player.effects().hasSkill(sk.id())) {
+						player.effects().addBuff(sk.id(), sk.level(), duration);
+					}
+				}
 				return;
 			}
 		}
 		// Fallback para tabela de consumiveis caso skillService nao tenha o skill carregado
 		var consumable = ConsumableTable.get(skillId);
-		if (consumable.isPresent()) {
+		if (consumable.isPresent() && session != null) {
 			session.useConsumable(consumable.get());
 		} else {
 			player.effects().addBuff(skillId, 1, 1_200_000L);

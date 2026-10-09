@@ -31,6 +31,11 @@ class AltGameConfigurationTest {
 		assertEquals(100, Config.ALT_HERO_TIME);
 		assertEquals(1, Config.ALT_CH_TIME);
 		assertEquals(50, Config.MAX_BUFF_AMOUNT);
+		assertTrue(Config.ENABLE_MODIFY_SKILL_DURATION);
+		assertNotNull(Config.SKILL_DURATION_LIST);
+		assertFalse(Config.SKILL_DURATION_LIST.isEmpty());
+		assertEquals(14450, Config.SKILL_DURATION_LIST.get(264)); // Song of Earth
+		assertEquals(14450, Config.SKILL_DURATION_LIST.get(1068)); // Might
 		assertTrue(Config.CANCEL_LESSER_EFFECT);
 		assertTrue(Config.STORE_SKILL_COOLTIME);
 		assertTrue(Config.GRADE_PENALTY);

@@ -37,7 +37,22 @@ public class CancelRestoreService {
 			Thread.ofVirtual().name("CancelRestore-", 0).factory()
 	);
 
-	public CancelRestoreService() {}
+	private static volatile CancelRestoreService instance;
+
+	public CancelRestoreService() {
+		instance = this;
+	}
+
+	public static CancelRestoreService getInstance() {
+		if (instance == null) {
+			synchronized (CancelRestoreService.class) {
+				if (instance == null) {
+					instance = new CancelRestoreService();
+				}
+			}
+		}
+		return instance;
+	}
 
 	public int getRestoreDelaySeconds() { return restoreDelaySeconds; }
 	public void setRestoreDelaySeconds(int seconds) { this.restoreDelaySeconds = Math.max(1, seconds); }

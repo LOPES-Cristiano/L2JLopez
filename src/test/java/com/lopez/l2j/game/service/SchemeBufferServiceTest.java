@@ -113,4 +113,38 @@ class SchemeBufferServiceTest {
 		assertTrue(ok);
 		assertTrue(player.effects().activeBuffs().size() > 0, "Deve conter buffs aplicados");
 	}
+
+	@Test
+	@DisplayName("Aplicar esquema com skillService carrega skill e aplica funcs de status")
+	void testApplySchemeWithSkillTemplate() {
+		when(inventory.destroyItemByItemId(eq(SchemeBufferService.ADENA_ID), anyInt())).thenReturn(true);
+
+		var statFunc = new com.lopez.l2j.game.skill.StatFunc(
+				"pAtk",
+				com.lopez.l2j.game.skill.StatFunc.Op.MUL,
+				0x30,
+				1.15
+		);
+		var effect = new com.lopez.l2j.game.skill.SkillTemplate.EffectTemplate(
+				"Buff", 1, 1200, 0, "pAtk", 1.0, List.of(statFunc)
+		);
+		var sk = new com.lopez.l2j.game.skill.SkillTemplate(
+				1068, 3, "Might", com.lopez.l2j.game.skill.SkillTemplate.OperateType.ACTIVE,
+				"BUFF", "TARGET_ONE", false, 0, 0, 0, 0.0, 0, 0, 0, 0, 0, 0, 0.0, false, 0, 0,
+				List.of(statFunc), List.of(effect), null, null
+		);
+
+		com.lopez.l2j.game.skill.SkillTable table = mock(com.lopez.l2j.game.skill.SkillTable.class);
+		when(table.maxLevel(1068)).thenReturn(3);
+		when(skillService.table()).thenReturn(table);
+		when(skillService.skill(1068, 3)).thenReturn(Optional.of(sk));
+
+		bufferService.saveScheme(player.objectId(), 1, List.of(1068));
+		when(variablesService.getVariable(eq(player.objectId()), eq("buff_scheme_1"), any())).thenReturn("1068");
+
+		boolean ok = bufferService.applyScheme(player, session, 1, false);
+		assertTrue(ok);
+		assertEquals(1, player.effects().activeBuffs().size());
+		assertFalse(player.effects().funcs().isEmpty(), "Buff deve conter as funcoes de status (funcs)");
+	}
 }

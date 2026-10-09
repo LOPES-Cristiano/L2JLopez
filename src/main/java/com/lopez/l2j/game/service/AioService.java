@@ -4,15 +4,20 @@ import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import javax.sql.DataSource;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Sistema Completo de Buffers AIO / AIOx (AioService).
- * Suporta atribuição de status AIOx, restrição estrita a zonas de paz (Peace Zones),
- * catálogo completo de buffs de suporte, menu próprio (.aiomenu) e entrega de itens (.getaiogoods).
+ * Suporta atribuição de status AIOx com duração temporal, persistência relacional
+ * nas colunas `aio` e `aio_end` da tabela `characters`, restrição estrita a zonas
+ * de paz (Peace Zones), catálogo completo de buffs de suporte, menu próprio (.aiomenu)
+ * e entrega de itens (.getaiogoods).
  */
 @Service
 public class AioService {
@@ -21,6 +26,7 @@ public class AioService {
 
     public record AioBuff(int skillId, int level, String name) {}
 
+    private final JdbcTemplate jdbc;
     private final Set<Integer> aioPlayers = ConcurrentHashMap.newKeySet();
     private final List<AioBuff> aioBuffs = new ArrayList<>();
 
@@ -29,6 +35,11 @@ public class AioService {
     private final List<ConsumableReward> aioGoods = new ArrayList<>();
 
     public AioService() {
+        this(null);
+    }
+
+    public AioService(@Autowired(required = false) DataSource dataSource) {
+        this.jdbc = dataSource != null ? new JdbcTemplate(dataSource) : null;
         initDefaultBuffs();
         initDefaultGoods();
     }
@@ -129,32 +140,160 @@ public class AioService {
         return Config.DEFAULT_BUFF_SHOP_SLOTS;
     }
 
+    /**
+     * Concede status AIOx a um jogador online por uma quantidade de dias.
+     * Se o jogador já possuir tempo de AIO ativo, os novos dias são somados.
+     *
+     * @param player jogador alvo
+     * @param days   dias adicionais (se <= 0, permanente)
+     * @return timestamp de expiração em milissegundos
+     */
+    public long setAio(PlayerCharacter player, int days) {
+        if (player == null) {
+            return 0L;
+        }
+        long now = System.currentTimeMillis();
+        long expiration;
+        if (days > 0) {
+            long current = player.aioExpiration();
+            long base = (player.isAio() && current > now) ? current : now;
+            expiration = base + (days * 86_400_000L);
+        } else {
+            expiration = 0L;
+        }
+
+        aioPlayers.add(player.getObjectId());
+        player.setAio(true);
+        player.aioExpiration(expiration);
+        applyAioColors(player);
+        saveAio(player.objectId(), 1, expiration);
+
+        log.info("AIO: Status AIOx concedido ao jogador {} [{}] por {} dias (expira em {})",
+                player.getName(), player.getObjectId(), days, expiration);
+        return expiration;
+    }
+
+    /**
+     * Concede status AIOx a um personagem offline no banco de dados.
+     */
+    public long setAio(int charId, int days) {
+        long now = System.currentTimeMillis();
+        long current = getAioExpiration(charId);
+        long expiration;
+        if (days > 0) {
+            long base = (current > now) ? current : now;
+            expiration = base + (days * 86_400_000L);
+        } else {
+            expiration = 0L;
+        }
+
+        saveAio(charId, 1, expiration);
+        log.info("AIO: Status AIOx offline concedido ao charId={} por {} dias (expira em {})",
+                charId, days, expiration);
+        return expiration;
+    }
+
+    /**
+     * Remove status AIOx de um jogador online.
+     */
+    public void removeAio(PlayerCharacter player) {
+        if (player == null) {
+            return;
+        }
+        aioPlayers.remove(player.getObjectId());
+        player.setAio(false);
+        player.aioExpiration(0L);
+        player.nameColor(0xFFFFFF);
+        player.titleColor(0xFFFF77);
+        if (Config.ENABLE_AIO_DELEVEL && Config.AIO_SET_DELEVEL > 0) {
+            player.level(Config.AIO_SET_DELEVEL);
+        }
+        saveAio(player.objectId(), 0, 0L);
+        log.info("AIO: Status AIOx removido do jogador {} [{}]", player.getName(), player.getObjectId());
+    }
+
+    /**
+     * Remove status AIOx de um personagem offline no banco.
+     */
+    public void removeAio(int charId) {
+        aioPlayers.remove(charId);
+        saveAio(charId, 0, 0L);
+        log.info("AIO: Status AIOx offline removido do charId={}", charId);
+    }
+
+    /**
+     * Persiste nas colunas `aio` e `aio_end` da tabela characters.
+     */
+    public void saveAio(int charId, int aio, long expiration) {
+        if (jdbc == null) {
+            return;
+        }
+        try {
+            jdbc.update("UPDATE characters SET aio = ?, aio_end = ? WHERE charId = ?", aio, expiration, charId);
+        } catch (Exception e) {
+            log.warn("AIO: Erro ao persistir AIO para charId={}: {}", charId, e.getMessage());
+        }
+    }
+
+    /**
+     * Consulta aio_end no banco de dados.
+     */
+    public long getAioExpiration(int charId) {
+        if (jdbc == null) {
+            return 0L;
+        }
+        try {
+            List<Long> results = jdbc.query("SELECT aio_end FROM characters WHERE charId = ? AND aio = 1",
+                    (rs, rowNum) -> rs.getLong("aio_end"), charId);
+            return results.isEmpty() ? 0L : results.get(0);
+        } catch (Exception e) {
+            log.warn("AIO: Erro ao buscar aio_end para charId={}: {}", charId, e.getMessage());
+            return 0L;
+        }
+    }
+
+    /**
+     * Carrega e valida o status AIO ao entrar no mundo.
+     */
+    public void loadAio(PlayerCharacter player) {
+        if (player == null) {
+            return;
+        }
+        if (player.isAio()) {
+            long exp = player.aioExpiration();
+            if (exp > 0 && exp <= System.currentTimeMillis()) {
+                removeAio(player);
+            } else {
+                aioPlayers.add(player.getObjectId());
+                applyAioColors(player);
+            }
+        }
+    }
+
+    public void applyAioColors(PlayerCharacter player) {
+        if (player == null) {
+            return;
+        }
+        if (Config.ALLOW_AIO_NAME_COLOR && Config.AIO_NAME_COLOR != null && !Config.AIO_NAME_COLOR.isBlank()) {
+            try {
+                player.nameColor(Integer.decode("0x" + Config.AIO_NAME_COLOR));
+            } catch (Exception ignored) {}
+        }
+        if (Config.ALLOW_AIO_TITLE_COLOR && Config.AIO_TITLE_COLOR != null && !Config.AIO_TITLE_COLOR.isBlank()) {
+            try {
+                player.titleColor(Integer.decode("0x" + Config.AIO_TITLE_COLOR));
+            } catch (Exception ignored) {}
+        }
+    }
+
+    /**
+     * Método retrocompatível com código e testes existentes.
+     */
     public void setAioStatus(PlayerCharacter player, boolean active) {
         if (active) {
-            if (!Config.ENABLE_AIO_SYSTEM) {
-                log.warn("AIO: Tentativa de ativar AIOx com EnableAioSystem=False");
-                return;
-            }
-            aioPlayers.add(player.getObjectId());
-            player.setAio(true);
-            if (Config.ALLOW_AIO_NAME_COLOR && Config.AIO_NAME_COLOR != null && !Config.AIO_NAME_COLOR.isBlank()) {
-                try {
-                    player.nameColor(Integer.decode("0x" + Config.AIO_NAME_COLOR));
-                } catch (Exception ignored) {}
-            }
-            if (Config.ALLOW_AIO_TITLE_COLOR && Config.AIO_TITLE_COLOR != null && !Config.AIO_TITLE_COLOR.isBlank()) {
-                try {
-                    player.titleColor(Integer.decode("0x" + Config.AIO_TITLE_COLOR));
-                } catch (Exception ignored) {}
-            }
-            log.info("AIO: Status AIOx concedido ao jogador {} [{}]", player.getName(), player.getObjectId());
+            setAio(player, 0);
         } else {
-            aioPlayers.remove(player.getObjectId());
-            player.setAio(false);
-            if (Config.ENABLE_AIO_DELEVEL && Config.AIO_SET_DELEVEL > 0) {
-                player.level(Config.AIO_SET_DELEVEL);
-            }
-            log.info("AIO: Status AIOx removido do jogador {} [{}]", player.getName(), player.getObjectId());
+            removeAio(player);
         }
     }
 

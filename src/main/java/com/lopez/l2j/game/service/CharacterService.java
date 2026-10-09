@@ -184,4 +184,16 @@ public class CharacterService {
 	public Optional<PlayerCharacter> findByName(String name) {
 		return repository.findByName(name);
 	}
+
+	public List<PlayerCharacter> findTopPvP(int limit) {
+		return repository.findTopPvP(limit);
+	}
+
+	public List<PlayerCharacter> findTopPK(int limit) {
+		return repository.findTopPK(limit);
+	}
+
+	public CharacterRepository repository() {
+		return repository;
+	}
 }

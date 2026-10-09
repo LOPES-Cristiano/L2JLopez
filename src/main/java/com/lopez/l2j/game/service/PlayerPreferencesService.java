@@ -109,6 +109,46 @@ public class PlayerPreferencesService {
         return p.isBlockExp();
     }
 
+    public void setAutoLoot(int playerId, boolean val) {
+        Preferences p = getPreferences(playerId);
+        p.setAutoLoot(val);
+        if (characterVariables != null) {
+            characterVariables.set(playerId, "pref_autoloot", val);
+        }
+    }
+
+    public void setTradeRefusal(int playerId, boolean val) {
+        Preferences p = getPreferences(playerId);
+        p.setTradeRefusal(val);
+        if (characterVariables != null) {
+            characterVariables.set(playerId, "pref_traderefusal", val);
+        }
+    }
+
+    public void setBlockBuffs(int playerId, boolean val) {
+        Preferences p = getPreferences(playerId);
+        p.setBlockBuffs(val);
+        if (characterVariables != null) {
+            characterVariables.set(playerId, "pref_blockbuff", val);
+        }
+    }
+
+    public void setBlockParty(int playerId, boolean val) {
+        Preferences p = getPreferences(playerId);
+        p.setBlockParty(val);
+        if (characterVariables != null) {
+            characterVariables.set(playerId, "pref_blockparty", val);
+        }
+    }
+
+    public void setBlockExp(int playerId, boolean val) {
+        Preferences p = getPreferences(playerId);
+        p.setBlockExp(val);
+        if (characterVariables != null) {
+            characterVariables.set(playerId, "pref_blockexp", val);
+        }
+    }
+
     public String buildMenuHtml(int playerId, String playerName) {
         Preferences p = getPreferences(playerId);
         StringBuilder sb = new StringBuilder();

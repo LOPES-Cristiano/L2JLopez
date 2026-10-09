@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.service;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.item.Inventory;
 import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.item.ItemInstance.Location;
@@ -53,12 +54,22 @@ public class WarehouseService {
 	}
 
 	public synchronized boolean depositItem(Inventory playerInv, int objectId, int count) {
+		if (!Config.ALLOW_WAREHOUSE) {
+			return false;
+		}
 		var itemOpt = playerInv.byObjectId(objectId);
 		if (itemOpt.isEmpty()) {
 			return false;
 		}
 		var item = itemOpt.get();
 		if (item.isEquipped() || count <= 0 || item.count() < count) {
+			return false;
+		}
+
+		var whList = getWarehouseItems(item.ownerId());
+		boolean isStackableExisting = item.template().stackable()
+				&& whList.stream().anyMatch(i -> i.itemId() == item.itemId());
+		if (!isStackableExisting && whList.size() >= Config.MAX_WAREHOUSE_SLOTS_FOR_OTHER) {
 			return false;
 		}
 
@@ -71,11 +82,12 @@ public class WarehouseService {
 		adenaOpt.get().count(adenaOpt.get().count() - WAREHOUSE_FEE);
 		itemRepo.update(adenaOpt.get());
 
-		var whList = getWarehouseItems(item.ownerId());
-
 		if (item.template().stackable()) {
 			var existing = whList.stream().filter(i -> i.itemId() == item.itemId()).findFirst().orElse(null);
 			if (existing != null) {
+				if ((long) existing.count() + count > Integer.MAX_VALUE) {
+					return false;
+				}
 				existing.count(existing.count() + count);
 				itemRepo.update(existing);
 
@@ -123,6 +135,9 @@ public class WarehouseService {
 		if (item.template().stackable()) {
 			var existing = playerInv.byItemId(item.itemId()).orElse(null);
 			if (existing != null) {
+				if ((long) existing.count() + count > Integer.MAX_VALUE) {
+					return false;
+				}
 				existing.count(existing.count() + count);
 				itemRepo.update(existing);
 
