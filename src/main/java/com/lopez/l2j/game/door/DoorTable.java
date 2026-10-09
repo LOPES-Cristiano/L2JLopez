@@ -26,6 +26,11 @@ import org.w3c.dom.NodeList;
 public class DoorTable {
 
 	private static final Logger log = LoggerFactory.getLogger(DoorTable.class);
+	private static volatile DoorTable instance;
+
+	public static DoorTable getInstance() {
+		return instance;
+	}
 
 	private final Map<Integer, DoorInstance> byDoorId = new ConcurrentHashMap<>();
 	private final Map<Integer, DoorInstance> byObjectId = new ConcurrentHashMap<>();
@@ -37,6 +42,7 @@ public class DoorTable {
 	}
 
 	public DoorTable(Path xmlFile, ObjectIdFactory idFactory) {
+		instance = this;
 		this.objectIdFactory = idFactory != null ? idFactory : ObjectIdFactory.sequential(0x50000000);
 		if (Files.isRegularFile(xmlFile)) {
 			load(xmlFile);

@@ -139,7 +139,7 @@ public class FortressService {
 		}
 		if (jdbc != null) {
 			try {
-				jdbc.sql("DELETE FROM fort_functions WHERE fort_id = :fid AND type = :t")
+				jdbc.sql("DELETE FROM fort_functions WHERE fortId = :fid AND type = :t")
 						.param("fid", fortId)
 						.param("t", type)
 						.update();
@@ -192,7 +192,7 @@ public class FortressService {
 		}
 		try {
 			jdbc.sql("""
-					REPLACE INTO fort_functions (fort_id, type, lvl, lease, rate, endTime)
+					REPLACE INTO fort_functions (fortId, type, lvl, lease, rate, endTime)
 					VALUES (:fid, :t, :lvl, :lease, :rate, :eTime)
 					""")
 					.param("fid", func.fortId())
@@ -243,12 +243,16 @@ public class FortressService {
 		}
 		try {
 			List<Map<String, Object>> rows = jdbc.sql("""
-					SELECT fort_id, type, lvl, lease, rate, endTime
+					SELECT fortId, type, lvl, lease, rate, endTime
 					FROM fort_functions
 					""").query().listOfRows();
 
 			for (var row : rows) {
-				int fortId = ((Number) row.get("fort_id")).intValue();
+				Object fidObj = row.get("fortId");
+				if (fidObj == null) {
+					fidObj = row.get("fort_id");
+				}
+				int fortId = fidObj != null ? ((Number) fidObj).intValue() : 0;
 				int type = ((Number) row.get("type")).intValue();
 				int lvl = ((Number) row.get("lvl")).intValue();
 				int lease = ((Number) row.get("lease")).intValue();

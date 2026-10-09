@@ -65,6 +65,10 @@ public class CastleManager {
 		return Collections.unmodifiableCollection(byId.values());
 	}
 
+	public Collection<Castle> all() {
+		return allCastles();
+	}
+
 	public Optional<Castle> getCastleById(int castleId) {
 		return Optional.ofNullable(byId.get(castleId));
 	}
@@ -74,6 +78,10 @@ public class CastleManager {
 			return Optional.empty();
 		}
 		return Optional.ofNullable(byName.get(name.toLowerCase(Locale.ROOT)));
+	}
+
+	public Optional<Castle> byName(String name) {
+		return getCastleByName(name);
 	}
 
 	public Optional<Castle> getCastleByTownId(int townId) {
