@@ -1,101 +1,84 @@
-﻿<html><title>Server Control Panel</title><body>
+<html><title>Criacao e Busca de Itens</title><body>
 <center>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<table bgcolor="000000" width=270>
+<table bgcolor="000000" width=290>
 <tr>
 <td width=45><a action="bypass -h admin_admin" width=54 height=19><font color="FFD306">Main</font></a></td>
-<td width=180><center><font color="LEVEL">Creating Items</font></center></td>
-<td width=45><a action="bypass -h admin_admin" width=54 height=19><font color="FFD306">Back</font></a></td>
+<td width=190 align=center><font color="LEVEL"><b>Criacao & Busca de Itens</b></font></td>
+<td width=45 align=right><a action="bypass -h admin_admin" width=54 height=19><font color="FFD306">Voltar</font></a></td>
 </tr>
 </table>
 <center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<font color="LEVEL">
-Item Creation
-</font>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
+<br>
+
+<!-- BUSCA DE ITENS POR NOME -->
+<table width=290 bgcolor="181818">
+<tr>
+<td colspan=2 align=center><font color="LEVEL">Buscar Item por Nome ou ID</font></td>
+</tr>
+<tr>
+<td width=180><edit var="search_item" width=175 height=15></td>
+<td width=105 align=right><button value="Buscar Item" action="bypass -h admin_find_item $search_item" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
+</tr>
+</table>
+<br>
+
 <center><img src="L2UI.SquareGray" width=300 height=1></center>
+<font color="LEVEL">Criacao Direta por ID</font>
+<center><img src="L2UI.SquareGray" width=300 height=1></center>
+
 <table bgcolor="000000" width="300">
 	<tr>
-		<td>
-			Fill the ID number in item-id to create the item that you want, 
-			use amount if you need more than one. 
-			<font color="LEVEL">
-				Caution: Do not use amount with non-stackable items
-			</font>
-		</td>
+		<td width=90><font color="B09979">ID do Item:</font></td>
+		<td width=110><font color="B09979">Quantidade:</font></td>
+		<td width=95></td>
+	</tr>
+	<tr>
+		<td><edit var="itemid" width=80></td>
+		<td><edit var="itemnum" width=95 type=number></td>
+		<td align=right><button value="Criar (Eu)" action="bypass -h admin_create_item $itemid $itemnum" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
+	</tr>
+	<tr>
+		<td colspan=2 align=right><font color="808080">Para o alvo selecionado:</font></td>
+		<td align=right><button value="Dar ao Alvo" action="bypass -h admin_give_item_target $itemid $itemnum" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
+	</tr>
+	<tr>
+		<td colspan=2 align=right><font color="808080">Para todos online:</font></td>
+		<td align=right><button value="Dar a Todos" action="bypass -h admin_give_item_to_all $itemid $itemnum" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
+	</tr>
+	<tr>
+		<td colspan=2 align=right><font color="808080">Limpar itens nao equipados:</font></td>
+		<td align=right><button value="Limpar Inv" action="bypass -h admin_clean_inventory" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
 	</tr>
 </table>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
+
 <br>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
 <center><img src="L2UI.SquareGray" width=300 height=1></center>
-<center>
-<table bgcolor="000000" width="300">
-	<tr>
-		<td>Item-ID:</td>
-		<td>Amount:</td>
-		<td></td>
-	</tr>
-	<tr>
-		<td><edit var="itemid" width=50></td>
-		<td><edit var="itemnum" width=70 type=number></td>
-		<td><button value="Create Item" action="bypass -h admin_create_item $itemid $itemnum" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-	</tr>
-	<tr>
-		<td></td>
-		<td></td>
-		<td><button value="Give To Target" action="bypass -h admin_give_item_target $itemid $itemnum" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-	</tr>
-	<tr>
-		<td></td>
-		<td></td>
-		<td><button value="Give To All Online" action="bypass -h admin_give_item_to_all $itemid $itemnum" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-	</tr>
-	<tr>
-		<td></td>
-		<td></td>
-		<td><button value="Clean Inventory" action="bypass -h admin_clean_inventory" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-	</tr>
+<font color="LEVEL">Presets Rapidos (1 Clique)</font>
+<center><img src="L2UI.SquareGray" width=300 height=1></center>
+
+<table width=290>
+<tr>
+<td><button value="Adena 100kk" action="bypass -h admin_create_item 57 100000000" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="A. Adena 10kk" action="bypass -h admin_create_item 5575 10000000" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Fest. Adena" action="bypass -h admin_create_item 6673 500" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+<tr>
+<td><button value="B. Scroll Weapon S" action="bypass -h admin_create_item 6577 50" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="B. Scroll Armor S" action="bypass -h admin_create_item 6578 50" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Soul Crystal 13" action="bypass -h admin_create_item 4665 1" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+<tr>
+<td><button value="Soulshots S (10k)" action="bypass -h admin_create_item 1467 10000" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="B. Sp.shots S (10k)" action="bypass -h admin_create_item 3952 10000" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Mana Potions" action="bypass -h admin_create_item 728 500" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+<tr>
+<td><button value="Antharas Earring" action="bypass -h admin_create_item 6656 1" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Valakas Necklace" action="bypass -h admin_create_item 6657 1" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Baium Ring" action="bypass -h admin_create_item 6658 1" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
 </table>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<br>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
 
-		<table bgcolor="000000" width="300">
-		<tr>
-		<td>
-		<center>Presets: <edit var="asset" width=95 height=11 type=number></center></td></tr>
-		</table>
-	<br>
-	<table>
-		<tr>
-		<td>
-			<button value="Adena" action="bypass -h admin_create_item 57 $asset" width=95 height=21 back="bigbutton_over" fore="bigbutton">
-			<button value="Ancient Adena" action="bypass -h admin_create_item 5575 $asset" width=95 height=21 back="bigbutton_over" fore="bigbutton">
-			<button value="Blue Seal Stones" action="bypass -h admin_create_item 6360 $asset" width=95 height=21 back="bigbutton_over" fore="bigbutton">
-			<button value="Green Seal Stones" action="bypass -h admin_create_item 6361 $asset" width=95 height=21 back="bigbutton_over" fore="bigbutton">
-			<button value="Red Seal Stones" action="bypass -h admin_create_item 6362 $asset" width=95 height=21 back="bigbutton_over" fore="bigbutton">
-		</td>
-		</tr>
-	</table>
-
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-
-<font color="00ccf0">L2JDream - V2:</font><font color="ae9987"> www.l2jdream.org</font>
-</center>
-</body>
-</html>
+<br><center><img src="L2UI.SquareGray" width=300 height=1></center>
+<font color="00ccf0">Lopez L2J</font> <font color="ae9987">Item Management</font>
+</center></body></html>

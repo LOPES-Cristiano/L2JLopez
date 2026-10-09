@@ -1,57 +1,57 @@
-﻿<html><title>Server Control Panel</title><body>
+<html><title>Character Skills Manager</title><body>
 <center>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<table bgcolor="000000" width=270>
+<table width=270>
 <tr>
-<td width=45><a action="bypass -h admin_admin" width=54 height=19><font color="FFD306">Main</font></a></td>
-<td width=180><center><font color="LEVEL">Supervision skills</font></center></td>
-<td width=45><a action="bypass -h admin_current_player" width=54 height=19><font color="FFD306">Back</font></a></td>
+  <td align=center><button value="Main" action="bypass -h admin_admin" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="ALT+G" action="bypass -h admin_altg" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Players" action="bypass -h admin_players" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Editar" action="bypass -h admin_edit_char" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Info" action="bypass -h admin_charinfo" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
 </tr>
 </table>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<br>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<center>Editing <font color="LEVEL">%name%</font></center><br>
-<center>Lv: <font color="LEVEL">%level%</font> Class: <font color="LEVEL">%class%</font><br>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<br>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
 
-<center><br><button value="Rollback" action="bypass -h admin_clear_skill_reuse" width=145 height=21 back="L2UI_CH3.bigbutton3_over" fore="L2UI_CH3.bigbutton3"><br>
+<img src="L2UI.SquareGray" width=270 height=1>
 
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<br>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-
-<table bgcolor=000000 width="210" height="15">
+<table width=270>
 <tr>
-<td><button value="Add Skill" action="bypass -h admin_skill_list" width=100 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-<td><button value="Get Skill" action="bypass -h admin_get_skills" width=100 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
+  <td align=center><font color="LEVEL">%name%</font> - Lv %level% (%class%)</td>
+</tr>
+</table>
+
+<img src="L2UI.SquareGray" width=270 height=1>
+
+<table width=270>
+<tr>
+  <td><font color="00FFBB">Acoes Globais de Habilidades</font></td>
+</tr>
+</table>
+
+<table width=270>
+<tr>
+  <td align=center><button value="Aprender Tudo da Classe" action="bypass -h admin_give_all_skills" width=220 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
 </tr>
 <tr>
-<td><button value="Delete Skill" action="bypass -h admin_remove_skills 0" width=100 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-<td><button value="Return Main" action="bypass -h admin_reset_skills" width=100 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
+  <td align=center><button value="Resetar Cooldowns / Reuso" action="bypass -h admin_clear_skill_reuse" width=220 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
 </tr>
 <tr>
-<td><button value="Get all skill" action="bypass -h admin_give_all_skills" width=100 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-<td><button value="Remove all" action="bypass -h admin_remove_all_skills" width=100 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-</tr></table>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
+  <td align=center><button value="Remover Todas as Skills" action="bypass -h admin_remove_all_skills" width=220 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+</table>
+
+<img src="L2UI.SquareGray" width=270 height=1>
+
+<table width=270>
+<tr>
+  <td><font color="00FFBB">Pesquisar ou Adicionar Skill Especifica</font></td>
+</tr>
+</table>
+
+<table width=270>
+<tr>
+  <td align=center><button value="Abrir Menu de Skills" action="bypass -h admin_show_skills" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Busca Flexivel ALT+G" action="bypass -h admin_altg" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+</table>
+
 </center>
 </body></html>

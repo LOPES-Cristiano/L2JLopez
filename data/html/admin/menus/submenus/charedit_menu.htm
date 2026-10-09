@@ -1,63 +1,96 @@
-<html><title>Server Control Panel</title><body>
+<html><title>Character Editor</title><body>
 <center>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<table bgcolor="000000" width=270>
+<table width=270>
 <tr>
-<td width=45><a action="bypass -h admin_admin" width=54 height=19><font color="FFD306">Main</font></a></td>
-<td width=180><center><font color="LEVEL">Player: %name%</font></center></td>
-<td width=45><a action="bypass -h admin_current_player" width=54 height=19><font color="FFD306">Back</font></a></td>
+  <td align=center><button value="Main" action="bypass -h admin_admin" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="ALT+G" action="bypass -h admin_altg" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Players" action="bypass -h admin_players" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Info" action="bypass -h admin_charinfo" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Skills" action="bypass -h admin_show_skills" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
 </tr>
 </table>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<br>
-<font color="LEVEL">Ammount of Hp/Mp/Cp character</font>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
 
-<table bgcolor=000000 width="270" height="15">
+<img src="L2UI.SquareGray" width=270 height=1>
+
+<table width=270>
 <tr>
-<td fixwidth=90>HP: %currenthp%/%maxhp%</td><td fixwidth=90>MP: %currentmp%/%maxmp%</td><td fixwidth=90>CP: %currentcp%/%maxcp%</td>
+  <td align=center><font color="LEVEL">Editando: %name% (Lv %level%)</font></td>
 </tr>
 </table>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<br>
 
-<font color="LEVEL">Editing character</font>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-
-<table bgcolor=000000 width="270" height="15">
-<tr><td width=140>Player name:</td><td><edit width=80 var="name"></td><td><button value="Save" action="bypass -h admin_changename $name" width=50 height=21 back="L2UI_CH3.smallbutton1_over" fore="L2UI_CH3.smallbutton1"></td></tr>
-<tr><td width=140>Player title:</td><td><edit width=80 var="title"></td><td><button value="Save" action="bypass -h admin_settitle $title" width=50 height=21 back="L2UI_CH3.smallbutton1_over" fore="L2UI_CH3.smallbutton1"></td></tr>
-<tr><td width=140>Color Name:</td><td><edit width=80 var="color"></td><td><button value="Save" action="bypass -h admin_setcolor $color" width=50 height=21 back="L2UI_CH3.smallbutton1_over" fore="L2UI_CH3.smallbutton1"></td></tr>
-<tr><td width=140>Recommendations:</td><td><edit width=80 var="reco"></td><td><button value="Save" action="bypass -h admin_rec $reco" width=50 height=21 back="L2UI_CH3.smallbutton1_over" fore="L2UI_CH3.smallbutton1"></td></tr>
-<tr><td width=140>Player Level:</td><td><edit width=80 var="lvl"></td><td><button value="Save" action="bypass -h admin_setlevel $lvl" width=50 height=21 back="L2UI_CH3.smallbutton1_over" fore="L2UI_CH3.smallbutton1"></td></tr>
-<tr></tr>
-<tr><td width=140>&nbsp;</td><td><button value="Class" action="bypass -h admin_setclass" width=50 height=21 back="L2UI_CH3.smallbutton1_over" fore="L2UI_CH3.smallbutton1"></td><td><button value="Sex" action="bypass -h admin_setsex" width=50 height=21 back="L2UI_CH3.smallbutton1_over" fore="L2UI_CH3.smallbutton1"></td></tr>
+<table width=270 bgcolor="000000">
+<tr>
+  <td align=center><font color="87CEFA">HP:</font> %currenthp%/%maxhp%</td>
+  <td align=center><font color="87CEFA">MP:</font> %currentmp%/%maxmp%</td>
+  <td align=center><font color="87CEFA">CP:</font> %currentcp%/%maxcp%</td>
+</tr>
 </table>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<br>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
 
-<table bgcolor=000000 width="270" height="15">
-<tr><td width=50>Current HP:</td><td><edit var="hp" width=50></td><td width=50>PvP Flag:</td><td><edit var="pvpflag" width=50></td></tr>
-<tr><td width=50>Current MP:</td><td><edit var="mp" width=50></td><td width=50>PvP Kills:</td><td><edit var="pvpkills" width=50></td></tr>
-<tr><td width=50>Current CP:</td><td><edit var="cp" width=50></td><td width=50>PK Kills:</td><td><edit var="pkkills" width=50></td></tr>
-</table><br>
-<center><button value="Save" action="bypass -h admin_save_modifications $hp $mp $cp $pvpflag $pvpkills $pkkills" width=100 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></center>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
+<img src="L2UI.SquareGray" width=270 height=1>
+
+<table width=270>
+<tr>
+  <td><font color="00FFBB">Atributos Individuais</font></td>
+</tr>
+</table>
+
+<table width=270>
+<tr>
+  <td width=100>Novo Nome:</td>
+  <td width=100><edit width=95 height=16 var="name"></td>
+  <td width=60><button value="Salvar" action="bypass -h admin_changename $name" width=55 height=20 back="L2UI_CH3.smallbutton1_over" fore="L2UI_CH3.smallbutton1"></td>
+</tr>
+<tr>
+  <td width=100>Novo Titulo:</td>
+  <td width=100><edit width=95 height=16 var="title"></td>
+  <td width=60><button value="Salvar" action="bypass -h admin_settitle $title" width=55 height=20 back="L2UI_CH3.smallbutton1_over" fore="L2UI_CH3.smallbutton1"></td>
+</tr>
+<tr>
+  <td width=100>Novo Level (1-80):</td>
+  <td width=100><edit width=95 height=16 var="lvl"></td>
+  <td width=60><button value="Salvar" action="bypass -h admin_setlevel $lvl" width=55 height=20 back="L2UI_CH3.smallbutton1_over" fore="L2UI_CH3.smallbutton1"></td>
+</tr>
+<tr>
+  <td width=100>Recomendacoes:</td>
+  <td width=100><edit width=95 height=16 var="reco"></td>
+  <td width=60><button value="Salvar" action="bypass -h admin_rec $reco" width=55 height=20 back="L2UI_CH3.smallbutton1_over" fore="L2UI_CH3.smallbutton1"></td>
+</tr>
+</table>
+
+<img src="L2UI.SquareGray" width=270 height=1>
+
+<table width=270>
+<tr>
+  <td align=center><button value="Mudar Classe" action="bypass -h admin_setclass" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="SubClasses" action="bypass -h admin_subclass" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+</table>
+
+<img src="L2UI.SquareGray" width=270 height=1>
+
+<table width=270>
+<tr>
+  <td><font color="00FFBB">Editar Status e PK/PvP</font></td>
+</tr>
+</table>
+
+<table width=270>
+<tr>
+  <td width=60>HP:</td><td><edit var="hp" width=65 height=16></td>
+  <td width=60>PvP Kills:</td><td><edit var="pvpkills" width=65 height=16></td>
+</tr>
+<tr>
+  <td width=60>MP:</td><td><edit var="mp" width=65 height=16></td>
+  <td width=60>PK Kills:</td><td><edit var="pkkills" width=65 height=16></td>
+</tr>
+<tr>
+  <td width=60>CP:</td><td><edit var="cp" width=65 height=16></td>
+  <td width=60>Karma:</td><td><edit var="karma" width=65 height=16></td>
+</tr>
+</table>
+
+<br>
+<center><button value="Salvar Status" action="bypass -h admin_save_modifications $hp $mp $cp $karma $pvpkills $pkkills" width=160 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></center>
+
+</center>
 </body></html>

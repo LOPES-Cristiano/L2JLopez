@@ -1,57 +1,89 @@
-﻿<html><title>Server Control Panel</title><body>
+<html><title>Players Control Panel</title><body>
 <center>
-<table width=270><tr>
-<tr>
-  <td><a action="bypass -h admin_admin" width=54 height=19><font color="FFD306">Main</font></a></td>
-  <td><a action="bypass -h admin_gamemenu" width=54 height=19><font color="FFD306">Game</font></a></td>
-  <td><a action="bypass -h admin_server" width=54 height=19><font color="FFD306">Server</font></a></td>
-  <td><a action="bypass -h admin_effects" width=54 height=19><font color="FFD306">Effects</font></a></td>
-  <td><a action="bypass -h admin_mod" width=54 height=19><font color="FFD306">Mods</font></a></td>
-</tr>
-</table>
-<br>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<br>
-
-<!-- Windows Info -->
-<br><font color="LEVEL">List, search players</font>
-<table width=260>
-<tr>
-<td width=50><font color="LEVEL"></font></td>
-<td width=160><edit var="qbox" width=160 height=19></td>
-<td width=50><font color="LEVEL"></font></td>
-</tr>
-</table>
-
-<br><table width=190>
-<tr>
-<td><button value="List" action="bypass -h admin_find_character" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Find" action="bypass -h admin_find_character $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-</tr>
-</table>
-
-<br><font color="LEVEL">Mass Teleport Players</font>
 <table width=270>
 <tr>
-<td><button value="Get party" action="bypass -h admin_recallparty $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Get clan" action="bypass -h admin_recallclan $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Get ally" action="bypass -h admin_recallally $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-</tr>
-<tr>
-<td><button value="Get player" action="bypass -h admin_recall_all" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Get all" action="bypass -h admin_recall_all" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="To player" action="bypass -h admin_teleportto $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
+  <td align=center><button value="Main" action="bypass -h admin_admin" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="ALT+G" action="bypass -h admin_altg" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Server" action="bypass -h admin_server" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Game" action="bypass -h admin_gamemenu" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Tele" action="bypass -h admin_show_moves" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
 </tr>
 </table>
 
+<img src="L2UI.SquareGray" width=270 height=1>
 
-<br><font color="LEVEL">Regeneration Hp/Mp</font>
-<table width=190>
+<table width=270>
 <tr>
-<td><button value="Stop task" action="bypass -h admin_stop_regen" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Start task" action="bypass -h admin_start_regen" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
+  <td width=80><font color="LEVEL">Jogador:</font></td>
+  <td width=190><edit var="qbox" width=180 height=16></td>
+</tr>
+</table>
+
+<table width=270>
+<tr>
+  <td align=center><button value="Listar Online" action="bypass -h admin_find_character" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Buscar Nome" action="bypass -h admin_find_character $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Ver Detalhes" action="bypass -h admin_charinfo $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+</table>
+
+<img src="L2UI.SquareGray" width=270 height=1>
+
+<table width=270>
+<tr>
+  <td><font color="00FFBB">Teleporte de Jogadores</font></td>
+</tr>
+</table>
+
+<table width=270>
+<tr>
+  <td align=center><button value="Ir ate Ele" action="bypass -h admin_teleportto $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Puxar Player" action="bypass -h admin_recall $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Puxar Party" action="bypass -h admin_recallparty $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+<tr>
+  <td align=center><button value="Puxar Clan" action="bypass -h admin_recallclan $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Puxar Ally" action="bypass -h admin_recallally $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Puxar Todos" action="bypass -h admin_recall_all" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+</table>
+
+<img src="L2UI.SquareGray" width=270 height=1>
+
+<table width=270>
+<tr>
+  <td><font color="00FFBB">Punicao e Moderacao</font></td>
+</tr>
+</table>
+
+<table width=270>
+<tr>
+  <td align=center><button value="Kick" action="bypass -h admin_kick $qbox" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Paralisar" action="bypass -h admin_para $qbox" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Ban Char" action="bypass -h admin_banchar $qbox" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Unban Char" action="bypass -h admin_unbanchar $qbox" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+<tr>
+  <td align=center><button value="Jail" action="bypass -h admin_jail $qbox" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="UnJail" action="bypass -h admin_unjail $qbox" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Mute Chat" action="bypass -h admin_banchat $qbox" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="UnMute" action="bypass -h admin_unbanchat $qbox" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+</table>
+
+<img src="L2UI.SquareGray" width=270 height=1>
+
+<table width=270>
+<tr>
+  <td><font color="00FFBB">Acoes no Alvo / Target Atual</font></td>
+</tr>
+</table>
+
+<table width=270>
+<tr>
+  <td align=center><button value="Curar (Heal)" action="bypass -h admin_heal" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Matar (Kill)" action="bypass -h admin_kill" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Ressuscitar" action="bypass -h admin_res" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
 </tr>
 </table>
 

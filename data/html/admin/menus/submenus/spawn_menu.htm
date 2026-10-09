@@ -1,68 +1,88 @@
-<html><title>Server Control Panel</title><body>
+<html><title>Spawn & Busca de NPCs</title><body>
 <center>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<table bgcolor="000000" width=300>
+<table bgcolor="000000" width=290>
 <tr>
-  <td><a action="bypass -h admin_admin" width=54 height=19><font color="FFD306">Main</font></a></td>
-  <td><a action="bypass -h admin_gamemenu" width=54 height=19><font color="FFD306">Game</font></a></td>
-  <td><a action="bypass -h admin_server" width=54 height=19><font color="FFD306">Server</font></a></td>
-  <td><a action="bypass -h admin_effects" width=54 height=19><font color="FFD306">Effects</font></a></td>
-  <td><a action="bypass -h admin_reload" width=54 height=19><font color="FFD306">Mods</font></a></td>
+<td width=45><a action="bypass -h admin_admin" width=54 height=19><font color="FFD306">Main</font></a></td>
+<td width=190 align=center><font color="LEVEL"><b>Spawn & Busca de NPCs</b></font></td>
+<td width=45 align=right><a action="bypass -h admin_admin" width=54 height=19><font color="FFD306">Voltar</font></a></td>
 </tr>
 </table>
 <center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
 <br>
 
-<font color="LEVEL">Spawn NPC</font>
+<!-- BUSCA DE NPC POR NOME -->
+<table width=290 bgcolor="181818">
+<tr>
+<td colspan=2 align=center><font color="LEVEL">Buscar NPC por Nome ou ID</font></td>
+</tr>
+<tr>
+<td width=180><edit var="search_npc" width=175 height=15></td>
+<td width=105 align=right><button value="Buscar NPC" action="bypass -h admin_find_npc $search_npc" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
+</tr>
+</table>
 <br>
 
-<table width=260>
+<center><img src="L2UI.SquareGray" width=300 height=1></center>
+<font color="LEVEL">Spawn Manual por ID</font>
+<center><img src="L2UI.SquareGray" width=300 height=1></center>
+
+<table width=290>
 <tr>
-<td width=85><font color="LEVEL">Id or Name:</font></td>
-<td width=85><font color="LEVEL">Count:</font></td>
-<td width=85><font color="LEVEL">Radius:</font></td>
+<td width=90><font color="B09979">ID ou Nome:</font></td>
+<td width=90><font color="B09979">Qtd:</font></td>
+<td width=90><font color="B09979">Raio:</font></td>
 </tr>
 <tr>
-<td width=85><edit var="id" width=85></td>
-<td width=85><edit var="ct" width=85></td>
-<td width=85><edit var="rd" width=85></td>
+<td><edit var="id" width=85></td>
+<td><edit var="ct" width=85></td>
+<td><edit var="rd" width=85></td>
+</tr>
+</table>
+
+<table width=290>
+<tr>
+<td><button value="Spawn Salvo" action="bypass -h admin_spawn $id $ct $rd" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
+<td><button value="Spawn Temporario" action="bypass -h admin_spawn_once $id $ct $rd" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
+<td><button value="Spawn Custom" action="bypass -h admin_cspawn $id $ct $rd" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
 </tr>
 </table>
 
-<br><font color="B22222">[*]:</font> <font color="CCCC99">For spawn 1 Npc does not Count and Radius</font>
-
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
+<br>
+<center><img src="L2UI.SquareGray" width=300 height=1></center>
+<font color="LEVEL">Controle do NPC Selecionado</font>
 <center><img src="L2UI.SquareGray" width=300 height=1></center>
 
-<table bgcolor="000000" width=260>
+<table width=290>
 <tr>
-<td width=90><button value="Spawn Store" action="bypass -h admin_spawn $id $ct $rd" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-<td width=90><button value="Spawn Once" action="bypass -h admin_spawn_once $id $ct $rd" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-<td width=90><button value="Spawn Custom" action="bypass -h admin_cspawn $id $ct $rd" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
+<td><button value="Deletar NPC" action="bypass -h admin_delete" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Matar NPC" action="bypass -h admin_kill" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Curar NPC" action="bypass -h admin_heal" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+<tr>
+<td><button value="DropList" action="bypass -h admin_show_droplist" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Info do NPC" action="bypass -h admin_edit_npc" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Recarregar Spawns" action="bypass -h admin_reload spawn" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
 </tr>
 </table>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
 
-<br><font color="LEVEL">Additional commands</font>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
+<br>
+<center><img src="L2UI.SquareGray" width=300 height=1></center>
+<font color="LEVEL">Presets de Raid Bosses Famosos</font>
 <center><img src="L2UI.SquareGray" width=300 height=1></center>
 
-<table bgcolor="000000" width=190>
+<table width=290>
 <tr>
-<td width=95><button value="Day Npc's" action="bypass -h admin_spawnday" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-<td width=95><button value="Night Npc's" action="bypass -h admin_spawnnight" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
+<td><button value="Antharas (29019)" action="bypass -h admin_spawn_once 29019 1" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Valakas (29028)" action="bypass -h admin_spawn_once 29028 1" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Baium (29020)" action="bypass -h admin_spawn_once 29020 1" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+<tr>
+<td><button value="Queen Ant (29001)" action="bypass -h admin_spawn_once 29001 1" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Zaken (29022)" action="bypass -h admin_spawn_once 29022 1" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Frintezza (29045)" action="bypass -h admin_spawn_once 29045 1" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
 </tr>
 </table>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-</center>
-</body></html>
+
+<br><center><img src="L2UI.SquareGray" width=300 height=1></center>
+<font color="00ccf0">Lopez L2J</font> <font color="ae9987">Spawn Management</font>
+</center></body></html>

@@ -1,126 +1,93 @@
-﻿<html><title>Main Control Panel</title><body>
+<html><title>Skills & Buffs - Admin Suite</title><body>
 <center>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<table bgcolor="000000" width=300>
+<table bgcolor="000000" width=290>
 <tr>
-<td width=45> <td><a action="bypass -h admin_admin" width=54 height=19><font color="FFD306">Main</font></a></td>
-<td width=180><center><font color="LEVEL">List of Russ</font></center></td>
-<td width=45><td><a action="bypass -h admin_current_player" width=54 height=19><font color="FFD306">Back</font></a></td>
+<td width=45><a action="bypass -h admin_admin" width=54 height=19><font color="FFD306">Main</font></a></td>
+<td width=190 align=center><font color="LEVEL"><b>Skills & Buffs Panel</b></font></td>
+<td width=45 align=right><a action="bypass -h admin_admin" width=54 height=19><font color="FFD306">Voltar</font></a></td>
 </tr>
 </table>
 <center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
 <br>
-<td><font color="LEVEL">Class Skills:</font></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
 
-<table bgcolor=000000 width="270">
+<!-- BUSCA DE SKILL POR NOME -->
+<table width=290 bgcolor="181818">
 <tr>
-<td width="150">Skills Humans</td>
-<td align="center"><a action="bypass -h admin_help skills/human/human.htm"><font color="FFD306">Select !</font></a></td>
+<td colspan=2 align=center><font color="LEVEL">Buscar Skill por Nome ou ID</font></td>
+</tr>
+<tr>
+<td width=180><edit var="search_sk" width=175 height=15></td>
+<td width=105 align=right><button value="Buscar Skill" action="bypass -h admin_find_skill $search_sk" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
 </tr>
 </table>
-
-<table width="270">
-<tr>
-<td width="150">Skills Elves</td>
-<td align="center"><a action="bypass -h admin_help skills/elf/elf.htm"><font color="FFD306">Select !</font></a></td>
-</tr>
-</table>
-
-<table bgcolor=000000 width="270">
-<tr>
-<td width="150">Skills Dark Elf</td>
-<td align="center"><a action="bypass -h admin_help skills/darkelf/delf.htm"><font color="FFD306">Select !</font></a></td>
-</tr>
-</table>
-
-<table width="270">
-<tr>
-<td width="150">Skills Orcs</td>
-<td align="center"><a action="bypass -h admin_help skills/orc/orc.htm"><font color="FFD306">Select !</font></a></td>
-</tr>
-</table>
-
-<table bgcolor=000000 width="270">
-<tr>
-<td width="150">Skills Dwarfs</td>
-<td align="center"><a action="bypass -h admin_help skills/dwarf/dwarf.htm"><font color="FFD306">Select !</font></a></td>
-</tr>
-</table>
-
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
 <br>
-<td><font color="LEVEL">Other Skills:</font></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
+
+<center><img src="L2UI.SquareGray" width=300 height=1></center>
+<font color="LEVEL">Adicionar Manual por ID</font>
 <center><img src="L2UI.SquareGray" width=300 height=1></center>
 
-<table bgcolor=000000 width="270">
-<tr>
-<td width="150">Heroes Skills</td>
-<td align="center"><a action="bypass -h admin_help skills/specials/hero_skills.htm"><font color="FFD306">Select !</font></a></td>
-</tr>
-</table>
-
-<table width="270">
-<tr>
-<td width="150">Nobless Skills</td>
-<td align="center"><a action="bypass -h admin_help skills/specials/noblesse_skills.htm"><font color="FFD306">Select !</font></a></td>
-</tr>
-</table>
-
-<table bgcolor=000000 width="270">
-<tr>
-<td width="150">Clan Skills</td>
-<td align="center"><a action="bypass -h admin_help skills/specials/clan_skills.htm"><font color="FFD306">Select !</font></a></td>
-</tr>
-</table>
-
-<table width="270">
-<tr>
-<td width="150">Game Master Skills</td>
-<td align="center"><a action="bypass -h admin_help skills/specials/gm_skills.htm"><font color="FFD306">Select !</font></a></td>
-</tr>
-</table>
-
-<table bgcolor=000000 width="270">
-<tr>
-<td width="150">General Skills</td>
-<td align="center"><a action="bypass -h admin_help skills/specials/common_skills.htm"><font color="FFD306">Select !</font></a></td>
-</tr>
-</table>
-
-<table width="270">
-<tr>
-<td width="150">Fisher Skills</td>
-<td align="center"><a action="bypass -h admin_help skills/fishing/Fishing_Skills.htm"><font color="FFD306">Select !</font></a></td>
-</tr>
-</table>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<font color="LEVEL">Add Skill by ID:</font>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
 <table bgcolor=000000 width=300>
 <tr>
-<td width=5>Id:</td><td><edit var="id" width=42></td>
-<td width=5>Level</td><td><edit var="char_cord_y" width=42></td>
-<td><button value="Add" action="bypass -h admin_add_skill $id $level" width=60 height=21 back="L2UI_CH3.smallbutton1_over" fore="L2UI_CH3.smallbutton1"></td>
+<td width=70><font color="B09979">ID Skill:</font></td>
+<td width=70><font color="B09979">Nivel:</font></td>
+<td width=150></td>
+</tr>
+<tr>
+<td><edit var="id" width=65></td>
+<td><edit var="level" width=65></td>
+<td align=right><button value="Adicionar Skill" action="bypass -h admin_skill $id $level" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
+</tr>
+<tr>
+<td colspan=2 align=right><font color="808080">Remover skill do alvo:</font></td>
+<td align=right><button value="Remover Skill" action="bypass -h admin_removeskill $id" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
+</tr>
+<tr>
+<td colspan=2 align=right><font color="808080">Remover todos os buffs:</font></td>
+<td align=right><button value="Limpar Buffs" action="bypass -h admin_cancel" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
 </tr>
 </table>
+
+<br>
 <center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-</center>
-</body>
-</html>
+<font color="LEVEL">Presets Rapidos de Suporte & GM</font>
+<center><img src="L2UI.SquareGray" width=300 height=1></center>
+
+<table width=290>
+<tr>
+<td><button value="Super Haste 4" action="bypass -h admin_gmspeed 4" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Super Haste OFF" action="bypass -h admin_gmspeed 0" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Noblesse (1323)" action="bypass -h admin_skill 1323 1" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+<tr>
+<td><button value="Heroic Miracle" action="bypass -h admin_skill 395 1" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Heroic Berserker" action="bypass -h admin_skill 396 1" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Heroic Grandeur" action="bypass -h admin_skill 397 1" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+<tr>
+<td><button value="Wind Walk 2" action="bypass -h admin_skill 1204 2" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Haste 2" action="bypass -h admin_skill 1086 2" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+<td><button value="Acumen 3" action="bypass -h admin_skill 1085 3" width=95 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+</table>
+
+<br>
+<center><img src="L2UI.SquareGray" width=300 height=1></center>
+<font color="LEVEL">Arvores de Habilidades por Raca</font>
+<center><img src="L2UI.SquareGray" width=300 height=1></center>
+
+<table width="290">
+<tr>
+<td><button value="Humans" action="bypass -h admin_help skills/human/human.htm" width=90 height=21 back="sek.cbui94" fore="sek.cbui94"></td>
+<td><button value="Elves" action="bypass -h admin_help skills/elf/elf.htm" width=90 height=21 back="sek.cbui94" fore="sek.cbui94"></td>
+<td><button value="Dark Elves" action="bypass -h admin_help skills/darkelf/delf.htm" width=90 height=21 back="sek.cbui94" fore="sek.cbui94"></td>
+</tr>
+<tr>
+<td><button value="Orcs" action="bypass -h admin_help skills/orc/orc.htm" width=90 height=21 back="sek.cbui94" fore="sek.cbui94"></td>
+<td><button value="Dwarfs" action="bypass -h admin_help skills/dwarf/dwarf.htm" width=90 height=21 back="sek.cbui94" fore="sek.cbui94"></td>
+<td><button value="Clan Skills" action="bypass -h admin_help skills/specials/clan_skills.htm" width=90 height=21 back="sek.cbui94" fore="sek.cbui94"></td>
+</tr>
+</table>
+
+<br><center><img src="L2UI.SquareGray" width=300 height=1></center>
+<font color="00ccf0">Lopez L2J</font> <font color="ae9987">Skills Management</font>
+</center></body></html>

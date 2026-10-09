@@ -1,62 +1,62 @@
-﻿<html><title>Server Control Panel</title><body>
+<html><title>Server Moderation Panel</title><body>
 <center>
-<!-- top menu -->
-<table width=240>
-<tr>
-<td><button value="Home" action="bypass -h admin_admin" width=60 height=21 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Game" action="bypass -h admin_gamemenu" width=60 height=21 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Effects" action="bypass -h admin_effects" width=60 height=21 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Event" action="bypass -h admin_events" width=60 height=21 back="sek.cbui94" fore="sek.cbui94"></td>
-</tr>
-<tr>
-<td><button value="Server" action="bypass -h admin_server" width=60 height=21 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Control" action="bypass -h admin_control" width=60 height=21 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Players" action="bypass -h admin_players" width=60 height=21 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Configs" action="bypass -h admin_config" width=60 height=21 back="sek.cbui94" fore="sek.cbui94"></td>
-</tr>
-</table>
-
-<!-- Windows Info -->
-<table width=260>
-<tr>
-<td width=50><font color="LEVEL"></font></td>
-<td width=160><edit var="qbox" width=160 height=19></td>
-<td width=50><font color="LEVEL"></font></td>
-</tr>
-</table><br>
-<font color="LEVEL">Control over the players</font>
-<br>
-<table width=260>
-<tr>
-<td><button value="Ban" action="bypass -h admin_banchar $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Unban" action="bypass -h admin_unbanchar $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-</tr>
-<tr>
-<td><button value="Jail" action="bypass -h admin_jail $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="UnJail" action="bypass -h admin_unjail $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-</tr>
-<tr>
-<td><button value="ThrowOut" action="bypass -h admin_kick $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Paralyze" action="bypass -h admin_para $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-</tr>
-<tr>
-<td><button value="Chat ban" action="bypass -h admin_banchat $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Chat Unban" action="bypass -h admin_unbanchat $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-</tr>
-</table>
-<br><font color="LEVEL">Control over accounts</font>
-<table width=260>
-<tr>
-<td><button value="Ban" action="bypass -h admin_ban $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="Unban" action="bypass -h admin_unban $qbox" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-</tr>
-</table>
-<br><font color="LEVEL">System of petitions</font>
 <table width=270>
 <tr>
-<td><button value="Watch" action="bypass -h admin_view_petitions" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
-<td><button value="On/Off" action="bypass -h admin_change_peti_state" width=90 height=19 back="sek.cbui94" fore="sek.cbui94"></td>
+  <td align=center><button value="Main" action="bypass -h admin_admin" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="ALT+G" action="bypass -h admin_altg" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Players" action="bypass -h admin_players" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Server" action="bypass -h admin_server" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Tele" action="bypass -h admin_show_moves" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
 </tr>
 </table>
 
-</center></body></html>
+<img src="L2UI.SquareGray" width=270 height=1>
+
+<table width=270>
+<tr>
+  <td width=90><font color="LEVEL">Jogador / Conta:</font></td>
+  <td width=180><edit var="qbox" width=170 height=16></td>
+</tr>
+</table>
+
+<table width=270>
+<tr>
+  <td><font color="00FFBB">Controle de Personagens</font></td>
+</tr>
+</table>
+
+<table width=270>
+<tr>
+  <td align=center><button value="Ban Char" action="bypass -h admin_banchar $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Unban Char" action="bypass -h admin_unbanchar $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Desconectar" action="bypass -h admin_kick $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+<tr>
+  <td align=center><button value="Prender (Jail)" action="bypass -h admin_jail $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Soltar (Unjail)" action="bypass -h admin_unjail $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Paralisar" action="bypass -h admin_para $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+<tr>
+  <td align=center><button value="Mute Chat" action="bypass -h admin_banchat $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="UnMute Chat" action="bypass -h admin_unbanchat $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Ver Detalhes" action="bypass -h admin_charinfo $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+</table>
+
+<img src="L2UI.SquareGray" width=270 height=1>
+
+<table width=270>
+<tr>
+  <td><font color="00FFBB">Controle de Contas (Login)</font></td>
+</tr>
+</table>
+
+<table width=270>
+<tr>
+  <td align=center><button value="Banir Conta" action="bypass -h admin_ban $qbox" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Desbanir Conta" action="bypass -h admin_unban $qbox" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+</table>
+
+</center>
+</body></html>

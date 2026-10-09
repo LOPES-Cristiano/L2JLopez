@@ -1,43 +1,62 @@
-<html><title>Control Panel ® </title><body>
+<html><title>Announcement Control Panel</title><body>
 <center>
-<table width=270><tr>
+<table width=270>
 <tr>
-  <td><a action="bypass -h admin_admin" width=54 height=19><font color="FFD306">Main</font></a></td>
-  <td><a action="bypass -h admin_gamemenu" width=54 height=19><font color="FFD306">Game</font></a></td>
-  <td><a action="bypass -h admin_server" width=54 height=19><font color="FFD306">Server</font></a></td>
-  <td><a action="bypass -h admin_effects" width=54 height=19><font color="FFD306">Effects</font></a></td>
-  <td><a action="bypass -h admin_mod" width=54 height=19><font color="FFD306">Mods</font></a></td>
+  <td align=center><button value="Main" action="bypass -h admin_admin" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="ALT+G" action="bypass -h admin_altg" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Players" action="bypass -h admin_players" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Server" action="bypass -h admin_server" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Tele" action="bypass -h admin_show_moves" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
 </tr>
 </table>
-<center><img src="L2UI.SquareGray" width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<br>
 
-<font color="LEVEL">The text of the announcement:</font>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
+<img src="L2UI.SquareGray" width=270 height=1>
 
-<multiedit var="new_announcement" width=300 height=60>
-
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<br>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<table bgcolor="000000" width=300>
+<table width=270>
 <tr>
-<td><button value="Add new" action="bypass -h admin_announce_add $new_announcement" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-<td><button value="Refresh" action="bypass -h admin_announce_refresh" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-<td><button value="Critical" action="bypass -h admin_announce_critical $new_announcement" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-</tr>
-<tr>
-<td><button value="Announce" action="bypass -h admin_announce $new_announcement" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-<td><button value="Reload file" action="bypass -h admin_announce_reloadfile" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
-<td><button value="Reload DB" action="bypass -h admin_announce_reloaddb" width=95 height=21 back="L2UI_CH3.bigbutton_over" fore="L2UI_CH3.bigbutton"></td>
+  <td><font color="FFBB00">Texto do Anuncio Global:</font></td>
 </tr>
 </table>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
 
-<br><font color="LEVEL">List of announcements</font>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-%announces%
+<table width=270>
+<tr>
+  <td align=center><multiedit var="new_announcement" width=260 height=45></td>
+</tr>
+</table>
 
-</center></body></html>
+<table width=270>
+<tr>
+  <td align=center><button value="Anuncio Padrao" action="bypass -h admin_announce $new_announcement" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Anuncio Critico (Tela)" action="bypass -h admin_announce_critical $new_announcement" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+</table>
+
+<img src="L2UI.SquareGray" width=270 height=1>
+
+<table width=270>
+<tr>
+  <td><font color="00FFBB">Anuncios Rapidos Pre-definidos</font></td>
+</tr>
+</table>
+
+<table width=270>
+<tr>
+  <td align=center><button value="Reinicio em 5m" action="bypass -h admin_announce O servidor sera reiniciado em 5 minutos para manutencao." width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Reinicio em 1m" action="bypass -h admin_announce_critical ATENCAO: Reinicio em 1 minuto! Por favor, desconectem-se em local seguro." width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+<tr>
+  <td align=center><button value="Evento PvP Aberto" action="bypass -h admin_announce_critical Evento PvP Aberto! Teleportem-se atraves do NPC de Eventos." width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+  <td align=center><button value="Torneio Aberto" action="bypass -h admin_announce_critical Inscricoes para o Torneio Abertas! Fale com o Tournament Manager." width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+</table>
+
+<img src="L2UI.SquareGray" width=270 height=1>
+
+<table width=270>
+<tr>
+  <td align=center><button value="Atualizar Pagina" action="bypass -h admin_announce_menu" width=150 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
+</tr>
+</table>
+
+</center>
+</body></html>
