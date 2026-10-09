@@ -23,6 +23,11 @@ public record ServerProperties(
 
 	public ServerProperties {
 		admin = admin != null ? admin : new Admin(java.util.List.of());
+		features = features != null ? features : new Features(
+				new Toggle(true), new Toggle(true), new Toggle(true),
+				new Toggle(true), new Toggle(true), new Toggle(true),
+				new Toggle(true), new Toggle(true), new Toggle(false),
+				new Toggle(true));
 	}
 
 	public record Admin(java.util.List<String> superusers) {
@@ -75,6 +80,19 @@ public record ServerProperties(
 			@Valid Toggle achievements,
 			@Valid Toggle vote,
 			@Valid Toggle quake) {
+
+		public Features {
+			autofarm = autofarm != null ? autofarm : new Toggle(true);
+			dressme = dressme != null ? dressme : new Toggle(true);
+			pvpRank = pvpRank != null ? pvpRank : new Toggle(true);
+			reset = reset != null ? reset : new Toggle(true);
+			roulette = roulette != null ? roulette : new Toggle(true);
+			aio = aio != null ? aio : new Toggle(true);
+			vip = vip != null ? vip : new Toggle(true);
+			achievements = achievements != null ? achievements : new Toggle(true);
+			vote = vote != null ? vote : new Toggle(false);
+			quake = quake != null ? quake : new Toggle(true);
+		}
 	}
 
 	public record Toggle(boolean enabled) {
