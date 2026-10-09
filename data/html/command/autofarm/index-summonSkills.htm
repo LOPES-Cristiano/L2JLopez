@@ -1,0 +1,42 @@
+<html noscrollbar><title>Auto Farm Summon Settings</title><body>
+<img src="L2UI.SquareWhite" width=298 height=2>
+<br>
+<center><font color=LEVEL>Summon Skills Settings</font></center>
+<img src="L2UI.SquareWhite" width=298 height=2>
+<table width=297 border=0 cellspacing=0 cellpadding=0>
+	<tr>
+		<td width=99>
+			<button value="ATTACK" action="bypass -h user_editSummonSkills attack %skillType%" width=99 height=20 back="L2UI_CT1.ListCTRL_DF_Title_Down" fore="L2UI_CT1.ListCTRL_DF_Title">
+		</td>
+		<td width=99 align=center>
+			<button value="SELF" action="bypass -h user_editSummonSkills self %skillType%" width=99 height=20 back="L2UI_CT1.ListCTRL_DF_Title_Down" fore="L2UI_CT1.ListCTRL_DF_Title">
+		</td>
+		<td width=99 align=center>
+			<button value="HEAL" action="bypass -h user_editSummonSkills heal %skillType%" width=99 height=20 back="L2UI_CT1.ListCTRL_DF_Title_Down" fore="L2UI_CT1.ListCTRL_DF_Title">
+		</td>
+	</tr>
+</table>
+<img src="L2UI.SquareWhite" width=298 height=2>
+<br>
+<table width=298 border=0 cellspacing=0 cellpadding=0>
+    	<tr>
+		%skillList%
+    	</tr>
+</table>
+<br>
+<img src="L2UI.SquareWhite" width=298 height=2>
+%skillsParam%
+<img src="L2UI.SquareWhite" width=298 height=2>
+<br>
+<table width=298 bgcolor=1F1818>
+	<tr>
+		<td width=5></td>
+		<td width=120><button action="%delaySk_bypass%" value="" width=15 height=15 back="%delaySk_img%" fore="%delaySk_img%"></td>
+		<td fixwidth=240>
+			Use Skills With Extra Delay
+		</td>
+	</tr>
+</table>
+<br><br>
+<center><button value="Back" action="bypass -h .autofarm" width=60 height=20 back="L2UI_CH3.bigbutton2_down" fore="L2UI_CH3.bigbutton2"></center>
+</body></html>

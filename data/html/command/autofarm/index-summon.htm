@@ -1,0 +1,144 @@
+<html noscrollbar><title>Auto Farm Settings</title><body>
+<table width="295" cellpadding="4" bgcolor="452822">
+    	<tr>
+      		<td width="45" valign="center" align="center"><img src="icon.skill1128" width="32" height="32"></td>
+      		<td valign="top">
+			<table width=240>
+				<tr>
+					<td width=160>
+						%activate%<br1>
+						Last hwid limit
+					</td>
+					<td width=42>
+						%status%<br1>&nbsp;&nbsp;%activeHwids%
+					</td>
+					<td width=42>
+						%button%<br1>
+						&nbsp;
+					</td>
+    				</tr>
+  			</table>
+		</td>
+    	</tr>
+  </table>
+<img src="L2UI.SquareWhite" width=298 height=2>
+<table width=262 bgcolor=000000>
+	<tr>
+		<td fixwidth=50><button value="acp" action="bypass -h user_acp" width=40 height=20 back="L2UI_CH3.bigbutton2_down" fore="L2UI_CH3.bigbutton2"></td>
+		<td fixwidth=60></td>
+		<td fixwidth=100>
+			Farm type
+		</td>
+		<td fixwidth=20></td>
+		%farmType%
+	</tr>
+</table>
+<img src="L2UI.SquareWhite" width=298 height=2>
+<br>
+<table width=298 bgcolor=1F1818>
+	<tr>
+		<td width=1></td>
+		<td width=35><button action="%assist_bypass%" value="" width=15 height=15 back="%assist_img%" fore="%assist_img%"></td>
+		<td fixwidth=240>
+			Assist to Party Leader
+		</td>
+	</tr>
+</table>
+<table width=298 border=0 cellspacing=0 cellpadding=0 height=20>
+	<tr>
+
+		<td width=5></td>
+		<td width=15>
+			<table width=15 border=0 cellspacing=3 cellpadding=0 height=10>
+				<tr>
+					<td width=15>
+						<button action="%refreshSkills% $selectid" value="" width=15 height=15 back="L2UI.CheckBox_checked" fore="L2UI.CheckBox">
+					</td>
+				</tr>
+			</table>
+		</td>
+		<td width=180>
+			<table width=180 border=0 cellspacing=0 cellpadding=0 height=20>
+				<tr>
+					<td width=180 align=center>
+						Refresh skills by shortcuts
+					</td>
+				</tr>
+			</table>
+		</td>
+		<td width=100 align=left>
+			<combobox width=40 var=selectid list="1;2;3;4;5;6;7;8;9;10">
+		</td>
+	</tr>
+</table>
+<br1>
+<img src="L2UI.SquareWhite" width=298 height=2>
+<table width=298 border=0 cellspacing=0 cellpadding=0>
+	<tr>
+		<td width=73>
+			<button value="ATTACK" action="bypass -h user_changeSkillType attack" width=73 height=20 back="L2UI_CH3.bigbutton2_down" fore="L2UI_CH3.bigbutton2">
+		</td>
+		<td width=73 align=center>
+			<button value="CHANCE" action="bypass -h user_changeSkillType chance" width=73 height=20 back="L2UI_CH3.bigbutton2_down" fore="L2UI_CH3.bigbutton2">
+		</td>
+		<td width=73 align=center>
+			<button value="SELF" action="bypass -h user_changeSkillType self" width=73 height=20 back="L2UI_CH3.bigbutton2_down" fore="L2UI_CH3.bigbutton2">
+		</td>
+		<td width=73 align=center>
+			<button value="HEAL" action="bypass -h user_changeSkillType heal" width=73 height=20 back="L2UI_CH3.bigbutton2_down" fore="L2UI_CH3.bigbutton2">
+		</td>
+	</tr>
+</table>
+<img src="L2UI.SquareWhite" width=298 height=2>
+<br>
+<table width=298 border=0 cellspacing=0 cellpadding=0>
+    	<tr>
+		%skillList%
+    	</tr>
+</table>
+<br>
+
+<img src="L2UI.SquareWhite" width=298 height=2>
+%skillsParam%
+<img src="L2UI.SquareWhite" width=298 height=2>
+<table width=298 bgcolor=1F1818>
+	<tr>
+		<td width=5></td>
+		%distance%
+		<td width=8></td>
+		<td fixwidth=240>
+			Search Distance
+		</td>
+	</tr>
+</table>
+<table width=298 bgcolor=1F1818>
+	<tr>
+		<td width=5></td>
+		<td width=120><button action="%keepLoc_bypass%" value="" width=15 height=15 back="%keepLoc_img%" fore="%keepLoc_img%"></td>
+		<td fixwidth=240>
+			Keep Starting Farm Location
+		</td>
+	</tr>
+</table>
+<table width=298 bgcolor=1F1818>
+	<tr>
+		<td width=5></td>
+		<td width=120><button action="%useSummonSk_bypass%" value="" width=15 height=15 back="%useSummonSk_img%" fore="%useSummonSk_img%"></td>
+		<td fixwidth=180>
+			Use Summon Skills
+		</td>
+		<td fixwidth=60>
+			<button value="Edit" action="bypass -h user_editSummonSkills" width=40 height=20 back="L2UI_CH3.bigbutton2_down" fore="L2UI_CH3.bigbutton2">
+		</td>
+	</tr>
+</table>
+<table width=298 bgcolor=1F1818>
+	<tr>
+		<td width=5></td>
+		<td width=120><button action="%delaySk_bypass%" value="" width=15 height=15 back="%delaySk_img%" fore="%delaySk_img%"></td>
+		<td fixwidth=240>
+			Use Skills With Extra Delay
+		</td>
+	</tr>
+</table>
+</body></html>
