@@ -18,6 +18,7 @@ spring:
   devtools:
     restart:
       enabled: false
+
 server:
   port: 8080
 
@@ -26,60 +27,3 @@ management:
     web:
       exposure:
         include: health,info,metrics
-
-l2:
-  server-name: L2JLopez
-  datapack:
-    root-dir: ${L2_DATAPACK_DIR:data}
-    html-dir: ${L2_DATAPACK_HTML_DIR:data/html}
-    xml-dir: ${L2_DATAPACK_XML_DIR:data/xml}
-    scripts-dir: ${L2_DATAPACK_SCRIPTS_DIR:data/scripts}
-    teleports-file: ${L2_DATAPACK_TELEPORTS_FILE:data/xml/world/teleports.xml}
-    buylists-file: ${L2_DATAPACK_BUYLISTS_FILE:data/xml/world/buylists.xml}
-  rates:
-    xp: 100.0
-    sp: 100.0
-    party-xp: 100.0
-    party-sp: 100.0
-    adena: 100.0
-    drop: 100.0
-    spoil: 100.0
-  network:
-    login-port: 2106
-    game-port: 7777
-    login-internal-port: 9014
-    protocol-min: 730
-    protocol-max: 746
-  login:
-    listen: true
-    # Igual ao legado (AutoCreateAccounts=True): qualquer login novo cria a conta. Desligue em producao.
-    auto-create-accounts: ${L2_AUTO_CREATE_ACCOUNTS:true}
-    max-account-creations-per-ip: 2
-    game-server-host: ${L2_GAME_HOST:127.0.0.1}
-    max-players: 500
-    show-licence: true
-  game:
-    listen: true
-    # StartingAdena do custom.properties do L2JDream (o padrao do L2J puro e 0).
-    starting-adena: ${L2_STARTING_ADENA:10000000}
-  features:
-    autofarm: { enabled: true }
-    dressme: { enabled: true }
-    pvp-rank: { enabled: true }
-    reset: { enabled: true }
-    roulette: { enabled: true }
-    aio: { enabled: true }
-    vip: { enabled: true }
-    achievements: { enabled: true }
-    vote: { enabled: false }
-    quake: { enabled: true }
-  admin:
-    # Nomes de personagens ou logins de conta com privilegios de GM (accessLevel 100) automaticos ao entrar no jogo
-    superusers:
-      - "Cristiano"
-      - "cristiano"
-      - "admin"
-      - "Admin"
-      - "gm"
-      - "GM"
-      - "root"
