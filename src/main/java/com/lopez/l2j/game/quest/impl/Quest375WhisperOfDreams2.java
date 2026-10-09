@@ -53,7 +53,7 @@ public class Quest375WhisperOfDreams2 extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		if ("quest_accept".equalsIgnoreCase(event)) {
+		if (("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event))) {
 			qs.setCond(1);
 			qs.setState(State.STARTED);
 			qs.playSound(QuestState.SOUND_ACCEPT);

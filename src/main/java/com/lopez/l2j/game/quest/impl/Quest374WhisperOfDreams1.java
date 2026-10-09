@@ -52,7 +52,7 @@ public class Quest374WhisperOfDreams1 extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		if ("quest_accept".equalsIgnoreCase(event)) {
+		if (("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event))) {
 			qs.setCond(1);
 			qs.setState(State.STARTED);
 			qs.playSound(QuestState.SOUND_ACCEPT);
@@ -63,7 +63,7 @@ public class Quest374WhisperOfDreams1 extends Quest {
 			qs.exitQuest(true);
 			qs.playSound(QuestState.SOUND_FINISH);
 			return "seer_manakia_q0374_07.htm";
-		} else if ("reply_3".equalsIgnoreCase(event) && qs.getQuestItemsCount(CAVE_BEAST_TOOTH) >= 65 && qs.getQuestItemsCount(DEATH_BLADER_LIGHT) >= 65) {
+		} else if (("reply_3".equalsIgnoreCase(event) || "reward_exchange".equalsIgnoreCase(event)) && qs.getQuestItemsCount(CAVE_BEAST_TOOTH) >= 65 && qs.getQuestItemsCount(DEATH_BLADER_LIGHT) >= 65) {
 			qs.takeItems(CAVE_BEAST_TOOTH, -1);
 			qs.takeItems(DEATH_BLADER_LIGHT, -1);
 			qs.giveItems(5486, 3); // Tallum Tunic Textures
