@@ -1,0 +1,35 @@
+<html><body><center>
+    <table width=300>
+        <tr><td width=150>Outer gate</td>
+            <td width=30>
+                <a action="bypass -h npc_%objectId%_operate_door 1 20220001 20220002">Open</a>
+            </td><td width=10>  /  </td><td width=50>
+                <a action="bypass -h npc_%objectId%_operate_door 0 20220001 20220002">Close</a></td>
+        </tr>
+        <tr><td height=5></td></tr>
+
+        <tr><td>Inner gate</td><td>
+            <a action="bypass -h npc_%objectId%_operate_door 1 20220005 20220006">Open</a>
+        </td><td>  /  </td><td>
+            <a action="bypass -h npc_%objectId%_operate_door 0 20220005 20220006">Close</a></td><td></td>
+        </tr>
+        <tr><td height=5></td></tr>
+
+        <tr><td>Mooring place</td><td>
+            <a action="bypass -h npc_%objectId%_operate_door 1 20220008">Open</a>
+        </td><td>  /  </td><td>
+            <a action="bypass -h npc_%objectId%_operate_door 0 20220008">Close</a></td>
+        </tr>
+        <tr><td height=5></td></tr>
+        <tr><td>All gates</td><td>
+            <a action="bypass -h npc_%objectId%_operate_door 1 20220001 20220002 20220005 20220006 20220008">Open</a>
+        </td><td>  /  </td><td>
+            <a action="bypass -h npc_%objectId%_operate_door 0 20220001 20220002 20220005 20220006 20220008">Close</a></td>
+        </tr>
+        <tr><td height=5></td></tr>
+    </table>
+    <br>
+    <br>
+    <a action="bypass -h npc_%objectId%_default">Go back</a></center>
+</body>
+</html>
