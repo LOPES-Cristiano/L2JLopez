@@ -79,6 +79,10 @@ public class TradeService {
 	private final Map<Integer, TradeSession> activeTrades = new ConcurrentHashMap<>();
 	private final InventoryService inventoryService;
 
+	public TradeService() {
+		this(null);
+	}
+
 	public TradeService(InventoryService inventoryService) {
 		this.inventoryService = inventoryService;
 	}
@@ -109,6 +113,10 @@ public class TradeService {
 			if (packetSender != null) {
 				packetSender.accept(SystemMessage.of(SystemMessage.S1_IS_BUSY_TRY_LATER, new SystemMessage.Text(partner.name())));
 			}
+			return false;
+		}
+		if (!com.lopez.l2j.config.Config.ALT_KARMA_PLAYER_CAN_TRADE && (requester.karma() > 0 || partner.karma() > 0)) {
+			if (packetSender != null) packetSender.accept(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
 			return false;
 		}
 
