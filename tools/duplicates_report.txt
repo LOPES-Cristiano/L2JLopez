@@ -1,0 +1,50 @@
+==================================================================
+1. AUDITING Config.java FOR DUPLICATE FIELDS AND LOADERS
+==================================================================
+Total unique static fields in Config.java: 1600
+Duplicate static fields in Config.java: 0
+
+Duplicate assignments in Config.init(): 0
+
+==================================================================
+2. AUDITING .properties FILES FOR DUPLICATE KEYS
+==================================================================
+
+Processed 27 properties files. Intra-file duplicate keys: 0
+
+Keys defined in MULTIPLE different .properties files: 8
+  Key 'ArenaAllowS' in 2 files: game/events/ArenaDuel.properties, game/events/tournament.properties
+     [game/events/ArenaDuel.properties:18] = 'True'
+     [game/events/tournament.properties:18] = 'True'
+  Key 'BlueTeamLoc' in 2 files: game/events/ctfevent.properties, game/events/tvtevent.properties
+     [game/events/ctfevent.properties:78] = '150545,46734,-3415'
+     [game/events/tvtevent.properties:78] = '150545,46734,-3415'
+  Key 'Driver' in 2 files: game/main/network.properties, login/network.properties
+     [game/main/network.properties:35] = 'com.mysql.jdbc.Driver'
+     [login/network.properties:25] = 'com.mysql.jdbc.Driver'
+  Key 'Login' in 2 files: game/main/network.properties, login/network.properties
+     [game/main/network.properties:42] = 'root'
+     [login/network.properties:32] = 'root'
+  Key 'MaximumDbConnections' in 2 files: game/main/network.properties, login/network.properties
+     [game/main/network.properties:47] = '500'
+     [login/network.properties:37] = '1000'
+  Key 'Password' in 2 files: game/main/network.properties, login/network.properties
+     [game/main/network.properties:43] = 'root'
+     [login/network.properties:33] = 'root'
+  Key 'RedTeamLoc' in 2 files: game/events/ctfevent.properties, game/events/tvtevent.properties
+     [game/events/ctfevent.properties:84] = '148386,46747,-3415'
+     [game/events/tvtevent.properties:82] = '148386,46747,-3415'
+  Key 'URL' in 2 files: game/main/network.properties, login/network.properties
+     [game/main/network.properties:38] = 'jdbc:mysql://localhost/l2jdb'
+     [login/network.properties:28] = 'jdbc:mysql://localhost/l2jdb'
+
+==================================================================
+3. AUDITING FOR DUPLICATE CLASS NAMES IN src/main/java
+==================================================================
+Duplicate class names found: 0
+
+==================================================================
+4. AUDITING XML FILES (teleports.xml, buylists.xml, staticobjects.xml)
+==================================================================
+teleports.xml: 1130 total IDs, 0 duplicate IDs
+buylists.xml: 627 total lists, 0 duplicate IDs

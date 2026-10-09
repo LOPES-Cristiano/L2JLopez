@@ -1,0 +1,83 @@
+# Relatório Detalhado de Cobertura de Configurações
+Total Arquivos: 27 | Chaves: 1569
+
+### Arquivo: `game/admin/access.properties` (14 props - 100.0% ligado)
+- No Config: 14 / 14
+
+### Arquivo: `game/custom/add-on.properties` (52 props - 100.0% ligado)
+- No Config: 52 / 52
+
+### Arquivo: `game/custom/aiox.properties` (30 props - 100.0% ligado)
+- No Config: 30 / 30
+
+### Arquivo: `game/custom/custom.properties` (41 props - 100.0% ligado)
+- No Config: 41 / 41
+
+### Arquivo: `game/custom/equipments.properties` (18 props - 100.0% ligado)
+- No Config: 18 / 18
+
+### Arquivo: `game/custom/mods.properties` (152 props - 100.0% ligado)
+- No Config: 152 / 152
+
+### Arquivo: `game/custom/vote.properties` (6 props - 100.0% ligado)
+- No Config: 6 / 6
+
+### Arquivo: `game/events/ArenaDuel.properties` (8 props - 100.0% ligado)
+- No Config: 8 / 8
+
+### Arquivo: `game/events/ctfevent.properties` (26 props - 100.0% ligado)
+- No Config: 26 / 26
+
+### Arquivo: `game/events/dmevent.properties` (20 props - 100.0% ligado)
+- No Config: 20 / 20
+
+### Arquivo: `game/events/events_start.properties` (9 props - 100.0% ligado)
+- No Config: 9 / 9
+
+### Arquivo: `game/events/fun_events.properties` (154 props - 100.0% ligado)
+- No Config: 154 / 154
+
+### Arquivo: `game/events/olympiad.properties` (34 props - 100.0% ligado)
+- No Config: 34 / 34
+
+### Arquivo: `game/events/tournament.properties` (9 props - 100.0% ligado)
+- No Config: 9 / 9
+
+### Arquivo: `game/events/tvtevent.properties` (26 props - 100.0% ligado)
+- No Config: 26 / 26
+
+### Arquivo: `game/main/altgame.properties` (58 props - 100.0% ligado)
+- No Config: 58 / 58
+
+### Arquivo: `game/main/bosses.properties` (93 props - 100.0% ligado)
+- No Config: 93 / 93
+
+### Arquivo: `game/main/gameserver.properties` (162 props - 100.0% ligado)
+- No Config: 162 / 162
+
+### Arquivo: `game/main/network.properties` (13 props - 100.0% ligado)
+- No Config: 13 / 13
+
+### Arquivo: `game/main/npc.properties` (34 props - 100.0% ligado)
+- No Config: 34 / 34
+
+### Arquivo: `game/main/options.properties` (120 props - 100.0% ligado)
+- No Config: 120 / 120
+
+### Arquivo: `game/main/player.properties` (107 props - 100.0% ligado)
+- No Config: 107 / 107
+
+### Arquivo: `game/main/rates.properties` (128 props - 100.0% ligado)
+- No Config: 128 / 128
+
+### Arquivo: `game/main/siege.properties` (236 props - 100.0% ligado)
+- No Config: 236 / 236
+
+### Arquivo: `game/revision.properties` (2 props - 100.0% ligado)
+- No Config: 2 / 2
+
+### Arquivo: `login/authserver.properties` (21 props - 100.0% ligado)
+- No Config: 21 / 21
+
+### Arquivo: `login/network.properties` (10 props - 100.0% ligado)
+- No Config: 10 / 10
