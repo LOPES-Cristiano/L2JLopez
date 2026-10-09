@@ -61,19 +61,48 @@ public class MultiSellTable {
 		if (c != null) {
 			return Optional.of(c);
 		}
-		// Tenta carregar sob demanda se o arquivo existir (ex: 002.xml para listId=2)
-		String[] fileNames = {
-				String.valueOf(listId) + ".xml",
-				String.format("%03d.xml", listId),
-				String.format("%04d.xml", listId)
+
+		// Alias canônicos do Lineage 2 Interlude
+		int mappedId = switch (listId) {
+			case 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75 -> 20000 + (listId > 70 ? 70 : listId);
+			case 519 -> 313750003;
+			case 520 -> 313820003;
+			case 522 -> 313750001;
+			case 523 -> 313750002;
+			case 524 -> 313820001;
+			case 525 -> 313820002;
+			case 521 -> 526;
+			default -> listId;
 		};
-		for (String fn : fileNames) {
-			Path p = multisellDir.resolve(fn);
-			if (Files.isRegularFile(p)) {
-				loadFile(p);
-				c = lists.get(listId);
-				if (c != null) {
-					return Optional.of(c);
+
+		if (mappedId != listId) {
+			c = lists.get(mappedId);
+			if (c != null) {
+				lists.put(listId, c);
+				return Optional.of(c);
+			}
+		}
+
+		// Tenta carregar sob demanda se o arquivo existir (ex: 002.xml para listId=2 ou mappedId)
+		int[] checkIds = mappedId != listId ? new int[]{listId, mappedId} : new int[]{listId};
+		for (int idToSearch : checkIds) {
+			String[] fileNames = {
+					String.valueOf(idToSearch) + ".xml",
+					String.format("%03d.xml", idToSearch),
+					String.format("%04d.xml", idToSearch),
+					String.format("%05d.xml", idToSearch)
+			};
+			for (String fn : fileNames) {
+				Path p = multisellDir.resolve(fn);
+				if (Files.isRegularFile(p)) {
+					loadFile(p);
+					c = lists.get(idToSearch);
+					if (c != null) {
+						if (listId != idToSearch) {
+							lists.put(listId, c);
+						}
+						return Optional.of(c);
+					}
 				}
 			}
 		}
