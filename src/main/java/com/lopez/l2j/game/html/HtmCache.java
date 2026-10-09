@@ -66,7 +66,7 @@ public class HtmCache {
 		if (filename == null || filename.isBlank()) {
 			return null;
 		}
-		String clean = filename.toLowerCase(java.util.Locale.ROOT);
+		String clean = filename.trim().toLowerCase(java.util.Locale.ROOT);
 		if (!clean.endsWith(".htm") && !clean.endsWith(".html")) {
 			String rel = indexedFiles.get(clean + ".htm");
 			if (rel != null) {
@@ -81,6 +81,14 @@ public class HtmCache {
 		if (rel != null) {
 			return getHtml(rel);
 		}
+		int lastSlash = Math.max(clean.lastIndexOf('/'), clean.lastIndexOf('\\'));
+		if (lastSlash >= 0 && lastSlash < clean.length() - 1) {
+			String justName = clean.substring(lastSlash + 1);
+			String relJustName = indexedFiles.get(justName);
+			if (relJustName != null) {
+				return getHtml(relJustName);
+			}
+		}
 		return getHtml(filename);
 	}
 
@@ -91,182 +99,245 @@ public class HtmCache {
 	}
 
 	public String getNpcHtml(int npcId, String npcType, int val) {
+		// 1. Roteamento de NPCs Especiais de Seven Signs, Mammon, Rift e Olimpiadas
+		if (npcId == 31092) {
+			String h = getHtml("seven_signs/blkmrkt_1.htm");
+			if (h != null) return h;
+		} else if (npcId == 31093) {
+			String h = getHtml("seven_signs/31093.htm");
+			if (h != null) return h;
+		} else if (npcId == 31094) {
+			String h = getHtml("seven_signs/31094.htm");
+			if (h != null) return h;
+		} else if (npcId == 31113) {
+			String h = getHtml("seven_signs/mammmerch_1.htm");
+			if (h != null) return h;
+		} else if (npcId == 31126) {
+			String h = getHtml("seven_signs/mammblack_1.htm");
+			if (h != null) return h;
+		} else if (npcId == 31111) {
+			String h = getHtml("seven_signs/spirit_dawn.htm");
+			if (h != null) return h;
+		} else if (npcId == 31112) {
+			String h = getHtml("seven_signs/spirit_exit.htm");
+			if (h != null) return h;
+		} else if (npcId >= 31127 && npcId <= 31131) {
+			String h = getHtml("seven_signs/festival/dawn_guide.htm");
+			if (h != null) return h;
+		} else if (npcId >= 31137 && npcId <= 31141) {
+			String h = getHtml("seven_signs/festival/dusk_guide.htm");
+			if (h != null) return h;
+		} else if ((npcId >= 31132 && npcId <= 31136) || (npcId >= 31142 && npcId <= 31146)) {
+			String h = getHtml("seven_signs/festival/festival_witch.htm");
+			if (h != null) return h;
+		} else if (npcId >= 31865 && npcId <= 31918) {
+			String h = getHtml("seven_signs/rift/GuardianOfBorder.htm");
+			if (h != null) return h;
+		} else if (npcId == 31688) {
+			String h = val > 0 ? getHtml("olympiad/noble_menu" + val + ".htm") : getHtml("olympiad/noble_main.htm");
+			if (h != null) return h;
+		} else if (npcId == 31690 || (npcId >= 31769 && npcId <= 31772)) {
+			String h = getHtml("olympiad/hero_main.htm");
+			if (h != null) return h;
+		}
+
+		// 1b. Amigos de Ketra / Varka / Primeval Isle (npc_friend)
+		String friendHtm = getHtml("npc_friend/" + npcId + (val > 0 ? "-" + val : "") + ".htm");
+		if (friendHtm != null && !friendHtm.isBlank()) {
+			return friendHtm;
+		}
+
 		String folder = folderForType(npcType);
 		String suffix = val > 0 ? "-" + val : "";
 
-		// 1. Tenta na pasta do tipo especifico (ex: teleporter/30006.htm)
+		// 2. Tenta na pasta do tipo especifico (ex: teleporter/30006.htm, teleporter/30006-1.htm)
 		String pathType = folder + "/" + npcId + suffix + ".htm";
 		String html = getHtml(pathType);
 		if (html != null && !html.isBlank()) {
 			return html;
 		}
 
-		// 2. Tenta na pasta default (ex: default/30006.htm)
+		// 2b. Formato com padding zero (ex: 30006-01.htm)
+		if (val > 0) {
+			String altType = folder + "/" + npcId + "-0" + val + ".htm";
+			html = getHtml(altType);
+			if (html != null && !html.isBlank()) {
+				return html;
+			}
+		}
+
+		// 3. Tenta na pasta default (se folder != default)
 		if (!"default".equals(folder)) {
 			String pathDefault = "default/" + npcId + suffix + ".htm";
 			html = getHtml(pathDefault);
 			if (html != null && !html.isBlank()) {
 				return html;
 			}
+			if (val > 0) {
+				String altDef = "default/" + npcId + "-0" + val + ".htm";
+				html = getHtml(altDef);
+				if (html != null && !html.isBlank()) {
+					return html;
+				}
+			}
 		}
 
-		// 3. Busca no indice global de arquivos HTML para encontrar o dialogo oficial retail em qualquer subpasta
+		// 4. Shared / Type Template HTML (Templates compartilhados oficiais de cada tipo)
+		String shared = resolveSharedTypeHtml(folder, npcId, val);
+		if (shared != null && !shared.isBlank()) {
+			return shared;
+		}
+
+		// 5. Busca no indice global de arquivos HTML para encontrar o dialogo oficial retail em qualquer subpasta
 		String[] candidates = val > 0
 				? new String[] { npcId + "-" + val + ".htm", npcId + "-0" + val + ".htm", npcId + "-" + val + ".html" }
 				: new String[] { npcId + ".htm", npcId + "-1.htm", npcId + "-01.htm", npcId + ".html" };
-
-		String lowerType = npcType != null ? npcType.toLowerCase(java.util.Locale.ROOT) : "";
-		boolean isSevenSigns = isSevenSignsNpc(npcId);
-		boolean isFunctional = !isSevenSigns && (lowerType.contains("teleport")
-				|| lowerType.contains("merchant") || lowerType.contains("trader") || lowerType.contains("grocer")
-				|| lowerType.contains("blacksmith") || lowerType.contains("trainer") || lowerType.contains("master")
-				|| lowerType.contains("teacher") || lowerType.contains("warehouse") || lowerType.contains("guard")
-				|| lowerType.contains("fisherman") || lowerType.contains("symbolmaker") || lowerType.contains("priest"));
 
 		for (String cand : candidates) {
 			String indexedPath = indexedFiles.get(cand.toLowerCase(java.util.Locale.ROOT));
 			if (indexedPath != null) {
 				html = getHtml(indexedPath);
 				if (html != null && !html.isBlank()) {
-					if (!isSevenSigns && (isFunctional && !html.contains("bypass") || html.contains("I have nothing to say"))) {
-						return enrichNpcHtml(html, npcId, lowerType);
-					}
 					return html;
 				}
 			}
 		}
 
-		// 4. Se for NPC funcional ou se val > 0, gera o dialogo sintetico interativo rico
-		if (isFunctional || (!isSevenSigns && val > 0)) {
-			return generateSmartNpcHtml(npcId, lowerType, val);
+		// 6. Guarda sem diálogo individual recebe fala padronizada de guarda
+		if ("guard".equals(folder)) {
+			String guardHtm = getHtml("guard/guard.htm");
+			if (guardHtm != null && !guardHtm.isBlank()) {
+				return guardHtm;
+			}
 		}
 
-		// 5. Fallback para npcdefault.htm se nao for NPC funcional
+		// 7. Fallback oficial canônico: npcdefault.htm
 		String defaultHtml = getHtml("npcdefault.htm");
-		if (defaultHtml != null && !defaultHtml.isBlank() && !defaultHtml.contains("I have nothing to say")) {
+		if (defaultHtml != null && !defaultHtml.isBlank()) {
 			return defaultHtml;
 		}
 
-		return generateSmartNpcHtml(npcId, lowerType, val);
+		return "<html><body>%npc_name%:<br><br>I have nothing to say to you.<br><a action=\"bypass -h npc_%objectId%_Quest\">Quest</a></body></html>";
 	}
 
-	public String enrichNpcHtml(String baseHtml, int npcId, String lowerType) {
-		if (isSevenSignsNpc(npcId)) {
-			return baseHtml;
-		}
-		StringBuilder extra = new StringBuilder("<br><br>");
-		if (lowerType.contains("trainer") || lowerType.contains("master") || lowerType.contains("teacher") || lowerType.contains("priest")) {
-			extra.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn Skills</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_1stClass\">1st Class Transfer</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_2ndClass\">2nd Class Transfer</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_3rdClass\">3rd Class Transfer</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_create_clan\">Create Clan</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_increase_clan_level\">Increase Clan Level</a><br>");
-		} else if (lowerType.contains("teleport")) {
-			extra.append("<a action=\"bypass -h npc_%objectId%_Chat 1\">Teleport</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_Quest 1101_teleport_to_race_track\">Monster Derby Track (Free)</a><br>");
-		} else if (lowerType.contains("merchant") || lowerType.contains("trader") || lowerType.contains("grocer")) {
-			extra.append("<a action=\"bypass -h npc_%objectId%_Buy 1\">Buy Items</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_Sell\">Sell Items</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_multisell 1\">Exchange Equipment</a><br>");
-		} else if (lowerType.contains("warehouse")) {
-			extra.append("<a action=\"bypass -h npc_%objectId%_DepositP\">Deposit Item (Private)</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_WithdrawP\">Withdraw Item (Private)</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_DepositC\">Deposit Item (Clan)</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_WithdrawC\">Withdraw Item (Clan)</a><br>");
-		} else if (lowerType.contains("blacksmith")) {
-			extra.append("<a action=\"bypass -h npc_%objectId%_Link common/duals_01.htm\">Craft Dual Swords</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_Link common/crafting_01.htm\">Craft Items</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_Link common/weapon_sa_01.htm\">Bestow Special Ability</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_Augment 1\">Augment Item</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_Augment 2\">Cancel Augmentation</a><br1>")
-					.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn Skills</a><br>");
-		}
-		if (baseHtml.contains("</body>")) {
-			return baseHtml.replace("</body>", extra + "</body>");
-		}
-		return baseHtml + extra;
-	}
-
-	private String generateSmartNpcHtml(int npcId, String lowerType, int val) {
-		StringBuilder sb = new StringBuilder();
-		sb.append("<html><body><font color=\"LEVEL\">%npc_name%</font>:<br><br>");
-
-		if (lowerType.contains("teleport")) {
-			if (val > 0) {
-				sb.append("Select your destination:<br><br>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_goto 1\">Town of Gludio - 10,000 Adena</a><br1>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_goto 269\">Town of Giran - 6,800 Adena</a><br1>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_goto 275\">Town of Aden - 52,000 Adena</a><br1>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_goto 276\">Town of Oren - 33,000 Adena</a><br1>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_goto 270\">Heine - 12,000 Adena</a><br1>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_goto 271\">Town of Gludio - 3,400 Adena</a><br1>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_goto 272\">Town of Goddard - 71,000 Adena</a><br1>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_goto 273\">Rune Township - 57,000 Adena</a><br1>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_goto 274\">Town of Schuttgart - 88,000 Adena</a><br><br>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_Chat 0\">Back</a><br>");
-			} else {
-				sb.append("May the starlight guide your path, %name%! Which destination would you like to travel to?<br><br>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_Chat 1\">Teleport</a><br1>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_Quest 1101_teleport_to_race_track\">Move to Monster Derby Track (Free)</a><br1>");
-				sb.append("<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a><br>");
+	private String resolveSharedTypeHtml(String folder, int npcId, int val) {
+		String suffix = val > 0 ? "-" + val : "";
+		return switch (folder) {
+			case "symbolmaker" -> {
+				String h = val > 0 ? getHtml("symbolmaker/SymbolMaker" + suffix + ".htm") : getHtml("symbolmaker/SymbolMaker.htm");
+				yield h != null ? h : getHtml("symbolmaker/SymbolMaker.htm");
 			}
-		} else if (lowerType.contains("merchant") || lowerType.contains("trader") || lowerType.contains("grocer")) {
-			sb.append("Greetings %name%! Take a look at our fine wares. Best prices in the realm!<br><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Buy 1\">Buy items</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Sell\">Sell items</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_multisell 1\">Exchange equipment</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_TerritoryStatus\">View territory tax rate</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a><br>");
-		} else if (lowerType.contains("blacksmith")) {
-			sb.append("Welcome to the forge, %name%! The anvil never rests.<br><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Link common/duals_01.htm\">Craft Dual Swords</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Link common/crafting_01.htm\">Craft Items</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Link common/weapon_sa_01.htm\">Bestow Special Ability</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Augment 1\">Augment Item</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Augment 2\">Cancel Augmentation</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn Skills</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_TerritoryStatus\">View territory tax rate</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a><br>");
-		} else if (lowerType.contains("trainer") || lowerType.contains("master") || lowerType.contains("teacher") || lowerType.contains("guild")) {
-			sb.append("Welcome, pupil %name%. Are you ready to sharpen your abilities?<br><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_SkillList\">Learn Skills</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_1stClass\">1st Class Transfer</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_2ndClass\">2nd Class Transfer</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_3rdClass\">3rd Class Transfer</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_create_clan\">Create Clan</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_increase_clan_level\">Increase Clan Level</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a><br>");
-		} else if (lowerType.contains("warehouse")) {
-			sb.append("Greetings! Your possessions are completely secure in our vault.<br><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_DepositP\">Deposit Item (Private)</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_WithdrawP\">Withdraw Item (Private)</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_DepositC\">Deposit Item (Clan)</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_WithdrawC\">Withdraw Item (Clan)</a><br1>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a><br>");
-		} else if (lowerType.contains("guard")) {
-			sb.append("The perimeter of this city is secure under our watchful eye. Move along, %name%, and stay safe.<br><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a><br>");
-		} else {
-			sb.append("Hello, %name%! How may I assist you today?<br><br>");
-			sb.append("<a action=\"bypass -h npc_%objectId%_Quest\">Quest</a><br>");
-		}
-
-		sb.append("</body></html>");
-		return sb.toString();
+			case "manormanager" -> {
+				String h = val > 0 ? getHtml("manormanager/manager" + suffix + ".htm") : getHtml("manormanager/manager.htm");
+				yield h != null ? h : getHtml("manormanager/manager.htm");
+			}
+			case "auction" -> {
+				String h = val > 0 ? getHtml("auction/auction" + suffix + ".htm") : getHtml("auction/auction.htm");
+				yield h != null ? h : getHtml("auction/auction.htm");
+			}
+			case "clanHallManager" -> {
+				String h = getHtml("clanHallManager/chamberlain.htm");
+				yield h != null ? h : getHtml("clanHallManager/manage.htm");
+			}
+			case "castleblacksmith" -> {
+				String h = val > 0 ? getHtml("castleblacksmith/castleblacksmith" + suffix + ".htm") : getHtml("castleblacksmith/castleblacksmith.htm");
+				yield h != null ? h : getHtml("castleblacksmith/castleblacksmith.htm");
+			}
+			case "castlewarehouse" -> {
+				String h = val > 0 ? getHtml("castlewarehouse/castlewarehouse" + suffix + ".htm") : getHtml("castlewarehouse/castlewarehouse.htm");
+				yield h != null ? h : getHtml("castlewarehouse/castlewarehouse.htm");
+			}
+			case "castleteleporter" -> {
+				String h = val > 0 ? getHtml("castleteleporter/MassGK" + suffix + ".htm") : getHtml("castleteleporter/MassGK.htm");
+				if (h == null) {
+					h = getHtml("teleporter/castleteleporter.htm");
+				}
+				yield h;
+			}
+			case "teleporter" -> {
+				if (npcId >= 35092 && npcId <= 35565) {
+					yield val > 0 ? getHtml("castleteleporter/MassGK" + suffix + ".htm") : getHtml("castleteleporter/MassGK.htm");
+				}
+				String h = getHtml("teleporter/teleporter.htm");
+				if (h == null) {
+					h = "<html><body>%npc_name%:<br><br>Where would you like to go?<br><a action=\"bypass -h npc_%objectId%_Chat 1\">Teleport</a><br><a action=\"bypass -h npc_%objectId%_Quest\">Quest</a></body></html>";
+				}
+				yield h;
+			}
+			case "merchant" -> {
+				String h = getHtml("merchant/merchant.htm");
+				if (h == null) {
+					h = "<html><body>%npc_name%:<br><br>Welcome. How may I help you?<br><a action=\"bypass -h npc_%objectId%_Buy 0\">Buy items</a><br><a action=\"bypass -h npc_%objectId%_Sell\">Sell items</a><br><a action=\"bypass -h npc_%objectId%_Quest\">Quest</a></body></html>";
+				}
+				yield h;
+			}
+			case "blacksmith" -> {
+				String h = getHtml("blacksmith/blacksmith.htm");
+				if (h == null) {
+					h = "<html><body>%npc_name%:<br><br>Welcome. What would you like to forge today?<br><a action=\"bypass -h npc_%objectId%_Multisell 0\">Craft Dual Swords</a><br><a action=\"bypass -h npc_%objectId%_Augment 1\">Augment Item</a><br><a action=\"bypass -h npc_%objectId%_Quest\">Quest</a></body></html>";
+				}
+				yield h;
+			}
+			case "warehouse" -> {
+				String h = getHtml("warehouse/warehouse.htm");
+				if (h == null) {
+					h = "<html><body>%npc_name%:<br><br>Welcome to the Warehouse.<br><a action=\"bypass -h npc_%objectId%_DepositP\">Deposit Item (Private Warehouse)</a><br><a action=\"bypass -h npc_%objectId%_WithdrawP\">Withdraw Item (Private Warehouse)</a><br><a action=\"bypass -h npc_%objectId%_DepositC\">Deposit Item (Clan Warehouse)</a><br><a action=\"bypass -h npc_%objectId%_WithdrawC\">Withdraw Item (Clan Warehouse)</a><br><a action=\"bypass -h npc_%objectId%_Quest\">Quest</a></body></html>";
+				}
+				yield h;
+			}
+			case "chamberlain" -> {
+				String specific = getHtml("chamberlain/" + npcId + "-d.htm");
+				if (specific != null && !specific.isBlank()) {
+					yield specific;
+				}
+				yield getHtml("chamberlain/chamberlain.htm");
+			}
+			case "castlemagician" -> getHtml("castlemagician/magician.htm");
+			case "mercmanager" -> getHtml("mercmanager/mercmanager.htm");
+			case "wyvernmanager" -> getHtml("wyvernmanager/wyvernmanager.htm");
+			case "classmaster" -> getHtml("classmaster/classmaster.htm");
+			case "fortress" -> {
+				String h = val > 0 ? getHtml("fortress/supportunit" + suffix + ".htm") : getHtml("fortress/supportunit.htm");
+				yield h != null ? h : getHtml("fortress/supportunit.htm");
+			}
+			case "siege" -> getHtml("siege/" + npcId + "-busy.htm");
+			case "doormen" -> {
+				String h = getHtml("doormen/fortress/" + npcId + suffix + ".htm");
+				if (h != null) yield h;
+				h = getHtml("doormen/" + npcId + "-no.htm");
+				if (h != null) yield h;
+				yield getHtml("doormen/35602-no.htm");
+			}
+			default -> null;
+		};
 	}
 
 	public String render(String rawHtml, int npcObjectId, String npcName, String playerName) {
+		return render(rawHtml, npcObjectId, npcName, playerName, 1, 0);
+	}
+
+	public String render(String rawHtml, int npcObjectId, String npcName, String playerName, int castleId, int npcId) {
 		if (rawHtml == null) {
 			return "";
 		}
-		return rawHtml
+		String s = rawHtml
 				.replace("%objectId%", String.valueOf(npcObjectId))
 				.replace("%npc_name%", npcName != null ? npcName : "")
 				.replace("%npc_name", npcName != null ? npcName : "")
+				.replace("%npcname%", npcName != null ? npcName : "")
 				.replace("%name%", playerName != null ? playerName : "")
 				.replace("%name", playerName != null ? playerName : "")
-				.replace("%player_name%", playerName != null ? playerName : "");
+				.replace("%player_name%", playerName != null ? playerName : "")
+				.replace("%playername%", playerName != null ? playerName : "");
+		if (castleId > 0) {
+			s = s.replace("%castleid%", String.valueOf(castleId))
+				 .replace("%castle_id%", String.valueOf(castleId));
+		}
+		if (npcId > 0) {
+			s = s.replace("%npcId%", String.valueOf(npcId))
+				 .replace("%npc_id%", String.valueOf(npcId));
+		}
+		return s;
 	}
 
 	private String folderForType(String npcType) {
@@ -281,24 +352,35 @@ public class HtmCache {
 			clean = clean.substring(0, clean.length() - "instance".length());
 		}
 		return switch (clean) {
-			case "teleporter", "castleteleporter" -> "teleporter";
+			case "teleporter" -> "teleporter";
+			case "castleteleporter" -> "castleteleporter";
 			case "merchant" -> "merchant";
-			case "guard", "guardnohtml", "fortguard", "siegeguard" -> "guard";
-			case "warehouse", "castlewarehouse" -> "warehouse";
-			case "trainer" -> "trainer";
+			case "guard", "guardnohtml", "fortguard", "siegeguard", "warden" -> "guard";
+			case "warehouse" -> "warehouse";
+			case "castlewarehouse" -> "castlewarehouse";
+			case "trainer", "mysticmaster", "priestmaster" -> "trainer";
 			case "villagemaster" -> "villagemaster";
 			case "fisherman" -> "fisherman";
 			case "symbolmaker" -> "symbolmaker";
 			case "doormen", "doorman" -> "doormen";
 			case "newbiehelper" -> "newbiehelper";
-			case "adventurer_guildsman" -> "adventurer_guildsman";
-			case "blacksmith", "castleblacksmith" -> "castleblacksmith";
-			case "magician", "castlemagician" -> "castlemagician";
-			case "chamberlain" -> "chamberlain";
+			case "adventurer", "adventurer_guildsman" -> "adventurer_guildsman";
+			case "castleblacksmith" -> "castleblacksmith";
+			case "blacksmith" -> "blacksmith";
+			case "castlemagician", "magician" -> "castlemagician";
+			case "chamberlain", "castlechamberlain" -> "chamberlain";
 			case "clanhallmanager" -> "clanHallManager";
 			case "classmaster" -> "classmaster";
-			case "olympiad" -> "olympiad";
-			case "seven_signs", "sevensigns" -> "seven_signs";
+			case "olympiad", "olympiadmanager" -> "olympiad";
+			case "seven_signs", "sevensigns", "signspriest", "festivalguide" -> "seven_signs";
+			case "manormanager" -> "manormanager";
+			case "auctioneer" -> "auction";
+			case "wyvernmanager", "fortwyvernmanager" -> "wyvernmanager";
+			case "observation" -> "observation";
+			case "sepulchernpc" -> "SepulcherNpc";
+			case "mercmanager" -> "mercmanager";
+			case "siegenpc", "siege" -> "siege";
+			case "fortmanager", "fortsupportunit", "fortcommander", "fortenvoy", "fortsiegenpc" -> "fortress";
 			default -> "default";
 		};
 	}
