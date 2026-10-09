@@ -1,1687 +1,1133 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <list>
-	    <!-- Dark Elven Village -> Town of Gludio -->
-	<teleport id="1" loc_x="-12694" loc_y="122776" loc_z="-3114"
-		price="10000" fornoble="0" />
-	    <!-- Dark Elven Village -> Dwarven Village -->
-	<teleport id="2" loc_x="115120" loc_y="-178112" loc_z="-880"
-		price="22000" fornoble="0" />
-		<!-- Dark Elven Village -> Talking Island Village -->
-	<teleport id="3" loc_x="-84141" loc_y="244623" loc_z="-3729"
-		price="24000" fornoble="0" />
-		<!-- Dark Elven Village -> Orc Village -->
-	<teleport id="4" loc_x="-45186" loc_y="-112459" loc_z="-236"
-		price="13000" fornoble="0" />
-		<!-- Dark Elven Village -> Dark Forest -->
-	<teleport id="5" loc_x="-22224" loc_y="14168" loc_z="-3232"
-		price="890" fornoble="0" />
-		<!-- Dark Elven Village -> Swampland -->
-	<teleport id="6" loc_x="-21966" loc_y="40544" loc_z="-3192"
-		price="1100" fornoble="0" />
-		<!-- Dark Elven Village -> Spider Nest -->
-	<teleport id="7" loc_x="-61095" loc_y="75104" loc_z="-3352"
-		price="3600" fornoble="0" />
-		<!-- Dark Elven Village -> Neutral Zone -->
-	<teleport id="8" loc_x="-10612" loc_y="75881" loc_z="-3592"
-		price="1700" fornoble="0" />
-		<!-- Dark Elven Village -> Gludin Village (Gate Pass) -->
-	<teleport id="9" loc_x="-80758" loc_y="149711" loc_z="-3043"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Gludio Castle Town (Gate Pass) -->
-	<teleport id="10" loc_x="-12787" loc_y="122779" loc_z="-3112"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Dion Castle Town (Gate Pass) -->
-	<teleport id="11" loc_x="15671" loc_y="142994" loc_z="-2696"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Heine (Gate Pass) -->
-	<teleport id="12" loc_x="111455" loc_y="219400" loc_z="-3546"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Giran Castle Town (Gate Pass) -->
-	<teleport id="13" loc_x="83336" loc_y="147972" loc_z="-3400"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> The Town of Oren (Gate Pass) -->
-	<teleport id="14" loc_x="83011" loc_y="53207" loc_z="-1470"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Hunters Village (Gate Pass) -->
-	<teleport id="15" loc_x="117088" loc_y="76931" loc_z="-2670"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Aden Castle Town (Gate Pass) -->
-	<teleport id="16" loc_x="146783" loc_y="25808" loc_z="-2000"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Rune Township (Gate Pass) -->
-	<teleport id="17" loc_x="43826" loc_y="-47688" loc_z="-792"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Goddard Castle Town (Gate Pass) -->
-	<teleport id="18" loc_x="147978" loc_y="-55408" loc_z="-2728"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Town of Schuttgart (Gate Pass) -->
-	<teleport id="19" loc_x="87478" loc_y="-142297" loc_z="-1352"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Gludin Arena (Gate Pass) -->
-	<teleport id="20" loc_x="-87328" loc_y="142266" loc_z="-3640"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Giran Arena (Gate Pass) -->
-	<teleport id="21" loc_x="73579" loc_y="142709" loc_z="-3768"
-		price="1" fornoble="1" />		
-		<!-- Dark Elven Village -> Coliseum (Gate Pass) -->
-	<teleport id="22" loc_x="146440" loc_y="46723" loc_z="-3400"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> The Center of the Neutral Zone (Gate Pass) -->
-	<teleport id="23" loc_x="-18415" loc_y="85624" loc_z="-3680"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> The Center of the Dark Forest (Gate Pass) -->
-	<teleport id="24" loc_x="-22224" loc_y="14168" loc_z="-3232"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Center of the School of Dark Arts (Gate Pass) -->
-	<teleport id="25" loc_x="-49185" loc_y="49441" loc_z="-5912"
-		price="1" fornoble="1" />
-	<!-- Dark Elven Village -> Necropolis of Sacrifice (Gate Pass) -->
-	<teleport id="26" loc_x="-41184" loc_y="206752" loc_z="-3357"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Heretics Catacomb (Gate Pass) -->
-	<teleport id="27" loc_x="39232" loc_y="143568" loc_z="-3651"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Pilgrims Necropolis (Gate Pass) -->
-	<teleport id="28" loc_x="45600" loc_y="126944" loc_z="-3686"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Catacomb of the Branded (Gate Pass) -->
-	<teleport id="29" loc_x="43200" loc_y="170688" loc_z="-3251"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Worshipers Necropolis (Gate Pass) -->
-	<teleport id="30" loc_x="107514" loc_y="174329" loc_z="-3704"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Catacomb of the Apostate (Gate Pass) -->
-	<teleport id="31" loc_x="74672" loc_y="78032" loc_z="-3398"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Patriots Necropolis (Gate Pass) -->
-	<teleport id="32" loc_x="-25472" loc_y="77728" loc_z="-3446"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Catacomb of the Witch (Gate Pass) -->
-	<teleport id="33" loc_x="136672" loc_y="79328" loc_z="-3702"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Ascetics Necropolis (Gate Pass) -->
-	<teleport id="34" loc_x="-56064" loc_y="78720" loc_z="-3011"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Martyr's Necropolis (Gate Pass) -->
-	<teleport id="35" loc_x="114496" loc_y="132416" loc_z="-3101"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Disciples Necropolis (Gate Pass) -->
-	<teleport id="36" loc_x="168560" loc_y="-17968" loc_z="-3174"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Saints Necropolis (Gate Pass) -->
-	<teleport id="37" loc_x="79296" loc_y="209584" loc_z="-3709"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Catacomb of Dark Omens (Gate Pass) -->
-	<teleport id="38" loc_x="-22480" loc_y="13872" loc_z="-3174"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Catacomb of the Forbidden Path (Gate Pass) -->
-	<teleport id="39" loc_x="110912" loc_y="84912" loc_z="-4816"
-		price="1" fornoble="1" />
-		<!-- Dark Elven Village -> Gludin Village (No Gate Pass)  -->
-	<teleport id="40" loc_x="-80758" loc_y="149711" loc_z="-3043"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Gludio Castle Town (No Gate Pass)  -->
-	<teleport id="41" loc_x="-12787" loc_y="122779" loc_z="-3112"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Dion Castle Town (No Gate Pass)  -->
-	<teleport id="42" loc_x="15671" loc_y="142994" loc_z="-2696"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Heine (No Gate Pass)  -->
-	<teleport id="43" loc_x="111455" loc_y="219400" loc_z="-3546"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Giran Castle Town (No Gate Pass)  -->
-	<teleport id="44" loc_x="83336" loc_y="147972" loc_z="-3400"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> The Town of Oren (No Gate Pass)  -->
-	<teleport id="45" loc_x="83011" loc_y="53207" loc_z="-1470"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Hunters Village (No Gate Pass)  -->
-	<teleport id="46" loc_x="117088" loc_y="76931" loc_z="-2670"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Aden Castle Town (No Gate Pass)  -->
-	<teleport id="47" loc_x="146783" loc_y="25808" loc_z="-2000"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Rune Township (No Gate Pass)  -->
-	<teleport id="48" loc_x="43826" loc_y="-47688" loc_z="-792"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Goddard Castle Town (No Gate Pass)  -->
-	<teleport id="49" loc_x="147978" loc_y="-55408" loc_z="-2728"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Town of Schuttgart (No Gate Pass)  -->
-	<teleport id="50" loc_x="87478" loc_y="-142297" loc_z="-1352"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Gludin Arena (No Gate Pass)  -->
-	<teleport id="51" loc_x="-87328" loc_y="142266" loc_z="-3640"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Giran Arena (No Gate Pass)  -->
-	<teleport id="52" loc_x="73579" loc_y="142709" loc_z="-3768"
-		price="1000" fornoble="0" />		
-		<!-- Dark Elven Village -> Coliseum (No Gate Pass)  -->
-	<teleport id="53" loc_x="146440" loc_y="46723" loc_z="-3400"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> The Center of the Neutral Zone (No Gate Pass)  -->
-	<teleport id="54" loc_x="-18415" loc_y="85624" loc_z="-3680"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> The Center of the Dark Forest (No Gate Pass)  -->
-	<teleport id="55" loc_x="-22224" loc_y="14168" loc_z="-3232"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Center of the School of Dark Arts (No Gate Pass)  -->
-	<teleport id="56" loc_x="-49185" loc_y="49441" loc_z="-5912"
-		price="1000" fornoble="0" />		
-	<!-- Dark Elven Village -> Necropolis of Sacrifice (No Gate Pass) -->
-	<teleport id="57" loc_x="-41184" loc_y="206752" loc_z="-3357"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Heretics Catacomb (No Gate Pass) -->
-	<teleport id="58" loc_x="39232" loc_y="143568" loc_z="-3651"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Pilgrims Necropolis (No Gate Pass) -->
-	<teleport id="59" loc_x="45600" loc_y="126944" loc_z="-3686"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Catacomb of the Branded (No Gate Pass) -->
-	<teleport id="60" loc_x="43200" loc_y="170688" loc_z="-3251"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Worshipers Necropolis (No Gate Pass) -->
-	<teleport id="61" loc_x="107514" loc_y="174329" loc_z="-3704"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Catacomb of the Apostate (No Gate Pass) -->
-	<teleport id="62" loc_x="74672" loc_y="78032" loc_z="-3398"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Patriots Necropolis (No Gate Pass) -->
-	<teleport id="63" loc_x="-25472" loc_y="77728" loc_z="-3446"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Catacomb of the Witch (No Gate Pass) -->
-	<teleport id="64" loc_x="136672" loc_y="79328" loc_z="-3702"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Ascetics Necropolis (No Gate Pass) -->
-	<teleport id="65" loc_x="-56064" loc_y="78720" loc_z="-3011"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Martyr's Necropolis (No Gate Pass) -->
-	<teleport id="66" loc_x="114496" loc_y="132416" loc_z="-3101"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Disciples Necropolis (No Gate Pass) -->
-	<teleport id="67" loc_x="168560" loc_y="-17968" loc_z="-3174"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Saints Necropolis (No Gate Pass) -->
-	<teleport id="68" loc_x="79296" loc_y="209584" loc_z="-3709"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Catacomb of Dark Omens (No Gate Pass) -->
-	<teleport id="69" loc_x="-22480" loc_y="13872" loc_z="-3174"
-		price="1000" fornoble="0" />
-		<!-- Dark Elven Village -> Catacomb of the Forbidden Path (No Gate Pass) -->
-	<teleport id="70" loc_x="110912" loc_y="84912" loc_z="-4816"
-		price="1000" fornoble="0" />
-	    <!-- Dwarven Village -> Town of Gludio -->
-	<teleport id="71" loc_x="-12694" loc_y="122776" loc_z="-3114"
-		price="32000" fornoble="0" />
-		<!-- Dwarven Village -> Town of Schuttgart -->
-	<teleport id="72" loc_x="87478" loc_y="-142297" loc_z="-1352"
-		price="4400" fornoble="0" />
-		<!-- Dwarven Village -> Dark Elven Village -->
-	<teleport id="73" loc_x="9716" loc_y="15502" loc_z="-4500"
-		price="22000" fornoble="0" />	
-		<!-- Dwarven Village -> Talking Island Village -->
-	<teleport id="74" loc_x="-84141" loc_y="244623" loc_z="-3729"
-		price="46000" fornoble="0" />
-		<!-- Dwarven Village -> Elven Village -->
-	<teleport id="75" loc_x="46890" loc_y="51531" loc_z="-2976"
-		price="23000" fornoble="0" />
-		<!-- Dwarven Village -> Orc Village -->
-	<teleport id="76" loc_x="-45186" loc_y="-112459" loc_z="-236"
-		price="17000" fornoble="0" />
-		<!-- Dwarven Village -> Mithril Mines -->
-	<teleport id="77" loc_x="171946" loc_y="-173352" loc_z="3440"
-		price="2200" fornoble="0" />
-		<!-- Dwarven Village -> Abandoned Coal Mines -->
-	<teleport id="78" loc_x="139714" loc_y="-177456" loc_z="-1536"
-		price="690" fornoble="0" />
-		<!-- Dwarven Village -> Eastern Mining Zone (Northeastern Shore) -->
-	<teleport id="79" loc_x="169008" loc_y="-208272" loc_z="-3496"
-		price="2400" fornoble="0" />
-		<!-- Dwarven Village -> Western Mining Zone (Central Shore) -->
-	<teleport id="80" loc_x="136910" loc_y="-205082" loc_z="-3664"
-		price="970" fornoble="0" />
-		<!-- Dwarven Village -> The Center of the Mithrill Mines (Gate Pass) -->
-	<teleport id="81" loc_x="175499" loc_y="-181586" loc_z="-904"
-		price="1" fornoble="1" />
-		<!-- Dwarven Village -> The Center of the Abandoned Coal Mines (Gate Pass) -->
-	<teleport id="82" loc_x="144706" loc_y="-173223" loc_z="-1520"
-		price="1" fornoble="1" />
-		<!-- Dwarven Village -> The Center of the Mithrill Mines (No Gate Pass) -->
-	<teleport id="83" loc_x="175499" loc_y="-181586" loc_z="-904"
-		price="1000" fornoble="0" />
-		<!-- Dwarven Village -> The Center of the Abandoned Coal Mines (No Gate Pass) -->
-	<teleport id="84" loc_x="144706" loc_y="-173223" loc_z="-1520"
-		price="1000" fornoble="0" />
-		<!-- Talking Island Village -> The Village of Gludin -->
-	<teleport id="85" loc_x="-80749" loc_y="149834" loc_z="-3043"
-		price="18000" fornoble="0" />
-		<!-- Talking Island Village -> Dark Elven Village -->
-	<teleport id="86" loc_x="9716" loc_y="15502" loc_z="-4500"
-		price="24000" fornoble="0" />		
-		<!-- Talking Island Village -> Dwarven Village -->
-	<teleport id="87" loc_x="115120" loc_y="-178112" loc_z="-880"
-		price="46000" fornoble="0" />
-		<!-- Talking Island Village -> Elven Village -->
-	<teleport id="88" loc_x="46890" loc_y="51531" loc_z="-2976"
-		price="23000" fornoble="0" />	
-		<!-- Talking Island Village -> Orc Village -->
-	<teleport id="89" loc_x="-45186" loc_y="-112459" loc_z="-236"
-		price="35000" fornoble="0" />	
-		<!-- Talking Island Village -> Elven Ruins -->
-	<teleport id="90" loc_x="-112367" loc_y="234703" loc_z="-3688"
-		price="830" fornoble="0" />	
-		<!-- Talking Island Village -> Singing Waterfall -->
-	<teleport id="91" loc_x="-111728" loc_y="244330" loc_z="-3448"
-		price="770" fornoble="0" />	
-		<!-- Western Territory of Talking Island (Northern Area) -->
-	<teleport id="92" loc_x="-106696" loc_y="214691" loc_z="-3424"
-		price="1000" fornoble="0" />	
-		<!-- Talking Island Village -> Obelisk of Victory -->
-	<teleport id="93" loc_x="-99586" loc_y="237637" loc_z="-3568"
-		price="470" fornoble="0" />	
-		<!-- Elven Ruins - Entrance  -->
-	<teleport id="94" loc_x="48770" loc_y="248465" loc_z="-6164"
-		price="0" fornoble="0" />
-		<!-- Elven Ruins - Exit -->
-	<teleport id="95" loc_x="-112503" loc_y="235157" loc_z="-3678"
-		price="0" fornoble="0" />
-		<!-- Center of the Elven Ruins (Gate Pass)  -->
-	<teleport id="96" loc_x="49332" loc_y="248455" loc_z="-5964"
-		price="1" fornoble="1" />	
-		<!-- Center of the Elven Ruins (No Gate Pass)  -->
-	<teleport id="97" loc_x="49332" loc_y="248455" loc_z="-5964"
-		price="1000" fornoble="0" />	
-		<!-- Elven Village -> The Town of Gludio -->
-	<teleport id="98" loc_x="-12694" loc_y="122776" loc_z="-3114"
-		price="9200" fornoble="0" />	
-		<!-- Elven Village -> Dwarven Village -->
-	<teleport id="99" loc_x="115120" loc_y="-178112" loc_z="-880"
-		price="23000" fornoble="0" />	
-		<!-- Elven Village -> Talk Island Village -->
-	<teleport id="100" loc_x="-84141" loc_y="244623" loc_z="-3729"
-		price="23000" fornoble="0" />	
-		<!-- Elven Village -> Orc Village -->
-	<teleport id="101" loc_x="-45186" loc_y="-112459" loc_z="-236"
-		price="18000" fornoble="0" />	
-		<!-- Elven Village -> Elven Forest  -->
-	<teleport id="102" loc_x="21362" loc_y="51122" loc_z="-3688"
-		price="710" fornoble="0" />	
-		<!-- Elven Village -> Elven Fortress -->
-	<teleport id="103" loc_x="29294" loc_y="74968" loc_z="-3568"
-		price="820" fornoble="0" />	
-	    <!-- Orc Village -> Town of Gludio -->
-	<teleport id="104" loc_x="-12694" loc_y="122776" loc_z="-3114"
-		price="23000" fornoble="0" />	
-		<!-- Orc Village -> Town of Schuttgart -->
-	<teleport id="105" loc_x="87478" loc_y="-142297" loc_z="-1352"
-		price="13000" fornoble="0" />
-		<!-- Orc Village -> Dark Elven Village -->
-	<teleport id="106" loc_x="9716" loc_y="15502" loc_z="-4500"
-		price="13000" fornoble="0" />		
-		<!-- Orc Village -> Dwarven Village -->
-	<teleport id="107" loc_x="115120" loc_y="-178112" loc_z="-880"
-		price="17000" fornoble="0" />
-		<!-- Orc Village -> Talking Island Village -->
-	<teleport id="108" loc_x="-84141" loc_y="244623" loc_z="-3729"
-		price="35000" fornoble="0" />
-		<!-- Orc Village -> Elven Village -->
-	<teleport id="109" loc_x="46890" loc_y="51531" loc_z="-2976"
-		price="18000" fornoble="0" />		
-		<!-- Orc Village -> The Immortal Plateau, Northern Region -->
-	<teleport id="110" loc_x="-10983" loc_y="-117484" loc_z="-2464"
-		price="960" fornoble="0" />	
-		<!-- Orc Village -> The Immortal Plateau, Southern Region -->
-	<teleport id="111" loc_x="-3924" loc_y="-79996" loc_z="-2709"
-		price="2000" fornoble="0" />	
-		<!-- Orc Village -> Cave of Trials -->
-	<teleport id="112" loc_x="9340" loc_y="-112509" loc_z="-2536"
-		price="1500" fornoble="0" />	
-		<!-- Orc Village -> Frozen Waterfall -->
-	<teleport id="113" loc_x="8652" loc_y="-139941" loc_z="-1144"
-		price="1600" fornoble="0" />		
-		<!-- Orc Village -> The Immortal Plateau, Northern Region (Gate Pass) -->
-	<teleport id="114" loc_x="-8804" loc_y="-114748" loc_z="-3030"
-		price="1" fornoble="1" />		
-		<!-- Orc Village -> The Immortal Plateau, Northern Region (No Gate Pass) -->
-	<teleport id="115" loc_x="-8804" loc_y="-114748" loc_z="-3030"
-		price="1000" fornoble="0" />		
-		<!-- Ivory Tower (Lobby) -> Town of Oren -->
-	<teleport id="116" loc_x="83011" loc_y="53207" loc_z="-1470"
-		price="3700" fornoble="0" />
-		<!-- Ivory Tower (Lobby) -> Hunters Village -->
-	<teleport id="117" loc_x="117088" loc_y="76931" loc_z="-2670"
-		price="6800" fornoble="0" />
-		<!-- Ivory Tower (Lobby) -> Town of Aden -->
-	<teleport id="118" loc_x="146783" loc_y="25808" loc_z="-2000"
-		price="6200" fornoble="0" />
-		<!-- Ivory Tower (Lobby) -> Underground Shopping Area -->
-	<teleport id="119" loc_x="84852" loc_y="15863" loc_z="-4270"
-		price="0" fornoble="0" />
-		<!-- Ivory Tower (Lobby) -> 2nd Floor Human Wizard Guild -->
-	<teleport id="120" loc_x="85289" loc_y="16225" loc_z="-2780"
-		price="0" fornoble="0" />
-		<!-- Ivory Tower (Lobby) -> 3rd Floor Elven Wizard Guild -->
-	<teleport id="121" loc_x="85289" loc_y="16225" loc_z="-2270"
-		price="0" fornoble="0" />
-		<!-- Ivory Tower (Lobby) -> 4th Floor Dark Wizard Guild -->
-	<teleport id="122" loc_x="85289" loc_y="16225" loc_z="-1750"
-		price="0" fornoble="0" />	
-		<!-- Ivory Tower (Underground Shopping Area) -> 1st Floor Lobby -->
-	<teleport id="123" loc_x="85289" loc_y="16225" loc_z="-3640"
-		price="0" fornoble="0" />		
-		<!-- Cruma Tower (Entrance) -> Cruma Tower 1st floor -->
-	<teleport id="124" loc_x="17724" loc_y="114004" loc_z="-11672"
-		price="0" fornoble="0" />	
-		<!-- Cruma Tower 1st floor -> Cruma Tower (Entrance) -->
-	<teleport id="125" loc_x="17289" loc_y="114142" loc_z="-3441"
-		price="0" fornoble="0" />		
-		<!-- Cruma Tower 1st floor ->Cruma Tower 2nd floor -->
-	<teleport id="126" loc_x="17730" loc_y="108301" loc_z="-9057"
-		price="0" fornoble="0" />
-	    <!-- Cruma Tower 2nd floor ->Cruma Tower 1st floor -->
-	<teleport id="127" loc_x="17714" loc_y="107923" loc_z="-11850"
-		price="0" fornoble="0" />	
-		<!-- Cruma Tower 3rd floor ->Cruma Tower 3rd floor -->
-	<teleport id="128" loc_x="17719" loc_y="115590" loc_z="-6584"
-		price="0" fornoble="0" />	
-		<!-- Cruma Tower 3rd floor -> Cruma Tower (Entrance) -->
-	<teleport id="129" loc_x="17289" loc_y="114142" loc_z="-3441"
-		price="0" fornoble="0" />		
-		<!-- Gludin Village -> Town of Gludio -->
-	<teleport id="130" loc_x="-12694" loc_y="122776" loc_z="-3114"
-		price="7300" fornoble="0" />	
-		<!-- Gludin Village -> Talking Island Village -->
-	<teleport id="131" loc_x="-84141" loc_y="244623" loc_z="-3729"
-		price="9400" fornoble="0" />
-		<!-- Gludin Village -> Elven Village -->
-	<teleport id="132" loc_x="46890" loc_y="51531" loc_z="-2976"
-		price="16000" fornoble="0" />
-		<!-- Gludin Village -> Dwarven Village -->
-	<teleport id="133" loc_x="115120" loc_y="-178112" loc_z="-880"
-		price="38000" fornoble="0" />
-		<!-- Dark Elven Village -> Orc Village -->
-	<teleport id="134" loc_x="-45186" loc_y="-112459" loc_z="-236"
-		price="26000" fornoble="0" />
-		<!-- Gludin Village -> Langk Lizardman Dwelling -->
-	<teleport id="135" loc_x="-44763" loc_y="203497" loc_z="-3592"
-		price="1800" fornoble="0" />
-		<!-- Gludin Village -> Windmill Hill -->
-	<teleport id="136" loc_x="-75437" loc_y="168800" loc_z="-3632"
-		price="550" fornoble="0" />
-		<!-- Gludin Village -> Fellmere Harvesting Grounds -->
-	<teleport id="137" loc_x="-63736" loc_y="101522" loc_z="-3552"
-		price="1400" fornoble="0" />
-		<!-- Gludin Village -> Forgotten Temple -->
-	<teleport id="138" loc_x="-53001" loc_y="191425" loc_z="-3568"
-		price="2000" fornoble="0" />
-		<!-- Gludin Village -> Orc Barracks -->
-	<teleport id="139" loc_x="-89763" loc_y="105359" loc_z="-3576"
-		price="1800" fornoble="0" />
-		<!-- Gludin Village -> Windy Hill -->
-	<teleport id="140" loc_x="-88539" loc_y="83389" loc_z="-2864"
-		price="2600" fornoble="0" />
-		<!-- Gludin Village -> Abandoned Camp -->
-	<teleport id="141" loc_x="-49853" loc_y="147089" loc_z="-2784"
-		price="1200" fornoble="0" />
-		<!-- Gludin Village -> Wastelands -->
-	<teleport id="142" loc_x="-16526" loc_y="208032" loc_z="-3664"
-		price="3400" fornoble="0" />		
-		<!-- Gludin Village -> Red Rock Ridge -->
-	<teleport id="143" loc_x="-42256" loc_y="198333" loc_z="-2800"
-		price="3700" fornoble="0" />	
-		<!-- Gludin Village -> Center of the Forgotten Temple (Gate Pass) -->
-	<teleport id="144" loc_x="-54026" loc_y="179504" loc_z="-4650"
-		price="1" fornoble="1" />
-		<!-- Gludin Village -> Wastelands, Western Region (Gate Pass) -->
-	<teleport id="145" loc_x="-47506" loc_y="179572" loc_z="-3632"
-	    price="1" fornoble="1" />
-		<!-- Gludin Village -> Center of the Forgotten Temple (No Gate Pass) -->
-	<teleport id="146" loc_x="-54026" loc_y="179504" loc_z="-4650"
-		price="1000" fornoble="0" />
-		<!-- Gludin Village -> Wastelands, Western Region (No Gate Pass) -->
-	<teleport id="147" loc_x="-47506" loc_y="179572" loc_z="-3632"
-	    price="1000" fornoble="0" />
-		<!-- Hunters Village -> Town of Aden -->
-	<teleport id="148" loc_x="146783" loc_y="25808" loc_z="-2000"
-		price="5900" fornoble="0" />
-		<!-- Hunters Village -> Town of Oren -->
-	<teleport id="149" loc_x="83011" loc_y="53207" loc_z="-1470"
-		price="4100" fornoble="0" />	
-		<!-- Hunters Village -> Hardin's Private Academy -->
-	<teleport id="150" loc_x="105846" loc_y="109762" loc_z="-3170"
-		price="3400" fornoble="0" />	
-		<!-- Hunters Village -> Enchanted Valley, Southern Region -->
-	<teleport id="151" loc_x="124904" loc_y="61992" loc_z="-3952"
-		price="1300" fornoble="0" />	
-		<!-- Hunters Village -> Enchanted Valley, Northern Region -->
-	<teleport id="152" loc_x="104426" loc_y="33746" loc_z="-3800"
-		price="3600" fornoble="0" />	
-		<!-- Hunters Village -> Forest of Mirrors -->
-	<teleport id="153" loc_x="142065" loc_y="81300" loc_z="-3000"
-		price="2000" fornoble="0" />	
-		<!-- Hunters Village -> The Center of the Forest of Mirrors (Gate Pass) -->
-	<teleport id="154" loc_x="166080" loc_y="75574" loc_z="-2992"
-		price="1" fornoble="1" />	
-		<!-- Hunters Village -> The Center of the Enchanted Valley (Gate Pass) -->
-	<teleport id="155" loc_x="114674" loc_y="44150" loc_z="-3376"
-		price="1" fornoble="1" />		
-		<!-- Hunters Village -> Hunters Valley (Gate Pass) -->
-	<teleport id="156" loc_x="114306" loc_y="86573" loc_z="-3112"
-		price="1" fornoble="1" />			
-		<!-- Hunters Village -> The Center of the Forest of Mirrors (No Gate Pass) -->
-	<teleport id="157" loc_x="166080" loc_y="75574" loc_z="-2992"
-		price="1000" fornoble="0" />	
-		<!-- Hunters Village -> The Center of the Enchanted Valley (No Gate Pass) -->
-	<teleport id="158" loc_x="114674" loc_y="44150" loc_z="-3376"
-		price="1000" fornoble="0" />		
-		<!-- Hunters Village -> Hunters Valley (No Gate Pass) -->
-	<teleport id="159" loc_x="114306" loc_y="86573" loc_z="-3112"
-		price="1000" fornoble="0" />	
-		<!-- Hardin's Academy -> Giran Castle Town  -->
-	<teleport id="160" loc_x="83336" loc_y="147972" loc_z="-3400"
-		price="4400" fornoble="0" />
-		<!-- Hardin's Academy -> Town of Oren   -->
-	<teleport id="161" loc_x="83011" loc_y="53207" loc_z="-1470"
-		price="6100" fornoble="0" />
-		<!-- Hardin's Academy -> Hunters Village  -->
-	<teleport id="162" loc_x="117088" loc_y="76931" loc_z="-2670"
-		price="3400" fornoble="0" />
-		<!-- Hardin's Academy -> Gorgon Flower Garden (Gate Pass) -->
-	<teleport id="163" loc_x="113553" loc_y="134813" loc_z="-3668"
-		price="1" fornoble="1" />		
-		<!-- Hardin's Academy -> Gorgon Flower Garden (No Gate Pass) -->
-	<teleport id="164" loc_x="113553" loc_y="134813" loc_z="-3668"
-		price="1000" fornoble="0" />	
-		<!-- Rune Castle Town Temple -> Rune Castle Town Store -->
-	<teleport id="165" loc_x="43849" loc_y="-47877" loc_z="-792"
-		price="150" fornoble="0" />
-		<!-- Rune Castle Town Temple -> Rune Castle Town Guild -->
-	<teleport id="166" loc_x="38316" loc_y="-48216" loc_z="-1152"
-		price="150" fornoble="0" />	
-		<!-- Rune Castle Town Guild -> Rune Castle Town Temple -->
-	<teleport id="167" loc_x="38303" loc_y="-48040" loc_z="896"
-		price="150" fornoble="0" />		
-		<!-- Rune Township -> Town of Goddard -->
-	<teleport id="168" loc_x="147978" loc_y="-55408" loc_z="-2728"
-		price="10000" fornoble="0" />	
-		<!-- Rune Township -> The Town of Gludio -->
-	<teleport id="169" loc_x="-12694" loc_y="122776" loc_z="-3114"
-		price="53000" fornoble="0" />	
-		<!-- Rune Township -> The Town of Giran -->
-	<teleport id="170" loc_x="83314" loc_y="148012" loc_z="-3400"
-		price="59000" fornoble="0" />	
-		<!-- Rune Township -> The Town of Dion -->
-	<teleport id="171" loc_x="15671" loc_y="142994" loc_z="-2696"
-		price="57000" fornoble="0" />	
-		<!-- Rune Township -> Heine -->
-	<teleport id="172" loc_x="111455" loc_y="219400" loc_z="-3546"
-		price="82000" fornoble="0" />	
-		<!-- Rune Township -> Town of Schuttgart -->
-	<teleport id="173" loc_x="87018" loc_y="-143379" loc_z="-1288"
-		price="10000" fornoble="0" />	
-		<!-- Rune Township -> Town of Aden -->
-	<teleport id="174" loc_x="146705" loc_y="25840" loc_z="-2000"
-		price="37000" fornoble="0" />	
-		<!-- Rune Township -> Town of Oren   -->
-	<teleport id="175" loc_x="82956" loc_y="53162" loc_z="-1470"
-		price="10000" fornoble="0" />	
-		<!-- Rune Township -> Wild Beast Pastures   -->
-	<teleport id="176" loc_x="43805" loc_y="-88010" loc_z="-2752"
-		price="4800" fornoble="0" />	
-		<!-- Rune Township -> Valley of Saints   -->
-	<teleport id="177" loc_x="65307" loc_y="-71445" loc_z="-3688"
-		price="3800" fornoble="0" />	
-		<!-- Rune Township -> Forest of the Dead -->
-	<teleport id="178" loc_x="52107" loc_y="-54328" loc_z="-3158"
-		price="1200" fornoble="0" />	
-		<!-- Rune Township -> Swamp of Screams   -->
-	<teleport id="179" loc_x="69340" loc_y="-50203" loc_z="-3304"
-		price="3000" fornoble="0" />	
-		<!-- Rune Township -> Monastery of Silence   -->
-	<teleport id="180" loc_x="106414" loc_y="-87799" loc_z="-2920"
-		price="14000" fornoble="0" />	
-		<!-- Rune Township -> The Center of the Forest of the Dead (Gate Pass) -->
-	<teleport id="181" loc_x="54425" loc_y="-41692" loc_z="-3072"
-		price="1" fornoble="1" />	
-		<!-- Rune Township -> The Center of the Valley of Saints (Gate Pass) -->
-	<teleport id="182" loc_x="84092" loc_y="-80084" loc_z="-3504"
-		price="1" fornoble="1" />	
-		<!-- Rune Township -> Cursed Village (Gate Pass) -->
-	<teleport id="183" loc_x="57670" loc_y="-41672" loc_z="-3154"
-		price="1" fornoble="1" />	
-		<!-- Rune Township -> Stakato Nest (Gate Pass) -->
-	<teleport id="184" loc_x="90355" loc_y="-44088" loc_z="-2144"
-		price="1" fornoble="1" />	
-		<!-- Rune Township -> Monastery of Silence (Gate Pass) -->
-	<teleport id="185" loc_x="106414" loc_y="-87799" loc_z="-2920"
-		price="1" fornoble="1" />	
-		<!-- Rune Township -> The Center of the Forest of the Dead (No Gate Pass) -->
-	<teleport id="186" loc_x="54425" loc_y="-41692" loc_z="-3072"
-		price="1000" fornoble="0" />	
-		<!-- Rune Township -> The Center of the Valley of Saints (No Gate Pass) -->
-	<teleport id="187" loc_x="84092" loc_y="-80084" loc_z="-3504"
-		price="1000" fornoble="0" />	
-		<!-- Rune Township -> Cursed Village (No Gate Pass) -->
-	<teleport id="188" loc_x="57670" loc_y="-41672" loc_z="-3154"
-		price="1000" fornoble="0" />	
-		<!-- Rune Township -> Stakato Nest (No Gate Pass) -->
-	<teleport id="189" loc_x="90355" loc_y="-44088" loc_z="-2144"
-		price="1000" fornoble="0" />	
-		<!-- Rune Township -> Monastery of Silence (No Gate Pass) -->
-	<teleport id="190" loc_x="106414" loc_y="-87799" loc_z="-2920"
-		price="1000" fornoble="0" />			
-		<!-- Town of Aden -> Town of Goddard -->
-	<teleport id="191" loc_x="148024" loc_y="-55281" loc_z="-2728"
-		price="8100" fornoble="0" />		
-		<!-- Town of Aden -> Town of Oren -->
-	<teleport id="192" loc_x="82971" loc_y="53207" loc_z="-1470"
-		price="6900" fornoble="0" />
-		<!-- Town of Aden -> The Town of Giran  -->
-	<teleport id="193" loc_x="83314" loc_y="148012" loc_z="-3400"
-		price="13000" fornoble="0" />	
-		<!-- Town of Aden -> Heine -->
-	<teleport id="194" loc_x="111455" loc_y="219400" loc_z="-3546"
-		price="59000" fornoble="0" />	
-		<!-- Town of Aden -> Town of Schuttgart -->
-	<teleport id="195" loc_x="87018" loc_y="-143379" loc_z="-1288"
-		price="53000" fornoble="0" />	
-		<!-- Town of Aden -> The Town of Dion -->
-	<teleport id="196" loc_x="15671" loc_y="142994" loc_z="-2704"
-		price="52000" fornoble="0" />		
-		<!-- Town of Aden -> The Town of Gludio -->
-	<teleport id="197" loc_x="-12694" loc_y="122776" loc_z="-3114"
-		price="56000" fornoble="0" />	
-		<!-- Town of Aden -> Rune Township -->
-	<teleport id="198" loc_x="43835" loc_y="-47749" loc_z="-792"
-		price="37000" fornoble="0" />
-		<!-- Town of Aden -> Hunters Village -->
-	<teleport id="199" loc_x="117110" loc_y="76883" loc_z="-2670"
-		price="5900" fornoble="0" />	
-		<!-- Town of Aden -> Coliseum -->
-	<teleport id="200" loc_x="146440" loc_y="46723" loc_z="-3400"
-		price="2000" fornoble="0" />
-		<!-- Town of Aden -> Forsaken Plains -->
-	<teleport id="201" loc_x="168217" loc_y="37990" loc_z="-4072"
-		price="1900" fornoble="0" />
-		<!-- Town of Aden -> Seal of Shilen -->
-	<teleport id="202" loc_x="184742" loc_y="19745" loc_z="-3168"
-		price="3000" fornoble="0" />
-		<!-- Town of Aden -> Forest of Mirrors -->
-	<teleport id="203" loc_x="142065" loc_y="81300" loc_z="-3000"
-		price="4400" fornoble="0" />
-		<!-- Town of Aden -> Blazing Swamp -->
-	<teleport id="204" loc_x="155310" loc_y="-16339" loc_z="-3320"
-		price="6800" fornoble="0" />
-		<!-- Town of Aden -> Fields of Massacre -->
-	<teleport id="205" loc_x="183543" loc_y="-14974" loc_z="-2776"
-		price="6500" fornoble="0" />
-		<!-- Town of Aden -> Ancient Battleground -->
-	<teleport id="206" loc_x="106517" loc_y="-2871" loc_z="-3416"
-		price="5900" fornoble="0" />	
-		<!-- Town of Aden -> Silent Valley -->
-	<teleport id="207" loc_x="170838" loc_y="55776" loc_z="-5240"
-		price="6100" fornoble="0" />
-		<!-- Town of Aden -> Tower of Insolence -->
-	<teleport id="208" loc_x="114649" loc_y="11115" loc_z="-5120"
-		price="4200" fornoble="0" />	
-		<!-- Town of Aden -> Entrance to The Giant's Cave (Gate Pass) -->
-	<teleport id="209" loc_x="181737" loc_y="46469" loc_z="-4352"
-		price="1" fornoble="1" />	
-		<!-- Town of Aden -> Plains of Glory (Gate Pass) -->
-	<teleport id="210" loc_x="135580" loc_y="19467" loc_z="-3424"
-		price="1" fornoble="1" />	
-		<!-- Town of Aden -> War-Torn Plains (Gate Pass) -->
-	<teleport id="211" loc_x="156898" loc_y="11217" loc_z="-4032"
-		price="1" fornoble="1" />	
-		<!-- Town of Aden -> Tower of Insolence, 3rd Floor (Gate Pass) -->
-	<teleport id="212" loc_x="110848" loc_y="16154" loc_z="-2120"
-		price="1" fornoble="1" />	
-		<!-- Town of Aden -> Tower of Insolence, 5th Floor (Gate Pass) -->
-	<teleport id="213" loc_x="118404" loc_y="15988" loc_z="832"
-		price="1" fornoble="1" />	
-		<!-- Town of Aden -> Tower of Insolence, 7th Floor (Gate Pass) -->
-	<teleport id="214" loc_x="115064" loc_y="12181" loc_z="2960"
-		price="1" fornoble="1" />	
-		<!-- Town of Aden -> Tower of Insolence, 10th Floor (Gate Pass) -->
-	<teleport id="215" loc_x="118525" loc_y="16455" loc_z="5984"
-		price="1" fornoble="1" />	
-		<!-- Town of Aden -> Tower of Insolence, 13th Floor (Gate Pass) -->
-	<teleport id="216" loc_x="115384" loc_y="16820" loc_z="9000"
-		price="1" fornoble="1" />		
-		<!-- Town of Aden -> Hunters Valley (Gate Pass) -->
-	<teleport id="217" loc_x="114306" loc_y="86573" loc_z="-3112"
-		price="1" fornoble="1" />	
-		<!-- Town of Aden -> Angel Waterfall (Gate Pass) -->
-	<teleport id="218" loc_x="166182" loc_y="91560" loc_z="-3168"
-		price="1" fornoble="1" />		
-		<!-- Town of Aden -> Entrance to The Giant's Cave (No Gate Pass) -->
-	<teleport id="219" loc_x="181737" loc_y="46469" loc_z="-4352"
-		price="1000" fornoble="0" />	
-		<!-- Town of Aden -> Plains of Glory (No Gate Pass) -->
-	<teleport id="220" loc_x="135580" loc_y="19467" loc_z="-3424"
-		price="1000" fornoble="0" />	
-		<!-- Town of Aden -> War-Torn Plains (No Gate Pass) -->
-	<teleport id="221" loc_x="156898" loc_y="11217" loc_z="-4032"
-		price="1000" fornoble="0" />	
-		<!-- Town of Aden -> Tower of Insolence, 3rd Floor (No Gate Pass) -->
-	<teleport id="222" loc_x="110848" loc_y="16154" loc_z="-2120"
-		price="1000" fornoble="0" />	
-		<!-- Town of Aden -> Tower of Insolence, 5th Floor (No Gate Pass) -->
-	<teleport id="223" loc_x="118404" loc_y="15988" loc_z="832"
-		price="1000" fornoble="0" />	
-		<!-- Town of Aden -> Tower of Insolence, 7th Floor (No Gate Pass) -->
-	<teleport id="224" loc_x="115064" loc_y="12181" loc_z="2960"
-		price="1000" fornoble="0" />	
-		<!-- Town of Aden -> Tower of Insolence, 10th Floor (No Gate Pass) -->
-	<teleport id="225" loc_x="118525" loc_y="16455" loc_z="5984"
-		price="1000" fornoble="0" />	
-		<!-- Town of Aden -> Tower of Insolence, 13th Floor (No Gate Pass) -->
-	<teleport id="226" loc_x="115384" loc_y="16820" loc_z="9000"
-		price="1000" fornoble="0" />		
-		<!-- Town of Aden -> Hunters Valley (No Gate Pass) -->
-	<teleport id="227" loc_x="114306" loc_y="86573" loc_z="-3112"
-		price="1000" fornoble="0" />	
-		<!-- Town of Aden -> Angel Waterfall (No Gate Pass) -->
-	<teleport id="228" loc_x="166182" loc_y="91560" loc_z="-3168"
-		price="1000" fornoble="0" />	
-		<!-- The Town of Gludio -> Town of Schuttgart -->
-	<teleport id="229" loc_x="87018" loc_y="-143379" loc_z="-1288"
-		price="85000" fornoble="0" />	
-		<!-- The Town of Gludio -> Heine -->
-	<teleport id="230" loc_x="111455" loc_y="219400" loc_z="-3546"
-		price="47000" fornoble="0" />	
-		<!-- The Town of Gludio -> Town of Aden -->
-	<teleport id="231" loc_x="146705" loc_y="25840" loc_z="-2000"
-		price="56000" fornoble="0" />	
-		<!-- The Town of Gludio -> Town of Oren   -->
-	<teleport id="232" loc_x="83011" loc_y="53207" loc_z="-1470"
-		price="35000" fornoble="0" />
-		<!-- The Town of Gludio -> The Town of Dion -->
-	<teleport id="233" loc_x="15671" loc_y="142994" loc_z="-2704"
-		price="3400" fornoble="0" />
-		<!-- The Town of Gludio -> Town of Goddard -->
-	<teleport id="234" loc_x="148024" loc_y="-55281" loc_z="-2728"
-		price="71000" fornoble="0" />	
-		<!-- The Town of Gludio -> The Town of Giran  -->
-	<teleport id="235" loc_x="83314" loc_y="148012" loc_z="-3400"
-		price="29000" fornoble="0" />	
-		<!-- The Town of Gludio -> Rune Township -->
-	<teleport id="236" loc_x="43835" loc_y="-47749" loc_z="-792"
-		price="53000" fornoble="0" />	
-		<!-- The Town of Gludio -> The Village of Gludin -->
-	<teleport id="237" loc_x="-80826" loc_y="149775" loc_z="-3043"
-		price="7300" fornoble="0" />
-		<!-- The Town of Gludio -> Elven Village -->
-	<teleport id="238" loc_x="46890" loc_y="51531" loc_z="-2976"
-		price="9200" fornoble="0" />
-		<!-- The Town of Gludio -> Dark Elven Village -->
-	<teleport id="239" loc_x="9716" loc_y="15502" loc_z="-4500"
-		price="10000" fornoble="0" />
-		<!-- The Town of Gludio -> Dwarven Village -->
-	<teleport id="240" loc_x="115120" loc_y="-178112" loc_z="-880"
-		price="32000" fornoble="0" />	
-		<!-- The Town of Gludio -> Orc Village -->
-	<teleport id="241" loc_x="-45186" loc_y="-112459" loc_z="-236"
-		price="23000" fornoble="0" />	
-		<!-- The Town of Gludio -> Ruins of Agony -->
-	<teleport id="242" loc_x="-41248" loc_y="122848" loc_z="-2904"
-		price="790" fornoble="0" />
-		<!-- The Town of Gludio -> Ruins of Despair -->
-	<teleport id="243" loc_x="-19120" loc_y="136816" loc_z="-3752"
-		price="610" fornoble="0" />
-		<!-- The Town of Gludio -> The Ant Nest -->
-	<teleport id="244" loc_x="-9959" loc_y="176184" loc_z="-4160"
-		price="2100" fornoble="0" />
-		<!-- The Town of Gludio -> Windawood Manor -->
-	<teleport id="245" loc_x="-28327" loc_y="155125" loc_z="-3496"
-		price="1400" fornoble="0" />	
-		<!-- The Town of Gludio -> Evil Hunting Grounds (Gate Pass) -->
-	<teleport id="246" loc_x="-6989" loc_y="109503" loc_z="-3040"
-		price="1" fornoble="1" />	
-		<!-- The Town of Gludio -> Evil Hunting Grounds (No Gate Pass) -->
-	<teleport id="247" loc_x="-6989" loc_y="109503" loc_z="-3040"
-		price="1000" fornoble="0" />	
-		<!-- Town of Schuttgart -> Rune Township -->
-	<teleport id="248" loc_x="43835" loc_y="-47749" loc_z="-792"
-		price="10000" fornoble="0" />	
-		<!-- Town of Schuttgart -> Town of Goddard -->
-	<teleport id="249" loc_x="148024" loc_y="-55281" loc_z="-2728"
-		price="10000" fornoble="0" />	
-		<!-- Town of Schuttgart -> Town of Aden -->
-	<teleport id="250" loc_x="146705" loc_y="25840" loc_z="-2000"
-		price="53000" fornoble="0" />	
-		<!-- Town of Schuttgart -> Town of Oren   -->
-	<teleport id="251" loc_x="82971" loc_y="53207" loc_z="-1470"
-		price="59000" fornoble="0" />	
-		<!-- Town of Schuttgart -> Heine -->
-	<teleport id="252" loc_x="111455" loc_y="219400" loc_z="-3546"
-		price="100000" fornoble="0" />	
-		<!-- Town of Schuttgart -> The Town of Giran  -->
-	<teleport id="253" loc_x="83314" loc_y="148012" loc_z="-3400"
-		price="87000" fornoble="0" />	
-		<!-- Town of Schuttgart -> The Town of Dion -->
-	<teleport id="254" loc_x="15671" loc_y="142994" loc_z="-2704"
-		price="88000" fornoble="0" />	
-		<!-- Town of Schuttgart -> The Town of Gludio -->
-	<teleport id="255" loc_x="-12694" loc_y="122776" loc_z="-3114"
-		price="85000" fornoble="0" />
-		<!-- Town of Schuttgart -> Orc Village -->
-	<teleport id="256" loc_x="-45158" loc_y="-112583" loc_z="-236"
-		price="13000" fornoble="0" />	
-		<!-- Town of Schuttgart -> Dwarven Village -->
-	<teleport id="257" loc_x="115120" loc_y="-178112" loc_z="-880"
-		price="4400" fornoble="0" />
-		<!-- Town of Schuttgart -> Den of Evil  -->
-	<teleport id="258" loc_x="68693" loc_y="-110438" loc_z="-1904"
-		price="3000" fornoble="0" />	
-		<!-- Town of Schuttgart -> Plunderous Plains -->
-	<teleport id="259" loc_x="111965" loc_y="-154172" loc_z="-1528"
-		price="1600" fornoble="0" />	
-		<!-- Town of Schuttgart -> Frozen Labyrinth -->
-	<teleport id="260" loc_x="113903" loc_y="-108752" loc_z="-848"
-		price="3500" fornoble="0" />
-		<!-- Town of Schuttgart -> Crypts of Disgrace -->
-	<teleport id="261" loc_x="47692" loc_y="-115745" loc_z="-3744"
-		price="1900" fornoble="0" />	
-		<!-- Town of Schuttgart -> Pavel Ruins -->
-	<teleport id="262" loc_x="91280" loc_y="-117152" loc_z="-3928"
-		price="2100" fornoble="0" />		
-		<!-- Town of Schuttgart -> Frost Lake (Gate Pass) -->
-	<teleport id="263" loc_x="107577" loc_y="-122392" loc_z="-3632"
-		price="1" fornoble="1" />
-		<!-- Town of Schuttgart -> Crypts of Disgrace (Gate Pass) -->
-	<teleport id="264" loc_x="44221" loc_y="-114232" loc_z="-2784"
-		price="1" fornoble="1" />	
-		<!-- Town of Schuttgart -> Sky Wagon Relic (Gate Pass) -->
-	<teleport id="265" loc_x="121618" loc_y="-141554" loc_z="-1496"
-		price="1" fornoble="1" />	
-		<!-- Town of Schuttgart -> Frost Lake (No Gate Pass) -->
-	<teleport id="266" loc_x="107577" loc_y="-122392" loc_z="-3632"
-		price="1000" fornoble="0" />
-		<!-- Town of Schuttgart -> Crypts of Disgrace (No Gate Pass) -->
-	<teleport id="267" loc_x="44221" loc_y="-114232" loc_z="-2784"
-		price="1000" fornoble="0" />	
-		<!-- Town of Schuttgart -> Sky Wagon Relic (No Gate Pass) -->
-	<teleport id="268" loc_x="121618" loc_y="-141554" loc_z="-1496"
-		price="1000" fornoble="0" />	
-		<!-- The Town of Dion -> The Town of Giran -->
-	<teleport id="269" loc_x="83336" loc_y="147972" loc_z="-3400"
-		price="6800" fornoble="0" />
-		<!-- The Town of Dion -> Heine -->
-	<teleport id="270" loc_x="111455" loc_y="219400" loc_z="-3546"
-		price="12000" fornoble="0" />	
-		<!-- The Town of Dion -> The Town of Gludio -->
-	<teleport id="271" loc_x="-12787" loc_y="122779" loc_z="-3112"
-		price="3400" fornoble="0" />
-		<!-- The Town of Dion -> Town of Goddard -->
-	<teleport id="272" loc_x="148024" loc_y="-55281" loc_z="-2728"
-		price="71000" fornoble="0" />
-		<!-- The Town of Dion -> Rune Township -->
-	<teleport id="273" loc_x="43835" loc_y="-47749" loc_z="-792"
-		price="57000" fornoble="0" />
-		<!-- The Town of Dion -> Town of Schuttgart -->
-	<teleport id="274" loc_x="87018" loc_y="-143379" loc_z="-1288"
-		price="88000" fornoble="0" />
-		<!-- The Town of Dion -> Town of Aden -->
-	<teleport id="275" loc_x="146705" loc_y="25840" loc_z="-2000"
-		price="52000" fornoble="0" />
-		<!-- The Town of Dion -> Town of Oren -->
-	<teleport id="276" loc_x="83011" loc_y="53207" loc_z="-1470"
-		price="33000" fornoble="0" />		
-		<!-- The Town of Dion -> Cruma Marshlands -->
-	<teleport id="277" loc_x="5106" loc_y="126916" loc_z="-3664"
-		price="760" fornoble="0" />
-		<!-- The Town of Dion -> Cruma Tower -->
-	<teleport id="278" loc_x="17225" loc_y="114173" loc_z="-3440"
-		price="2300" fornoble="0" />
-		<!-- The Town of Dion -> Fortress of Resistance -->
-	<teleport id="279" loc_x="47382" loc_y="111278" loc_z="-2104"
-		price="1700" fornoble="0" />
-		<!-- The Town of Dion -> Plains of Dion -->
-	<teleport id="280" loc_x="630" loc_y="179184" loc_z="-3720"
-		price="1500" fornoble="0" />
-		<!-- The Town of Dion -> Bee Hive -->
-	<teleport id="281" loc_x="34475" loc_y="188095" loc_z="-2976"
-		price="2900" fornoble="0" />
-		<!-- The Town of Dion -> Tanor Canyon -->
-	<teleport id="282" loc_x="60374" loc_y="164301" loc_z="-2856"
-		price="3900" fornoble="0" />	
-		<!-- The Town of Dion -> Execution Grounds (Gate Pass) -->
-	<teleport id="283" loc_x="46165" loc_y="150008" loc_z="-3208"
-		price="1" fornoble="1" />
-		<!-- The Town of Dion -> Floran Agricultural Area (Gate Pass) -->
-	<teleport id="284" loc_x="15227" loc_y="161866" loc_z="-3608"
-		price="1" fornoble="1" />
-		<!-- The Town of Dion -> The Center of the Cruma Marshlands (Gate Pass) -->
-	<teleport id="285" loc_x="5941" loc_y="125455" loc_z="-3400"
-		price="1" fornoble="1" />
-		<!-- The Town of Dion -> Cruma Tower - First Floor (Gate Pass) -->
-	<teleport id="286" loc_x="17724" loc_y="113950" loc_z="-11672"
-		price="1" fornoble="1" />
-		<!-- The Town of Dion -> Cruma Tower - Second Floor (Gate Pass) -->
-	<teleport id="287" loc_x="17723" loc_y="108284" loc_z="-9056"
-		price="1" fornoble="1" />
-		<!-- The Town of Dion -> Execution Grounds (No Gate Pass) -->
-	<teleport id="288" loc_x="46165" loc_y="150008" loc_z="-3208"
-		price="1000" fornoble="0" />
-		<!-- The Town of Dion -> Floran Agricultural Area (No Gate Pass) -->
-	<teleport id="289" loc_x="15227" loc_y="161866" loc_z="-3608"
-		price="1000" fornoble="0" />
-		<!-- The Town of Dion -> The Center of the Cruma Marshlands (No Gate Pass) -->
-	<teleport id="290" loc_x="5941" loc_y="125455" loc_z="-3400"
-		price="1000" fornoble="0" />
-		<!-- The Town of Dion -> Cruma Tower - First Floor (No Gate Pass) -->
-	<teleport id="291" loc_x="17724" loc_y="113950" loc_z="-11672"
-		price="1000" fornoble="0" />
-		<!-- The Town of Dion -> Cruma Tower - Second Floor (No Gate Pass) -->
-	<teleport id="292" loc_x="17723" loc_y="108284" loc_z="-9056"
-		price="1000" fornoble="0" />
-		<!-- Giran Harbor -> The Town of Giran  -->
-	<teleport id="293" loc_x="83336" loc_y="147972" loc_z="-3400"
-		price="5200" fornoble="0" />	
-		<!-- Giran Harbor -> Heine  -->
-	<teleport id="294" loc_x="111333" loc_y="219345" loc_z="-3546"
-		price="7100" fornoble="0" />	
-		<!-- Giran Harbor -> Dragon Valley (Gate Pass)  -->
-	<teleport id="295" loc_x="122824" loc_y="110836" loc_z="-3727"
-		price="1" fornoble="1" />	
-		<!-- Giran Harbor -> Death Pass (Gate Pass)  -->
-	<teleport id="296" loc_x="73024" loc_y="118485" loc_z="-3720"
-		price="1" fornoble="1" />
-		<!-- Giran Harbor -> Breka's Stronghold (Gate Pass)  -->
-	<teleport id="297" loc_x="85389" loc_y="131366" loc_z="-3707"
-		price="1" fornoble="1" />	
-		<!-- Giran Harbor -> Gorgon's Flower Garden (Gate Pass)  -->
-	<teleport id="298" loc_x="113553" loc_y="134813" loc_z="-3668"
-		price="1" fornoble="1" />
-		<!-- Giran Harbor -> Giran Territory (Gate Pass)  -->
-	<teleport id="299" loc_x="69373" loc_y="155208" loc_z="-3746"
-		price="1" fornoble="1" />	
-		<!-- Giran Harbor -> Devil's Isle (Gate Pass)  -->
-	<teleport id="300" loc_x="43408" loc_y="206881" loc_z="-3752"
-		price="1" fornoble="1" />
-		<!-- Giran Harbor -> Dragon Valley (No Gate Pass)  -->
-	<teleport id="301" loc_x="122824" loc_y="110836" loc_z="-3727"
-		price="1000" fornoble="0" />	
-		<!-- Giran Harbor -> Death Pass (No Gate Pass)  -->
-	<teleport id="302" loc_x="73024" loc_y="118485" loc_z="-3720"
-		price="1000" fornoble="0" />
-		<!-- Giran Harbor -> Breka's Stronghold (No Gate Pass)  -->
-	<teleport id="303" loc_x="85389" loc_y="131366" loc_z="-3707"
-		price="1000" fornoble="0" />	
-		<!-- Giran Harbor -> Gorgon's Flower Garden (No Gate Pass)  -->
-	<teleport id="304" loc_x="113553" loc_y="134813" loc_z="-3668"
-		price="1000" fornoble="0" />
-		<!-- Giran Harbor -> Giran Territory (No Gate Pass)  -->
-	<teleport id="305" loc_x="69373" loc_y="155208" loc_z="-3746"
-		price="1000" fornoble="0" />	
-		<!-- Giran Harbor -> Devil's Isle (No Gate Pass)  -->
-	<teleport id="306" loc_x="43408" loc_y="206881" loc_z="-3752"
-		price="1000" fornoble="0" />
-		<!-- The Town of Giran -> Town of Oren -->
-	<teleport id="307" loc_x="83011" loc_y="53207" loc_z="-1470"
-		price="9400" fornoble="0" />
-		<!-- The Town of Giran -> Heine -->
-	<teleport id="308" loc_x="111455" loc_y="219400" loc_z="-3546"
-		price="7600" fornoble="0" />
-		<!-- The Town of Giran -> The Town of Dion -->
-	<teleport id="309" loc_x="15671" loc_y="142994" loc_z="-2704"
-		price="6800" fornoble="0" />
-		<!-- The Town of Giran -> Town of Goddard -->
-	<teleport id="310" loc_x="148024" loc_y="-55281" loc_z="-2728"
-		price="63000" fornoble="0" />	
-		<!-- The Town of Giran -> Rune Township -->
-	<teleport id="311" loc_x="43835" loc_y="-47749" loc_z="-792"
-		price="59000" fornoble="0" />
-		<!-- The Town of Giran -> Town of Schuttgart -->
-	<teleport id="312" loc_x="87018" loc_y="-143379" loc_z="-1288"
-		price="87000" fornoble="0" />
-		<!-- The Town of Giran -> The Town of Gludio -->
-	<teleport id="313" loc_x="-12694" loc_y="122776" loc_z="-3114"
-		price="29000" fornoble="0" />
-		<!-- The Town of Giran -> Town of Aden -->
-	<teleport id="314" loc_x="146705" loc_y="25840" loc_z="-2000"
-		price="13000" fornoble="0" />		
-		<!-- The Town of Giran -> Giran Harbor -->
-	<teleport id="315" loc_x="47938" loc_y="186864" loc_z="-3480"
-		price="5200" fornoble="0" />	
-		<!-- The Town of Giran -> Hardin's Private Academy -->
-	<teleport id="316" loc_x="105918" loc_y="109759" loc_z="-3170"
-		price="4400" fornoble="0" />	
-		<!-- The Town of Giran -> Dragon Valley -->
-	<teleport id="317" loc_x="73024" loc_y="118485" loc_z="-3688"
-		price="1800" fornoble="0" />	
-		<!-- The Town of Giran -> Antharas' Lair -->
-	<teleport id="318" loc_x="131557" loc_y="114509" loc_z="-3712"
-		price="7000" fornoble="0" />
-		<!-- The Town of Giran -> Devil's Isle -->
-	<teleport id="319" loc_x="43408" loc_y="206881" loc_z="-3752"
-		price="5700" fornoble="0" />
-		<!-- The Town of Giran -> Breka's Stronghold -->
-	<teleport id="320" loc_x="85546" loc_y="131328" loc_z="-3672"
-		price="1000" fornoble="0" />
-		<!-- The Town of Giran -> Gorgon Flower Garden (Gate Pass) -->
-	<teleport id="321" loc_x="113553" loc_y="134813" loc_z="-3668"
-		price="1" fornoble="1" />
-		<!-- The Town of Giran -> Antharas' Lair - 1st Level (Gate Pass) -->
-	<teleport id="322" loc_x="147071" loc_y="120156" loc_z="-4520"
-		price="1" fornoble="1" />
-		<!-- The Town of Giran -> Antharas' Lair - 2nd Level (Gate Pass) -->
-	<teleport id="323" loc_x="151689" loc_y="112615" loc_z="-5520"
-		price="1" fornoble="1" />
-		<!-- The Town of Giran -> Antharas' Lair - Magic Force Field Bridge (Gate Pass) -->
-	<teleport id="324" loc_x="146425" loc_y="109898" loc_z="-3424"
-		price="1" fornoble="1" />
-		<!-- The Town of Giran -> The Heart of Antharas' Lair (Gate Pass) -->
-	<teleport id="325" loc_x="154396" loc_y="121235" loc_z="-3808"
-		price="1" fornoble="1" />
-		<!-- The Town of Giran -> The Center of Dragon Valley (Gate Pass) -->
-	<teleport id="326" loc_x="122824" loc_y="110836" loc_z="-3727"
-		price="1" fornoble="1" />
-		<!-- The Town of Giran -> Hardin's Private Academy (Gate Pass) -->
-	<teleport id="327" loc_x="105918" loc_y="109759" loc_z="-3170"
-		price="1" fornoble="1" />
-		<!-- The Town of Giran -> Gorgon Flower Garden (No Gate Pass) -->
-	<teleport id="328" loc_x="113553" loc_y="134813" loc_z="-3668"
-		price="1000" fornoble="0" />
-		<!-- The Town of Giran -> Antharas' Lair - 1st Level (No Gate Pass) -->
-	<teleport id="329" loc_x="147071" loc_y="120156" loc_z="-4520"
-		price="1000" fornoble="0" />
-		<!-- The Town of Giran -> Antharas' Lair - 2nd Level (No Gate Pass) -->
-	<teleport id="330" loc_x="151689" loc_y="112615" loc_z="-5520"
-		price="1000" fornoble="0" />
-		<!-- The Town of Giran -> Antharas' Lair - Magic Force Field Bridge (No Gate Pass) -->
-	<teleport id="331" loc_x="146425" loc_y="109898" loc_z="-3424"
-		price="1000" fornoble="0" />
-		<!-- The Town of Giran -> The Heart of Antharas' Lair (No Gate Pass) -->
-	<teleport id="332" loc_x="154396" loc_y="121235" loc_z="-3808"
-		price="1000" fornoble="0" />
-		<!-- The Town of Giran -> The Center of Dragon Valley (No Gate Pass) -->
-	<teleport id="333" loc_x="122824" loc_y="110836" loc_z="-3727"
-		price="1000" fornoble="0" />
-		<!-- The Town of Giran -> Hardin's Private Academy (No Gate Pass) -->
-	<teleport id="334" loc_x="105918" loc_y="109759" loc_z="-3170"
-		price="1000" fornoble="0" />
-		<!-- Town of Goddard -> The Town of Gludio -->
-	<teleport id="335" loc_x="-12694" loc_y="122776" loc_z="-3114"
-		price="71000" fornoble="0" />
-		<!-- Town of Goddard -> The Town of Giran -->
-	<teleport id="336" loc_x="83314" loc_y="148012" loc_z="-3400"
-		price="63000" fornoble="0" />
-		<!-- Town of Goddard -> The Town of Dion -->
-	<teleport id="337" loc_x="15671" loc_y="142994" loc_z="-2704"
-		price="71000" fornoble="0" />
-		<!-- Town of Goddard -> Rune Township -->
-	<teleport id="338" loc_x="43835" loc_y="-47749" loc_z="-792"
-		price="10000" fornoble="0" />
-		<!-- Town of Goddard -> Heine -->
-	<teleport id="339" loc_x="111455" loc_y="219400" loc_z="-3546"
-		price="83000" fornoble="0" />
-		<!-- Town of Goddard -> Town of Schuttgart -->
-	<teleport id="340" loc_x="87018" loc_y="-143379" loc_z="-1288"
-		price="10000" fornoble="0" />
-		<!-- Town of Goddard -> Town of Aden -->
-	<teleport id="341" loc_x="146705" loc_y="25840" loc_z="-2000"
-		price="8100" fornoble="0" />	
-		<!-- Town of Goddard -> Town of Oren -->
-	<teleport id="342" loc_x="82971" loc_y="53207" loc_z="-1470"
-		price="37000" fornoble="0" />
-		<!-- Town of Goddard -> Varka Silenos Stronghold -->
-	<teleport id="343" loc_x="125740" loc_y="-40864" loc_z="-3736"
-		price="4200" fornoble="0" />
-		<!-- Town of Goddard -> Ketra Orc Outpost -->
-	<teleport id="344" loc_x="146990" loc_y="-67128" loc_z="-3640"
-		price="1800" fornoble="0" />
-		<!-- Town of Goddard -> Hot Springs -->
-	<teleport id="345" loc_x="144880" loc_y="-113468" loc_z="-2560"
-		price="9300" fornoble="0" />
-		<!-- Town of Goddard -> Wall of Argos -->
-	<teleport id="346" loc_x="164564" loc_y="-48145" loc_z="-3536"
-		price="2200" fornoble="0" />
-		<!-- Town of Goddard -> Monastery of Silence -->
-	<teleport id="347" loc_x="106414" loc_y="-87799" loc_z="-2920"
-		price="10000" fornoble="0" />
-		<!-- Town of Goddard -> Varka Silenos Village (Gate Pass) -->
-	<teleport id="348" loc_x="107929" loc_y="-52248" loc_z="-2408"
-		price="1" fornoble="1" />
-		<!-- Town of Goddard -> Ketra Orc Village (Gate Pass) -->
-	<teleport id="349" loc_x="149817" loc_y="-80053" loc_z="-5576"
-		price="1" fornoble="1" />
-		<!-- Town of Goddard -> Devil's Pass (Gate Pass) -->
-	<teleport id="350" loc_x="106349" loc_y="-61870" loc_z="-2904"
-		price="1" fornoble="1" />
-		<!-- Town of Goddard -> Garden of Wild Beasts (Gate Pass) -->
-	<teleport id="351" loc_x="132997" loc_y="-60608" loc_z="-2960"
-		price="1" fornoble="1" />
-		<!-- Town of Goddard -> The Center of the Hot Springs (Gate Pass) -->
-	<teleport id="352" loc_x="144625" loc_y="-101291" loc_z="-3384"
-		price="1" fornoble="1" />
-		<!-- Town of Goddard -> The Center of the Wall of Argos (Gate Pass) -->
-	<teleport id="353" loc_x="183140" loc_y="-53307" loc_z="-1896"
-		price="1" fornoble="1" />
-		<!-- Town of Goddard -> Shrine of Loyalty (Gate Pass) -->
-	<teleport id="354" loc_x="187987" loc_y="-59566" loc_z="-2826"
-		price="1" fornoble="1" />
-		<!-- Town of Goddard -> Four Sepulchers (Gate Pass) -->
-	<teleport id="355" loc_x="178127" loc_y="-84435" loc_z="-7215"
-		price="1" fornoble="1" />
-		<!-- Town of Goddard -> Imperial Tomb (Gate Pass) -->
-	<teleport id="356" loc_x="186699" loc_y="-75915" loc_z="-2826"
-		price="1" fornoble="1" />
-		<!-- Town of Goddard -> Entrance to the Forge of the Gods (Gate Pass) -->
-	<teleport id="357" loc_x="169533" loc_y="-116228" loc_z="-2312"
-		price="1" fornoble="1" />
-		<!-- Town of Goddard -> Forge of the Gods - Top Level (Gate Pass) -->
-	<teleport id="358" loc_x="173436" loc_y="-112725" loc_z="-3680"
-		price="1" fornoble="1" />
-		<!-- Town of Goddard -> Forge of the Gods - Lower Level (Gate Pass) -->
-	<teleport id="359" loc_x="180260" loc_y="-111913" loc_z="-5851"
-		price="1" fornoble="1" />
-		<!-- Town of Goddard -> Monastery of Silence (Gate Pass) -->
-	<teleport id="360" loc_x="106414" loc_y="-87799" loc_z="-2920"
-		price="1" fornoble="1" />
-		<!-- Town of Goddard -> Varka Silenos Village (No Gate Pass) -->
-	<teleport id="361" loc_x="107929" loc_y="-52248" loc_z="-2408"
-		price="1000" fornoble="0" />
-		<!-- Town of Goddard -> Ketra Orc Village (No Gate Pass) -->
-	<teleport id="362" loc_x="149817" loc_y="-80053" loc_z="-5576"
-		price="1000" fornoble="0" />
-		<!-- Town of Goddard -> Devil's Pass (No Gate Pass) -->
-	<teleport id="363" loc_x="106349" loc_y="-61870" loc_z="-2904"
-		price="1000" fornoble="0" />
-		<!-- Town of Goddard -> Garden of Wild Beasts (No Gate Pass) -->
-	<teleport id="364" loc_x="132997" loc_y="-60608" loc_z="-2960"
-		price="1000" fornoble="0" />
-		<!-- Town of Goddard -> The Center of the Hot Springs (No Gate Pass) -->
-	<teleport id="365" loc_x="144625" loc_y="-101291" loc_z="-3384"
-		price="1000" fornoble="0" />
-		<!-- Town of Goddard -> The Center of the Wall of Argos (No Gate Pass) -->
-	<teleport id="366" loc_x="183140" loc_y="-53307" loc_z="-1896"
-		price="1000" fornoble="0" />
-		<!-- Town of Goddard -> Shrine of Loyalty (No Gate Pass) -->
-	<teleport id="367" loc_x="187987" loc_y="-59566" loc_z="-2826"
-		price="1000" fornoble="0" />
-		<!-- Town of Goddard -> Four Sepulchers (No Gate Pass) -->
-	<teleport id="368" loc_x="178127" loc_y="-84435" loc_z="-7215"
-		price="1000" fornoble="0" />
-		<!-- Town of Goddard -> Imperial Tomb (No Gate Pass) -->
-	<teleport id="369" loc_x="186699" loc_y="-75915" loc_z="-2826"
-		price="1000" fornoble="0" />
-		<!-- Town of Goddard -> Entrance to the Forge of the Gods (No Gate Pass) -->
-	<teleport id="370" loc_x="169533" loc_y="-116228" loc_z="-2312"
-		price="1000" fornoble="0" />
-		<!-- Town of Goddard -> Forge of the Gods - Top Level (No Gate Pass) -->
-	<teleport id="371" loc_x="173436" loc_y="-112725" loc_z="-3680"
-		price="1000" fornoble="0" />
-		<!-- Town of Goddard -> Forge of the Gods - Lower Level (No Gate Pass) -->
-	<teleport id="372" loc_x="180260" loc_y="-111913" loc_z="-5851"
-		price="1000" fornoble="0" />
-		<!-- Town of Goddard -> Monastery of Silence (No Gate Pass) -->
-	<teleport id="373" loc_x="106414" loc_y="-87799" loc_z="-2920"
-		price="1000" fornoble="0" />
-		<!-- Heine -> The Town of Giran -->
-	<teleport id="374" loc_x="83314" loc_y="148012" loc_z="-3400"
-		price="7600" fornoble="0" />
-		<!-- Heine -> Town of Oren -->
-	<teleport id="375" loc_x="83011" loc_y="53207" loc_z="-1470"
-		price="50000" fornoble="0" />
-		<!-- Heine -> The Town of Dion -->
-	<teleport id="376" loc_x="15472" loc_y="142880" loc_z="-2699"
-		price="12000" fornoble="0" />
-		<!-- Heine -> Town of Aden -->
-	<teleport id="377" loc_x="146705" loc_y="25840" loc_z="-2000"
-		price="59000" fornoble="0" />
-		<!-- Heine -> Town of Goddard -->
-	<teleport id="378" loc_x="147596" loc_y="-56294" loc_z="-2776"
-		price="83000" fornoble="0" />	
-		<!-- Heine -> Rune Township -->
-	<teleport id="379" loc_x="43835" loc_y="-47749" loc_z="-792"
-		price="82000" fornoble="0" />
-		<!-- Heine -> Town of Schuttgart -->
-	<teleport id="380" loc_x="87018" loc_y="-143379" loc_z="-1288"
-		price="100000" fornoble="0" />	
-		<!-- Heine -> The Town of Gludio -->
-	<teleport id="381" loc_x="-12694" loc_y="122776" loc_z="-3114"
-		price="47000" fornoble="0" />	
-		<!-- Heine -> Giran Harbor -->
-	<teleport id="382" loc_x="47935" loc_y="186810" loc_z="-3420"
-		price="7100" fornoble="0" />	
-		<!-- Heine -> Field of Silence -->
-	<teleport id="383" loc_x="91088" loc_y="182384" loc_z="-3192"
-		price="2500" fornoble="0" />
-		<!-- Heine -> Field of Whispers -->
-	<teleport id="384" loc_x="74592" loc_y="207656" loc_z="-3032"
-		price="2300" fornoble="0" />	
-		<!-- Heine -> Alligator Island -->
-	<teleport id="385" loc_x="115583" loc_y="192261" loc_z="-3488"
-		price="2100" fornoble="0" />	
-		<!-- Heine -> Garden of Eva -->
-	<teleport id="386" loc_x="84413" loc_y="234334" loc_z="-3656"
-		price="2400" fornoble="0" />		
-		<!-- Heine -> Field of Silence (Western Section) (Gate Pass) -->
-	<teleport id="387" loc_x="69748" loc_y="186111" loc_z="-2872"
-		price="1" fornoble="1" />	
-        <!-- Heine -> Field of Whispers (Eastern Section) (Gate Pass) -->
-	<teleport id="388" loc_x="97786" loc_y="209303" loc_z="-3040"
-		price="1" fornoble="1" />	
-        <!-- Heine -> The Center of Alligator Island (Gate Pass) -->
-	<teleport id="389" loc_x="113708" loc_y="178387" loc_z="-3232"
-		price="1" fornoble="1" />	
-        <!-- Heine -> Inside the Garden of Eva (Gate Pass) -->
-	<teleport id="390" loc_x="82693" loc_y="242220" loc_z="-6712"
-		price="1" fornoble="1" />		
-        <!-- Heine -> Garden of Eva - 2nd level (Gate Pass) -->
-	<teleport id="391" loc_x="79248" loc_y="247390" loc_z="-8816"
-		price="1" fornoble="1" />	
-        <!-- Heine -> Garden of Eva - 3rd level (Gate Pass) -->
-	<teleport id="392" loc_x="77868" loc_y="250400" loc_z="-9328"
-		price="1" fornoble="1" />	
-        <!-- Heine -> Garden of Eva - 4th level (Gate Pass) -->
-	<teleport id="393" loc_x="78721" loc_y="253309" loc_z="-9840"
-		price="1" fornoble="1" />	
-        <!-- Heine -> Garden of Eva - 5th level (Gate Pass) -->
-	<teleport id="394" loc_x="82570" loc_y="252464" loc_z="-10592"
-		price="1" fornoble="1" />	
-		<!-- Heine -> Field of Silence (Western Section) (No Gate Pass) -->
-	<teleport id="395" loc_x="69748" loc_y="186111" loc_z="-2872"
-		price="1000" fornoble="0" />	
-        <!-- Heine -> Field of Whispers (Eastern Section) (No Gate Pass) -->
-	<teleport id="396" loc_x="97786" loc_y="209303" loc_z="-3040"
-		price="1000" fornoble="0" />		
-        <!-- Heine -> The Center of Alligator Island (No Gate Pass) -->
-	<teleport id="397" loc_x="113708" loc_y="178387" loc_z="-3232"
-		price="1000" fornoble="0" />	
-        <!-- Heine -> Inside the Garden of Eva (No Gate Pass) -->
-	<teleport id="398" loc_x="82693" loc_y="242220" loc_z="-6712"
-		price="1000" fornoble="0" />		
-        <!-- Heine -> Garden of Eva - 2nd level (No Gate Pass) -->
-	<teleport id="399" loc_x="79248" loc_y="247390" loc_z="-8816"
-		price="1000" fornoble="0" />	
-        <!-- Heine -> Garden of Eva - 3rd level (No Gate Pass) -->
-	<teleport id="400" loc_x="77868" loc_y="250400" loc_z="-9328"
-		price="1000" fornoble="0" />	
-        <!-- Heine -> Garden of Eva - 4th level (No Gate Pass) -->
-	<teleport id="401" loc_x="78721" loc_y="253309" loc_z="-9840"
-		price="1000" fornoble="0" />	
-        <!-- Heine -> Garden of Eva - 5th level (No Gate Pass) -->
-	<teleport id="402" loc_x="82570" loc_y="252464" loc_z="-10592"
-		price="1000" fornoble="0" />
-		<!-- Town of Oren -> Town of Aden -->
-	<teleport id="403" loc_x="146783" loc_y="25808" loc_z="-2000"
-		price="6900" fornoble="0" />	
-		<!-- Town of Oren -> The Town of Giran -->
-	<teleport id="404" loc_x="83314" loc_y="148012" loc_z="-3400"
-		price="9400" fornoble="0" />		
-		<!-- Town of Oren -> Rune Township -->
-	<teleport id="405" loc_x="43835" loc_y="-47749" loc_z="-792"
-		price="10000" fornoble="0" />	
-		<!-- Town of Oren -> Town of Goddard -->
-	<teleport id="406" loc_x="148024" loc_y="-55281" loc_z="-2728"
-		price="37000" fornoble="0" />
-		<!-- Town of Oren -> Heine -->
-	<teleport id="407" loc_x="111455" loc_y="219400" loc_z="-3546"
-		price="50000" fornoble="0" />	
-		<!-- Town of Oren -> The Town of Dion -->
-	<teleport id="408" loc_x="15671" loc_y="142994" loc_z="-2704"
-		price="33000" fornoble="0" />	
-		<!-- Town of Oren -> The Town of Schuttgart -->
-	<teleport id="409" loc_x="87018" loc_y="-143379" loc_z="-1288"
-		price="59000" fornoble="0" />
-	    <!-- Town of Oren -> The Town of Gludio -->
-	<teleport id="410" loc_x="-12694" loc_y="122776" loc_z="-3114"
-		price="35000" fornoble="0" />	
-	    <!-- Town of Oren -> Ivory Tower -->
-	<teleport id="411" loc_x="85391" loc_y="16228" loc_z="-3640"
-		price="3700" fornoble="0" />
-		<!-- Town of Oren -> Hunters Village -->
-	<teleport id="412" loc_x="117110" loc_y="76883" loc_z="-2670"
-		price="4100" fornoble="0" />
-		<!-- Town of Oren -> Hardin's Private Academy -->
-	<teleport id="413" loc_x="105884" loc_y="109744" loc_z="-3170"
-		price="6100" fornoble="0" />	
-		<!-- Town of Oren -> Skyshadow Meadow -->
-	<teleport id="414" loc_x="89914" loc_y="46276" loc_z="-3616"
-		price="780" fornoble="0" />	
-		<!-- Town of Oren -> Plains of the Lizardmen -->
-	<teleport id="415" loc_x="87252" loc_y="85514" loc_z="-3056"
-		price="1900" fornoble="0" />	
-		<!-- Town of Oren -> Outlaw Forest -->
-	<teleport id="416" loc_x="91539" loc_y="-12204" loc_z="-2440"
-		price="5200" fornoble="0" />	
-		<!-- Town of Oren -> Sea of Spores -->
-	<teleport id="417" loc_x="64328" loc_y="26803" loc_z="-3768"
-		price="2500" fornoble="0" />	
-        <!-- Town of Oren -> Forest of Evil (Gate Pass) -->
-	<teleport id="418" loc_x="93218" loc_y="16969" loc_z="-3904"
-		price="1" fornoble="1" />	
-        <!-- Town of Oren -> Timak Outpost (Gate Pass) -->
-	<teleport id="419" loc_x="67097" loc_y="68815" loc_z="-3648"
-		price="1" fornoble="1" />	
-        <!-- Town of Oren -> Altar of Rites (Gate Pass) -->
-	<teleport id="420" loc_x="-44566" loc_y="77508" loc_z="-3736"
-		price="1" fornoble="1" />		
-		<!-- Town of Oren -> Forest of Evil (No Gate Pass) -->
-	<teleport id="421" loc_x="93218" loc_y="16969" loc_z="-3904"
-		price="1000" fornoble="0" />	
-        <!-- Town of Oren -> Timak Outpost (No Gate Pass) -->
-	<teleport id="422" loc_x="67097" loc_y="68815" loc_z="-3648"
-		price="1000" fornoble="0" />		
-        <!-- Town of Oren -> Altar of Rites (No Gate Pass) -->
-	<teleport id="423" loc_x="-44566" loc_y="77508" loc_z="-3736"
-		price="1000" fornoble="0" />
-		<!-- Town of Aden -> Village Square (Clan Hall - Nv. 1) -->
-	<teleport id="424" loc_x="147450" loc_y="28081" loc_z="-2294"
-		price="0" fornoble="0" />	
-		<!-- Town of Aden -> West Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="425" loc_x="142593" loc_y="26344" loc_z="-2425"
-		price="0" fornoble="0" />	
-		<!-- Town of Aden -> South Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="426" loc_x="147503" loc_y="32299" loc_z="-2501"
-		price="0" fornoble="0" />	
-		<!-- Town of Aden -> East Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="427" loc_x="151950" loc_y="25094" loc_z="-2172"
-		price="0" fornoble="0" />	
-		<!-- Town of Aden -> North Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="428" loc_x="147465" loc_y="20737" loc_z="-2130"
-		price="0" fornoble="0" />	
-		<!-- Town of Aden -> Ancient Batteground (Clan Hall - Nv. 2) -->
-	<teleport id="429" loc_x="106517" loc_y="-2871" loc_z="-3416"
-		price="500" fornoble="0" />	
-		<!-- Town of Aden -> Enchanted Valley, Southern Region (Clan Hall - Nv. 2) -->
-	<teleport id="430" loc_x="124904" loc_y="61992" loc_z="-3952"
-		price="500" fornoble="0" />	
-		<!-- Town of Aden -> Enchanted Valley, Northern Region (Clan Hall - Nv. 2) -->
-	<teleport id="431" loc_x="104426" loc_y="33746" loc_z="-3800"
-		price="500" fornoble="0" />	
-		<!-- Town of Aden -> Blazing Swamp (Clan Hall - Nv. 2) -->
-	<teleport id="432" loc_x="155310" loc_y="-16339" loc_z="-3320"
-		price="500" fornoble="0" />	
-		<!-- Town of Aden -> Forest of Mirrors (Clan Hall - Nv. 2) -->
-	<teleport id="433" loc_x="134310" loc_y="71976" loc_z="-3298"
-		price="500" fornoble="0" />	
-		<!-- Town of Aden -> Anghel Waterfall (Clan Hall - Nv. 2) -->
-	<teleport id="434" loc_x="163341" loc_y="91374" loc_z="-3320"
-		price="500" fornoble="0" />	
-		<!-- Town of Aden -> South Entrance of Devastated Castle (Clan Hall - Nv. 2) -->
-	<teleport id="435" loc_x="181726" loc_y="-7524" loc_z="-3464"
-		price="500" fornoble="0" />	
-		<!-- Town of Aden -> West Area of the Devastated Castle (Clan Hall - Nv. 2) -->
-	<teleport id="436" loc_x="168779" loc_y="-18790" loc_z="-3184"
-		price="500" fornoble="0" />	
-		<!-- Town of Aden -> Seal of Shilen (Clan Hall - Nv. 2) -->
-	<teleport id="437" loc_x="184816" loc_y="20901" loc_z="-3168"
-		price="500" fornoble="0" />	
-		<!-- Town of Aden -> Forsaken Plains (Clan Hall - Nv. 2) -->
-	<teleport id="438" loc_x="165975" loc_y="37584" loc_z="-3592"
-		price="500" fornoble="0" />	
-		<!-- Town of Aden -> Tower of Insolence (Clan Hall - Nv. 2) -->
-	<teleport id="439" loc_x="109254" loc_y="17317" loc_z="-5160"
-		price="500" fornoble="0" />		
-		<!-- Town of Schuttgart -> Village Square (Clan Hall - Nv. 1) -->
-	<teleport id="440" loc_x="87362" loc_y="-142299" loc_z="-1336"
-		price="0" fornoble="0" />	
-		<!-- Town of Schuttgart -> West Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="441" loc_x="84386" loc_y="-140764" loc_z="-1536"
-		price="0" fornoble="0" />	
-		<!-- Town of Schuttgart -> South Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="442" loc_x="87342" loc_y="-139298" loc_z="-1536"
-		price="0" fornoble="0" />	
-		<!-- Town of Schuttgart -> East Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="443" loc_x="90317" loc_y="-140780" loc_z="-1536"
-		price="0" fornoble="0" />	
-		<!-- Town of Schuttgart -> Crypts of Disgrace (Clan Hall - Nv. 2) -->
-	<teleport id="444" loc_x="47692" loc_y="-115745" loc_z="-3744"
-		price="500" fornoble="0" />	
-		<!-- Town of Schuttgart -> Plunderous Plains (Clan Hall - Nv. 2) -->
-	<teleport id="445" loc_x="111965" loc_y="-154172" loc_z="-1528"
-		price="500" fornoble="0" />	
-		<!-- Town of Schuttgart -> Den of Evil (Clan Hall - Nv. 2) -->
-	<teleport id="446" loc_x="68693" loc_y="-110438" loc_z="-1904"
-		price="500" fornoble="0" />
-		<!-- Town of Schuttgart -> Frozen Labyrinth (Clan Hall - Nv. 2) -->
-	<teleport id="447" loc_x="113903" loc_y="-108752" loc_z="-848"
-		price="500" fornoble="0" />	
-		<!-- Town of Giran -> Village Square (Clan Hall - Nv. 1) -->
-	<teleport id="448" loc_x="81749" loc_y="149171" loc_z="-3464"
-		price="0" fornoble="0" />	
-		<!-- Town of Giran -> North Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="449" loc_x="81525" loc_y="143821" loc_z="-3528"
-		price="0" fornoble="0" />	
-		<!-- Town of Giran -> East Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="450" loc_x="88342" loc_y="147329" loc_z="-3400"
-		price="0" fornoble="0" />	
-		<!-- Town of Giran -> South Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="451" loc_x="81548" loc_y="152633" loc_z="-3528"
-		price="0" fornoble="0" />	
-		<!-- Town of Giran -> West Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="452" loc_x="77305" loc_y="148636" loc_z="-3592"
-		price="0" fornoble="0" />		
-		<!-- Town of Giran -> Breka's Stronghold (Clan Hall - Nv. 2) -->
-	<teleport id="453" loc_x="85546" loc_y="131328" loc_z="-3672"
-		price="500" fornoble="0" />	
-		<!-- Town of Giran -> Devil's Isle (Clan Hall - Nv. 2) -->
-	<teleport id="454" loc_x="43408" loc_y="206881" loc_z="-3752"
-		price="500" fornoble="0" />	
-		<!-- Town of Giran -> Dragon Valley (Clan Hall - Nv. 2) -->
-	<teleport id="455" loc_x="122824" loc_y="110836" loc_z="-3720"
-		price="500" fornoble="0" />	
-		<!-- Town of Giran -> Tanor Canyon (Clan Hall - Nv. 2) -->
-	<teleport id="456" loc_x="59170" loc_y="164817" loc_z="-2856"
-		price="500" fornoble="0" />	
-		<!-- Town of Gludio -> Village Square (Clan Hall - Nv. 1) -->
-	<teleport id="457" loc_x="-14393" loc_y="123671" loc_z="-3144"
-		price="0" fornoble="0" />	
-		<!-- Town of Gludio -> East Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="458" loc_x="-11817" loc_y="123652" loc_z="-3079"
-		price="0" fornoble="0" />	
-		<!-- Town of Gludio -> West Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="459" loc_x="-16796" loc_y="124108" loc_z="-3127"
-		price="0" fornoble="0" />	
-		<!-- Town of Gludio -> South Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="460" loc_x="-14207" loc_y="126547" loc_z="-3151"
-		price="0" fornoble="0" />	
-		<!-- Town of Gludio -> North Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="461" loc_x="-14591" loc_y="121024" loc_z="-2990"
-		price="0" fornoble="0" />
-		<!-- Town of Gludio -> Ruins of Agony (Clan Hall - Nv. 2) -->
-	<teleport id="462" loc_x="-41055" loc_y="122647" loc_z="-2889"
-		price="500" fornoble="0" />	
-		<!-- Town of Gludio -> Ruins of Despair (Clan Hall - Nv. 2) -->
-	<teleport id="463" loc_x="-20767" loc_y="136437" loc_z="-3923"
-		price="500" fornoble="0" />	
-		<!-- Town of Gludio -> The Ant Nest (Clan Hall - Nv. 2) -->
-	<teleport id="464" loc_x="-14913" loc_y="170017" loc_z="-2893"
-		price="500" fornoble="0" />	
-		<!-- Town of Gludio -> Windawood Manor (Clan Hall - Nv. 2) -->
-	<teleport id="465" loc_x="-28327" loc_y="155125" loc_z="-3496"
-		price="500" fornoble="0" />
-		<!-- Gludin Village -> Village Square (Clan Hall - Nv. 1) -->
-	<teleport id="466" loc_x="-82445" loc_y="150788" loc_z="-3129"
-		price="0" fornoble="0" />	
-		<!-- Gludin Village -> North Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="467" loc_x="-83331" loc_y="148563" loc_z="-3148"
-		price="0" fornoble="0" />	
-		<!-- Gludin Village -> East Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="468" loc_x="-78405" loc_y="152723" loc_z="-3181"
-		price="0" fornoble="0" />	
-		<!-- Gludin Village -> South Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="469" loc_x="-77460" loc_y="155995" loc_z="-3194"
-		price="0" fornoble="0" />	
-		<!-- Gludin Village -> West Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="470" loc_x="-85138" loc_y="152749" loc_z="-3160"
-		price="0" fornoble="0" />
-		<!-- Gludin Village -> Windmill Hill (Clan Hall - Nv. 2) -->
-	<teleport id="471" loc_x="-75437" loc_y="168800" loc_z="-3632"
-		price="500" fornoble="0" />	
-		<!-- Gludin Village -> Fellmere Harvesting Grounds (Clan Hall - Nv. 2) -->
-	<teleport id="472" loc_x="-63736" loc_y="101522" loc_z="-3552"
-		price="500" fornoble="0" />	
-		<!-- Gludin Village -> Windy Hill (Clan Hall - Nv. 2) -->
-	<teleport id="473" loc_x="-88539" loc_y="83389" loc_z="-2864"
-		price="500" fornoble="0" />	
-		<!-- Gludin Village -> Abandoned Camp (Clan Hall - Nv. 2) -->
-	<teleport id="474" loc_x="-49853" loc_y="147089" loc_z="-2784"
-		price="500" fornoble="0" />
-		<!-- Gludin Village -> Wastelands (Clan Hall - Nv. 2) -->
-	<teleport id="475" loc_x="-16526" loc_y="208032" loc_z="-3664"
-		price="500" fornoble="0" />
-		<!-- Town of Goddard -> Village Square (Clan Hall - Nv. 1) -->
-	<teleport id="476" loc_x="147728" loc_y="-56331" loc_z="-2776"
-		price="0" fornoble="0" />	
-		<!-- Town of Goddard -> North Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="477" loc_x="147731" loc_y="-58930" loc_z="-2976"
-		price="0" fornoble="0" />	
-		<!-- Town of Goddard -> East Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="478" loc_x="150561" loc_y="-57489" loc_z="-2976"
-		price="0" fornoble="0" />	
-		<!-- Town of Goddard -> West Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="479" loc_x="144866" loc_y="-57464" loc_z="-2976"
-		price="0" fornoble="0" />
-		<!-- Town of Goddard -> Varka Silenos Stronghold (Clan Hall - Nv. 2) -->
-	<teleport id="480" loc_x="125740" loc_y="-40864" loc_z="-3736"
-		price="500" fornoble="0" />	
-		<!-- Town of Goddard -> Ketra Orc Outpost (Clan Hall - Nv. 2) -->
-	<teleport id="481" loc_x="146990" loc_y="-67128" loc_z="-3640"
-		price="500" fornoble="0" />	
-		<!-- Town of Goddard -> Entrance to the Forge of the Gods (Clan Hall - Nv. 2) -->
-	<teleport id="482" loc_x="168902" loc_y="-116703" loc_z="-2417"
-		price="500" fornoble="0" />	
-		<!-- Town of Goddard -> Wall of Argos (Clan Hall - Nv. 2) -->
-	<teleport id="483" loc_x="164564" loc_y="-48145" loc_z="-3536"
-		price="500" fornoble="0" />
-		<!-- Town of Goddard -> Hot Springs (Clan Hall - Nv. 2) -->
-	<teleport id="484" loc_x="144880" loc_y="-113468" loc_z="-2560"
-		price="500" fornoble="0" />
-		<!-- Rune Township -> Village Square (Clan Hall - Nv. 1) -->
-	<teleport id="485" loc_x="43835" loc_y="-47749" loc_z="-796"
-		price="0" fornoble="0" />	
-		<!-- Rune Township -> South Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="486" loc_x="43197" loc_y="-46767" loc_z="-808"
-		price="0" fornoble="0" />	
-		<!-- Rune Township -> North Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="487" loc_x="38956" loc_y="-53648" loc_z="-1343"
-		price="0" fornoble="0" />	
-		<!-- Rune Township -> Forest of the Dead (Clan Hall - Nv. 2) -->
-	<teleport id="488" loc_x="52107" loc_y="-54328" loc_z="-3158"
-		price="500" fornoble="0" />	
-		<!-- Rune Township -> Wild Beast Pastures (Clan Hall - Nv. 2) -->
-	<teleport id="489" loc_x="43805" loc_y="-88010" loc_z="-2752"
-		price="500" fornoble="0" />	
-		<!-- Rune Township -> Swamp of Screams (Clan Hall - Nv. 2) -->
-	<teleport id="490" loc_x="69340" loc_y="-50203" loc_z="-3304"
-		price="500" fornoble="0" />	
-		<!-- Rune Township -> Valley of Saints (Clan Hall - Nv. 2) -->
-	<teleport id="491" loc_x="65307" loc_y="-71445" loc_z="-3688"
-		price="500" fornoble="0" />
-		<!-- Rune Township -> Monastery of Silence (Clan Hall - Nv. 2) -->
-	<teleport id="492" loc_x="106414" loc_y="-87799" loc_z="-2920"
-		price="500" fornoble="0" />	
-		<!-- Town of Dion -> Village Square (Clan Hall - Nv. 1) -->
-	<teleport id="493" loc_x="19025" loc_y="145245" loc_z="-3107"
-		price="0" fornoble="0" />	
-		<!--Town of Dion -> East Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="494" loc_x="21511" loc_y="145866" loc_z="-3153"
-		price="0" fornoble="0" />	
-		<!--Town of Dion -> North Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="495" loc_x="18891" loc_y="142365" loc_z="-3051"
-		price="0" fornoble="0" />	
-		<!--Town of Dion -> South Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="496" loc_x="17394" loc_y="147593" loc_z="-3129"
-		price="0" fornoble="0" />	
-		<!--Town of Dion -> West Gate Entrance (Clan Hall - Nv. 1) -->
-	<teleport id="497" loc_x="16582" loc_y="144130" loc_z="-2960"
-		price="0" fornoble="0" />
-		<!--Town of Dion -> Cruma Marshlands (Clan Hall - Nv. 2) -->
-	<teleport id="498" loc_x="24520" loc_y="128856" loc_z="-3624"
-		price="500" fornoble="0" />	
-		<!--Town of Dion -> Plains of Dion (Clan Hall - Nv. 2) -->
-	<teleport id="499" loc_x="9980" loc_y="173167" loc_z="-3734"
-		price="500" fornoble="0" />	
-		<!--Town of Dion -> Path to Pirate Tunnel (Clan Hall - Nv. 2) -->
-	<teleport id="500" loc_x="37051" loc_y="186918" loc_z="-3056"
-		price="500" fornoble="0" />
-		<!--Town of Dion -> Path to Partisan Hideaway (Clan Hall - Nv. 2) -->
-	<teleport id="501" loc_x="46428" loc_y="127157" loc_z="-3745"
-		price="500" fornoble="0" />	
-		<!--Town of Dion -> Execution Grounds (Clan Hall - Nv. 2) -->
-	<teleport id="502" loc_x="41985" loc_y="147314" loc_z="-3724"
-		price="500" fornoble="0" />	
-		<!--Town of Dion -> Path to Giran Castle Town (Clan Hall - Nv. 2) -->
-	<teleport id="503" loc_x="69373" loc_y="155208" loc_z="-3746"
-		price="500" fornoble="0" />	
-		<!--Town of Dion -> Cruma Tower (Clan Hall - Nv. 2) -->
-	<teleport id="504" loc_x="16688" loc_y="113242" loc_z="-3576"
-		price="500" fornoble="0" />
-		<!--Town of Dion -> Eastern Entrance to Wasteland (Clan Hall - Nv. 2) -->
-	<teleport id="505" loc_x="-10875" loc_y="175962" loc_z="-4152"
-		price="500" fornoble="0" />	
-		<!--Town of Dion -> The Ant Nest (Clan Hall - Nv. 2) -->
-	<teleport id="506" loc_x="-14913" loc_y="170017" loc_z="-2893"
-		price="500" fornoble="0" />	
-		<!-- Necropolis of Sacrifice Out  - Necropolis of Sacrifice Within -->
-	<teleport id="507" loc_x="-41570" loc_y="209785" loc_z="-5089"
-		price="0" fornoble="0" />
-		<!-- Necropolis of Sacrifice Within - Necropolis of Sacrifice Out -->
-	<teleport id="508" loc_x="-41567" loc_y="209292" loc_z="-5091"
-		price="0" fornoble="0" />
-		<!-- The Pilgrim's Necropolis Out - The Pilgrim's Necropolis Within -->
-	<teleport id="509" loc_x="45251" loc_y="123890" loc_z="-5415"
-		price="0" fornoble="0" />
-	<!-- The Pilgrim's Necropolis Within - The Pilgrim's Necropolis Out -->
-	<teleport id="510" loc_x="45250" loc_y="124366" loc_z="-5417"
-		price="0" fornoble="0" />
-		<!-- Necropolis of Worship Out - Necropolis of Worship Within  -->
-	<teleport id="511" loc_x="111273" loc_y="174015" loc_z="-5417"
-		price="0" fornoble="0" />
-	<!-- Necropolis of Worship Within - Necropolis of Worship Out -->
-	<teleport id="512" loc_x="110818" loc_y="174010" loc_z="-5443"
-		price="0" fornoble="0" />
-	<!-- The Patriot's Necropolis Out - The Patriot's Necropolis Within -->
-	<teleport id="513" loc_x="-21726" loc_y="77385" loc_z="-5177"
-		price="0" fornoble="0" />
-	<!-- The Patriot's Necropolis Within - The Patriot's Necropolis Out -->
-	<teleport id="514" loc_x="-22197" loc_y="77369" loc_z="-5177"
-		price="0" fornoble="0" />
-	<!-- Necropolis of Devotion Out - Necropolis of Devotion Within -->
-	<teleport id="515" loc_x="-52254" loc_y="79103" loc_z="-4743"
-		price="0" fornoble="0" />
-	<!-- Necropolis of Devotion Out Within - Necropolis of Devotion Out  -->
-	<teleport id="516" loc_x="-52716" loc_y="79106" loc_z="-4745"
-		price="0" fornoble="0" />
-	<!-- Necropolis of Martyrdom Out - Necropolis of Martyrdom Within  -->
-	<teleport id="517" loc_x="118308" loc_y="132800" loc_z="-4833"
-		price="0" fornoble="0" />
-	<!-- Necropolis of Martyrdom Within - Necropolis of Martyrdom Out -->
-	<teleport id="518" loc_x="117793" loc_y="132810" loc_z="-4835"
-		price="0" fornoble="0" />
-	<!-- The Disciple's Necropolis Out - The Disciple's Necropolis Within  -->
-	<teleport id="519" loc_x="172251" loc_y="-17605" loc_z="-4903"
-		price="0" fornoble="0" />
-	<!-- The Disciple's Necropolis Within - The Disciple's Necropolis Out -->
-	<teleport id="520" loc_x="171902" loc_y="-17595" loc_z="-4905"
-		price="0" fornoble="0" />
-    <!-- The Saint's Necropolis Out - The Saint's Necropolis Within -->
-	<teleport id="521" loc_x="83000" loc_y="209213" loc_z="-5443"
-		price="0" fornoble="0" />
-	<!-- The Saint's Necropolis Within - The Saint's Necropolis Out -->
-	<teleport id="522" loc_x="82608" loc_y="209225" loc_z="-5443"
-		price="0" fornoble="0" />
-		<!-- Catacomb of the Heretic Out - Catacomb of the Heretic Within -->
-	<teleport id="523" loc_x="-53174" loc_y="-250275" loc_z="-7911"
-		price="0" fornoble="0" />
-	<!-- Catacomb of the Heretic Within - Catacomb of the Heretic Out -->
-	<teleport id="524" loc_x="42514" loc_y="143917" loc_z="-5385"
-		price="0" fornoble="0" />
-	<!-- Catacomb of the Branded Out - Catacomb of the Branded Within -->
-	<teleport id="525" loc_x="46217" loc_y="170290" loc_z="-4983"
-		price="0" fornoble="0" />
-	<!-- Catacomb of the Branded Within - Catacomb of the Branded Out -->
-	<teleport id="526" loc_x="45770" loc_y="170299" loc_z="-4985"
-		price="0" fornoble="0" />
-	<!-- Catacomb of the Apostate Out - Catacomb of the Apostate Within  -->
-	<teleport id="527" loc_x="-20230" loc_y="-250780" loc_z="-8168"
-		price="0" fornoble="0" />
-	<!-- Catacomb of the Apostate Within - Catacomb of the Apostate Out -->
-	<teleport id="528" loc_x="77225" loc_y="78362" loc_z="-5119"
-		price="0" fornoble="0" />
-	<!-- Catacomb of the Witch Out - Catacomb of the Witch Within -->
-	<teleport id="529" loc_x="140404" loc_y="79678" loc_z="-5431"
-		price="0" fornoble="0" />
-	<!-- Catacomb of the Witch Within - Catacomb of the Witch Out -->
-	<teleport id="530" loc_x="139965" loc_y="79678" loc_z="-5433"
-		price="0" fornoble="0" />
-	<!--  Catacomb of Dark Omens Out - Catacomb of Dark Omens Within -->
-	<teleport id="531" loc_x="-19500" loc_y="13508" loc_z="-4905"
-		price="0" fornoble="0" />
-	<!-- Catacomb of Dark Omens Within - Catacomb of Dark Omens Out  -->
-	<teleport id="532" loc_x="-19931" loc_y="13502" loc_z="-4905"
-		price="0" fornoble="0" />
-	<!-- Catacomb of the Forbidden Path Out - Catacomb of the Forbidden Within  -->
-	<teleport id="533" loc_x="12521" loc_y="-248481" loc_z="-9585"
-		price="0" fornoble="0" />
-	<!-- Catacomb of the Forbidden Within - Catacomb of the Forbidden Path Out  -->
-	<teleport id="534" loc_x="113429" loc_y="84540" loc_z="-6545"
-		price="0" fornoble="0" />
-		<!-- Teleport Cube (Boss Zone) - Town of Goddard -->
-	<teleport id="535" loc_x="147596" loc_y="-56294" loc_z="-2776"
-		price="0" fornoble="0" />	
-		<!-- Teleport Cube (Boss Zone) -> The Town of Giran -->
-	<teleport id="536" loc_x="83314" loc_y="148012" loc_z="-3400"
-		price="0" fornoble="0" />
-	    <!--  Teleport Cube (Boss Zone) ->Primeval Isle Wharf -->
-	<teleport id="537" loc_x="10468" loc_y="-24569" loc_z="-3650"
-		price="0" fornoble="0" />
-	    <!--  Van Halter (Boss Zone) ->Rune -->
-	<teleport id="538" loc_x="43954" loc_y="-48152" loc_z="-797"
-		price="0" fornoble="0" />
-	    <!--  Van Halter (Boss Zone) ->Fight Right -->
-	<teleport id="539" loc_x="-15476" loc_y="-54786" loc_z="-10449"
-		price="0" fornoble="0" />		
-	    <!--  Van Halter (Boss Zone) ->Fight Left -->
-	<teleport id="540" loc_x="-17285" loc_y="-54786" loc_z="-10449"
-		price="0" fornoble="0" />
-		<!--  Van Halter (Boss Zone) ->Saloon Right -->
-	<teleport id="541" loc_x="-14934" loc_y="-56173" loc_z="-10832"
-		price="0" fornoble="0" />
-	    <!--  Van Halter (Boss Zone) ->Saloon Left -->
-	<teleport id="542" loc_x="-17851" loc_y="-56199" loc_z="-10832"
-		price="0" fornoble="0" />
-		<!--  Van Halter (Boss Zone) ->Back Basement Left -->
-	<teleport id="543" loc_x="-14849" loc_y="-52383" loc_z="-11008"
-		price="0" fornoble="0" />
-		<!--  Van Halter (Boss Zone) ->Back Basement Right -->
-	<teleport id="544" loc_x="-17921" loc_y="-52383" loc_z="-11008"
-		price="0" fornoble="0" />
-		<!--  Van Halter (Boss Zone) ->Enter Right -->
-	<teleport id="545" loc_x="-14379" loc_y="-52480" loc_z="-11004"
-		price="0" fornoble="0" />
-		<!--  Van Halter (Boss Zone) ->Enter Left -->
-	<teleport id="546" loc_x="-18525" loc_y="-52474" loc_z="-11000"
-		price="0" fornoble="0" />
-		<!--  Van Halter (Boss Zone) ->Leave zone 1 -->
-	<teleport id="547" loc_x="-16364" loc_y="-43985" loc_z="-10725"
-		price="0" fornoble="0" />
-		<!--  Van Halter (Boss Zone) ->Leave zone 2 -->
-	<teleport id="548" loc_x="-16344" loc_y="-36487" loc_z="-10725"
-		price="0" fornoble="0" />
-		<!-- Disciples Necropolis -> Entrance Lilith -->
-	<teleport id="549" loc_x="184466" loc_y="-12014" loc_z="-5488"
-		price="0" fornoble="0" />	
-		<!-- Disciples Necropolis -> Entrance Anakim -->
-	<teleport id="550" loc_x="184466" loc_y="-9022" loc_z="-5488"
-		price="0" fornoble="0" />	
-		<!-- Entrance Lilith/Anakim -> Disciples Necropolis -->		
-	<teleport id="551" loc_x="183225" loc_y="-11911" loc_z="-4897"
-		price="0" fornoble="0" />				
-		<!-- Ketra teleport - Goddard Castle Town -->		
-	<teleport id="10028" loc_x="147978" loc_y="-55408" loc_z="-2728"
-		price="4900" fornoble="0" />				
-		<!-- Ketra teleport - Rune Castle Town -->		
-	<teleport id="10029" loc_x="43849" loc_y="-47877" loc_z="-792"
-		price="22000" fornoble="0" />				
-		<!-- Ketra teleport - Aden Castle Town -->		
-	<teleport id="10030" loc_x="146705" loc_y="25840" loc_z="-2000"
-		price="21000" fornoble="0" />				
-		<!-- Ketra teleport - Wall of Argos -->		
-	<teleport id="10031" loc_x="164564" loc_y="-48145" loc_z="-3536"
-		price="7000" fornoble="0" />												
-		<!-- Ketra teleport - Hot Springs -->		
-	<teleport id="10032" loc_x="144880" loc_y="-113468" loc_z="-2560"
-		price="6700" fornoble="0" />			
-		<!-- Varka teleport - Goddard Castle Town -->		
-	<teleport id="10033" loc_x="147978" loc_y="-55408" loc_z="-2728"
-		price="8000" fornoble="0" />				
-		<!-- Varka teleport - Rune Castle Town -->		
-	<teleport id="10034" loc_x="43849" loc_y="-47877" loc_z="-792"
-		price="12000" fornoble="0" />				
-		<!-- Varka teleport - Aden Castle Town -->		
-	<teleport id="10035" loc_x="146705" loc_y="25840" loc_z="-2000"
-		price="17000" fornoble="0" />				
-		<!-- Varka teleport - Wall of Argos -->		
-	<teleport id="10036" loc_x="164564" loc_y="-48145" loc_z="-3536"
-		price="11000" fornoble="0" />												
-		<!-- Varka teleport - Hot Springs -->		
-	<teleport id="10037" loc_x="144880" loc_y="-113468" loc_z="-2560"
-		price="14000" fornoble="0" />				
-				
-</list>	
+  <teleport id="1" loc_x="-12694" loc_y="122776" loc_z="-3114" price="10000" fornoble="0" />
+  <teleport id="2" loc_x="115120" loc_y="-178112" loc_z="-880" price="22000" fornoble="0" />
+  <teleport id="3" loc_x="-84141" loc_y="244623" loc_z="-3729" price="24000" fornoble="0" />
+  <teleport id="4" loc_x="-45186" loc_y="-112459" loc_z="-236" price="13000" fornoble="0" />
+  <teleport id="5" loc_x="-22224" loc_y="14168" loc_z="-3232" price="890" fornoble="0" />
+  <teleport id="6" loc_x="-21966" loc_y="40544" loc_z="-3192" price="1100" fornoble="0" />
+  <teleport id="7" loc_x="-61095" loc_y="75104" loc_z="-3352" price="3600" fornoble="0" />
+  <teleport id="8" loc_x="-10612" loc_y="75881" loc_z="-3592" price="1700" fornoble="0" />
+  <teleport id="9" loc_x="-80758" loc_y="149711" loc_z="-3043" price="1" fornoble="1" />
+  <teleport id="10" loc_x="-12787" loc_y="122779" loc_z="-3112" price="1" fornoble="1" />
+  <teleport id="11" loc_x="15671" loc_y="142994" loc_z="-2696" price="1" fornoble="1" />
+  <teleport id="12" loc_x="111455" loc_y="219400" loc_z="-3546" price="1" fornoble="1" />
+  <teleport id="13" loc_x="83336" loc_y="147972" loc_z="-3400" price="1" fornoble="1" />
+  <teleport id="14" loc_x="83011" loc_y="53207" loc_z="-1470" price="1" fornoble="1" />
+  <teleport id="15" loc_x="117088" loc_y="76931" loc_z="-2670" price="1" fornoble="1" />
+  <teleport id="16" loc_x="146783" loc_y="25808" loc_z="-2000" price="1" fornoble="1" />
+  <teleport id="17" loc_x="43826" loc_y="-47688" loc_z="-792" price="1" fornoble="1" />
+  <teleport id="18" loc_x="147978" loc_y="-55408" loc_z="-2728" price="1" fornoble="1" />
+  <teleport id="19" loc_x="87478" loc_y="-142297" loc_z="-1352" price="1" fornoble="1" />
+  <teleport id="20" loc_x="-87328" loc_y="142266" loc_z="-3640" price="1" fornoble="1" />
+  <teleport id="21" loc_x="73579" loc_y="142709" loc_z="-3768" price="1" fornoble="1" />
+  <teleport id="22" loc_x="146440" loc_y="46723" loc_z="-3400" price="1" fornoble="1" />
+  <teleport id="23" loc_x="-18415" loc_y="85624" loc_z="-3680" price="1" fornoble="1" />
+  <teleport id="24" loc_x="-22224" loc_y="14168" loc_z="-3232" price="1" fornoble="1" />
+  <teleport id="25" loc_x="-49185" loc_y="49441" loc_z="-5912" price="1" fornoble="1" />
+  <teleport id="26" loc_x="-41184" loc_y="206752" loc_z="-3357" price="1" fornoble="1" />
+  <teleport id="27" loc_x="39232" loc_y="143568" loc_z="-3651" price="1" fornoble="1" />
+  <teleport id="28" loc_x="45600" loc_y="126944" loc_z="-3686" price="1" fornoble="1" />
+  <teleport id="29" loc_x="43200" loc_y="170688" loc_z="-3251" price="1" fornoble="1" />
+  <teleport id="30" loc_x="107514" loc_y="174329" loc_z="-3704" price="1" fornoble="1" />
+  <teleport id="31" loc_x="74672" loc_y="78032" loc_z="-3398" price="1" fornoble="1" />
+  <teleport id="32" loc_x="-25472" loc_y="77728" loc_z="-3446" price="1" fornoble="1" />
+  <teleport id="33" loc_x="136672" loc_y="79328" loc_z="-3702" price="1" fornoble="1" />
+  <teleport id="34" loc_x="-56064" loc_y="78720" loc_z="-3011" price="1" fornoble="1" />
+  <teleport id="35" loc_x="114496" loc_y="132416" loc_z="-3101" price="1" fornoble="1" />
+  <teleport id="36" loc_x="168560" loc_y="-17968" loc_z="-3174" price="1" fornoble="1" />
+  <teleport id="37" loc_x="79296" loc_y="209584" loc_z="-3709" price="1" fornoble="1" />
+  <teleport id="38" loc_x="-22480" loc_y="13872" loc_z="-3174" price="1" fornoble="1" />
+  <teleport id="39" loc_x="110912" loc_y="84912" loc_z="-4816" price="1" fornoble="1" />
+  <teleport id="40" loc_x="-80758" loc_y="149711" loc_z="-3043" price="1000" fornoble="0" />
+  <teleport id="41" loc_x="-12787" loc_y="122779" loc_z="-3112" price="1000" fornoble="0" />
+  <teleport id="42" loc_x="15671" loc_y="142994" loc_z="-2696" price="1000" fornoble="0" />
+  <teleport id="43" loc_x="111455" loc_y="219400" loc_z="-3546" price="1000" fornoble="0" />
+  <teleport id="44" loc_x="83336" loc_y="147972" loc_z="-3400" price="1000" fornoble="0" />
+  <teleport id="45" loc_x="83011" loc_y="53207" loc_z="-1470" price="1000" fornoble="0" />
+  <teleport id="46" loc_x="117088" loc_y="76931" loc_z="-2670" price="1000" fornoble="0" />
+  <teleport id="47" loc_x="146783" loc_y="25808" loc_z="-2000" price="1000" fornoble="0" />
+  <teleport id="48" loc_x="43826" loc_y="-47688" loc_z="-792" price="1000" fornoble="0" />
+  <teleport id="49" loc_x="147978" loc_y="-55408" loc_z="-2728" price="1000" fornoble="0" />
+  <teleport id="50" loc_x="87478" loc_y="-142297" loc_z="-1352" price="1000" fornoble="0" />
+  <teleport id="51" loc_x="-87328" loc_y="142266" loc_z="-3640" price="1000" fornoble="0" />
+  <teleport id="52" loc_x="73579" loc_y="142709" loc_z="-3768" price="1000" fornoble="0" />
+  <teleport id="53" loc_x="146440" loc_y="46723" loc_z="-3400" price="1000" fornoble="0" />
+  <teleport id="54" loc_x="-18415" loc_y="85624" loc_z="-3680" price="1000" fornoble="0" />
+  <teleport id="55" loc_x="-22224" loc_y="14168" loc_z="-3232" price="1000" fornoble="0" />
+  <teleport id="56" loc_x="-49185" loc_y="49441" loc_z="-5912" price="1000" fornoble="0" />
+  <teleport id="57" loc_x="-41184" loc_y="206752" loc_z="-3357" price="1000" fornoble="0" />
+  <teleport id="58" loc_x="39232" loc_y="143568" loc_z="-3651" price="1000" fornoble="0" />
+  <teleport id="59" loc_x="45600" loc_y="126944" loc_z="-3686" price="1000" fornoble="0" />
+  <teleport id="60" loc_x="43200" loc_y="170688" loc_z="-3251" price="1000" fornoble="0" />
+  <teleport id="61" loc_x="107514" loc_y="174329" loc_z="-3704" price="1000" fornoble="0" />
+  <teleport id="62" loc_x="74672" loc_y="78032" loc_z="-3398" price="1000" fornoble="0" />
+  <teleport id="63" loc_x="-25472" loc_y="77728" loc_z="-3446" price="1000" fornoble="0" />
+  <teleport id="64" loc_x="136672" loc_y="79328" loc_z="-3702" price="1000" fornoble="0" />
+  <teleport id="65" loc_x="-56064" loc_y="78720" loc_z="-3011" price="1000" fornoble="0" />
+  <teleport id="66" loc_x="114496" loc_y="132416" loc_z="-3101" price="1000" fornoble="0" />
+  <teleport id="67" loc_x="168560" loc_y="-17968" loc_z="-3174" price="1000" fornoble="0" />
+  <teleport id="68" loc_x="79296" loc_y="209584" loc_z="-3709" price="1000" fornoble="0" />
+  <teleport id="69" loc_x="-22480" loc_y="13872" loc_z="-3174" price="1000" fornoble="0" />
+  <teleport id="70" loc_x="110912" loc_y="84912" loc_z="-4816" price="1000" fornoble="0" />
+  <teleport id="71" loc_x="-12694" loc_y="122776" loc_z="-3114" price="32000" fornoble="0" />
+  <teleport id="72" loc_x="87478" loc_y="-142297" loc_z="-1352" price="4400" fornoble="0" />
+  <teleport id="73" loc_x="9716" loc_y="15502" loc_z="-4500" price="22000" fornoble="0" />
+  <teleport id="74" loc_x="-84141" loc_y="244623" loc_z="-3729" price="46000" fornoble="0" />
+  <teleport id="75" loc_x="46890" loc_y="51531" loc_z="-2976" price="23000" fornoble="0" />
+  <teleport id="76" loc_x="-45186" loc_y="-112459" loc_z="-236" price="17000" fornoble="0" />
+  <teleport id="77" loc_x="171946" loc_y="-173352" loc_z="3440" price="2200" fornoble="0" />
+  <teleport id="78" loc_x="139714" loc_y="-177456" loc_z="-1536" price="690" fornoble="0" />
+  <teleport id="79" loc_x="169008" loc_y="-208272" loc_z="-3496" price="2400" fornoble="0" />
+  <teleport id="80" loc_x="136910" loc_y="-205082" loc_z="-3664" price="970" fornoble="0" />
+  <teleport id="81" loc_x="175499" loc_y="-181586" loc_z="-904" price="1" fornoble="1" />
+  <teleport id="82" loc_x="144706" loc_y="-173223" loc_z="-1520" price="1" fornoble="1" />
+  <teleport id="83" loc_x="175499" loc_y="-181586" loc_z="-904" price="1000" fornoble="0" />
+  <teleport id="84" loc_x="144706" loc_y="-173223" loc_z="-1520" price="1000" fornoble="0" />
+  <teleport id="85" loc_x="-80749" loc_y="149834" loc_z="-3043" price="18000" fornoble="0" />
+  <teleport id="86" loc_x="9716" loc_y="15502" loc_z="-4500" price="24000" fornoble="0" />
+  <teleport id="87" loc_x="115120" loc_y="-178112" loc_z="-880" price="46000" fornoble="0" />
+  <teleport id="88" loc_x="46890" loc_y="51531" loc_z="-2976" price="23000" fornoble="0" />
+  <teleport id="89" loc_x="-45186" loc_y="-112459" loc_z="-236" price="35000" fornoble="0" />
+  <teleport id="90" loc_x="-112367" loc_y="234703" loc_z="-3688" price="830" fornoble="0" />
+  <teleport id="91" loc_x="-111728" loc_y="244330" loc_z="-3448" price="770" fornoble="0" />
+  <teleport id="92" loc_x="-106696" loc_y="214691" loc_z="-3424" price="1000" fornoble="0" />
+  <teleport id="93" loc_x="-99586" loc_y="237637" loc_z="-3568" price="470" fornoble="0" />
+  <teleport id="94" loc_x="48770" loc_y="248465" loc_z="-6164" price="0" fornoble="0" />
+  <teleport id="95" loc_x="-112503" loc_y="235157" loc_z="-3678" price="0" fornoble="0" />
+  <teleport id="96" loc_x="49332" loc_y="248455" loc_z="-5964" price="1" fornoble="1" />
+  <teleport id="97" loc_x="49332" loc_y="248455" loc_z="-5964" price="1000" fornoble="0" />
+  <teleport id="98" loc_x="-12694" loc_y="122776" loc_z="-3114" price="9200" fornoble="0" />
+  <teleport id="99" loc_x="115120" loc_y="-178112" loc_z="-880" price="23000" fornoble="0" />
+  <teleport id="100" loc_x="-84141" loc_y="244623" loc_z="-3729" price="23000" fornoble="0" />
+  <teleport id="101" loc_x="-45186" loc_y="-112459" loc_z="-236" price="18000" fornoble="0" />
+  <teleport id="102" loc_x="21362" loc_y="51122" loc_z="-3688" price="710" fornoble="0" />
+  <teleport id="103" loc_x="29294" loc_y="74968" loc_z="-3568" price="820" fornoble="0" />
+  <teleport id="104" loc_x="-12694" loc_y="122776" loc_z="-3114" price="23000" fornoble="0" />
+  <teleport id="105" loc_x="87478" loc_y="-142297" loc_z="-1352" price="13000" fornoble="0" />
+  <teleport id="106" loc_x="9716" loc_y="15502" loc_z="-4500" price="13000" fornoble="0" />
+  <teleport id="107" loc_x="115120" loc_y="-178112" loc_z="-880" price="17000" fornoble="0" />
+  <teleport id="108" loc_x="-84141" loc_y="244623" loc_z="-3729" price="35000" fornoble="0" />
+  <teleport id="109" loc_x="46890" loc_y="51531" loc_z="-2976" price="18000" fornoble="0" />
+  <teleport id="110" loc_x="-10983" loc_y="-117484" loc_z="-2464" price="960" fornoble="0" />
+  <teleport id="111" loc_x="-3924" loc_y="-79996" loc_z="-2709" price="2000" fornoble="0" />
+  <teleport id="112" loc_x="9340" loc_y="-112509" loc_z="-2536" price="1500" fornoble="0" />
+  <teleport id="113" loc_x="8652" loc_y="-139941" loc_z="-1144" price="1600" fornoble="0" />
+  <teleport id="114" loc_x="-8804" loc_y="-114748" loc_z="-3030" price="1" fornoble="1" />
+  <teleport id="115" loc_x="-8804" loc_y="-114748" loc_z="-3030" price="1000" fornoble="0" />
+  <teleport id="116" loc_x="83011" loc_y="53207" loc_z="-1470" price="3700" fornoble="0" />
+  <teleport id="117" loc_x="117088" loc_y="76931" loc_z="-2670" price="6800" fornoble="0" />
+  <teleport id="118" loc_x="146783" loc_y="25808" loc_z="-2000" price="6200" fornoble="0" />
+  <teleport id="119" loc_x="84852" loc_y="15863" loc_z="-4270" price="0" fornoble="0" />
+  <teleport id="120" loc_x="85289" loc_y="16225" loc_z="-2780" price="0" fornoble="0" />
+  <teleport id="121" loc_x="85289" loc_y="16225" loc_z="-2270" price="0" fornoble="0" />
+  <teleport id="122" loc_x="85289" loc_y="16225" loc_z="-1750" price="0" fornoble="0" />
+  <teleport id="123" loc_x="85289" loc_y="16225" loc_z="-3640" price="0" fornoble="0" />
+  <teleport id="124" loc_x="17724" loc_y="114004" loc_z="-11672" price="0" fornoble="0" />
+  <teleport id="125" loc_x="17289" loc_y="114142" loc_z="-3441" price="0" fornoble="0" />
+  <teleport id="126" loc_x="17730" loc_y="108301" loc_z="-9057" price="0" fornoble="0" />
+  <teleport id="127" loc_x="17714" loc_y="107923" loc_z="-11850" price="0" fornoble="0" />
+  <teleport id="128" loc_x="17719" loc_y="115590" loc_z="-6584" price="0" fornoble="0" />
+  <teleport id="129" loc_x="17289" loc_y="114142" loc_z="-3441" price="0" fornoble="0" />
+  <teleport id="130" loc_x="-12694" loc_y="122776" loc_z="-3114" price="7300" fornoble="0" />
+  <teleport id="131" loc_x="-84141" loc_y="244623" loc_z="-3729" price="9400" fornoble="0" />
+  <teleport id="132" loc_x="46890" loc_y="51531" loc_z="-2976" price="16000" fornoble="0" />
+  <teleport id="133" loc_x="115120" loc_y="-178112" loc_z="-880" price="38000" fornoble="0" />
+  <teleport id="134" loc_x="-45186" loc_y="-112459" loc_z="-236" price="26000" fornoble="0" />
+  <teleport id="135" loc_x="-44763" loc_y="203497" loc_z="-3592" price="1800" fornoble="0" />
+  <teleport id="136" loc_x="-75437" loc_y="168800" loc_z="-3632" price="550" fornoble="0" />
+  <teleport id="137" loc_x="-63736" loc_y="101522" loc_z="-3552" price="1400" fornoble="0" />
+  <teleport id="138" loc_x="-53001" loc_y="191425" loc_z="-3568" price="2000" fornoble="0" />
+  <teleport id="139" loc_x="-89763" loc_y="105359" loc_z="-3576" price="1800" fornoble="0" />
+  <teleport id="140" loc_x="-88539" loc_y="83389" loc_z="-2864" price="2600" fornoble="0" />
+  <teleport id="141" loc_x="-49853" loc_y="147089" loc_z="-2784" price="1200" fornoble="0" />
+  <teleport id="142" loc_x="-16526" loc_y="208032" loc_z="-3664" price="3400" fornoble="0" />
+  <teleport id="143" loc_x="-42256" loc_y="198333" loc_z="-2800" price="3700" fornoble="0" />
+  <teleport id="144" loc_x="-54026" loc_y="179504" loc_z="-4650" price="1" fornoble="1" />
+  <teleport id="145" loc_x="-47506" loc_y="179572" loc_z="-3632" price="1" fornoble="1" />
+  <teleport id="146" loc_x="-54026" loc_y="179504" loc_z="-4650" price="1000" fornoble="0" />
+  <teleport id="147" loc_x="-47506" loc_y="179572" loc_z="-3632" price="1000" fornoble="0" />
+  <teleport id="148" loc_x="146783" loc_y="25808" loc_z="-2000" price="5900" fornoble="0" />
+  <teleport id="149" loc_x="83011" loc_y="53207" loc_z="-1470" price="4100" fornoble="0" />
+  <teleport id="150" loc_x="105846" loc_y="109762" loc_z="-3170" price="3400" fornoble="0" />
+  <teleport id="151" loc_x="124904" loc_y="61992" loc_z="-3952" price="1300" fornoble="0" />
+  <teleport id="152" loc_x="104426" loc_y="33746" loc_z="-3800" price="3600" fornoble="0" />
+  <teleport id="153" loc_x="142065" loc_y="81300" loc_z="-3000" price="2000" fornoble="0" />
+  <teleport id="154" loc_x="166080" loc_y="75574" loc_z="-2992" price="1" fornoble="1" />
+  <teleport id="155" loc_x="114674" loc_y="44150" loc_z="-3376" price="1" fornoble="1" />
+  <teleport id="156" loc_x="114306" loc_y="86573" loc_z="-3112" price="1" fornoble="1" />
+  <teleport id="157" loc_x="166080" loc_y="75574" loc_z="-2992" price="1000" fornoble="0" />
+  <teleport id="158" loc_x="114674" loc_y="44150" loc_z="-3376" price="1000" fornoble="0" />
+  <teleport id="159" loc_x="114306" loc_y="86573" loc_z="-3112" price="1000" fornoble="0" />
+  <teleport id="160" loc_x="83336" loc_y="147972" loc_z="-3400" price="4400" fornoble="0" />
+  <teleport id="161" loc_x="83011" loc_y="53207" loc_z="-1470" price="6100" fornoble="0" />
+  <teleport id="162" loc_x="117088" loc_y="76931" loc_z="-2670" price="3400" fornoble="0" />
+  <teleport id="163" loc_x="113553" loc_y="134813" loc_z="-3668" price="1" fornoble="1" />
+  <teleport id="164" loc_x="113553" loc_y="134813" loc_z="-3668" price="1000" fornoble="0" />
+  <teleport id="165" loc_x="43849" loc_y="-47877" loc_z="-792" price="150" fornoble="0" />
+  <teleport id="166" loc_x="38316" loc_y="-48216" loc_z="-1152" price="150" fornoble="0" />
+  <teleport id="167" loc_x="38303" loc_y="-48040" loc_z="896" price="150" fornoble="0" />
+  <teleport id="168" loc_x="147978" loc_y="-55408" loc_z="-2728" price="10000" fornoble="0" />
+  <teleport id="169" loc_x="-12694" loc_y="122776" loc_z="-3114" price="53000" fornoble="0" />
+  <teleport id="170" loc_x="83314" loc_y="148012" loc_z="-3400" price="59000" fornoble="0" />
+  <teleport id="171" loc_x="15671" loc_y="142994" loc_z="-2696" price="57000" fornoble="0" />
+  <teleport id="172" loc_x="111455" loc_y="219400" loc_z="-3546" price="82000" fornoble="0" />
+  <teleport id="173" loc_x="87018" loc_y="-143379" loc_z="-1288" price="10000" fornoble="0" />
+  <teleport id="174" loc_x="146705" loc_y="25840" loc_z="-2000" price="37000" fornoble="0" />
+  <teleport id="175" loc_x="82956" loc_y="53162" loc_z="-1470" price="10000" fornoble="0" />
+  <teleport id="176" loc_x="43805" loc_y="-88010" loc_z="-2752" price="4800" fornoble="0" />
+  <teleport id="177" loc_x="65307" loc_y="-71445" loc_z="-3688" price="3800" fornoble="0" />
+  <teleport id="178" loc_x="52107" loc_y="-54328" loc_z="-3158" price="1200" fornoble="0" />
+  <teleport id="179" loc_x="69340" loc_y="-50203" loc_z="-3304" price="3000" fornoble="0" />
+  <teleport id="180" loc_x="106414" loc_y="-87799" loc_z="-2920" price="14000" fornoble="0" />
+  <teleport id="181" loc_x="54425" loc_y="-41692" loc_z="-3072" price="1" fornoble="1" />
+  <teleport id="182" loc_x="84092" loc_y="-80084" loc_z="-3504" price="1" fornoble="1" />
+  <teleport id="183" loc_x="57670" loc_y="-41672" loc_z="-3154" price="1" fornoble="1" />
+  <teleport id="184" loc_x="90355" loc_y="-44088" loc_z="-2144" price="1" fornoble="1" />
+  <teleport id="185" loc_x="106414" loc_y="-87799" loc_z="-2920" price="1" fornoble="1" />
+  <teleport id="186" loc_x="54425" loc_y="-41692" loc_z="-3072" price="1000" fornoble="0" />
+  <teleport id="187" loc_x="84092" loc_y="-80084" loc_z="-3504" price="1000" fornoble="0" />
+  <teleport id="188" loc_x="57670" loc_y="-41672" loc_z="-3154" price="1000" fornoble="0" />
+  <teleport id="189" loc_x="90355" loc_y="-44088" loc_z="-2144" price="1000" fornoble="0" />
+  <teleport id="190" loc_x="106414" loc_y="-87799" loc_z="-2920" price="1000" fornoble="0" />
+  <teleport id="191" loc_x="148024" loc_y="-55281" loc_z="-2728" price="8100" fornoble="0" />
+  <teleport id="192" loc_x="82971" loc_y="53207" loc_z="-1470" price="6900" fornoble="0" />
+  <teleport id="193" loc_x="83314" loc_y="148012" loc_z="-3400" price="13000" fornoble="0" />
+  <teleport id="194" loc_x="111455" loc_y="219400" loc_z="-3546" price="59000" fornoble="0" />
+  <teleport id="195" loc_x="87018" loc_y="-143379" loc_z="-1288" price="53000" fornoble="0" />
+  <teleport id="196" loc_x="15671" loc_y="142994" loc_z="-2704" price="52000" fornoble="0" />
+  <teleport id="197" loc_x="-12694" loc_y="122776" loc_z="-3114" price="56000" fornoble="0" />
+  <teleport id="198" loc_x="43835" loc_y="-47749" loc_z="-792" price="37000" fornoble="0" />
+  <teleport id="199" loc_x="117110" loc_y="76883" loc_z="-2670" price="5900" fornoble="0" />
+  <teleport id="200" loc_x="146440" loc_y="46723" loc_z="-3400" price="2000" fornoble="0" />
+  <teleport id="201" loc_x="168217" loc_y="37990" loc_z="-4072" price="1900" fornoble="0" />
+  <teleport id="202" loc_x="184742" loc_y="19745" loc_z="-3168" price="3000" fornoble="0" />
+  <teleport id="203" loc_x="142065" loc_y="81300" loc_z="-3000" price="4400" fornoble="0" />
+  <teleport id="204" loc_x="155310" loc_y="-16339" loc_z="-3320" price="6800" fornoble="0" />
+  <teleport id="205" loc_x="183543" loc_y="-14974" loc_z="-2776" price="6500" fornoble="0" />
+  <teleport id="206" loc_x="106517" loc_y="-2871" loc_z="-3416" price="5900" fornoble="0" />
+  <teleport id="207" loc_x="170838" loc_y="55776" loc_z="-5240" price="6100" fornoble="0" />
+  <teleport id="208" loc_x="114649" loc_y="11115" loc_z="-5120" price="4200" fornoble="0" />
+  <teleport id="209" loc_x="181737" loc_y="46469" loc_z="-4352" price="1" fornoble="1" />
+  <teleport id="210" loc_x="135580" loc_y="19467" loc_z="-3424" price="1" fornoble="1" />
+  <teleport id="211" loc_x="156898" loc_y="11217" loc_z="-4032" price="1" fornoble="1" />
+  <teleport id="212" loc_x="110848" loc_y="16154" loc_z="-2120" price="1" fornoble="1" />
+  <teleport id="213" loc_x="118404" loc_y="15988" loc_z="832" price="1" fornoble="1" />
+  <teleport id="214" loc_x="115064" loc_y="12181" loc_z="2960" price="1" fornoble="1" />
+  <teleport id="215" loc_x="118525" loc_y="16455" loc_z="5984" price="1" fornoble="1" />
+  <teleport id="216" loc_x="115384" loc_y="16820" loc_z="9000" price="1" fornoble="1" />
+  <teleport id="217" loc_x="114306" loc_y="86573" loc_z="-3112" price="1" fornoble="1" />
+  <teleport id="218" loc_x="166182" loc_y="91560" loc_z="-3168" price="1" fornoble="1" />
+  <teleport id="219" loc_x="181737" loc_y="46469" loc_z="-4352" price="1000" fornoble="0" />
+  <teleport id="220" loc_x="135580" loc_y="19467" loc_z="-3424" price="1000" fornoble="0" />
+  <teleport id="221" loc_x="156898" loc_y="11217" loc_z="-4032" price="1000" fornoble="0" />
+  <teleport id="222" loc_x="110848" loc_y="16154" loc_z="-2120" price="1000" fornoble="0" />
+  <teleport id="223" loc_x="118404" loc_y="15988" loc_z="832" price="1000" fornoble="0" />
+  <teleport id="224" loc_x="115064" loc_y="12181" loc_z="2960" price="1000" fornoble="0" />
+  <teleport id="225" loc_x="118525" loc_y="16455" loc_z="5984" price="1000" fornoble="0" />
+  <teleport id="226" loc_x="115384" loc_y="16820" loc_z="9000" price="1000" fornoble="0" />
+  <teleport id="227" loc_x="114306" loc_y="86573" loc_z="-3112" price="1000" fornoble="0" />
+  <teleport id="228" loc_x="166182" loc_y="91560" loc_z="-3168" price="1000" fornoble="0" />
+  <teleport id="229" loc_x="87018" loc_y="-143379" loc_z="-1288" price="85000" fornoble="0" />
+  <teleport id="230" loc_x="111455" loc_y="219400" loc_z="-3546" price="47000" fornoble="0" />
+  <teleport id="231" loc_x="146705" loc_y="25840" loc_z="-2000" price="56000" fornoble="0" />
+  <teleport id="232" loc_x="83011" loc_y="53207" loc_z="-1470" price="35000" fornoble="0" />
+  <teleport id="233" loc_x="15671" loc_y="142994" loc_z="-2704" price="3400" fornoble="0" />
+  <teleport id="234" loc_x="148024" loc_y="-55281" loc_z="-2728" price="71000" fornoble="0" />
+  <teleport id="235" loc_x="83314" loc_y="148012" loc_z="-3400" price="29000" fornoble="0" />
+  <teleport id="236" loc_x="43835" loc_y="-47749" loc_z="-792" price="53000" fornoble="0" />
+  <teleport id="237" loc_x="-80826" loc_y="149775" loc_z="-3043" price="7300" fornoble="0" />
+  <teleport id="238" loc_x="46890" loc_y="51531" loc_z="-2976" price="9200" fornoble="0" />
+  <teleport id="239" loc_x="9716" loc_y="15502" loc_z="-4500" price="10000" fornoble="0" />
+  <teleport id="240" loc_x="115120" loc_y="-178112" loc_z="-880" price="32000" fornoble="0" />
+  <teleport id="241" loc_x="-45186" loc_y="-112459" loc_z="-236" price="23000" fornoble="0" />
+  <teleport id="242" loc_x="-41248" loc_y="122848" loc_z="-2904" price="790" fornoble="0" />
+  <teleport id="243" loc_x="-19120" loc_y="136816" loc_z="-3752" price="610" fornoble="0" />
+  <teleport id="244" loc_x="-9959" loc_y="176184" loc_z="-4160" price="2100" fornoble="0" />
+  <teleport id="245" loc_x="-28327" loc_y="155125" loc_z="-3496" price="1400" fornoble="0" />
+  <teleport id="246" loc_x="-6989" loc_y="109503" loc_z="-3040" price="1" fornoble="1" />
+  <teleport id="247" loc_x="-6989" loc_y="109503" loc_z="-3040" price="1000" fornoble="0" />
+  <teleport id="248" loc_x="43835" loc_y="-47749" loc_z="-792" price="10000" fornoble="0" />
+  <teleport id="249" loc_x="148024" loc_y="-55281" loc_z="-2728" price="10000" fornoble="0" />
+  <teleport id="250" loc_x="146705" loc_y="25840" loc_z="-2000" price="53000" fornoble="0" />
+  <teleport id="251" loc_x="82971" loc_y="53207" loc_z="-1470" price="59000" fornoble="0" />
+  <teleport id="252" loc_x="111455" loc_y="219400" loc_z="-3546" price="100000" fornoble="0" />
+  <teleport id="253" loc_x="83314" loc_y="148012" loc_z="-3400" price="87000" fornoble="0" />
+  <teleport id="254" loc_x="15671" loc_y="142994" loc_z="-2704" price="88000" fornoble="0" />
+  <teleport id="255" loc_x="-12694" loc_y="122776" loc_z="-3114" price="85000" fornoble="0" />
+  <teleport id="256" loc_x="-45158" loc_y="-112583" loc_z="-236" price="13000" fornoble="0" />
+  <teleport id="257" loc_x="115120" loc_y="-178112" loc_z="-880" price="4400" fornoble="0" />
+  <teleport id="258" loc_x="68693" loc_y="-110438" loc_z="-1904" price="3000" fornoble="0" />
+  <teleport id="259" loc_x="111965" loc_y="-154172" loc_z="-1528" price="1600" fornoble="0" />
+  <teleport id="260" loc_x="113903" loc_y="-108752" loc_z="-848" price="3500" fornoble="0" />
+  <teleport id="261" loc_x="47692" loc_y="-115745" loc_z="-3744" price="1900" fornoble="0" />
+  <teleport id="262" loc_x="91280" loc_y="-117152" loc_z="-3928" price="2100" fornoble="0" />
+  <teleport id="263" loc_x="107577" loc_y="-122392" loc_z="-3632" price="1" fornoble="1" />
+  <teleport id="264" loc_x="44221" loc_y="-114232" loc_z="-2784" price="1" fornoble="1" />
+  <teleport id="265" loc_x="121618" loc_y="-141554" loc_z="-1496" price="1" fornoble="1" />
+  <teleport id="266" loc_x="107577" loc_y="-122392" loc_z="-3632" price="1000" fornoble="0" />
+  <teleport id="267" loc_x="44221" loc_y="-114232" loc_z="-2784" price="1000" fornoble="0" />
+  <teleport id="268" loc_x="121618" loc_y="-141554" loc_z="-1496" price="1000" fornoble="0" />
+  <teleport id="269" loc_x="83336" loc_y="147972" loc_z="-3400" price="6800" fornoble="0" />
+  <teleport id="270" loc_x="111455" loc_y="219400" loc_z="-3546" price="12000" fornoble="0" />
+  <teleport id="271" loc_x="-12787" loc_y="122779" loc_z="-3112" price="3400" fornoble="0" />
+  <teleport id="272" loc_x="148024" loc_y="-55281" loc_z="-2728" price="71000" fornoble="0" />
+  <teleport id="273" loc_x="43835" loc_y="-47749" loc_z="-792" price="57000" fornoble="0" />
+  <teleport id="274" loc_x="87018" loc_y="-143379" loc_z="-1288" price="88000" fornoble="0" />
+  <teleport id="275" loc_x="146705" loc_y="25840" loc_z="-2000" price="52000" fornoble="0" />
+  <teleport id="276" loc_x="83011" loc_y="53207" loc_z="-1470" price="33000" fornoble="0" />
+  <teleport id="277" loc_x="5106" loc_y="126916" loc_z="-3664" price="760" fornoble="0" />
+  <teleport id="278" loc_x="17225" loc_y="114173" loc_z="-3440" price="2300" fornoble="0" />
+  <teleport id="279" loc_x="47382" loc_y="111278" loc_z="-2104" price="1700" fornoble="0" />
+  <teleport id="280" loc_x="630" loc_y="179184" loc_z="-3720" price="1500" fornoble="0" />
+  <teleport id="281" loc_x="34475" loc_y="188095" loc_z="-2976" price="2900" fornoble="0" />
+  <teleport id="282" loc_x="60374" loc_y="164301" loc_z="-2856" price="3900" fornoble="0" />
+  <teleport id="283" loc_x="46165" loc_y="150008" loc_z="-3208" price="1" fornoble="1" />
+  <teleport id="284" loc_x="15227" loc_y="161866" loc_z="-3608" price="1" fornoble="1" />
+  <teleport id="285" loc_x="5941" loc_y="125455" loc_z="-3400" price="1" fornoble="1" />
+  <teleport id="286" loc_x="17724" loc_y="113950" loc_z="-11672" price="1" fornoble="1" />
+  <teleport id="287" loc_x="17723" loc_y="108284" loc_z="-9056" price="1" fornoble="1" />
+  <teleport id="288" loc_x="46165" loc_y="150008" loc_z="-3208" price="1000" fornoble="0" />
+  <teleport id="289" loc_x="15227" loc_y="161866" loc_z="-3608" price="1000" fornoble="0" />
+  <teleport id="290" loc_x="5941" loc_y="125455" loc_z="-3400" price="1000" fornoble="0" />
+  <teleport id="291" loc_x="17724" loc_y="113950" loc_z="-11672" price="1000" fornoble="0" />
+  <teleport id="292" loc_x="17723" loc_y="108284" loc_z="-9056" price="1000" fornoble="0" />
+  <teleport id="293" loc_x="83336" loc_y="147972" loc_z="-3400" price="5200" fornoble="0" />
+  <teleport id="294" loc_x="111333" loc_y="219345" loc_z="-3546" price="7100" fornoble="0" />
+  <teleport id="295" loc_x="122824" loc_y="110836" loc_z="-3727" price="1" fornoble="1" />
+  <teleport id="296" loc_x="73024" loc_y="118485" loc_z="-3720" price="1" fornoble="1" />
+  <teleport id="297" loc_x="85389" loc_y="131366" loc_z="-3707" price="1" fornoble="1" />
+  <teleport id="298" loc_x="113553" loc_y="134813" loc_z="-3668" price="1" fornoble="1" />
+  <teleport id="299" loc_x="69373" loc_y="155208" loc_z="-3746" price="1" fornoble="1" />
+  <teleport id="300" loc_x="43408" loc_y="206881" loc_z="-3752" price="1" fornoble="1" />
+  <teleport id="301" loc_x="122824" loc_y="110836" loc_z="-3727" price="1000" fornoble="0" />
+  <teleport id="302" loc_x="73024" loc_y="118485" loc_z="-3720" price="1000" fornoble="0" />
+  <teleport id="303" loc_x="85389" loc_y="131366" loc_z="-3707" price="1000" fornoble="0" />
+  <teleport id="304" loc_x="113553" loc_y="134813" loc_z="-3668" price="1000" fornoble="0" />
+  <teleport id="305" loc_x="69373" loc_y="155208" loc_z="-3746" price="1000" fornoble="0" />
+  <teleport id="306" loc_x="43408" loc_y="206881" loc_z="-3752" price="1000" fornoble="0" />
+  <teleport id="307" loc_x="83011" loc_y="53207" loc_z="-1470" price="9400" fornoble="0" />
+  <teleport id="308" loc_x="111455" loc_y="219400" loc_z="-3546" price="7600" fornoble="0" />
+  <teleport id="309" loc_x="15671" loc_y="142994" loc_z="-2704" price="6800" fornoble="0" />
+  <teleport id="310" loc_x="148024" loc_y="-55281" loc_z="-2728" price="63000" fornoble="0" />
+  <teleport id="311" loc_x="43835" loc_y="-47749" loc_z="-792" price="59000" fornoble="0" />
+  <teleport id="312" loc_x="87018" loc_y="-143379" loc_z="-1288" price="87000" fornoble="0" />
+  <teleport id="313" loc_x="-12694" loc_y="122776" loc_z="-3114" price="29000" fornoble="0" />
+  <teleport id="314" loc_x="146705" loc_y="25840" loc_z="-2000" price="13000" fornoble="0" />
+  <teleport id="315" loc_x="47938" loc_y="186864" loc_z="-3480" price="5200" fornoble="0" />
+  <teleport id="316" loc_x="105918" loc_y="109759" loc_z="-3170" price="4400" fornoble="0" />
+  <teleport id="317" loc_x="73024" loc_y="118485" loc_z="-3688" price="1800" fornoble="0" />
+  <teleport id="318" loc_x="131557" loc_y="114509" loc_z="-3712" price="7000" fornoble="0" />
+  <teleport id="319" loc_x="43408" loc_y="206881" loc_z="-3752" price="5700" fornoble="0" />
+  <teleport id="320" loc_x="85546" loc_y="131328" loc_z="-3672" price="1000" fornoble="0" />
+  <teleport id="321" loc_x="113553" loc_y="134813" loc_z="-3668" price="1" fornoble="1" />
+  <teleport id="322" loc_x="147071" loc_y="120156" loc_z="-4520" price="1" fornoble="1" />
+  <teleport id="323" loc_x="151689" loc_y="112615" loc_z="-5520" price="1" fornoble="1" />
+  <teleport id="324" loc_x="146425" loc_y="109898" loc_z="-3424" price="1" fornoble="1" />
+  <teleport id="325" loc_x="154396" loc_y="121235" loc_z="-3808" price="1" fornoble="1" />
+  <teleport id="326" loc_x="122824" loc_y="110836" loc_z="-3727" price="1" fornoble="1" />
+  <teleport id="327" loc_x="105918" loc_y="109759" loc_z="-3170" price="1" fornoble="1" />
+  <teleport id="328" loc_x="113553" loc_y="134813" loc_z="-3668" price="1000" fornoble="0" />
+  <teleport id="329" loc_x="147071" loc_y="120156" loc_z="-4520" price="1000" fornoble="0" />
+  <teleport id="330" loc_x="151689" loc_y="112615" loc_z="-5520" price="1000" fornoble="0" />
+  <teleport id="331" loc_x="146425" loc_y="109898" loc_z="-3424" price="1000" fornoble="0" />
+  <teleport id="332" loc_x="154396" loc_y="121235" loc_z="-3808" price="1000" fornoble="0" />
+  <teleport id="333" loc_x="122824" loc_y="110836" loc_z="-3727" price="1000" fornoble="0" />
+  <teleport id="334" loc_x="105918" loc_y="109759" loc_z="-3170" price="1000" fornoble="0" />
+  <teleport id="335" loc_x="-12694" loc_y="122776" loc_z="-3114" price="71000" fornoble="0" />
+  <teleport id="336" loc_x="83314" loc_y="148012" loc_z="-3400" price="63000" fornoble="0" />
+  <teleport id="337" loc_x="15671" loc_y="142994" loc_z="-2704" price="71000" fornoble="0" />
+  <teleport id="338" loc_x="43835" loc_y="-47749" loc_z="-792" price="10000" fornoble="0" />
+  <teleport id="339" loc_x="111455" loc_y="219400" loc_z="-3546" price="83000" fornoble="0" />
+  <teleport id="340" loc_x="87018" loc_y="-143379" loc_z="-1288" price="10000" fornoble="0" />
+  <teleport id="341" loc_x="146705" loc_y="25840" loc_z="-2000" price="8100" fornoble="0" />
+  <teleport id="342" loc_x="82971" loc_y="53207" loc_z="-1470" price="37000" fornoble="0" />
+  <teleport id="343" loc_x="125740" loc_y="-40864" loc_z="-3736" price="4200" fornoble="0" />
+  <teleport id="344" loc_x="146990" loc_y="-67128" loc_z="-3640" price="1800" fornoble="0" />
+  <teleport id="345" loc_x="144880" loc_y="-113468" loc_z="-2560" price="9300" fornoble="0" />
+  <teleport id="346" loc_x="164564" loc_y="-48145" loc_z="-3536" price="2200" fornoble="0" />
+  <teleport id="347" loc_x="106414" loc_y="-87799" loc_z="-2920" price="10000" fornoble="0" />
+  <teleport id="348" loc_x="107929" loc_y="-52248" loc_z="-2408" price="1" fornoble="1" />
+  <teleport id="349" loc_x="149817" loc_y="-80053" loc_z="-5576" price="1" fornoble="1" />
+  <teleport id="350" loc_x="106349" loc_y="-61870" loc_z="-2904" price="1" fornoble="1" />
+  <teleport id="351" loc_x="132997" loc_y="-60608" loc_z="-2960" price="1" fornoble="1" />
+  <teleport id="352" loc_x="144625" loc_y="-101291" loc_z="-3384" price="1" fornoble="1" />
+  <teleport id="353" loc_x="183140" loc_y="-53307" loc_z="-1896" price="1" fornoble="1" />
+  <teleport id="354" loc_x="187987" loc_y="-59566" loc_z="-2826" price="1" fornoble="1" />
+  <teleport id="355" loc_x="178127" loc_y="-84435" loc_z="-7215" price="1" fornoble="1" />
+  <teleport id="356" loc_x="186699" loc_y="-75915" loc_z="-2826" price="1" fornoble="1" />
+  <teleport id="357" loc_x="169533" loc_y="-116228" loc_z="-2312" price="1" fornoble="1" />
+  <teleport id="358" loc_x="173436" loc_y="-112725" loc_z="-3680" price="1" fornoble="1" />
+  <teleport id="359" loc_x="180260" loc_y="-111913" loc_z="-5851" price="1" fornoble="1" />
+  <teleport id="360" loc_x="106414" loc_y="-87799" loc_z="-2920" price="1" fornoble="1" />
+  <teleport id="361" loc_x="107929" loc_y="-52248" loc_z="-2408" price="1000" fornoble="0" />
+  <teleport id="362" loc_x="149817" loc_y="-80053" loc_z="-5576" price="1000" fornoble="0" />
+  <teleport id="363" loc_x="106349" loc_y="-61870" loc_z="-2904" price="1000" fornoble="0" />
+  <teleport id="364" loc_x="132997" loc_y="-60608" loc_z="-2960" price="1000" fornoble="0" />
+  <teleport id="365" loc_x="144625" loc_y="-101291" loc_z="-3384" price="1000" fornoble="0" />
+  <teleport id="366" loc_x="183140" loc_y="-53307" loc_z="-1896" price="1000" fornoble="0" />
+  <teleport id="367" loc_x="187987" loc_y="-59566" loc_z="-2826" price="1000" fornoble="0" />
+  <teleport id="368" loc_x="178127" loc_y="-84435" loc_z="-7215" price="1000" fornoble="0" />
+  <teleport id="369" loc_x="186699" loc_y="-75915" loc_z="-2826" price="1000" fornoble="0" />
+  <teleport id="370" loc_x="169533" loc_y="-116228" loc_z="-2312" price="1000" fornoble="0" />
+  <teleport id="371" loc_x="173436" loc_y="-112725" loc_z="-3680" price="1000" fornoble="0" />
+  <teleport id="372" loc_x="180260" loc_y="-111913" loc_z="-5851" price="1000" fornoble="0" />
+  <teleport id="373" loc_x="106414" loc_y="-87799" loc_z="-2920" price="1000" fornoble="0" />
+  <teleport id="374" loc_x="83314" loc_y="148012" loc_z="-3400" price="7600" fornoble="0" />
+  <teleport id="375" loc_x="83011" loc_y="53207" loc_z="-1470" price="50000" fornoble="0" />
+  <teleport id="376" loc_x="15472" loc_y="142880" loc_z="-2699" price="12000" fornoble="0" />
+  <teleport id="377" loc_x="146705" loc_y="25840" loc_z="-2000" price="59000" fornoble="0" />
+  <teleport id="378" loc_x="147596" loc_y="-56294" loc_z="-2776" price="83000" fornoble="0" />
+  <teleport id="379" loc_x="43835" loc_y="-47749" loc_z="-792" price="82000" fornoble="0" />
+  <teleport id="380" loc_x="87018" loc_y="-143379" loc_z="-1288" price="100000" fornoble="0" />
+  <teleport id="381" loc_x="-12694" loc_y="122776" loc_z="-3114" price="47000" fornoble="0" />
+  <teleport id="382" loc_x="47935" loc_y="186810" loc_z="-3420" price="7100" fornoble="0" />
+  <teleport id="383" loc_x="91088" loc_y="182384" loc_z="-3192" price="2500" fornoble="0" />
+  <teleport id="384" loc_x="74592" loc_y="207656" loc_z="-3032" price="2300" fornoble="0" />
+  <teleport id="385" loc_x="115583" loc_y="192261" loc_z="-3488" price="2100" fornoble="0" />
+  <teleport id="386" loc_x="84413" loc_y="234334" loc_z="-3656" price="2400" fornoble="0" />
+  <teleport id="387" loc_x="69748" loc_y="186111" loc_z="-2872" price="1" fornoble="1" />
+  <teleport id="388" loc_x="97786" loc_y="209303" loc_z="-3040" price="1" fornoble="1" />
+  <teleport id="389" loc_x="113708" loc_y="178387" loc_z="-3232" price="1" fornoble="1" />
+  <teleport id="390" loc_x="82693" loc_y="242220" loc_z="-6712" price="1" fornoble="1" />
+  <teleport id="391" loc_x="79248" loc_y="247390" loc_z="-8816" price="1" fornoble="1" />
+  <teleport id="392" loc_x="77868" loc_y="250400" loc_z="-9328" price="1" fornoble="1" />
+  <teleport id="393" loc_x="78721" loc_y="253309" loc_z="-9840" price="1" fornoble="1" />
+  <teleport id="394" loc_x="82570" loc_y="252464" loc_z="-10592" price="1" fornoble="1" />
+  <teleport id="395" loc_x="69748" loc_y="186111" loc_z="-2872" price="1000" fornoble="0" />
+  <teleport id="396" loc_x="97786" loc_y="209303" loc_z="-3040" price="1000" fornoble="0" />
+  <teleport id="397" loc_x="113708" loc_y="178387" loc_z="-3232" price="1000" fornoble="0" />
+  <teleport id="398" loc_x="82693" loc_y="242220" loc_z="-6712" price="1000" fornoble="0" />
+  <teleport id="399" loc_x="79248" loc_y="247390" loc_z="-8816" price="1000" fornoble="0" />
+  <teleport id="400" loc_x="77868" loc_y="250400" loc_z="-9328" price="1000" fornoble="0" />
+  <teleport id="401" loc_x="78721" loc_y="253309" loc_z="-9840" price="1000" fornoble="0" />
+  <teleport id="402" loc_x="82570" loc_y="252464" loc_z="-10592" price="1000" fornoble="0" />
+  <teleport id="403" loc_x="146783" loc_y="25808" loc_z="-2000" price="6900" fornoble="0" />
+  <teleport id="404" loc_x="83314" loc_y="148012" loc_z="-3400" price="9400" fornoble="0" />
+  <teleport id="405" loc_x="43835" loc_y="-47749" loc_z="-792" price="10000" fornoble="0" />
+  <teleport id="406" loc_x="148024" loc_y="-55281" loc_z="-2728" price="37000" fornoble="0" />
+  <teleport id="407" loc_x="111455" loc_y="219400" loc_z="-3546" price="50000" fornoble="0" />
+  <teleport id="408" loc_x="15671" loc_y="142994" loc_z="-2704" price="33000" fornoble="0" />
+  <teleport id="409" loc_x="87018" loc_y="-143379" loc_z="-1288" price="59000" fornoble="0" />
+  <teleport id="410" loc_x="-12694" loc_y="122776" loc_z="-3114" price="35000" fornoble="0" />
+  <teleport id="411" loc_x="85391" loc_y="16228" loc_z="-3640" price="3700" fornoble="0" />
+  <teleport id="412" loc_x="117110" loc_y="76883" loc_z="-2670" price="4100" fornoble="0" />
+  <teleport id="413" loc_x="105884" loc_y="109744" loc_z="-3170" price="6100" fornoble="0" />
+  <teleport id="414" loc_x="89914" loc_y="46276" loc_z="-3616" price="780" fornoble="0" />
+  <teleport id="415" loc_x="87252" loc_y="85514" loc_z="-3056" price="1900" fornoble="0" />
+  <teleport id="416" loc_x="91539" loc_y="-12204" loc_z="-2440" price="5200" fornoble="0" />
+  <teleport id="417" loc_x="64328" loc_y="26803" loc_z="-3768" price="2500" fornoble="0" />
+  <teleport id="418" loc_x="93218" loc_y="16969" loc_z="-3904" price="1" fornoble="1" />
+  <teleport id="419" loc_x="67097" loc_y="68815" loc_z="-3648" price="1" fornoble="1" />
+  <teleport id="420" loc_x="-44566" loc_y="77508" loc_z="-3736" price="1" fornoble="1" />
+  <teleport id="421" loc_x="93218" loc_y="16969" loc_z="-3904" price="1000" fornoble="0" />
+  <teleport id="422" loc_x="67097" loc_y="68815" loc_z="-3648" price="1000" fornoble="0" />
+  <teleport id="423" loc_x="-44566" loc_y="77508" loc_z="-3736" price="1000" fornoble="0" />
+  <teleport id="424" loc_x="147450" loc_y="28081" loc_z="-2294" price="0" fornoble="0" />
+  <teleport id="425" loc_x="142593" loc_y="26344" loc_z="-2425" price="0" fornoble="0" />
+  <teleport id="426" loc_x="147503" loc_y="32299" loc_z="-2501" price="0" fornoble="0" />
+  <teleport id="427" loc_x="151950" loc_y="25094" loc_z="-2172" price="0" fornoble="0" />
+  <teleport id="428" loc_x="147465" loc_y="20737" loc_z="-2130" price="0" fornoble="0" />
+  <teleport id="429" loc_x="106517" loc_y="-2871" loc_z="-3416" price="500" fornoble="0" />
+  <teleport id="430" loc_x="124904" loc_y="61992" loc_z="-3952" price="500" fornoble="0" />
+  <teleport id="431" loc_x="104426" loc_y="33746" loc_z="-3800" price="500" fornoble="0" />
+  <teleport id="432" loc_x="155310" loc_y="-16339" loc_z="-3320" price="500" fornoble="0" />
+  <teleport id="433" loc_x="134310" loc_y="71976" loc_z="-3298" price="500" fornoble="0" />
+  <teleport id="434" loc_x="163341" loc_y="91374" loc_z="-3320" price="500" fornoble="0" />
+  <teleport id="435" loc_x="181726" loc_y="-7524" loc_z="-3464" price="500" fornoble="0" />
+  <teleport id="436" loc_x="168779" loc_y="-18790" loc_z="-3184" price="500" fornoble="0" />
+  <teleport id="437" loc_x="184816" loc_y="20901" loc_z="-3168" price="500" fornoble="0" />
+  <teleport id="438" loc_x="165975" loc_y="37584" loc_z="-3592" price="500" fornoble="0" />
+  <teleport id="439" loc_x="109254" loc_y="17317" loc_z="-5160" price="500" fornoble="0" />
+  <teleport id="440" loc_x="87362" loc_y="-142299" loc_z="-1336" price="0" fornoble="0" />
+  <teleport id="441" loc_x="84386" loc_y="-140764" loc_z="-1536" price="0" fornoble="0" />
+  <teleport id="442" loc_x="87342" loc_y="-139298" loc_z="-1536" price="0" fornoble="0" />
+  <teleport id="443" loc_x="90317" loc_y="-140780" loc_z="-1536" price="0" fornoble="0" />
+  <teleport id="444" loc_x="47692" loc_y="-115745" loc_z="-3744" price="500" fornoble="0" />
+  <teleport id="445" loc_x="111965" loc_y="-154172" loc_z="-1528" price="500" fornoble="0" />
+  <teleport id="446" loc_x="68693" loc_y="-110438" loc_z="-1904" price="500" fornoble="0" />
+  <teleport id="447" loc_x="113903" loc_y="-108752" loc_z="-848" price="500" fornoble="0" />
+  <teleport id="448" loc_x="81749" loc_y="149171" loc_z="-3464" price="0" fornoble="0" />
+  <teleport id="449" loc_x="81525" loc_y="143821" loc_z="-3528" price="0" fornoble="0" />
+  <teleport id="450" loc_x="88342" loc_y="147329" loc_z="-3400" price="0" fornoble="0" />
+  <teleport id="451" loc_x="81548" loc_y="152633" loc_z="-3528" price="0" fornoble="0" />
+  <teleport id="452" loc_x="77305" loc_y="148636" loc_z="-3592" price="0" fornoble="0" />
+  <teleport id="453" loc_x="85546" loc_y="131328" loc_z="-3672" price="500" fornoble="0" />
+  <teleport id="454" loc_x="43408" loc_y="206881" loc_z="-3752" price="500" fornoble="0" />
+  <teleport id="455" loc_x="122824" loc_y="110836" loc_z="-3720" price="500" fornoble="0" />
+  <teleport id="456" loc_x="59170" loc_y="164817" loc_z="-2856" price="500" fornoble="0" />
+  <teleport id="457" loc_x="-14393" loc_y="123671" loc_z="-3144" price="0" fornoble="0" />
+  <teleport id="458" loc_x="-11817" loc_y="123652" loc_z="-3079" price="0" fornoble="0" />
+  <teleport id="459" loc_x="-16796" loc_y="124108" loc_z="-3127" price="0" fornoble="0" />
+  <teleport id="460" loc_x="-14207" loc_y="126547" loc_z="-3151" price="0" fornoble="0" />
+  <teleport id="461" loc_x="-14591" loc_y="121024" loc_z="-2990" price="0" fornoble="0" />
+  <teleport id="462" loc_x="-41055" loc_y="122647" loc_z="-2889" price="500" fornoble="0" />
+  <teleport id="463" loc_x="-20767" loc_y="136437" loc_z="-3923" price="500" fornoble="0" />
+  <teleport id="464" loc_x="-14913" loc_y="170017" loc_z="-2893" price="500" fornoble="0" />
+  <teleport id="465" loc_x="-28327" loc_y="155125" loc_z="-3496" price="500" fornoble="0" />
+  <teleport id="466" loc_x="-82445" loc_y="150788" loc_z="-3129" price="0" fornoble="0" />
+  <teleport id="467" loc_x="-83331" loc_y="148563" loc_z="-3148" price="0" fornoble="0" />
+  <teleport id="468" loc_x="-78405" loc_y="152723" loc_z="-3181" price="0" fornoble="0" />
+  <teleport id="469" loc_x="-77460" loc_y="155995" loc_z="-3194" price="0" fornoble="0" />
+  <teleport id="470" loc_x="-85138" loc_y="152749" loc_z="-3160" price="0" fornoble="0" />
+  <teleport id="471" loc_x="-75437" loc_y="168800" loc_z="-3632" price="500" fornoble="0" />
+  <teleport id="472" loc_x="-63736" loc_y="101522" loc_z="-3552" price="500" fornoble="0" />
+  <teleport id="473" loc_x="-88539" loc_y="83389" loc_z="-2864" price="500" fornoble="0" />
+  <teleport id="474" loc_x="-49853" loc_y="147089" loc_z="-2784" price="500" fornoble="0" />
+  <teleport id="475" loc_x="-16526" loc_y="208032" loc_z="-3664" price="500" fornoble="0" />
+  <teleport id="476" loc_x="147728" loc_y="-56331" loc_z="-2776" price="0" fornoble="0" />
+  <teleport id="477" loc_x="147731" loc_y="-58930" loc_z="-2976" price="0" fornoble="0" />
+  <teleport id="478" loc_x="150561" loc_y="-57489" loc_z="-2976" price="0" fornoble="0" />
+  <teleport id="479" loc_x="144866" loc_y="-57464" loc_z="-2976" price="0" fornoble="0" />
+  <teleport id="480" loc_x="125740" loc_y="-40864" loc_z="-3736" price="500" fornoble="0" />
+  <teleport id="481" loc_x="146990" loc_y="-67128" loc_z="-3640" price="500" fornoble="0" />
+  <teleport id="482" loc_x="168902" loc_y="-116703" loc_z="-2417" price="500" fornoble="0" />
+  <teleport id="483" loc_x="164564" loc_y="-48145" loc_z="-3536" price="500" fornoble="0" />
+  <teleport id="484" loc_x="144880" loc_y="-113468" loc_z="-2560" price="500" fornoble="0" />
+  <teleport id="485" loc_x="43835" loc_y="-47749" loc_z="-796" price="0" fornoble="0" />
+  <teleport id="486" loc_x="43197" loc_y="-46767" loc_z="-808" price="0" fornoble="0" />
+  <teleport id="487" loc_x="38956" loc_y="-53648" loc_z="-1343" price="0" fornoble="0" />
+  <teleport id="488" loc_x="52107" loc_y="-54328" loc_z="-3158" price="500" fornoble="0" />
+  <teleport id="489" loc_x="43805" loc_y="-88010" loc_z="-2752" price="500" fornoble="0" />
+  <teleport id="490" loc_x="69340" loc_y="-50203" loc_z="-3304" price="500" fornoble="0" />
+  <teleport id="491" loc_x="65307" loc_y="-71445" loc_z="-3688" price="500" fornoble="0" />
+  <teleport id="492" loc_x="106414" loc_y="-87799" loc_z="-2920" price="500" fornoble="0" />
+  <teleport id="493" loc_x="19025" loc_y="145245" loc_z="-3107" price="0" fornoble="0" />
+  <teleport id="494" loc_x="21511" loc_y="145866" loc_z="-3153" price="0" fornoble="0" />
+  <teleport id="495" loc_x="18891" loc_y="142365" loc_z="-3051" price="0" fornoble="0" />
+  <teleport id="496" loc_x="17394" loc_y="147593" loc_z="-3129" price="0" fornoble="0" />
+  <teleport id="497" loc_x="16582" loc_y="144130" loc_z="-2960" price="0" fornoble="0" />
+  <teleport id="498" loc_x="24520" loc_y="128856" loc_z="-3624" price="500" fornoble="0" />
+  <teleport id="499" loc_x="9980" loc_y="173167" loc_z="-3734" price="500" fornoble="0" />
+  <teleport id="500" loc_x="37051" loc_y="186918" loc_z="-3056" price="500" fornoble="0" />
+  <teleport id="501" loc_x="46428" loc_y="127157" loc_z="-3745" price="500" fornoble="0" />
+  <teleport id="502" loc_x="41985" loc_y="147314" loc_z="-3724" price="500" fornoble="0" />
+  <teleport id="503" loc_x="69373" loc_y="155208" loc_z="-3746" price="500" fornoble="0" />
+  <teleport id="504" loc_x="16688" loc_y="113242" loc_z="-3576" price="500" fornoble="0" />
+  <teleport id="505" loc_x="-10875" loc_y="175962" loc_z="-4152" price="500" fornoble="0" />
+  <teleport id="506" loc_x="-14913" loc_y="170017" loc_z="-2893" price="500" fornoble="0" />
+  <teleport id="507" loc_x="-41570" loc_y="209785" loc_z="-5089" price="0" fornoble="0" />
+  <teleport id="508" loc_x="-41567" loc_y="209292" loc_z="-5091" price="0" fornoble="0" />
+  <teleport id="509" loc_x="45251" loc_y="123890" loc_z="-5415" price="0" fornoble="0" />
+  <teleport id="510" loc_x="45250" loc_y="124366" loc_z="-5417" price="0" fornoble="0" />
+  <teleport id="511" loc_x="111273" loc_y="174015" loc_z="-5417" price="0" fornoble="0" />
+  <teleport id="512" loc_x="110818" loc_y="174010" loc_z="-5443" price="0" fornoble="0" />
+  <teleport id="513" loc_x="-21726" loc_y="77385" loc_z="-5177" price="0" fornoble="0" />
+  <teleport id="514" loc_x="-22197" loc_y="77369" loc_z="-5177" price="0" fornoble="0" />
+  <teleport id="515" loc_x="-52254" loc_y="79103" loc_z="-4743" price="0" fornoble="0" />
+  <teleport id="516" loc_x="-52716" loc_y="79106" loc_z="-4745" price="0" fornoble="0" />
+  <teleport id="517" loc_x="118308" loc_y="132800" loc_z="-4833" price="0" fornoble="0" />
+  <teleport id="518" loc_x="117793" loc_y="132810" loc_z="-4835" price="0" fornoble="0" />
+  <teleport id="519" loc_x="172251" loc_y="-17605" loc_z="-4903" price="0" fornoble="0" />
+  <teleport id="520" loc_x="171902" loc_y="-17595" loc_z="-4905" price="0" fornoble="0" />
+  <teleport id="521" loc_x="83000" loc_y="209213" loc_z="-5443" price="0" fornoble="0" />
+  <teleport id="522" loc_x="82608" loc_y="209225" loc_z="-5443" price="0" fornoble="0" />
+  <teleport id="523" loc_x="-53174" loc_y="-250275" loc_z="-7911" price="0" fornoble="0" />
+  <teleport id="524" loc_x="42514" loc_y="143917" loc_z="-5385" price="0" fornoble="0" />
+  <teleport id="525" loc_x="46217" loc_y="170290" loc_z="-4983" price="0" fornoble="0" />
+  <teleport id="526" loc_x="45770" loc_y="170299" loc_z="-4985" price="0" fornoble="0" />
+  <teleport id="527" loc_x="-20230" loc_y="-250780" loc_z="-8168" price="0" fornoble="0" />
+  <teleport id="528" loc_x="77225" loc_y="78362" loc_z="-5119" price="0" fornoble="0" />
+  <teleport id="529" loc_x="140404" loc_y="79678" loc_z="-5431" price="0" fornoble="0" />
+  <teleport id="530" loc_x="139965" loc_y="79678" loc_z="-5433" price="0" fornoble="0" />
+  <teleport id="531" loc_x="-19500" loc_y="13508" loc_z="-4905" price="0" fornoble="0" />
+  <teleport id="532" loc_x="-19931" loc_y="13502" loc_z="-4905" price="0" fornoble="0" />
+  <teleport id="533" loc_x="12521" loc_y="-248481" loc_z="-9585" price="0" fornoble="0" />
+  <teleport id="534" loc_x="113429" loc_y="84540" loc_z="-6545" price="0" fornoble="0" />
+  <teleport id="535" loc_x="147596" loc_y="-56294" loc_z="-2776" price="0" fornoble="0" />
+  <teleport id="536" loc_x="83314" loc_y="148012" loc_z="-3400" price="0" fornoble="0" />
+  <teleport id="537" loc_x="10468" loc_y="-24569" loc_z="-3650" price="0" fornoble="0" />
+  <teleport id="538" loc_x="43954" loc_y="-48152" loc_z="-797" price="0" fornoble="0" />
+  <teleport id="539" loc_x="-15476" loc_y="-54786" loc_z="-10449" price="0" fornoble="0" />
+  <teleport id="540" loc_x="-17285" loc_y="-54786" loc_z="-10449" price="0" fornoble="0" />
+  <teleport id="541" loc_x="-14934" loc_y="-56173" loc_z="-10832" price="0" fornoble="0" />
+  <teleport id="542" loc_x="-17851" loc_y="-56199" loc_z="-10832" price="0" fornoble="0" />
+  <teleport id="543" loc_x="-14849" loc_y="-52383" loc_z="-11008" price="0" fornoble="0" />
+  <teleport id="544" loc_x="-17921" loc_y="-52383" loc_z="-11008" price="0" fornoble="0" />
+  <teleport id="545" loc_x="-14379" loc_y="-52480" loc_z="-11004" price="0" fornoble="0" />
+  <teleport id="546" loc_x="-18525" loc_y="-52474" loc_z="-11000" price="0" fornoble="0" />
+  <teleport id="547" loc_x="-16364" loc_y="-43985" loc_z="-10725" price="0" fornoble="0" />
+  <teleport id="548" loc_x="-16344" loc_y="-36487" loc_z="-10725" price="0" fornoble="0" />
+  <teleport id="549" loc_x="184466" loc_y="-12014" loc_z="-5488" price="0" fornoble="0" />
+  <teleport id="550" loc_x="184466" loc_y="-9022" loc_z="-5488" price="0" fornoble="0" />
+  <teleport id="551" loc_x="183225" loc_y="-11911" loc_z="-4897" price="0" fornoble="0" />
+  <teleport id="552" loc_x="85546" loc_y="131328" loc_z="-3672" price="500" fornoble="0" />
+  <teleport id="553" loc_x="43408" loc_y="206881" loc_z="-3752" price="500" fornoble="0" />
+  <teleport id="554" loc_x="73024" loc_y="118485" loc_z="-3720" price="500" fornoble="0" />
+  <teleport id="555" loc_x="60374" loc_y="164301" loc_z="-2856" price="500" fornoble="0" />
+  <teleport id="556" loc_x="147728" loc_y="-56331" loc_z="-2776" price="0" fornoble="0" />
+  <teleport id="557" loc_x="147731" loc_y="-58930" loc_z="-2976" price="0" fornoble="0" />
+  <teleport id="558" loc_x="150561" loc_y="-57489" loc_z="-2976" price="0" fornoble="0" />
+  <teleport id="559" loc_x="144866" loc_y="-57464" loc_z="-2976" price="0" fornoble="0" />
+  <teleport id="560" loc_x="125740" loc_y="-40864" loc_z="-3736" price="500" fornoble="0" />
+  <teleport id="561" loc_x="146990" loc_y="-67128" loc_z="-3640" price="500" fornoble="0" />
+  <teleport id="562" loc_x="169018" loc_y="-116303" loc_z="-2432" price="500" fornoble="0" />
+  <teleport id="563" loc_x="165054" loc_y="-47861" loc_z="-3560" price="500" fornoble="0" />
+  <teleport id="564" loc_x="144880" loc_y="-113468" loc_z="-2560" price="500" fornoble="0" />
+  <teleport id="565" loc_x="43889" loc_y="-49101" loc_z="-792" price="0" fornoble="0" />
+  <teleport id="566" loc_x="43307" loc_y="-46563" loc_z="-816" price="0" fornoble="0" />
+  <teleport id="567" loc_x="40909" loc_y="-52670" loc_z="-896" price="0" fornoble="0" />
+  <teleport id="568" loc_x="52107" loc_y="-54328" loc_z="-3158" price="500" fornoble="0" />
+  <teleport id="569" loc_x="43805" loc_y="-88010" loc_z="-2780" price="500" fornoble="0" />
+  <teleport id="570" loc_x="69340" loc_y="-50203" loc_z="-3314" price="500" fornoble="0" />
+  <teleport id="571" loc_x="65307" loc_y="-71445" loc_z="-3696" price="500" fornoble="0" />
+  <teleport id="572" loc_x="106414" loc_y="-87799" loc_z="-2949" price="500" fornoble="0" />
+  <teleport id="573" loc_x="76911" loc_y="-55295" loc_z="-5824" price="500" fornoble="0" />
+  <teleport id="574" loc_x="87379" loc_y="-142322" loc_z="-1336" price="0" fornoble="0" />
+  <teleport id="575" loc_x="84753" loc_y="-141051" loc_z="-1536" price="0" fornoble="0" />
+  <teleport id="576" loc_x="87347" loc_y="-139802" loc_z="-1536" price="0" fornoble="0" />
+  <teleport id="577" loc_x="89959" loc_y="-141034" loc_z="-1536" price="0" fornoble="0" />
+  <teleport id="578" loc_x="47692" loc_y="-115745" loc_z="-3744" price="500" fornoble="0" />
+  <teleport id="579" loc_x="111965" loc_y="-154172" loc_z="-1528" price="500" fornoble="0" />
+  <teleport id="580" loc_x="68693" loc_y="-110438" loc_z="-1946" price="500" fornoble="0" />
+  <teleport id="581" loc_x="113903" loc_y="-108752" loc_z="-860" price="500" fornoble="0" />
+  <teleport id="598" loc_x="113400" loc_y="16500" loc_z="1000" price="500" fornoble="0" />
+  <teleport id="599" loc_x="146000" loc_y="-12000" loc_z="-2500" price="500" fornoble="0" />
+  <teleport id="601" loc_x="168400" loc_y="-13500" loc_z="-3100" price="500" fornoble="0" />
+  <teleport id="602" loc_x="186200" loc_y="61400" loc_z="-4100" price="500" fornoble="0" />
+  <teleport id="603" loc_x="114100" loc_y="42000" loc_z="-3600" price="500" fornoble="0" />
+  <teleport id="608" loc_x="127300" loc_y="75000" loc_z="-3600" price="500" fornoble="0" />
+  <teleport id="613" loc_x="160800" loc_y="21500" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="614" loc_x="171700" loc_y="55200" loc_z="-4300" price="500" fornoble="0" />
+  <teleport id="625" loc_x="53444" loc_y="-86175" loc_z="-2890" price="0" fornoble="0" />
+  <teleport id="626" loc_x="59780" loc_y="-42260" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="627" loc_x="49400" loc_y="-38300" loc_z="-3300" price="500" fornoble="0" />
+  <teleport id="628" loc_x="68100" loc_y="-56700" loc_z="-3100" price="500" fornoble="0" />
+  <teleport id="629" loc_x="78700" loc_y="-55400" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="630" loc_x="80800" loc_y="-54200" loc_z="-1500" price="500" fornoble="0" />
+  <teleport id="635" loc_x="183861" loc_y="-114949" loc_z="-3328" price="500" fornoble="0" />
+  <teleport id="636" loc_x="140100" loc_y="-78500" loc_z="-4000" price="500" fornoble="0" />
+  <teleport id="637" loc_x="78700" loc_y="-55400" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="638" loc_x="80800" loc_y="-54200" loc_z="-1500" price="500" fornoble="0" />
+  <teleport id="640" loc_x="170500" loc_y="-60000" loc_z="-2800" price="500" fornoble="0" />
+  <teleport id="642" loc_x="144880" loc_y="-113468" loc_z="-2560" price="500" fornoble="0" />
+  <teleport id="643" loc_x="140400" loc_y="-43500" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="644" loc_x="138700" loc_y="-44000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="646" loc_x="141000" loc_y="-43000" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="647" loc_x="124000" loc_y="-107000" loc_z="-2400" price="500" fornoble="0" />
+  <teleport id="659" loc_x="85337" loc_y="16187" loc_z="-3694" price="500" fornoble="0" />
+  <teleport id="661" loc_x="-11800" loc_y="183500" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="665" loc_x="-11800" loc_y="183500" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="1001" loc_x="-99678" loc_y="237562" loc_z="-3567" price="470" fornoble="0" />
+  <teleport id="1002" loc_x="-101294" loc_y="212553" loc_z="-3093" price="1000" fornoble="0" />
+  <teleport id="1003" loc_x="-113329" loc_y="235327" loc_z="-3653" price="830" fornoble="0" />
+  <teleport id="1004" loc_x="-107456" loc_y="242669" loc_z="-3493" price="770" fornoble="0" />
+  <teleport id="1005" loc_x="9745" loc_y="15606" loc_z="-4574" price="24000" fornoble="0" />
+  <teleport id="1006" loc_x="115113" loc_y="-178212" loc_z="-901" price="46000" fornoble="0" />
+  <teleport id="1007" loc_x="46934" loc_y="51467" loc_z="-2977" price="23000" fornoble="0" />
+  <teleport id="1008" loc_x="-44836" loc_y="-112524" loc_z="-235" price="35000" fornoble="0" />
+  <teleport id="1009" loc_x="115113" loc_y="-178212" loc_z="-901" price="22000" fornoble="0" />
+  <teleport id="1010" loc_x="-84318" loc_y="244579" loc_z="-3730" price="24000" fornoble="0" />
+  <teleport id="1012" loc_x="-44836" loc_y="-112524" loc_z="-235" price="13000" fornoble="0" />
+  <teleport id="1013" loc_x="-10674" loc_y="75550" loc_z="-3597" price="1700" fornoble="0" />
+  <teleport id="1014" loc_x="115113" loc_y="-178212" loc_z="-901" price="23000" fornoble="0" />
+  <teleport id="1015" loc_x="-84318" loc_y="244579" loc_z="-3730" price="23000" fornoble="0" />
+  <teleport id="1016" loc_x="-44836" loc_y="-112524" loc_z="-235" price="18000" fornoble="0" />
+  <teleport id="1017" loc_x="9745" loc_y="15606" loc_z="-4574" price="22000" fornoble="0" />
+  <teleport id="1018" loc_x="46934" loc_y="51467" loc_z="-2977" price="23000" fornoble="0" />
+  <teleport id="1019" loc_x="-84318" loc_y="244579" loc_z="-3730" price="46000" fornoble="0" />
+  <teleport id="1020" loc_x="87386" loc_y="-143246" loc_z="-1293" price="4400" fornoble="0" />
+  <teleport id="1021" loc_x="-44836" loc_y="-112524" loc_z="-235" price="17000" fornoble="0" />
+  <teleport id="1022" loc_x="136910" loc_y="-205082" loc_z="-3664" price="970" fornoble="0" />
+  <teleport id="1023" loc_x="-12672" loc_y="122776" loc_z="-3116" price="23000" fornoble="0" />
+  <teleport id="1024" loc_x="87386" loc_y="-143246" loc_z="-1293" price="13000" fornoble="0" />
+  <teleport id="1025" loc_x="9745" loc_y="15606" loc_z="-4574" price="13000" fornoble="0" />
+  <teleport id="1026" loc_x="115113" loc_y="-178212" loc_z="-901" price="17000" fornoble="0" />
+  <teleport id="1027" loc_x="-84318" loc_y="244579" loc_z="-3730" price="35000" fornoble="0" />
+  <teleport id="1028" loc_x="46934" loc_y="51467" loc_z="-2977" price="18000" fornoble="0" />
+  <teleport id="1029" loc_x="-68628" loc_y="162336" loc_z="-3592" price="550" fornoble="0" />
+  <teleport id="1030" loc_x="-52841" loc_y="190730" loc_z="-3518" price="2000" fornoble="0" />
+  <teleport id="1031" loc_x="-9993" loc_y="176457" loc_z="-4182" price="2100" fornoble="0" />
+  <teleport id="1032" loc_x="-42256" loc_y="198333" loc_z="-2800" price="3700" fornoble="0" />
+  <teleport id="1033" loc_x="-44836" loc_y="-112524" loc_z="-235" price="23000" fornoble="0" />
+  <teleport id="1034" loc_x="115113" loc_y="-178212" loc_z="-901" price="32000" fornoble="0" />
+  <teleport id="1035" loc_x="87386" loc_y="-143246" loc_z="-1293" price="85000" fornoble="0" />
+  <teleport id="1036" loc_x="111409" loc_y="219364" loc_z="-3545" price="47000" fornoble="0" />
+  <teleport id="1037" loc_x="146331" loc_y="25762" loc_z="-2018" price="56000" fornoble="0" />
+  <teleport id="1038" loc_x="82956" loc_y="53162" loc_z="-1495" price="35000" fornoble="0" />
+  <teleport id="1039" loc_x="147928" loc_y="-55273" loc_z="-2734" price="71000" fornoble="0" />
+  <teleport id="1040" loc_x="83400" loc_y="147943" loc_z="-3404" price="29000" fornoble="0" />
+  <teleport id="1041" loc_x="43799" loc_y="-47727" loc_z="-798" price="53000" fornoble="0" />
+  <teleport id="1042" loc_x="-42504" loc_y="120046" loc_z="-3519" price="790" fornoble="0" />
+  <teleport id="1043" loc_x="-20057" loc_y="137618" loc_z="-3897" price="610" fornoble="0" />
+  <teleport id="1044" loc_x="-89839" loc_y="105362" loc_z="-3580" price="1800" fornoble="0" />
+  <teleport id="1045" loc_x="-68628" loc_y="162336" loc_z="-3592" price="2600" fornoble="0" />
+  <teleport id="1046" loc_x="147928" loc_y="-55273" loc_z="-2734" price="71000" fornoble="0" />
+  <teleport id="1047" loc_x="43799" loc_y="-47727" loc_z="-798" price="57000" fornoble="0" />
+  <teleport id="1048" loc_x="87386" loc_y="-143246" loc_z="-1293" price="88000" fornoble="0" />
+  <teleport id="1049" loc_x="146331" loc_y="25762" loc_z="-2018" price="52000" fornoble="0" />
+  <teleport id="1050" loc_x="82956" loc_y="53162" loc_z="-1495" price="33000" fornoble="0" />
+  <teleport id="1051" loc_x="5106" loc_y="126916" loc_z="-3664" price="760" fornoble="0" />
+  <teleport id="1052" loc_x="17192" loc_y="114178" loc_z="-3439" price="2300" fornoble="0" />
+  <teleport id="1053" loc_x="630" loc_y="179184" loc_z="-3720" price="1500" fornoble="0" />
+  <teleport id="1054" loc_x="58316" loc_y="163851" loc_z="-2816" price="3800" fornoble="0" />
+  <teleport id="1055" loc_x="-12672" loc_y="122776" loc_z="-3116" price="29000" fornoble="0" />
+  <teleport id="1056" loc_x="147928" loc_y="-55273" loc_z="-2734" price="63000" fornoble="0" />
+  <teleport id="1057" loc_x="43799" loc_y="-47727" loc_z="-798" price="59000" fornoble="0" />
+  <teleport id="1058" loc_x="87386" loc_y="-143246" loc_z="-1293" price="87000" fornoble="0" />
+  <teleport id="1059" loc_x="146331" loc_y="25762" loc_z="-2018" price="13000" fornoble="0" />
+  <teleport id="1060" loc_x="132828" loc_y="114421" loc_z="-3725" price="7000" fornoble="0" />
+  <teleport id="1061" loc_x="43408" loc_y="206881" loc_z="-3752" price="5700" fornoble="0" />
+  <teleport id="1062" loc_x="79798" loc_y="130624" loc_z="-3677" price="1000" fornoble="0" />
+  <teleport id="1063" loc_x="82956" loc_y="53162" loc_z="-1495" price="50000" fornoble="0" />
+  <teleport id="1064" loc_x="146331" loc_y="25762" loc_z="-2018" price="59000" fornoble="0" />
+  <teleport id="1065" loc_x="147928" loc_y="-55273" loc_z="-2734" price="83000" fornoble="0" />
+  <teleport id="1066" loc_x="43799" loc_y="-47727" loc_z="-798" price="82000" fornoble="0" />
+  <teleport id="1067" loc_x="87386" loc_y="-143246" loc_z="-1293" price="100000" fornoble="0" />
+  <teleport id="1068" loc_x="-12672" loc_y="122776" loc_z="-3116" price="47000" fornoble="0" />
+  <teleport id="1069" loc_x="86006" loc_y="231069" loc_z="-3600" price="2400" fornoble="0" />
+  <teleport id="1070" loc_x="43799" loc_y="-47727" loc_z="-798" price="10000" fornoble="0" />
+  <teleport id="1071" loc_x="147928" loc_y="-55273" loc_z="-2734" price="37000" fornoble="0" />
+  <teleport id="1072" loc_x="111409" loc_y="219364" loc_z="-3545" price="50000" fornoble="0" />
+  <teleport id="1073" loc_x="15670" loc_y="142983" loc_z="-2705" price="33000" fornoble="0" />
+  <teleport id="1074" loc_x="87386" loc_y="-143246" loc_z="-1293" price="59000" fornoble="0" />
+  <teleport id="1075" loc_x="-12672" loc_y="122776" loc_z="-3116" price="35000" fornoble="0" />
+  <teleport id="1076" loc_x="82764" loc_y="61145" loc_z="-3502" price="780" fornoble="0" />
+  <teleport id="1077" loc_x="85995" loc_y="-2433" loc_z="-3528" price="5200" fornoble="0" />
+  <teleport id="1078" loc_x="83400" loc_y="147943" loc_z="-3404" price="13000" fornoble="0" />
+  <teleport id="1079" loc_x="111409" loc_y="219364" loc_z="-3545" price="59000" fornoble="0" />
+  <teleport id="1080" loc_x="87386" loc_y="-143246" loc_z="-1293" price="53000" fornoble="0" />
+  <teleport id="1081" loc_x="15670" loc_y="142983" loc_z="-2705" price="52000" fornoble="0" />
+  <teleport id="1082" loc_x="-12672" loc_y="122776" loc_z="-3116" price="56000" fornoble="0" />
+  <teleport id="1083" loc_x="188611" loc_y="20588" loc_z="-3696" price="3300" fornoble="0" />
+  <teleport id="1084" loc_x="142065" loc_y="81300" loc_z="-3000" price="4400" fornoble="0" />
+  <teleport id="1085" loc_x="179718" loc_y="-7843" loc_z="-3517" price="6500" fornoble="0" />
+  <teleport id="1086" loc_x="127739" loc_y="-6998" loc_z="-3869" price="5900" fornoble="0" />
+  <teleport id="1087" loc_x="177318" loc_y="48447" loc_z="-3835" price="6100" fornoble="0" />
+  <teleport id="1088" loc_x="121291" loc_y="15960" loc_z="-4964" price="4200" fornoble="0" />
+  <teleport id="1089" loc_x="-12672" loc_y="122776" loc_z="-3116" price="71000" fornoble="0" />
+  <teleport id="1090" loc_x="83400" loc_y="147943" loc_z="-3404" price="63000" fornoble="0" />
+  <teleport id="1091" loc_x="15670" loc_y="142983" loc_z="-2705" price="71000" fornoble="0" />
+  <teleport id="1092" loc_x="111409" loc_y="219364" loc_z="-3545" price="83000" fornoble="0" />
+  <teleport id="1093" loc_x="87386" loc_y="-143246" loc_z="-1293" price="10000" fornoble="0" />
+  <teleport id="1094" loc_x="82956" loc_y="53162" loc_z="-1495" price="37000" fornoble="0" />
+  <teleport id="1095" loc_x="149594" loc_y="-112698" loc_z="-2065" price="9300" fornoble="0" />
+  <teleport id="1096" loc_x="165054" loc_y="-47861" loc_z="-3560" price="2200" fornoble="0" />
+  <teleport id="1097" loc_x="106414" loc_y="-87799" loc_z="-2920" price="10000" fornoble="0" />
+  <teleport id="1098" loc_x="15670" loc_y="142983" loc_z="-2705" price="57000" fornoble="0" />
+  <teleport id="1099" loc_x="-12672" loc_y="122776" loc_z="-3116" price="53000" fornoble="0" />
+  <teleport id="1100" loc_x="111409" loc_y="219364" loc_z="-3545" price="82000" fornoble="0" />
+  <teleport id="1101" loc_x="87386" loc_y="-143246" loc_z="-1293" price="10000" fornoble="0" />
+  <teleport id="1102" loc_x="82956" loc_y="53162" loc_z="-1495" price="10000" fornoble="0" />
+  <teleport id="1103" loc_x="57059" loc_y="-82976" loc_z="-2847" price="4800" fornoble="0" />
+  <teleport id="1104" loc_x="67992" loc_y="-72012" loc_z="-3748" price="3800" fornoble="0" />
+  <teleport id="1105" loc_x="123743" loc_y="-75032" loc_z="-2902" price="14000" fornoble="0" />
+  <teleport id="1106" loc_x="43799" loc_y="-47727" loc_z="-798" price="10000" fornoble="0" />
+  <teleport id="1107" loc_x="147928" loc_y="-55273" loc_z="-2734" price="10000" fornoble="0" />
+  <teleport id="1108" loc_x="146331" loc_y="25762" loc_z="-2018" price="53000" fornoble="0" />
+  <teleport id="1109" loc_x="82956" loc_y="53162" loc_z="-1495" price="59000" fornoble="0" />
+  <teleport id="1110" loc_x="111409" loc_y="219364" loc_z="-3545" price="100000" fornoble="0" />
+  <teleport id="1111" loc_x="83400" loc_y="147943" loc_z="-3404" price="87000" fornoble="0" />
+  <teleport id="1112" loc_x="15670" loc_y="142983" loc_z="-2705" price="88000" fornoble="0" />
+  <teleport id="1113" loc_x="-12672" loc_y="122776" loc_z="-3116" price="85000" fornoble="0" />
+  <teleport id="1114" loc_x="-44836" loc_y="-112524" loc_z="-235" price="13000" fornoble="0" />
+  <teleport id="1115" loc_x="115113" loc_y="-178212" loc_z="-901" price="4400" fornoble="0" />
+  <teleport id="1116" loc_x="76860" loc_y="-125169" loc_z="-3414" price="3000" fornoble="0" />
+  <teleport id="1117" loc_x="109024" loc_y="-159223" loc_z="-1778" price="1600" fornoble="0" />
+  <teleport id="1118" loc_x="113903" loc_y="-108752" loc_z="-848" price="3500" fornoble="0" />
+  <teleport id="1119" loc_x="56095" loc_y="-118952" loc_z="-3290" price="1900" fornoble="0" />
+  <teleport id="1120" loc_x="88288" loc_y="-125692" loc_z="-3816" price="2100" fornoble="0" />
+  <teleport id="1121" loc_x="-88525" loc_y="83379" loc_z="-2864" price="2600" fornoble="0" />
+  <teleport id="2001" loc_x="-18372" loc_y="113315" loc_z="-2760" price="0" fornoble="0" />
+  <teleport id="2002" loc_x="-18395" loc_y="112831" loc_z="-2768" price="0" fornoble="0" />
+  <teleport id="2003" loc_x="-18115" loc_y="110679" loc_z="-2528" price="0" fornoble="0" />
+  <teleport id="2004" loc_x="-18123" loc_y="110210" loc_z="-2512" price="0" fornoble="0" />
+  <teleport id="2005" loc_x="22315" loc_y="156447" loc_z="-2962" price="0" fornoble="0" />
+  <teleport id="2006" loc_x="22315" loc_y="156909" loc_z="-2962" price="0" fornoble="0" />
+  <teleport id="2007" loc_x="22073" loc_y="159057" loc_z="-2725" price="0" fornoble="0" />
+  <teleport id="2008" loc_x="22073" loc_y="159516" loc_z="-2706" price="0" fornoble="0" />
+  <teleport id="2009" loc_x="112568" loc_y="144869" loc_z="-2835" price="0" fornoble="0" />
+  <teleport id="2010" loc_x="113123" loc_y="144869" loc_z="-2835" price="0" fornoble="0" />
+  <teleport id="2011" loc_x="115209" loc_y="145089" loc_z="-2604" price="0" fornoble="0" />
+  <teleport id="2012" loc_x="115727" loc_y="145096" loc_z="-2579" price="0" fornoble="0" />
+  <teleport id="2013" loc_x="78618" loc_y="36955" loc_z="-2562" price="0" fornoble="0" />
+  <teleport id="2014" loc_x="79211" loc_y="36955" loc_z="-2562" price="0" fornoble="0" />
+  <teleport id="2015" loc_x="81285" loc_y="37190" loc_z="-2337" price="0" fornoble="0" />
+  <teleport id="2016" loc_x="81789" loc_y="37190" loc_z="-2306" price="0" fornoble="0" />
+  <teleport id="2017" loc_x="147455" loc_y="8808" loc_z="-495" price="0" fornoble="0" />
+  <teleport id="2018" loc_x="147455" loc_y="7966" loc_z="-470" price="0" fornoble="0" />
+  <teleport id="2019" loc_x="145616" loc_y="4614" loc_z="-436" price="0" fornoble="0" />
+  <teleport id="2020" loc_x="146374" loc_y="4599" loc_z="-403" price="0" fornoble="0" />
+  <teleport id="2021" loc_x="149283" loc_y="4610" loc_z="-432" price="0" fornoble="0" />
+  <teleport id="2022" loc_x="148575" loc_y="4607" loc_z="-403" price="0" fornoble="0" />
+  <teleport id="2023" loc_x="147456" loc_y="6357" loc_z="-407" price="0" fornoble="0" />
+  <teleport id="2024" loc_x="147456" loc_y="6058" loc_z="-407" price="0" fornoble="0" />
+  <teleport id="2025" loc_x="147458" loc_y="2010" loc_z="217" price="0" fornoble="0" />
+  <teleport id="2026" loc_x="147458" loc_y="2408" loc_z="219" price="0" fornoble="0" />
+  <teleport id="2027" loc_x="116263" loc_y="245174" loc_z="-1058" price="0" fornoble="0" />
+  <teleport id="2028" loc_x="116263" loc_y="245750" loc_z="-1058" price="0" fornoble="0" />
+  <teleport id="2029" loc_x="116021" loc_y="247821" loc_z="-826" price="0" fornoble="0" />
+  <teleport id="2030" loc_x="116021" loc_y="248272" loc_z="-805" price="0" fornoble="0" />
+  <teleport id="2031" loc_x="147459" loc_y="-45221" loc_z="-2084" price="0" fornoble="0" />
+  <teleport id="2032" loc_x="147459" loc_y="-45789" loc_z="-2084" price="0" fornoble="0" />
+  <teleport id="2033" loc_x="145514" loc_y="-48241" loc_z="-2383" price="0" fornoble="0" />
+  <teleport id="2034" loc_x="146026" loc_y="-48241" loc_z="-2383" price="0" fornoble="0" />
+  <teleport id="2035" loc_x="149430" loc_y="-48245" loc_z="-2383" price="0" fornoble="0" />
+  <teleport id="2036" loc_x="148928" loc_y="-48245" loc_z="-2383" price="0" fornoble="0" />
+  <teleport id="2037" loc_x="148748" loc_y="-48951" loc_z="-687" price="0" fornoble="0" />
+  <teleport id="2038" loc_x="148736" loc_y="-49201" loc_z="-688" price="0" fornoble="0" />
+  <teleport id="2039" loc_x="146177" loc_y="-48942" loc_z="-687" price="0" fornoble="0" />
+  <teleport id="2040" loc_x="146181" loc_y="-49209" loc_z="-687" price="0" fornoble="0" />
+  <teleport id="2041" loc_x="18788" loc_y="-49149" loc_z="-1240" price="0" fornoble="0" />
+  <teleport id="2042" loc_x="17716" loc_y="-49149" loc_z="-1190" price="0" fornoble="0" />
+  <teleport id="2043" loc_x="16037" loc_y="-49149" loc_z="-1060" price="0" fornoble="0" />
+  <teleport id="2044" loc_x="15573" loc_y="-49162" loc_z="-1058" price="0" fornoble="0" />
+  <teleport id="2045" loc_x="12858" loc_y="-51332" loc_z="-1089" price="0" fornoble="0" />
+  <teleport id="2046" loc_x="12858" loc_y="-50860" loc_z="-1089" price="0" fornoble="0" />
+  <teleport id="2047" loc_x="77544" loc_y="-149250" loc_z="-355" price="0" fornoble="0" />
+  <teleport id="2048" loc_x="77544" loc_y="-149869" loc_z="-355" price="0" fornoble="0" />
+  <teleport id="2049" loc_x="75577" loc_y="-152303" loc_z="-651" price="0" fornoble="0" />
+  <teleport id="2050" loc_x="76091" loc_y="-152303" loc_z="-651" price="0" fornoble="0" />
+  <teleport id="2051" loc_x="79519" loc_y="-152303" loc_z="-651" price="0" fornoble="0" />
+  <teleport id="2052" loc_x="79009" loc_y="-152303" loc_z="-651" price="0" fornoble="0" />
+  <teleport id="2053" loc_x="76260" loc_y="-152991" loc_z="1044" price="0" fornoble="0" />
+  <teleport id="2054" loc_x="76267" loc_y="-153275" loc_z="1044" price="0" fornoble="0" />
+  <teleport id="2055" loc_x="78843" loc_y="-153008" loc_z="1044" price="0" fornoble="0" />
+  <teleport id="2056" loc_x="78832" loc_y="-153271" loc_z="1044" price="0" fornoble="0" />
+  <teleport id="9000" loc_x="-87328" loc_y="142266" loc_z="-3640" price="1000" fornoble="0" />
+  <teleport id="9001" loc_x="146440" loc_y="46723" loc_z="-3432" price="1000" fornoble="0" />
+  <teleport id="9002" loc_x="73579" loc_y="142709" loc_z="-3768" price="1000" fornoble="0" />
+  <teleport id="9010" loc_x="-54026" loc_y="179504" loc_z="-4640" price="1000" fornoble="0" />
+  <teleport id="9011" loc_x="-47506" loc_y="179572" loc_z="-3632" price="1000" fornoble="0" />
+  <teleport id="9020" loc_x="181737" loc_y="46469" loc_z="-4352" price="1000" fornoble="0" />
+  <teleport id="9021" loc_x="135756" loc_y="19557" loc_z="-3424" price="1000" fornoble="0" />
+  <teleport id="9022" loc_x="156898" loc_y="11217" loc_z="-4032" price="1000" fornoble="0" />
+  <teleport id="9023" loc_x="110848" loc_y="16154" loc_z="-2120" price="1000" fornoble="0" />
+  <teleport id="9024" loc_x="118404" loc_y="15988" loc_z="832" price="1000" fornoble="0" />
+  <teleport id="9025" loc_x="115064" loc_y="12181" loc_z="2960" price="1000" fornoble="0" />
+  <teleport id="9026" loc_x="118525" loc_y="16455" loc_z="5984" price="1000" fornoble="0" />
+  <teleport id="9027" loc_x="115384" loc_y="16820" loc_z="9000" price="1000" fornoble="0" />
+  <teleport id="9028" loc_x="114306" loc_y="86573" loc_z="-3112" price="1000" fornoble="0" />
+  <teleport id="9029" loc_x="166182" loc_y="91560" loc_z="-3168" price="1000" fornoble="0" />
+  <teleport id="9030" loc_x="166080" loc_y="75574" loc_z="-2992" price="1000" fornoble="0" />
+  <teleport id="9031" loc_x="114674" loc_y="44150" loc_z="-3376" price="1000" fornoble="0" />
+  <teleport id="9032" loc_x="114306" loc_y="86573" loc_z="-3112" price="1000" fornoble="0" />
+  <teleport id="9040" loc_x="113553" loc_y="134813" loc_z="-3640" price="1000" fornoble="0" />
+  <teleport id="9041" loc_x="147071" loc_y="120156" loc_z="-4520" price="1000" fornoble="0" />
+  <teleport id="9042" loc_x="151689" loc_y="112615" loc_z="-5520" price="1000" fornoble="0" />
+  <teleport id="9043" loc_x="146494" loc_y="109285" loc_z="-3448" price="1000" fornoble="0" />
+  <teleport id="9044" loc_x="154396" loc_y="121235" loc_z="-3808" price="1000" fornoble="0" />
+  <teleport id="9045" loc_x="122824" loc_y="110836" loc_z="-3720" price="1000" fornoble="0" />
+  <teleport id="9046" loc_x="105918" loc_y="109759" loc_z="-3192" price="1000" fornoble="0" />
+  <teleport id="9050" loc_x="54425" loc_y="-41692" loc_z="-3072" price="1000" fornoble="0" />
+  <teleport id="9051" loc_x="84092" loc_y="-80084" loc_z="-3504" price="1000" fornoble="0" />
+  <teleport id="9052" loc_x="57670" loc_y="-41672" loc_z="-3144" price="1000" fornoble="0" />
+  <teleport id="9053" loc_x="88969" loc_y="-45307" loc_z="-2104" price="1000" fornoble="0" />
+  <teleport id="9054" loc_x="106414" loc_y="-87799" loc_z="-2920" price="1000" fornoble="0" />
+  <teleport id="9060" loc_x="107929" loc_y="-52248" loc_z="-2408" price="1000" fornoble="0" />
+  <teleport id="9061" loc_x="149817" loc_y="-80053" loc_z="-5576" price="1000" fornoble="0" />
+  <teleport id="9062" loc_x="106349" loc_y="-61870" loc_z="-2904" price="1000" fornoble="0" />
+  <teleport id="9063" loc_x="132997" loc_y="-60608" loc_z="-2960" price="1000" fornoble="0" />
+  <teleport id="9064" loc_x="144625" loc_y="-101291" loc_z="-3384" price="1000" fornoble="0" />
+  <teleport id="9065" loc_x="183140" loc_y="-53307" loc_z="-1896" price="1000" fornoble="0" />
+  <teleport id="9066" loc_x="183140" loc_y="-53307" loc_z="-1896" price="1000" fornoble="0" />
+  <teleport id="9067" loc_x="178127" loc_y="-84435" loc_z="-7216" price="1000" fornoble="0" />
+  <teleport id="9068" loc_x="186699" loc_y="-75915" loc_z="-2824" price="1000" fornoble="0" />
+  <teleport id="9069" loc_x="169018" loc_y="-116303" loc_z="-2432" price="1000" fornoble="0" />
+  <teleport id="9070" loc_x="169018" loc_y="-116303" loc_z="-2432" price="1000" fornoble="0" />
+  <teleport id="9071" loc_x="179887" loc_y="-111241" loc_z="-5824" price="1000" fornoble="0" />
+  <teleport id="9080" loc_x="50568" loc_y="152408" loc_z="-2656" price="1000" fornoble="0" />
+  <teleport id="9081" loc_x="26810" loc_y="172787" loc_z="-3376" price="1000" fornoble="0" />
+  <teleport id="9082" loc_x="5941" loc_y="125455" loc_z="-3640" price="1000" fornoble="0" />
+  <teleport id="9083" loc_x="17718" loc_y="117315" loc_z="-12064" price="1000" fornoble="0" />
+  <teleport id="9084" loc_x="17728" loc_y="110325" loc_z="-9312" price="1000" fornoble="0" />
+  <teleport id="9090" loc_x="107577" loc_y="-122392" loc_z="-3632" price="1000" fornoble="0" />
+  <teleport id="9091" loc_x="44221" loc_y="-114232" loc_z="-2784" price="1000" fornoble="0" />
+  <teleport id="9092" loc_x="121618" loc_y="-141554" loc_z="-1496" price="1000" fornoble="0" />
+  <teleport id="9100" loc_x="-6989" loc_y="109503" loc_z="-3040" price="1000" fornoble="0" />
+  <teleport id="9101" loc_x="-18415" loc_y="85624" loc_z="-3680" price="1000" fornoble="0" />
+  <teleport id="9102" loc_x="-14129" loc_y="27094" loc_z="-3680" price="1000" fornoble="0" />
+  <teleport id="9103" loc_x="-49185" loc_y="49441" loc_z="-5912" price="1000" fornoble="0" />
+  <teleport id="9104" loc_x="49315" loc_y="248452" loc_z="-5960" price="1000" fornoble="0" />
+  <teleport id="9105" loc_x="-25309" loc_y="-131569" loc_z="-680" price="1000" fornoble="0" />
+  <teleport id="9106" loc_x="175499" loc_y="-181586" loc_z="-904" price="1000" fornoble="0" />
+  <teleport id="9107" loc_x="144706" loc_y="-173223" loc_z="-1520" price="1000" fornoble="0" />
+  <teleport id="9110" loc_x="93218" loc_y="16969" loc_z="-3904" price="1000" fornoble="0" />
+  <teleport id="9111" loc_x="67097" loc_y="68815" loc_z="-3648" price="1000" fornoble="0" />
+  <teleport id="9112" loc_x="-44566" loc_y="77508" loc_z="-3736" price="1000" fornoble="0" />
+  <teleport id="9120" loc_x="69748" loc_y="186111" loc_z="-2872" price="1000" fornoble="0" />
+  <teleport id="9121" loc_x="97786" loc_y="209303" loc_z="-3040" price="1000" fornoble="0" />
+  <teleport id="9122" loc_x="113708" loc_y="178387" loc_z="-3232" price="1000" fornoble="0" />
+  <teleport id="9123" loc_x="82693" loc_y="242220" loc_z="-6712" price="1000" fornoble="0" />
+  <teleport id="9124" loc_x="79248" loc_y="247390" loc_z="-8816" price="1000" fornoble="0" />
+  <teleport id="9125" loc_x="77868" loc_y="250400" loc_z="-9328" price="1000" fornoble="0" />
+  <teleport id="9126" loc_x="78721" loc_y="253309" loc_z="-9840" price="1000" fornoble="0" />
+  <teleport id="9127" loc_x="82951" loc_y="252354" loc_z="-10592" price="1000" fornoble="0" />
+  <teleport id="9900" loc_x="-87328" loc_y="142266" loc_z="-3640" price="1" fornoble="1" />
+  <teleport id="9901" loc_x="146440" loc_y="46723" loc_z="-3432" price="1" fornoble="1" />
+  <teleport id="9902" loc_x="73579" loc_y="142709" loc_z="-3768" price="1" fornoble="1" />
+  <teleport id="9910" loc_x="-54026" loc_y="179504" loc_z="-4640" price="1" fornoble="1" />
+  <teleport id="9911" loc_x="-47506" loc_y="179572" loc_z="-3632" price="1" fornoble="1" />
+  <teleport id="9920" loc_x="181737" loc_y="46469" loc_z="-4352" price="1" fornoble="1" />
+  <teleport id="9921" loc_x="135756" loc_y="19557" loc_z="-3424" price="1" fornoble="1" />
+  <teleport id="9922" loc_x="156898" loc_y="11217" loc_z="-4032" price="1" fornoble="1" />
+  <teleport id="9923" loc_x="110848" loc_y="16154" loc_z="-2120" price="1" fornoble="1" />
+  <teleport id="9924" loc_x="118404" loc_y="15988" loc_z="832" price="1" fornoble="1" />
+  <teleport id="9925" loc_x="115064" loc_y="12181" loc_z="2960" price="1" fornoble="1" />
+  <teleport id="9926" loc_x="118525" loc_y="16455" loc_z="5984" price="1" fornoble="1" />
+  <teleport id="9927" loc_x="115384" loc_y="16820" loc_z="9000" price="1" fornoble="1" />
+  <teleport id="9928" loc_x="114306" loc_y="86573" loc_z="-3112" price="1" fornoble="1" />
+  <teleport id="9929" loc_x="166182" loc_y="91560" loc_z="-3168" price="1" fornoble="1" />
+  <teleport id="9930" loc_x="166080" loc_y="75574" loc_z="-2992" price="1" fornoble="1" />
+  <teleport id="9931" loc_x="114674" loc_y="44150" loc_z="-3376" price="1" fornoble="1" />
+  <teleport id="9932" loc_x="114306" loc_y="86573" loc_z="-3112" price="1" fornoble="1" />
+  <teleport id="9940" loc_x="113553" loc_y="134813" loc_z="-3640" price="1" fornoble="1" />
+  <teleport id="9941" loc_x="147071" loc_y="120156" loc_z="-4520" price="1" fornoble="1" />
+  <teleport id="9942" loc_x="151689" loc_y="112615" loc_z="-5520" price="1" fornoble="1" />
+  <teleport id="9943" loc_x="146494" loc_y="109285" loc_z="-3448" price="1" fornoble="1" />
+  <teleport id="9944" loc_x="154396" loc_y="121235" loc_z="-3808" price="1" fornoble="1" />
+  <teleport id="9945" loc_x="122824" loc_y="110836" loc_z="-3720" price="1" fornoble="1" />
+  <teleport id="9946" loc_x="105918" loc_y="109759" loc_z="-3192" price="1" fornoble="1" />
+  <teleport id="9950" loc_x="54425" loc_y="-41692" loc_z="-3072" price="1" fornoble="1" />
+  <teleport id="9951" loc_x="84092" loc_y="-80084" loc_z="-3504" price="1" fornoble="1" />
+  <teleport id="9952" loc_x="57670" loc_y="-41672" loc_z="-3144" price="1" fornoble="1" />
+  <teleport id="9953" loc_x="88969" loc_y="-45307" loc_z="-2104" price="1" fornoble="1" />
+  <teleport id="9954" loc_x="106414" loc_y="-87799" loc_z="-2920" price="1" fornoble="1" />
+  <teleport id="9960" loc_x="107929" loc_y="-52248" loc_z="-2408" price="1" fornoble="1" />
+  <teleport id="9961" loc_x="149817" loc_y="-80053" loc_z="-5576" price="1" fornoble="1" />
+  <teleport id="9962" loc_x="106349" loc_y="-61870" loc_z="-2904" price="1" fornoble="1" />
+  <teleport id="9963" loc_x="132997" loc_y="-60608" loc_z="-2960" price="1" fornoble="1" />
+  <teleport id="9964" loc_x="144625" loc_y="-101291" loc_z="-3384" price="1" fornoble="1" />
+  <teleport id="9965" loc_x="183140" loc_y="-53307" loc_z="-1896" price="1" fornoble="1" />
+  <teleport id="9967" loc_x="178127" loc_y="-84435" loc_z="-7216" price="1" fornoble="1" />
+  <teleport id="9968" loc_x="186699" loc_y="-75915" loc_z="-2824" price="1" fornoble="1" />
+  <teleport id="9970" loc_x="169018" loc_y="-116303" loc_z="-2432" price="1" fornoble="1" />
+  <teleport id="9971" loc_x="179887" loc_y="-111241" loc_z="-5824" price="1" fornoble="1" />
+  <teleport id="9980" loc_x="50568" loc_y="152408" loc_z="-2656" price="1" fornoble="1" />
+  <teleport id="9981" loc_x="26810" loc_y="172787" loc_z="-3376" price="1" fornoble="1" />
+  <teleport id="9982" loc_x="5941" loc_y="125455" loc_z="-3640" price="1" fornoble="1" />
+  <teleport id="9983" loc_x="17718" loc_y="117315" loc_z="-12064" price="1" fornoble="1" />
+  <teleport id="9984" loc_x="17728" loc_y="110325" loc_z="-9312" price="1" fornoble="1" />
+  <teleport id="9990" loc_x="107577" loc_y="-122392" loc_z="-3632" price="1" fornoble="1" />
+  <teleport id="9991" loc_x="44221" loc_y="-114232" loc_z="-2784" price="1" fornoble="1" />
+  <teleport id="9992" loc_x="121618" loc_y="-141554" loc_z="-1496" price="1" fornoble="1" />
+  <teleport id="10000" loc_x="-6989" loc_y="109503" loc_z="-3040" price="1" fornoble="1" />
+  <teleport id="10001" loc_x="-18415" loc_y="85624" loc_z="-3680" price="1" fornoble="1" />
+  <teleport id="10002" loc_x="-14129" loc_y="27094" loc_z="-3680" price="1" fornoble="1" />
+  <teleport id="10003" loc_x="-49185" loc_y="49441" loc_z="-5912" price="1" fornoble="1" />
+  <teleport id="10004" loc_x="49315" loc_y="248452" loc_z="-5960" price="1" fornoble="1" />
+  <teleport id="10005" loc_x="-25309" loc_y="-131569" loc_z="-680" price="1" fornoble="1" />
+  <teleport id="10006" loc_x="175499" loc_y="-181586" loc_z="-904" price="1" fornoble="1" />
+  <teleport id="10007" loc_x="144706" loc_y="-173223" loc_z="-1520" price="1" fornoble="1" />
+  <teleport id="10010" loc_x="93218" loc_y="16969" loc_z="-3904" price="1" fornoble="1" />
+  <teleport id="10011" loc_x="67097" loc_y="68815" loc_z="-3648" price="1" fornoble="1" />
+  <teleport id="10012" loc_x="-44566" loc_y="77508" loc_z="-3736" price="1" fornoble="1" />
+  <teleport id="10020" loc_x="69748" loc_y="186111" loc_z="-2872" price="1" fornoble="1" />
+  <teleport id="10021" loc_x="97786" loc_y="209303" loc_z="-3040" price="1" fornoble="1" />
+  <teleport id="10022" loc_x="113708" loc_y="178387" loc_z="-3232" price="1" fornoble="1" />
+  <teleport id="10023" loc_x="82693" loc_y="242220" loc_z="-6712" price="1" fornoble="1" />
+  <teleport id="10024" loc_x="79248" loc_y="247390" loc_z="-8816" price="1" fornoble="1" />
+  <teleport id="10025" loc_x="77868" loc_y="250400" loc_z="-9328" price="1" fornoble="1" />
+  <teleport id="10026" loc_x="78721" loc_y="253309" loc_z="-9840" price="1" fornoble="1" />
+  <teleport id="10027" loc_x="82951" loc_y="252354" loc_z="-10592" price="1" fornoble="1" />
+  <teleport id="10028" loc_x="147978" loc_y="-55408" loc_z="-2728" price="4900" fornoble="0" />
+  <teleport id="10029" loc_x="43849" loc_y="-47877" loc_z="-792" price="22000" fornoble="0" />
+  <teleport id="10030" loc_x="146705" loc_y="25840" loc_z="-2000" price="21000" fornoble="0" />
+  <teleport id="10031" loc_x="164564" loc_y="-48145" loc_z="-3536" price="7000" fornoble="0" />
+  <teleport id="10032" loc_x="144880" loc_y="-113468" loc_z="-2560" price="6700" fornoble="0" />
+  <teleport id="10033" loc_x="147978" loc_y="-55408" loc_z="-2728" price="8000" fornoble="0" />
+  <teleport id="10034" loc_x="43849" loc_y="-47877" loc_z="-792" price="12000" fornoble="0" />
+  <teleport id="10035" loc_x="146705" loc_y="25840" loc_z="-2000" price="17000" fornoble="0" />
+  <teleport id="10036" loc_x="164564" loc_y="-48145" loc_z="-3536" price="11000" fornoble="0" />
+  <teleport id="10037" loc_x="144880" loc_y="-113468" loc_z="-2560" price="14000" fornoble="0" />
+  <teleport id="10100" loc_x="83424" loc_y="148626" loc_z="-3405" price="1" fornoble="0" />
+  <teleport id="10101" loc_x="147449" loc_y="25810" loc_z="-2013" price="1" fornoble="0" />
+  <teleport id="10102" loc_x="147718" loc_y="-56609" loc_z="-2781" price="1" fornoble="0" />
+  <teleport id="10103" loc_x="43829" loc_y="-48088" loc_z="-797" price="1" fornoble="0" />
+  <teleport id="10104" loc_x="87359" loc_y="-142067" loc_z="-1341" price="1" fornoble="0" />
+  <teleport id="10105" loc_x="82745" loc_y="53580" loc_z="-1496" price="1" fornoble="0" />
+  <teleport id="10106" loc_x="111380" loc_y="219023" loc_z="-3546" price="1" fornoble="0" />
+  <teleport id="10107" loc_x="16036" loc_y="143219" loc_z="-2758" price="1" fornoble="0" />
+  <teleport id="10108" loc_x="-12806" loc_y="122692" loc_z="-3117" price="1" fornoble="0" />
+  <teleport id="10109" loc_x="-80839" loc_y="149980" loc_z="-3044" price="1" fornoble="0" />
+  <teleport id="10110" loc_x="-84387" loc_y="244407" loc_z="-3730" price="1" fornoble="0" />
+  <teleport id="10111" loc_x="47187" loc_y="50985" loc_z="-2996" price="1" fornoble="0" />
+  <teleport id="10112" loc_x="9872" loc_y="15746" loc_z="-4578" price="1" fornoble="0" />
+  <teleport id="10113" loc_x="115429" loc_y="-178299" loc_z="-929" price="1" fornoble="0" />
+  <teleport id="10114" loc_x="-44846" loc_y="-112589" loc_z="-242" price="1" fornoble="0" />
+  <teleport id="10115" loc_x="116764" loc_y="76947" loc_z="-2717" price="1" fornoble="0" />
+  <teleport id="10120" loc_x="125535" loc_y="-40864" loc_z="-3725" price="1" fornoble="0" />
+  <teleport id="10121" loc_x="116078" loc_y="-46433" loc_z="-2638" price="1" fornoble="0" />
+  <teleport id="10124" loc_x="131097" loc_y="-72346" loc_z="-3524" price="1" fornoble="0" />
+  <teleport id="10125" loc_x="149452" loc_y="-81801" loc_z="-5612" price="1" fornoble="0" />
+  <teleport id="10128" loc_x="17704" loc_y="108408" loc_z="-9056" price="1" fornoble="0" />
+  <teleport id="10129" loc_x="131355" loc_y="114451" loc_z="-3713" price="1" fornoble="0" />
+  <teleport id="10130" loc_x="185352" loc_y="20264" loc_z="-3264" price="1" fornoble="0" />
+  <teleport id="10131" loc_x="145880" loc_y="-10872" loc_z="-4408" price="1" fornoble="0" />
+  <teleport id="10132" loc_x="123912" loc_y="-74904" loc_z="-2920" price="1" fornoble="0" />
+  <teleport id="10231" loc_x="124120" loc_y="-75032" loc_z="-2904" price="1" fornoble="0" />
+  <teleport id="12005" loc_x="112200" loc_y="64500" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="12006" loc_x="146000" loc_y="-12000" loc_z="-2500" price="500" fornoble="0" />
+  <teleport id="12007" loc_x="142000" loc_y="45000" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="12008" loc_x="152000" loc_y="35000" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="12009" loc_x="138000" loc_y="70000" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="12010" loc_x="162000" loc_y="31000" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12011" loc_x="172000" loc_y="-17600" loc_z="-4900" price="500" fornoble="0" />
+  <teleport id="12012" loc_x="172000" loc_y="20000" loc_z="-3200" price="500" fornoble="0" />
+  <teleport id="12013" loc_x="172000" loc_y="20000" loc_z="-3200" price="500" fornoble="0" />
+  <teleport id="12014" loc_x="172000" loc_y="20000" loc_z="-3200" price="500" fornoble="0" />
+  <teleport id="12031" loc_x="26500" loc_y="161000" loc_z="-3600" price="500" fornoble="0" />
+  <teleport id="12032" loc_x="-21600" loc_y="77400" loc_z="-5100" price="500" fornoble="0" />
+  <teleport id="12045" loc_x="78000" loc_y="152000" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="12100" loc_x="75000" loc_y="140000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12101" loc_x="75000" loc_y="145000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12102" loc_x="15670" loc_y="142983" loc_z="-2705" price="500" fornoble="0" />
+  <teleport id="12103" loc_x="82956" loc_y="53162" loc_z="-1495" price="500" fornoble="0" />
+  <teleport id="12104" loc_x="-11800" loc_y="183500" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12105" loc_x="-22800" loc_y="201300" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12106" loc_x="63200" loc_y="27300" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12107" loc_x="160800" loc_y="21500" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12110" loc_x="72000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12111" loc_x="78000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12112" loc_x="43835" loc_y="-47749" loc_z="-792" price="500" fornoble="0" />
+  <teleport id="12113" loc_x="147948" loc_y="-55338" loc_z="-2734" price="500" fornoble="0" />
+  <teleport id="12114" loc_x="78700" loc_y="-55400" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12115" loc_x="80800" loc_y="-54200" loc_z="-1500" price="500" fornoble="0" />
+  <teleport id="12116" loc_x="183861" loc_y="-114949" loc_z="-3328" price="500" fornoble="0" />
+  <teleport id="12117" loc_x="170500" loc_y="-60000" loc_z="-2800" price="500" fornoble="0" />
+  <teleport id="12123" loc_x="75000" loc_y="140000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12124" loc_x="75000" loc_y="145000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12125" loc_x="83400" loc_y="147943" loc_z="-3404" price="500" fornoble="0" />
+  <teleport id="12126" loc_x="115000" loc_y="145000" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12127" loc_x="70000" loc_y="120000" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="12128" loc_x="50000" loc_y="220000" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="12129" loc_x="110000" loc_y="115000" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12130" loc_x="30000" loc_y="175000" loc_z="-3600" price="500" fornoble="0" />
+  <teleport id="12131" loc_x="75000" loc_y="140000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12132" loc_x="75000" loc_y="145000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12133" loc_x="15670" loc_y="142983" loc_z="-2705" price="500" fornoble="0" />
+  <teleport id="12134" loc_x="83400" loc_y="147943" loc_z="-3404" price="500" fornoble="0" />
+  <teleport id="12135" loc_x="-11800" loc_y="183500" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12136" loc_x="-22800" loc_y="201300" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12137" loc_x="110000" loc_y="115000" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12138" loc_x="30000" loc_y="175000" loc_z="-3600" price="500" fornoble="0" />
+  <teleport id="12140" loc_x="75000" loc_y="140000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12141" loc_x="75000" loc_y="145000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12142" loc_x="43835" loc_y="-47749" loc_z="-792" price="500" fornoble="0" />
+  <teleport id="12143" loc_x="87386" loc_y="-143246" loc_z="-1293" price="500" fornoble="0" />
+  <teleport id="12144" loc_x="78700" loc_y="-55400" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12145" loc_x="80800" loc_y="-54200" loc_z="-1500" price="500" fornoble="0" />
+  <teleport id="12146" loc_x="88500" loc_y="-114000" loc_z="-2100" price="500" fornoble="0" />
+  <teleport id="12147" loc_x="113900" loc_y="-115400" loc_z="-2000" price="500" fornoble="0" />
+  <teleport id="12148" loc_x="72000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12149" loc_x="78000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12150" loc_x="147926" loc_y="28164" loc_z="-2268" price="500" fornoble="0" />
+  <teleport id="12151" loc_x="147463" loc_y="10373" loc_z="-1224" price="500" fornoble="0" />
+  <teleport id="12152" loc_x="160800" loc_y="21500" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12153" loc_x="112200" loc_y="64500" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="12154" loc_x="114100" loc_y="42000" loc_z="-3600" price="500" fornoble="0" />
+  <teleport id="12155" loc_x="180000" loc_y="-105000" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="12156" loc_x="75000" loc_y="140000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12157" loc_x="75000" loc_y="145000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12158" loc_x="15670" loc_y="142983" loc_z="-2705" price="500" fornoble="0" />
+  <teleport id="12159" loc_x="22340" loc_y="161200" loc_z="-2800" price="500" fornoble="0" />
+  <teleport id="12160" loc_x="15200" loc_y="114500" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12161" loc_x="43000" loc_y="111000" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12162" loc_x="26500" loc_y="161000" loc_z="-3600" price="500" fornoble="0" />
+  <teleport id="12163" loc_x="30000" loc_y="175000" loc_z="-3600" price="500" fornoble="0" />
+  <teleport id="12164" loc_x="72000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12165" loc_x="78000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12166" loc_x="111322" loc_y="219320" loc_z="-3543" price="500" fornoble="0" />
+  <teleport id="12167" loc_x="115000" loc_y="248000" loc_z="-1100" price="500" fornoble="0" />
+  <teleport id="12168" loc_x="112200" loc_y="64500" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="12169" loc_x="180000" loc_y="-105000" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="12170" loc_x="160800" loc_y="21500" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12171" loc_x="85000" loc_y="256000" loc_z="-11600" price="500" fornoble="0" />
+  <teleport id="12172" loc_x="72000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12173" loc_x="78000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12174" loc_x="87386" loc_y="-143246" loc_z="-1293" price="500" fornoble="0" />
+  <teleport id="12175" loc_x="78000" loc_y="-152000" loc_z="-1400" price="500" fornoble="0" />
+  <teleport id="12176" loc_x="61200" loc_y="-121400" loc_z="-2000" price="500" fornoble="0" />
+  <teleport id="12177" loc_x="76500" loc_y="-114000" loc_z="-2100" price="500" fornoble="0" />
+  <teleport id="12178" loc_x="88500" loc_y="-114000" loc_z="-2100" price="500" fornoble="0" />
+  <teleport id="12179" loc_x="113900" loc_y="-115400" loc_z="-2000" price="500" fornoble="0" />
+  <teleport id="12180" loc_x="72000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12181" loc_x="78000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12182" loc_x="147948" loc_y="-55338" loc_z="-2734" price="500" fornoble="0" />
+  <teleport id="12183" loc_x="147400" loc_y="-45000" loc_z="-2200" price="500" fornoble="0" />
+  <teleport id="12184" loc_x="124000" loc_y="-107000" loc_z="-2400" price="500" fornoble="0" />
+  <teleport id="12185" loc_x="144880" loc_y="-113468" loc_z="-2560" price="500" fornoble="0" />
+  <teleport id="12186" loc_x="183861" loc_y="-114949" loc_z="-3328" price="500" fornoble="0" />
+  <teleport id="12187" loc_x="170500" loc_y="-60000" loc_z="-2800" price="500" fornoble="0" />
+  <teleport id="12188" loc_x="78000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12189" loc_x="72000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12190" loc_x="-12672" loc_y="122776" loc_z="-3116" price="500" fornoble="0" />
+  <teleport id="12191" loc_x="-17834" loc_y="111394" loc_z="-3696" price="500" fornoble="0" />
+  <teleport id="12192" loc_x="-21700" loc_y="140400" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12193" loc_x="-16800" loc_y="166700" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12194" loc_x="-11800" loc_y="183500" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12195" loc_x="-22800" loc_y="201300" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12196" loc_x="72000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12197" loc_x="78000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12198" loc_x="-12672" loc_y="122776" loc_z="-3116" price="500" fornoble="0" />
+  <teleport id="12199" loc_x="-17834" loc_y="111394" loc_z="-3696" price="500" fornoble="0" />
+  <teleport id="12200" loc_x="-21700" loc_y="140400" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12201" loc_x="-16800" loc_y="166700" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12202" loc_x="-11800" loc_y="183500" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12203" loc_x="-22800" loc_y="201300" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="12204" loc_x="114100" loc_y="42000" loc_z="-3600" price="500" fornoble="0" />
+  <teleport id="12205" loc_x="75000" loc_y="140000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12206" loc_x="75000" loc_y="145000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12207" loc_x="147926" loc_y="28164" loc_z="-2268" price="500" fornoble="0" />
+  <teleport id="12208" loc_x="83400" loc_y="147943" loc_z="-3404" price="500" fornoble="0" />
+  <teleport id="12209" loc_x="112200" loc_y="64500" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="12210" loc_x="180000" loc_y="-105000" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="12221" loc_x="75000" loc_y="140000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12222" loc_x="75000" loc_y="145000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12223" loc_x="111322" loc_y="219320" loc_z="-3543" price="500" fornoble="0" />
+  <teleport id="12229" loc_x="72000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12230" loc_x="78000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12231" loc_x="82956" loc_y="53162" loc_z="-1495" price="500" fornoble="0" />
+  <teleport id="12232" loc_x="83400" loc_y="147943" loc_z="-3404" price="500" fornoble="0" />
+  <teleport id="12237" loc_x="72000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12238" loc_x="78000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12239" loc_x="147926" loc_y="28164" loc_z="-2268" price="500" fornoble="0" />
+  <teleport id="12245" loc_x="75000" loc_y="140000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12246" loc_x="75000" loc_y="145000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12247" loc_x="-12672" loc_y="122776" loc_z="-3116" price="500" fornoble="0" />
+  <teleport id="12253" loc_x="72000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12254" loc_x="78000" loc_y="142000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12255" loc_x="15670" loc_y="142983" loc_z="-2705" price="500" fornoble="0" />
+  <teleport id="12261" loc_x="75000" loc_y="140000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12262" loc_x="75000" loc_y="145000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12263" loc_x="83400" loc_y="147943" loc_z="-3404" price="500" fornoble="0" />
+  <teleport id="12264" loc_x="114100" loc_y="42000" loc_z="-3600" price="500" fornoble="0" />
+  <teleport id="12269" loc_x="75000" loc_y="145000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12270" loc_x="75000" loc_y="140000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12271" loc_x="82956" loc_y="53162" loc_z="-1495" price="500" fornoble="0" />
+  <teleport id="12277" loc_x="75000" loc_y="140000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12278" loc_x="75000" loc_y="145000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="12279" loc_x="43835" loc_y="-47749" loc_z="-792" price="500" fornoble="0" />
+  <teleport id="13000" loc_x="-17834" loc_y="111394" loc_z="-3696" price="500" fornoble="0" />
+  <teleport id="13001" loc_x="-12672" loc_y="122776" loc_z="-3116" price="500" fornoble="0" />
+  <teleport id="13002" loc_x="-57640" loc_y="156100" loc_z="-2500" price="500" fornoble="0" />
+  <teleport id="13003" loc_x="-20000" loc_y="180000" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="13004" loc_x="-21700" loc_y="140400" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="13005" loc_x="-16800" loc_y="166700" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="13006" loc_x="-11800" loc_y="183500" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="13007" loc_x="-22800" loc_y="201300" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="13021" loc_x="113000" loc_y="184500" loc_z="-3600" price="500" fornoble="0" />
+  <teleport id="13025" loc_x="83000" loc_y="40000" loc_z="-1500" price="500" fornoble="0" />
+  <teleport id="13029" loc_x="63200" loc_y="27300" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="13044" loc_x="41000" loc_y="-38000" loc_z="-1000" price="500" fornoble="0" />
+  <teleport id="13048" loc_x="147463" loc_y="10373" loc_z="-1224" price="500" fornoble="0" />
+  <teleport id="50041" loc_x="105800" loc_y="109656" loc_z="-3224" price="14000" fornoble="0" />
+  <teleport id="50042" loc_x="17720" loc_y="114152" loc_z="-11672" price="14000" fornoble="0" />
+  <teleport id="75001" loc_x="147948" loc_y="-55338" loc_z="-2734" price="500" fornoble="0" />
+  <teleport id="75002" loc_x="150868" loc_y="-123018" loc_z="-2296" price="0" fornoble="0" />
+  <teleport id="75003" loc_x="15670" loc_y="142983" loc_z="-2705" price="500" fornoble="0" />
+  <teleport id="75004" loc_x="43835" loc_y="-47749" loc_z="-792" price="500" fornoble="0" />
+  <teleport id="75005" loc_x="53444" loc_y="-86175" loc_z="-2890" price="0" fornoble="0" />
+  <teleport id="75006" loc_x="59780" loc_y="-42260" loc_z="-3000" price="500" fornoble="0" />
+  <teleport id="75007" loc_x="49400" loc_y="-38300" loc_z="-3300" price="500" fornoble="0" />
+  <teleport id="75008" loc_x="82956" loc_y="53162" loc_z="-1495" price="500" fornoble="0" />
+  <teleport id="75009" loc_x="85337" loc_y="16187" loc_z="-3694" price="500" fornoble="0" />
+  <teleport id="75010" loc_x="63200" loc_y="27300" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="75011" loc_x="84400" loc_y="36200" loc_z="-3300" price="500" fornoble="0" />
+  <teleport id="75012" loc_x="115200" loc_y="42700" loc_z="-3700" price="500" fornoble="0" />
+  <teleport id="75013" loc_x="119000" loc_y="26800" loc_z="-3500" price="500" fornoble="0" />
+  <teleport id="75014" loc_x="83000" loc_y="-16000" loc_z="-1800" price="0" fornoble="0" />
+  <teleport id="75015" loc_x="147926" loc_y="28164" loc_z="-2268" price="500" fornoble="0" />
+  <teleport id="75016" loc_x="185200" loc_y="20200" loc_z="-3400" price="0" fornoble="0" />
+  <teleport id="99990" loc_x="114674" loc_y="13984" loc_z="3960" price="150000" fornoble="0" />
+</list>

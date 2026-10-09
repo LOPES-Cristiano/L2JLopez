@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <list>
   <buylist id="1" npcId="30001">
     <product id="1" price="883" />
@@ -18938,5 +18938,55 @@
     <product id="6799" price="100000" />
     <product id="6800" price="300000" />
     <product id="6801" price="300000" />
+  </buylist>
+  <buylist id="10" npcId="30093">
+    <product id="908" price="13090" />
+    <product id="909" price="23430" />
+    <product id="910" price="39490" />
+    <product id="911" price="62480" />
+    <product id="912" price="94270" />
+    <product id="913" price="137500" />
+    <product id="845" price="9779" />
+    <product id="846" price="17600" />
+    <product id="847" price="29590" />
+    <product id="848" price="46860" />
+    <product id="849" price="70730" />
+    <product id="850" price="102740" />
+    <product id="877" price="6512" />
+    <product id="878" price="11770" />
+    <product id="890" price="19800" />
+    <product id="879" price="31240" />
+    <product id="880" price="47080" />
+    <product id="881" price="68530" />
+  </buylist>
+  <buylist id="3200700" npcId="32007">
+    <product id="7807" price="60" />
+    <product id="7808" price="84" />
+    <product id="7809" price="72" />
+    <product id="6520" price="144" />
+    <product id="6523" price="216" />
+    <product id="6526" price="180" />
+    <product id="8506" price="144" />
+    <product id="8509" price="216" />
+    <product id="8512" price="180" />
+    <product id="8484" price="288" />
+    <product id="8485" price="288" />
+    <product id="8486" price="120" />
+    <product id="6529" price="36000" />
+    <product id="6530" price="120000" />
+    <product id="6531" price="480000" />
+    <product id="6532" price="1440000" />
+    <product id="6533" price="4800000" />
+    <product id="6534" price="12000000" />
+    <product id="7561" price="120" />
+    <product id="8193" price="6000" />
+    <product id="8194" price="6000" />
+    <product id="8195" price="6000" />
+    <product id="8196" price="6000" />
+    <product id="8197" price="6000" />
+    <product id="8198" price="6000" />
+    <product id="8199" price="6000" />
+    <product id="8200" price="6000" />
+    <product id="8202" price="6000" />
   </buylist>
 </list>
