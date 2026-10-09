@@ -9,7 +9,10 @@ import java.util.Optional;
  */
 public final class EnchantScrollTable {
 
-	public record ScrollInfo(int itemId, boolean isWeapon, String grade, boolean isBlessed, boolean isCrystal) {
+	public record ScrollInfo(int itemId, boolean isWeapon, String grade, boolean isBlessed, boolean isCrystal, boolean isDonator) {
+		public ScrollInfo(int itemId, boolean isWeapon, String grade, boolean isBlessed, boolean isCrystal) {
+			this(itemId, isWeapon, grade, isBlessed, isCrystal, false);
+		}
 	}
 
 	private static final Map<Integer, ScrollInfo> SCROLLS = new HashMap<>();
@@ -56,10 +59,18 @@ public final class EnchantScrollTable {
 		add(950, false, "b", false, true);
 		add(732, false, "a", false, true);
 		add(962, false, "s", false, true);
+
+		// Donator Scrolls - All grades
+		add(9210, true, "all", false, false, true);
+		add(9211, false, "all", false, false, true);
 	}
 
 	private static void add(int itemId, boolean isWeapon, String grade, boolean isBlessed, boolean isCrystal) {
-		SCROLLS.put(itemId, new ScrollInfo(itemId, isWeapon, grade.toLowerCase(), isBlessed, isCrystal));
+		add(itemId, isWeapon, grade, isBlessed, isCrystal, false);
+	}
+
+	private static void add(int itemId, boolean isWeapon, String grade, boolean isBlessed, boolean isCrystal, boolean isDonator) {
+		SCROLLS.put(itemId, new ScrollInfo(itemId, isWeapon, grade.toLowerCase(), isBlessed, isCrystal, isDonator));
 	}
 
 	public static Optional<ScrollInfo> get(int itemId) {

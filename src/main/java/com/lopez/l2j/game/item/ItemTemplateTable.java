@@ -17,6 +17,10 @@ public interface ItemTemplateTable {
 
 	int size();
 
+	default Collection<ItemTemplate> all() {
+		return java.util.List.of();
+	}
+
 	/** Itens dados na criacao de um personagem da classe (os de classId -1 primeiro, como no legado). */
 	List<CreationItem> creationItems(int classId);
 
@@ -34,6 +38,11 @@ public interface ItemTemplateTable {
 			@Override
 			public int size() {
 				return byId.size();
+			}
+
+			@Override
+			public Collection<ItemTemplate> all() {
+				return byId.values();
 			}
 
 			@Override

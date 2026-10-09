@@ -111,7 +111,17 @@ public final class EnchantTableService {
 		boolean isWeapon = item.template().type2() == ItemTemplate.TYPE2_WEAPON;
 		boolean isJewelry = item.template().type2() == ItemTemplate.TYPE2_ACCESSORY;
 
-		if (scroll.isCrystal()) {
+		if (scroll.isDonator()) {
+			if (isWeapon && Config.ENCHANT_MAX_WEAPON_DONATOR > 0 && current >= Config.ENCHANT_MAX_WEAPON_DONATOR) {
+				return true;
+			}
+			if (isJewelry && Config.ENCHANT_MAX_JEWELRY_DONATOR > 0 && current >= Config.ENCHANT_MAX_JEWELRY_DONATOR) {
+				return true;
+			}
+			if (!isWeapon && !isJewelry && Config.ENCHANT_MAX_ARMOR_DONATOR > 0 && current >= Config.ENCHANT_MAX_ARMOR_DONATOR) {
+				return true;
+			}
+		} else if (scroll.isCrystal()) {
 			if (isWeapon && Config.ENCHANT_MAX_WEAPON_CRYSTAL > 0 && current >= Config.ENCHANT_MAX_WEAPON_CRYSTAL) {
 				return true;
 			}
@@ -162,7 +172,10 @@ public final class EnchantTableService {
 		boolean isJewelry = item.template().type2() == ItemTemplate.TYPE2_ACCESSORY;
 
 		String series;
-		if (scroll.isCrystal()) {
+		if (scroll.isDonator()) {
+			series = isWeapon ? Config.DONATOR_WEAPON_ENCHANT_LEVEL
+					: (isJewelry ? Config.DONATOR_JEWELRY_ENCHANT_LEVEL : Config.DONATOR_ARMOR_ENCHANT_LEVEL);
+		} else if (scroll.isCrystal()) {
 			series = isWeapon ? Config.CRYSTAL_WEAPON_ENCHANT_LEVEL
 					: (isJewelry ? Config.CRYSTAL_JEWELRY_ENCHANT_LEVEL : Config.CRYSTAL_ARMOR_ENCHANT_LEVEL);
 		} else if (scroll.isBlessed()) {
@@ -197,8 +210,8 @@ public final class EnchantTableService {
 		if (scroll == null || item == null) {
 			return -1;
 		}
-		if (scroll.isCrystal()) {
-			// Scroll Cristal: falha mantem o nivel de encantamento sem quebrar o item
+		if (scroll.isDonator() || scroll.isCrystal()) {
+			// Scroll Donator ou Cristal: falha mantem o nivel de encantamento sem quebrar o item
 			return item.enchant();
 		}
 		if (scroll.isBlessed()) {
@@ -214,5 +227,65 @@ public final class EnchantTableService {
 		}
 		// Pergaminho normal: item quebra e evapora
 		return -1;
+	}
+
+	/**
+	 * ID do item de cristal correspondente a grade (D, C, B, A, S).
+	 */
+	public static int getCrystalId(String crystalType) {
+		if (crystalType == null) {
+			return 0;
+		}
+		return switch (crystalType.toLowerCase(java.util.Locale.ROOT)) {
+			case "d" -> 1458;
+			case "c" -> 1459;
+			case "b" -> 1460;
+			case "a" -> 1461;
+			case "s" -> 1462;
+			default -> 0;
+		};
+	}
+
+	/**
+	 * Calcula a quantidade de cristais concedidos quando um item quebra no encantamento.
+	 */
+	public static int calculateCrystalsOnBreak(ItemInstance item) {
+		if (item == null || item.template() == null) {
+			return 0;
+		}
+		int crystalId = getCrystalId(item.template().crystalType());
+		if (crystalId == 0) {
+			return 0;
+		}
+		int price = item.template().price();
+		int crystalPrice = switch (item.template().crystalType().toLowerCase(java.util.Locale.ROOT)) {
+			case "d" -> 650;
+			case "c" -> 2500;
+			case "b" -> 11000;
+			case "a" -> 39000;
+			case "s" -> 180000;
+			default -> 0;
+		};
+		if (crystalPrice <= 0) {
+			return 0;
+		}
+		int baseCrystals = Math.max(1, price / crystalPrice);
+		int enchant = item.enchant();
+		if (enchant <= 0) {
+			return baseCrystals;
+		}
+		boolean isWeapon = item.template().type2() == ItemTemplate.TYPE2_WEAPON;
+		int bonusPerEnchant = switch (item.template().crystalType().toLowerCase(java.util.Locale.ROOT)) {
+			case "d" -> isWeapon ? 11 : 3;
+			case "c" -> isWeapon ? 15 : 4;
+			case "b" -> isWeapon ? 19 : 5;
+			case "a" -> isWeapon ? 23 : 6;
+			case "s" -> isWeapon ? 27 : 7;
+			default -> 0;
+		};
+		if (item.template().bodyPart() == ItemSlots.SLOT_FULL_ARMOR) {
+			bonusPerEnchant = (int) Math.round(bonusPerEnchant * 1.5);
+		}
+		return baseCrystals + (enchant * bonusPerEnchant);
 	}
 }

@@ -250,4 +250,56 @@ class EnchantAndEquipmentConfigurationTest {
 		var overEnchantedBow = createItem(602, bowTpl, 17);
 		assertFalse(EquipmentRestrictionService.canEquip(archer, overEnchantedBow));
 	}
+
+	@Test
+	@DisplayName("EnchantTableService: Pergaminhos Donator (9210, 9211) com chances personalizadas e limite seguro")
+	void testDonatorScrolls() {
+		Config.DONATOR_WEAPON_ENCHANT_LEVEL = "1,100;2,100;3,100;4,100;5,100;6,100;7,100;8,100;9,100;10,100;11,100;12,100;13,100;14,100;15,100;16,100;17,100;18,100;19,100;20,100;";
+		Config.ENCHANT_MAX_WEAPON_DONATOR = 20;
+
+		var donatorWeaponScroll = EnchantScrollTable.get(9210).orElseThrow();
+		assertTrue(donatorWeaponScroll.isDonator());
+		assertEquals("all", donatorWeaponScroll.grade());
+
+		var weaponTpl = ItemTemplate.weapon(1, 1, "Sword", "rhand", "sword", 1000, "s", 100, 50, 300, 10, 0, 1000, true, true, true, true);
+		var item19 = createItem(70, weaponTpl, 19);
+		var item20 = createItem(71, weaponTpl, 20);
+
+		// Nível 19 -> 100% de chance pelo DonatorWeaponEnchantLevel
+		assertEquals(100, EnchantTableService.getEnchantChance(donatorWeaponScroll, item19, 0));
+		assertFalse(EnchantTableService.isOverEnchant(item19, donatorWeaponScroll));
+
+		// Nível 20 atingiu o limite de Donator
+		assertTrue(EnchantTableService.isOverEnchant(item20, donatorWeaponScroll));
+
+		// Falha de Donator Scroll não quebra o item
+		assertEquals(19, EnchantTableService.calculateFailureEnchant(donatorWeaponScroll, item19));
+	}
+
+	@Test
+	@DisplayName("EnchantTableService: Cálculo de cristais na quebra de itens por encantamento normal")
+	void testCrystallizationOnBreak() {
+		// Arma C (preço 1.500.000, cristal tipo C = 1459, preço base de cristal C = 2.500)
+		var weaponTpl = ItemTemplate.weapon(1, 1, "Sword", "rhand", "sword", 1000, "c", 100, 50, 300, 10, 0, 1_500_000, true, true, true, true);
+		var weaponPlus3 = createItem(80, weaponTpl, 3);
+
+		assertEquals(1459, EnchantTableService.getCrystalId("c"));
+		assertEquals(1458, EnchantTableService.getCrystalId("d"));
+		assertEquals(1460, EnchantTableService.getCrystalId("b"));
+		assertEquals(1461, EnchantTableService.getCrystalId("a"));
+		assertEquals(1462, EnchantTableService.getCrystalId("s"));
+		assertEquals(0, EnchantTableService.getCrystalId("none"));
+
+		int baseCrystals = 1_500_000 / 2500; // 600
+		// Arma C no +3: base 600 + (3 * 15) = 645 cristais
+		int crystalsPlus3 = EnchantTableService.calculateCrystalsOnBreak(weaponPlus3);
+		assertEquals(baseCrystals + (3 * 15), crystalsPlus3);
+
+		// Armadura D (preço 65.000, cristal tipo D = 1458, preço de cristal D = 650)
+		var armorTpl = ItemTemplate.armor(2, 2, "Armor", "chest", "light", 2000, "d", 80, 40, 0, 0, 65_000, List.of(), true, true, true, true);
+		var armorPlus4 = createItem(81, armorTpl, 4);
+		int baseArmorCrystals = 65_000 / 650; // 100
+		// Armadura D no +4: base 100 + (4 * 3) = 112 cristais
+		assertEquals(baseArmorCrystals + (4 * 3), EnchantTableService.calculateCrystalsOnBreak(armorPlus4));
+	}
 }

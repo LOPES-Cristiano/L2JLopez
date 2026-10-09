@@ -53,6 +53,10 @@ public final class Inventory {
 		items.put(item.objectId(), item);
 	}
 
+	public void addItem(ItemInstance item) {
+		add(item);
+	}
+
 	/** Remove o item (desequipando se preciso); devolve os itens cujo estado mudou alem do removido. */
 	public Set<ItemInstance> remove(ItemInstance item) {
 		Set<ItemInstance> changed = unequip(item);

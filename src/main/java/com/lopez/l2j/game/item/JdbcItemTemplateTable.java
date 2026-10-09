@@ -42,6 +42,11 @@ class JdbcItemTemplateTable implements ItemTemplateTable {
 	}
 
 	@Override
+	public java.util.Collection<ItemTemplate> all() {
+		return data().byId().values();
+	}
+
+	@Override
 	public List<CreationItem> creationItems(int classId) {
 		Data d = data();
 		return ItemTemplateTable.filterCreation(d.creation(), classId, d.byId()::containsKey);
