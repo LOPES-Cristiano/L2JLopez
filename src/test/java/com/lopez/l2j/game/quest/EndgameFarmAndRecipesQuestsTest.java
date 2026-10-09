@@ -45,7 +45,7 @@ public class EndgameFarmAndRecipesQuestsTest {
 		// Give items
 		qs.giveItems(Quest374WhisperOfDreams1.CAVE_BEAST_TOOTH, 65);
 		qs.giveItems(Quest374WhisperOfDreams1.DEATH_BLADER_LIGHT, 65);
-		assertEquals("seer_manakia_q0374_04.htm", q374.onTalk(manakia, qs));
+		assertEquals("seer_manakia_q0374_05.htm", q374.onTalk(manakia, qs));
 
 		// Exchange
 		q374.onEvent("reward_exchange", qs);
@@ -131,7 +131,7 @@ public class EndgameFarmAndRecipesQuestsTest {
 
 		// With badge, can start
 		qs629.giveItems(Quest628HuntGoldenRam.RECRUIT_BADGE, 1);
-		assertEquals("merc_kahmun_q0629_01.htm", q629.onTalk(kahman, qs629));
+		assertEquals("merc_cap_peace_q0629_0101.htm", q629.onTalk(kahman, qs629));
 	}
 
 	@Test

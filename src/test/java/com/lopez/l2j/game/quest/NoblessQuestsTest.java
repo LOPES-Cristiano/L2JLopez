@@ -43,7 +43,7 @@ public class NoblessQuestsTest {
 		org.mockito.Mockito.when(mockCtx.questManager()).thenReturn(questManager);
 
 		session = new GameSession(mockCtx, new byte[16], "127.0.0.1", sentPackets::add);
-		setField(session, "state", GameClientPacket.State.IN_GAME);
+		setField(session, "state", com.lopez.l2j.network.game.packet.GameClientPacket.State.IN_GAME);
 		setField(session, "active", playerChar);
 		setField(session, "inWorld", true);
 	}
