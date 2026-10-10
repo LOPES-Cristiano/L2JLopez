@@ -1,90 +1,78 @@
 <html><title>Game Control Panel</title><body>
 <center>
-<table width=270>
-<tr>
-  <td align=center><button value="Main" action="bypass -h admin_admin" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="ALT+G" action="bypass -h admin_altg" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Players" action="bypass -h admin_players" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Server" action="bypass -h admin_server" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Tele" action="bypass -h admin_show_moves" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
+<font color="FF9900" align="center">_______________________________________</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Main" action="bypass -h admin_admin" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Game" action="bypass -h admin_admin2" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Effects" action="bypass -h admin_admin3" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Server" action="bypass -h admin_admin4" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Mods" action="bypass -h admin_admin5" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<img src="L2UI.SquareGray" width=270 height=1>
-
-<table width=270>
-<tr>
-  <td width=90><font color="LEVEL">Texto / Valor:</font></td>
-  <td width=180><edit var="qbox" width=170 height=16></td>
-</tr>
+<font color="FF9900" align="center">_______________________________________</font>
+<table width=260>
+	<tr>
+		<td width=60><font color="LEVEL">QuickBox:</font></td>
+		<td width=200><edit var="menu_command" width=195 height=15></td>
+	</tr>
 </table>
-
-<table width=270>
-<tr>
-  <td><font color="00FFBB">Edicao Rapida do Alvo</font></td>
-</tr>
+<font color="FF9900" align="center">_______________________________________</font>
+<br1>
+<font color="FF9900">Character related:</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Manage" action="bypass -h admin_char_manage" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="List" action="bypass -h admin_show_characters 0" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Set Name" action="bypass -h admin_setname $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Set Title" action="bypass -h admin_settitle $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<table width=270>
-<tr>
-  <td align=center><button value="Mudar Nome" action="bypass -h admin_changename $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Mudar Titulo" action="bypass -h admin_settitle $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Editar Char" action="bypass -h admin_edit_char" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
+<font color="FF9900">Clan related:</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Create" action="bypass -h admin_pledge create $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Delete" action="bypass -h admin_pledge dismiss $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Set Level" action="bypass -h admin_pledge setlevel $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Reputation" action="bypass -h admin_pledge rep $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<img src="L2UI.SquareGray" width=270 height=1>
-
-<table width=270>
-<tr>
-  <td><font color="00FFBB">Gerenciamento de Clas</font></td>
-</tr>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Castles/CH" action="bypass -h admin_siege" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Info" action="bypass -h admin_pledge info" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Fortress" action="bypass -h admin_fortsiege" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="~*Mods*~" action="bypass -h admin_admin5" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<table width=270>
-<tr>
-  <td align=center><button value="Criar Cla" action="bypass -h admin_pledge create $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Deletar Cla" action="bypass -h admin_pledge dismiss $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Nivel Cla" action="bypass -h admin_pledge setlevel $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
-<tr>
-  <td align=center><button value="Reputacao" action="bypass -h admin_pledge rep $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Castelos" action="bypass -h admin_siege" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Fortalezas" action="bypass -h admin_fortsiege" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
+<font color="FF9900">Cursed Weapons:</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Info" action="bypass -h admin_cw_info_menu" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Add" action="bypass -h admin_cw_add $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Remove" action="bypass -h admin_cw_remove $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Reload" action="bypass -h admin_cw_reload" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<img src="L2UI.SquareGray" width=270 height=1>
-
-<table width=270>
-<tr>
-  <td><font color="00FFBB">Armas Amaldicoadas (Cursed Weapons)</font></td>
-</tr>
+<font color="FF9900">Seven Signs:</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Blacksmith" action="bypass -h admin_mammon_find 1" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Merchant" action="bypass -h admin_mammon_find 2" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Respawn" action="bypass -h admin_mammon_respawn" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Status" action="bypass -h admin_ssq" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<table width=270>
-<tr>
-  <td align=center><button value="Status Armas" action="bypass -h admin_cw_info_menu" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Adicionar CW" action="bypass -h admin_cw_add $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Remover CW" action="bypass -h admin_cw_remove $qbox" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
+<font color="FF9900">Olympiad:</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Save Oly" action="bypass -h admin_saveolymp" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="End Oly" action="bypass -h admin_endolympiad" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Manual Hero" action="bypass -h admin_manualhero" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Oly Menu" action="bypass -h admin_show_html olympiad.htm" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<img src="L2UI.SquareGray" width=270 height=1>
-
-<table width=270>
-<tr>
-  <td><font color="00FFBB">Seven Signs & Mammon</font></td>
-</tr>
-</table>
-
-<table width=270>
-<tr>
-  <td align=center><button value="Blacksmith" action="bypass -h admin_mammon_find 1" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Merchant" action="bypass -h admin_mammon_find 2" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Prox Periodo" action="bypass -h admin_ss_period_change" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
-</table>
-
+<font color="FF9900" align="center">_______________________________________</font>
 </center>
-</body></html>
+</body>
+</html>

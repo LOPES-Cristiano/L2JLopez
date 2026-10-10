@@ -1,73 +1,59 @@
-<html><title>Effects Control Panel</title><body>
+<html><title>Effects Menu</title><body>
 <center>
-<table width=270>
-<tr>
-  <td align=center><button value="Main" action="bypass -h admin_admin" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="ALT+G" action="bypass -h admin_altg" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Players" action="bypass -h admin_players" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Server" action="bypass -h admin_server" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Tele" action="bypass -h admin_show_moves" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
+<font color="FF9900" align="center">_______________________________________</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Main" action="bypass -h admin_admin" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Game" action="bypass -h admin_admin2" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Effects" action="bypass -h admin_admin3" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Server" action="bypass -h admin_admin4" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Mods" action="bypass -h admin_admin5" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<img src="L2UI.SquareGray" width=270 height=1>
-
-<table width=270>
-<tr>
-  <td><font color="00FFBB">Submenus de Efeitos</font></td>
-</tr>
+<font color="FF9900" align="center">_______________________________________</font>
+<table width=260>
+	<tr>
+		<td width=60><font color="LEVEL">QuickBox:</font></td>
+		<td width=200><edit var="menu_command" width=195 height=15></td>
+	</tr>
 </table>
-
-<table width=270>
-<tr>
-  <td align=center><button value="Acoes Sociais" action="bypass -h admin_social_menu" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Abnormal Effects" action="bypass -h admin_abnormal_menu" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
-<tr>
-  <td align=center><button value="Gerenciar Sons" action="bypass -h admin_sounds" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Mob Groups" action="bypass -h admin_mobmenu" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
+<font color="FF9900" align="center">_______________________________________</font>
+<br1>
+<font color="FF9900">Transformations:</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="PolyMorph" action="bypass -h admin_polymorph_menu $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="UnPoly" action="bypass -h admin_unpolymorph_menu" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Para" action="bypass -h admin_para_menu $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="UnPara" action="bypass -h admin_unpara_menu $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<img src="L2UI.SquareGray" width=270 height=1>
-
-<table width=270>
-<tr>
-  <td><font color="00FFBB">Controle de Paralizacao</font></td>
-</tr>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="ParaAll" action="bypass -h admin_para_all_menu" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="UnParaAll" action="bypass -h admin_unpara_all_menu" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Social" action="bypass -h admin_social_menu $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Abnormal" action="bypass -h admin_abnormal_menu $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<table width=270>
-<tr>
-  <td align=center><button value="Paralisar Target" action="bypass -h admin_para" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Desparalisar Target" action="bypass -h admin_unpara" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
-<tr>
-  <td align=center><button value="Paralisar Todos" action="bypass -h admin_para_all" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Desparalisar Todos" action="bypass -h admin_unpara_all" width=130 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
+<font color="FF9900">Atmosphere & Others:</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Day Sky" action="bypass -h admin_atmosphere sky day" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Night Sky" action="bypass -h admin_atmosphere sky night" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Dawn Sky" action="bypass -h admin_atmosphere signsky dawn" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Dusk Sky" action="bypass -h admin_atmosphere signsky dusk" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<img src="L2UI.SquareGray" width=270 height=1>
-
-<table width=270>
-<tr>
-  <td><font color="00FFBB">Clima e Atmosfera Global</font></td>
-</tr>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Red Sky" action="bypass -h admin_atmosphere sky red" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Quake" action="bypass -h admin_earthquake 30" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Sounds" action="bypass -h admin_play_sounds" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="MobGroup" action="bypass -h admin_mobmenu" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<table width=270>
-<tr>
-  <td align=center><button value="Ceu Dia" action="bypass -h admin_atmosphere sky day" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Ceu Noite" action="bypass -h admin_atmosphere sky night" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Ceu Dawn" action="bypass -h admin_atmosphere signsky dawn" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
-<tr>
-  <td align=center><button value="Ceu Dusk" action="bypass -h admin_atmosphere signsky dusk" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Ceu Vermelho" action="bypass -h admin_atmosphere sky red" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Terremoto" action="bypass -h admin_earthquake 30" width=85 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
-</table>
-
+<font color="FF9900" align="center">_______________________________________</font>
 </center>
-</body></html>
+</body>
+</html>
