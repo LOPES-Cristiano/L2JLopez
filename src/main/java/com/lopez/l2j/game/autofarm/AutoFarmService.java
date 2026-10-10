@@ -57,18 +57,110 @@ public class AutoFarmService {
         return activeFarmStates.get(playerId);
     }
 
+    public AutoFarmState getOrCreateState(int playerId) {
+        return activeFarmStates.computeIfAbsent(playerId, id -> new AutoFarmState(id, false));
+    }
+
     public void setMode(int playerId, AutoFarmMode mode) {
-        AutoFarmState state = activeFarmStates.get(playerId);
-        if (state != null) {
-            state.setMode(mode);
-        }
+        getOrCreateState(playerId).setMode(mode);
     }
 
     public void setSelectedSkill(int playerId, int skillId) {
-        AutoFarmState state = activeFarmStates.get(playerId);
-        if (state != null) {
-            state.setSelectedSkillId(skillId);
+        getOrCreateState(playerId).setSelectedSkillId(skillId);
+    }
+
+    public void setFarmRadius(int playerId, int radius) {
+        getOrCreateState(playerId).setFarmRadius(radius);
+    }
+
+    public void setAutoPotionHpThreshold(int playerId, double threshold) {
+        getOrCreateState(playerId).setAutoPotionHpThreshold(threshold);
+    }
+
+    /**
+     * Renderiza o painel grafico interativo HTML do Auto-Farm (.autofarm)
+     */
+    public String renderHtml(PlayerCharacter player, com.lopez.l2j.game.skill.SkillService skillService) {
+        if (player == null) {
+            return "<html><body>Erro de sessao.</body></html>";
         }
+        AutoFarmState state = getOrCreateState(player.objectId());
+        StringBuilder sb = new StringBuilder();
+        sb.append("<html><body>");
+        sb.append("<table width=270 cellpadding=2 cellspacing=0>");
+        sb.append("<tr><td align=center><font color=\"LEVEL\"><b>SISTEMA DE AUTO-FARM</b></font></td></tr>");
+        sb.append("<tr><td align=center><font color=\"AAAAAA\">Automacao de caca e assistencia de combate</font></td></tr>");
+        sb.append("</table><br>");
+
+        sb.append("<table width=270 bgcolor=222222 border=1 cellpadding=4 cellspacing=0>");
+        sb.append("<tr><td><b>Status:</b></td><td align=center>");
+        if (state.isEnabled()) {
+            sb.append("<font color=\"00FF00\"><b>ATIVO</b></font></td><td align=center>");
+            sb.append("<button value=\"Desativar\" action=\"bypass -h voiced_autofarm toggle\" width=70 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
+        } else {
+            sb.append("<font color=\"FF0000\"><b>DESLIGADO</b></font></td><td align=center>");
+            sb.append("<button value=\"Ativar\" action=\"bypass -h voiced_autofarm toggle\" width=70 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
+        }
+        sb.append("</td></tr>");
+
+        // Modo de combate
+        sb.append("<tr><td><b>Modo:</b></td><td colspan=2 align=center>");
+        sb.append(state.getMode() == AutoFarmMode.FIGHTER ? "<font color=\"00FF00\">[Fighter]</font> " : "<a action=\"bypass -h voiced_autofarm mode FIGHTER\">[Fighter]</a> ");
+        sb.append(state.getMode() == AutoFarmMode.MAGE ? "<font color=\"00FF00\">[Mage]</font> " : "<a action=\"bypass -h voiced_autofarm mode MAGE\">[Mage]</a> ");
+        sb.append(state.getMode() == AutoFarmMode.BALANCED ? "<font color=\"00FF00\">[Balanced]</font>" : "<a action=\"bypass -h voiced_autofarm mode BALANCED\">[Balanced]</a>");
+        sb.append("</td></tr>");
+
+        // Raio
+        sb.append("<tr><td><b>Raio:</b> <font color=\"LEVEL\">").append(state.getFarmRadius()).append("</font></td><td colspan=2 align=center>");
+        sb.append("<a action=\"bypass -h voiced_autofarm radius 600\">[600]</a> ");
+        sb.append("<a action=\"bypass -h voiced_autofarm radius 1000\">[1000]</a> ");
+        sb.append("<a action=\"bypass -h voiced_autofarm radius 1400\">[1400]</a> ");
+        sb.append("<a action=\"bypass -h voiced_autofarm radius 1800\">[1800]</a>");
+        sb.append("</td></tr>");
+
+        // Auto Potion HP
+        int hpPct = (int) Math.round(state.getAutoPotionHpThreshold() * 100);
+        sb.append("<tr><td><b>Pocao HP:</b> <font color=\"FF5555\">").append(hpPct).append("%</font></td><td colspan=2 align=center>");
+        sb.append("<a action=\"bypass -h voiced_autofarm hp 40\">[40%]</a> ");
+        sb.append("<a action=\"bypass -h voiced_autofarm hp 60\">[60%]</a> ");
+        sb.append("<a action=\"bypass -h voiced_autofarm hp 80\">[80%]</a>");
+        sb.append("</td></tr>");
+
+        // Skill selecionada para Mage/Balanced
+        if (state.getMode() != AutoFarmMode.FIGHTER) {
+            String skillName = "Nenhuma";
+            if (state.getSelectedSkillId() > 0 && skillService != null) {
+                var sk = skillService.known(player, state.getSelectedSkillId()).orElse(null);
+                if (sk != null) {
+                    skillName = sk.name();
+                } else {
+                    skillName = "Skill #" + state.getSelectedSkillId();
+                }
+            }
+            sb.append("<tr><td colspan=3><b>Magia Ativa:</b> <font color=\"00CCFF\">").append(skillName).append("</font></td></tr>");
+            if (skillService != null && player.skills() != null && !player.skills().isEmpty()) {
+                sb.append("<tr><td colspan=3><font color=\"AAAAAA\">Selecione uma habilidade:</font><br>");
+                int count = 0;
+                for (int skillId : player.skills().keySet()) {
+                    var sk = skillService.known(player, skillId).orElse(null);
+                    if (sk != null && (sk.magic() || sk.isOffensive()) && !sk.isPassive() && !sk.isToggle()) {
+                        sb.append("<a action=\"bypass -h voiced_autofarm skill ").append(skillId).append("\">")
+                          .append("[").append(sk.name()).append("]</a> ");
+                        count++;
+                        if (count % 2 == 0) sb.append("<br>");
+                        if (count >= 8) break;
+                    }
+                }
+                sb.append("</td></tr>");
+            }
+        }
+        sb.append("</table><br>");
+
+        sb.append("<table width=270>");
+        sb.append("<tr><td align=center><font color=\"888888\">Comandos no chat: .autofarm | .farm</font></td></tr>");
+        sb.append("</table>");
+        sb.append("</body></html>");
+        return sb.toString();
     }
 
     /**
