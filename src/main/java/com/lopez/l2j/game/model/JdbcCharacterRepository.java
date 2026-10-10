@@ -97,13 +97,14 @@ class JdbcCharacterRepository implements CharacterRepository {
 	@Override
 	public void saveState(PlayerCharacter c, boolean online) {
 		jdbc.sql("""
-				UPDATE characters SET classid = :classId, base_class = :baseClass, x = :x, y = :y, z = :z, heading = :heading, level = :level,
+				UPDATE characters SET sex = :sex, classid = :classId, base_class = :baseClass, x = :x, y = :y, z = :z, heading = :heading, level = :level,
 				  exp = :exp, sp = :sp, maxHp = :maxHp, maxMp = :maxMp, maxCp = :maxCp, curHp = :hp,
 				  curMp = :mp, curCp = :cp, face = :face, hairStyle = :hairStyle, hairColor = :hairColor,
 				  online = :online, lastAccess = :now, accesslevel = :accesslevel,
 				  rec_have = :recHave, rec_left = :recLeft, last_recom_date = :lastRecomDate,
 				  vip = :vip, vip_end = :vipEnd, aio = :aio, aio_end = :aioEnd WHERE charId = :id
 				""")
+				.param("sex", c.female() ? 1 : 0)
 				.param("classId", c.classId())
 				.param("baseClass", c.baseClassId())
 				.param("x", c.x())

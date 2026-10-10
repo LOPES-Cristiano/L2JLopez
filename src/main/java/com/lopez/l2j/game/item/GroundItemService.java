@@ -125,6 +125,9 @@ public class GroundItemService {
 		if (world != null) {
 			var dropPkt = new DropItem(dropperId, instance.objectId(), instance.itemId(), x, y, z, stackable, instance.count());
 			world.broadcastAround(x, y, GameWorld.VISIBILITY_RADIUS, dropPkt);
+			for (var p : world.findPlayersAround(x, y, GameWorld.VISIBILITY_RADIUS)) {
+				p.addKnownObject(instance.objectId());
+			}
 		}
 		return gi;
 	}
@@ -170,12 +173,15 @@ public class GroundItemService {
 		if (world != null) {
 			var dropPkt = new DropItem(dropperId, objectId, itemId, x, y, z, stackable, count);
 			world.broadcastAround(x, y, GameWorld.VISIBILITY_RADIUS, dropPkt);
+			for (var p : world.findPlayersAround(x, y, GameWorld.VISIBILITY_RADIUS)) {
+				p.addKnownObject(objectId);
+			}
 		}
 		return gi;
 	}
 
 	/**
-	 * Recolhe o item do chao e notifica jogadores proximos com GetItem.
+	 * Recolhe o item do chao e notifica jogadores proximos com GetItem e DeleteObject.
 	 */
 	public Optional<GroundItem> pickupItem(PlayerCharacter player, int itemObjectId) {
 		GroundItem gi = itemsByObjectId.remove(itemObjectId);
@@ -183,9 +189,16 @@ public class GroundItemService {
 			return Optional.empty();
 		}
 
-		if (world != null && player != null) {
-			var getPkt = new GetItem(player.objectId(), gi.objectId(), gi.x(), gi.y(), gi.z());
-			world.broadcastAround(player.x(), player.y(), GameWorld.VISIBILITY_RADIUS, getPkt);
+		if (world != null) {
+			if (player != null) {
+				var getPkt = new GetItem(player.objectId(), gi.objectId(), gi.x(), gi.y(), gi.z());
+				world.broadcastAround(player.x(), player.y(), GameWorld.VISIBILITY_RADIUS, getPkt);
+			}
+			var delPkt = new DeleteObject(gi.objectId());
+			world.broadcastAround(gi.x(), gi.y(), GameWorld.VISIBILITY_RADIUS, delPkt);
+			for (var p : world.findPlayersAround(gi.x(), gi.y(), GameWorld.VISIBILITY_RADIUS)) {
+				p.removeKnownObject(gi.objectId());
+			}
 		}
 		return Optional.of(gi);
 	}
@@ -203,6 +216,9 @@ public class GroundItemService {
 			itemsByObjectId.remove(gi.objectId());
 			if (world != null) {
 				world.broadcastAround(gi.x(), gi.y(), GameWorld.VISIBILITY_RADIUS, new DeleteObject(gi.objectId()));
+				for (var p : world.findPlayersAround(gi.x(), gi.y(), GameWorld.VISIBILITY_RADIUS)) {
+					p.removeKnownObject(gi.objectId());
+				}
 			}
 		}
 		if (!expired.isEmpty()) {
