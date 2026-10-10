@@ -1,43 +1,48 @@
-<html><title>Items</title><body>
+<html><title>Item</title><body><center>
+<font color="FF9900" align="center">_______________________________________</font>
+<br>
 <table width=260>
 <tr>
-<td width=40><button value="Main" action="bypass -h admin_admin" width=40 height=20 back="sek.cbui94" fore="sek.cbui94"></td>
-<td width=180><center>Item Creation Menu</center></td>
-<td width=40><button value="Back" action="bypass -h admin_admin" width=40 height=20 back="sek.cbui94" fore="sek.cbui94"></td>
-</tr>
-</table><br><br>
-<table width=270>
-<tr><td>Fill the ID number in item-id to create the item that</td></tr>
-<tr><td>you want, use amount if you need more than one.</td></tr>
-<tr><td><br></td></tr>
-<tr><td>Caution:</td></tr>
-<tr><td>Do not use amount with non-stackable items.</td></tr>
-<tr><td><br></td></tr>
-</table>
-<center>
+<td width=40><button value="Main" action="bypass -h admin_admin" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+<td width=140><center><font color="FF9900" align="center">Item Creation Menu</font></center></td>
+<td width=40><button value="Back" action="bypass -h admin_admin" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+</tr></table><br>
+<font color="FF9900" align="center">_______________________________________</font>
+<br>
 <table>
 <tr>
-<td>Item-ID: <edit var="itemid" width=50></td>
-<td>Amount: <edit var="itemnum" width=50></td>
-<td>&nbsp;<button value="Create Item" action="bypass -h admin_create_item $itemid $itemnum" width=70 height=20 back="sek.cbui94" fore="sek.cbui94"></td>
+<td>Item-ID <edit var="itemid" width=50></td>
+<td>Amount <edit var="itemnum" width=50></td>
+<td>&nbsp;<button value="Create Item" action="bypass -h admin_create_item $itemid $itemnum" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
 </tr>
-</table>
-</center><br><br>
-<center>
-<table>
-<tr><td><center>Assets: <edit var="asset" width=70 height=11></center></td></tr>
-</table><br>
-<table>
 <tr>
-<td>
-<button value="GM Shop" action="bypass -h admin_gmshop" width=95 height=20 back="sek.cbui94" fore="sek.cbui94">
-<button value="Adena" action="bypass -h admin_create_item 57 $asset" width=95 height=20 back="sek.cbui94" fore="sek.cbui94">
-<button value="Ancient Adena" action="bypass -h admin_create_item 5575 $asset" width=95 height=20 back="sek.cbui94" fore="sek.cbui94">
-<button value="Blue Seal Stones" action="bypass -h admin_create_item 6360 $asset" width=95 height=20 back="sek.cbui94" fore="sek.cbui94">
-<button value="Green Seal Stones" action="bypass -h admin_create_item 6361 $asset" width=95 height=20 back="sek.cbui94" fore="sek.cbui94">
-<button value="Red Seal Stones" action="bypass -h admin_create_item 6362 $asset" width=95 height=20 back="sek.cbui94" fore="sek.cbui94">
-</td>
-</tr>
+<td><edit var="massitemid" width=50></td>
+<td><edit var="massitemnum" width=50></td>
+<td><button value="Mass Create" action="bypass -h admin_mass_create $massitemid $massitemnum" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+</tr></table><br>
+<font color="FF9900" align="center">_______________________________________</font>
+<br>
+<button value="Clear Inventory" action="bypass -h admin_clear_inventory" width=75 height=21 back="L2UI_ch3.Btn1_normalOn" fore="L2UI_ch3.Btn1_normal"></td>
+<br1>
+<font color="FF9900" align="center">_______________________________________</font>
+<table>
+<tr><td><center>Amount <edit var="asset" width=70 height=11></center></td></tr>
+</table>
+<br>
+<table width=120 bgcolor="000000">
+	<tr>
+		<td><button value="Adena" action="bypass -h admin_create_item 57 $asset" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Ancient" action="bypass -h admin_create_item 5575 $asset" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
+</table>
+<br>
+<table bgcolor="000000" border="1" width="280">
+	<tr>
+		<p><td align=center><button value="Water Mantra" action="bypass -h admin_create_item 5570 $asset" width=75 height=21 back="L2UI_ch3.Btn1_normalOn" fore="L2UI_ch3.Btn1_normal"></td></p>
+		<p><td align=center><button value="Wind Mantra" action="bypass -h admin_create_item 5572 $asset" width=75 height=21 back="L2UI_ch3.Btn1_normalOn" fore="L2UI_ch3.Btn1_normal"></td></p>
+		<p><td align=center><button value="Fire Mantra" action="bypass -h admin_create_item 5574 $asset" width=75 height=21 back="L2UI_ch3.Btn1_normalOn" fore="L2UI_ch3.Btn1_normal"></td></p>
+	</tr>
 </table>
 </center>
-</body></html>
+</body>
+</html>
