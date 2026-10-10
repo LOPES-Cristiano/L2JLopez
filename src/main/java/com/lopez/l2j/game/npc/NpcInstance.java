@@ -58,14 +58,32 @@ public final class NpcInstance {
 	public int spawnY() { return spawnY; }
 	public int spawnZ() { return spawnZ; }
 	public int spawnHeading() { return spawnHeading; }
-	public double currentHp() { return currentHp; }
-	public void currentHp(double value) { this.currentHp = value; }
+	public double currentHp() {
+		return dead ? 0.0 : currentHp;
+	}
+
+	public void currentHp(double value) {
+		if (dead) {
+			this.currentHp = 0.0;
+			return;
+		}
+		this.currentHp = Math.max(0.0, value);
+		if (this.currentHp <= 0.0) {
+			this.dead = true;
+		}
+	}
+
 	public double currentMp() { return currentMp; }
 	public void currentMp(double value) { this.currentMp = value; }
-	public boolean isDead() { return dead; }
+
+	public boolean isDead() {
+		return dead;
+	}
+
 	public void dead(boolean value) {
 		this.dead = value;
 		if (value) {
+			this.currentHp = 0.0;
 			abortAttack();
 			abortCast();
 		}
@@ -87,6 +105,7 @@ public final class NpcInstance {
 	private volatile java.util.concurrent.ScheduledFuture<?> currentAttackTask;
 	private volatile java.util.concurrent.ScheduledFuture<?> currentCastTask;
 	private volatile boolean casting;
+	private volatile long attackEndTime;
 
 	public boolean isCasting() {
 		return casting;
@@ -94,6 +113,18 @@ public final class NpcInstance {
 
 	public void casting(boolean value) {
 		this.casting = value;
+	}
+
+	public long attackEndTime() {
+		return attackEndTime;
+	}
+
+	public void attackEndTime(long attackEndTime) {
+		this.attackEndTime = attackEndTime;
+	}
+
+	public boolean isAttacking() {
+		return System.currentTimeMillis() < attackEndTime;
 	}
 
 	public java.util.concurrent.ScheduledFuture<?> currentAttackTask() {
@@ -121,6 +152,7 @@ public final class NpcInstance {
 	}
 
 	public void abortAttack() {
+		this.attackEndTime = 0;
 		var task = this.currentAttackTask;
 		if (task != null) {
 			task.cancel(false);
@@ -197,12 +229,24 @@ public final class NpcInstance {
 
 	private volatile int masterObjectId;
 	private final java.util.List<NpcInstance> minions = new java.util.concurrent.CopyOnWriteArrayList<>();
+	private volatile boolean raidMinion;
 
 	public int masterObjectId() { return masterObjectId; }
 	public void masterObjectId(int id) { this.masterObjectId = id; }
 	public java.util.List<NpcInstance> minions() { return minions; }
 	public boolean hasMinions() { return !minions.isEmpty(); }
 	public boolean isMinion() { return masterObjectId != 0 || template.isMinion(); }
+	public boolean isRaidMinion() {
+		return raidMinion || (template != null && (
+				"L2RaidMinion".equalsIgnoreCase(template.type())
+				|| "L2GrandBossMinion".equalsIgnoreCase(template.type())
+		));
+	}
+	public void raidMinion(boolean value) { this.raidMinion = value; }
+
+	public void moveTo(int x, int y, int z) {
+		moveTo(x, y, z, this.heading);
+	}
 
 	public void moveTo(int x, int y, int z, int heading) {
 		this.x = x;
@@ -227,6 +271,9 @@ public final class NpcInstance {
 	public void addMinion(NpcInstance minion) {
 		if (minion != null && !minions.contains(minion)) {
 			minion.masterObjectId(this.objectId);
+			if (this.template != null && (this.template.isRaidBoss() || this.template.isGrandBoss())) {
+				minion.raidMinion(true);
+			}
 			minions.add(minion);
 		}
 	}

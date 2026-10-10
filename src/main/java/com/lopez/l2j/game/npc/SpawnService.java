@@ -96,6 +96,10 @@ public class SpawnService {
 		return z;
 	}
 
+	public NpcTemplateTable templates() {
+		return templates;
+	}
+
 	public Optional<NpcInstance> spawn(int npcId, int x, int y, int z, int heading) {
 		return spawn(npcId, x, y, z, heading, false);
 	}
@@ -308,6 +312,9 @@ public class SpawnService {
 				int minionObjId = objectIds.nextId();
 				NpcInstance minion = new NpcInstance(minionObjId, minionTemplate, mx, my, correctZ(mx, my, mz), mHeading);
 				minion.masterObjectId(master.objectId());
+				if (master.template() != null && (master.template().isRaidBoss() || master.template().isGrandBoss())) {
+					minion.raidMinion(true);
+				}
 				master.minions().add(minion);
 				world.addNpc(minion);
 				spawned++;
