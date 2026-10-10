@@ -68,24 +68,11 @@ public class Quest255Tutorial extends Quest {
 	public Quest255Tutorial(QuestManager questManager) {
 		super(QUEST_ID, QUEST_NAME, "Tutorial");
 
-		registerQuestItems(TUTORIAL_GUIDE, BLUE_GEMSTONE);
+		registerQuestItems(TUTORIAL_GUIDE);
 
-		for (int npcId : NEWBIE_GUIDES) {
-			addStartNpc(npcId);
-			addTalkId(npcId);
-			addFirstTalkId(npcId);
+		if (questManager != null) {
+			questManager.registerQuest(this);
 		}
-
-		for (int npcId : NEWBIE_HELPERS) {
-			addTalkId(npcId);
-			addFirstTalkId(npcId);
-		}
-
-		for (int mobId : TUTORIAL_MOBS) {
-			addKillId(mobId);
-		}
-
-		questManager.registerQuest(this);
 	}
 
 	@Override
@@ -98,10 +85,14 @@ public class Quest255Tutorial extends Quest {
 			return;
 		}
 		QuestState qs = newQuestState(player);
-		if (qs.isCreated()) {
+		if (qs.getInt("onlyone") == 0) {
 			qs.setState(State.STARTED);
 			qs.setCond(1);
+			qs.set("onlyone", 1);
 			qs.set("ucMemo", 0);
+			if (qs.getQuestItemsCount(TUTORIAL_GUIDE) == 0) {
+				qs.giveItems(TUTORIAL_GUIDE, 1);
+			}
 			String voice = switch (c.classId()) {
 				case 0 -> "tutorial_voice_001a"; // Human Fighter
 				case 10 -> "tutorial_voice_001b"; // Human Mystic
@@ -114,9 +105,22 @@ public class Quest255Tutorial extends Quest {
 				case 53 -> "tutorial_voice_001i"; // Dwarven Fighter
 				default -> "tutorial_voice_001a";
 			};
+			String initialHtm = switch (c.classId()) {
+				case 0 -> "tutorial_human_fighter001.htm";
+				case 10 -> "tutorial_human_mage001.htm";
+				case 18 -> "tutorial_elven_fighter001.htm";
+				case 25 -> "tutorial_elven_mage001.htm";
+				case 31 -> "tutorial_delf_fighter001.htm";
+				case 38 -> "tutorial_delf_mage001.htm";
+				case 44 -> "tutorial_orc_fighter001.htm";
+				case 49 -> "tutorial_orc_mage001.htm";
+				case 53 -> "tutorial_dwarven_fighter001.htm";
+				default -> "tutorial_human_fighter001.htm";
+			};
 			qs.playTutorialVoice(voice);
 			qs.showQuestionMark(1);
 			qs.playSound("ItemSound.quest_tutorial");
+			qs.showTutorialHtml(initialHtm);
 		}
 	}
 
@@ -149,14 +153,9 @@ public class Quest255Tutorial extends Quest {
 		if (qs == null) {
 			qs = newQuestState(player);
 		}
-
-		int npcId = npc.npcId();
-
-		// Se tem a Blue Gemstone e fala com o Newbie Guide ou Helper
 		if (qs.getQuestItemsCount(BLUE_GEMSTONE) > 0) {
 			qs.takeItems(BLUE_GEMSTONE, 1);
 			boolean isMage = isMageClass(c.classId());
-
 			if (isMage) {
 				qs.giveItems(SPIRITSHOT_NOVICE, 100);
 			} else {
@@ -165,20 +164,12 @@ public class Quest255Tutorial extends Quest {
 			qs.addExpAndSp(100, 50);
 			qs.setState(State.COMPLETED);
 			qs.playSound("ItemSound.quest_finish");
-
 			return "<html><body>Newbie Guide:<br>Very well done! Here is your reward. May your journey in the world of Aden be glorious!</body></html>";
 		}
-
 		if (qs.isCompleted()) {
 			return "<html><body>Newbie Guide:<br>You have already completed your basic training. Venture forth and speak with the Guild Masters in town!</body></html>";
 		}
-
 		return "<html><body>Newbie Guide:<br>Greetings, young adventurer! Defeat a nearby monster to recover a Blue Gemstone and return to me.</body></html>";
-	}
-
-	@Override
-	public String onFirstTalk(NpcInstance npc, GameSession player) {
-		return onTalk(npc, player);
 	}
 
 	@Override
@@ -227,14 +218,21 @@ public class Quest255Tutorial extends Quest {
 			qs = newQuestState(player);
 		}
 
-		if (event.startsWith("QM")) {
+		String cleanEvent = event.trim();
+		if (cleanEvent.startsWith("link ")) {
+			cleanEvent = cleanEvent.substring(5).trim();
+		} else if (cleanEvent.startsWith("bypass -h ")) {
+			cleanEvent = cleanEvent.substring(10).trim();
+		}
+
+		if (cleanEvent.startsWith("QM")) {
 			int markId = 0;
 			try {
-				markId = Integer.parseInt(event.substring(2));
+				markId = Integer.parseInt(cleanEvent.substring(2));
 			} catch (NumberFormatException ignored) {}
 
 			int classId = player.activeChar() != null ? player.activeChar().classId() : 0;
-			if (markId == 1) {
+			if (markId == 1 || markId == 5) {
 				switch (classId) {
 					case 0, 10 -> qs.addRadar(-71424, 258336, -3104);
 					case 18, 25 -> qs.addRadar(46112, 41200, -3504);
@@ -255,8 +253,16 @@ public class Quest255Tutorial extends Quest {
 					case 53 -> "tutorial_dwarven_fighter007.htm";
 					default -> "tutorial_02.htm";
 				};
+				case 3 -> "tutorial_09.htm";
 				case 5 -> "tutorial_11.htm";
+				case 7, 12 -> "tutorial_15.htm";
+				case 8 -> "tutorial_18.htm";
 				case 9 -> isMageClass(classId) ? "tutorial_mage017.htm" : "tutorial_fighter017.htm";
+				case 10 -> "tutorial_19.htm";
+				case 11 -> "tutorial_mage017.htm";
+				case 13 -> "tutorial_30.htm";
+				case 17 -> "tutorial_27.htm";
+				case 23 -> "tutorial_24.htm";
 				case 24 -> switch (classId) {
 					case 0, 10 -> "tutorial_human009.htm";
 					case 18, 25 -> "tutorial_elf009.htm";
@@ -265,7 +271,21 @@ public class Quest255Tutorial extends Quest {
 					case 53 -> "tutorial_dwarven009.htm";
 					default -> "tutorial_human009.htm";
 				};
-				case 35 -> "tutorial_21.htm";
+				case 26 -> isMageClass(classId) ? "tutorial_newbie004b.htm" : "tutorial_newbie004a.htm";
+				case 27 -> "tutorial_20.htm";
+				case 34 -> "tutorial_28.htm";
+				case 35 -> switch (classId) {
+					case 0 -> "tutorial_21.htm";
+					case 10 -> "tutorial_21a.htm";
+					case 18 -> "tutorial_21b.htm";
+					case 25 -> "tutorial_21c.htm";
+					case 31 -> "tutorial_21g.htm";
+					case 38 -> "tutorial_21h.htm";
+					case 44 -> "tutorial_21d.htm";
+					case 49 -> "tutorial_21e.htm";
+					case 53 -> "tutorial_21f.htm";
+					default -> "tutorial_21.htm";
+				};
 				default -> "tutorial_02.htm";
 			};
 
@@ -275,13 +295,136 @@ public class Quest255Tutorial extends Quest {
 			}
 			if (html == null || html.isBlank()) {
 				html = "<html><body><center><font color=\"LEVEL\">[Tutorial]</font></center><br>"
-						+ "Welcome to Lineage 2!<br><a action=\"link TE07\">Exit the Tutorial</a></body></html>";
+						+ "Welcome to Lineage 2!<br><a action=\"link TE00\">Exit the Tutorial</a></body></html>";
 			}
 			qs.showTutorialHtml(html);
-		} else if ("CE1".equalsIgnoreCase(event)) {
-			qs.onTutorialClientEvent(2);
-		} else if (event.startsWith("TE")) {
-			qs.closeTutorialHtml();
+		} else if (cleanEvent.startsWith("CE")) {
+			int ceId = 0;
+			try {
+				ceId = Integer.parseInt(cleanEvent.substring(2));
+			} catch (NumberFormatException ignored) {}
+
+			PlayerCharacter c = player.activeChar();
+			int classId = c != null ? c.classId() : 0;
+			int lvl = c != null ? c.level() : 1;
+
+			if (ceId == 1) {
+				if (lvl < 6) {
+					qs.playTutorialVoice("tutorial_voice_004");
+					qs.playSound("ItemSound.quest_tutorial");
+					qs.onTutorialClientEvent(2);
+					String htm = qs.loadTutorialHtml("tutorial_03.htm");
+					if (htm != null) qs.showTutorialHtml(htm);
+				}
+			} else if (ceId == 2) {
+				if (lvl < 6) {
+					qs.playTutorialVoice("tutorial_voice_005");
+					qs.playSound("ItemSound.quest_tutorial");
+					qs.onTutorialClientEvent(8);
+					String htm = qs.loadTutorialHtml("tutorial_05.htm");
+					if (htm != null) qs.showTutorialHtml(htm);
+				}
+			} else if (ceId == 8) {
+				if (lvl < 6) {
+					String file = switch (classId) {
+						case 0 -> "tutorial_human_fighter007.htm";
+						case 10 -> "tutorial_human_mage007.htm";
+						case 18, 25 -> "tutorial_elf007.htm";
+						case 31, 38 -> "tutorial_delf007.htm";
+						case 44, 49 -> "tutorial_orc007.htm";
+						case 53 -> "tutorial_dwarven_fighter007.htm";
+						default -> "tutorial_human_fighter007.htm";
+					};
+					switch (classId) {
+						case 0 -> qs.addRadar(-71424, 258336, -3104);
+						case 10 -> qs.addRadar(-91036, 248044, -3568);
+						case 18, 25 -> qs.addRadar(46112, 41200, -3504);
+						case 31, 38 -> qs.addRadar(28384, 11056, -4224);
+						case 44, 49 -> qs.addRadar(-56736, -113680, -672);
+						case 53 -> qs.addRadar(108567, -173994, -406);
+						default -> qs.addRadar(-71424, 258336, -3104);
+					}
+					qs.playSound("ItemSound.quest_tutorial");
+					qs.playTutorialVoice("tutorial_voice_007");
+					String htm = qs.loadTutorialHtml(file);
+					if (htm != null) qs.showTutorialHtml(htm);
+				}
+			} else if (ceId == 30) {
+				if (lvl < 6 && qs.getInt("Die") == 0) {
+					qs.playTutorialVoice("tutorial_voice_016");
+					qs.playSound("ItemSound.quest_tutorial");
+					qs.set("Die", 1);
+					qs.showQuestionMark(8);
+					qs.onTutorialClientEvent(0);
+				}
+			} else if (ceId == 45) {
+				if (lvl < 6 && qs.getInt("HP") == 0) {
+					qs.playTutorialVoice("tutorial_voice_017");
+					qs.playSound("ItemSound.quest_tutorial");
+					qs.set("HP", 1);
+					qs.showQuestionMark(10);
+					qs.onTutorialClientEvent(800000);
+				}
+			} else if (ceId == 57) {
+				if (lvl < 6 && qs.getInt("Adena") == 0) {
+					qs.playTutorialVoice("tutorial_voice_012");
+					qs.playSound("ItemSound.quest_tutorial");
+					qs.set("Adena", 1);
+					qs.showQuestionMark(23);
+				}
+			} else if (ceId == 6353) {
+				if (lvl < 6 && qs.getInt("Gemstone") == 0) {
+					qs.playTutorialVoice("tutorial_voice_013");
+					qs.playSound("ItemSound.quest_tutorial");
+					qs.set("Gemstone", 1);
+					qs.showQuestionMark(5);
+				}
+			}
+		} else if (cleanEvent.startsWith("TE")) {
+			int teId = -1;
+			try {
+				teId = Integer.parseInt(cleanEvent.substring(2));
+			} catch (NumberFormatException ignored) {}
+
+			if (teId == 0 || teId == 12) {
+				qs.closeTutorialHtml();
+			} else if (teId == 1) {
+				qs.closeTutorialHtml();
+				qs.playTutorialVoice("tutorial_voice_006");
+				qs.showQuestionMark(1);
+				qs.playSound("ItemSound.quest_tutorial");
+			} else if (teId == 2) {
+				qs.playTutorialVoice("tutorial_voice_003");
+				qs.onTutorialClientEvent(1);
+				String htm = qs.loadTutorialHtml("tutorial_02.htm");
+				if (htm != null) qs.showTutorialHtml(htm);
+			} else if (teId == 3) {
+				qs.onTutorialClientEvent(2);
+				String htm = qs.loadTutorialHtml("tutorial_03.htm");
+				if (htm != null) qs.showTutorialHtml(htm);
+			} else if (teId == 5) {
+				qs.onTutorialClientEvent(8);
+				String htm = qs.loadTutorialHtml("tutorial_05.htm");
+				if (htm != null) qs.showTutorialHtml(htm);
+			} else if (teId == 7) {
+				qs.onTutorialClientEvent(0);
+				String htm = qs.loadTutorialHtml("tutorial_100.htm");
+				if (htm != null) qs.showTutorialHtml(htm);
+			} else if (teId == 8) {
+				qs.onTutorialClientEvent(0);
+				String htm = qs.loadTutorialHtml("tutorial_101.htm");
+				if (htm != null) qs.showTutorialHtml(htm);
+			} else if (teId == 10) {
+				qs.onTutorialClientEvent(0);
+				String htm = qs.loadTutorialHtml("tutorial_103.htm");
+				if (htm != null) qs.showTutorialHtml(htm);
+			} else if (teId == 27) {
+				String htm = qs.loadTutorialHtml("tutorial_29.htm");
+				if (htm != null) qs.showTutorialHtml(htm);
+			} else if (teId == 28) {
+				String htm = qs.loadTutorialHtml("tutorial_28.htm");
+				if (htm != null) qs.showTutorialHtml(htm);
+			}
 		}
 		return null;
 	}
