@@ -30,7 +30,12 @@ public abstract class Quest {
 	public Quest(int questId, String name, String descr) {
 		this.questId = questId;
 		this.name = name;
-		this.descr = descr;
+		String d = descr;
+		QuestMessage qm = QuestMessage.getQuestMessageById(questId);
+		if (qm != null && (d == null || d.isBlank() || d.equals(name))) {
+			d = qm.get();
+		}
+		this.descr = d != null ? d : (name != null ? name : "");
 	}
 
 	public int getQuestId() {
@@ -42,7 +47,13 @@ public abstract class Quest {
 	}
 
 	public String getDescr() {
-		return descr;
+		if (descr == null || descr.isBlank() || descr.equals(name)) {
+			String official = QuestMessage.getTitleById(questId);
+			if (official != null) {
+				return official;
+			}
+		}
+		return descr != null && !descr.isBlank() ? descr : name;
 	}
 
 	public Set<Integer> getQuestItemIds() {

@@ -219,4 +219,9 @@ public class OlympiadManager {
 			log.error("Erro ao persistir nobre olympiad {}", noble.charId(), ex);
 		}
 	}
+
+	public synchronized void save() {
+		nobles.values().forEach(this::persistNoble);
+		log.info("OlympiadManager: todos os {} nobres foram salvos.", nobles.size());
+	}
 }
