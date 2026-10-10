@@ -77,6 +77,7 @@ public class PlayerStatusExpirationTask {
 			if (changed && op instanceof GameSession gs && gs.context() != null) {
 				var t = gs.context().characters().template(player);
 				op.send(new UserInfo(player, t));
+				gs.sendSkillList();
 				world.broadcastAround(op, GameWorld.VISIBILITY_RADIUS, new CharInfo(player, t), false);
 			}
 		}

@@ -719,6 +719,10 @@ public class SevenSignsManager implements AutoCloseable {
 		mammonTimer = scheduler.scheduleAtFixedRate(this::relocateMammons, 30, 30, TimeUnit.MINUTES);
 	}
 
+	public synchronized void spawnMammons() {
+		relocateMammons();
+	}
+
 	public synchronized void relocateMammons() {
 		currentBlacksmithLocIndex = (currentBlacksmithLocIndex + 1) % MAMMON_BLACKSMITH_LOCS.size();
 		currentMerchantLocIndex = (currentMerchantLocIndex + 1) % MAMMON_MERCHANT_LOCS.size();
