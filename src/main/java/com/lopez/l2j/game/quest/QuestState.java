@@ -91,6 +91,25 @@ public class QuestState {
 
 	public void setState(State state) {
 		this.state = state;
+		if (state == State.COMPLETED) {
+			variables.put("<state>", "Completed");
+		} else if (state == State.STARTED) {
+			variables.put("<state>", "Started");
+		} else {
+			variables.put("<state>", "Created");
+		}
+		save();
+	}
+
+	public void setStateInternal(State state) {
+		this.state = state;
+		if (state == State.COMPLETED) {
+			variables.put("<state>", "Completed");
+		} else if (state == State.STARTED) {
+			variables.put("<state>", "Started");
+		} else {
+			variables.put("<state>", "Created");
+		}
 	}
 
 	public boolean isCreated() {
@@ -127,6 +146,7 @@ public class QuestState {
 		} else {
 			variables.put(var, val);
 		}
+		save();
 	}
 
 	public void set(String var, String val, boolean store) {
@@ -142,11 +162,22 @@ public class QuestState {
 	}
 
 	public void setInternal(String var, String val) {
-		variables.put(var, val);
+		if (val == null) {
+			variables.remove(var);
+		} else {
+			variables.put(var, val);
+		}
 	}
 
 	public void unset(String var) {
 		variables.remove(var);
+		save();
+	}
+
+	public void save() {
+		if (player != null && player.context() != null && player.context().questManager() != null) {
+			player.context().questManager().saveQuestState(this);
+		}
 	}
 
 	public Map<String, String> getVariables() {
@@ -241,23 +272,31 @@ public class QuestState {
 	}
 
 	public void giveItems(int itemId, int count) {
-		if (player == null || player.activeChar() == null) {
+		if (player == null || player.activeChar() == null || count <= 0) {
 			return;
 		}
 		var invSvc = player.context() != null ? player.context().inventories() : null;
 		var inv = player.activeChar().inventory();
 		if (inv != null) {
 			if (invSvc != null) {
-				invSvc.addItem(inv, itemId, count, "Quest");
-			}
-			var opt = inv.byItemId(itemId);
-			if (opt.isPresent()) {
-				opt.get().count(opt.get().count() + count);
+				var added = invSvc.addItem(inv, itemId, count, "Quest");
+				if (added != null) {
+					player.send(new InventoryUpdate(List.of(
+							ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
+					player.refreshWeightAndPenalties();
+				}
 			} else {
-				ItemTemplate dummy = ItemTemplate.etc(itemId, itemId, "QuestItem_" + itemId, "quest", "asset", 1, "none", 0, false, false, false, false);
-				inv.add(new ItemInstance(0x40000000 + (itemId & 0xFFFF), dummy, player.activeChar().objectId(), count));
+				var opt = inv.byItemId(itemId);
+				if (opt.isPresent()) {
+					opt.get().count(opt.get().count() + count);
+				} else {
+					ItemTemplate dummy = ItemTemplate.etc(itemId, itemId, "QuestItem_" + itemId, "quest", "asset", 1, "none", 0, false, false, false, false);
+					inv.add(new ItemInstance(0x40000000 + (itemId & 0xFFFF), dummy, player.activeChar().objectId(), count));
+				}
+				player.send(new InventoryUpdate(List.of(
+						ItemInfo.of(inv.byItemId(itemId).get(), ItemInfo.MODIFIED))));
+				player.refreshWeightAndPenalties();
 			}
-			player.send(ItemList.of(inv.items(), false));
 			if (count > 1) {
 				player.send(SystemMessage.of(SystemMessage.EARNED_S2_S1_S, new SystemMessage.Number(count), new SystemMessage.ItemName(itemId)));
 			} else {
@@ -297,26 +336,32 @@ public class QuestState {
 		var invSvc = player.context() != null ? player.context().inventories() : null;
 		var inv = player.activeChar().inventory();
 		if (inv != null) {
-			if (invSvc != null) {
-				if (count < 0) {
-					long current = getQuestItemsCount(itemId);
-					if (current > 0) {
-						invSvc.consumeItem(inv, itemId, (int) current, "Quest");
+			int toTake = count < 0 ? (int) getQuestItemsCount(itemId) : count;
+			if (toTake > 0) {
+				if (invSvc != null) {
+					var consumed = invSvc.consumeItem(inv, itemId, toTake, "Quest");
+					if (consumed != null) {
+						player.send(new InventoryUpdate(List.of(
+								ItemInfo.of(consumed.item(), consumed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+						player.refreshWeightAndPenalties();
 					}
 				} else {
-					invSvc.consumeItem(inv, itemId, count, "Quest");
+					var opt = inv.byItemId(itemId);
+					if (opt.isPresent()) {
+						var item = opt.get();
+						boolean removed = toTake >= item.count();
+						if (removed) {
+							inv.remove(item);
+							item.count(0);
+						} else {
+							item.count(item.count() - toTake);
+						}
+						player.send(new InventoryUpdate(List.of(
+								ItemInfo.of(item, removed ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+						player.refreshWeightAndPenalties();
+					}
 				}
 			}
-			var opt = inv.byItemId(itemId);
-			if (opt.isPresent()) {
-				var item = opt.get();
-				if (count < 0 || count >= item.count()) {
-					inv.remove(item);
-				} else {
-					item.count(item.count() - count);
-				}
-			}
-			player.send(ItemList.of(inv.items(), false));
 		}
 	}
 
@@ -364,11 +409,7 @@ public class QuestState {
 		if (player == null || player.activeChar() == null) {
 			return;
 		}
-		PlayerCharacter c = player.activeChar();
-		c.addExpAndSp(exp, sp);
-		player.send(new StatusUpdate(c.objectId(), List.of(
-				new StatusUpdate.Attribute(StatusUpdate.EXP, (int) c.exp()),
-				new StatusUpdate.Attribute(StatusUpdate.SP, c.sp()))));
+		player.applyExpAndSp(exp, sp);
 	}
 
 	public void addExpAndSp(long exp, long sp) {

@@ -128,14 +128,14 @@ public class QuestManager {
 						}
 						if ("<state>".equalsIgnoreCase(var)) {
 							if ("Started".equalsIgnoreCase(val)) {
-								qs.setState(State.STARTED);
+								qs.setStateInternal(State.STARTED);
 							} else if ("Completed".equalsIgnoreCase(val)) {
-								qs.setState(State.COMPLETED);
+								qs.setStateInternal(State.COMPLETED);
 							} else {
-								qs.setState(State.CREATED);
+								qs.setStateInternal(State.CREATED);
 							}
 						} else {
-							qs.set(var, val);
+							qs.setInternal(var, val);
 						}
 					}
 				}, charId);
@@ -150,6 +150,9 @@ public class QuestManager {
 			return;
 		}
 		int charId = qs.getCharId();
+		if (charId <= 0) {
+			return;
+		}
 		String qName = qs.getQuestName();
 		try {
 			for (Map.Entry<String, String> entry : qs.getAllVars().entrySet()) {
@@ -256,14 +259,16 @@ public class QuestManager {
 	public void onTutorialLink(GameSession player, String link) {
 		Quest tutorial = getQuest(255);
 		if (tutorial != null) {
-			tutorial.notifyEvent(link, null, player);
+			String cmd = link != null && link.startsWith("link ") ? link.substring(5).trim() : link;
+			tutorial.notifyEvent(cmd, null, player);
 		}
 	}
 
 	public void onTutorialPassCmd(GameSession player, String bypass) {
 		Quest tutorial = getQuest(255);
 		if (tutorial != null) {
-			tutorial.notifyEvent(bypass, null, player);
+			String cmd = bypass != null && bypass.startsWith("bypass -h ") ? bypass.substring(10).trim() : bypass;
+			tutorial.notifyEvent(cmd, null, player);
 		}
 	}
 
