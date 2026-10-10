@@ -35,82 +35,6 @@
 			<point x="-85622" y="240814" />
 		</shape>
 	</zone>
-	<zone id="2" name="Talking Island (Mage Start)">
-		<settings pvp="Peace" />
-		<shape type="Poly" zMin="-3699" zMax="-2699">
-			<point x="-90034" y="248143" />
-			<point x="-89960" y="248698" />
-			<point x="-90520" y="248847" />
-			<point x="-91136" y="248445" />
-			<point x="-91270" y="248296" />
-			<point x="-91328" y="248092" />
-			<point x="-91250" y="247867" />
-			<point x="-91063" y="247704" />
-			<point x="-90863" y="247676" />
-			<point x="-90638" y="247748" />
-		</shape>
-		<shape type="Poly" zMin="-4043" zMax="-3043">
-			<point x="-90165" y="247096" />
-			<point x="-88576" y="248162" />
-			<point x="-89962" y="250239" />
-			<point x="-91512" y="249150" />
-		</shape>
-		<shape type="Poly" zMin="-3659" zMax="-2659">
-			<point x="-88457" y="248867" />
-			<point x="-88611" y="249099" />
-			<point x="-89054" y="249756" />
-			<point x="-89279" y="250048" />
-			<point x="-89684" y="250143" />
-			<point x="-90008" y="249970" />
-			<point x="-88864" y="248209" />
-			<point x="-88542" y="248446" />
-		</shape>
-		<shape type="Poly" zMin="-3659" zMax="-2659">
-			<point x="-88732" y="248912" />
-			<point x="-88418" y="249116" />
-			<point x="-89005" y="249980" />
-			<point x="-89311" y="249787" />
-		</shape>
-		<shape type="Poly" zMin="-3659" zMax="-2659">
-			<point x="-88612" y="249461" />
-			<point x="-88559" y="249539" />
-			<point x="-88581" y="249649" />
-			<point x="-88680" y="249708" />
-			<point x="-88761" y="249704" />
-			<point x="-89050" y="249513" />
-			<point x="-89073" y="249332" />
-			<point x="-88895" y="249273" />
-		</shape>
-	</zone>
-	<zone id="3" name="Talking Island (Fighter Start)">
-		<settings pvp="Peace" />
-		<shape type="Poly" zMin="-3284" zMax="-2284">
-			<point x="-73436" y="257725" />
-			<point x="-71668" y="256229" />
-			<point x="-69952" y="258077" />
-			<point x="-71896" y="259701" />
-		</shape>
-		<shape type="Poly" zMin="-3272" zMax="-2272">
-			<point x="-73180" y="257663" />
-			<point x="-72460" y="258619" />
-			<point x="-72720" y="258831" />
-			<point x="-73284" y="258115" />
-			<point x="-73260" y="257855" />
-		</shape>
-		<shape type="Poly" zMin="-3272" zMax="-2272">
-			<point x="-71279" y="256408" />
-			<point x="-70679" y="257116" />
-			<point x="-70939" y="257328" />
-			<point x="-71575" y="256612" />
-			<point x="-71634" y="256392" />
-		</shape>
-		<shape type="Poly" zMin="-3306" zMax="-2306">
-			<point x="-72596" y="259181" />
-			<point x="-70363" y="257272" />
-			<point x="-70041" y="257631" />
-			<point x="-72303" y="259545" />
-		</shape>
-	</zone>
 	<zone id="4" name="Talking Island Harbor">
 		<settings pvp="Peace" />
 		<shape type="Poly" zMin="-3684" zMax="-3484">
@@ -182,25 +106,6 @@
 			<point x="15441" y="15060" />
 		</shape>
 	</zone>
-	<zone id="6" name="DE Village (Start)">
-		<settings pvp="Peace" />
-		<shape type="Poly" zMin="-4571" zMax="-2071">
-			<point x="28422" y="8936" />
-			<point x="30282" y="10670" />
-			<point x="29952" y="11744" />
-			<point x="28457" y="13117" />
-			<point x="27730" y="13126" />
-			<point x="26435" y="11893" />
-			<point x="26450" y="10146" />
-			<point x="27792" y="8929" />
-		</shape>
-		<shape type="Poly" zMin="-4588" zMax="-2088">
-			<point x="29434" y="10233" />
-			<point x="31273" y="10233" />
-			<point x="31273" y="11827" />
-			<point x="29431" y="11830" />
-		</shape>
-	</zone>
 	<zone id="7" name="Elven Village" type="Town">
 		<entity townId="1" castleId="4" />
 		<settings AllowAio="true"/>
@@ -223,50 +128,6 @@
 			<point x="48202" y="48441" />
 			<point x="48400" y="49391" />
 			<point x="48365" y="50345" />
-		</shape>
-	</zone>
-	<zone id="8" name="Elven Village (Start)">
-		<settings pvp="Peace" />
-		<shape type="Poly" zMin="-4071" zMax="-2571">
-			<point x="47987" y="40688" />
-			<point x="47644" y="41254" />
-			<point x="47139" y="41756" />
-			<point x="46576" y="42051" />
-			<point x="45590" y="42006" />
-			<point x="44823" y="41489" />
-			<point x="44355" y="40860" />
-			<point x="44168" y="40397" />
-			<point x="44319" y="39900" />
-			<point x="44723" y="39030" />
-			<point x="45366" y="38626" />
-			<point x="46511" y="38446" />
-			<point x="47292" y="38808" />
-			<point x="47736" y="39330" />
-			<point x="48079" y="39911" />
-		</shape>
-		<shape type="Poly" zMin="-4082" zMax="-2582">
-			<point x="44215" y="39803" />
-			<point x="44497" y="40504" />
-			<point x="43643" y="41416" />
-			<point x="43398" y="41419" />
-			<point x="42884" y="41191" />
-			<point x="42475" y="40529" />
-			<point x="42466" y="40285" />
-			<point x="42762" y="39658" />
-			<point x="43311" y="39336" />
-			<point x="43546" y="39327" />
-		</shape>
-		<shape type="Poly" zMin="-4082" zMax="-2582">
-			<point x="49799" y="39991" />
-			<point x="49812" y="40226" />
-			<point x="48958" y="41201" />
-			<point x="48724" y="41204" />
-			<point x="48096" y="40759" />
-			<point x="47883" y="40159" />
-			<point x="48123" y="39481" />
-			<point x="48636" y="39123" />
-			<point x="48885" y="39121" />
-			<point x="49368" y="39360" />
 		</shape>
 	</zone>
 	<zone id="9" name="Gludio Castle Town" type="Town">
@@ -551,15 +412,6 @@
 			<point x="105248" y="112466" />
 		</shape>
 	</zone>
-	<zone id="17" name="Orc Village (Start)">
-		<settings pvp="Peace" />
-		<shape type="Poly" zMin="-1483" zMax="516">
-			<point x="-58952" y="-115543" />
-			<point x="-52769" y="-115553" />
-			<point x="-52758" y="-111736" />
-			<point x="-58952" y="-111749" />
-		</shape>
-	</zone>
 	<zone id="18" name="Orc Village" type="Town">
 		<entity townId="3" castleId="9" />
 		<settings AllowAio="true"/>
@@ -584,21 +436,6 @@
 			<point x="-53401" y="-112501" />
 			<point x="-53788" y="-113966" />
 			<point x="-52931" y="-115293" />
-		</shape>
-	</zone>
-	<zone id="19" name="Dwarven Village (Start)">
-		<settings pvp="Peace" />
-		<shape type="Poly" zMin="-652" zMax="348">
-			<point x="110063" y="-175794" />
-			<point x="110565" y="-173944" />
-			<point x="110518" y="-173426" />
-			<point x="109153" y="-171575" />
-			<point x="106345" y="-171905" />
-			<point x="104853" y="-174391" />
-			<point x="105481" y="-176144" />
-			<point x="106031" y="-177035" />
-			<point x="107660" y="-177623" />
-			<point x="109208" y="-177140" />
 		</shape>
 	</zone>
 	<zone id="20" name="Dwarven Village" type="Town">
