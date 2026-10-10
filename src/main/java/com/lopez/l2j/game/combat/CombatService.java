@@ -589,7 +589,7 @@ public class CombatService {
 				return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
 			}
 		}
-		var res = applyDamagePlayer(target, damage);
+		var res = applyDamagePlayer(target, damage, false);
 		return new HitResult(res.damage(), flags, res.isDead(), res.remainingHp(), target.maxHp(), 0, 0);
 	}
 
@@ -921,25 +921,35 @@ public class CombatService {
 
 	/**
 	 * Em PvP no Lineage II, dano consome Combat Points (CP) antes de atingir o HP.
+	 * Em PvE (monstros/NPCs), o dano vai diretamente para o HP sem tocar no CP.
 	 */
 	public PlayerDamageResult applyDamagePlayer(PlayerCharacter target, int damage) {
+		return applyDamagePlayer(target, damage, true);
+	}
+
+	public PlayerDamageResult applyDamagePlayer(PlayerCharacter target, int damage, boolean isPvP) {
 		if (target.isDead() || target.invul()) {
 			return new PlayerDamageResult(0, 0, 0, target.isDead(), (int) target.currentHp(), (int) target.currentCp());
 		}
-		double curCp = target.currentCp();
 		double curHp = target.currentHp();
-		int cpDamage;
-		int hpDamage;
-		if (curCp >= damage) {
-			cpDamage = damage;
-			hpDamage = 0;
-			target.currentCp(curCp - damage);
+		double curCp = target.currentCp();
+		int cpDamage = 0;
+		int hpDamage = damage;
+		if (isPvP) {
+			if (curCp >= damage) {
+				cpDamage = damage;
+				hpDamage = 0;
+				target.currentCp(curCp - damage);
+			} else {
+				cpDamage = (int) curCp;
+				target.currentCp(0.0);
+				int rem = damage - cpDamage;
+				hpDamage = rem;
+				target.currentHp(curHp - rem);
+			}
 		} else {
-			cpDamage = (int) curCp;
-			target.currentCp(0.0);
-			int rem = damage - cpDamage;
-			hpDamage = rem;
-			target.currentHp(curHp - rem);
+			// Em PvE, o ataque de monstros atinge diretamente o HP; CP e exclusivo de combate entre jogadores (PvP)
+			target.currentHp(curHp - damage);
 		}
 		target.onDamaged();
 		boolean isDead = target.isDead();

@@ -107,19 +107,14 @@ public class Quest646SignsOfRevolt extends Quest {
 		PlayerCharacter pc = qs.playerChar();
 		if (pc == null) return null;
 
-        PlayerCharacter player = pc;
-        if (player == null) {
-            return null;
-        }
-        QuestState questState2 = player.getQuestState(this.getName());
-        long l = questState2.getQuestItemsCount(bTG);
+        long l = qs.getQuestItemsCount(bTG);
         if (l < 180L && (ThreadLocalRandom.current().nextDouble(100.0) < (bTH))) {
-            questState2.giveItems(bTG, 1L);
+            qs.giveItems(bTG, 1L);
             if (l == 179L) {
-                questState2.playSound(QuestState.SOUND_MIDDLE);
-                questState2.setCond(2);
+                qs.playSound(QuestState.SOUND_MIDDLE);
+                qs.setCond(2);
             } else {
-                questState2.playSound(QuestState.SOUND_ITEMGET);
+                qs.playSound(QuestState.SOUND_ITEMGET);
             }
         }
         return null;

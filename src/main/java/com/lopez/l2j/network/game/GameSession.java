@@ -1906,6 +1906,24 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		active = c;
 		c.inventory(ctx.inventories().load(c.objectId()));
+		if (ctx.subClasses() != null) {
+			c.setSubClasses(ctx.subClasses().loadSubClasses(c.objectId()));
+			if (c.subClasses() != null && c.classId() != c.baseClassId()) {
+				for (var entry : c.subClasses().entrySet()) {
+					if (entry.getValue().classId() == c.classId()) {
+						c.classIndex(entry.getKey());
+						break;
+					}
+				}
+			}
+		}
+		if (c.classIndex() == 0 && c.baseClassId() == 0 && c.classId() > 0
+				&& (c.subClasses() == null || c.subClasses().isEmpty())) {
+			c.baseClassId(c.classId());
+			if (ctx.characters() != null) {
+				ctx.characters().save(c, false);
+			}
+		}
 		if (ctx.skillService() != null) {
 			ctx.skillService().load(c);
 		}
@@ -1926,7 +1944,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		rewardSkills(t, false);
 		send(ItemList.of(active.inventory().items(), false));
 		send(new ShortCutInit(
-				ctx.shortcuts() != null ? ctx.shortcuts().findByCharId(active.objectId(), 0) : List.of()));
+				ctx.shortcuts() != null ? ctx.shortcuts().findByCharId(active.objectId(), active.classIndex()) : List.of()));
 		loadMacros();
 		loadHennasForCurrentSubclass();
 		send(new HennaInfo(active, getClassLevel(active), ctx.hennaTrees()));
@@ -2221,13 +2239,19 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (weapon == null) {
 			weapon = player.inventory().paperdoll(ItemSlots.LRHAND);
 		}
-		if (weapon != null && "bow".equalsIgnoreCase(weapon.template().subType())) {
-			int range = 500;
-			Integer longShotLvl = player.skills().get(113); // Long Shot
-			if (longShotLvl != null && longShotLvl > 0) {
-				range += longShotLvl * 200;
+		if (weapon != null) {
+			String sub = weapon.template().subType();
+			if ("bow".equalsIgnoreCase(sub)) {
+				int range = 500;
+				Integer longShotLvl = player.skills().get(113); // Long Shot
+				if (longShotLvl != null && longShotLvl > 0) {
+					range += longShotLvl * 200;
+				}
+				return range;
 			}
-			return range;
+			if ("pole".equalsIgnoreCase(sub) || "polearm".equalsIgnoreCase(sub) || "spear".equalsIgnoreCase(sub)) {
+				return 80;
+			}
 		}
 		return 40;
 	}
@@ -2242,6 +2266,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	public void startAutoAttack(NpcInstance npc) {
 		if (casting || npc == null || npc.isDead() || !npc.template().isAttackable()) {
+			send(new ActionFailed());
+			return;
+		}
+		if (ctx.zones() != null && (ctx.zones().isInsidePeace(active.x(), active.y(), active.z())
+				|| ctx.zones().isInsidePeace(npc.x(), npc.y(), npc.z()))) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pode atacar dentro de uma zona de paz."));
 			send(new ActionFailed());
 			return;
 		}
@@ -2261,10 +2291,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		double dy = active.y() - npc.y();
 		double distSq = dx * dx + dy * dy;
 		int attackRange = getPhysicalAttackRange(active);
-		double maxDist = attackRange + 45.0;
+		double colRad = (npc.template() != null ? npc.template().collisionRadius() : 30.0);
+		double maxDist = attackRange + colRad + 50.0;
 
 		if (distSq > maxDist * maxDist) {
-			var movePawn = new MoveToPawn(active.objectId(), npc.objectId(), attackRange, active.x(), active.y(),
+			var movePawn = new MoveToPawn(active.objectId(), npc.objectId(), (int) (attackRange + colRad), active.x(), active.y(),
 					active.z());
 			send(movePawn);
 			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, movePawn, false);
@@ -2308,10 +2339,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		double dy = active.y() - targetPlayer.y();
 		double distSq = dx * dx + dy * dy;
 		int attackRange = getPhysicalAttackRange(active);
-		double maxDist = attackRange + 45.0;
+		double colRad = 25.0;
+		double maxDist = attackRange + colRad + 50.0;
 
 		if (distSq > maxDist * maxDist) {
-			var movePawn = new MoveToPawn(active.objectId(), targetPlayer.objectId(), attackRange, active.x(), active.y(),
+			var movePawn = new MoveToPawn(active.objectId(), targetPlayer.objectId(), (int) (attackRange + colRad), active.x(), active.y(),
 					active.z());
 			send(movePawn);
 			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, movePawn, false);
@@ -2432,7 +2464,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				double dy = active.y() - npc.y();
 				double distSq = dx * dx + dy * dy;
 				int attackRange = getPhysicalAttackRange(active);
-				double maxDist = attackRange + 45.0;
+				double colRad = (npc.template() != null ? npc.template().collisionRadius() : 30.0);
+				double maxDist = attackRange + colRad + 50.0;
 				if (distSq <= maxDist * maxDist && System.currentTimeMillis() >= attackEndTime) {
 					onAttackNpc(npc);
 				}
@@ -2446,7 +2479,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				double dy = active.y() - targetSession.y();
 				double distSq = dx * dx + dy * dy;
 				int attackRange = getPhysicalAttackRange(active);
-				double maxDist = attackRange + 45.0;
+				double colRad = 25.0;
+				double maxDist = attackRange + colRad + 50.0;
 				if (distSq <= maxDist * maxDist && System.currentTimeMillis() >= attackEndTime) {
 					onAttackPlayer(targetSession);
 				}
@@ -2475,8 +2509,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		long now = System.currentTimeMillis();
 		if (now < attackEndTime) {
-			// Ja esta executando ataque: mantem auto-attack sem enviar ActionFailed
+			// Ja esta executando ataque: reagenda para o fim do cooldown em vez de abandonar
 			autoAttacking = true;
+			schedulePlayerAutoAttack(npc, Math.max(50, attackEndTime - now));
 			return;
 		}
 		var t = ctx.characters().template(active);
@@ -2499,7 +2534,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		active.heading(heading);
 
 		if (ctx.combat() != null && ctx.combat().checkRaidCurse(active, npc)) {
-			active.effects().addBuff(com.lopez.l2j.game.combat.CombatService.RAID_CURSE_PETRIFY, 1, 120_000L);
+			applyControlEffect(com.lopez.l2j.game.combat.CombatService.RAID_CURSE_PETRIFY, 1, "petrification", System.currentTimeMillis() + 120_000L);
 			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce foi atingido pela Maldicao de Raid Boss (Raid Curse)!"));
 			stopAutoAttack();
 			send(new ActionFailed());
@@ -2518,6 +2553,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		int ssGrade = soulshotCharged ? chargedGrade : -1;
 		soulshotCharged = false;
+		rechargeAutoSoulShots();
 
 		// Planeja dano/flags SEM aplicar ao HP do monstro antes do impacto da animacao
 		var plan = ctx.combat().planAttackNpc(active, t, npc, ssGrade);
@@ -2618,7 +2654,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				if (ctx.npcAi() != null) {
 					ctx.npcAi().startCombat(npc, active.objectId());
 				}
-				schedulePlayerAutoAttack(npc, Math.max(50, timeAtk - timeToHit));
+				schedulePlayerAutoAttack(npc, Math.max(50, (timeAtk - timeToHit) + 50));
 			}
 		}, timeToHit, TimeUnit.MILLISECONDS);
 	}
@@ -2639,13 +2675,27 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			double dy = active.y() - npc.y();
 			double distSq = dx * dx + dy * dy;
 			int attackRange = getPhysicalAttackRange(active);
-			double maxDist = attackRange + 45.0;
+			double colRad = (npc.template() != null ? npc.template().collisionRadius() : 30.0);
+			double maxDist = attackRange + colRad + 50.0;
 			if (distSq > maxDist * maxDist) {
-				var movePawn = new MoveToPawn(active.objectId(), npc.objectId(), attackRange, active.x(), active.y(),
-						active.z());
-				send(movePawn);
-				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, movePawn, false);
-				schedulePlayerAutoAttack(npc, 250);
+				double dist = Math.sqrt(distSq);
+				var t = ctx.characters() != null ? ctx.characters().template(active) : null;
+				int runSpd = t != null ? Math.max(60, PlayerStats.calculate(active, t).runSpeed()) : 150;
+				double step = runSpd * (delayMs / 1000.0);
+				double moveDist = Math.min(dist - attackRange - colRad, step);
+				if (moveDist > 0) {
+					double angle = Math.atan2(npc.y() - active.y(), npc.x() - active.x());
+					int nextX = (int) Math.round(active.x() + Math.cos(angle) * moveDist);
+					int nextY = (int) Math.round(active.y() + Math.sin(angle) * moveDist);
+					active.moveTo(nextX, nextY, npc.z());
+				}
+				double newDx = active.x() - npc.x();
+				double newDy = active.y() - npc.y();
+				if (newDx * newDx + newDy * newDy <= maxDist * maxDist) {
+					onAttackNpc(npc);
+				} else {
+					schedulePlayerAutoAttack(npc, 200);
+				}
 			} else {
 				onAttackNpc(npc);
 			}
@@ -2668,13 +2718,27 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			double dy = active.y() - targetPlayer.y();
 			double distSq = dx * dx + dy * dy;
 			int attackRange = getPhysicalAttackRange(active);
-			double maxDist = attackRange + 45.0;
+			double colRad = 25.0;
+			double maxDist = attackRange + colRad + 50.0;
 			if (distSq > maxDist * maxDist) {
-				var movePawn = new MoveToPawn(active.objectId(), targetPlayer.objectId(), attackRange, active.x(), active.y(),
-						active.z());
-				send(movePawn);
-				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, movePawn, false);
-				schedulePlayerAutoAttack(targetPlayer, 250);
+				double dist = Math.sqrt(distSq);
+				var t = ctx.characters() != null ? ctx.characters().template(active) : null;
+				int runSpd = t != null ? Math.max(60, PlayerStats.calculate(active, t).runSpeed()) : 150;
+				double step = runSpd * (delayMs / 1000.0);
+				double moveDist = Math.min(dist - attackRange - colRad, step);
+				if (moveDist > 0) {
+					double angle = Math.atan2(targetPlayer.y() - active.y(), targetPlayer.x() - active.x());
+					int nextX = (int) Math.round(active.x() + Math.cos(angle) * moveDist);
+					int nextY = (int) Math.round(active.y() + Math.sin(angle) * moveDist);
+					active.moveTo(nextX, nextY, targetPlayer.z());
+				}
+				double newDx = active.x() - targetPlayer.x();
+				double newDy = active.y() - targetPlayer.y();
+				if (newDx * newDx + newDy * newDy <= maxDist * maxDist) {
+					onAttackPlayer(targetPlayer);
+				} else {
+					schedulePlayerAutoAttack(targetPlayer, 200);
+				}
 			} else {
 				onAttackPlayer(targetPlayer);
 			}
@@ -2699,6 +2763,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		long now = System.currentTimeMillis();
 		if (now < attackEndTime) {
 			autoAttacking = true;
+			schedulePlayerAutoAttack(targetPlayer, Math.max(50, attackEndTime - now));
 			return;
 		}
 		var t = ctx.characters().template(active);
@@ -2730,6 +2795,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		int ssGrade = soulshotCharged ? chargedGrade : -1;
 		soulshotCharged = false;
+		rechargeAutoSoulShots();
 
 		var tgtTemplate = ctx.characters().template(targetPlayer.active);
 		var plan = ctx.combat().planAttackPlayer(active, t, targetPlayer.active, tgtTemplate, ssGrade);
@@ -2770,7 +2836,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					targetPlayer.send(startAtkTgt);
 					ctx.world().broadcastAround(targetPlayer, GameWorld.VISIBILITY_RADIUS, startAtkTgt, false);
 				}
-				schedulePlayerAutoAttack(targetPlayer, Math.max(50, timeAtk - timeToHit));
+				schedulePlayerAutoAttack(targetPlayer, Math.max(50, (timeAtk - timeToHit) + 50));
 			}
 		}, timeToHit, TimeUnit.MILLISECONDS);
 	}
@@ -5396,10 +5462,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				if (targetIndex == 0) {
 					if (active.isSubClassActive()) {
 						var baseSub = ctx.subClasses() != null ? ctx.subClasses().loadSubClasses(active.objectId()).get(0) : null;
+						int mainClassId = baseSub != null && baseSub.classId() > 0 ? baseSub.classId() : active.baseClassId();
 						int mainLvl = baseSub != null && baseSub.level() > 0 ? baseSub.level() : Math.max(active.level(), 75);
 						long mainExp = baseSub != null && baseSub.exp() > 0 ? baseSub.exp() : com.lopez.l2j.game.model.ExperienceTable.expForLevel(mainLvl);
 						int mainSp = baseSub != null ? baseSub.sp() : active.sp();
-						applySubClassSwitch(0, active.baseClassId(), mainLvl, mainExp, mainSp);
+						active.baseClassId(mainClassId);
+						applySubClassSwitch(0, mainClassId, mainLvl, mainExp, mainSp);
 						send(SystemMessage.id(SystemMessage.SUBCLASS_TRANSFER_COMPLETED));
 						send(new PlaySound("ItemSound.quest_fanfare_2"));
 						if (Config.SHOW_CLASS_CHANGE_MESSAGE) {
@@ -5463,6 +5531,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				int initLvl = Config.SUBCLASS_INIT_LEVEL > 0 ? Config.SUBCLASS_INIT_LEVEL : 40;
 				long baseExp = com.lopez.l2j.game.model.ExperienceTable.expForLevel(initLvl);
 				SubClass sc = new SubClass(newClassId, baseExp, 0, initLvl, replaceIndex);
+				if (ctx.skills() != null) {
+					ctx.skills().deleteAll(active.objectId(), replaceIndex);
+				}
+				if (ctx.shortcuts() != null) {
+					ctx.shortcuts().deleteAll(active.objectId(), replaceIndex);
+				}
 				if (ctx.subClasses() != null) {
 					ctx.subClasses().saveSubClass(active.objectId(), sc);
 				}
@@ -5485,11 +5559,21 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		saveCurrentClassProgress();
 
+		if (ctx.buffRepository() != null) {
+			ctx.buffRepository().saveBuffs(active.objectId(), active.classIndex(), active.effects().activeBuffs());
+		}
+
 		active.classIndex(newIndex);
 		active.classId(newClassId);
 		active.level(newLevel);
 		active.exp(newExp);
 		active.sp(newSp);
+
+		if (ctx.skillService() != null) {
+			ctx.skillService().load(active);
+		} else {
+			active.skills().clear();
+		}
 
 		var tplOpt = ctx.characters() != null ? ctx.characters().template(newClassId) : java.util.Optional.<CharTemplate>empty();
 		if (tplOpt.isPresent()) {
@@ -5543,12 +5627,15 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				}
 			}
 		} else {
-			SubClass baseSub = new SubClass(active.baseClassId(), active.exp(), active.sp(), active.level(), 0);
+			int mainClass = active.baseClassId() > 0 ? active.baseClassId() : active.classId();
+			active.baseClassId(mainClass);
+			SubClass baseSub = new SubClass(mainClass, active.exp(), active.sp(), active.level(), 0);
 			if (ctx.subClasses() != null) {
 				ctx.subClasses().saveSubClass(active.objectId(), baseSub);
 			}
 		}
 	}
+
 
 	public void showClassMasterMenu(int npcObjId, int targetLevel) {
 		if (active == null) {
@@ -5666,6 +5753,20 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			active.classId(newClassId);
 			if (!active.isSubClassActive()) {
 				active.baseClassId(newClassId);
+			} else {
+				var sc = active.subClasses().get(active.classIndex());
+				if (sc != null) {
+					SubClass updated = new SubClass(newClassId, active.exp(), active.sp(), active.level(), active.classIndex());
+					active.subClasses().put(active.classIndex(), updated);
+					if (ctx.subClasses() != null) {
+						ctx.subClasses().saveSubClass(active.objectId(), updated);
+					}
+				}
+			}
+			if (isGmOverride && (allowed.isEmpty() || !allowed.contains(newClassId))) {
+				if (ctx.skillService() != null) {
+					ctx.skillService().cleanInvalidSkills(active);
+				}
 			}
 			rewardSkills(tpl, true);
 			updateArmorSetBonus();
@@ -5679,6 +5780,15 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			active.classId(newClassId);
 			if (!active.isSubClassActive()) {
 				active.baseClassId(newClassId);
+			} else {
+				var sc = active.subClasses().get(active.classIndex());
+				if (sc != null) {
+					SubClass updated = new SubClass(newClassId, active.exp(), active.sp(), active.level(), active.classIndex());
+					active.subClasses().put(active.classIndex(), updated);
+					if (ctx.subClasses() != null) {
+						ctx.subClasses().saveSubClass(active.objectId(), updated);
+					}
+				}
 			}
 		}
 		if (ctx.characters() != null) {
@@ -6503,7 +6613,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		int level = p.type() == ShortCut.TYPE_SKILL ? Math.max(1, active.skillLevel(p.id())) : -1;
 		var sc = new ShortCut(slot, page, p.type(), p.id(), level, p.characterType());
 		if (ctx.shortcuts() != null) {
-			ctx.shortcuts().save(active.objectId(), 0, sc);
+			ctx.shortcuts().save(active.objectId(), active.classIndex(), sc);
 		}
 		send(new ShortCutRegister(sc));
 	}
@@ -6516,7 +6626,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		int slot = p.id() % 12;
 		int page = p.id() / 12;
 		if (ctx.shortcuts() != null) {
-			ctx.shortcuts().delete(active.objectId(), 0, slot, page);
+			ctx.shortcuts().delete(active.objectId(), active.classIndex(), slot, page);
 		}
 	}
 
@@ -7043,6 +7153,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				}
 				ss = soulshotCharged;
 				soulshotCharged = false;
+				rechargeAutoSoulShots();
 			}
 
 			List<NpcInstance> npcTargets = new ArrayList<>();
@@ -7111,6 +7222,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				}
 				triggerWeaponOnCastSkill(mainNpc, targetPlayer);
 			}
+			rechargeAutoSoulShots();
 			sendVitals();
 			if (resumeAttack) {
 				if (mainNpc != null && !mainNpc.isDead() && targetObjectId == mainNpc.objectId()) {
@@ -7176,6 +7288,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 			triggerWeaponOnCastSkill(null, targetPlayer);
 		}
+		rechargeAutoSoulShots();
 		sendVitals();
 	}
 
@@ -7321,7 +7434,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		if (combat.checkRaidCurse(active, npc)) {
-			active.effects().addBuff(com.lopez.l2j.game.combat.CombatService.RAID_CURSE_SILENCE, 1, 120_000L);
+			applyControlEffect(com.lopez.l2j.game.combat.CombatService.RAID_CURSE_SILENCE, 1, "silence", System.currentTimeMillis() + 120_000L);
 			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce foi atingido pela Maldicao de Raid Boss (Raid Curse)!"));
 			return;
 		}
@@ -7765,7 +7878,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						continue;
 					}
 					long until = System.currentTimeMillis() + Math.max(1000, e.durationMs());
-					targetSession.applyControlEffect(name, until);
+					targetSession.applyControlEffect(sk.id(), sk.level(), name, until);
 					targetSession.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT,
 							new SystemMessage.SkillName(sk.id(), sk.level())));
 				} else if (name.equals("targetme") || "AGGDEBUFF".equalsIgnoreCase(sk.skillType()) || "AGGDAMAGE".equalsIgnoreCase(sk.skillType())) {
@@ -7807,6 +7920,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	public void applyControlEffect(String effectName, long until) {
+		applyControlEffect(0, 1, effectName, until);
+	}
+
+	public void applyControlEffect(int skillId, int skillLevel, String effectName, long until) {
 		if (active == null || active.isDead()) {
 			return;
 		}
@@ -7870,17 +7987,32 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				abnormalMask = 0x0004;
 			}
 		}
+		ActiveBuff buff = null;
+		if (skillId > 0) {
+			String stack = "control_" + skillId + "_" + effectName;
+			buff = ActiveBuff.ofSkill(skillId, skillLevel, stack, until, List.of(), true);
+			active.effects().put(buff);
+		}
 		if (abnormalMask != 0) {
 			active.startAbnormalEffect(abnormalMask);
 			broadcastAppearance();
-			int finalMask = abnormalMask;
-			autoAttackScheduler.schedule(() -> {
-				if (active != null) {
+		}
+		final int finalMask = abnormalMask;
+		final ActiveBuff finalBuff = buff;
+		long delay = Math.max(100, until - System.currentTimeMillis());
+		autoAttackScheduler.schedule(() -> {
+			if (active != null) {
+				if (finalMask != 0) {
 					active.stopAbnormalEffect(finalMask);
 					broadcastAppearance();
 				}
-			}, Math.max(100, until - System.currentTimeMillis()), TimeUnit.MILLISECONDS);
-		}
+				if (finalBuff != null && active.effects().remove(finalBuff)) {
+					refreshBuffs();
+				}
+			}
+		}, delay, TimeUnit.MILLISECONDS);
+
+		refreshBuffs();
 	}
 
 	public void handlePlayerDeath() {
@@ -7927,8 +8059,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		boolean preserveBuffs = !Config.LEAVE_BUFFS_ON_DIE;
 		boolean hasNoblesse = active.effects().hasSkill(1323);
 		if (preserveBuffs) {
+			active.effects().clearDebuffs();
 			saveBuffs();
 		} else if (hasNoblesse) {
+			active.effects().clearDebuffs();
 			active.effects().removeSkill(1323);
 			saveBuffs();
 		} else {
@@ -8337,16 +8471,19 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				any = true;
 				continue;
 			}
+			boolean isDebuff = sk.isDebuff() || sk.isOffensive();
 			boolean isInvincible = name.equalsIgnoreCase("Invincible");
-			boolean isBuffEffect = name.equalsIgnoreCase("Buff") || sk.isBuff() || isInvincible;
-			if (e.funcs().isEmpty() && !isBuffEffect) {
+			boolean isBuffOrDebuff = name.equalsIgnoreCase("Buff") || name.equalsIgnoreCase("Debuff") || sk.isBuff() || isDebuff || isInvincible;
+			if (e.funcs().isEmpty() && !isBuffOrDebuff) {
 				continue; // efeito sem stats (Stun, Fear, etc.) ainda nao tem motor no jogador
 			}
 			String stack = e.stackType() == null || e.stackType().equalsIgnoreCase("none")
 					? "skill_" + sk.id() + "_" + name
 					: e.stackType();
-			boolean isDebuff = sk.isDebuff() || sk.isOffensive();
 			long duration = remainingMs > 0 ? remainingMs : e.durationMs();
+			if (duration <= 0 && !toggle) {
+				duration = 30_000L;
+			}
 			if (!isDebuff && remainingMs <= 0 && Config.ENABLE_MODIFY_SKILL_DURATION && Config.SKILL_DURATION_LIST != null
 					&& Config.SKILL_DURATION_LIST.containsKey(sk.id())) {
 				duration = Config.SKILL_DURATION_LIST.get(sk.id()) * 1000L;
@@ -8410,11 +8547,16 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		final int dotMask = abnormalMask;
 		send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT, new SystemMessage.SkillName(sk.id(), sk.level())));
-		refreshBuffs();
 
 		PlayerCharacter owner = active;
 		int[] remaining = { Math.max(1, e.count()) };
 		long period = Math.max(1, e.period()) * 1000L;
+		long totalDuration = (long) remaining[0] * period;
+		long until = System.currentTimeMillis() + totalDuration;
+		var buff = ActiveBuff.ofSkill(sk.id(), sk.level(), stack, until, e.funcs(), true);
+		owner.effects().put(buff);
+		refreshBuffs();
+
 		AtomicReference<ScheduledFuture<?>> self = new AtomicReference<>();
 		ScheduledFuture<?> task = autoAttackScheduler.scheduleAtFixedRate(() -> {
 			if (active != owner || !inWorld || owner.isDead() || remaining[0] <= 0
@@ -8422,6 +8564,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				if (dotMask != 0 && active != null) {
 					active.stopAbnormalEffect(dotMask);
 					broadcastAppearance();
+				}
+				if (owner != null) {
+					owner.effects().remove(buff);
+					if (active == owner) {
+						refreshBuffs();
+					}
 				}
 				stopHot(stack, self.get());
 				return;
@@ -8436,9 +8584,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				owner.currentHp(newHp);
 				sendVitals();
 			}
-			if (remaining[0] <= 0 && dotMask != 0 && active != null) {
-				active.stopAbnormalEffect(dotMask);
-				broadcastAppearance();
+			if (remaining[0] <= 0) {
+				if (dotMask != 0 && active != null) {
+					active.stopAbnormalEffect(dotMask);
+					broadcastAppearance();
+				}
+				if (owner != null) {
+					owner.effects().remove(buff);
+					if (active == owner) {
+						refreshBuffs();
+					}
+				}
 			}
 		}, period, period, TimeUnit.MILLISECONDS);
 		self.set(task);
@@ -8551,7 +8707,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (ctx.skillService() != null) {
 			send(new SkillList(ctx.skillService().skillList(active)));
 		} else {
-			send(new SkillList(ctx.skills() != null ? ctx.skills().findByCharId(active.objectId(), 0) : List.of()));
+			send(new SkillList(ctx.skills() != null ? ctx.skills().findByCharId(active.objectId(), active.classIndex()) : List.of()));
 		}
 	}
 
@@ -8670,10 +8826,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (ctx.shortcuts() == null) {
 			return;
 		}
-		for (ShortCut sc : ctx.shortcuts().findByCharId(active.objectId(), 0)) {
+		for (ShortCut sc : ctx.shortcuts().findByCharId(active.objectId(), active.classIndex())) {
 			if (sc.type() == ShortCut.TYPE_SKILL && sc.id() == skillId) {
 				var updated = new ShortCut(sc.slot(), sc.page(), sc.type(), sc.id(), level, sc.characterType());
-				ctx.shortcuts().save(active.objectId(), 0, updated);
+				ctx.shortcuts().save(active.objectId(), active.classIndex(), updated);
 				send(new ShortCutRegister(updated));
 			}
 		}
@@ -10462,6 +10618,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (ctx.subClasses() != null) {
 			ctx.subClasses().deleteSubClass(targetChar.objectId(), subIndex);
 		}
+		if (ctx.skills() != null) {
+			ctx.skills().deleteAll(targetChar.objectId(), subIndex);
+		}
+		if (ctx.shortcuts() != null) {
+			ctx.shortcuts().deleteAll(targetChar.objectId(), subIndex);
+		}
 		if (ctx.characters() != null) {
 			ctx.characters().save(targetChar, true);
 		}
@@ -10480,10 +10642,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		if (targetIndex == 0) {
 			var baseSub = ctx.subClasses() != null ? ctx.subClasses().loadSubClasses(targetChar.objectId()).get(0) : null;
+			int mainClassId = baseSub != null && baseSub.classId() > 0 ? baseSub.classId() : targetChar.baseClassId();
 			int mainLvl = baseSub != null && baseSub.level() > 0 ? baseSub.level() : Math.max(targetChar.level(), 75);
 			long mainExp = baseSub != null && baseSub.exp() > 0 ? baseSub.exp() : com.lopez.l2j.game.model.ExperienceTable.expForLevel(mainLvl);
 			int mainSp = baseSub != null ? baseSub.sp() : targetChar.sp();
-			gs.applySubClassSwitch(0, targetChar.baseClassId(), mainLvl, mainExp, mainSp);
+			targetChar.baseClassId(mainClassId);
+			gs.applySubClassSwitch(0, mainClassId, mainLvl, mainExp, mainSp);
 			gs.send(SystemMessage.id(SystemMessage.SUBCLASS_TRANSFER_COMPLETED));
 			gs.send(new PlaySound("ItemSound.quest_fanfare_2"));
 			gs.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce retornou para sua classe principal."));

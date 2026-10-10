@@ -26,7 +26,7 @@ public class Quest610MagicalPowerofWater2 extends Quest {
 	public static final int bLA = 4589;
 	public static final int bLB = 4594;
 	public static final int bLC = 25316;
-	public static final NpcInstance bLD = null;
+	private NpcInstance bLD = null;
 
 	public Quest610MagicalPowerofWater2(QuestManager questManager) {
 	super(610, "610_MagicalPowerofWater2", "610_MagicalPowerofWater2");
@@ -49,7 +49,6 @@ public class Quest610MagicalPowerofWater2 extends Quest {
 		}
 		String html = event;
 
-        NpcInstance npcInstance2 = null;
         String string2 = event;
         if (event.equalsIgnoreCase("quest_accept")) {
             string2 = "shaman_asefa_q0610_0104.htm";
@@ -59,10 +58,9 @@ public class Quest610MagicalPowerofWater2 extends Quest {
         } else if (event.equalsIgnoreCase("610_1")) {
             if (Math.max(0L, 0L) + 10800000L > System.currentTimeMillis()) {
                 string2 = "totem_of_barka_q0610_0204.htm";
-            } else if (qs.getQuestItemsCount(7238) >= 1L && npcInstance2 == null) {
+            } else if (qs.getQuestItemsCount(7238) >= 1L && (this.bLD == null || this.bLD.isDead())) {
                 qs.takeItems(7238, 1L);
                 this.bLD = qs.addSpawn(25316, 104825, -36926, -1136);
-                this.bLD.addListener(new DeathListener());
                 qs.playSound(QuestState.SOUND_MIDDLE);
             } else {
                 string2 = "totem_of_barka_q0610_0203.htm";
@@ -88,7 +86,6 @@ public class Quest610MagicalPowerofWater2 extends Quest {
 		PlayerCharacter pc = qs.playerChar();
 		if (pc == null) return "noquest";
 
-        NpcInstance npcInstance2 = null;
         String html = "noquest";
         int n = npc != null ? npc.getNpcId() : 0;
         int n2 = qs.getCond();
@@ -113,18 +110,19 @@ public class Quest610MagicalPowerofWater2 extends Quest {
                 html = "shaman_asefa_q0610_0201.htm";
             }
         } else if (n == 31560) {
-            if (!npc.isBusy()) {
-                if (Math.max(0L, 0L) + 10800000L > System.currentTimeMillis()) {
-                    html = "totem_of_barka_q0610_0204.htm";
-                } else if (n2 == 1) {
-                    html = "totem_of_barka_q0610_0101.htm";
-                } else if (n2 == 2 && npcInstance2 == null) {
-                    this.bLD = qs.addSpawn(25316, 104825, -36926, -1136);
-                    this.bLD.addListener(new DeathListener());
-                    html = "totem_of_barka_q0610_0204.htm";
-                }
-            } else {
+            if (Math.max(0L, 0L) + 10800000L > System.currentTimeMillis()) {
+                html = "totem_of_barka_q0610_0204.htm";
+            } else if (this.bLD != null && !this.bLD.isDead()) {
                 html = "totem_of_barka_q0610_0202.htm";
+            } else if (n2 == 1) {
+                html = "totem_of_barka_q0610_0101.htm";
+            } else if (n2 == 2) {
+                if (this.bLD == null || this.bLD.isDead()) {
+                    this.bLD = qs.addSpawn(25316, 104825, -36926, -1136);
+                    html = "totem_of_barka_q0610_0204.htm";
+                } else {
+                    html = "<html><body>Already in spawn.</body></html>";
+                }
             }
         }
         return html;
@@ -136,7 +134,7 @@ public class Quest610MagicalPowerofWater2 extends Quest {
 		PlayerCharacter pc = qs.playerChar();
 		if (pc == null) return null;
 
-        if (qs.getQuestItemsCount(this.ICE_HEART_OF_ASHUTAR) == 0L && npc.getNpcId() == 25316) {
+        if (qs.getQuestItemsCount(this.ICE_HEART_OF_ASHUTAR) == 0L && (npc == null || npc.getNpcId() == 25316)) {
             qs.giveItems(this.ICE_HEART_OF_ASHUTAR, 1L);
             qs.setCond(3);
             if (this.bLD != null) {

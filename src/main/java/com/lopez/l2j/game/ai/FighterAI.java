@@ -127,7 +127,7 @@ public class FighterAI extends AbstractNpcAI {
 							if (hit != null && hit.damage() > 0) {
 								player.onAttacked(npc.objectId(), hit.damage());
 								player.send(SystemMessage.of(SystemMessage.S1_GAVE_YOU_S2_DMG,
-										new SystemMessage.NpcName(npc.npcId()),
+										new SystemMessage.Text(npc.name()),
 										new SystemMessage.Number(hit.damage())));
 								player.send(StatusUpdate.hp(character.objectId(), (int) character.currentHp(), character.maxHp()));
 								player.send(new UserInfo(character, template));
@@ -202,6 +202,9 @@ public class FighterAI extends AbstractNpcAI {
 							skill.isMagicDamage(), skill.magicLevel());
 					if (counter != null && counter.damage() > 0) {
 						player.onAttacked(npc.objectId(), counter.damage());
+						player.send(SystemMessage.of(SystemMessage.S1_GAVE_YOU_S2_DMG,
+								new SystemMessage.Text(npc.name()),
+								new SystemMessage.Number(counter.damage())));
 						player.send(StatusUpdate.hp(character.objectId(), (int) character.currentHp(), character.maxHp()));
 						player.send(new UserInfo(character, template));
 						if (counter.isDead()) {
@@ -215,12 +218,26 @@ public class FighterAI extends AbstractNpcAI {
 						character.currentMp(Math.max(0, character.currentMp() - mpDam));
 						player.send(StatusUpdate.mp(character.objectId(), (int) character.currentMp(), character.maxMp()));
 						player.send(SystemMessage.of(SystemMessage.S2_MP_HAS_BEEN_DRAINED_BY_S1,
-								new SystemMessage.NpcName(npc.npcId()),
+								new SystemMessage.Text(npc.name()),
 								new SystemMessage.Number(mpDam)));
 					}
 				}
 
 				if (!character.isDead() && player instanceof com.lopez.l2j.network.game.GameSession gs) {
+					if (skill.effects().isEmpty()) {
+						String st = skill.skillType().toLowerCase(java.util.Locale.ROOT);
+						boolean control = st.equals("stun") || st.equals("sleep") || st.equals("paralyze")
+								|| st.equals("root") || st.equals("mute") || st.equals("fear");
+						if (control) {
+							if (combatService.debuffLandsPlayer(skill.power() > 0 ? skill.power() : 50, skill.magicLevel(),
+									npc.template().level(), character, false, false)) {
+								long until = System.currentTimeMillis() + 15000L;
+								gs.applyControlEffect(skill.id(), skill.level(), st, until);
+								player.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT,
+										new SystemMessage.SkillName(skill.id(), skill.level())));
+							}
+						}
+					}
 					for (var e : skill.effects()) {
 						String name = e.name().toLowerCase(java.util.Locale.ROOT);
 						boolean control = name.equals("stun") || name.equals("sleep") || name.equals("paralyze")
@@ -231,7 +248,7 @@ public class FighterAI extends AbstractNpcAI {
 							if (combatService.debuffLandsPlayer(skill.power() > 0 ? skill.power() : 50, skill.magicLevel(),
 									npc.template().level(), character, false, false)) {
 								long until = System.currentTimeMillis() + Math.max(1000, e.durationMs());
-								gs.applyControlEffect(name, until);
+								gs.applyControlEffect(skill.id(), skill.level(), name, until);
 								player.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT,
 										new SystemMessage.SkillName(skill.id(), skill.level())));
 							} else {
@@ -245,7 +262,7 @@ public class FighterAI extends AbstractNpcAI {
 									npc.template().level(), character, false, false)) {
 								gs.startSkillDot(skill, e);
 							}
-						} else if (!e.funcs().isEmpty()) {
+						} else if (!e.funcs().isEmpty() || skill.isDebuff() || skill.isOffensive() || name.equals("debuff")) {
 							if (combatService.debuffLandsPlayer(skill.power() > 0 ? skill.power() : 50, skill.magicLevel(),
 									npc.template().level(), character, false, false)) {
 								gs.applySkillEffects(skill, false);

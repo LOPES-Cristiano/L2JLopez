@@ -38,6 +38,11 @@ class ShortCutTest {
 		public void deleteByTypeAndId(int charId, int type, int shortcutId) {
 			list.removeIf(s -> s.type() == type && s.id() == shortcutId);
 		}
+
+		@Override
+		public void deleteAll(int charId, int classIndex) {
+			list.clear();
+		}
 	}
 
 	@BeforeEach

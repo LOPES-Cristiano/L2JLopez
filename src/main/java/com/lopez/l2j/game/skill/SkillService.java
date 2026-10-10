@@ -5,9 +5,11 @@ import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.skill.SkillTreeTable.SkillLearn;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,12 +74,13 @@ public class SkillService {
 	public void load(PlayerCharacter p) {
 		p.skills().clear();
 		if (repository != null) {
-			for (Skill s : repository.findByCharId(p.objectId(), 0)) {
+			for (Skill s : repository.findByCharId(p.objectId(), p.classIndex())) {
 				if (s.level() > 0) {
 					p.skills().put(s.id(), s.level());
 				}
 			}
 		}
+		cleanInvalidSkills(p);
 		refreshPassives(p);
 	}
 
@@ -170,7 +173,7 @@ public class SkillService {
 		}
 		p.skills().put(id, level);
 		if (repository != null) {
-			repository.save(p.objectId(), 0, new Skill(id, level, t.get().name(), t.get().isPassive()));
+			repository.save(p.objectId(), p.classIndex(), new Skill(id, level, t.get().name(), t.get().isPassive()));
 		}
 		refreshPassives(p);
 	}
@@ -178,7 +181,7 @@ public class SkillService {
 	public void removeSkill(PlayerCharacter p, int id) {
 		p.skills().remove(id);
 		if (repository != null) {
-			repository.delete(p.objectId(), 0, id);
+			repository.delete(p.objectId(), p.classIndex(), id);
 		}
 	}
 
@@ -193,8 +196,80 @@ public class SkillService {
 		}
 		p.skills().put(id, level);
 		if (repository != null) {
-			repository.save(p.objectId(), 0, new Skill(id, level, t.get().name(), t.get().isPassive()));
+			repository.save(p.objectId(), p.classIndex(), new Skill(id, level, t.get().name(), t.get().isPassive()));
 		}
 		return true;
 	}
+
+	/**
+	 * Remove habilidades que nao pertencem a arvore da classe atual nem sao habilidades comuns/especiais,
+	 * prevenindo o acúmulo indevido de skills entre classes ao trocar/adicionar subclasses.
+	 */
+	public void cleanInvalidSkills(PlayerCharacter p) {
+		if (Config.ALT_SUBCLASS_SKILLS) {
+			return;
+		}
+		Set<Integer> validSkillIds = new HashSet<>();
+		for (SkillLearn sl : trees.allFor(p.classId())) {
+			validSkillIds.add(sl.id());
+		}
+		List<Integer> toRemove = new ArrayList<>();
+		for (int skillId : p.skills().keySet()) {
+			if (validSkillIds.contains(skillId)) {
+				continue;
+			}
+			if (isCommonOrSpecialSkill(skillId)) {
+				continue;
+			}
+			toRemove.add(skillId);
+		}
+		for (int skillId : toRemove) {
+			p.skills().remove(skillId);
+			if (repository != null) {
+				repository.delete(p.objectId(), p.classIndex(), skillId);
+			}
+			log.info("Removido skill incompativel {} do personagem {} (classe {}, slot {})",
+					skillId, p.name(), p.classId(), p.classIndex());
+		}
+		if (!toRemove.isEmpty()) {
+			refreshPassives(p);
+		}
+	}
+
+	private boolean isCommonOrSpecialSkill(int skillId) {
+		// Lucky (194), Expertise (239), Common Craft / Dwarven Craft / Crystallize (1320-1322, 248)
+		if (skillId == SKILL_LUCKY || skillId == 239 || skillId == 248 || (skillId >= 1320 && skillId <= 1322)) {
+			return true;
+		}
+		// Seal of Ruler (246, 247)
+		if (skillId == 246 || skillId == 247) {
+			return true;
+		}
+		// Fishing & expansion skills (1312-1319)
+		if (skillId >= 1312 && skillId <= 1319) {
+			return true;
+		}
+		// Clan skills (370-391)
+		if (skillId >= 370 && skillId <= 391) {
+			return true;
+		}
+		// Hero skills (395, 396, 1374-1376)
+		if (skillId == 395 || skillId == 396 || (skillId >= 1374 && skillId <= 1376)) {
+			return true;
+		}
+		// Noblesse skills (325-327, 1323)
+		if ((skillId >= 325 && skillId <= 327) || skillId == 1323) {
+			return true;
+		}
+		// Item / Augmentation skills (3000-3250)
+		if (skillId >= 3000 && skillId <= 3250) {
+			return true;
+		}
+		// GM skills (7029)
+		if (skillId == 7029) {
+			return true;
+		}
+		return false;
+	}
 }
+

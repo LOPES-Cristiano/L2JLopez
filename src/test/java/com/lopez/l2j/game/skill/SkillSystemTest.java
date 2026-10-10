@@ -51,6 +51,11 @@ class SkillSystemTest {
 		public void delete(int charId, int classIndex, int skillId) {
 			saved.removeIf(s -> s.id() == skillId);
 		}
+
+		@Override
+		public void deleteAll(int charId, int classIndex) {
+			saved.clear();
+		}
 	}
 
 	@Test
@@ -236,5 +241,23 @@ class SkillSystemTest {
 		double avg7 = sum7 / 20.0;
 
 		assertTrue(avg7 > avg0 * 2.0, "7 charges deve aumentar expressivamente o dano medio (esperado ~2.75x)");
+	}
+
+	@Test
+	void cleanInvalidSkillsRemovesForeignClassSkills() {
+		var repo = new MemRepo();
+		var svc = new SkillService(table, trees, repo, false, 0, true);
+		var p = player(76, 88); // Duelist
+
+		// Adiciona skill legitimo de Duelist e um skill de Bishop (1217 - Greater Heal)
+		p.skills().put(261, 1); // Triple Sonic Slash (valido)
+		p.skills().put(1217, 1); // Greater Heal (invalido para Duelist)
+		p.skills().put(239, 1); // Expertise (valido/comum)
+
+		svc.cleanInvalidSkills(p);
+
+		assertTrue(p.skills().containsKey(261), "Skill legitimo da classe deve ser mantido");
+		assertTrue(p.skills().containsKey(239), "Skill comum (Expertise) deve ser mantido");
+		assertFalse(p.skills().containsKey(1217), "Skill de outra classe (Bishop) deve ser removido do Duelist");
 	}
 }

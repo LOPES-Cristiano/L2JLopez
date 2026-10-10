@@ -1,6 +1,6 @@
 package com.lopez.l2j.game.quest.impl;
 
-import com.lopez.l2j.game.model.Clan;
+import com.lopez.l2j.game.clan.Clan;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.model.Race;
 import com.lopez.l2j.game.npc.NpcInstance;
@@ -62,16 +62,10 @@ public class Quest655AGrandPlanForTamingWildBeasts extends Quest {
         int n = qs.getCond();
         PlayerCharacter player = pc;
         Clan clan = player.getClan();
-        ClanHall clanHall = (ClanHall)ResidenceHolder.getInstance().getResidence(63);
-        if (((SiegeEvent)clanHall.getSiegeEvent()).isRegistrationOver()) {
-            html = null;
-            this.showHtmlFile(player, "farm_messenger_q0655_02.htm", false, "%siege_time%", TimeUtils.toSimpleFormat(clanHall.getSiegeDate()));
-        } else if (clan == null || player.getObjectId() != clan.getLeaderId()) {
+        if (clan == null || player.objectId() != clan.getLeaderId()) {
             html = "farm_messenger_q0655_03.htm";
-        } else if (player.getObjectId() == clan.getLeaderId() && clan.getLevel() < 4) {
+        } else if (clan.getLevel() < 4) {
             html = "farm_messenger_q0655_05.htm";
-        } else if (((SiegeEvent)clanHall.getSiegeEvent()).getSiegeClan("attackers", player.getClan()) != null) {
-            html = "farm_messenger_q0655_07.htm";
         } else if (clan.getHasHideout() > 0) {
             html = "farm_messenger_q0655_04.htm";
         } else if (n == 0) {

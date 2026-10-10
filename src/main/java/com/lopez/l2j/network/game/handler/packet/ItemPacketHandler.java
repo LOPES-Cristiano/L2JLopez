@@ -64,78 +64,68 @@ public class ItemPacketHandler {
 
 	private final GameSession session;
 
-	private volatile boolean soulshotCharged;
-	private volatile int chargedGrade = -1;
-	private volatile boolean spiritshotCharged;
-	private volatile boolean blessedSpiritshot;
-	private volatile int chargedSpSGrade = -1;
-	private final Set<Integer> autoSoulShots = ConcurrentHashMap.newKeySet();
-	private volatile int activeEnchantScrollObjectId;
-	private final Map<Integer, Long> consumableReuse = new ConcurrentHashMap<>();
-	private final Map<String, ScheduledFuture<?>> hotTasks = new ConcurrentHashMap<>();
-
 	public ItemPacketHandler(GameSession session) {
 		this.session = session;
 	}
 
 	public boolean isSoulshotCharged() {
-		return soulshotCharged;
+		return session.soulshotCharged();
 	}
 
 	public void setSoulshotCharged(boolean charged) {
-		this.soulshotCharged = charged;
+		session.soulshotCharged(charged);
 	}
 
 	public int chargedGrade() {
-		return chargedGrade;
+		return session.chargedGrade();
 	}
 
 	public void setChargedGrade(int grade) {
-		this.chargedGrade = grade;
+		session.chargedGrade(grade);
 	}
 
 	public boolean isSpiritshotCharged() {
-		return spiritshotCharged;
+		return session.spiritshotCharged();
 	}
 
 	public void setSpiritshotCharged(boolean charged) {
-		this.spiritshotCharged = charged;
+		session.spiritshotCharged(charged);
 	}
 
 	public boolean isBlessedSpiritshot() {
-		return blessedSpiritshot;
+		return session.blessedSpiritshot();
 	}
 
 	public void setBlessedSpiritshot(boolean blessed) {
-		this.blessedSpiritshot = blessed;
+		session.blessedSpiritshot(blessed);
 	}
 
 	public int chargedSpSGrade() {
-		return chargedSpSGrade;
+		return session.chargedSpSGrade();
 	}
 
 	public void setChargedSpSGrade(int grade) {
-		this.chargedSpSGrade = grade;
+		session.chargedSpSGrade(grade);
 	}
 
 	public Set<Integer> autoSoulShots() {
-		return autoSoulShots;
+		return session.autoSoulShots();
 	}
 
 	public int activeEnchantScrollObjectId() {
-		return activeEnchantScrollObjectId;
+		return session.activeEnchantScrollObjectId();
 	}
 
 	public void activeEnchantScrollObjectId(int id) {
-		this.activeEnchantScrollObjectId = id;
+		session.activeEnchantScrollObjectId(id);
 	}
 
 	public Map<Integer, Long> consumableReuse() {
-		return consumableReuse;
+		return session.consumableReuse();
 	}
 
 	public Map<String, ScheduledFuture<?>> hotTasks() {
-		return hotTasks;
+		return session.hotTasks();
 	}
 
 	public void handleUseItem(UseItem p) {
@@ -164,7 +154,7 @@ public class ItemPacketHandler {
 				return;
 			}
 			if (EnchantScrollTable.isEnchantScroll(item.itemId())) {
-				activeEnchantScrollObjectId = item.objectId();
+				session.activeEnchantScrollObjectId(item.objectId());
 				session.send(new ChooseInventoryItem(item.itemId()));
 				session.send(new ActionFailed());
 				return;
@@ -272,8 +262,8 @@ public class ItemPacketHandler {
 			session.send(new ActionFailed());
 			return;
 		}
-		int scrollObjectId = activeEnchantScrollObjectId;
-		activeEnchantScrollObjectId = 0;
+		int scrollObjectId = session.activeEnchantScrollObjectId();
+		session.activeEnchantScrollObjectId(0);
 		if (scrollObjectId == 0) {
 			session.send(EnchantResult.CANCEL);
 			session.send(new ActionFailed());
@@ -431,7 +421,7 @@ public class ItemPacketHandler {
 		}
 		var name = new SystemMessage.ItemName(p.itemId());
 		if (p.type() == 1) {
-			autoSoulShots.add(p.itemId());
+			session.autoSoulShots().add(p.itemId());
 			session.send(new ExAutoSoulShot(p.itemId(), 1));
 			session.send(SystemMessage.of(SystemMessage.USE_OF_S1_WILL_BE_AUTO, name));
 			if (ConsumableTable.isSoulshot(p.itemId())) {
@@ -440,7 +430,7 @@ public class ItemPacketHandler {
 				chargeSpiritShot(p.itemId(), false, ConsumableTable.isBlessedSpiritshot(p.itemId()));
 			}
 		} else {
-			autoSoulShots.remove(p.itemId());
+			session.autoSoulShots().remove(p.itemId());
 			session.send(new ExAutoSoulShot(p.itemId(), 0));
 			session.send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, name));
 		}
@@ -652,7 +642,8 @@ public class ItemPacketHandler {
 			}
 		}
 		if (r.changed().stream().anyMatch(i -> i.template().kind() == Kind.WEAPON)) {
-			soulshotCharged = false;
+			session.soulshotCharged(false);
+			session.spiritshotCharged(false);
 			rechargeAutoSoulShots();
 		}
 	}
@@ -842,7 +833,7 @@ public class ItemPacketHandler {
 			return;
 		}
 		long now = System.currentTimeMillis();
-		Long readyAt = consumableReuse.get(c.skillId());
+		Long readyAt = session.consumableReuse().get(c.skillId());
 		if (readyAt != null && readyAt > now) {
 			session.send(SystemMessage.of(SystemMessage.S1_PREPARED_FOR_REUSE, new SystemMessage.ItemName(c.itemId())));
 			return;
@@ -866,7 +857,7 @@ public class ItemPacketHandler {
 			return;
 		}
 		if (c.reuseMs() > 0) {
-			consumableReuse.put(c.skillId(), now + c.reuseMs());
+			session.consumableReuse().put(c.skillId(), now + c.reuseMs());
 		}
 		session.send(SystemMessage.of(SystemMessage.USE_S1, new SystemMessage.ItemName(c.itemId())));
 		session.broadcastSelfSkill(c.skillId(), c.level());
@@ -932,7 +923,7 @@ public class ItemPacketHandler {
 		if (owner == null) {
 			return;
 		}
-		var previous = hotTasks.remove("BigHead");
+		var previous = session.hotTasks().remove("BigHead");
 		if (previous != null) {
 			previous.cancel(false);
 		}
@@ -941,7 +932,7 @@ public class ItemPacketHandler {
 		session.broadcastAppearance();
 		AtomicReference<ScheduledFuture<?>> self = new AtomicReference<>();
 		ScheduledFuture<?> task = session.autoAttackScheduler().schedule(() -> {
-			if (!hotTasks.remove("BigHead", self.get())) {
+			if (!session.hotTasks().remove("BigHead", self.get())) {
 				return;
 			}
 			owner.stopAbnormalEffect(ConsumableTable.ABNORMAL_BIG_HEAD);
@@ -952,7 +943,7 @@ public class ItemPacketHandler {
 			}
 		}, (long) c.ticks() * c.intervalMs(), TimeUnit.MILLISECONDS);
 		self.set(task);
-		hotTasks.put("BigHead", task);
+		session.hotTasks().put("BigHead", task);
 	}
 
 	public boolean consumeItem(int itemId, int count) {
@@ -977,7 +968,7 @@ public class ItemPacketHandler {
 		}
 		boolean hp = c.type() == ConsumableTable.Type.HOT_HP;
 		String stack = hp ? "HpRecover" : "MpRecover";
-		var previous = hotTasks.remove(stack);
+		var previous = session.hotTasks().remove(stack);
 		if (previous != null) {
 			previous.cancel(false);
 		}
@@ -1000,13 +991,13 @@ public class ItemPacketHandler {
 			}
 		}, c.intervalMs(), c.intervalMs(), TimeUnit.MILLISECONDS);
 		self.set(task);
-		hotTasks.put(stack, task);
+		session.hotTasks().put(stack, task);
 	}
 
 	private void stopHot(String stack, ScheduledFuture<?> task) {
 		if (task != null) {
 			task.cancel(false);
-			hotTasks.remove(stack, task);
+			session.hotTasks().remove(stack, task);
 		}
 	}
 
@@ -1043,7 +1034,7 @@ public class ItemPacketHandler {
 	}
 
 	public boolean chargeSoulShot(int itemId, boolean quiet) {
-		if (soulshotCharged) {
+		if (session.soulshotCharged()) {
 			return true;
 		}
 		var c = ConsumableTable.get(itemId).orElse(null);
@@ -1067,7 +1058,7 @@ public class ItemPacketHandler {
 		int count = weapon.template().soulshots() > 0 ? weapon.template().soulshots() : 1;
 		if (Config.CONSUME_SOUL_SHOT) {
 			if (!consumeItem(itemId, count)) {
-				if (autoSoulShots.remove(itemId)) {
+				if (session.autoSoulShots().remove(itemId)) {
 					session.send(new ExAutoSoulShot(itemId, 0));
 					session.send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, new SystemMessage.ItemName(itemId)));
 				} else {
@@ -1076,15 +1067,17 @@ public class ItemPacketHandler {
 				return false;
 			}
 		}
-		chargedGrade = weaponGrade;
-		soulshotCharged = true;
-		session.send(SystemMessage.id(SystemMessage.ENABLED_SOULSHOT));
+		session.chargedGrade(weaponGrade);
+		session.soulshotCharged(true);
+		if (!quiet) {
+			session.send(SystemMessage.id(SystemMessage.ENABLED_SOULSHOT));
+		}
 		session.broadcastSelfSkill(c.skillId(), 1);
 		return true;
 	}
 
 	public boolean chargeSpiritShot(int itemId, boolean quiet, boolean blessed) {
-		if (spiritshotCharged) {
+		if (session.spiritshotCharged()) {
 			return true;
 		}
 		var c = ConsumableTable.get(itemId).orElse(null);
@@ -1107,7 +1100,7 @@ public class ItemPacketHandler {
 		}
 		int count = weapon.template().spiritshots() > 0 ? weapon.template().spiritshots() : 1;
 		if (!consumeItem(itemId, count)) {
-			if (autoSoulShots.remove(itemId)) {
+			if (session.autoSoulShots().remove(itemId)) {
 				session.send(new ExAutoSoulShot(itemId, 0));
 				session.send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, new SystemMessage.ItemName(itemId)));
 			} else {
@@ -1115,22 +1108,24 @@ public class ItemPacketHandler {
 			}
 			return false;
 		}
-		chargedSpSGrade = weaponGrade;
-		blessedSpiritshot = blessed;
-		spiritshotCharged = true;
-		session.send(SystemMessage.id(SystemMessage.ENABLED_SOULSHOT));
+		session.chargedSpSGrade(weaponGrade);
+		session.blessedSpiritshot(blessed);
+		session.spiritshotCharged(true);
+		if (!quiet) {
+			session.send(SystemMessage.id(SystemMessage.ENABLED_SOULSHOT));
+		}
 		session.broadcastSelfSkill(c.skillId(), 1);
 		return true;
 	}
 
 	public void rechargeAutoSoulShots() {
-		for (int itemId : autoSoulShots) {
+		for (int itemId : session.autoSoulShots()) {
 			if (ConsumableTable.isSoulshot(itemId)) {
-				if (!soulshotCharged && chargeSoulShot(itemId, true)) {
+				if (!session.soulshotCharged() && chargeSoulShot(itemId, true)) {
 					// soulshot carregado
 				}
 			} else if (ConsumableTable.isSpiritshot(itemId)) {
-				if (!spiritshotCharged && chargeSpiritShot(itemId, true, ConsumableTable.isBlessedSpiritshot(itemId))) {
+				if (!session.spiritshotCharged() && chargeSpiritShot(itemId, true, ConsumableTable.isBlessedSpiritshot(itemId))) {
 					// spiritshot carregado
 				}
 			}

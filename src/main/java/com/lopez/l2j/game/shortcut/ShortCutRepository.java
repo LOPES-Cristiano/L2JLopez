@@ -14,4 +14,6 @@ public interface ShortCutRepository {
 	void delete(int charId, int classIndex, int slot, int page);
 
 	void deleteByTypeAndId(int charId, int type, int shortcutId);
+
+	void deleteAll(int charId, int classIndex);
 }

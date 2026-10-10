@@ -1,6 +1,6 @@
 package com.lopez.l2j.game.quest.impl;
 
-import com.lopez.l2j.game.model.Clan;
+import com.lopez.l2j.game.clan.Clan;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.model.Race;
 import com.lopez.l2j.game.npc.NpcInstance;
@@ -77,7 +77,7 @@ public class Quest1103OracleTeleport extends Quest {
             case 31692: 
             case 31694: 
             case 31997: {
-                player.setVar("FestivalBackCoords", player.getX() + "," + player.getY() + "," + player.getZ(), -1L);
+                qs.set("FestivalBackCoords", player.x() + "," + player.y() + "," + player.z());
                 player.teleToLocation(aEx);
                 break;
             }
@@ -92,7 +92,7 @@ public class Quest1103OracleTeleport extends Quest {
             case 31693: 
             case 31695: 
             case 31998: {
-                player.setVar("FestivalBackCoords", player.getX() + "," + player.getY() + "," + player.getZ(), -1L);
+                qs.set("FestivalBackCoords", player.x() + "," + player.y() + "," + player.z());
                 player.teleToLocation(aEy);
                 break;
             }

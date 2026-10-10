@@ -114,36 +114,6 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
 					<useIncrementalCompilation>false</useIncrementalCompilation>
-					<excludes>
-						<exclude>**/Quest118*.java</exclude>
-						<exclude>**/Quest123*.java</exclude>
-						<exclude>**/Quest153*.java</exclude>
-						<exclude>**/Quest156*.java</exclude>
-						<exclude>**/Quest159*.java</exclude>
-						<exclude>**/Quest160*.java</exclude>
-						<exclude>**/Quest161*.java</exclude>
-						<exclude>**/Quest162*.java</exclude>
-						<exclude>**/Quest163*.java</exclude>
-						<exclude>**/Quest164*.java</exclude>
-						<exclude>**/Quest165*.java</exclude>
-						<exclude>**/Quest166*.java</exclude>
-						<exclude>**/Quest168*.java</exclude>
-						<exclude>**/Quest169*.java</exclude>
-						<exclude>**/Quest170*.java</exclude>
-						<exclude>**/Quest171*.java</exclude>
-						<exclude>**/Quest20*.java</exclude>
-						<exclude>**/Quest265*.java</exclude>
-						<exclude>**/Quest273*.java</exclude>
-						<exclude>**/Quest275*.java</exclude>
-						<exclude>**/Quest292*.java</exclude>
-						<exclude>**/Quest294*.java</exclude>
-						<exclude>**/Quest316*.java</exclude>
-						<exclude>**/Quest320*.java</exclude>
-						<exclude>**/Quest324*.java</exclude>
-						<exclude>**/Quest334*.java</exclude>
-						<exclude>**/Quest335*.java</exclude>
-						<exclude>**/Quest662*.java</exclude>
-					</excludes>
 					<annotationProcessorPaths>
 						<path>
 							<groupId>org.projectlombok</groupId>

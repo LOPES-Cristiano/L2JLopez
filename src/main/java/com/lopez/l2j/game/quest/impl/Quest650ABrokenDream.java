@@ -1,6 +1,6 @@
 package com.lopez.l2j.game.quest.impl;
 
-import com.lopez.l2j.game.model.Clan;
+import com.lopez.l2j.game.clan.Clan;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.model.Race;
 import com.lopez.l2j.game.npc.NpcInstance;
@@ -97,7 +97,7 @@ public class Quest650ABrokenDream extends Quest {
 		PlayerCharacter pc = qs.playerChar();
 		if (pc == null) return null;
 
-        qs.rollAndGive(8514, 1, 1, 68.0);
+        qs.rollAndGive(8514, 1, 68.0);
         return null;
     
 	}

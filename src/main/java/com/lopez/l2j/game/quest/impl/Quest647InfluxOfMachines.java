@@ -96,7 +96,7 @@ public class Quest647InfluxOfMachines extends Quest {
 		PlayerCharacter pc = qs.playerChar();
 		if (pc == null) return null;
 
-        if (qs.getCond() == 1 && qs.rollAndGive(8100, 1, 1, 500, 60.0 * npc.getTemplate().rateHp)) {
+        if (qs.getCond() == 1 && qs.rollAndGive(8100, 1, 1, 500, 60.0)) {
             qs.setCond(2);
         }
         return null;

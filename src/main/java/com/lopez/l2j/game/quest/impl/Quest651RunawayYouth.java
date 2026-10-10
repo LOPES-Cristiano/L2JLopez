@@ -1,6 +1,6 @@
 package com.lopez.l2j.game.quest.impl;
 
-import com.lopez.l2j.game.model.Clan;
+import com.lopez.l2j.game.clan.Clan;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.model.Race;
 import com.lopez.l2j.game.npc.NpcInstance;
@@ -22,6 +22,7 @@ public class Quest651RunawayYouth extends Quest {
 	public static final int bTY = 32014;
 	public static final int bTZ = 31989;
 	public static final int SOE = 736;
+	private NpcInstance _npc = null;
 
 	public Quest651RunawayYouth(QuestManager questManager) {
 	super(651, "651_RunawayYouth", "651_RunawayYouth");
@@ -56,7 +57,9 @@ public class Quest651RunawayYouth extends Quest {
             qs.exitQuest(true);
             qs.playSound("ItemSound.quest_giveup");
         } else if (event.equalsIgnoreCase("ivan_timer")) {
-            this._npc.deleteMe();
+            if (this._npc != null) {
+                this._npc.deleteMe();
+            }
             string2 = null;
         }
         return string2;
@@ -71,6 +74,9 @@ public class Quest651RunawayYouth extends Quest {
         String html = "noquest";
         int n = npc != null ? npc.getNpcId() : 0;
         int n2 = qs.getCond();
+        if (n == bTY) {
+            this._npc = npc;
+        }
         if (n == bTY && n2 == 0) {
             if (pc.getLevel() >= 26) {
                 html = "runaway_boy_ivan_q0651_01.htm";

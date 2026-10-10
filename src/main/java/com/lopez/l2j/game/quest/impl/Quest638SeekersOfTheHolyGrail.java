@@ -87,37 +87,35 @@ public class Quest638SeekersOfTheHolyGrail extends Quest {
 		String html = event;
 
         String string2 = event;
-        if (npc.getNpcId() == 31328) {
-            if (event.equalsIgnoreCase("quest_accept")) {
-                qs.setCond(1);
-                qs.setState(State.STARTED);
-                qs.playSound(QuestState.SOUND_ACCEPT);
-                string2 = "highpriest_innocentin_q0638_03.htm";
-            } else if (event.equalsIgnoreCase("reply_1")) {
-                string2 = "highpriest_innocentin_q0638_06.htm";
-            } else if (event.equalsIgnoreCase("reply_2")) {
-                if (qs.getCond() == 1 && qs.getQuestItemsCount(8068) >= 2000L) {
-                    if (ThreadLocalRandom.current().nextInt(100) < 80) {
-                        if (ThreadLocalRandom.current().nextInt(2) == 0) {
-                            qs.giveItems(960, 1L, true);
-                        } else {
-                            qs.giveItems(959, 1L, true);
-                        }
-                        qs.takeItems(8068, 2000L);
-                        string2 = "highpriest_innocentin_q0638_07.htm";
+        if (event.equalsIgnoreCase("quest_accept")) {
+            qs.setCond(1);
+            qs.setState(State.STARTED);
+            qs.playSound(QuestState.SOUND_ACCEPT);
+            string2 = "highpriest_innocentin_q0638_03.htm";
+        } else if (event.equalsIgnoreCase("reply_1")) {
+            string2 = "highpriest_innocentin_q0638_06.htm";
+        } else if (event.equalsIgnoreCase("reply_2")) {
+            if (qs.getCond() == 1 && qs.getQuestItemsCount(8068) >= 2000L) {
+                if (ThreadLocalRandom.current().nextInt(100) < 80) {
+                    if (ThreadLocalRandom.current().nextInt(2) == 0) {
+                        qs.giveItems(960, 1L, true);
                     } else {
-                        qs.giveItems(57, 3576000L);
-                        qs.takeItems(8068, 2000L);
-                        string2 = "highpriest_innocentin_q0638_08.htm";
+                        qs.giveItems(959, 1L, true);
                     }
+                    qs.takeItems(8068, 2000L);
+                    string2 = "highpriest_innocentin_q0638_07.htm";
+                } else {
+                    qs.giveItems(57, 3576000L);
+                    qs.takeItems(8068, 2000L);
+                    string2 = "highpriest_innocentin_q0638_08.htm";
                 }
-            } else if (event.equalsIgnoreCase("reply_3")) {
-                qs.giveItems(57, 1700L * qs.getQuestItemsCount(8068));
-                qs.takeItems(8068, -1L);
-                qs.playSound(QuestState.SOUND_FINISH);
-                qs.exitQuest(true);
-                string2 = "highpriest_innocentin_q0638_09.htm";
             }
+        } else if (event.equalsIgnoreCase("reply_3")) {
+            qs.giveItems(57, 1700L * qs.getQuestItemsCount(8068));
+            qs.takeItems(8068, -1L);
+            qs.playSound(QuestState.SOUND_FINISH);
+            qs.exitQuest(true);
+            string2 = "highpriest_innocentin_q0638_09.htm";
         }
         return string2;
     

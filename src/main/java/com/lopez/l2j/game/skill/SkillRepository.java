@@ -12,4 +12,6 @@ public interface SkillRepository {
 	void save(int charId, int classIndex, Skill skill);
 
 	void delete(int charId, int classIndex, int skillId);
+
+	void deleteAll(int charId, int classIndex);
 }

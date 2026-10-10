@@ -49,4 +49,14 @@ public class JdbcSkillRepository implements SkillRepository {
 				.params(charId, classIndex, skillId)
 				.update();
 	}
+
+	@Override
+	public void deleteAll(int charId, int classIndex) {
+		jdbc.sql("""
+				DELETE FROM character_skills
+				WHERE charId = ? AND class_index = ?
+				""")
+				.params(charId, classIndex)
+				.update();
+	}
 }

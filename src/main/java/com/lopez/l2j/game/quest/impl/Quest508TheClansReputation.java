@@ -245,43 +245,47 @@ public class Quest508TheClansReputation extends Quest {
         if (player == null) {
             return null;
         }
-        if (!pc.equals(player) && player.getDistance(npc) > (double)Config.ALT_PARTY_DISTRIBUTION_RANGE) {
+        if (!pc.equals(player) && Math.hypot(player.x() - npc.x(), player.y() - npc.y()) > com.lopez.l2j.config.Config.ALT_PARTY_RANGE) {
             return null;
         }
-        QuestState questState2 = player.getQuestState(this.getName());
+        var leaderSessionOpt = com.lopez.l2j.game.world.GameWorld.getInstance().player(player.objectId());
+        if (leaderSessionOpt.isEmpty() || !(leaderSessionOpt.get() instanceof com.lopez.l2j.network.game.GameSession leaderSession)) {
+            return null;
+        }
+        QuestState questState2 = leaderSession.getQuestState(this.getName());
         if (questState2 == null || !questState2.isStarted() || questState2.getCond() != 1) {
             return null;
         }
-        int n = qs.getInt("pledge_gain_fame");
+        int n = questState2.getInt("pledge_gain_fame");
         int n2 = npc != null ? npc.getNpcId() : 0;
         if (n2 == 25051) {
-            if (n == 7 && qs.getQuestItemsCount(8282) == 0L) {
-                qs.giveItems(8282, 1L);
-                qs.playSound(QuestState.SOUND_ITEMGET);
+            if (n == 7 && questState2.getQuestItemsCount(8282) == 0L) {
+                questState2.giveItems(8282, 1L);
+                questState2.playSound(QuestState.SOUND_ITEMGET);
             }
         } else if (n2 == 25245) {
-            if (n == 6 && qs.getQuestItemsCount(8281) == 0L) {
-                qs.giveItems(8281, 1L);
-                qs.playSound(QuestState.SOUND_ITEMGET);
+            if (n == 6 && questState2.getQuestItemsCount(8281) == 0L) {
+                questState2.giveItems(8281, 1L);
+                questState2.playSound(QuestState.SOUND_ITEMGET);
             }
         } else if (n2 == 25252) {
-            if (n == 2 && qs.getQuestItemsCount(8277) == 0L) {
-                qs.giveItems(8277, 1L);
-                qs.playSound(QuestState.SOUND_ITEMGET);
+            if (n == 2 && questState2.getQuestItemsCount(8277) == 0L) {
+                questState2.giveItems(8277, 1L);
+                questState2.playSound(QuestState.SOUND_ITEMGET);
             }
         } else if (n2 == 25255) {
-            if (n == 5 && qs.getQuestItemsCount(8280) == 0L) {
-                qs.giveItems(8280, 1L);
-                qs.playSound(QuestState.SOUND_ITEMGET);
+            if (n == 5 && questState2.getQuestItemsCount(8280) == 0L) {
+                questState2.giveItems(8280, 1L);
+                questState2.playSound(QuestState.SOUND_ITEMGET);
             }
         } else if (n2 == 25140) {
-            if (n == 4 && qs.getQuestItemsCount(8279) == 0L) {
-                qs.giveItems(8279, 1L);
-                qs.playSound(QuestState.SOUND_ITEMGET);
+            if (n == 4 && questState2.getQuestItemsCount(8279) == 0L) {
+                questState2.giveItems(8279, 1L);
+                questState2.playSound(QuestState.SOUND_ITEMGET);
             }
-        } else if (n2 == 25524 && n == 8 && qs.getQuestItemsCount(8494) == 0L) {
-            qs.giveItems(8494, 1L);
-            qs.playSound(QuestState.SOUND_ITEMGET);
+        } else if (n2 == 25524 && n == 8 && questState2.getQuestItemsCount(8494) == 0L) {
+            questState2.giveItems(8494, 1L);
+            questState2.playSound(QuestState.SOUND_ITEMGET);
         }
         return null;
     
