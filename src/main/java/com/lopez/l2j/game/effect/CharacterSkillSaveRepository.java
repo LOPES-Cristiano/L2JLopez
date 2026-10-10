@@ -41,33 +41,43 @@ public class CharacterSkillSaveRepository {
 			}
 
 			long now = System.currentTimeMillis();
-			int buffIndex = 0;
+			var validBuffs = buffs.stream()
+					.filter(b -> b.isPermanent() || b.endTimeMillis() > now)
+					.toList();
 
-			for (ActiveBuff b : buffs) {
-				if (!b.isPermanent() && b.endTimeMillis() <= now) {
-					continue;
-				}
-				buffIndex++;
-				int remainingSec = b.remainingSeconds(now);
-
-				jdbc.sql("""
-						REPLACE INTO character_skills_save (
-							charId, skill_id, skill_level, effect_count, effect_cur_time,
-							reuse_delay, systime, restore_type, class_index, buff_index
-						) VALUES (
-							:charId, :skillId, :level, 1, :curTime,
-							0, :systime, 0, :classIndex, :buffIndex
-						)
-						""")
-						.param("charId", charId)
-						.param("skillId", b.skillId())
-						.param("level", b.level())
-						.param("curTime", remainingSec)
-						.param("systime", b.endTimeMillis())
-						.param("classIndex", classIndex)
-						.param("buffIndex", buffIndex)
-						.update();
+			if (validBuffs.isEmpty()) {
+				return;
 			}
+
+			StringBuilder sql = new StringBuilder("""
+					INSERT INTO character_skills_save (
+						charId, skill_id, skill_level, effect_count, effect_cur_time,
+						reuse_delay, systime, restore_type, class_index, buff_index
+					) VALUES """);
+
+			java.util.Map<String, Object> params = new java.util.HashMap<>();
+			params.put("charId", charId);
+			params.put("classIndex", classIndex);
+
+			int buffIndex = 0;
+			for (ActiveBuff b : validBuffs) {
+				buffIndex++;
+				if (buffIndex > 1) {
+					sql.append(", ");
+				}
+				sql.append(String.format("(:charId, :sk%d, :lvl%d, 1, :cur%d, 0, :sys%d, 0, :classIndex, %d)",
+						buffIndex, buffIndex, buffIndex, buffIndex, buffIndex));
+				params.put("sk" + buffIndex, b.skillId());
+				params.put("lvl" + buffIndex, b.level());
+				params.put("cur" + buffIndex, b.remainingSeconds(now));
+				params.put("sys" + buffIndex, b.endTimeMillis());
+			}
+
+			var query = jdbc.sql(sql.toString());
+			for (var entry : params.entrySet()) {
+				query.param(entry.getKey(), entry.getValue());
+			}
+			query.update();
 			log.debug("Salvos {} buffs para o charId {}", buffIndex, charId);
 		} catch (Exception e) {
 			log.error("Erro ao salvar buffs do charId {}: {}", charId, e.getMessage(), e);

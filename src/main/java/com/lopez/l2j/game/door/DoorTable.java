@@ -70,6 +70,10 @@ public class DoorTable {
 		return Collections.unmodifiableCollection(byDoorId.values());
 	}
 
+	public Collection<DoorInstance> getDoors() {
+		return allDoors();
+	}
+
 	public Optional<DoorInstance> byDoorId(int doorId) {
 		return Optional.ofNullable(byDoorId.get(doorId));
 	}
