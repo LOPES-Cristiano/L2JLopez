@@ -647,6 +647,7 @@ public class AdminStatusHandler implements IAdminCommandHandler {
 		}
 		var t = ctx.characters().template(character);
 		player.send(new UserInfo(character, t));
+		player.sendSkillList();
 		if (ctx.world() != null) {
 			ctx.world().broadcastAround(player, GameWorld.VISIBILITY_RADIUS,
 					new CharInfo(character, t), false);

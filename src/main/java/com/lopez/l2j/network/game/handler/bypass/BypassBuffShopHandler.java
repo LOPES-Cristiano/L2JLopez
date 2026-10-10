@@ -2,6 +2,8 @@ package com.lopez.l2j.network.game.handler.bypass;
 
 import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.buffshop.BuffShopService;
+import com.lopez.l2j.game.buffshop.BuffShopService.BuffCategory;
+import com.lopez.l2j.game.buffshop.BuffShopService.BuffShopItem;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.GameSession;
@@ -62,58 +64,149 @@ public class BypassBuffShopHandler implements IBypassHandler {
 
 		switch (action) {
 			case "page" -> {
-				int page = parts.length > 1 ? parseInt(parts[1], 1) : 1;
-				session.send(new NpcHtmlMessage(0, buffShopService.renderSellerManageHtml(active, skillTable, page)));
+				BuffCategory cat = BuffCategory.ALL;
+				int page = 1;
+				if (parts.length > 2) {
+					cat = BuffCategory.fromCode(parts[1]);
+					page = parseInt(parts[2], 1);
+				} else if (parts.length > 1) {
+					if (isNumber(parts[1])) {
+						page = parseInt(parts[1], 1);
+					} else {
+						cat = BuffCategory.fromCode(parts[1]);
+					}
+				}
+				session.send(new NpcHtmlMessage(0, buffShopService.renderSellerManageHtml(active, skillTable, cat, page)));
 				return true;
 			}
 			case "toggle" -> {
 				int skillId = parts.length > 1 ? parseInt(parts[1], 0) : 0;
-				int page = parts.length > 2 ? parseInt(parts[2], 1) : 1;
+				BuffCategory cat = BuffCategory.ALL;
+				int page = 1;
+				if (parts.length > 3) {
+					cat = BuffCategory.fromCode(parts[2]);
+					page = parseInt(parts[3], 1);
+				} else if (parts.length > 2) {
+					if (isNumber(parts[2])) {
+						page = parseInt(parts[2], 1);
+					} else {
+						cat = BuffCategory.fromCode(parts[2]);
+					}
+				}
 				if (skillId > 0) {
 					buffShopService.toggleDraftBuff(active, skillId, skillTable);
 				}
-				session.send(new NpcHtmlMessage(0, buffShopService.renderSellerManageHtml(active, skillTable, page)));
+				session.send(new NpcHtmlMessage(0, buffShopService.renderSellerManageHtml(active, skillTable, cat, page)));
 				return true;
 			}
 			case "price_menu" -> {
 				int skillId = parts.length > 1 ? parseInt(parts[1], 0) : 0;
-				int page = parts.length > 2 ? parseInt(parts[2], 1) : 1;
+				BuffCategory cat = BuffCategory.ALL;
+				int page = 1;
+				if (parts.length > 3) {
+					cat = BuffCategory.fromCode(parts[2]);
+					page = parseInt(parts[3], 1);
+				} else if (parts.length > 2) {
+					if (isNumber(parts[2])) {
+						page = parseInt(parts[2], 1);
+					} else {
+						cat = BuffCategory.fromCode(parts[2]);
+					}
+				}
 				if (skillId > 0) {
-					session.send(new NpcHtmlMessage(0, buffShopService.renderSkillPriceEditHtml(active, skillId, page, skillTable)));
+					session.send(new NpcHtmlMessage(0, buffShopService.renderSkillPriceEditHtml(active, skillId, cat, page, skillTable)));
 				}
 				return true;
 			}
 			case "price" -> {
 				int skillId = parts.length > 1 ? parseInt(parts[1], 0) : 0;
 				int price = parts.length > 2 ? parseInt(parts[2], -1) : -1;
-				int page = parts.length > 3 ? parseInt(parts[3], 1) : 1;
+				BuffCategory cat = BuffCategory.ALL;
+				int page = 1;
+				if (parts.length > 4) {
+					cat = BuffCategory.fromCode(parts[3]);
+					page = parseInt(parts[4], 1);
+				} else if (parts.length > 3) {
+					if (isNumber(parts[3])) {
+						page = parseInt(parts[3], 1);
+					} else {
+						cat = BuffCategory.fromCode(parts[3]);
+					}
+				}
 				if (skillId > 0 && price >= 0) {
 					buffShopService.setDraftPrice(active, skillId, price);
 					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Preco atualizado para " + BuffShopService.formatAdena(price) + " Adena."));
 				}
-				session.send(new NpcHtmlMessage(0, buffShopService.renderSellerManageHtml(active, skillTable, page)));
+				session.send(new NpcHtmlMessage(0, buffShopService.renderSellerManageHtml(active, skillTable, cat, page)));
 				return true;
 			}
 			case "setall" -> {
 				int price = parts.length > 1 ? parseInt(parts[1], -1) : -1;
-				int page = parts.length > 2 ? parseInt(parts[2], 1) : 1;
+				BuffCategory cat = BuffCategory.ALL;
+				int page = 1;
+				if (parts.length > 3) {
+					cat = BuffCategory.fromCode(parts[2]);
+					page = parseInt(parts[3], 1);
+				} else if (parts.length > 2) {
+					if (isNumber(parts[2])) {
+						page = parseInt(parts[2], 1);
+					} else {
+						cat = BuffCategory.fromCode(parts[2]);
+					}
+				}
 				if (price >= 0) {
 					buffShopService.setAllDraftPrices(active, price, skillTable);
 					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Preco de todos os buffs alterado para " + BuffShopService.formatAdena(price) + " Adena."));
 				}
-				session.send(new NpcHtmlMessage(0, buffShopService.renderSellerManageHtml(active, skillTable, page)));
+				session.send(new NpcHtmlMessage(0, buffShopService.renderSellerManageHtml(active, skillTable, cat, page)));
+				return true;
+			}
+			case "selectcat" -> {
+				BuffCategory cat = parts.length > 1 ? BuffCategory.fromCode(parts[1]) : BuffCategory.ALL;
+				int page = parts.length > 2 ? parseInt(parts[2], 1) : 1;
+				buffShopService.selectDraftCategory(active, cat, skillTable);
+				session.send(new NpcHtmlMessage(0, buffShopService.renderSellerManageHtml(active, skillTable, cat, page)));
+				return true;
+			}
+			case "clearcat" -> {
+				BuffCategory cat = parts.length > 1 ? BuffCategory.fromCode(parts[1]) : BuffCategory.ALL;
+				int page = parts.length > 2 ? parseInt(parts[2], 1) : 1;
+				buffShopService.clearDraftCategory(active, cat, skillTable);
+				session.send(new NpcHtmlMessage(0, buffShopService.renderSellerManageHtml(active, skillTable, cat, page)));
 				return true;
 			}
 			case "selectall" -> {
-				int page = parts.length > 1 ? parseInt(parts[1], 1) : 1;
+				BuffCategory cat = BuffCategory.ALL;
+				int page = 1;
+				if (parts.length > 2) {
+					cat = BuffCategory.fromCode(parts[1]);
+					page = parseInt(parts[2], 1);
+				} else if (parts.length > 1) {
+					if (isNumber(parts[1])) {
+						page = parseInt(parts[1], 1);
+					} else {
+						cat = BuffCategory.fromCode(parts[1]);
+					}
+				}
 				buffShopService.selectAllDraftBuffs(active, skillTable);
-				session.send(new NpcHtmlMessage(0, buffShopService.renderSellerManageHtml(active, skillTable, page)));
+				session.send(new NpcHtmlMessage(0, buffShopService.renderSellerManageHtml(active, skillTable, cat, page)));
 				return true;
 			}
 			case "clearall" -> {
-				int page = parts.length > 1 ? parseInt(parts[1], 1) : 1;
+				BuffCategory cat = BuffCategory.ALL;
+				int page = 1;
+				if (parts.length > 2) {
+					cat = BuffCategory.fromCode(parts[1]);
+					page = parseInt(parts[2], 1);
+				} else if (parts.length > 1) {
+					if (isNumber(parts[1])) {
+						page = parseInt(parts[1], 1);
+					} else {
+						cat = BuffCategory.fromCode(parts[1]);
+					}
+				}
 				buffShopService.clearDraftBuffs(active);
-				session.send(new NpcHtmlMessage(0, buffShopService.renderSellerManageHtml(active, skillTable, page)));
+				session.send(new NpcHtmlMessage(0, buffShopService.renderSellerManageHtml(active, skillTable, cat, page)));
 				return true;
 			}
 			case "title_menu" -> {
@@ -205,17 +298,60 @@ public class BypassBuffShopHandler implements IBypassHandler {
 			}
 			case "buyer_page" -> {
 				int sellerId = parts.length > 1 ? parseInt(parts[1], 0) : 0;
-				int page = parts.length > 2 ? parseInt(parts[2], 1) : 1;
+				BuffCategory cat = BuffCategory.ALL;
+				int page = 1;
+				if (parts.length > 3) {
+					cat = BuffCategory.fromCode(parts[2]);
+					page = parseInt(parts[3], 1);
+				} else if (parts.length > 2) {
+					if (isNumber(parts[2])) {
+						page = parseInt(parts[2], 1);
+					} else {
+						cat = BuffCategory.fromCode(parts[2]);
+					}
+				}
 				if (sellerId > 0) {
-					session.send(new NpcHtmlMessage(0, buffShopService.renderBuyerShopHtml(active, sellerId, skillTable, page)));
+					session.send(new NpcHtmlMessage(0, buffShopService.renderBuyerShopHtml(active, sellerId, skillTable, cat, page)));
 				}
 				return true;
 			}
 			case "buy" -> {
 				int sellerId = parts.length > 1 ? parseInt(parts[1], 0) : 0;
 				int skillId = parts.length > 2 ? parseInt(parts[2], 0) : 0;
+				BuffCategory cat = BuffCategory.ALL;
+				int page = 1;
+				if (parts.length > 4) {
+					cat = BuffCategory.fromCode(parts[3]);
+					page = parseInt(parts[4], 1);
+				} else if (parts.length > 3) {
+					if (isNumber(parts[3])) {
+						page = parseInt(parts[3], 1);
+					} else {
+						cat = BuffCategory.fromCode(parts[3]);
+					}
+				}
+				handleBuy(session, active, sellerId, List.of(skillId), cat, page);
+				return true;
+			}
+			case "buycat" -> {
+				int sellerId = parts.length > 1 ? parseInt(parts[1], 0) : 0;
+				BuffCategory cat = parts.length > 2 ? BuffCategory.fromCode(parts[2]) : BuffCategory.ALL;
 				int page = parts.length > 3 ? parseInt(parts[3], 1) : 1;
-				handleBuy(session, active, sellerId, List.of(skillId), page);
+				var shopOpt = buffShopService.getShop(sellerId);
+				if (shopOpt.isEmpty()) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Esta loja de buffs nao esta mais ativa."));
+					return true;
+				}
+				List<Integer> catSkills = shopOpt.get().items().values().stream()
+						.filter(cat::matches)
+						.map(BuffShopItem::skillId)
+						.toList();
+				if (catSkills.isEmpty()) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhum buff disponivel nesta categoria."));
+					session.send(new NpcHtmlMessage(0, buffShopService.renderBuyerShopHtml(active, sellerId, skillTable, cat, page)));
+					return true;
+				}
+				handleBuy(session, active, sellerId, catSkills, cat, page);
 				return true;
 			}
 			case "buyall" -> {
@@ -226,7 +362,7 @@ public class BypassBuffShopHandler implements IBypassHandler {
 					return true;
 				}
 				List<Integer> allSkills = new ArrayList<>(shopOpt.get().items().keySet());
-				handleBuy(session, active, sellerId, allSkills, 1);
+				handleBuy(session, active, sellerId, allSkills, BuffCategory.ALL, 1);
 				return true;
 			}
 			case "close" -> {
@@ -239,7 +375,7 @@ public class BypassBuffShopHandler implements IBypassHandler {
 		}
 	}
 
-	private void handleBuy(GameSession session, PlayerCharacter active, int sellerId, List<Integer> skillIds, int page) {
+	private void handleBuy(GameSession session, PlayerCharacter active, int sellerId, List<Integer> skillIds, BuffCategory category, int page) {
 		var ctx = session.context();
 		if (ctx == null) return;
 		var skillTable = ctx.skillService() != null ? ctx.skillService().table() : null;
@@ -254,7 +390,7 @@ public class BypassBuffShopHandler implements IBypassHandler {
 			double dy = active.y() - seller.y();
 			if (dx * dx + dy * dy > 250.0 * 250.0) {
 				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce esta muito longe da loja de buffs (max 250 de distancia)."));
-				session.send(new NpcHtmlMessage(0, buffShopService.renderBuyerShopHtml(active, sellerId, skillTable, page)));
+				session.send(new NpcHtmlMessage(0, buffShopService.renderBuyerShopHtml(active, sellerId, skillTable, category, page)));
 				return;
 			}
 		}
@@ -266,6 +402,12 @@ public class BypassBuffShopHandler implements IBypassHandler {
 				int lvl = sellerChar != null ? sellerChar.skillLevel(skId) : 1;
 				if (lvl <= 0) lvl = 1;
 				var skOpt = skillTable != null ? skillTable.get(skId, lvl) : java.util.Optional.<com.lopez.l2j.game.skill.SkillTemplate>empty();
+				if (skOpt.isEmpty() && skillTable != null) {
+					int maxLvl = skillTable.maxLevel(skId);
+					if (maxLvl > 0) {
+						skOpt = skillTable.get(skId, maxLvl);
+					}
+				}
 				if (skOpt.isPresent()) {
 					var sk = skOpt.get();
 					session.applySkillEffects(sk, false);
@@ -286,7 +428,15 @@ public class BypassBuffShopHandler implements IBypassHandler {
 		} else {
 			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", result.message()));
 		}
-		session.send(new NpcHtmlMessage(0, buffShopService.renderBuyerShopHtml(active, sellerId, skillTable, page)));
+		session.send(new NpcHtmlMessage(0, buffShopService.renderBuyerShopHtml(active, sellerId, skillTable, category, page)));
+	}
+
+	private boolean isNumber(String str) {
+		if (str == null || str.isBlank()) return false;
+		for (int i = 0; i < str.length(); i++) {
+			if (!Character.isDigit(str.charAt(i))) return false;
+		}
+		return true;
 	}
 
 	private int parseInt(String str, int def) {
