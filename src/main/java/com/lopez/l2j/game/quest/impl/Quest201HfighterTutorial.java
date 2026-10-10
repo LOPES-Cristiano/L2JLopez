@@ -27,9 +27,9 @@ public class Quest201HfighterTutorial extends Quest {
 	public static final int aJn = 0x100000;
 
 	public Quest201HfighterTutorial(QuestManager questManager) {
-		super(201, "201_HfighterTutorial", "Hfighter Tutorial");
+		super(201, "201_HfighterTutorial", "Tutorial");
 		addTalkId(30009, 30008);
-		addKillId(18342);
+		addKillId(18342, 20001, 20130);
 		addFirstTalkId(30009, 30008);
 		if (questManager != null) {
 			questManager.registerQuest(this);
@@ -55,7 +55,7 @@ public class Quest201HfighterTutorial extends Quest {
         if (player == null) {
             return null;
         }
-        int n = qs2.getInt("tutorial_quest_ex");
+        int n = qs.get("tutorial_quest_ex") == null ? -1 : qs.getInt("tutorial_quest_ex");
         if (event.equalsIgnoreCase("timer_newbie_helper")) {
             if (n == 0) {
                 qs.playTutorialVoice("tutorial_voice_009a");
@@ -98,7 +98,7 @@ public class Quest201HfighterTutorial extends Quest {
             }
         } else if (event.equalsIgnoreCase("reply_42")) {
             event2 = "roien006.htm";
-            
+            qs.setState(State.COMPLETED);
         }
         return event2;
     
@@ -107,7 +107,7 @@ public class Quest201HfighterTutorial extends Quest {
 
 	@Override
 	public String onTalk(NpcInstance npc, QuestState qs) {
-		return "noquest";
+		return onFirstTalk(npc, qs);
 	}
 
 
@@ -125,7 +125,7 @@ public class Quest201HfighterTutorial extends Quest {
         }
         int n2 = pc.classId();
         int n3 = pc.level();
-        int n4 = qs.getInt("tutorial_quest_ex");
+        int n4 = qs.get("tutorial_quest_ex") == null ? -1 : qs.getInt("tutorial_quest_ex");
         int n5 = qs.getInt("tutorial_quest");
         switch (n) {
             case 30009: {
@@ -152,7 +152,7 @@ public class Quest201HfighterTutorial extends Quest {
                     qs2.giveItems(1067, 1);
                     qs2.startQuestTimer("timer_newbie_helper", 30000);
                     qs.set("tutorial_quest", String.valueOf(n6 | 4), true);
-                    if (n3 == 0 && qs2.getQuestItemsCount(5789) <= 0) {
+                    if (!bl && qs2.getQuestItemsCount(5789) <= 0) {
                         qs2.giveItems(5789, 200);
                         qs2.playTutorialVoice("tutorial_voice_026");
                     }
@@ -201,22 +201,19 @@ public class Quest201HfighterTutorial extends Quest {
         if (qs2 == null) {
             return null;
         }
-        int n = qs2.getInt("tutorial_quest_ex");
-        if (!(n != 1 && n != 0 || false)) {
+        int n = qs.get("tutorial_quest_ex") == null ? 0 : qs.getInt("tutorial_quest_ex");
+        if (n == 0 || n == 1) {
             qs.playTutorialVoice("tutorial_voice_011");
             qs.showQuestionMark(3);
             qs2.set("tutorial_quest", String.valueOf(2), true);
-            
         }
-        if ((n == 1 || n == 2 || n == 0) && qs.getQuestItemsCount(6353) < 1 && ThreadLocalRandom.current().nextInt(2) <= 1) {
+        if ((n == 0 || n == 1 || n == 2) && qs.getQuestItemsCount(6353) < 1) {
             qs.giveItems(6353, 1);
-            if (!false) {
-                qs.playSound(QuestState.SOUND_ACCEPT);
-                
-            }
+            qs.playSound(QuestState.SOUND_ACCEPT);
+            qs.playTutorialVoice("tutorial_voice_013");
+            qs.showQuestionMark(5);
         }
         return null;
-    
 	}
 
 }
