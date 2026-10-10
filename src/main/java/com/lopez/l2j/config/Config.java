@@ -1790,7 +1790,7 @@ public final class Config {
 	public static int IP_UPDATE_TIME = 10;
 	public static int LOGIN_MAX_DB_CONNECTIONS = 1000;
 
-	// REVISION (revision.properties)
+	// REVISION
 	public static int REVISION_VERSION = 236;
 	public static String REVISION_BUILD_DATE = "2025-05-28 22:20:05";
 
