@@ -88,6 +88,10 @@ public record SkillTemplate(int id, int level, String name, OperateType operateT
 		return operateType == OperateType.TOGGLE;
 	}
 
+	public boolean isMagic() {
+		return magic;
+	}
+
 	public boolean isOffensive() {
 		return OFFENSIVE.contains(skillType);
 	}

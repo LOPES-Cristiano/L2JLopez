@@ -206,7 +206,7 @@ public class SkillService {
 	 * prevenindo o acúmulo indevido de skills entre classes ao trocar/adicionar subclasses.
 	 */
 	public void cleanInvalidSkills(PlayerCharacter p) {
-		if (Config.ALT_SUBCLASS_SKILLS) {
+		if (Config.ALT_SUBCLASS_SKILLS || (p != null && p.isAio())) {
 			return;
 		}
 		Set<Integer> validSkillIds = new HashSet<>();
@@ -216,6 +216,9 @@ public class SkillService {
 		List<Integer> toRemove = new ArrayList<>();
 		for (int skillId : p.skills().keySet()) {
 			if (validSkillIds.contains(skillId)) {
+				continue;
+			}
+			if (p.armorSetSkillIds().contains(skillId) || p.equippedItemSkills().containsKey(skillId)) {
 				continue;
 			}
 			if (isCommonOrSpecialSkill(skillId)) {
@@ -261,8 +264,8 @@ public class SkillService {
 		if ((skillId >= 325 && skillId <= 327) || skillId == 1323) {
 			return true;
 		}
-		// Item / Augmentation skills (3000-3250)
-		if (skillId >= 3000 && skillId <= 3250) {
+		// Item / Augmentation / SA / Armor Set skills (3000-3699)
+		if (skillId >= 3000 && skillId <= 3699) {
 			return true;
 		}
 		// GM skills (7029)
