@@ -108,7 +108,24 @@ public abstract class AbstractNpcAI {
 		int heading = (int) Math.round(Math.atan2(dy, dx) * 10430.378);
 		int fromX = npc.x();
 		int fromY = npc.y();
-		npc.moveTo(newX, newY, targetZ, heading);
+
+		// Calculo de Z seguro: nunca teletransporta monstro subterraneo para a superficie!
+		int newZ = npc.z();
+		if (combatService != null && combatService.geoEngine() != null && combatService.geoEngine().isEnabled()) {
+			short geoZ = combatService.geoEngine().getHeight(newX, newY, npc.z());
+			if (Math.abs(geoZ - npc.z()) <= 100) {
+				newZ = geoZ;
+			}
+		} else {
+			int dz = targetZ - npc.z();
+			if (Math.abs(dz) <= 48) {
+				newZ = targetZ;
+			} else if (Math.abs(dz) <= 120) {
+				newZ += (int) (Math.signum(dz) * Math.min(Math.abs(dz), 32));
+			}
+		}
+
+		npc.moveTo(newX, newY, newZ, heading);
 		world.updateNpcPosition(npc, fromX, fromY);
 
 		var movePawn = new MoveToPawn(npc.objectId(), targetObjId, attackRange, npc.x(), npc.y(), npc.z());

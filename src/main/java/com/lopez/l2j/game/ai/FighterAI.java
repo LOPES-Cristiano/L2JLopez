@@ -35,7 +35,7 @@ public class FighterAI extends AbstractNpcAI {
 
 	@Override
 	public void processCombat() {
-		if (npc.isDead() || npc.isCasting() || npc.targetPlayerId() == 0) return;
+		if (npc.isDead() || npc.isCasting() || npc.isAttacking() || npc.targetPlayerId() == 0) return;
 		var playerOpt = world.player(npc.targetPlayerId());
 		if (playerOpt.isEmpty()) return;
 
@@ -49,9 +49,16 @@ public class FighterAI extends AbstractNpcAI {
 
 		double dx = player.x() - npc.x();
 		double dy = player.y() - npc.y();
+		double dz = player.z() - npc.z();
 		double dist = Math.hypot(dx, dy);
+		double dist3d = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-		if (dist > 1500.0) return;
+		if (dist3d > 1500.0) return;
+
+		// Diferença vertical severa ou sem linha de visão (ex: monstro na caverna subterrânea e jogador na superfície)
+		if (Math.abs(dz) > 250.0 || !combatService.canSeeTarget(npc, character)) {
+			return;
+		}
 
 		int attackRange = Math.max(40, npc.template().attackRange());
 		int reach = attackRange + 30;
@@ -60,7 +67,7 @@ public class FighterAI extends AbstractNpcAI {
 			return;
 		}
 
-		if (dist > reach) {
+		if (dist > reach || Math.abs(dz) > 80.0) {
 			moveTowards(player.x(), player.y(), player.z(), player.objectId(), attackRange, dist);
 		} else {
 			executeAttack(player, character);
@@ -68,28 +75,35 @@ public class FighterAI extends AbstractNpcAI {
 	}
 
 	protected void executeAttack(com.lopez.l2j.game.world.GameWorld.OnlinePlayer player, com.lopez.l2j.game.model.PlayerCharacter character) {
-		if (character.isDead() || npc.isCasting() || player.isTeleporting()) {
+		if (character.isDead() || npc.isCasting() || npc.isAttacking() || player.isTeleporting()) {
 			return;
 		}
 		if (zones != null && (zones.isInsidePeace(player.x(), player.y(), player.z())
 				|| zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
 			return;
 		}
+
+		int attackRange = Math.max(40, npc.template().attackRange());
+		boolean isRanged = attackRange >= 300;
+		int maxDeltaZ = isRanged ? 350 : 120;
+		if (Math.abs(player.z() - npc.z()) > maxDeltaZ) {
+			return;
+		}
+
 		int pAtkSpd = Math.max(100, npc.template().pAtkSpd());
 		long cooldownMs = 500_000L / pAtkSpd;
 		long now = System.currentTimeMillis();
 
 		if (now - npc.lastAttackTime() >= cooldownMs) {
 			npc.lastAttackTime(now);
+			npc.attackEndTime(now + cooldownMs);
 			var template = charTemplates.get(character.classId()).orElse(null);
 			if (template != null) {
 				SkillTemplate chosenSkill = chooseMonsterSkill();
 				if (chosenSkill != null) {
 					castMonsterSkill(chosenSkill, player, character, template);
 				} else {
-					int attackRange = Math.max(40, npc.template().attackRange());
-					boolean isRanged = attackRange >= 300;
-					int timeToHit = isRanged ? (int) (cooldownMs * 0.70) : (int) (cooldownMs * 0.50);
+					int timeToHit = isRanged ? (int) (cooldownMs * 0.70) : (int) (cooldownMs * 0.62);
 
 					var plan = combatService.planAttackPlayerByNpc(npc, character, template);
 					if (plan != null) {
@@ -113,7 +127,7 @@ public class FighterAI extends AbstractNpcAI {
 								return;
 							}
 							double curDist = Math.hypot(player.x() - npc.x(), player.y() - npc.y());
-							if (curDist > (attackRange + 150)) {
+							if (curDist > (attackRange + 150) || Math.abs(player.z() - npc.z()) > (isRanged ? 400 : 150)) {
 								return;
 							}
 							if (!combatService.canSeeTarget(npc, character)) {
@@ -147,6 +161,9 @@ public class FighterAI extends AbstractNpcAI {
 	protected void castMonsterSkill(SkillTemplate skill, com.lopez.l2j.game.world.GameWorld.OnlinePlayer player,
 			com.lopez.l2j.game.model.PlayerCharacter character, com.lopez.l2j.game.template.CharTemplate template) {
 		if ((character.isDead() || player.isTeleporting()) && !skill.isHeal()) {
+			return;
+		}
+		if (!skill.isHeal() && (Math.abs(player.z() - npc.z()) > 400 || !combatService.canSeeTarget(npc, character))) {
 			return;
 		}
 		if (zones != null && (zones.isInsidePeace(player.x(), player.y(), player.z())
@@ -189,7 +206,7 @@ public class FighterAI extends AbstractNpcAI {
 					return;
 				}
 				double curDist = Math.hypot(player.x() - npc.x(), player.y() - npc.y());
-				if (curDist > 1500.0) {
+				if (curDist > 1500.0 || Math.abs(player.z() - npc.z()) > 400.0) {
 					return;
 				}
 				if (!combatService.canSeeTarget(npc, character)) {
