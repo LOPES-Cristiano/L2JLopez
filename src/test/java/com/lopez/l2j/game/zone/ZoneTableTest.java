@@ -46,4 +46,12 @@ class ZoneTableTest {
 		assertNotNull(zones);
 		assertFalse(zones.isEmpty(), "Deve encontrar pelo menos uma zona em Talking Island");
 	}
+
+	@Test
+	void starterAreasAreNotPeaceZones() {
+		// As areas iniciais (onde gremlins, keltirs e outros monstros de tutorial nascem) nao sao zonas de paz
+		assertFalse(zoneTable.isInsidePeace(46000, 40000, -3500), "Area inicial dos Elfos nao deve ser zona de paz");
+		assertFalse(zoneTable.isInsidePeace(-72000, 258000, -3000), "Area inicial de Talking Island nao deve ser zona de paz");
+		assertFalse(zoneTable.isInsidePeace(28000, 11000, -3500), "Area inicial dos Dark Elves nao deve ser zona de paz");
+	}
 }
