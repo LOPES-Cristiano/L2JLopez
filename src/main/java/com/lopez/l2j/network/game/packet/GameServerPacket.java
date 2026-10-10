@@ -230,12 +230,21 @@ public sealed interface GameServerPacket {
 			w.writeD(c.x()).writeD(c.y()).writeD(c.z()).writeD(c.heading()).writeD(c.objectId());
 			w.writeS(c.name()).writeD(c.race()).writeD(c.female() ? 1 : 0).writeD(c.classId());
 			w.writeD(c.level()).writeQ(c.exp());
-			w.writeD(t.str() + c.hennaSTR() + c.augSTR()).writeD(t.dex() + c.hennaDEX()).writeD(t.con() + c.hennaCON() + c.augCON())
-					.writeD(t.intel() + c.hennaINT() + c.augINT()).writeD(t.wit() + c.hennaWIT()).writeD(t.men() + c.hennaMEN() + c.augMEN());
+			int str = stats != null ? stats.str() : (t.str() + c.hennaSTR() + c.augSTR());
+			int dex = stats != null ? stats.dex() : (t.dex() + c.hennaDEX() + c.augDEX());
+			int con = stats != null ? stats.con() : (t.con() + c.hennaCON() + c.augCON());
+			int intel = stats != null ? stats.intel() : (t.intel() + c.hennaINT() + c.augINT());
+			int wit = stats != null ? stats.wit() : (t.wit() + c.hennaWIT() + c.augWIT());
+			int men = stats != null ? stats.men() : (t.men() + c.hennaMEN() + c.augMEN());
+			w.writeD(str).writeD(dex).writeD(con).writeD(intel).writeD(wit).writeD(men);
 			w.writeD(c.maxHp()).writeD((int) c.currentHp()).writeD(c.maxMp()).writeD((int) c.currentMp());
+			long fallbackLoad = (long) ((double) t.maxLoad() * (Config.ALT_WEIGHT_LIMIT > 0 ? Config.ALT_WEIGHT_LIMIT : 1.0));
+			if (Config.ALT_WEIGHT_LIMIT > 1.0 && (fallbackLoad >= Integer.MAX_VALUE || fallbackLoad <= 0)) {
+				fallbackLoad = Integer.MAX_VALUE;
+			}
 			int maxLoad = (stats != null && stats.maxLoad() > 0)
 					? stats.maxLoad()
-					: (int) Math.min(Integer.MAX_VALUE, (long) (t.maxLoad() * (Config.ALT_WEIGHT_LIMIT > 0 ? Config.ALT_WEIGHT_LIMIT : 1.0f)));
+					: (int) Math.min(Integer.MAX_VALUE, Math.max(1L, fallbackLoad));
 			w.writeD(c.sp()).writeD(currentLoad).writeD(maxLoad);
 			w.writeD(0x28); // valor fixo do legado (posicao 0x28 do paperdoll)
 			writePaperdoll(w, paperdoll, ItemSlots.RHAND);
@@ -324,8 +333,10 @@ public sealed interface GameServerPacket {
 
 		public static ItemInfo of(ItemInstance i, int change) {
 			var t = i.template();
-			return new ItemInfo(change, t.type1(), i.objectId(), t.displayId(), i.count(), t.type2(),
-					i.customType1(), i.isEquipped(), t.bodyPart(), i.enchant(), i.customType2(),
+			int count = (change == REMOVED) ? 0 : i.count();
+			boolean equipped = (change == REMOVED) ? false : i.isEquipped();
+			return new ItemInfo(change, t.type1(), i.objectId(), t.displayId(), count, t.type2(),
+					i.customType1(), equipped, t.bodyPart(), i.enchant(), i.customType2(),
 					i.augmentation() != null ? i.augmentation().attributes() : 0, i.mana());
 		}
 
@@ -389,6 +400,7 @@ public sealed interface GameServerPacket {
 		public static final int EARNED_S1_EXPERIENCE = 45;
 		public static final int USE_S1 = 46;
 		public static final int S1_PREPARED_FOR_REUSE = 48;
+		public static final int CANNOT_DISCARD_THIS_ITEM = 98;
 		public static final int S1_HAS_WORN_OFF = 92;
 		public static final int CANT_LOGOUT_WHILE_IN_COMBAT = 101;
 		public static final int CANT_RESTART_WHILE_IN_COMBAT = 102;
@@ -762,7 +774,7 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0x7f MagicEffectIcons: icones de buffs na barra (duracao restante em segundos). */
+	/** 0x7f MagicEffectIcons: icones de buffs e debuffs na barra (duracao restante em segundos). */
 	record MagicEffectIcons(List<Icon> icons) implements GameServerPacket {
 		public record Icon(int skillId, int level, int durationSeconds) {
 		}
@@ -778,6 +790,18 @@ public sealed interface GameServerPacket {
 				w.writeD(i.skillId()).writeH(i.level()).writeD(i.durationSeconds());
 			}
 			return w.toByteArray();
+		}
+	}
+
+	/** Alias de AbnormalStatusUpdate (MagicEffectIcons opcode 0x7f). */
+	record AbnormalStatusUpdate(List<MagicEffectIcons.Icon> icons) implements GameServerPacket {
+		public AbnormalStatusUpdate {
+			icons = List.copyOf(icons);
+		}
+
+		@Override
+		public byte[] encode() {
+			return new MagicEffectIcons(icons).encode();
 		}
 	}
 
@@ -2058,14 +2082,23 @@ public sealed interface GameServerPacket {
 			w.writeD(c.classId());
 			w.writeD(c.level());
 			w.writeQ(c.exp());
-			w.writeD(t.str() + c.hennaSTR() + c.augSTR()).writeD(t.dex() + c.hennaDEX()).writeD(t.con() + c.hennaCON() + c.augCON())
-					.writeD(t.intel() + c.hennaINT() + c.augINT()).writeD(t.wit() + c.hennaWIT()).writeD(t.men() + c.hennaMEN() + c.augMEN());
+			int gmStr = stats != null ? stats.str() : (t.str() + c.hennaSTR() + c.augSTR());
+			int gmDex = stats != null ? stats.dex() : (t.dex() + c.hennaDEX() + c.augDEX());
+			int gmCon = stats != null ? stats.con() : (t.con() + c.hennaCON() + c.augCON());
+			int gmIntel = stats != null ? stats.intel() : (t.intel() + c.hennaINT() + c.augINT());
+			int gmWit = stats != null ? stats.wit() : (t.wit() + c.hennaWIT() + c.augWIT());
+			int gmMen = stats != null ? stats.men() : (t.men() + c.hennaMEN() + c.augMEN());
+			w.writeD(gmStr).writeD(gmDex).writeD(gmCon).writeD(gmIntel).writeD(gmWit).writeD(gmMen);
 			w.writeD(c.maxHp()).writeD((int) c.currentHp());
 			w.writeD(c.maxMp()).writeD((int) c.currentMp());
 			w.writeD(c.sp());
+			long fallbackLoad = (long) ((double) t.maxLoad() * (Config.ALT_WEIGHT_LIMIT > 0 ? Config.ALT_WEIGHT_LIMIT : 1.0));
+			if (Config.ALT_WEIGHT_LIMIT > 1.0 && (fallbackLoad >= Integer.MAX_VALUE || fallbackLoad <= 0)) {
+				fallbackLoad = Integer.MAX_VALUE;
+			}
 			int maxLoad = (stats != null && stats.maxLoad() > 0)
 					? stats.maxLoad()
-					: (int) Math.min(Integer.MAX_VALUE, (long) (t.maxLoad() * (Config.ALT_WEIGHT_LIMIT > 0 ? Config.ALT_WEIGHT_LIMIT : 1.0f)));
+					: (int) Math.min(Integer.MAX_VALUE, Math.max(1L, fallbackLoad));
 			w.writeD(currentLoad).writeD(maxLoad);
 			w.writeD(0x28); // paperdoll start offset
 			writePaperdoll(w, paperdoll, ItemSlots.RHAND);
@@ -2724,78 +2757,82 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0xfe:0x50 ExShowVariationMakeWindow: abre a janela de augmentacao de armas. */
+	/** 0xfe:0x51 ExShowVariationMakeWindow: abre a janela de augmentacao de armas. */
 	record ExShowVariationMakeWindow() implements GameServerPacket {
 		public static final ExShowVariationMakeWindow STATIC_PACKET = new ExShowVariationMakeWindow();
-		@Override
-		public byte[] encode() {
-			return new PacketWriter().writeC(0xfe).writeH(0x50).toByteArray();
-		}
-	}
-
-	/** 0xfe:0x51 ExShowVariationCancelWindow: abre a janela de cancelamento de augmentacao. */
-	record ExShowVariationCancelWindow() implements GameServerPacket {
-		public static final ExShowVariationCancelWindow STATIC_PACKET = new ExShowVariationCancelWindow();
 		@Override
 		public byte[] encode() {
 			return new PacketWriter().writeC(0xfe).writeH(0x51).toByteArray();
 		}
 	}
 
-	/** 0xfe:0x52 ExPutItemResultForVariationMake: confirma o item alvo para augmentacao. */
-	record ExPutItemResultForVariationMake(int itemObjId) implements GameServerPacket {
+	/** 0xfe:0x52 ExShowVariationCancelWindow: abre a janela de cancelamento de augmentacao. */
+	record ExShowVariationCancelWindow() implements GameServerPacket {
+		public static final ExShowVariationCancelWindow STATIC_PACKET = new ExShowVariationCancelWindow();
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xfe).writeH(0x52).writeD(itemObjId).writeD(1).toByteArray();
+			return new PacketWriter().writeC(0xfe).writeH(0x52).toByteArray();
 		}
 	}
 
-	/** 0xfe:0x53 ExPutIntensiveResultForVariationMake: confirma a Life Stone e requisitos de Gemstones. */
+	/** 0xfe:0x53 ExPutItemResultForVariationMake: confirma o item alvo para augmentacao. */
+	record ExPutItemResultForVariationMake(int itemObjId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x53).writeD(itemObjId).writeD(1).toByteArray();
+		}
+	}
+
+	/** 0xfe:0x54 ExPutIntensiveResultForVariationMake: confirma a Life Stone e requisitos de Gemstones. */
 	record ExPutIntensiveResultForVariationMake(int refinerItemObjId, int lifeStoneId, int gemstoneItemId, int gemstoneCount) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xfe).writeH(0x53)
+			return new PacketWriter().writeC(0xfe).writeH(0x54)
 					.writeD(refinerItemObjId).writeD(lifeStoneId).writeD(gemstoneItemId).writeD(gemstoneCount).writeD(1)
 					.toByteArray();
 		}
 	}
 
-	/** 0xfe:0x54 ExPutCommissionResultForVariationMake: confirma o deposito de Gemstones. */
+	/** 0xfe:0x55 ExPutCommissionResultForVariationMake: confirma o deposito de Gemstones. */
 	record ExPutCommissionResultForVariationMake(int gemstoneItemObjId, int gemstoneCount, int gemstoneItemId) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xfe).writeH(0x54)
+			return new PacketWriter().writeC(0xfe).writeH(0x55)
 					.writeD(gemstoneItemObjId).writeD(gemstoneCount).writeD(1)
 					.toByteArray();
 		}
 	}
 
-	/** 0xfe:0x55 ExVariationResult: resultado da augmentacao (stat12, stat34, 1=sucesso, 0=falha). */
+	/** 0xfe:0x56 ExVariationResult: resultado da augmentacao (stat12, stat34, 1=sucesso, 0=falha). */
 	record ExVariationResult(int stat12, int stat34, int success) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xfe).writeH(0x55)
+			return new PacketWriter().writeC(0xfe).writeH(0x56)
 					.writeD(stat12).writeD(stat34).writeD(success)
 					.toByteArray();
 		}
 	}
 
-	/** 0xfe:0x56 ExPutItemResultForVariationCancel: confirma o item para remocao de augmentacao e custo. */
-	record ExPutItemResultForVariationCancel(int itemObjId, long price) implements GameServerPacket {
+	/** 0xfe:0x57 ExPutItemResultForVariationCancel: confirma o item para remocao de augmentacao e custo. */
+	record ExPutItemResultForVariationCancel(int itemObjId, int stat12, int stat34, long price) implements GameServerPacket {
+		public ExPutItemResultForVariationCancel(int itemObjId, long price) {
+			this(itemObjId, 0x2006, 0x27, price);
+		}
+
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xfe).writeH(0x56)
-					.writeD(0x40A97712).writeD(itemObjId).writeD(0x27).writeD(0x2006).writeQ(price).writeD(0x01)
+			return new PacketWriter().writeC(0xfe).writeH(0x57)
+					.writeD(itemObjId).writeD(stat34).writeD(stat12).writeQ(price).writeD(0x01)
 					.toByteArray();
 		}
 	}
 
-	/** 0xfe:0x57 ExVariationCancelResult: resultado da remocao de augmentacao (1=sucesso). */
+	/** 0xfe:0x58 ExVariationCancelResult: resultado da remocao de augmentacao (1=sucesso). */
 	record ExVariationCancelResult(int result) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xfe).writeH(0x57)
-					.writeD(1).writeD(result)
+			return new PacketWriter().writeC(0xfe).writeH(0x58)
+					.writeD(result)
 					.toByteArray();
 		}
 	}
@@ -2850,55 +2887,55 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0xa0 TutorialShowHtml: exibe pagina HTML de tutorial. */
+	/** 0xa6 TutorialShowHtml: exibe pagina HTML de tutorial. */
 	record TutorialShowHtml(String html) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xa0)
+					.writeC(0xa6)
 					.writeS(html != null ? html : "")
 					.toByteArray();
 		}
 	}
 
-	/** 0xa1 TutorialShowQuestionMark: exibe icone de interrogacao de tutorial. */
+	/** 0xa7 TutorialShowQuestionMark: exibe icone de interrogacao de tutorial. */
 	record TutorialShowQuestionMark(int markId) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xa1)
+					.writeC(0xa7)
 					.writeD(markId)
 					.toByteArray();
 		}
 	}
 
-	/** 0xa2 TutorialEnableClientEvent: habilita gatilho de evento no cliente para o tutorial. */
+	/** 0xa8 TutorialEnableClientEvent: habilita gatilho de evento no cliente para o tutorial. */
 	record TutorialEnableClientEvent(int eventId) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xa2)
+					.writeC(0xa8)
 					.writeD(eventId)
 					.toByteArray();
 		}
 	}
 
-	/** 0xa3 TutorialCloseHtml: fecha janela de tutorial. */
+	/** 0xa9 TutorialCloseHtml: fecha janela de tutorial. */
 	record TutorialCloseHtml() implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xa3)
+					.writeC(0xa9)
 					.toByteArray();
 		}
 	}
 
-	/** 0xeb RadarControl: adiciona ou remove marcador no radar do minimapa. */
+	/** 0xf1 RadarControl: adiciona ou remove marcador no radar do minimapa. */
 	record RadarControl(int show, int type, int x, int y, int z) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xeb)
+					.writeC(0xf1)
 					.writeD(show)
 					.writeD(type)
 					.writeD(x)
@@ -2908,11 +2945,11 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0xe7 SendMacroList: lista de macros ou atualizacao de macro individual. */
+	/** 0xe8 SendMacroList: lista de macros ou atualizacao de macro individual. */
 	record SendMacroList(int revision, int count, com.lopez.l2j.game.macro.Macro macro) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
-			PacketWriter w = new PacketWriter().writeC(0xe7);
+			PacketWriter w = new PacketWriter().writeC(0xe8);
 			w.writeD(revision);
 			w.writeC(0);
 			w.writeC(count);
@@ -2932,6 +2969,34 @@ public sealed interface GameServerPacket {
 					w.writeD(cmd.d1());
 					w.writeC(cmd.d2());
 					w.writeS(cmd.cmd() != null ? cmd.cmd() : "");
+				}
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x70 SendTradeRequest: convite de negociacao enviado ao jogador alvo. */
+	record SendTradeRequest(int senderId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x70).writeD(senderId).toByteArray();
+		}
+	}
+
+	/** 0xdc RecipeBookItemList: envia lista de receitas do livro de receitas. */
+	record RecipeBookItemList(boolean isDwarvenCraft, int maxCost, List<Integer> recipes) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			int size = recipes != null ? recipes.size() : 0;
+			PacketWriter w = new PacketWriter().writeC(0xdc);
+			w.writeD(isDwarvenCraft ? 0 : 1);
+			w.writeD(maxCost);
+			w.writeD(size);
+			if (recipes != null) {
+				int idx = 1;
+				for (int id : recipes) {
+					w.writeD(id);
+					w.writeD(idx++);
 				}
 			}
 			return w.toByteArray();

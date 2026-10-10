@@ -92,6 +92,9 @@ public sealed interface GameClientPacket {
 	record UseItem(int objectId) implements GameClientPacket {
 	}
 
+	record RequestDropItem(int objectId, int count, int x, int y, int z) implements GameClientPacket {
+	}
+
 	/** {@code bodyPart} = mascara L2Item.SLOT_* do slot clicado. */
 	record RequestUnEquipItem(int bodyPart) implements GameClientPacket {
 	}
@@ -112,6 +115,14 @@ public sealed interface GameClientPacket {
 	}
 
 	record RequestBBSwrite(String url, String arg1, String arg2, String arg3, String arg4, String arg5) implements GameClientPacket {
+	}
+
+	/** 0x57 - requisicao para abrir a janela da Comunidade BBS (Alt + B). */
+	record RequestShowBoard(int boardId) implements GameClientPacket {
+	}
+
+	/** 0xac - requisicao para abrir o livro de receitas (Dwarven ou Common). */
+	record RequestRecipeBookOpen(boolean isDwarvenCraft) implements GameClientPacket {
 	}
 
 	/** 0x5b - comando digitado na caixa de chat com prefixo // (ex.: //admin). */
@@ -408,11 +419,13 @@ public sealed interface GameClientPacket {
 					case 0x0f -> new RequestItemList();
 					case 0x14 -> new UseItem(r.readD());
 					case 0x11 -> new RequestUnEquipItem(r.readD());
+					case 0x12 -> new RequestDropItem(r.readD(), r.readD(), r.readD(), r.readD(), r.readD());
 					case 0x31 -> readWareHouseList(r, true);
 					case 0x32 -> readWareHouseList(r, false);
 					case 0x3f -> new RequestSkillList();
 					case 0x52 -> readSetPledgeCrest(r);
 					case 0x53 -> new RequestPledgeMemberList();
+					case 0x57 -> new RequestShowBoard(r.remaining() >= 4 ? r.readD() : 101);
 					case 0x58 -> r.remaining() >= 4 ? new RequestEnchantItem(r.readD()) : new Unknown(op, -1);
 					case 0x59 -> r.remaining() >= 8 ? new RequestDestroyItem(r.readD(), r.readD()) : new Unknown(op, -1);
 					case 0x5b -> new SendBypassBuildCmd(r.readS());
@@ -443,6 +456,7 @@ public sealed interface GameClientPacket {
 					case 0x09 -> new Logout();
 					case 0x46 -> new RequestRestart();
 					case 0xaa -> new RequestUserCommand(r.readD());
+					case 0xac -> new RequestRecipeBookOpen(r.remaining() >= 4 ? r.readD() == 0 : true);
 					case 0xa0 -> readBlock(r);
 					case 0xa7 -> readMultiSellChoose(r);
 					case 0xb9 -> new RequestEvaluate(r.readD());
