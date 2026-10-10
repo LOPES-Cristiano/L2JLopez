@@ -26,9 +26,9 @@ public class Quest205OrcTutorial extends Quest {
 	public static final int aJn = 0x100000;
 
 	public Quest205OrcTutorial(QuestManager questManager) {
-		super(205, "205_OrcTutorial", "Orc Tutorial");
+		super(205, "205_OrcTutorial", "Tutorial");
 		addTalkId(30573, 30575);
-		addKillId(18342);
+		addKillId(18342, 20419);
 		addFirstTalkId(30573, 30575);
 		if (questManager != null) {
 			questManager.registerQuest(this);
@@ -54,7 +54,7 @@ public class Quest205OrcTutorial extends Quest {
         if (player == null) {
             return null;
         }
-        int n = qs2.getInt("tutorial_quest_ex");
+        int n = qs.get("tutorial_quest_ex") == null ? -1 : qs.getInt("tutorial_quest_ex");
         int n2 = pc.classId();
         int n3 = pc.isMage() ? 1 : 0;
         if (event.equalsIgnoreCase("timer_newbie_helper")) {
@@ -103,7 +103,7 @@ public class Quest205OrcTutorial extends Quest {
             }
         } else if (event.equalsIgnoreCase("reply_42")) {
             event2 = "guardian_vullkus006.htm";
-            
+            qs.setState(State.COMPLETED);
         }
         return event2;
     
@@ -112,7 +112,7 @@ public class Quest205OrcTutorial extends Quest {
 
 	@Override
 	public String onTalk(NpcInstance npc, QuestState qs) {
-		return "noquest";
+		return onFirstTalk(npc, qs);
 	}
 
 
@@ -128,7 +128,7 @@ public class Quest205OrcTutorial extends Quest {
             return html;
         }
         int n2 = pc.classId();
-        int n3 = qs.getInt("tutorial_quest_ex");
+        int n3 = qs.get("tutorial_quest_ex") == null ? -1 : qs.getInt("tutorial_quest_ex");
         int n4 = qs.getInt("tutorial_quest");
         switch (n) {
             case 30575: {
@@ -208,22 +208,19 @@ public class Quest205OrcTutorial extends Quest {
         if (qs2 == null) {
             return null;
         }
-        int n = qs2.getInt("tutorial_quest_ex");
-        if (!(n != 1 && n != 0 || false)) {
+        int n = qs.get("tutorial_quest_ex") == null ? 0 : qs.getInt("tutorial_quest_ex");
+        if (n == 0 || n == 1) {
             qs.playTutorialVoice("tutorial_voice_011");
             qs.showQuestionMark(3);
             qs2.set("tutorial_quest", String.valueOf(2), true);
-            
         }
-        if ((n == 1 || n == 2 || n == 0) && qs.getQuestItemsCount(6353) < 1 && ThreadLocalRandom.current().nextInt(2) <= 1) {
+        if ((n == 0 || n == 1 || n == 2) && qs.getQuestItemsCount(6353) < 1) {
             qs.giveItems(6353, 1);
-            if (!false) {
-                qs.playSound(QuestState.SOUND_ACCEPT);
-                
-            }
+            qs.playSound(QuestState.SOUND_ACCEPT);
+            qs.playTutorialVoice("tutorial_voice_013");
+            qs.showQuestionMark(5);
         }
         return null;
-    
 	}
 
 }
