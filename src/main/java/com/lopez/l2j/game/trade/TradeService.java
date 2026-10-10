@@ -5,6 +5,8 @@ import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
+import com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -331,14 +333,29 @@ public class TradeService {
 					}
 				}
 
+				List<ItemInfo> updates1 = new ArrayList<>();
+				List<ItemInfo> updates2 = new ArrayList<>();
+
 				// Transferencia de P1 -> P2
 				for (TradeOffer offer : session.offers1) {
 					var itemOpt = inv1.byObjectId(offer.itemObjectId());
 					if (itemOpt.isPresent()) {
 						ItemInstance src = itemOpt.get();
 						int itemId = src.itemId();
-						inventoryService.destroyItem(inv1, offer.itemObjectId(), offer.count(), "Trade");
-						inventoryService.addItem(inv2, itemId, offer.count(), "Trade");
+						var consumed = inventoryService.destroyItem(inv1, offer.itemObjectId(), offer.count(), "Trade");
+						if (consumed != null) {
+							updates1.add(ItemInfo.of(consumed.item(), consumed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+						}
+						var added = inventoryService.addItem(inv2, itemId, offer.count(), "Trade");
+						if (added != null) {
+							if (added.allItems() != null && !added.allItems().isEmpty()) {
+								for (var it : added.allItems()) {
+									updates2.add(ItemInfo.of(it, added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+								}
+							} else {
+								updates2.add(ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+							}
+						}
 					}
 				}
 
@@ -348,8 +365,20 @@ public class TradeService {
 					if (itemOpt.isPresent()) {
 						ItemInstance src = itemOpt.get();
 						int itemId = src.itemId();
-						inventoryService.destroyItem(inv2, offer.itemObjectId(), offer.count(), "Trade");
-						inventoryService.addItem(inv1, itemId, offer.count(), "Trade");
+						var consumed = inventoryService.destroyItem(inv2, offer.itemObjectId(), offer.count(), "Trade");
+						if (consumed != null) {
+							updates2.add(ItemInfo.of(consumed.item(), consumed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+						}
+						var added = inventoryService.addItem(inv1, itemId, offer.count(), "Trade");
+						if (added != null) {
+							if (added.allItems() != null && !added.allItems().isEmpty()) {
+								for (var it : added.allItems()) {
+									updates1.add(ItemInfo.of(it, added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+								}
+							} else {
+								updates1.add(ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+							}
+						}
 					}
 				}
 
@@ -357,8 +386,14 @@ public class TradeService {
 				activeTrades.remove(p1.objectId());
 				activeTrades.remove(p2.objectId());
 
-				if (p1Sender != null) p1Sender.accept(SystemMessage.id(SystemMessage.TRADE_SUCCESSFUL));
-				if (p2Sender != null) p2Sender.accept(SystemMessage.id(SystemMessage.TRADE_SUCCESSFUL));
+				if (p1Sender != null) {
+					if (!updates1.isEmpty()) p1Sender.accept(new InventoryUpdate(updates1));
+					p1Sender.accept(SystemMessage.id(SystemMessage.TRADE_SUCCESSFUL));
+				}
+				if (p2Sender != null) {
+					if (!updates2.isEmpty()) p2Sender.accept(new InventoryUpdate(updates2));
+					p2Sender.accept(SystemMessage.id(SystemMessage.TRADE_SUCCESSFUL));
+				}
 
 				return true;
 			}

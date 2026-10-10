@@ -86,6 +86,21 @@ public class GameWorld {
 		default boolean isTeleporting() {
 			return false;
 		}
+
+		default void sendSkillList() {
+		}
+
+		default void refreshWeightAndPenalties() {
+		}
+
+		default void sendUserInfoAndBroadcastCharInfo() {
+		}
+
+		default void addKnownObject(int objectId) {
+		}
+
+		default void removeKnownObject(int objectId) {
+		}
 	}
 
 	public static final int LOCAL_CHAT_RANGE = 1250;
