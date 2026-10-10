@@ -1,62 +1,73 @@
-﻿<html><title>Mods Control Panel</title><body>
+<html><title>Mods Menu</title><body>
 <center>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<table bgcolor="000000" width=300>
-<tr>
-  <td><a action="bypass -h admin_admin" width=54 height=19><font color="FFD306">Main</font></a></td>
-  <td><a action="bypass -h admin_gamemenu" width=54 height=19><font color="FFD306">Game</font></a></td>
-  <td><a action="bypass -h admin_server" width=54 height=19><font color="FFD306">Server</font></a></td>
-  <td><a action="bypass -h admin_effects" width=54 height=19><font color="FFD306">Effects</font></a></td>
-  <td><a action="bypass -h admin_mod" width=54 height=19><font color="FFD306">Mods</font></a></td>
-</tr>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Main" action="bypass -h admin_admin" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Game" action="bypass -h admin_admin2" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Effects" action="bypass -h admin_admin3" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Server" action="bypass -h admin_admin4" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Mods" action="bypass -h admin_admin5" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<br>
-<!-- Windows Info -->
-<table width=180>
-		<tr>
-			<td>Team</td>
-			<td><edit var="qbox" width=120 height=15></td>
-		</tr>
-	</table><br>
-
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-
-<br>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-	<table bgcolor="000000" width=300>
-		<tr>
-			<td><font color="LEVEL">GM Speed:</font></td>
-			<td><button action="bypass -h admin_gmspeed 0" width=29 height=29 back="L2UI_ch3.calculate1_0_over" fore="L2UI_ch3.calculate1_0"></td>
-			<td><button action="bypass -h admin_gmspeed 1" width=29 height=29 back="L2UI_ch3.calculate1_1_over" fore="L2UI_ch3.calculate1_1"></td>
-			<td><button action="bypass -h admin_gmspeed 2" width=29 height=29 back="L2UI_ch3.calculate1_2_over" fore="L2UI_ch3.calculate1_2"></td>
-			<td><button action="bypass -h admin_gmspeed 3" width=29 height=29 back="L2UI_ch3.calculate1_3_over" fore="L2UI_ch3.calculate1_3"></td>
-			<td><button action="bypass -h admin_gmspeed 4" width=29 height=29 back="L2UI_ch3.calculate1_4_over" fore="L2UI_ch3.calculate1_4"></td>
-		</tr>
-	</table>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<br>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-	<table bgcolor="000000" width=300>
-		<tr>
-			<td><font color="LEVEL">Clan Name:</font></td>
-			<td><edit var="cfull" width=120 height=15></td>
-			<td><button value="Clan Full" action="bypass -h admin_clanfull $cfull" width=75 height=21 back="L2UI_ch3.Btn1_normalOn" fore="L2UI_ch3.Btn1_normal"></td>
-		</tr>
-	</table>
-<center><img src="L2UI.SquareGray" width=300 height=1></center>
-<td><img src="L2UI.SquareBlank" width=40 height=2></td>
-<center><img src=L2UI.SquareGray width=250 height=1></center>
-<br>
-<font color="00ccf0">L2JDream - V2:</font><font color="ae9987"> www.l2jdream.org</font>
-</center></body></html>
+<font color="FF9900">_______________________________________</font>
+<table width=260>
+	<tr>
+		<td width=65><font color="LEVEL">QuickBox:</font></td>
+		<td width=130><edit var="menu_command" width=130 height=15></td>
+		<td width=65><button value="Buscar" action="bypass -h admin_search $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
+</table>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Busca NPC" action="bypass -h admin_find_npc $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Busca Item" action="bypass -h admin_find_item $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Busca Skill" action="bypass -h admin_find_skill $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Busca Char" action="bypass -h admin_find_character $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
+</table>
+<font color="FF9900">_______________________________________</font>
+<font color="FF9900">GM Speed</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Speed 0" action="bypass -h admin_speed 0" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Speed 1" action="bypass -h admin_speed 1" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Speed 2" action="bypass -h admin_speed 2" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Speed 3" action="bypass -h admin_speed 3" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Speed 4" action="bypass -h admin_speed 4" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
+</table>
+<font color="FF9900">Clan & Services</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Clan Full" action="bypass -h admin_clanfull $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Noblesse" action="bypass -h admin_setnoble $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Hero" action="bypass -h admin_manualhero $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="C. Hall" action="bypass -h admin_clanhall" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
+</table>
+<font color="FF9900">Team Control / TvT</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Team Azul" action="bypass -h admin_setteam1" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Team Rojo" action="bypass -h admin_setteam2" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Rango Azul" action="bypass -h admin_rangesetteam1" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Rango Rojo" action="bypass -h admin_rangesetteam2" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
+</table>
+<table width=130 bgcolor="000000">
+	<tr>
+		<td><button value="Sacar" action="bypass -h admin_clearteam" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Eliminar" action="bypass -h admin_rangeclearteam" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
+</table>
+<font color="FF9900">Champion Mobs</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Enable" action="bypass -h admin_set_mod ChampionEnable=true" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Disable" action="bypass -h admin_set_mod ChampionEnable=false" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Freq." action="bypass -h admin_set_mod ChampionFrequency=$menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="xHP" action="bypass -h admin_set_mod ChampionHp=$menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
+</table>
+</center>
+</body></html>
