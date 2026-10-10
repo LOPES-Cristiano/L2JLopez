@@ -195,7 +195,7 @@ public class HtmCache {
 
 		for (String cand : candidates) {
 			String indexedPath = indexedFiles.get(cand.toLowerCase(java.util.Locale.ROOT));
-			if (indexedPath != null) {
+			if (indexedPath != null && !indexedPath.toLowerCase(java.util.Locale.ROOT).contains("npcloc")) {
 				html = getHtml(indexedPath);
 				if (html != null && !html.isBlank()) {
 					return html;
@@ -308,8 +308,48 @@ public class HtmCache {
 				if (h != null) yield h;
 				yield getHtml("doormen/35602-no.htm");
 			}
+			case "newbiehelper" -> {
+				String h = switch (npcId) {
+					case 30598 -> getHtml("newbiehelper/guide_human_cnacelot/guide_human_cnacelot001.htm");
+					case 30599 -> getHtml("newbiehelper/guide_gludin_nina/guide_gludin_nina001.htm");
+					case 30600 -> getHtml("newbiehelper/guide_gludio_euria/guide_gludio_euria001.htm");
+					case 30601, 30528 -> getHtml("newbiehelper/guide_dwarf_gullin/guide_dwarf_gullin001.htm");
+					case 30602, 30370 -> getHtml("newbiehelper/guide_elf_roios/guide_elf_roios001.htm");
+					case 30129 -> getHtml("newbiehelper/guide_delf_frankia/guide_delf_frankia001.htm");
+					case 30573 -> getHtml("newbiehelper/guide_orc_tanai/guide_orc_tanai001.htm");
+					default -> null;
+				};
+				if (h == null) {
+					h = getHtml("newbiehelper/newbie_guide001.htm");
+				}
+				yield h;
+			}
 			default -> null;
 		};
+	}
+
+	private static final java.util.regex.Pattern BRACKET_LINK_PATTERN =
+			java.util.regex.Pattern.compile("\\[([^\n\\]|]+)\\|([^\n\\]]+)\\]");
+
+	public static String convertBracketLinks(String html) {
+		if (html == null || !html.contains("[") || !html.contains("|")) {
+			return html;
+		}
+		var matcher = BRACKET_LINK_PATTERN.matcher(html);
+		var sb = new StringBuilder(html.length() + 64);
+		while (matcher.find()) {
+			String action = matcher.group(1).trim();
+			String text = matcher.group(2).trim();
+			String replacement;
+			if (action.startsWith("bypass ") || action.startsWith("link ")) {
+				replacement = "<a action=\"" + action + "\">" + text + "</a>";
+			} else {
+				replacement = "<a action=\"bypass -h " + action + "\">" + text + "</a>";
+			}
+			matcher.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(replacement));
+		}
+		matcher.appendTail(sb);
+		return sb.toString();
 	}
 
 	public String render(String rawHtml, int npcObjectId, String npcName, String playerName) {
@@ -337,6 +377,7 @@ public class HtmCache {
 			s = s.replace("%npcId%", String.valueOf(npcId))
 				 .replace("%npc_id%", String.valueOf(npcId));
 		}
+		s = convertBracketLinks(s);
 		return s;
 	}
 

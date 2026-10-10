@@ -193,6 +193,62 @@ public class GeoEngine {
 	}
 
 	/**
+	 * Retorna a altura do teto imediatamente acima da coordenada Z, se existir (em blocos multilayer).
+	 * Retorna Short.MAX_VALUE se nao houver teto acima.
+	 */
+	public short getCeilingZ(int x, int y, int z) {
+		if (!isEnabled()) {
+			return Short.MAX_VALUE;
+		}
+
+		int regX = getRegionX(x);
+		int regY = getRegionY(y);
+		RegionData region = getRegion(regX, regY);
+		if (region == null) {
+			return Short.MAX_VALUE;
+		}
+
+		int localX = x - ((regX - 20) << 15);
+		int localY = y - ((regY - 18) << 15);
+		int blockX = (localX >> 7) & 0xFF;
+		int blockY = (localY >> 7) & 0xFF;
+		int blockIdx = (blockX << 8) | blockY;
+		int offset = region.blockOffsets[blockIdx];
+		if (offset < 0 || offset >= region.buffer.capacity()) {
+			return Short.MAX_VALUE;
+		}
+
+		MappedByteBuffer buf = region.buffer;
+		byte type = buf.get(offset);
+
+		if (type == BLOCK_TYPE_MULTILAYER) {
+			int cellX = (localX >> 4) & 0x07;
+			int cellY = (localY >> 4) & 0x07;
+			int targetCell = (cellX << 3) | cellY;
+
+			int curOffset = offset + 1;
+			for (int c = 0; c < 64; c++) {
+				byte layers = buf.get(curOffset);
+				curOffset++;
+				if (c == targetCell) {
+					short lowestCeiling = Short.MAX_VALUE;
+					for (int l = 0; l < layers; l++) {
+						short raw = buf.getShort(curOffset + (l << 1));
+						short layerZ = (short) ((short) (raw & 0xFFF0) >> 1);
+						if (layerZ > z + 64 && layerZ < lowestCeiling) {
+							lowestCeiling = layerZ;
+						}
+					}
+					return lowestCeiling;
+				}
+				curOffset += (layers << 1);
+			}
+		}
+
+		return Short.MAX_VALUE;
+	}
+
+	/**
 	 * Verifica linha de visao (Line of Sight - LoS) 3D entre duas posicoes no mundo.
 	 * Utiliza raycasting com amostragem de celulas e checagem de portas fechadas.
 	 */
@@ -214,6 +270,16 @@ public class GeoEngine {
 					return false;
 				}
 			}
+		}
+
+		// 1. Checagem de teto em camadas (multilayer): se um estiver em caverna/andar inferior e o outro acima do teto
+		short ceilStart = getCeilingZ(x, y, z);
+		if (ceilStart != Short.MAX_VALUE && tz > ceilStart) {
+			return false;
+		}
+		short ceilEnd = getCeilingZ(tx, ty, tz);
+		if (ceilEnd != Short.MAX_VALUE && z > ceilEnd) {
+			return false;
 		}
 
 		// Ajusta altura do alvo caso haja pequena discrepancia de spawn z com a superficie
@@ -248,11 +314,19 @@ public class GeoEngine {
 			curY += stepY;
 			curZ += stepZ;
 
-			short groundZ = getHeight((int) Math.round(curX), (int) Math.round(curY), (int) Math.round(curZ));
+			int ix = (int) Math.round(curX);
+			int iy = (int) Math.round(curY);
+			short groundZ = getHeight(ix, iy, (int) Math.round(curZ));
 
 			// O terreno so obstrui a visao se ultrapassar significativamente a linha de visao
 			// dos olhos (tolerancia retail de 64 unidades para ignorar colinas suaves)
 			if (groundZ > curZ + 64) {
+				return false;
+			}
+
+			// Se houver um teto intermediario que foi ultrapassado pela linha de visao
+			short ceilIntermediate = getCeilingZ(ix, iy, groundZ);
+			if (ceilIntermediate != Short.MAX_VALUE && curZ > ceilIntermediate) {
 				return false;
 			}
 		}
