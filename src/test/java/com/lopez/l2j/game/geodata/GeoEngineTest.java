@@ -121,4 +121,31 @@ class GeoEngineTest {
 			}
 		}
 	}
+
+	@Test
+	@DisplayName("Monstro subterraneo no Ant Nest nao deve ter linha de visao para jogador na superficie do Wasteland")
+	void testAntNestUndergroundLoSBlockedToSurface() {
+		com.lopez.l2j.config.Config.ENABLE_GEODATA = true;
+		// Ant Patrol no Ant Nest: X=-13466, Y=179523, Z=-5387
+		int antX = -13466;
+		int antY = 179523;
+		int antZ = -5387;
+
+		// Superfície do deserto Wasteland diretamente acima ou próximo
+		int playerX = -13466;
+		int playerY = 179523;
+		short playerSurfaceZ = geoEngine.getHeight(playerX, playerY, -3400);
+
+		// Altura do teto do formigueiro deve existir acima da formiga
+		short ceilZ = geoEngine.getCeilingZ(antX, antY, antZ);
+		assertTrue(ceilZ > antZ, "Ant Nest deve possuir teto acima do monstro subterraneo");
+
+		// Linha de visao da formiga subterranea para o jogador na superficie DEVE ser bloqueada (false)
+		boolean seeSurface = geoEngine.canSeeTarget(antX, antY, antZ, playerX, playerY, playerSurfaceZ);
+		assertFalse(seeSurface, "Monstro no Ant Nest nao deve enxergar jogador na superficie do deserto");
+
+		// E a linha de visao do jogador na superficie para a formiga subterranea tambem DEVE ser bloqueada (false)
+		boolean surfaceSeeAnt = geoEngine.canSeeTarget(playerX, playerY, playerSurfaceZ, antX, antY, antZ);
+		assertFalse(surfaceSeeAnt, "Jogador na superficie nao deve enxergar monstro dentro da caverna subterranea");
+	}
 }
