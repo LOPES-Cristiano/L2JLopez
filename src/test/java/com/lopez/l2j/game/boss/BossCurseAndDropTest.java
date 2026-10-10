@@ -74,6 +74,44 @@ public class BossCurseAndDropTest {
 	}
 
 	@Test
+	public void testNormalMonsterMinionDoesNotTriggerRaidCurse() {
+		PlayerCharacter highLevelPlayer = createPlayer(5, "HighHero", 80);
+		NpcTemplate minionTpl = createTemplate(20118, "NormalMinion", 30, "L2Monster");
+		NpcInstance normalMinion = new NpcInstance(3001, minionTpl, 0, 0, 0, 0);
+		normalMinion.masterObjectId(100); // Pertence a um monstro comum (ex: 20117)
+		// Nao e minion de raid boss:
+		assertFalse(normalMinion.isRaidMinion(), "Minion de monstro comum nao deve ser considerado raid minion");
+		assertFalse(combatService.checkRaidCurse(highLevelPlayer, normalMinion),
+				"Atacar lacaio de monstro comum nunca deve aplicar Raid Curse");
+	}
+
+	@Test
+	public void testRaidBossMinionTriggersRaidCurseOnOverlevel() {
+		PlayerCharacter highLevelPlayer = createPlayer(6, "HighHero", 80);
+		NpcTemplate raidMinionTpl = createTemplate(25002, "RaidMinion", 40, "L2RaidMinion");
+		NpcInstance raidMinion = new NpcInstance(3002, raidMinionTpl, 0, 0, 0, 0);
+		raidMinion.masterObjectId(1001);
+		raidMinion.raidMinion(true);
+
+		assertTrue(raidMinion.isRaidMinion(), "Deve ser reconhecido como raid minion");
+		assertTrue(combatService.checkRaidCurse(highLevelPlayer, raidMinion),
+				"Atacar lacaio de Raid Boss com level excessivo deve aplicar Raid Curse");
+	}
+
+	@Test
+	public void testGmNeverTriggersRaidCurse() {
+		PlayerCharacter gmPlayer = createPlayer(7, "AdminGM", 80);
+		gmPlayer.accessLevel(100);
+		assertTrue(gmPlayer.isGm(), "Player deve ser GM");
+
+		NpcTemplate bossTpl = createTemplate(25001, "LowRaid", 20, "L2RaidBoss");
+		NpcInstance boss = new NpcInstance(1002, bossTpl, 0, 0, 0, 0);
+
+		assertFalse(combatService.checkRaidCurse(gmPlayer, boss),
+				"GM nunca deve receber Raid Curse ao atacar Raid Boss");
+	}
+
+	@Test
 	public void testRaidDropRateMultiplier() {
 		assertEquals(2.0f, Config.RATE_RAID_DROP_ITEMS, "Raid drop rate must be 2.0");
 		assertFalse(Config.AUTO_LOOT_RAID, "AUTO_LOOT_RAID must be false for ground drop scattering");
