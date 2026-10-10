@@ -24,6 +24,7 @@ import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestAutoSoulShot;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestBuyItem;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestDestroyItem;
+import com.lopez.l2j.network.game.packet.GameClientPacket.RequestDropItem;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestEnchantItem;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestSellItem;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestUnEquipItem;
@@ -39,7 +40,8 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.MagicEffectIcons;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SellList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SocialAction;
-import com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate;
+import com.lopez.l2j.game.augmentation.AugmentationService;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ExShowVariationMakeWindow;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -185,6 +187,15 @@ public class ItemPacketHandler {
 				useNoblesseItem(item);
 				return;
 			}
+			if (AugmentationService.isLifeStone(item.itemId())) {
+				if (active.isDead() || active.sitting()) {
+					session.send(new ActionFailed());
+					return;
+				}
+				session.send(ExShowVariationMakeWindow.STATIC_PACKET);
+				session.send(new ActionFailed());
+				return;
+			}
 			var consumable = ConsumableTable.get(item.itemId());
 			if (consumable.isPresent()) {
 				useConsumable(consumable.get());
@@ -250,6 +261,44 @@ public class ItemPacketHandler {
 		session.send(new InventoryUpdate(
 				List.of(ItemInfo.of(result.item(), result.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
 		session.refreshWeightAndPenalties();
+		session.send(new ActionFailed());
+	}
+
+	public void handleDropItem(RequestDropItem p) {
+		PlayerCharacter active = session.activeChar();
+		var ctx = session.context();
+		if (!session.inWorld() || active == null || active.isDead() || active.isOlympiadMode()
+				|| active.isStoreOpen() || active.isBuffShop() || ctx == null || ctx.inventories() == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		if (p.count() <= 0) {
+			session.send(new ActionFailed());
+			return;
+		}
+		var itemOpt = active.inventory().byObjectId(p.objectId());
+		if (itemOpt.isEmpty()) {
+			session.send(new ActionFailed());
+			return;
+		}
+		var item = itemOpt.get();
+		if (item.isEquipped() || !item.template().dropable() || item.count() < p.count()) {
+			session.send(SystemMessage.id(SystemMessage.CANNOT_DISCARD_THIS_ITEM));
+			session.send(new ActionFailed());
+			return;
+		}
+		var result = ctx.inventories().destroyItem(active.inventory(), p.objectId(), p.count(), "Drop");
+		if (result == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		session.send(new InventoryUpdate(List.of(
+				ItemInfo.of(result.item(), result.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+		session.refreshWeightAndPenalties();
+
+		if (ctx.groundItems() != null) {
+			ctx.groundItems().dropItem(active.objectId(), item.itemId(), p.count(), active.x(), active.y(), active.z());
+		}
 		session.send(new ActionFailed());
 	}
 
@@ -663,20 +712,16 @@ public class ItemPacketHandler {
 		}
 
 		Set<Integer> currentSetSkills = active.armorSetSkillIds();
-		boolean changed = false;
+		boolean changed = !currentSetSkills.equals(newSetSkills);
 
 		for (int skId : currentSetSkills) {
 			if (!newSetSkills.contains(skId)) {
 				active.skills().remove(skId);
-				changed = true;
 			}
 		}
 
 		for (int skId : newSetSkills) {
-			if (!active.skills().containsKey(skId)) {
-				active.skills().put(skId, 1);
-				changed = true;
-			}
+			active.skills().put(skId, 1);
 		}
 
 		currentSetSkills.clear();
@@ -722,24 +767,17 @@ public class ItemPacketHandler {
 		}
 
 		Map<Integer, Integer> currentItemSkills = active.equippedItemSkills();
-		boolean changed = false;
+		boolean changed = !currentItemSkills.equals(newItemSkills);
 
 		for (var entry : currentItemSkills.entrySet()) {
 			int skillId = entry.getKey();
 			if (!newItemSkills.containsKey(skillId)) {
 				active.skills().remove(skillId);
-				changed = true;
 			}
 		}
 
 		for (var entry : newItemSkills.entrySet()) {
-			int skillId = entry.getKey();
-			int lvl = entry.getValue();
-			Integer curLvl = active.skills().get(skillId);
-			if (curLvl == null || curLvl != lvl) {
-				active.skills().put(skillId, lvl);
-				changed = true;
-			}
+			active.skills().put(entry.getKey(), entry.getValue());
 		}
 
 		currentItemSkills.clear();
@@ -796,8 +834,10 @@ public class ItemPacketHandler {
 				case "regMp" -> funcs.add(new StatFunc("regMp", StatFunc.Op.ADD, 0x40, s.value()));
 				case "regCp" -> funcs.add(new StatFunc("regCp", StatFunc.Op.ADD, 0x40, s.value()));
 				case "STR" -> active.augSTR(active.augSTR() + (int) s.value());
+				case "DEX" -> active.augDEX(active.augDEX() + (int) s.value());
 				case "CON" -> active.augCON(active.augCON() + (int) s.value());
 				case "INT" -> active.augINT(active.augINT() + (int) s.value());
+				case "WIT" -> active.augWIT(active.augWIT() + (int) s.value());
 				case "MEN" -> active.augMEN(active.augMEN() + (int) s.value());
 			}
 		}
