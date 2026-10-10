@@ -1,87 +1,66 @@
-<html><title>Server Control Panel</title><body>
+<html><title>Admin Panel - Server Management</title><body>
 <center>
-<table width=270>
-<tr>
-  <td align=center><button value="Main" action="bypass -h admin_admin" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="ALT+G" action="bypass -h admin_altg" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Players" action="bypass -h admin_players" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Game" action="bypass -h admin_gamemenu" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Tele" action="bypass -h admin_show_moves" width=52 height=20 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
+<font color="FF9900" align="center">_______________________________________</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Main" action="bypass -h admin_admin" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Game" action="bypass -h admin_admin2" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Effects" action="bypass -h admin_admin3" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Server" action="bypass -h admin_admin4" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Mods" action="bypass -h admin_admin5" width=52 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<img src="L2UI.SquareGray" width=270 height=1>
-
-<table width=270>
-<tr>
-  <td width=100><font color="LEVEL">Parametro / Seg:</font></td>
-  <td width=170><edit var="qbox" width=160 height=16></td>
-</tr>
+<font color="FF9900" align="center">_______________________________________</font>
+<table width=260>
+	<tr>
+		<td width=60><font color="LEVEL">QuickBox:</font></td>
+		<td width=200><edit var="menu_command" width=195 height=15></td>
+	</tr>
 </table>
-
-<table width=270>
-<tr>
-  <td><font color="00FFBB">Controle do Servidor</font></td>
-</tr>
+<font color="FF9900" align="center">_______________________________________</font>
+<br1>
+<font color="FF9900">Reload:</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Reload" action="bypass -h admin_reload" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Reload HTM" action="bypass -h admin_reload html" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Spawns" action="bypass -h admin_reload spawns" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Config" action="bypass -h admin_reload config" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<table width=270>
-<tr>
-  <td align=center><button value="Shutdown" action="bypass -h admin_shutdown $qbox" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Restart" action="bypass -h admin_restart $qbox" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Abortar" action="bypass -h admin_abort" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Kick All" action="bypass -h admin_kickall" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
-<tr>
-  <td align=center><button value="Apenas GM" action="bypass -h admin_onlygm" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Liberar" action="bypass -h admin_forall" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Limpar Mem" action="bypass -h admin_cleanup" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Max Players" action="bypass -h admin_maxplayer $qbox" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Scripts" action="bypass -h admin_reload scripts" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Oly" action="bypass -h admin_reload oly" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Clean Mem" action="bypass -h admin_cleanup" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Max Players" action="bypass -h admin_maxplayer $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<img src="L2UI.SquareGray" width=270 height=1>
-
-<table width=270>
-<tr>
-  <td><font color="00FFBB">Recarregar Modulos (Reload)</font></td>
-</tr>
+<font color="FF9900">Maintenance & Server Control:</font>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Shutdown" action="bypass -h admin_shutdown $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Restart" action="bypass -h admin_restart $menu_command" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Abort" action="bypass -h admin_abort" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Kick All" action="bypass -h admin_kickall" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<table width=270>
-<tr>
-  <td align=center><button value="Spawns" action="bypass -h admin_reload spawns" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="HTMLs" action="bypass -h admin_reload html" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Scripts" action="bypass -h admin_reload scripts" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-  <td align=center><button value="Olympiad" action="bypass -h admin_reload oly" width=65 height=21 back="L2UI_CH3.smallbutton2_over" fore="L2UI_CH3.smallbutton2"></td>
-</tr>
+<table width=260 bgcolor="000000">
+	<tr>
+		<td><button value="Only GM" action="bypass -h admin_onlygm" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="For All" action="bypass -h admin_forall" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Doors Open" action="bypass -h admin_openall" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+		<td><button value="Doors Close" action="bypass -h admin_closeall" width=65 height=19 back="L2UI_ch3.smallbutton2_over" fore="L2UI_ch3.smallbutton2"></td>
+	</tr>
 </table>
-
-<img src="L2UI.SquareGray" width=270 height=1>
-
-<table width=270>
-<tr>
-  <td><font color="00FFBB">Informacoes do Servidor</font></td>
-</tr>
+<font color="FF9900">Server Info:</font>
+<table width=260 bgcolor="000000">
+<tr><td width=80><font color="LEVEL">Memory:</font></td><td width=180>%meminfo%</td></tr>
+<tr><td width=80><font color="LEVEL">System:</font></td><td width=180>%os%</td></tr>
+<tr><td width=80><font color="LEVEL">Uptime:</font></td><td width=180>%time%</td></tr>
+<tr><td width=80><font color="LEVEL">Online:</font></td><td width=180><font color="00FF00">%online%</font> / %max%</td></tr>
 </table>
-
-<table width=270 bgcolor="000000">
-<tr><td width=90><font color="LEVEL">Memoria:</font></td><td width=180>%meminfo%</td></tr>
-<tr><td width=90><font color="LEVEL">Sistema:</font></td><td width=180>%os%</td></tr>
-<tr><td width=90><font color="LEVEL">Uptime:</font></td><td width=180>%time%</td></tr>
-<tr><td width=90><font color="LEVEL">Online:</font></td><td width=180><font color="00FF00">%online%</font> / %max% max</td></tr>
-<tr><td width=90><font color="LEVEL">Geodata:</font></td><td width=180>%geo%</td></tr>
-<tr><td width=90><font color="LEVEL">Target Atual:</font></td><td width=180><font color="FFFF77">%target%</font></td></tr>
-</table>
-
-<img src="L2UI.SquareGray" width=270 height=1>
-
-<table width=270>
-<tr>
-  <td align=center><button value="Salvar Oly" action="bypass -h admin_saveolymp" width=130 height=21 back="L2UI_CH3.bigbutton3_over" fore="L2UI_CH3.bigbutton3"></td>
-  <td align=center><button value="Encerrar Oly" action="bypass -h admin_endolympiad" width=130 height=21 back="L2UI_CH3.bigbutton3_over" fore="L2UI_CH3.bigbutton3"></td>
-</tr>
-</table>
-
+<font color="FF9900" align="center">_______________________________________</font>
 </center>
-</body></html>
+</body>
+</html>
