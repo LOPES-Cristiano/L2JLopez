@@ -83,6 +83,13 @@ public class ZoneTable {
 	}
 
 	/**
+	 * Alias para isInsidePeace(x, y, z).
+	 */
+	public boolean isInsidePeaceZone(int x, int y, int z) {
+		return isInsidePeace(x, y, z);
+	}
+
+	/**
 	 * Verifica se as coordenadas informadas estao dentro de uma Zona de Arena (PvP livre sem karma).
 	 */
 	public boolean isInsideArena(int x, int y, int z) {
@@ -102,6 +109,20 @@ public class ZoneTable {
 	public boolean isInsideFlagZone(int x, int y, int z) {
 		for (Zone zone : allZones) {
 			if (zone.type() == ZoneType.FLAG && zone.contains(x, y, z)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Verifica se as coordenadas informadas estao dentro de uma Zona de Combate/PvP livre (Arena, Siege, Flag Zone).
+	 */
+	public boolean isInsidePvpCombatZone(int x, int y, int z) {
+		for (Zone zone : allZones) {
+			if ((zone.isArena() || zone.type() == ZoneType.ARENA || zone.type() == ZoneType.SIEGE || zone.type() == ZoneType.FLAG
+					|| (zone.type() == ZoneType.TOWN && com.lopez.l2j.config.Config.ZONE_TOWN == 2))
+					&& zone.contains(x, y, z)) {
 				return true;
 			}
 		}
