@@ -1036,6 +1036,27 @@ class GameSessionFeaturesTest {
 				"Warehouse fallback deve conter operacoes de bau");
 	}
 
+	@Test
+	void testDebuffIconsOpcodeAndFastRestore() {
+		// 1. Validar que o opcode do pacote e 0x7f (MagicEffectIcons do Interlude)
+		var icon = new MagicEffectIcons.Icon(1160, 1, 30);
+		var packet = new MagicEffectIcons(List.of(icon));
+		byte[] encoded = packet.encode();
+		assertEquals((byte) 0x7f, encoded[0], "Opcode do Interlude para barra de buffs/debuffs deve ser 0x7f");
+
+		// 2. Debuff ativo no player deve ser transmitido no pacote
+		player.effects().put(com.lopez.l2j.game.effect.PlayerEffects.ActiveBuff.ofSkill(
+				1160, 1, "slow", System.currentTimeMillis() + 30_000L, List.of(), true));
+		session.refreshBuffs();
+		var sentIcons = sent.stream()
+				.filter(p -> p instanceof MagicEffectIcons)
+				.map(p -> (MagicEffectIcons) p)
+				.toList();
+		assertFalse(sentIcons.isEmpty(), "Deve enviar pacote de icones com debuff");
+		assertTrue(sentIcons.getLast().icons().stream().anyMatch(i -> i.skillId() == 1160),
+				"Debuff deve constar na lista de icones enviada ao cliente");
+	}
+
 	private static class FakeCharacterSkillSaveRepository extends com.lopez.l2j.game.effect.CharacterSkillSaveRepository {
 		final java.util.Map<Integer, List<SavedBuff>> saved = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -1470,5 +1491,62 @@ class GameSessionFeaturesTest {
 				&& cs.channel() == GameServerPacket.CreatureSay.ALL
 				&& "Ola mundo!".equals(cs.text()),
 				"Chat de jogador deve continuar sendo CreatureSay no chat comum");
+	}
+
+	@Test
+	void testAugmentationPacketOpcodesAndLifeStoneUse() {
+		// 1. Validar opcodes dos pacotes de augmentacao (Interlude C6 client table: 0x51 a 0x58)
+		byte[] makeWindow = new GameServerPacket.ExShowVariationMakeWindow().encode();
+		assertEquals((byte) 0xfe, makeWindow[0]);
+		assertEquals((short) 0x51, ByteBuffer.wrap(makeWindow, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExShowVariationMakeWindow deve ter sub-opcode 0x51");
+
+		byte[] cancelWindow = new GameServerPacket.ExShowVariationCancelWindow().encode();
+		assertEquals((byte) 0xfe, cancelWindow[0]);
+		assertEquals((short) 0x52, ByteBuffer.wrap(cancelWindow, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExShowVariationCancelWindow deve ter sub-opcode 0x52");
+
+		byte[] putItemMake = new GameServerPacket.ExPutItemResultForVariationMake(12345).encode();
+		assertEquals((byte) 0xfe, putItemMake[0]);
+		assertEquals((short) 0x53, ByteBuffer.wrap(putItemMake, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExPutItemResultForVariationMake deve ter sub-opcode 0x53");
+
+		byte[] putIntensive = new GameServerPacket.ExPutIntensiveResultForVariationMake(1, 8723, 2130, 20).encode();
+		assertEquals((byte) 0xfe, putIntensive[0]);
+		assertEquals((short) 0x54, ByteBuffer.wrap(putIntensive, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExPutIntensiveResultForVariationMake deve ter sub-opcode 0x54");
+
+		byte[] putCommission = new GameServerPacket.ExPutCommissionResultForVariationMake(2, 20, 2130).encode();
+		assertEquals((byte) 0xfe, putCommission[0]);
+		assertEquals((short) 0x55, ByteBuffer.wrap(putCommission, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExPutCommissionResultForVariationMake deve ter sub-opcode 0x55");
+
+		byte[] variationResult = new GameServerPacket.ExVariationResult(100, 200, 1).encode();
+		assertEquals((byte) 0xfe, variationResult[0]);
+		assertEquals((short) 0x56, ByteBuffer.wrap(variationResult, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExVariationResult deve ter sub-opcode 0x56");
+
+		byte[] putItemCancel = new GameServerPacket.ExPutItemResultForVariationCancel(12345, 100, 200, 210000).encode();
+		assertEquals((byte) 0xfe, putItemCancel[0]);
+		assertEquals((short) 0x57, ByteBuffer.wrap(putItemCancel, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExPutItemResultForVariationCancel deve ter sub-opcode 0x57");
+		assertEquals(12345, ByteBuffer.wrap(putItemCancel, 3, 4).order(ByteOrder.LITTLE_ENDIAN).getInt(),
+				"Primeiro campo de ExPutItemResultForVariationCancel deve ser o itemObjId");
+
+		byte[] cancelResult = new GameServerPacket.ExVariationCancelResult(1).encode();
+		assertEquals((byte) 0xfe, cancelResult[0]);
+		assertEquals((short) 0x58, ByteBuffer.wrap(cancelResult, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExVariationCancelResult deve ter sub-opcode 0x58");
+		assertEquals(7, cancelResult.length, "ExVariationCancelResult deve ter 7 bytes no total");
+		assertEquals(1, ByteBuffer.wrap(cancelResult, 3, 4).order(ByteOrder.LITTLE_ENDIAN).getInt());
+
+		// 2. Validar que usar Life Stone do inventario abre a janela de augmentacao
+		ItemTemplate lsTemplate = ItemTemplate.etc(8723, 8723, "Life Stone", "none", "normal", 1, "none", 0, true, true, true, true);
+		ItemInstance lifeStone = new ItemInstance(999, lsTemplate, player.objectId(), 1);
+		player.inventory().addItem(lifeStone);
+		sent.clear();
+		session.onUseItem(new GameClientPacket.UseItem(lifeStone.objectId()));
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.ExShowVariationMakeWindow),
+				"Usar Life Stone do inventario deve abrir ExShowVariationMakeWindow");
 	}
 }
