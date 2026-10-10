@@ -219,6 +219,35 @@ public class QuestEngineAndTutorialTest {
 	}
 
 	@Test
+	@DisplayName("CP 2.2: Opcodes de rede retail de Tutorial e Radar (0xa6, 0xa7, 0xa8, 0xa9, 0xf1)")
+	void testTutorialAndRadarPacketOpcodeEncodings() {
+		// 0xa6 TutorialShowHtml
+		byte[] htmlBytes = new GameServerPacket.TutorialShowHtml("<html></html>").encode();
+		assertNotNull(htmlBytes);
+		assertEquals(0xa6, htmlBytes[0] & 0xFF, "Opcode de TutorialShowHtml deve ser 0xa6");
+
+		// 0xa7 TutorialShowQuestionMark
+		byte[] qmBytes = new GameServerPacket.TutorialShowQuestionMark(1).encode();
+		assertNotNull(qmBytes);
+		assertEquals(0xa7, qmBytes[0] & 0xFF, "Opcode de TutorialShowQuestionMark deve ser 0xa7");
+
+		// 0xa8 TutorialEnableClientEvent
+		byte[] ceBytes = new GameServerPacket.TutorialEnableClientEvent(2).encode();
+		assertNotNull(ceBytes);
+		assertEquals(0xa8, ceBytes[0] & 0xFF, "Opcode de TutorialEnableClientEvent deve ser 0xa8");
+
+		// 0xa9 TutorialCloseHtml
+		byte[] closeBytes = new GameServerPacket.TutorialCloseHtml().encode();
+		assertNotNull(closeBytes);
+		assertEquals(0xa9, closeBytes[0] & 0xFF, "Opcode de TutorialCloseHtml deve ser 0xa9");
+
+		// 0xf1 RadarControl
+		byte[] radarBytes = new GameServerPacket.RadarControl(0, 1, 100, 200, 300).encode();
+		assertNotNull(radarBytes);
+		assertEquals(0xf1, radarBytes[0] & 0xFF, "Opcode de RadarControl deve ser 0xf1");
+	}
+
+	@Test
 	@DisplayName("CP 2.4: Suporte multi-raças e radar correto para Elfos, Orcs e Anões")
 	void testMultiRaceTutorialAndRadar() {
 		Quest255Tutorial tutorial = new Quest255Tutorial(questManager);

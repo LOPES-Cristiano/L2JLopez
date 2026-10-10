@@ -55,4 +55,29 @@ class AioServiceTest {
         assertTrue(html.contains("Buffer AIOx"));
         assertTrue(html.contains(".getaiogoods"));
     }
+
+    @Test
+    void testAioSkillsRewardAndRemoval() {
+        PlayerCharacter player = createPlayer(200, "BufferSkills");
+        assertTrue(player.skills().isEmpty());
+
+        // Concede status AIO -> deve receber as skills de buff
+        aioService.setAioStatus(player, true);
+        assertFalse(player.skills().isEmpty());
+        assertTrue(player.skills().containsKey(1068)); // Might
+        assertTrue(player.skills().containsKey(1040)); // Shield
+        assertTrue(player.skills().containsKey(1086)); // Haste
+        assertTrue(player.skills().containsKey(1204)); // Wind Walk
+        assertTrue(player.skills().containsKey(271));  // Dance of the Warrior
+        assertTrue(player.skills().containsKey(264));  // Song of Earth
+
+        // Remove status AIO -> deve perder as skills de buff
+        aioService.setAioStatus(player, false);
+        assertFalse(player.skills().containsKey(1068));
+        assertFalse(player.skills().containsKey(1040));
+        assertFalse(player.skills().containsKey(1086));
+        assertFalse(player.skills().containsKey(1204));
+        assertFalse(player.skills().containsKey(271));
+        assertFalse(player.skills().containsKey(264));
+    }
 }
