@@ -178,6 +178,21 @@ public class TradeStorePacketHandler {
 					sellerOpt.get().send(anim);
 				}
 			}
+			int currencyId = Config.SELL_BY_ITEM ? Config.SELL_ITEM : ItemTemplate.ADENA_ID;
+			var buyerCur = active.inventory().byItemId(currencyId).orElse(null);
+			if (buyerCur != null) {
+				session.send(new InventoryUpdate(List.of(ItemInfo.of(buyerCur, buyerCur.count() == 0 ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+			}
+			session.refreshWeightAndPenalties();
+
+			var sellerCur = sellerChar.inventory().byItemId(currencyId).orElse(null);
+			if (sellerCur != null) {
+				sellerOpt.get().send(new InventoryUpdate(List.of(ItemInfo.of(sellerCur, ItemInfo.MODIFIED))));
+				if (sellerOpt.get() instanceof GameSession sellerSession) {
+					sellerSession.refreshWeightAndPenalties();
+				}
+			}
+
 			String coinName = Config.SELL_BY_ITEM ? Config.COIN_TEXT : "Adena";
 			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce comprou buffs por " + result.totalCost() + " " + coinName + "."));
 			sellerOpt.get().send(new CreatureSay(0, CreatureSay.ALL, "SYS",
@@ -200,8 +215,7 @@ public class TradeStorePacketHandler {
 			session.send(new ActionFailed());
 			return;
 		}
-		var container = containerOpt.get();
-		var entryOpt = container.entries().stream().filter(e -> e.entryId() == p.entryId()).findFirst();
+		var entryOpt = containerOpt.get().entries().stream().filter(e -> e.entryId() == p.entryId()).findFirst();
 		if (entryOpt.isEmpty()) {
 			session.send(new ActionFailed());
 			return;
@@ -255,22 +269,39 @@ public class TradeStorePacketHandler {
 			return;
 		}
 
+		List<ItemInfo> updates = new ArrayList<>();
 		// 3. Consome os ingredientes agregados
 		for (var ingEntry : aggregatedIngredients.entrySet()) {
-			ctx.inventories().consumeItem(active.inventory(), ingEntry.getKey(), ingEntry.getValue().intValue(), "MultiSell");
+			var consumed = ctx.inventories().consumeItem(active.inventory(), ingEntry.getKey(), ingEntry.getValue().intValue(), "MultiSell");
+			if (consumed != null) {
+				updates.add(consumed.removed()
+						? ItemInfo.of(consumed.item(), ItemInfo.REMOVED)
+						: ItemInfo.of(consumed.item(), ItemInfo.MODIFIED));
+			}
 		}
 
 		// 4. Adiciona os produtos
 		for (var prod : entry.products()) {
 			long totalAdd = (long) prod.count() * amount;
-			ctx.inventories().addItem(active.inventory(), prod.itemId(), (int) totalAdd, "MultiSell");
+			var added = ctx.inventories().addItem(active.inventory(), prod.itemId(), (int) totalAdd, "MultiSell");
+			if (added != null) {
+				if (added.allItems() != null && !added.allItems().isEmpty()) {
+					for (var item : added.allItems()) {
+						updates.add(ItemInfo.of(item, added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+					}
+				} else {
+					updates.add(ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+				}
+			}
 			session.send(SystemMessage.of(SystemMessage.YOU_PICKED_UP_S1_S2,
 					new SystemMessage.ItemName(prod.itemId()),
 					new SystemMessage.Number((int) totalAdd)));
 		}
 
-		// 4. Atualiza o inventario do jogador
-		session.send(ItemList.of(active.inventory().items(), false));
+		// 5. Atualiza o inventario do jogador via InventoryUpdate (obrigatorio para multisell sync)
+		if (!updates.isEmpty()) {
+			session.send(new InventoryUpdate(updates));
+		}
 		session.refreshWeightAndPenalties();
 	}
 

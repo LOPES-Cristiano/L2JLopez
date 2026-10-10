@@ -7,10 +7,17 @@ import com.lopez.l2j.network.game.packet.GameClientPacket;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ActionFailed;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.PledgeCrest;
 import com.lopez.l2j.network.game.packet.GameServerPacket.PledgeShowInfoUpdate;
 import com.lopez.l2j.network.game.packet.GameServerPacket.PledgeShowMemberListAll;
+import com.lopez.l2j.network.game.packet.GameServerPacket.PledgeShowMemberListUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.SocialAction;
+import com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
+import com.lopez.l2j.network.game.packet.GameServerPacket.UserInfo;
+
+import java.util.List;
 
 /**
  * Handler modular para pacotes e fluxos de Party (Grupo) e Clan/Pledge (Clã).
@@ -212,5 +219,103 @@ public class PartyClanPacketHandler {
 			session.sendUserInfoAndBroadcastCharInfo();
 			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Brasao de cla atualizado com sucesso."));
 		}
+	}
+
+	public void createClan(String clanName) {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (ctx == null || ctx.clans() == null || active == null) {
+			return;
+		}
+		if (active.clanId() != 0) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce ja pertence a um cla."));
+			return;
+		}
+		if (active.level() < 10 && !active.isGm()) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nivel 10 ou superior necessario para criar cla."));
+			return;
+		}
+		var clan = ctx.clans().createClan(active, clanName);
+		if (clan == null) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nome de cla invalido ou ja existente."));
+			return;
+		}
+		session.send(new PledgeShowInfoUpdate(clan));
+		session.send(new PledgeShowMemberListAll(clan, 0));
+		session.send(new PledgeShowMemberListUpdate(active.name(), active.level(), active.classId(), true));
+		var tpl = ctx.characters() != null ? ctx.characters().template(active) : null;
+		if (tpl != null) {
+			session.send(new UserInfo(active, tpl));
+		}
+		session.broadcastAppearance();
+		session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cla " + clan.name() + " criado com sucesso!"));
+	}
+
+	public void increaseClanLevel() {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (ctx == null || ctx.clans() == null || active == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		if (active.clanId() == 0) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pertence a um cla."));
+			return;
+		}
+		var clanOpt = ctx.clans().byClanId(active.clanId());
+		if (clanOpt.isEmpty() || !clanOpt.get().isLeader(active.objectId())) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas o lider do cla pode aumentar seu nivel."));
+			return;
+		}
+		var clan = clanOpt.get();
+		if (clan.level() >= 8) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O cla ja alcancou o nivel maximo (8)."));
+			return;
+		}
+		boolean success = ctx.clans().levelUpClan(active);
+		if (success) {
+			session.send(new SocialAction(active.objectId(), 15));
+			session.send(ItemList.of(active.inventory().items(), false));
+			session.send(new StatusUpdate(active.objectId(),
+					List.of(new StatusUpdate.Attribute(StatusUpdate.SP, active.sp()))));
+			var tpl = ctx.characters() != null ? ctx.characters().template(active) : null;
+			if (tpl != null) {
+				session.send(new UserInfo(active, tpl));
+			}
+			session.broadcastAppearance();
+			clan.broadcastToOnlineMembers(ctx.world(), new PledgeShowInfoUpdate(clan));
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					"Parabens! O nivel do cla subiu para " + clan.level() + "!"));
+		} else {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					"Falha ao aumentar o nivel do cla. Requisitos nao atendidos."));
+		}
+	}
+
+	public void dissolveClan() {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (ctx == null || ctx.clans() == null || active == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		if (active.clanId() == 0) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pertence a um cla."));
+			return;
+		}
+		var clanOpt = ctx.clans().byClanId(active.clanId());
+		if (clanOpt.isEmpty() || !clanOpt.get().isLeader(active.objectId())) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas o lider pode dissolver o cla."));
+			return;
+		}
+		int oldClanId = active.clanId();
+		ctx.clans().dissolveClan(oldClanId);
+		active.clanId(0);
+		var tpl = ctx.characters() != null ? ctx.characters().template(active) : null;
+		if (tpl != null) {
+			session.send(new UserInfo(active, tpl));
+		}
+		session.broadcastAppearance();
+		session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O cla foi dissolvido."));
 	}
 }
