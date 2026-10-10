@@ -98,6 +98,9 @@ public class PriestAI extends MysticAI {
 	}
 
 	private void healAlly(NpcInstance target, SkillTemplate skill) {
+		if (target == null || target.isDead()) {
+			return;
+		}
 		int mAtkSpd = Math.max(100, npc.template().mAtkSpd());
 		long cooldownMs = 500_000L / mAtkSpd;
 		long now = System.currentTimeMillis();

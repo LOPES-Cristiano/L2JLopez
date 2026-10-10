@@ -199,7 +199,14 @@ public class NpcAiService {
 			if (ally == npc || ally.isDead() || ally.inCombat() || !ally.isMonster()) {
 				continue;
 			}
+			// Aliados da facção só respondem ao chamado se estiverem no mesmo plano vertical (não em andares/cavernas)
+			if (Math.abs(ally.z() - npc.z()) > 150) {
+				continue;
+			}
 			if (ally.template() != null && factionId.equalsIgnoreCase(ally.template().factionId())) {
+				if (combatService != null && !combatService.canSeeTarget(ally.x(), ally.y(), ally.z(), npc.x(), npc.y(), npc.z())) {
+					continue;
+				}
 				startCombat(ally, targetPlayerId);
 			}
 		}
@@ -421,6 +428,11 @@ public class NpcAiService {
 				if (npc.isDead() || npc.inCombat() || !npc.isMonster()) {
 					continue;
 				}
+				// Diferença vertical: monstros subterrâneos ou em andares diferentes não agram na superfície
+				int deltaZ = Math.abs(npc.z() - player.z());
+				if (deltaZ > 150) {
+					continue;
+				}
 				// Regra oficial Lineage II / L2JDream: Friendly Mobs (ex: Pixy, Bloody Pixy, Treant) so agram jogadores PK (Karma > 0)
 				if (npc.template().isFriendlyMob() && character.karma() <= 0) {
 					continue;
@@ -437,8 +449,12 @@ public class NpcAiService {
 						}
 					}
 
-					double dist = Math.hypot(npc.x() - player.x(), npc.y() - player.y());
-					if (dist <= aggroRange) {
+					double dist3d = Math.sqrt(Math.pow(npc.x() - player.x(), 2) + Math.pow(npc.y() - player.y(), 2) + Math.pow(deltaZ, 2));
+					if (dist3d <= aggroRange) {
+						// Linha de visao (LoS): monstro precisa ver o jogador
+						if (combatService != null && !combatService.canSeeTarget(npc, character)) {
+							continue;
+						}
 						startCombat(npc, player.objectId());
 						break; // um aggro por jogador por ciclo
 					}
@@ -513,10 +529,12 @@ public class NpcAiService {
 
 		double dx = player.x() - npc.x();
 		double dy = player.y() - npc.y();
+		double dz = player.z() - npc.z();
 		double dist = Math.hypot(dx, dy);
+		double dist3d = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-		// Perda de aggro se o jogador fugir muito longe (> 1500)
-		if (dist > 1500.0) {
+		// Perda de aggro se o jogador fugir muito longe (> 1500) ou se a diferenca de altura for excessiva (> 350)
+		if (dist3d > 1500.0 || Math.abs(dz) > 350.0) {
 			returnToSpawn(npc);
 			var stopAtk = new AutoAttackStop(npc.objectId());
 			player.send(stopAtk);
