@@ -24,17 +24,28 @@ public record PlayerStats(
 		int runSpeed,
 		int maxLoad,
 		int weightPenalty,
-		int gradePenalty
+		int gradePenalty,
+		int str,
+		int dex,
+		int con,
+		int intel,
+		int wit,
+		int men
 ) {
 
 	public PlayerStats(int pAtk, int pDef, int mAtk, int mDef, int pAtkSpd, int mAtkSpd,
 			int critical, int accuracy, int evasion, int runSpeed) {
-		this(pAtk, pDef, mAtk, mDef, pAtkSpd, mAtkSpd, critical, accuracy, evasion, runSpeed, 69000, 0, 0);
+		this(pAtk, pDef, mAtk, mDef, pAtkSpd, mAtkSpd, critical, accuracy, evasion, runSpeed, 69000, 0, 0, 40, 30, 43, 21, 20, 25);
 	}
 
 	public PlayerStats(int pAtk, int pDef, int mAtk, int mDef, int pAtkSpd, int mAtkSpd,
 			int critical, int accuracy, int evasion, int runSpeed, int weightPenalty, int gradePenalty) {
-		this(pAtk, pDef, mAtk, mDef, pAtkSpd, mAtkSpd, critical, accuracy, evasion, runSpeed, 69000, weightPenalty, gradePenalty);
+		this(pAtk, pDef, mAtk, mDef, pAtkSpd, mAtkSpd, critical, accuracy, evasion, runSpeed, 69000, weightPenalty, gradePenalty, 40, 30, 43, 21, 20, 25);
+	}
+
+	public PlayerStats(int pAtk, int pDef, int mAtk, int mDef, int pAtkSpd, int mAtkSpd,
+			int critical, int accuracy, int evasion, int runSpeed, int maxLoad, int weightPenalty, int gradePenalty) {
+		this(pAtk, pDef, mAtk, mDef, pAtkSpd, mAtkSpd, critical, accuracy, evasion, runSpeed, maxLoad, weightPenalty, gradePenalty, 40, 30, 43, 21, 20, 25);
 	}
 
 	public int walkSpeed(CharTemplate template) {
@@ -81,12 +92,21 @@ public record PlayerStats(
 		int mAtkSpd = template.mAtkSpd();
 		int runSpeed = template.runSpeed();
 
-		int effectiveStr = Math.max(1, template.str() + player.hennaSTR() + player.augSTR());
-		int effectiveCon = Math.max(1, template.con() + player.hennaCON() + player.augCON());
-		int effectiveDex = Math.max(1, template.dex() + player.hennaDEX());
-		int effectiveInt = Math.max(1, template.intel() + player.hennaINT() + player.augINT());
-		int effectiveWit = Math.max(1, template.wit() + player.hennaWIT());
-		int effectiveMen = Math.max(1, template.men() + player.hennaMEN() + player.augMEN());
+		List<StatFunc> funcs = allFuncs(player);
+
+		int baseStr = template.str() + player.hennaSTR() + player.augSTR();
+		int baseCon = template.con() + player.hennaCON() + player.augCON();
+		int baseDex = template.dex() + player.hennaDEX() + player.augDEX();
+		int baseInt = template.intel() + player.hennaINT() + player.augINT();
+		int baseWit = template.wit() + player.hennaWIT() + player.augWIT();
+		int baseMen = template.men() + player.hennaMEN() + player.augMEN();
+
+		int effectiveStr = Math.max(1, (int) Math.round(apply(player, funcs, "STR", baseStr)));
+		int effectiveCon = Math.max(1, (int) Math.round(apply(player, funcs, "CON", baseCon)));
+		int effectiveDex = Math.max(1, (int) Math.round(apply(player, funcs, "DEX", baseDex)));
+		int effectiveInt = Math.max(1, (int) Math.round(apply(player, funcs, "INT", baseInt)));
+		int effectiveWit = Math.max(1, (int) Math.round(apply(player, funcs, "WIT", baseWit)));
+		int effectiveMen = Math.max(1, (int) Math.round(apply(player, funcs, "MEN", baseMen)));
 		int level = Math.max(1, player.level());
 
 		double levelModRatio = (level + 89.0) / 90.0;
@@ -172,7 +192,6 @@ public record PlayerStats(
 		mAtkSpd = (int) Math.round(mAtkSpd * fx.mAtkSpdMul());
 
 		// Passivas e buffs de skill (funcoes do datapack em ordem crescente de "order")
-		List<StatFunc> funcs = allFuncs(player);
 		if (!funcs.isEmpty()) {
 			pAtk = (int) Math.round(apply(player, funcs, "pAtk", pAtk));
 			pDef = (int) Math.round(apply(player, funcs, "pDef", pDef));
@@ -230,11 +249,24 @@ public record PlayerStats(
 		double baseCapacity = template != null && template.maxLoad() > 0
 				? template.maxLoad() * conRatio
 				: com.lopez.l2j.game.template.BaseStatsTable.conBonus(effectiveCon) * 69000.0;
-		double baseLoad = Math.floor(baseCapacity
-				* (com.lopez.l2j.config.Config.ALT_WEIGHT_LIMIT > 0 ? com.lopez.l2j.config.Config.ALT_WEIGHT_LIMIT : 1.0));
-		int maxLoad = (int) Math.round(apply(player, funcs, "maxLoad", baseLoad));
-		if (maxLoad <= 0) {
-			maxLoad = template != null && template.maxLoad() > 0 ? template.maxLoad() : 69000;
+		if (com.lopez.l2j.config.Config.INCREASE_WEIGHT_LIMIT_BY_LEVEL) {
+			baseCapacity *= levelModRatio;
+		}
+		double weightLimitMultiplier = com.lopez.l2j.config.Config.ALT_WEIGHT_LIMIT > 0
+				? com.lopez.l2j.config.Config.ALT_WEIGHT_LIMIT
+				: 1.0;
+		double baseLoad = Math.floor(baseCapacity * weightLimitMultiplier);
+		double appliedLoad = apply(player, funcs, "maxLoad", baseLoad);
+		long rawMaxLoad = Math.round(appliedLoad);
+		int maxLoad;
+		if (rawMaxLoad >= Integer.MAX_VALUE || Double.isInfinite(appliedLoad) || Double.isNaN(appliedLoad) || rawMaxLoad <= 0) {
+			if (weightLimitMultiplier > 1.0) {
+				maxLoad = Integer.MAX_VALUE;
+			} else {
+				maxLoad = template != null && template.maxLoad() > 0 ? template.maxLoad() : 69000;
+			}
+		} else {
+			maxLoad = (int) Math.min(Integer.MAX_VALUE, Math.max(1L, rawMaxLoad));
 		}
 		int currentLoad = inv != null ? inv.currentLoad() : 0;
 		long weightPermill = ((long) currentLoad * 1000L) / maxLoad;
@@ -285,7 +317,8 @@ public record PlayerStats(
 
 		return new PlayerStats(Math.max(1, pAtk), Math.max(1, pDef), Math.max(1, mAtk), Math.max(1, mDef),
 				Math.max(1, pAtkSpd), Math.max(1, mAtkSpd), Math.max(0, critical), accuracy, evasion,
-				Math.max(1, runSpeed), maxLoad, weightPenalty, gradePenalty);
+				Math.max(1, runSpeed), maxLoad, weightPenalty, gradePenalty,
+				effectiveStr, effectiveDex, effectiveCon, effectiveInt, effectiveWit, effectiveMen);
 	}
 
 	/** Passivas + buffs de skill + sets de armadura + augmentacao do jogador. */
@@ -313,7 +346,7 @@ public record PlayerStats(
 	private static double apply(PlayerCharacter player, List<StatFunc> funcs, String stat, double base) {
 		List<StatFunc> matching = new ArrayList<>();
 		for (StatFunc f : funcs) {
-			if (f.stat().equals(stat) && f.appliesTo(player)) {
+			if (f.stat().equalsIgnoreCase(stat) && f.appliesTo(player)) {
 				matching.add(f);
 			}
 		}

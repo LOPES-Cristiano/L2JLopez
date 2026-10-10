@@ -29,7 +29,7 @@ public final class PlayerCharacter {
 	private final int race;
 	private int classId;
 	private int baseClassId;
-	private final boolean female;
+	private boolean female;
 	private int face;
 	private int hairStyle;
 	private int hairColor;
@@ -80,8 +80,10 @@ public final class PlayerCharacter {
 	private List<StatFunc> armorSetFuncs = List.of();
 	private List<StatFunc> augmentationFuncs = List.of();
 	private int augStr;
+	private int augDex;
 	private int augCon;
 	private int augInt;
+	private int augWit;
 	private int augMen;
 	private int activeAugmentationSkillId;
 	private int activeAugmentationSkillLevel;
@@ -141,6 +143,12 @@ public final class PlayerCharacter {
 
 	public void aioExpiration(long aioExpiration) {
 		this.aioExpiration = aioExpiration;
+	}
+
+	public void rewardAioSkills() {
+	}
+
+	public void lostAioSkills() {
 	}
 
 	private boolean vip;
@@ -477,6 +485,10 @@ public final class PlayerCharacter {
 
 	public boolean female() {
 		return female;
+	}
+
+	public void female(boolean female) {
+		this.female = female;
 	}
 
 	public int face() {
@@ -849,6 +861,14 @@ public final class PlayerCharacter {
 		this.augStr = val;
 	}
 
+	public int augDEX() {
+		return augDex;
+	}
+
+	public void augDEX(int val) {
+		this.augDex = val;
+	}
+
 	public int augCON() {
 		return augCon;
 	}
@@ -863,6 +883,14 @@ public final class PlayerCharacter {
 
 	public void augINT(int val) {
 		this.augInt = val;
+	}
+
+	public int augWIT() {
+		return augWit;
+	}
+
+	public void augWIT(int val) {
+		this.augWit = val;
 	}
 
 	public int augMEN() {
@@ -889,8 +917,10 @@ public final class PlayerCharacter {
 	public void clearAugmentationBonus() {
 		this.augmentationFuncs = List.of();
 		this.augStr = 0;
+		this.augDex = 0;
 		this.augCon = 0;
 		this.augInt = 0;
+		this.augWit = 0;
 		this.augMen = 0;
 		this.activeAugmentationSkillId = 0;
 		this.activeAugmentationSkillLevel = 0;
@@ -898,6 +928,10 @@ public final class PlayerCharacter {
 
 	public int abnormalEffect() {
 		return abnormalEffect;
+	}
+
+	public void abnormalBitmask(int mask) {
+		this.abnormalEffect = mask;
 	}
 
 	public void startAbnormalEffect(int mask) {
