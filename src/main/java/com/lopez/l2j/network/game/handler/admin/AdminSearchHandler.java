@@ -103,7 +103,7 @@ public class AdminSearchHandler implements IAdminCommandHandler {
 			}
 
 			case "search", "find" -> {
-				if (trimmed.isEmpty()) {
+				if (trimmed.isEmpty() || trimmed.startsWith("$")) {
 					String html = searchService.renderGlobalSearchHtml("");
 					session.send(new NpcHtmlMessage(0, html));
 					return true;
@@ -295,7 +295,7 @@ public class AdminSearchHandler implements IAdminCommandHandler {
 	private record ParsedQuery(String query, int page) {}
 
 	private static ParsedQuery parseQueryAndPage(String input) {
-		if (input == null || input.isBlank()) {
+		if (input == null || input.isBlank() || input.startsWith("$")) {
 			return new ParsedQuery("", 1);
 		}
 		String[] parts = input.trim().split("\\s+");

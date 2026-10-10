@@ -22,6 +22,7 @@ public class AdminGeneralHandler implements IAdminCommandHandler {
 	private static final List<String> COMMANDS = List.of(
 			"heal",
 			"kill",
+			"kill_menu",
 			"delete",
 			"del",
 			"unspawn"
@@ -70,24 +71,43 @@ public class AdminGeneralHandler implements IAdminCommandHandler {
 				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", targetChar.name() + " totalmente curado."));
 				return true;
 			}
-			case "kill" -> {
+			case "kill", "kill_menu" -> {
 				if (targetObjectId != 0) {
 					var npcOpt = ctx.world().npc(targetObjectId);
 					if (npcOpt.isPresent()) {
 						var npc = npcOpt.get();
-						npc.currentHp(0);
+						npc.dead(true);
 						if (ctx.npcAi() != null) {
 							ctx.npcAi().stopCombat(npc);
 							ctx.npcAi().scheduleDecayAndRespawn(npc);
 						}
+						var su = StatusUpdate.hp(npc.objectId(), 0, (int) npc.maxHp());
+						session.send(su);
+						ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, su, false);
 						var die = new Die(npc.objectId(), false);
 						session.send(die);
 						ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, die, false);
 						session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", npc.name() + " foi morto."));
 						return true;
 					}
+					var playerOpt = ctx.world().player(targetObjectId);
+					if (playerOpt.isPresent()) {
+						var pOnline = playerOpt.get();
+						if (pOnline.character() != null) {
+							if (pOnline instanceof GameSession pSess) {
+								pSess.handlePlayerDeath(active);
+							} else {
+								pOnline.character().currentHp(0);
+								pOnline.send(new StatusUpdate(pOnline.objectId(), List.of(
+										new StatusUpdate.Attribute(StatusUpdate.CUR_HP, 0))));
+								pOnline.send(new Die(pOnline.objectId(), true));
+							}
+							session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", pOnline.name() + " foi morto."));
+						}
+						return true;
+					}
 				}
-				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Selecione um NPC valido para matar."));
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Selecione um alvo valido para matar."));
 				return true;
 			}
 			case "delete", "del", "unspawn" -> {
