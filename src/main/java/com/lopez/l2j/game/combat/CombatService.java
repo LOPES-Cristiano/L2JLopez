@@ -79,37 +79,38 @@ public class CombatService {
 		if (geoEngine != null && geoEngine.isEnabled()) {
 			return geoEngine.canSeeTarget(x, y, z, tx, ty, tz);
 		}
-		return true;
+		// Sem geodata ativo: fallback seguro contra visao/ataque atraves de andares verticais (ex: caverna vs superficie)
+		return Math.abs(tz - z) <= 250;
 	}
 
 	public boolean canSeeTarget(PlayerCharacter player, NpcInstance npc) {
+		if (player == null || npc == null) {
+			return false;
+		}
 		if (geoEngine != null && geoEngine.isEnabled()) {
-			if (player == null || npc == null) {
-				return false;
-			}
 			return geoEngine.canSeeTarget(player, npc);
 		}
-		return true;
+		return Math.abs(player.z() - npc.z()) <= 250;
 	}
 
 	public boolean canSeeTarget(NpcInstance npc, PlayerCharacter player) {
+		if (npc == null || player == null) {
+			return false;
+		}
 		if (geoEngine != null && geoEngine.isEnabled()) {
-			if (npc == null || player == null) {
-				return false;
-			}
 			return geoEngine.canSeeTarget(npc, player);
 		}
-		return true;
+		return Math.abs(player.z() - npc.z()) <= 250;
 	}
 
 	public boolean canSeeTarget(PlayerCharacter player, PlayerCharacter target) {
+		if (player == null || target == null) {
+			return false;
+		}
 		if (geoEngine != null && geoEngine.isEnabled()) {
-			if (player == null || target == null) {
-				return false;
-			}
 			return geoEngine.canSeeTarget(player, target);
 		}
-		return true;
+		return Math.abs(player.z() - target.z()) <= 250;
 	}
 
 	public boolean canMoveToTarget(int x, int y, int z, int tx, int ty, int tz) {
@@ -197,10 +198,17 @@ public class CombatService {
 		};
 	}
 
-	public static boolean calcBlowSuccess(int attackerX, int attackerY, int targetX, int targetY, int targetHeading) {
+	public static boolean calcBlowSuccess(PlayerCharacter attacker, int attackerX, int attackerY, int targetX, int targetY, int targetHeading) {
 		RelativePosition pos = getRelativePosition(attackerX, attackerY, targetX, targetY, targetHeading);
 		int chance = getBlowChance(pos);
+		if (attacker != null) {
+			chance = (int) Math.round(PlayerStats.applyStat(attacker, "blowRate", chance));
+		}
 		return ThreadLocalRandom.current().nextInt(100) < chance;
+	}
+
+	public static boolean calcBlowSuccess(int attackerX, int attackerY, int targetX, int targetY, int targetHeading) {
+		return calcBlowSuccess(null, attackerX, attackerY, targetX, targetY, targetHeading);
 	}
 
 	public static double getLethalRateMultiplier(boolean isDagger, boolean isBow) {
@@ -233,8 +241,11 @@ public class CombatService {
 		if (attacker == null || target == null || target.template() == null) {
 			return false;
 		}
+		if (attacker.isGm()) {
+			return false;
+		}
 		boolean isRaid = target.template().isRaidBoss() || target.template().isGrandBoss()
-				|| (target.isMinion() && target.masterObjectId() != 0);
+				|| target.isRaidMinion();
 		if (!isRaid) {
 			return false;
 		}
@@ -293,7 +304,9 @@ public class CombatService {
 		// Formula base Interlude: (pAtk * 70.0) / pDef
 		double baseDam = (pAtk * 70.0) / pDef;
 		if (crit) {
-			baseDam *= 2.0;
+			double cAtk = PlayerStats.applyStat(attacker, "cAtk", 1.0);
+			double cAtkAdd = PlayerStats.applyStat(attacker, "cAtkAdd", 0.0);
+			baseDam = (baseDam * 2.0 * cAtk) + cAtkAdd;
 		}
 
 		// Variacao aleatoria baseada no rnd_dam da arma (ex: 5% dagger, 10% sword, 20% blunt)
@@ -332,11 +345,14 @@ public class CombatService {
 		boolean crit = ThreadLocalRandom.current().nextInt(1000) < Math.max(40, critRate);
 		double baseDam = (pAtk * 70.0) / pDef;
 		if (crit) {
-			baseDam *= 2.0;
+			double cAtk = PlayerStats.applyStat(attacker, "cAtk", 1.0);
+			double cAtkAdd = PlayerStats.applyStat(attacker, "cAtkAdd", 0.0);
+			baseDam = (baseDam * 2.0 * cAtk) + cAtkAdd;
 		}
 		double rnd = calcRndMultiplier(attacker);
 		double bowMult = calcBowDistanceMultiplier(attacker, target.x(), target.y());
-		double finalDam = baseDam * rnd * bowMult;
+		double pvpPhysDmg = PlayerStats.applyStat(attacker, "pvpPhysDmg", 1.0);
+		double finalDam = baseDam * rnd * bowMult * pvpPhysDmg;
 		if (attacker != null && target != null && attacker.isOlympiadMode() && target.isOlympiadMode() && olyDamageManager != null) {
 			finalDam *= olyDamageManager.getDamageMultiplier(attacker, target);
 		}
@@ -396,7 +412,7 @@ public class CombatService {
 		}
 		boolean crit;
 		if (blow) {
-			boolean blowSuccess = calcBlowSuccess(attacker.x(), attacker.y(), target.x(), target.y(), target.heading());
+			boolean blowSuccess = calcBlowSuccess(attacker, attacker.x(), attacker.y(), target.x(), target.y(), target.heading());
 			if (!blowSuccess) {
 				return new HitResult(0, 0x80, false, (int) target.currentHp(), target.template().maxHp(), 0, 0, false);
 			}
@@ -405,7 +421,9 @@ public class CombatService {
 			crit = ThreadLocalRandom.current().nextInt(1000) < Math.max(40, stats.critical()) / 2;
 		}
 		if (crit) {
-			dmg *= 2.0;
+			double cAtk = PlayerStats.applyStat(attacker, "cAtk", 1.0);
+			double cAtkAdd = PlayerStats.applyStat(attacker, "cAtkAdd", 0.0);
+			dmg = (dmg * 2.0 * cAtk) + cAtkAdd;
 		}
 		dmg *= 0.95 + ThreadLocalRandom.current().nextDouble() * 0.10;
 		return applyDamage(target, Math.max(1, (int) Math.round(dmg)), crit ? 0x20 : 0);
@@ -516,16 +534,18 @@ public class CombatService {
 		int newHp;
 		synchronized (target) {
 			if (target.isDead() || target.invul()) {
-				return new HitResult(0, 0, false, (int) target.currentHp(), target.template().maxHp(), 0, 0, false); // ja morto ou invulneravel: nada a recompensar
+				return new HitResult(0, 0, target.isDead(), (int) target.currentHp(), (int) target.maxHp(), 0, 0, false); // ja morto ou invulneravel: nada a recompensar
 			}
 			newHp = (int) Math.max(0, target.currentHp() - damage);
 			target.currentHp(newHp);
 			target.onDamaged();
 			if (newHp <= 0) {
 				target.dead(true);
+				target.currentHp(0);
+				newHp = 0;
 			}
 		}
-		boolean isDead = newHp <= 0;
+		boolean isDead = newHp <= 0 || target.isDead();
 		long baseExp = target.template().exp() > 0 ? target.template().exp() : (long) target.template().level() * 150L + 50L;
 		int baseSp = target.template().sp() > 0 ? target.template().sp() : (int) (baseExp / 10);
 		if (target.isChampion() && championService != null) {
@@ -536,7 +556,7 @@ public class CombatService {
 		double activeRateSp = Config.RATE_SP > 0 ? Config.RATE_SP : (rateSp > 0 ? rateSp : 1.0);
 		long exp = isDead ? (long) Math.round(baseExp * activeRateXp) : 0;
 		int sp = isDead ? (int) Math.round(baseSp * activeRateSp) : 0;
-		return new HitResult(damage, flags, isDead, newHp, (int) target.maxHp(), exp, sp, resisted);
+		return new HitResult(damage, flags, isDead, isDead ? 0 : newHp, (int) target.maxHp(), exp, sp, resisted);
 	}
 
 	public HitPlan planAttackPlayerByNpc(NpcInstance attacker, PlayerCharacter target, CharTemplate targetTemplate) {
@@ -711,7 +731,7 @@ public class CombatService {
 		}
 		boolean crit;
 		if (blow) {
-			boolean blowSuccess = calcBlowSuccess(attacker.x(), attacker.y(), target.x(), target.y(), target.heading());
+			boolean blowSuccess = calcBlowSuccess(attacker, attacker.x(), attacker.y(), target.x(), target.y(), target.heading());
 			if (!blowSuccess) {
 				return 0;
 			}
@@ -720,8 +740,12 @@ public class CombatService {
 			crit = ThreadLocalRandom.current().nextInt(1000) < Math.max(40, attackerStats.critical()) / 2;
 		}
 		if (crit) {
-			dmg *= 2.0;
+			double cAtk = PlayerStats.applyStat(attacker, "cAtk", 1.0);
+			double cAtkAdd = PlayerStats.applyStat(attacker, "cAtkAdd", 0.0);
+			dmg = (dmg * 2.0 * cAtk) + cAtkAdd;
 		}
+		double pvpPhysSkillsDmg = PlayerStats.applyStat(attacker, "pvpPhysSkillsDmg", 1.0);
+		dmg *= pvpPhysSkillsDmg;
 		dmg *= 0.95 + ThreadLocalRandom.current().nextDouble() * 0.10;
 		if (attacker != null && target != null && attacker.isOlympiadMode() && target.isOlympiadMode() && olyDamageManager != null) {
 			dmg *= olyDamageManager.getDamageMultiplier(attacker, target);
@@ -753,6 +777,8 @@ public class CombatService {
 		if (crit) {
 			dmg *= 3.0;
 		}
+		double pvpMagicalDmg = PlayerStats.applyStat(attacker, "pvpMagicalDmg", 1.0);
+		dmg *= pvpMagicalDmg;
 		dmg *= 0.95 + ThreadLocalRandom.current().nextDouble() * 0.10;
 
 		// --- PENALIDADE DE LEVEL DE SKILLS & RESISTENCIA MAGICA (PvP) ---

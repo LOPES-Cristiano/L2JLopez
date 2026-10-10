@@ -33,7 +33,67 @@ public class BuffShopService {
 	private static final Logger log = LoggerFactory.getLogger(BuffShopService.class);
 
 	public static final int ADENA_ID = 57;
-	public static final int MAX_BUFFS_PER_SHOP = 30;
+	public static final int MAX_BUFFS_PER_SHOP = 200;
+
+	public enum BuffCategory {
+		ALL("all", "Todos"),
+		BUFFS("buffs", "Buffs"),
+		DANCES("dances", "Dancas"),
+		SONGS("songs", "Cancoes"),
+		CHANTS("chants", "Chants"),
+		SPECIAL("special", "Especiais");
+
+		private final String code;
+		private final String label;
+
+		BuffCategory(String code, String label) {
+			this.code = code;
+			this.label = label;
+		}
+
+		public String getCode() {
+			return code;
+		}
+
+		public String getLabel() {
+			return label;
+		}
+
+		public static BuffCategory fromCode(String code) {
+			if (code == null) return ALL;
+			for (var c : values()) {
+				if (c.code.equalsIgnoreCase(code)) return c;
+			}
+			return ALL;
+		}
+
+		public static BuffCategory getCategory(int skillId, String name) {
+			if (isHotSpringsBuff(skillId) || skillId == 1355 || skillId == 1356 || skillId == 1357) {
+				return SPECIAL;
+			}
+			if (name == null) return BUFFS;
+			String lower = name.toLowerCase(Locale.ROOT);
+			if (lower.startsWith("dance of") || lower.contains("dance")) {
+				return DANCES;
+			}
+			if (lower.startsWith("song of") || lower.contains("song")) {
+				return SONGS;
+			}
+			if (lower.startsWith("chant of") || lower.startsWith("war chant") || lower.startsWith("earth chant")
+					|| lower.contains("pa'agri") || lower.contains("paagri")) {
+				return CHANTS;
+			}
+			if (lower.startsWith("prophecy of") || lower.contains("hot springs")) {
+				return SPECIAL;
+			}
+			return BUFFS;
+		}
+
+		public boolean matches(BuffShopItem item) {
+			if (this == ALL) return true;
+			return getCategory(item.skillId(), item.name()) == this;
+		}
+	}
 
 	public record BuffShopItem(int skillId, int level, int price, String name) {}
 
@@ -55,6 +115,10 @@ public class BuffShopService {
 	public BuffShopService(JdbcClient jdbc) {
 		this.jdbc = jdbc;
 		loadOfflineShops();
+	}
+
+	public static boolean isHotSpringsBuff(int skillId) {
+		return skillId >= 4551 && skillId <= 4554;
 	}
 
 	public static String getSkillIcon(int skillId) {
@@ -166,9 +230,31 @@ public class BuffShopService {
 
 	public void clearDraftBuffs(PlayerCharacter player) {
 		if (player == null) return;
+		var draft = draftShops.computeIfAbsent(player.objectId(), k -> new ConcurrentHashMap<>());
+		draft.clear();
+	}
+
+	public void selectDraftCategory(PlayerCharacter player, BuffCategory category, SkillTable skillTable) {
+		if (player == null || category == null) return;
+		var available = getAvailableBuffSkills(player, skillTable);
+		var draft = draftShops.computeIfAbsent(player.objectId(), k -> new ConcurrentHashMap<>());
+		for (var b : available) {
+			if (category.matches(b)) {
+				draft.put(b.skillId(), b);
+			}
+		}
+	}
+
+	public void clearDraftCategory(PlayerCharacter player, BuffCategory category, SkillTable skillTable) {
+		if (player == null || category == null) return;
+		var available = getAvailableBuffSkills(player, skillTable);
 		var draft = draftShops.get(player.objectId());
 		if (draft != null) {
-			draft.clear();
+			for (var b : available) {
+				if (category.matches(b)) {
+					draft.remove(b.skillId());
+				}
+			}
 		}
 	}
 
@@ -221,20 +307,38 @@ public class BuffShopService {
 			int level = entry.getValue();
 			var tmplOpt = skillTable.get(skillId, level);
 			if (tmplOpt.isEmpty()) {
+				int maxLvl = skillTable.maxLevel(skillId);
+				if (maxLvl > 0) {
+					tmplOpt = skillTable.get(skillId, maxLvl);
+					level = maxLvl;
+				}
+			}
+			if (tmplOpt.isEmpty()) {
 				continue;
 			}
 			SkillTemplate t = tmplOpt.get();
-			// Apenas habilidades ativas beneficas aplicaveis a terceiros/grupo (sem dano, debuffs ou self combat)
-			if (!t.isPassive() && !t.isOffensive() && !t.isDebuff() && t.target() != null && (t.target().equalsIgnoreCase("TARGET_ONE")
-					|| t.target().equalsIgnoreCase("TARGET_PARTY")
-					|| t.target().equalsIgnoreCase("TARGET_CLAN")
-					|| t.target().equalsIgnoreCase("TARGET_AURA")
-					|| t.target().equalsIgnoreCase("TARGET_CORPSE_ALLY"))) {
-				if (!t.effects().isEmpty() || t.skillType().equalsIgnoreCase("BUFF") || t.isBuff()) {
-					list.add(new BuffShopItem(skillId, level, 10_000, t.name()));
+			boolean isHarmfulDebuff = t.isDebuff() && !isHotSpringsBuff(skillId);
+			boolean isOffensive = t.isOffensive() && !isHotSpringsBuff(skillId);
+			if (!t.isPassive() && !isOffensive && !isHarmfulDebuff && t.target() != null) {
+				String tgt = t.target().toUpperCase(Locale.ROOT);
+				boolean validTarget = tgt.equals("TARGET_ONE")
+						|| tgt.equals("TARGET_PARTY")
+						|| tgt.equals("TARGET_PARTY_MEMBER")
+						|| tgt.equals("TARGET_CLAN")
+						|| tgt.equals("TARGET_ALLY")
+						|| tgt.equals("TARGET_AURA")
+						|| tgt.equals("TARGET_CORPSE_ALLY")
+						|| tgt.equals("TARGET_PET")
+						|| tgt.equals("TARGET_SELF");
+				if (validTarget) {
+					boolean isBuff = !t.effects().isEmpty() || t.skillType().equalsIgnoreCase("BUFF") || t.isBuff() || isHotSpringsBuff(skillId);
+					if (isBuff) {
+						list.add(new BuffShopItem(skillId, level, 10_000, t.name()));
+					}
 				}
 			}
 		}
+		list.sort(java.util.Comparator.comparing(BuffShopItem::name, String.CASE_INSENSITIVE_ORDER));
 		return list;
 	}
 
@@ -389,14 +493,19 @@ public class BuffShopService {
 		return new PurchaseResult(true, "Buffs adquiridos com sucesso!", (int) totalCost, applied);
 	}
 
-	/**
-	 * Renderiza o HTML do Gerenciador de Buff Shop para o vendedor.
-	 */
 	public String renderSellerManageHtml(PlayerCharacter seller, SkillTable skillTable, int page) {
-		if (seller == null) return "<html><body>Vendedor invalido.</body></html>";
+		return renderSellerManageHtml(seller, skillTable, BuffCategory.ALL, page);
+	}
 
-		var available = getAvailableBuffSkills(seller, skillTable);
-		if (available.isEmpty() && !isBuffShop(seller.objectId())) {
+	/**
+	 * Renderiza o HTML do Gerenciador de Buff Shop para o vendedor com categorias e controles completos.
+	 */
+	public String renderSellerManageHtml(PlayerCharacter seller, SkillTable skillTable, BuffCategory category, int page) {
+		if (seller == null) return "<html><body>Vendedor invalido.</body></html>";
+		if (category == null) category = BuffCategory.ALL;
+
+		var allAvailable = getAvailableBuffSkills(seller, skillTable);
+		if (allAvailable.isEmpty() && !isBuffShop(seller.objectId())) {
 			return "<html><body><center>"
 					+ "<table width=290><tr><td align=center><font color=\"LEVEL\">=== Buff Store Manager ===</font></td></tr></table>"
 					+ "<br><br><font color=\"FF5555\">Sua classe atual nao possui buffs para venda!</font><br><br>"
@@ -405,24 +514,30 @@ public class BuffShopService {
 					+ "</center></body></html>";
 		}
 
+		final BuffCategory curCat = category;
+		var filtered = allAvailable.stream().filter(curCat::matches).toList();
+
 		boolean isRunning = isBuffShop(seller.objectId());
 		var draft = getDraftOrActiveItems(seller, skillTable);
 		String title = getDraftTitle(seller);
 
-		int pageSize = 6;
-		int totalPages = Math.max(1, (int) Math.ceil((double) available.size() / pageSize));
+		int catDraftCount = (int) filtered.stream().filter(b -> draft.containsKey(b.skillId())).count();
+		int totalDraftCount = draft.size();
+
+		int pageSize = 8;
+		int totalPages = Math.max(1, (int) Math.ceil((double) filtered.size() / pageSize));
 		int curPage = Math.max(1, Math.min(page, totalPages));
 		int fromIdx = (curPage - 1) * pageSize;
-		int toIdx = Math.min(fromIdx + pageSize, available.size());
-		var pageItems = available.subList(fromIdx, toIdx);
+		int toIdx = Math.min(fromIdx + pageSize, filtered.size());
+		var pageItems = filtered.subList(fromIdx, toIdx);
 
 		StringBuilder sb = new StringBuilder();
 		sb.append("<html><body><center>");
-		sb.append("<table width=290><tr><td align=center><font color=\"LEVEL\">=== Buff Store Manager ===</font></td></tr></table>");
-		sb.append("<table width=290 bgcolor=\"000000\">");
+		sb.append("<table width=285><tr><td align=center><font color=\"LEVEL\">=== Buff Store Manager ===</font></td></tr></table>");
+		sb.append("<table width=285 bgcolor=\"000000\" cellpadding=2>");
 		sb.append("<tr>");
 		sb.append("<td width=140><font color=\"AAAAAA\">Status:</font> ").append(isRunning ? "<font color=\"00FF00\">ATIVA</font>" : "<font color=\"FF9900\">EDITANDO</font>").append("</td>");
-		sb.append("<td width=150 align=right><font color=\"AAAAAA\">Buffs:</font> <font color=\"00FF00\">").append(draft.size()).append("</font>/").append(available.size()).append("</td>");
+		sb.append("<td width=145 align=right><font color=\"AAAAAA\">Total:</font> <font color=\"00FF00\">").append(totalDraftCount).append("</font>/").append(allAvailable.size()).append("</td>");
 		sb.append("</tr>");
 		sb.append("<tr>");
 		sb.append("<td colspan=2><font color=\"AAAAAA\">Titulo:</font> <font color=\"LEVEL\">").append(title).append("</font> <a action=\"bypass -h voiced_buffshop title_menu\">[Alterar]</a></td>");
@@ -430,63 +545,103 @@ public class BuffShopService {
 		sb.append("</table>");
 		sb.append("<br1>");
 
-		sb.append("<table width=290><tr>");
-		sb.append("<td align=center><button value=\"10k\" action=\"bypass -h voiced_buffshop setall 10000 ").append(curPage).append("\" width=50 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-		sb.append("<td align=center><button value=\"50k\" action=\"bypass -h voiced_buffshop setall 50000 ").append(curPage).append("\" width=50 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-		sb.append("<td align=center><button value=\"100k\" action=\"bypass -h voiced_buffshop setall 100000 ").append(curPage).append("\" width=55 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-		sb.append("<td align=center><button value=\"500k\" action=\"bypass -h voiced_buffshop setall 500000 ").append(curPage).append("\" width=55 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-		sb.append("<td align=center><button value=\"1kk\" action=\"bypass -h voiced_buffshop setall 1000000 ").append(curPage).append("\" width=50 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		// Abas de categorias
+		sb.append("<table width=285 cellpadding=0 cellspacing=1><tr>");
+		for (BuffCategory c : BuffCategory.values()) {
+			boolean activeTab = (c == curCat);
+			String label = (activeTab ? "[" + c.getLabel() + "]" : c.getLabel());
+			int w = switch (c) {
+				case ALL -> 44;
+				case BUFFS -> 44;
+				case DANCES -> 47;
+				case SONGS -> 47;
+				case CHANTS -> 45;
+				case SPECIAL -> 53;
+			};
+			sb.append("<td align=center><button value=\"").append(label)
+					.append("\" action=\"bypass -h voiced_buffshop page ").append(c.getCode()).append(" 1\" width=").append(w)
+					.append(" height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		}
+		sb.append("</tr></table>");
+		sb.append("<br1>");
+
+		// Precos rapidos
+		sb.append("<table width=285 cellpadding=0 cellspacing=1><tr>");
+		sb.append("<td align=center><button value=\"10k\" action=\"bypass -h voiced_buffshop setall 10000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		sb.append("<td align=center><button value=\"50k\" action=\"bypass -h voiced_buffshop setall 50000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		sb.append("<td align=center><button value=\"100k\" action=\"bypass -h voiced_buffshop setall 100000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=50 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		sb.append("<td align=center><button value=\"500k\" action=\"bypass -h voiced_buffshop setall 500000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=50 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		sb.append("<td align=center><button value=\"1kk\" action=\"bypass -h voiced_buffshop setall 1000000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		sb.append("<td align=center><button value=\"2kk\" action=\"bypass -h voiced_buffshop setall 2000000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
 		sb.append("</tr></table>");
 
-		sb.append("<table width=290><tr>");
-		sb.append("<td align=center><button value=\"Marcar Todos\" action=\"bypass -h voiced_buffshop selectall ").append(curPage).append("\" width=95 height=19 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-		sb.append("<td align=center><button value=\"Desmarcar Todos\" action=\"bypass -h voiced_buffshop clearall ").append(curPage).append("\" width=95 height=19 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		// Botoes de selecao em lote
+		sb.append("<table width=285 cellpadding=1 cellspacing=0><tr>");
+		if (curCat != BuffCategory.ALL) {
+			sb.append("<td align=center><button value=\"Marcar Aba\" action=\"bypass -h voiced_buffshop selectcat ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=68 height=19 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+			sb.append("<td align=center><button value=\"Desmarcar Aba\" action=\"bypass -h voiced_buffshop clearcat ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=75 height=19 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		}
+		sb.append("<td align=center><button value=\"Marcar Todos\" action=\"bypass -h voiced_buffshop selectall ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=70 height=19 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		sb.append("<td align=center><button value=\"Desmarcar Todos\" action=\"bypass -h voiced_buffshop clearall ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=70 height=19 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
 		sb.append("</tr></table>");
-		sb.append("<img src=\"L2UI.SquareGray\" width=285 height=1><br>");
+		sb.append("<img src=\"L2UI.SquareGray\" width=285 height=1><br1>");
 
-		for (var buff : pageItems) {
-			boolean selected = draft.containsKey(buff.skillId());
-			int currentPrice = selected ? draft.get(buff.skillId()).price() : buff.price();
-			String icon = getSkillIcon(buff.skillId());
+		if (pageItems.isEmpty()) {
+			sb.append("<br><font color=\"AAAAAA\">Nenhum buff nesta categoria.</font><br><br>");
+		} else {
+			for (var buff : pageItems) {
+				boolean selected = draft.containsKey(buff.skillId());
+				int currentPrice = selected ? draft.get(buff.skillId()).price() : buff.price();
+				String icon = getSkillIcon(buff.skillId());
 
-			sb.append("<table width=285 bgcolor=\"111111\"><tr>");
-			sb.append("<td width=36 valign=top><img src=\"").append(icon).append("\" width=32 height=32></td>");
-			sb.append("<td width=145 valign=top>");
-			sb.append("<font color=\"").append(selected ? "FFFFFF" : "777777").append("\">").append(buff.name()).append("</font><br1>");
-			sb.append("<font color=\"888888\">Nv.").append(buff.level()).append("</font> - <font color=\"LEVEL\">").append(formatAdena(currentPrice)).append("a</font> ");
-			sb.append("<a action=\"bypass -h voiced_buffshop price_menu ").append(buff.skillId()).append(" ").append(curPage).append("\">[Preco]</a>");
-			sb.append("</td>");
-			sb.append("<td width=104 align=right valign=center>");
-			if (selected) {
-				sb.append("<button value=\"Remover\" action=\"bypass -h voiced_buffshop toggle ").append(buff.skillId()).append(" ").append(curPage).append("\" width=62 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
-			} else {
-				sb.append("<button value=\"Adicionar\" action=\"bypass -h voiced_buffshop toggle ").append(buff.skillId()).append(" ").append(curPage).append("\" width=62 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+				sb.append("<table width=285 bgcolor=\"").append(selected ? "1a221a" : "111111").append("\" cellpadding=1 cellspacing=0><tr>");
+				sb.append("<td width=34 valign=top><img src=\"").append(icon).append("\" width=32 height=32></td>");
+				sb.append("<td width=185 valign=center>");
+				sb.append("<font color=\"").append(selected ? "FFFFFF" : "777777").append("\">").append(buff.name()).append("</font><br1>");
+				sb.append("<font color=\"888888\">Nv.").append(buff.level()).append("</font> - <font color=\"LEVEL\">").append(formatAdena(currentPrice)).append("a</font> ");
+				sb.append("<a action=\"bypass -h voiced_buffshop price_menu ").append(buff.skillId()).append(" ").append(curCat.getCode()).append(" ").append(curPage).append("\">[Preco]</a>");
+				sb.append("</td>");
+				sb.append("<td width=66 align=right valign=center>");
+				if (selected) {
+					sb.append("<button value=\"Remover\" action=\"bypass -h voiced_buffshop toggle ").append(buff.skillId()).append(" ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=62 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+				} else {
+					sb.append("<button value=\"Adicionar\" action=\"bypass -h voiced_buffshop toggle ").append(buff.skillId()).append(" ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=62 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+				}
+				sb.append("</td></tr></table>");
 			}
-			sb.append("</td></tr></table>");
 		}
 
-		sb.append("<br>");
-		sb.append("<table width=280><tr>");
-		sb.append("<td width=80 align=left>");
+		sb.append("<table width=285 cellpadding=0 cellspacing=0><tr>");
+		sb.append("<td width=35 align=left>");
 		if (curPage > 1) {
-			sb.append("<button value=\"< Anterior\" action=\"bypass -h voiced_buffshop page ").append(curPage - 1).append("\" width=75 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+			sb.append("<button value=\"<<\" action=\"bypass -h voiced_buffshop page ").append(curCat.getCode()).append(" 1\" width=30 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
 		}
 		sb.append("</td>");
-		sb.append("<td width=120 align=center><font color=\"AAAAAA\">Pagina ").append(curPage).append(" de ").append(totalPages).append("</font></td>");
-		sb.append("<td width=80 align=right>");
+		sb.append("<td width=50 align=left>");
+		if (curPage > 1) {
+			sb.append("<button value=\"< Ant\" action=\"bypass -h voiced_buffshop page ").append(curCat.getCode()).append(" ").append(curPage - 1).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+		}
+		sb.append("</td>");
+		sb.append("<td width=115 align=center><font color=\"AAAAAA\">Pagina ").append(curPage).append(" / ").append(totalPages).append(" (").append(filtered.size()).append(" buffs)</font></td>");
+		sb.append("<td width=50 align=right>");
 		if (curPage < totalPages) {
-			sb.append("<button value=\"Proxima >\" action=\"bypass -h voiced_buffshop page ").append(curPage + 1).append("\" width=75 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+			sb.append("<button value=\"Prox >\" action=\"bypass -h voiced_buffshop page ").append(curCat.getCode()).append(" ").append(curPage + 1).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+		}
+		sb.append("</td>");
+		sb.append("<td width=35 align=right>");
+		if (curPage < totalPages) {
+			sb.append("<button value=\">>\" action=\"bypass -h voiced_buffshop page ").append(curCat.getCode()).append(" ").append(totalPages).append("\" width=30 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
 		}
 		sb.append("</td></tr></table>");
-		sb.append("<br>");
+		sb.append("<br1>");
 
 		if (isRunning) {
 			sb.append("<table width=280><tr>");
-			sb.append("<td align=center><button value=\"Encerrar Loja\" action=\"bypass -h voiced_buffshop stop\" width=120 height=24 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-			sb.append("<td align=center><button value=\"Modo Offline\" action=\"bypass -h voiced_buffshop offline\" width=120 height=24 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+			sb.append("<td align=center><button value=\"Encerrar Loja\" action=\"bypass -h voiced_buffshop stop\" width=130 height=24 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+			sb.append("<td align=center><button value=\"Modo Offline\" action=\"bypass -h voiced_buffshop offline\" width=130 height=24 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
 			sb.append("</tr></table>");
 		} else {
-			sb.append("<button value=\"INICIAR BUFF STORE\" action=\"bypass -h voiced_buffshop start\" width=190 height=26 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\">");
+			sb.append("<button value=\"INICIAR BUFF STORE (").append(totalDraftCount).append(" BUFFS)\" action=\"bypass -h voiced_buffshop start\" width=230 height=26 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\">");
 		}
 		sb.append("</center></body></html>");
 		return sb.toString();
@@ -507,10 +662,15 @@ public class BuffShopService {
 				+ "</center></body></html>";
 	}
 
+	public String renderSkillPriceEditHtml(PlayerCharacter seller, int skillId, int page, SkillTable skillTable) {
+		return renderSkillPriceEditHtml(seller, skillId, BuffCategory.ALL, page, skillTable);
+	}
+
 	/**
 	 * Renderiza a tela de definicao individual de preco para uma skill especifica.
 	 */
-	public String renderSkillPriceEditHtml(PlayerCharacter seller, int skillId, int page, SkillTable skillTable) {
+	public String renderSkillPriceEditHtml(PlayerCharacter seller, int skillId, BuffCategory category, int page, SkillTable skillTable) {
+		if (category == null) category = BuffCategory.ALL;
 		var draft = getDraftOrActiveItems(seller, skillTable);
 		var item = draft.get(skillId);
 		String name = item != null ? item.name() : ("Skill #" + skillId);
@@ -523,80 +683,134 @@ public class BuffShopService {
 				+ "<font color=\"FFFFFF\">" + name + "</font><br>"
 				+ "Preco atual: <font color=\"00FF00\">" + formatAdena(curPrice) + " Adena</font><br><br>"
 				+ "Precos rapidos:<br>"
-				+ "<button value=\"10.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 10000 " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>"
-				+ "<button value=\"50.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 50000 " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>"
-				+ "<button value=\"100.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 100000 " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>"
-				+ "<button value=\"500.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 500000 " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>"
-				+ "<button value=\"1.000.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 1000000 " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br><br>"
+				+ "<button value=\"10.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 10000 " + category.getCode() + " " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>"
+				+ "<button value=\"50.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 50000 " + category.getCode() + " " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>"
+				+ "<button value=\"100.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 100000 " + category.getCode() + " " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>"
+				+ "<button value=\"500.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 500000 " + category.getCode() + " " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>"
+				+ "<button value=\"1.000.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 1000000 " + category.getCode() + " " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br><br>"
 				+ "Ou digite o valor desejado:<br>"
 				+ "<edit var=\"val\" width=110 height=15><br>"
-				+ "<button value=\"Confirmar Preco\" action=\"bypass -h voiced_buffshop price " + skillId + " $val " + page + "\" width=110 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br><br>"
-				+ "<button value=\"Voltar\" action=\"bypass -h voiced_buffshop page " + page + "\" width=75 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">"
+				+ "<button value=\"Confirmar Preco\" action=\"bypass -h voiced_buffshop price " + skillId + " $val " + category.getCode() + " " + page + "\" width=110 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br><br>"
+				+ "<button value=\"Voltar\" action=\"bypass -h voiced_buffshop page " + category.getCode() + " " + page + "\" width=75 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">"
 				+ "</center></body></html>";
 	}
 
-	/**
-	 * Renderiza a loja de buffs para o comprador com suporte nativo a icones, nomes, precos e botoes de compra.
-	 */
 	public String renderBuyerShopHtml(PlayerCharacter buyer, int sellerId, SkillTable skillTable, int page) {
+		return renderBuyerShopHtml(buyer, sellerId, skillTable, BuffCategory.ALL, page);
+	}
+
+	/**
+	 * Renderiza a loja de buffs para o comprador com suporte a abas por categoria, compra em lote e paginacao.
+	 */
+	public String renderBuyerShopHtml(PlayerCharacter buyer, int sellerId, SkillTable skillTable, BuffCategory category, int page) {
 		if (buyer == null) return "<html><body>Comprador invalido.</body></html>";
+		if (category == null) category = BuffCategory.ALL;
 
 		BuffShop shop = activeShops.get(sellerId);
 		if (shop == null) {
 			return "<html><body><center><br><br><font color=\"FF5555\">Esta loja de buffs nao esta mais ativa.</font></center></body></html>";
 		}
 
-		List<BuffShopItem> items = new ArrayList<>(shop.items().values());
+		List<BuffShopItem> allItems = new ArrayList<>(shop.items().values());
+		allItems.sort(java.util.Comparator.comparing(BuffShopItem::name, String.CASE_INSENSITIVE_ORDER));
+
+		final BuffCategory curCat = category;
+		List<BuffShopItem> filtered = allItems.stream().filter(curCat::matches).toList();
+
 		int currencyId = Config.SELL_BY_ITEM ? Config.SELL_ITEM : ADENA_ID;
 		String coinName = Config.SELL_BY_ITEM ? Config.COIN_TEXT : "Adena";
 		int buyerAdena = buyer.inventory().byItemId(currencyId).map(com.lopez.l2j.game.item.ItemInstance::count).orElse(0);
 
-		long totalPriceAll = items.stream().mapToLong(BuffShopItem::price).sum();
+		long totalPriceAll = allItems.stream().mapToLong(BuffShopItem::price).sum();
+		long totalPriceCat = filtered.stream().mapToLong(BuffShopItem::price).sum();
 
-		int pageSize = 6;
-		int totalPages = Math.max(1, (int) Math.ceil((double) items.size() / pageSize));
+		int pageSize = 8;
+		int totalPages = Math.max(1, (int) Math.ceil((double) filtered.size() / pageSize));
 		int curPage = Math.max(1, Math.min(page, totalPages));
 		int fromIdx = (curPage - 1) * pageSize;
-		int toIdx = Math.min(fromIdx + pageSize, items.size());
-		var pageItems = items.subList(fromIdx, toIdx);
+		int toIdx = Math.min(fromIdx + pageSize, filtered.size());
+		var pageItems = filtered.subList(fromIdx, toIdx);
 
 		StringBuilder sb = new StringBuilder();
 		sb.append("<html><body><center>");
-		sb.append("<table width=290><tr><td align=center><font color=\"LEVEL\">=== ").append(shop.title()).append(" ===</font></td></tr></table>");
-		sb.append("<table width=290 bgcolor=\"000000\">");
+		sb.append("<table width=285><tr><td align=center><font color=\"LEVEL\">=== ").append(shop.title()).append(" ===</font></td></tr></table>");
+		sb.append("<table width=285 bgcolor=\"000000\" cellpadding=2>");
 		sb.append("<tr>");
 		sb.append("<td width=140><font color=\"AAAAAA\">Vendedor:</font> <font color=\"FFFFFF\">").append(shop.sellerName()).append("</font></td>");
-		sb.append("<td width=150 align=right><font color=\"AAAAAA\">Seu Saldo:</font> <font color=\"00FF00\">").append(formatAdena(buyerAdena)).append("</font></td>");
+		sb.append("<td width=145 align=right><font color=\"AAAAAA\">Seu Saldo:</font> <font color=\"00FF00\">").append(formatAdena(buyerAdena)).append("</font></td>");
+		sb.append("</tr>");
+		sb.append("<tr>");
+		sb.append("<td colspan=2><font color=\"AAAAAA\">Categoria:</font> <font color=\"LEVEL\">").append(curCat.getLabel()).append("</font> <font color=\"888888\">(").append(filtered.size()).append(" buffs disponiveis)</font></td>");
 		sb.append("</tr>");
 		sb.append("</table>");
-		sb.append("<img src=\"L2UI.SquareGray\" width=285 height=1><br>");
+		sb.append("<br1>");
 
-		for (var buff : pageItems) {
-			String icon = getSkillIcon(buff.skillId());
-			sb.append("<table width=285 bgcolor=\"111111\"><tr>");
-			sb.append("<td width=36 valign=top><img src=\"").append(icon).append("\" width=32 height=32></td>");
-			sb.append("<td width=155 valign=top>");
-			sb.append("<font color=\"FFFFFF\">").append(buff.name()).append("</font><br1>");
-			sb.append("<font color=\"888888\">Nv.").append(buff.level()).append("</font> - <font color=\"LEVEL\">").append(formatAdena(buff.price())).append(" ").append(coinName).append("</font>");
-			sb.append("</td>");
-			sb.append("<td width=94 align=right valign=center>");
-			sb.append("<button value=\"Comprar\" action=\"bypass -h voiced_buffshop buy ").append(sellerId).append(" ").append(buff.skillId()).append(" ").append(curPage).append("\" width=62 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
-			sb.append("</td></tr></table>");
+		// Abas de categorias
+		sb.append("<table width=285 cellpadding=0 cellspacing=1><tr>");
+		for (BuffCategory c : BuffCategory.values()) {
+			boolean activeTab = (c == curCat);
+			String label = (activeTab ? "[" + c.getLabel() + "]" : c.getLabel());
+			int w = switch (c) {
+				case ALL -> 44;
+				case BUFFS -> 44;
+				case DANCES -> 47;
+				case SONGS -> 47;
+				case CHANTS -> 45;
+				case SPECIAL -> 53;
+			};
+			sb.append("<td align=center><button value=\"").append(label)
+					.append("\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(c.getCode()).append(" 1\" width=").append(w)
+					.append(" height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		}
+		sb.append("</tr></table>");
+		sb.append("<br1>");
+
+		// Botoes de compra em lote
+		sb.append("<table width=285 cellpadding=1 cellspacing=0><tr>");
+		if (curCat != BuffCategory.ALL && !filtered.isEmpty()) {
+			sb.append("<td align=center><button value=\"Comprar ").append(curCat.getLabel()).append(" (").append(formatAdena(totalPriceCat)).append("a)\" action=\"bypass -h voiced_buffshop buycat ").append(sellerId).append(" ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=140 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		}
+		sb.append("<td align=center><button value=\"Comprar Todos (").append(formatAdena(totalPriceAll)).append(" ").append(coinName).append(")\" action=\"bypass -h voiced_buffshop buyall ").append(sellerId).append("\" width=").append(curCat != BuffCategory.ALL && !filtered.isEmpty() ? "140" : "260").append(" height=21 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+		sb.append("</tr></table>");
+		sb.append("<img src=\"L2UI.SquareGray\" width=285 height=1><br1>");
+
+		if (pageItems.isEmpty()) {
+			sb.append("<br><font color=\"AAAAAA\">Nenhum buff nesta categoria a venda.</font><br><br>");
+		} else {
+			for (var buff : pageItems) {
+				String icon = getSkillIcon(buff.skillId());
+				sb.append("<table width=285 bgcolor=\"111111\" cellpadding=1 cellspacing=0><tr>");
+				sb.append("<td width=34 valign=top><img src=\"").append(icon).append("\" width=32 height=32></td>");
+				sb.append("<td width=185 valign=center>");
+				sb.append("<font color=\"FFFFFF\">").append(buff.name()).append("</font><br1>");
+				sb.append("<font color=\"888888\">Nv.").append(buff.level()).append("</font> - <font color=\"LEVEL\">").append(formatAdena(buff.price())).append(" ").append(coinName).append("</font>");
+				sb.append("</td>");
+				sb.append("<td width=66 align=right valign=center>");
+				sb.append("<button value=\"Comprar\" action=\"bypass -h voiced_buffshop buy ").append(sellerId).append(" ").append(buff.skillId()).append(" ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=62 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+				sb.append("</td></tr></table>");
+			}
 		}
 
-		sb.append("<br>");
-		sb.append("<button value=\"Comprar Todos (").append(formatAdena(totalPriceAll)).append(" ").append(coinName).append(")\" action=\"bypass -h voiced_buffshop buyall ").append(sellerId).append("\" width=230 height=25 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"><br>");
-
-		sb.append("<table width=280><tr>");
-		sb.append("<td width=80 align=left>");
+		sb.append("<table width=285 cellpadding=0 cellspacing=0><tr>");
+		sb.append("<td width=35 align=left>");
 		if (curPage > 1) {
-			sb.append("<button value=\"< Anterior\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(curPage - 1).append("\" width=75 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+			sb.append("<button value=\"<<\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(curCat.getCode()).append(" 1\" width=30 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
 		}
 		sb.append("</td>");
-		sb.append("<td width=120 align=center><font color=\"AAAAAA\">Pagina ").append(curPage).append(" de ").append(totalPages).append("</font></td>");
-		sb.append("<td width=80 align=right>");
+		sb.append("<td width=50 align=left>");
+		if (curPage > 1) {
+			sb.append("<button value=\"< Ant\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(curCat.getCode()).append(" ").append(curPage - 1).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+		}
+		sb.append("</td>");
+		sb.append("<td width=115 align=center><font color=\"AAAAAA\">Pagina ").append(curPage).append(" / ").append(totalPages).append(" (").append(filtered.size()).append(" buffs)</font></td>");
+		sb.append("<td width=50 align=right>");
 		if (curPage < totalPages) {
-			sb.append("<button value=\"Proxima >\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(curPage + 1).append("\" width=75 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+			sb.append("<button value=\"Prox >\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(curCat.getCode()).append(" ").append(curPage + 1).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+		}
+		sb.append("</td>");
+		sb.append("<td width=35 align=right>");
+		if (curPage < totalPages) {
+			sb.append("<button value=\">>\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(curCat.getCode()).append(" ").append(totalPages).append("\" width=30 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
 		}
 		sb.append("</td></tr></table>");
 
