@@ -3,8 +3,12 @@ package com.lopez.l2j.game.service;
 import com.lopez.l2j.config.Config;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
+import com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ItemList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage;
+import java.util.ArrayList;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -63,10 +67,14 @@ public class BankingService {
 			return false;
 		}
 
-		ctx.inventories().consumeItem(active.inventory(), ADENA_ID, (int) totalAdenaNeeded, "BankingDeposit");
-		ctx.inventories().addItem(active.inventory(), GOLD_BAR_ID, count, "BankingDeposit");
-
-		session.send(ItemList.of(active.inventory().items(), false));
+		var consumed = ctx.inventories().consumeItem(active.inventory(), ADENA_ID, (int) totalAdenaNeeded, "BankingDeposit");
+		var added = ctx.inventories().addItem(active.inventory(), GOLD_BAR_ID, count, "BankingDeposit");
+		List<ItemInfo> updates = new ArrayList<>();
+		if (consumed != null) updates.add(ItemInfo.of(consumed.item(), consumed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+		if (added != null) updates.add(ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+		if (!updates.isEmpty()) {
+			session.send(new InventoryUpdate(updates));
+		}
 		session.refreshWeightAndPenalties();
 		session.send(new CreatureSay(0, CreatureSay.ALL, "Banco",
 				String.format("Deposito efetuado: %d Gold Bar(s) adicionado(s) por %,d adenas.", count, totalAdenaNeeded)));
@@ -107,10 +115,14 @@ public class BankingService {
 			return false;
 		}
 
-		ctx.inventories().consumeItem(active.inventory(), GOLD_BAR_ID, count, "BankingWithdraw");
-		ctx.inventories().addItem(active.inventory(), ADENA_ID, (int) totalAdenaGain, "BankingWithdraw");
-
-		session.send(ItemList.of(active.inventory().items(), false));
+		var consumed = ctx.inventories().consumeItem(active.inventory(), GOLD_BAR_ID, count, "BankingWithdraw");
+		var added = ctx.inventories().addItem(active.inventory(), ADENA_ID, (int) totalAdenaGain, "BankingWithdraw");
+		List<ItemInfo> updates = new ArrayList<>();
+		if (consumed != null) updates.add(ItemInfo.of(consumed.item(), consumed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+		if (added != null) updates.add(ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+		if (!updates.isEmpty()) {
+			session.send(new InventoryUpdate(updates));
+		}
 		session.refreshWeightAndPenalties();
 		session.send(new CreatureSay(0, CreatureSay.ALL, "Banco",
 				String.format("Saque efetuado: %,d adenas recebidas por %d Gold Bar(s).", totalAdenaGain, count)));

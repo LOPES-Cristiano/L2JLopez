@@ -43,7 +43,10 @@ public class InventoryService {
 	}
 
 	/** Resultado de addItem: o item final e se ele e novo (InventoryUpdate add) ou modificado. */
-	public record AddResult(ItemInstance item, boolean created) {
+	public record AddResult(ItemInstance item, boolean created, List<ItemInstance> allItems) {
+		public AddResult(ItemInstance item, boolean created) {
+			this(item, created, item != null ? List.of(item) : List.of());
+		}
 	}
 
 	/** Resultado de consumeItem: o item alterado/removido e se foi totalmente removido. */
@@ -186,16 +189,14 @@ public class InventoryService {
 			repository.insert(item, process);
 			return new AddResult(item, true);
 		}
-		ItemInstance first = null;
+		List<ItemInstance> createdItems = new ArrayList<>(count);
 		for (int i = 0; i < count; i++) {
 			ItemInstance item = new ItemInstance(ids.nextId(), template, inv.ownerId(), 1);
 			inv.add(item);
 			repository.insert(item, process);
-			if (first == null) {
-				first = item;
-			}
+			createdItems.add(item);
 		}
-		return new AddResult(first, true);
+		return new AddResult(createdItems.isEmpty() ? null : createdItems.get(0), true, createdItems);
 	}
 
 	/** Consome ou remove uma quantidade de item/adena. Devolve null se saldo insuficiente ou contagem invalida. */
@@ -211,6 +212,7 @@ public class InventoryService {
 		if (item.count() == count) {
 			inv.remove(item);
 			repository.delete(item.objectId());
+			item.count(0);
 			return new ConsumeResult(item, true);
 		} else {
 			item.count(item.count() - count);
@@ -235,6 +237,7 @@ public class InventoryService {
 			if (augmentationRepository != null) {
 				augmentationRepository.delete(item.objectId());
 			}
+			item.count(0);
 			return new ConsumeResult(item, true);
 		} else {
 			item.count(item.count() - count);
