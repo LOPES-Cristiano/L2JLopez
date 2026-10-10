@@ -193,4 +193,47 @@ class PlayerPenaltiesTest {
 		assertEquals(0, recoveredStats.weightPenalty(), "Com 0.02% de peso, a penalidade deve ser 0");
 		assertEquals(normalSpeed, recoveredStats.runSpeed(), "Velocidade deve voltar ao normal");
 	}
+
+	@Test
+	@DisplayName("AltWeightLimit moderado e astronomico (ex: 999999999999) nao causam overflow e elevam limite corretamente")
+	void altWeightLimitCalculatesCorrectlyWithoutOverflow() {
+		var statsBase = PlayerStats.calculate(player, template);
+		int baseMaxLoad = statsBase.maxLoad();
+		assertTrue(baseMaxLoad > 0);
+
+		// Multiplicador 2x
+		com.lopez.l2j.config.Config.ALT_WEIGHT_LIMIT = 2.0f;
+		var stats2x = PlayerStats.calculate(player, template);
+		assertEquals(baseMaxLoad * 2, stats2x.maxLoad(), "AltWeightLimit=2 deve dobrar o limite de peso");
+
+		// Multiplicador astronômico (ex: 999999999999f) - caso de usuário querendo peso ilimitado
+		com.lopez.l2j.config.Config.ALT_WEIGHT_LIMIT = 999999999999.0f;
+		var statsMax = PlayerStats.calculate(player, template);
+		assertEquals(Integer.MAX_VALUE, statsMax.maxLoad(), "AltWeightLimit gigante deve atingir Integer.MAX_VALUE sem overflow");
+		assertEquals(0, statsMax.weightPenalty(), "Com Integer.MAX_VALUE nao deve haver penalidade de peso");
+
+		// Teste com carga pesada e limite astronômico
+		var heavyItemTemplate = ItemTemplate.etc(99999, 99999, "Heavy Lead", "material", "asset",
+				1000, "none", 1, true, true, true, true);
+		var heavy = new ItemInstance(0x30000007, heavyItemTemplate, player.objectId(), 100_000);
+		inventory.add(heavy);
+		var statsWithHeavy = PlayerStats.calculate(player, template);
+		assertEquals(0, statsWithHeavy.weightPenalty(), "Carga pesada com limite infinito nao deve sofrer penalidade");
+	}
+
+	@Test
+	@DisplayName("IncreaseWeightLimitByLevel aumenta capacidade de carga proporcionalmente ao nivel")
+	void increaseWeightLimitByLevelIncreasesMaxLoad() {
+		com.lopez.l2j.config.Config.ALT_WEIGHT_LIMIT = 1.0f;
+		com.lopez.l2j.config.Config.INCREASE_WEIGHT_LIMIT_BY_LEVEL = true;
+
+		player.level(1);
+		var statsLv1 = PlayerStats.calculate(player, template);
+
+		player.level(80);
+		var statsLv80 = PlayerStats.calculate(player, template);
+
+		assertTrue(statsLv80.maxLoad() > statsLv1.maxLoad(),
+				"Limite de peso no Lv 80 deve ser maior que no Lv 1 quando IncreaseWeightLimitByLevel estiver ativado");
+	}
 }

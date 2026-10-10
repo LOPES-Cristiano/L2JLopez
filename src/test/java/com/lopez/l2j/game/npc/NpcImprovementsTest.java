@@ -315,6 +315,35 @@ class NpcImprovementsTest {
 		assertThat(gremlin2.inCombat()).isFalse();
 	}
 
+	@Test
+	void shouldNotAggroUndergroundMobAgainstPlayerOnSurface() {
+		// Ant Patrol no formigueiro subterrâneo (Z = -5387)
+		NpcTemplate tplAnt = new NpcTemplate(
+				20084, 20084, "Ant Patrol", false, "", false,
+				5.0, 35.0, 34, "male", "L2Monster",
+				40, 1164, 430, 196, 148, 82, 132, 278, 333,
+				0, 0, 0, 80, 130, 300, false, "ant_clan", 300);
+
+		NpcInstance antPatrol = new NpcInstance(5001, tplAnt, -13466, 179523, -5387, 0);
+		world.addNpc(antPatrol);
+
+		// Jogador caminhando no deserto (Wasteland) na superfície diretamente acima (X/Y identicos, Z = -3400)
+		PlayerCharacter playerOnSurface = new PlayerCharacter(7001, "acc", "DesertWalker", 34, 0, 0, 0, 0, 0, false, 0, 0, 0,
+				1000, 500, 500, 0, 0, 0, 0, "", 0, 0, 0, 100, 100, 0, 0, 1000.0, 500.0, 500.0);
+		playerOnSurface.moveTo(-13466, 179523, -3400);
+
+		TestGameSession session = new TestGameSession(playerOnSurface);
+		world.add(session);
+
+		// Executa ticks de checagem de aggro da IA
+		npcAiService.tick();
+		npcAiService.tick();
+
+		// O monstro subterrâneo NÃO deve ter entrado em combate nem mirado no jogador da superfície
+		assertThat(antPatrol.inCombat()).isFalse();
+		assertThat(antPatrol.targetPlayerId()).isEqualTo(0);
+	}
+
 	/**
 	 * Stub simples de GameSession para simular jogador no GameWorld.
 	 */
