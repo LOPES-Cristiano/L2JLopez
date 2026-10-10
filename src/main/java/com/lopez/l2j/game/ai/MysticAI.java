@@ -36,7 +36,7 @@ public class MysticAI extends FighterAI {
 
 	@Override
 	public void processCombat() {
-		if (npc.isDead() || npc.isCasting() || npc.targetPlayerId() == 0) return;
+		if (npc.isDead() || npc.isCasting() || npc.isAttacking() || npc.targetPlayerId() == 0) return;
 		var playerOpt = world.player(npc.targetPlayerId());
 		if (playerOpt.isEmpty()) return;
 
@@ -50,9 +50,12 @@ public class MysticAI extends FighterAI {
 
 		double dx = player.x() - npc.x();
 		double dy = player.y() - npc.y();
+		double dz = player.z() - npc.z();
 		double dist = Math.hypot(dx, dy);
+		double dist3d = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-		if (dist > 1500.0) return;
+		if (dist3d > 1500.0) return;
+		if (Math.abs(dz) > 400.0 || !combatService.canSeeTarget(npc, character)) return;
 		if (npc.isDisabled()) return;
 
 		// Conjuradores tentam manter alcance de 600u

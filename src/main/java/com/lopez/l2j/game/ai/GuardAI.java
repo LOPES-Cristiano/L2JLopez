@@ -43,7 +43,23 @@ public class GuardAI extends FighterAI {
 		int heading = (int) Math.round(Math.atan2(dy, dx) * 10430.378);
 		int fromX = npc.x();
 		int fromY = npc.y();
-		npc.moveTo(newX, newY, targetZ, heading);
+
+		int newZ = npc.z();
+		if (combatService != null && combatService.geoEngine() != null && combatService.geoEngine().isEnabled()) {
+			short geoZ = combatService.geoEngine().getHeight(newX, newY, npc.z());
+			if (Math.abs(geoZ - npc.z()) <= 100) {
+				newZ = geoZ;
+			}
+		} else {
+			int dz = targetZ - npc.z();
+			if (Math.abs(dz) <= 48) {
+				newZ = targetZ;
+			} else if (Math.abs(dz) <= 120) {
+				newZ += (int) (Math.signum(dz) * Math.min(Math.abs(dz), 32));
+			}
+		}
+
+		npc.moveTo(newX, newY, newZ, heading);
 		world.updateNpcPosition(npc, fromX, fromY);
 
 		var movePawn = new com.lopez.l2j.network.game.packet.GameServerPacket.MoveToPawn(
@@ -60,7 +76,11 @@ public class GuardAI extends FighterAI {
 		for (var session : players) {
 			var character = session.character();
 			if (character != null && !character.isDead() && !character.isGm() && character.karma() > 0) {
-				return character.objectId();
+				if (Math.abs(session.z() - npc.z()) <= 150) {
+					if (combatService == null || combatService.canSeeTarget(npc, character)) {
+						return character.objectId();
+					}
+				}
 			}
 		}
 		return null;
