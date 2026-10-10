@@ -45,8 +45,8 @@ class MacroTest {
 		byte[] encoded = packet.encode();
 
 		assertNotNull(encoded);
-		// Opcode 0xE7, revision (4 bytes), byte 0, count 0, hasMacro 0 -> 1+4+1+1+1 = 8 bytes
-		assertEquals((byte) 0xe7, encoded[0]);
+		// Opcode 0xE8, revision (4 bytes), byte 0, count 0, hasMacro 0 -> 1+4+1+1+1 = 8 bytes
+		assertEquals((byte) 0xe8, encoded[0]);
 		assertEquals(0, encoded[5]); // 0 byte
 		assertEquals(0, encoded[6]); // count 0
 		assertEquals(0, encoded[7]); // hasMacro 0
@@ -60,7 +60,7 @@ class MacroTest {
 		byte[] encoded = packet.encode();
 
 		assertNotNull(encoded);
-		assertEquals((byte) 0xe7, encoded[0]);
+		assertEquals((byte) 0xe8, encoded[0]);
 		assertEquals(1, encoded[6]); // count 1
 		assertEquals(1, encoded[7]); // hasMacro 1
 	}

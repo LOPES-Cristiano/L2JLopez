@@ -147,4 +147,121 @@ class ItemSkillsIntegrationTest {
 		assertTrue(equippedStats.pAtkSpd() > baseStats.pAtkSpd() || equippedStats.critical() > baseStats.critical(),
 				"Dual +4 deve aplicar a habilidade de encantamento (skills_enchant4)");
 	}
+
+	@Test
+	void platedLeatherArmorSetAppliesStrBonusAndIncreasesPatk() {
+		var player = createPlayer(75);
+		var template = charTemplates.get(player.classId()).orElseThrow();
+		var baseStats = PlayerStats.calculate(player, template);
+
+		// Plated Leather Set (skill 3511: STR +4, CON -1)
+		player.skills().put(3511, 1);
+		skillService.refreshPassives(player);
+
+		var equippedStats = PlayerStats.calculate(player, template);
+		assertEquals(baseStats.str() + 4, equippedStats.str(), "Plated Leather deve conceder +4 STR");
+		assertEquals(baseStats.con() - 1, equippedStats.con(), "Plated Leather deve reduzir 1 CON");
+		assertTrue(equippedStats.pAtk() > baseStats.pAtk(), "STR adicional deve aumentar o pAtk via strBonus ratio");
+	}
+
+	@Test
+	void darkCrystalRobeSetAppliesWitAndMenAndIncreasesCastSpeed() {
+		var player = createPlayer(75);
+		var template = charTemplates.get(player.classId()).orElseThrow();
+		var baseStats = PlayerStats.calculate(player, template);
+
+		// Dark Crystal Robe Set (skill 3535: +15% Cast Spd, +8% P.Def, +7 Run Spd, WIT +2, MEN -2)
+		player.skills().put(3535, 1);
+		skillService.refreshPassives(player);
+
+		var dcStats = PlayerStats.calculate(player, template);
+		assertEquals(baseStats.wit() + 2, dcStats.wit(), "Dark Crystal Robe deve conceder +2 WIT");
+		assertEquals(baseStats.men() - 2, dcStats.men(), "Dark Crystal Robe deve reduzir 2 MEN");
+		assertEquals(baseStats.runSpeed() + 7, dcStats.runSpeed(), "Dark Crystal Robe deve conceder +7 Run Speed");
+		assertTrue(dcStats.pDef() > baseStats.pDef(), "Dark Crystal Robe deve conceder +8% P.Def");
+		assertTrue(dcStats.mAtkSpd() > baseStats.mAtkSpd(), "Dark Crystal Robe deve aumentar Cast Speed");
+	}
+
+	@Test
+	void weaponSaHealthAndManaUpIncreasesMaxVitals() {
+		var player = createPlayer(75);
+		var template = charTemplates.get(player.classId()).orElseThrow();
+
+		// Base vitals
+		int baseMaxHp = (int) Math.round(template.calculateMaxHp(player.level())
+				* (com.lopez.l2j.game.template.BaseStatsTable.conBonus(template.con()) / com.lopez.l2j.game.template.BaseStatsTable.conBonus(template.con())));
+		int baseMaxMp = (int) Math.round(template.calculateMaxMp(player.level())
+				* (com.lopez.l2j.game.template.BaseStatsTable.menBonus(template.men()) / com.lopez.l2j.game.template.BaseStatsTable.menBonus(template.men())));
+
+		// Weapon SA: Health (skill 3013 level 5 = mul maxHp 1.25)
+		player.skills().put(3013, 5);
+		skillService.refreshPassives(player);
+
+		int boostedHp = (int) Math.round(PlayerStats.applyStat(player, "maxHp", baseMaxHp));
+		assertEquals(Math.round(baseMaxHp * 1.25), boostedHp, "SA Health deve conceder +25% Max HP");
+
+		// Weapon SA: Mana Up (skill 3014 level 3 = mul maxMp 1.30)
+		player.skills().put(3014, 3);
+		skillService.refreshPassives(player);
+
+		int boostedMp = (int) Math.round(PlayerStats.applyStat(player, "maxMp", baseMaxMp));
+		assertEquals(Math.round(baseMaxMp * 1.30), boostedMp, "SA Mana Up deve conceder +30% Max MP");
+	}
+
+	@Test
+	void criticalDamageFromBossJewelsMultipliesCritDamageInCombat() {
+		var player = createPlayer(75);
+
+		// Sem anéis: cAtk base = 1.0
+		double baseCAtk = PlayerStats.applyStat(player, "cAtk", 1.0);
+		assertEquals(1.0, baseCAtk);
+
+		// Equipando Baium Ring (skill 3561: mul cAtk 1.15)
+		player.skills().put(3561, 1);
+		skillService.refreshPassives(player);
+
+		double baiumCAtk = PlayerStats.applyStat(player, "cAtk", 1.0);
+		assertEquals(1.15, baiumCAtk, 0.001, "Baium Ring deve conceder +15% Critical Damage");
+
+		// Equipando Queen Ant Ring (skill 3562: mul cAtk 1.15)
+		player.skills().put(3562, 1);
+		skillService.refreshPassives(player);
+
+		double dualCAtk = PlayerStats.applyStat(player, "cAtk", 1.0);
+		assertEquals(1.15 * 1.15, dualCAtk, 0.001, "Baium + Queen Ant devem acumular dano crítico multiplicativo");
+	}
+
+	@Test
+	void userInfoPacketEncodesEffectiveStatsFromItemPassives() {
+		var player = createPlayer(75);
+		var template = charTemplates.get(player.classId()).orElseThrow();
+
+		// Equipando Plated Leather (+4 STR, -1 CON)
+		player.skills().put(3511, 1);
+		skillService.refreshPassives(player);
+
+		var stats = PlayerStats.calculate(player, template);
+		var userInfo = new com.lopez.l2j.network.game.packet.GameServerPacket.UserInfo(
+				player, template, player.inventory().paperdollView(), 0, stats);
+
+		byte[] bytes = userInfo.encode();
+		var buf = java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+		buf.get(); // 0x04 opcode
+		buf.getInt(); buf.getInt(); buf.getInt(); buf.getInt(); // x, y, z, heading
+		buf.getInt(); // objId
+		while (buf.getChar() != 0) {
+			// lê string UTF-16LE terminada em null
+		}
+		buf.getInt(); buf.getInt(); buf.getInt(); // race, sex, classId
+		buf.getInt(); buf.getLong(); // level, exp
+
+		int encodedStr = buf.getInt();
+		int encodedDex = buf.getInt();
+		int encodedCon = buf.getInt();
+
+		assertEquals(template.str() + 4, encodedStr, "UserInfo deve enviar STR com bônus do set (+4)");
+		assertEquals(template.dex(), encodedDex, "UserInfo deve enviar DEX inalterado");
+		assertEquals(template.con() - 1, encodedCon, "UserInfo deve enviar CON com penalidade do set (-1)");
+	}
 }
+
