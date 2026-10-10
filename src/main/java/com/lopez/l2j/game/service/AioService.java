@@ -27,6 +27,8 @@ public class AioService {
     public record AioBuff(int skillId, int level, String name) {}
 
     private final JdbcTemplate jdbc;
+    private final com.lopez.l2j.game.skill.SkillService skillService;
+    private final com.lopez.l2j.game.skill.SkillTable skillTable;
     private final Set<Integer> aioPlayers = ConcurrentHashMap.newKeySet();
     private final List<AioBuff> aioBuffs = new ArrayList<>();
 
@@ -35,11 +37,19 @@ public class AioService {
     private final List<ConsumableReward> aioGoods = new ArrayList<>();
 
     public AioService() {
-        this(null);
+        this(null, null, null);
     }
 
     public AioService(@Autowired(required = false) DataSource dataSource) {
+        this(dataSource, null, null);
+    }
+
+    public AioService(@Autowired(required = false) DataSource dataSource,
+                      @Autowired(required = false) com.lopez.l2j.game.skill.SkillService skillService,
+                      @Autowired(required = false) com.lopez.l2j.game.skill.SkillTable skillTable) {
         this.jdbc = dataSource != null ? new JdbcTemplate(dataSource) : null;
+        this.skillService = skillService;
+        this.skillTable = skillTable;
         initDefaultBuffs();
         initDefaultGoods();
     }
@@ -141,6 +151,95 @@ public class AioService {
     }
 
     /**
+     * Retorna o catálogo de habilidades AIO configurado via Config.AIO_SKILLS ou o padrão.
+     */
+    public Map<Integer, Integer> getAioSkillMap() {
+        Map<Integer, Integer> map = new LinkedHashMap<>();
+        if (Config.AIO_SKILLS != null && !Config.AIO_SKILLS.isBlank()) {
+            String[] pairs = Config.AIO_SKILLS.split(";");
+            for (String pair : pairs) {
+                String clean = pair.trim();
+                if (clean.isEmpty()) {
+                    continue;
+                }
+                String[] parts = clean.split(",");
+                if (parts.length >= 2) {
+                    try {
+                        int skillId = Integer.parseInt(parts[0].trim());
+                        int level = Integer.parseInt(parts[1].trim());
+                        if (skillId > 0 && level > 0) {
+                            map.put(skillId, level);
+                        }
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+        if (map.isEmpty()) {
+            for (AioBuff buff : aioBuffs) {
+                map.put(buff.skillId(), buff.level());
+            }
+        }
+        return map;
+    }
+
+    public boolean isAioSkill(int skillId) {
+        return getAioSkillMap().containsKey(skillId);
+    }
+
+    /**
+     * Concede ao jogador todas as habilidades de buff do catálogo AIO.
+     * Ajusta o nível caso a configuração exceda o nível máximo válido no servidor.
+     */
+    public void rewardAioSkills(PlayerCharacter player) {
+        if (player == null) {
+            return;
+        }
+        Map<Integer, Integer> skills = getAioSkillMap();
+        for (Map.Entry<Integer, Integer> entry : skills.entrySet()) {
+            int skillId = entry.getKey();
+            int desiredLevel = entry.getValue();
+            int maxLevel = skillTable != null ? skillTable.maxLevel(skillId) : desiredLevel;
+            int actualLevel = desiredLevel;
+            if (maxLevel > 0 && desiredLevel > maxLevel && desiredLevel < 100) {
+                actualLevel = maxLevel;
+            }
+            if (skillService != null) {
+                skillService.addSkill(player, skillId, actualLevel);
+            } else {
+                player.skills().put(skillId, actualLevel);
+            }
+        }
+        if (skillService != null) {
+            skillService.refreshPassives(player);
+        }
+        log.info("AIO: {} habilidades concedidas ao jogador {} [{}]",
+                skills.size(), player.getName(), player.getObjectId());
+    }
+
+    /**
+     * Remove do jogador todas as habilidades exclusivas de AIO.
+     */
+    public void removeAioSkills(PlayerCharacter player) {
+        if (player == null) {
+            return;
+        }
+        Map<Integer, Integer> skills = getAioSkillMap();
+        for (int skillId : skills.keySet()) {
+            if (skillService != null) {
+                skillService.removeSkill(player, skillId);
+            } else {
+                player.skills().remove(skillId);
+            }
+        }
+        if (skillService != null) {
+            skillService.cleanInvalidSkills(player);
+            skillService.refreshPassives(player);
+        }
+        log.info("AIO: Habilidades de AIO removidas do jogador {} [{}]",
+                player.getName(), player.getObjectId());
+    }
+
+    /**
      * Concede status AIOx a um jogador online por uma quantidade de dias.
      * Se o jogador já possuir tempo de AIO ativo, os novos dias são somados.
      *
@@ -166,6 +265,7 @@ public class AioService {
         player.setAio(true);
         player.aioExpiration(expiration);
         applyAioColors(player);
+        rewardAioSkills(player);
         saveAio(player.objectId(), 1, expiration);
 
         log.info("AIO: Status AIOx concedido ao jogador {} [{}] por {} dias (expira em {})",
@@ -205,6 +305,7 @@ public class AioService {
         player.aioExpiration(0L);
         player.nameColor(0xFFFFFF);
         player.titleColor(0xFFFF77);
+        removeAioSkills(player);
         if (Config.ENABLE_AIO_DELEVEL && Config.AIO_SET_DELEVEL > 0) {
             player.level(Config.AIO_SET_DELEVEL);
         }
@@ -217,6 +318,14 @@ public class AioService {
      */
     public void removeAio(int charId) {
         aioPlayers.remove(charId);
+        if (jdbc != null) {
+            Map<Integer, Integer> skills = getAioSkillMap();
+            for (int skillId : skills.keySet()) {
+                try {
+                    jdbc.update("DELETE FROM character_skills WHERE charId = ? AND skill_id = ?", charId, skillId);
+                } catch (Exception ignored) {}
+            }
+        }
         saveAio(charId, 0, 0L);
         log.info("AIO: Status AIOx offline removido do charId={}", charId);
     }
@@ -266,6 +375,7 @@ public class AioService {
             } else {
                 aioPlayers.add(player.getObjectId());
                 applyAioColors(player);
+                rewardAioSkills(player);
             }
         }
     }
@@ -316,7 +426,32 @@ public class AioService {
     }
 
     public List<AioBuff> getAioBuffs() {
-        return Collections.unmodifiableList(aioBuffs);
+        Map<Integer, Integer> map = getAioSkillMap();
+        List<AioBuff> list = new ArrayList<>();
+        for (var entry : map.entrySet()) {
+            int skillId = entry.getKey();
+            int level = entry.getValue();
+            String name = resolveSkillName(skillId, level);
+            list.add(new AioBuff(skillId, level, name));
+        }
+        return Collections.unmodifiableList(list);
+    }
+
+    private String resolveSkillName(int skillId, int level) {
+        if (skillTable != null) {
+            int maxLvl = skillTable.maxLevel(skillId);
+            int lookupLvl = maxLvl > 0 ? Math.min(level, maxLvl) : level;
+            var opt = skillTable.get(skillId, lookupLvl);
+            if (opt.isPresent() && opt.get().name() != null && !opt.get().name().isBlank()) {
+                return opt.get().name();
+            }
+        }
+        for (AioBuff b : aioBuffs) {
+            if (b.skillId() == skillId) {
+                return b.name();
+            }
+        }
+        return "Skill " + skillId;
     }
 
     public String buildAioMenuHtml(PlayerCharacter player) {
@@ -327,7 +462,7 @@ public class AioService {
         sb.append("Utilize o menu abaixo para aplicar buffs ou retirar itens.<br><br>");
         sb.append("<button value=\"Retirar Consumiveis (.getaiogoods)\" action=\"bypass -h voiced_getaiogoods\" width=190 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br><br>");
         sb.append("<table width=240>");
-        for (AioBuff buff : aioBuffs) {
+        for (AioBuff buff : getAioBuffs()) {
             sb.append("<tr>");
             sb.append("<td>").append(buff.name()).append("</td>");
             sb.append("<td><button value=\"Cast\" action=\"bypass -h voiced_aiobuff ").append(buff.skillId())
