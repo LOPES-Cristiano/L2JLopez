@@ -191,4 +191,48 @@ class BuffShopHandlersTest {
 		verify(inventoryService).consumeItem(buyer.inventory(), 57, 5000, "BuffShopPurchase");
 		verify(inventoryService).addItem(seller.inventory(), 57, 5000, "BuffShopRevenue");
 	}
+
+	@Test
+	@DisplayName("BypassBuffShopHandler suporta navegacao por abas de categorias no vendedor e comprador")
+	void testBypassCategoryNavigation() {
+		buffShopService.startShop(seller, "Store", List.of(new BuffShopItem(1068, 1, 5000, "Might")));
+
+		boolean sellerPage = bypassHandler.handleBypass("voiced_buffshop page dances 1", session);
+		assertThat(sellerPage).isTrue();
+
+		GameSession buyerSession = mock(GameSession.class);
+		when(buyerSession.activeCharacter()).thenReturn(buyer);
+		when(buyerSession.context()).thenReturn(context);
+
+		boolean buyerPage = bypassHandler.handleBypass("voiced_buffshop buyer_page " + seller.objectId() + " buffs 1", buyerSession);
+		assertThat(buyerPage).isTrue();
+	}
+
+	@Test
+	@DisplayName("BypassBuffShopHandler buycat compra todos os buffs de uma categoria especifica")
+	void testBypassBuyCat() {
+		buffShopService.startShop(seller, "Store", List.of(
+				new BuffShopItem(1068, 1, 5000, "Might"),
+				new BuffShopItem(1040, 1, 5000, "Shield")
+		));
+
+		GameSession buyerSession = mock(GameSession.class);
+		when(buyerSession.activeCharacter()).thenReturn(buyer);
+		when(buyerSession.context()).thenReturn(context);
+
+		var adenaTpl = com.lopez.l2j.game.item.ItemTemplate.etc(57, 57, "Adena", "none", "asset", 0, "none", 0, true, true, true, true);
+		buyer.inventory().add(new com.lopez.l2j.game.item.ItemInstance(10, adenaTpl, buyer.objectId(), 50000));
+
+		GameWorld.OnlinePlayer sellerPlayer = mock(GameWorld.OnlinePlayer.class);
+		when(sellerPlayer.character()).thenReturn(seller);
+		when(sellerPlayer.x()).thenReturn(0);
+		when(sellerPlayer.y()).thenReturn(0);
+		when(world.player(seller.objectId())).thenReturn(Optional.of(sellerPlayer));
+
+		boolean ok = bypassHandler.handleBypass("voiced_buffshop buycat " + seller.objectId() + " buffs 1", buyerSession);
+		assertThat(ok).isTrue();
+
+		verify(inventoryService).consumeItem(buyer.inventory(), 57, 10000, "BuffShopPurchase");
+		verify(inventoryService).addItem(seller.inventory(), 57, 10000, "BuffShopRevenue");
+	}
 }

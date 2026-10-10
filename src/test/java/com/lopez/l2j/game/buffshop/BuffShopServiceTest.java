@@ -248,4 +248,80 @@ class BuffShopServiceTest {
 		assertThat(ids).contains(1068, 264);
 		assertThat(ids).doesNotContain(176);
 	}
+
+	@Test
+	@DisplayName("Vendedor AIO pode disponibilizar e vender todos os seus 90+ buffs sem limite artificial de 30")
+	void testAllAioBuffsCanBeSoldWithout30Limit() {
+		com.lopez.l2j.game.skill.SkillTable realTable = new com.lopez.l2j.game.skill.SkillTable(java.nio.file.Path.of("data", "xml", "stats", "skills"));
+		com.lopez.l2j.game.service.AioService aioService = new com.lopez.l2j.game.service.AioService();
+		aioService.rewardAioSkills(seller);
+
+		var available = service.getAvailableBuffSkills(seller, realTable);
+		assertThat(available.size()).isGreaterThanOrEqualTo(90);
+
+		boolean started = service.startShop(seller, "AIO Super Buffs", available);
+		assertThat(started).isTrue();
+
+		var shopOpt = service.getShop(seller.objectId());
+		assertThat(shopOpt).isPresent();
+		assertThat(shopOpt.get().items()).hasSize(available.size());
+
+		// Verifica que buffs criticos antes ausentes estao presentes
+		var itemIds = shopOpt.get().items().keySet();
+		assertThat(itemIds).contains(
+				1062, // Berserker Spirit
+				1003, // Pa'agrian Gift
+				1005, // Blessings of Pa'agrio
+				1282, // Pa'agrian Haste
+				1357, // Prophecy of Wind
+				4554  // Hot Springs Malaria
+		);
+	}
+
+	@Test
+	@DisplayName("Categorias de buffs categorizam corretamente dances, songs, chants e especiais")
+	void testBuffCategories() {
+		assertThat(BuffShopService.BuffCategory.getCategory(271, "Dance of the Warrior")).isEqualTo(BuffShopService.BuffCategory.DANCES);
+		assertThat(BuffShopService.BuffCategory.getCategory(264, "Song of Earth")).isEqualTo(BuffShopService.BuffCategory.SONGS);
+		assertThat(BuffShopService.BuffCategory.getCategory(1363, "Chant of Victory")).isEqualTo(BuffShopService.BuffCategory.CHANTS);
+		assertThat(BuffShopService.BuffCategory.getCategory(1005, "Blessings of Pa'agrio")).isEqualTo(BuffShopService.BuffCategory.CHANTS);
+		assertThat(BuffShopService.BuffCategory.getCategory(1357, "Prophecy of Wind")).isEqualTo(BuffShopService.BuffCategory.SPECIAL);
+		assertThat(BuffShopService.BuffCategory.getCategory(4554, "Hot Springs Malaria")).isEqualTo(BuffShopService.BuffCategory.SPECIAL);
+		assertThat(BuffShopService.BuffCategory.getCategory(1068, "Might")).isEqualTo(BuffShopService.BuffCategory.BUFFS);
+	}
+
+	@Test
+	@DisplayName("Selecao e limpeza de draft por categoria")
+	void testDraftCategorySelectionAndClearing() {
+		seller.skills().put(1068, 1); // Might (BUFFS)
+		seller.skills().put(271, 1);  // Dance of the Warrior (DANCES)
+
+		com.lopez.l2j.game.skill.SkillTable mockSkillTable = mock(com.lopez.l2j.game.skill.SkillTable.class);
+		var mightTpl = mock(com.lopez.l2j.game.skill.SkillTemplate.class);
+		when(mightTpl.name()).thenReturn("Might");
+		when(mightTpl.target()).thenReturn("TARGET_ONE");
+		when(mightTpl.skillType()).thenReturn("BUFF");
+
+		var danceTpl = mock(com.lopez.l2j.game.skill.SkillTemplate.class);
+		when(danceTpl.name()).thenReturn("Dance of the Warrior");
+		when(danceTpl.target()).thenReturn("TARGET_PARTY");
+		when(danceTpl.skillType()).thenReturn("BUFF");
+
+		when(mockSkillTable.get(1068, 1)).thenReturn(java.util.Optional.of(mightTpl));
+		when(mockSkillTable.get(271, 1)).thenReturn(java.util.Optional.of(danceTpl));
+
+		service.clearDraftBuffs(seller);
+		assertThat(service.getDraftOrActiveItems(seller, mockSkillTable)).isEmpty();
+
+		// Seleciona apenas categoria DANCES
+		service.selectDraftCategory(seller, BuffShopService.BuffCategory.DANCES, mockSkillTable);
+		var draft = service.getDraftOrActiveItems(seller, mockSkillTable);
+		assertThat(draft).containsKey(271);
+		assertThat(draft).doesNotContainKey(1068);
+
+		// Limpa categoria DANCES
+		service.clearDraftCategory(seller, BuffShopService.BuffCategory.DANCES, mockSkillTable);
+		assertThat(service.getDraftOrActiveItems(seller, mockSkillTable)).isEmpty();
+	}
 }
+
