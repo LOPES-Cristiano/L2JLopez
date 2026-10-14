@@ -83,39 +83,47 @@ public class CombatService {
 		return Math.abs(tz - z) <= 250;
 	}
 
-	public boolean canSeeTarget(PlayerCharacter player, NpcInstance npc) {
-		if (player == null || npc == null) {
+	public boolean canSeeTarget(com.lopez.l2j.game.model.Creature actor, com.lopez.l2j.game.model.Creature target) {
+		if (actor == null || target == null) {
+			return false;
+		}
+		if (actor.instanceId() != target.instanceId()) {
 			return false;
 		}
 		if (geoEngine != null && geoEngine.isEnabled()) {
-			return geoEngine.canSeeTarget(player, npc);
+			return geoEngine.canSeeTarget(actor, target);
 		}
-		return Math.abs(player.z() - npc.z()) <= 250;
+		return Math.abs(actor.z() - target.z()) <= 250;
+	}
+
+	public boolean canSeeTarget(PlayerCharacter player, NpcInstance npc) {
+		return canSeeTarget((com.lopez.l2j.game.model.Creature) player, (com.lopez.l2j.game.model.Creature) npc);
 	}
 
 	public boolean canSeeTarget(NpcInstance npc, PlayerCharacter player) {
-		if (npc == null || player == null) {
-			return false;
-		}
-		if (geoEngine != null && geoEngine.isEnabled()) {
-			return geoEngine.canSeeTarget(npc, player);
-		}
-		return Math.abs(player.z() - npc.z()) <= 250;
+		return canSeeTarget((com.lopez.l2j.game.model.Creature) npc, (com.lopez.l2j.game.model.Creature) player);
 	}
 
 	public boolean canSeeTarget(PlayerCharacter player, PlayerCharacter target) {
-		if (player == null || target == null) {
-			return false;
-		}
-		if (geoEngine != null && geoEngine.isEnabled()) {
-			return geoEngine.canSeeTarget(player, target);
-		}
-		return Math.abs(player.z() - target.z()) <= 250;
+		return canSeeTarget((com.lopez.l2j.game.model.Creature) player, (com.lopez.l2j.game.model.Creature) target);
 	}
 
 	public boolean canMoveToTarget(int x, int y, int z, int tx, int ty, int tz) {
 		if (geoEngine != null && geoEngine.isEnabled()) {
 			return geoEngine.canMoveToTarget(x, y, z, tx, ty, tz);
+		}
+		return true;
+	}
+
+	public boolean canMoveToTarget(com.lopez.l2j.game.model.Creature actor, com.lopez.l2j.game.model.Creature target) {
+		if (actor == null || target == null) {
+			return false;
+		}
+		if (actor.instanceId() != target.instanceId()) {
+			return false;
+		}
+		if (geoEngine != null) {
+			return geoEngine.canMoveToTarget(actor, target);
 		}
 		return true;
 	}
@@ -1019,5 +1027,80 @@ public class CombatService {
 		}
 		float minMult = com.lopez.l2j.config.Config.MAX_BOW_DISTANCE_PENALTY;
 		return minMult + (1.0 - minMult) * (dist / maxRange);
+	}
+
+	public HitResult summonAttackNpc(com.lopez.l2j.game.summon.SummonInstance summon, NpcInstance target) {
+		if (summon == null || target == null || summon.isDead() || target.isDead()) {
+			return new HitResult(0, 0x80, target != null && target.isDead(), target != null ? (int) target.currentHp() : 0,
+					target != null ? (int) target.maxHp() : 1, 0L, 0);
+		}
+		int pAtk = summon.pAtk();
+		if (summon.soulshotCharged()) {
+			pAtk *= 2;
+		}
+		int pDef = Math.max(1, (int) target.pDef());
+		boolean crit = ThreadLocalRandom.current().nextInt(1000) < summon.critical() * 10;
+		double raw = (70.0 * pAtk) / pDef;
+		if (crit) {
+			raw *= 2.0;
+		}
+		raw *= 0.90 + ThreadLocalRandom.current().nextDouble() * 0.20;
+		int damage = Math.max(1, (int) Math.round(raw));
+		int flags = 0;
+		if (summon.soulshotCharged()) {
+			flags |= 0x10;
+			summon.soulshotCharged(false);
+		}
+		if (crit) {
+			flags |= 0x20;
+		}
+		boolean died = target.applyDamage(damage);
+		summon.markCombat();
+		long expReward = 0L;
+		int spReward = 0;
+		if (died && target.template() != null) {
+			expReward = Math.round(target.template().exp() * rateXp);
+			spReward = (int) Math.round(target.template().sp() * rateSp);
+		}
+		return new HitResult(damage, flags, died, (int) target.currentHp(), (int) target.maxHp(), expReward, spReward);
+	}
+
+	public PlayerDamageResult summonAttackPlayer(com.lopez.l2j.game.summon.SummonInstance summon, PlayerCharacter target, CharTemplate targetTpl) {
+		if (summon == null || target == null || summon.isDead() || target.isDead()) {
+			return new PlayerDamageResult(0, 0, 0, target != null && target.isDead(),
+					target != null ? (int) target.currentHp() : 0, target != null ? (int) target.currentCp() : 0);
+		}
+		int pAtk = summon.pAtk();
+		if (summon.soulshotCharged()) {
+			pAtk *= 2;
+			summon.soulshotCharged(false);
+		}
+		int pDef = Math.max(1, PlayerStats.calculate(target, targetTpl).pDef());
+		boolean crit = ThreadLocalRandom.current().nextInt(1000) < summon.critical() * 10;
+		double raw = (70.0 * pAtk) / pDef;
+		if (crit) {
+			raw *= 2.0;
+		}
+		raw *= 0.90 + ThreadLocalRandom.current().nextDouble() * 0.20;
+		int damage = Math.max(1, (int) Math.round(raw));
+		summon.markCombat();
+		return applyDamagePlayer(target, damage, true);
+	}
+
+	public boolean applyDamageCreature(com.lopez.l2j.game.model.Creature target, int damage, boolean isPvP) {
+		if (target == null || target.isDead() || target.invul() || damage <= 0) {
+			return target != null && target.isDead();
+		}
+		if (target instanceof PlayerCharacter pc) {
+			return applyDamagePlayer(pc, damage, isPvP).isDead();
+		} else if (target instanceof NpcInstance npc) {
+			return npc.applyDamage(damage);
+		} else if (target instanceof com.lopez.l2j.game.summon.SummonInstance sum) {
+			return sum.applyDamage(damage);
+		} else {
+			target.onDamaged();
+			target.currentHp(Math.max(0.0, target.currentHp() - damage));
+			return target.isDead();
+		}
 	}
 }
