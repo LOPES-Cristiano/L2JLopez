@@ -353,7 +353,7 @@ public class Quest662AGameOfCards extends Quest {
                     }
                 }
                 if (n12 % 2 < 1) {
-                    string2 = string2.replace("<?FontColor1?>", "ffff00");
+                    string2 = string2.replace("<?FontColor1?>", "D4C49A");
                     string2 = string2.replace("<?Cell1?>", "?");
                 } else {
                     string2 = string2.replace("<?FontColor1?>", "ff6f6f");
@@ -388,7 +388,7 @@ public class Quest662AGameOfCards extends Quest {
                     }
                 }
                 if (n12 % 4 < 2) {
-                    string2 = string2.replace("<?FontColor2?>", "ffff00");
+                    string2 = string2.replace("<?FontColor2?>", "D4C49A");
                     string2 = string2.replace("<?Cell2?>", "?");
                 } else {
                     string2 = string2.replace("<?FontColor2?>", "ff6f6f");
@@ -423,7 +423,7 @@ public class Quest662AGameOfCards extends Quest {
                     }
                 }
                 if (n12 % 8 < 4) {
-                    string2 = string2.replace("<?FontColor3?>", "ffff00");
+                    string2 = string2.replace("<?FontColor3?>", "D4C49A");
                     string2 = string2.replace("<?Cell3?>", "?");
                 } else {
                     string2 = string2.replace("<?FontColor3?>", "ff6f6f");
@@ -458,7 +458,7 @@ public class Quest662AGameOfCards extends Quest {
                     }
                 }
                 if (n12 % 16 < 8) {
-                    string2 = string2.replace("<?FontColor4?>", "ffff00");
+                    string2 = string2.replace("<?FontColor4?>", "D4C49A");
                     string2 = string2.replace("<?Cell4?>", "?");
                 } else {
                     string2 = string2.replace("<?FontColor4?>", "ff6f6f");
@@ -493,7 +493,7 @@ public class Quest662AGameOfCards extends Quest {
                     }
                 }
                 if (n12 % 32 < 16) {
-                    string2 = string2.replace("<?FontColor5?>", "ffff00");
+                    string2 = string2.replace("<?FontColor5?>", "D4C49A");
                     string2 = string2.replace("<?Cell5?>", "?");
                 } else {
                     string2 = string2.replace("<?FontColor5?>", "ff6f6f");
@@ -581,7 +581,7 @@ public class Quest662AGameOfCards extends Quest {
                 int n11 = n5 % 100000000 / 1000000;
                 html = "warehouse_chief_klump_q0662_11a.htm";
                 if (n8 % 2 < 1) {
-                    html = html.replace("<?FontColor1?>", "ffff00");
+                    html = html.replace("<?FontColor1?>", "D4C49A");
                     html = html.replace("<?Cell1?>", "?");
                 } else {
                     html = html.replace("<?FontColor1?>", "ff6f6f");
@@ -616,7 +616,7 @@ public class Quest662AGameOfCards extends Quest {
                     }
                 }
                 if (n8 % 4 < 2) {
-                    html = html.replace("<?FontColor2?>", "ffff00");
+                    html = html.replace("<?FontColor2?>", "D4C49A");
                     html = html.replace("<?Cell2?>", "?");
                 } else {
                     html = html.replace("<?FontColor2?>", "ff6f6f");
@@ -651,7 +651,7 @@ public class Quest662AGameOfCards extends Quest {
                     }
                 }
                 if (n8 % 8 < 4) {
-                    html = html.replace("<?FontColor3?>", "ffff00");
+                    html = html.replace("<?FontColor3?>", "D4C49A");
                     html = html.replace("<?Cell3?>", "?");
                 } else {
                     html = html.replace("<?FontColor3?>", "ff6f6f");
@@ -686,7 +686,7 @@ public class Quest662AGameOfCards extends Quest {
                     }
                 }
                 if (n8 % 16 < 8) {
-                    html = html.replace("<?FontColor4?>", "ffff00");
+                    html = html.replace("<?FontColor4?>", "D4C49A");
                     html = html.replace("<?Cell4?>", "?");
                 } else {
                     html = html.replace("<?FontColor4?>", "ff6f6f");
@@ -721,7 +721,7 @@ public class Quest662AGameOfCards extends Quest {
                     }
                 }
                 if (n8 % 32 < 16) {
-                    html = html.replace("<?FontColor5?>", "ffff00");
+                    html = html.replace("<?FontColor5?>", "D4C49A");
                     html = html.replace("<?Cell5?>", "?");
                     break;
                 }
