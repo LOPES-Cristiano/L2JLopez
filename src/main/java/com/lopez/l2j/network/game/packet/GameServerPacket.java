@@ -311,7 +311,7 @@ public sealed interface GameServerPacket {
 				}
 			}
 			w.writeC(enchantEffect); // enchant effect (weapon glow: 0=none, 4-15=blue, 16+=red)
-			w.writeC(0); // team
+			w.writeC(c.team()); // team
 			w.writeD(0); // large clan crest
 			w.writeC(c.isNoble() ? 1 : 0).writeC(c.isHero() ? 1 : 0); // noble, hero
 			w.writeC(0).writeD(0).writeD(0).writeD(0); // fishing
@@ -1201,6 +1201,7 @@ public sealed interface GameServerPacket {
 		public static final int ALLIANCE = 9;
 		public static final int ANNOUNCEMENT = 10;
 		public static final int HERO = 17;
+		public static final int HERO_VOICE = 17;
 		public static final int CRITICAL_ANNOUNCE = 18;
 
 		@Override
@@ -1278,6 +1279,14 @@ public sealed interface GameServerPacket {
 
 	/** 0x16 NpcInfo: visualizacao de NPC/monstro no mundo. */
 	record NpcInfo(NpcInstance npc) implements GameServerPacket {
+		public static NpcInfo of(NpcInstance npc) {
+			return new NpcInfo(npc);
+		}
+
+		public static GameServerPacket forSummon(com.lopez.l2j.game.summon.SummonInstance summon) {
+			return new SummonNpcInfo(summon);
+		}
+
 		@Override
 		public byte[] encode() {
 			var t = npc.template();
@@ -1326,6 +1335,153 @@ public sealed interface GameServerPacket {
 		}
 	}
 
+	/** 0x16 NpcInfo para Summon/Pet visivel por todos no mundo. */
+	record SummonNpcInfo(com.lopez.l2j.game.summon.SummonInstance summon) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			var t = summon.template();
+			PacketWriter w = new PacketWriter().writeC(0x16);
+			w.writeD(summon.objectId());
+			w.writeD(summon.idTemplate() + 1000000);
+			w.writeD(1); // attackable / selectable
+			w.writeD(summon.x()).writeD(summon.y()).writeD(summon.z()).writeD(summon.heading());
+			w.writeD(0x00);
+			w.writeD(summon.mAtkSpd()).writeD(summon.pAtkSpd());
+			w.writeD(summon.runSpd()).writeD(summon.walkSpd());
+			w.writeD(summon.runSpd()).writeD(summon.walkSpd());
+			w.writeD(summon.runSpd()).writeD(summon.walkSpd());
+			w.writeD(summon.runSpd()).writeD(summon.walkSpd());
+			w.writeF(1.1);
+			w.writeF(summon.pAtkSpd() / 277.478340719);
+			w.writeF(t.collisionRadius() > 0 ? t.collisionRadius() : 9.0);
+			w.writeF(t.collisionHeight() > 0 ? t.collisionHeight() : 22.0);
+			w.writeD(t.rhand()).writeD(t.armor()).writeD(t.lhand());
+			w.writeC(1); // name above char
+			w.writeC(summon.running() ? 1 : 0);
+			w.writeC(summon.isInCombat() ? 1 : 0);
+			w.writeC(summon.isDead() ? 1 : 0);
+			w.writeC(0); // 0=normal, 2=summoned animation
+			w.writeS(summon.name());
+			w.writeS(summon.title());
+			w.writeD(0x01); // title color
+			w.writeD(summon.owner() != null ? summon.owner().pvpFlag() : 0);
+			w.writeD(summon.owner() != null ? summon.owner().karma() : 0);
+			w.writeD(summon.abnormalEffect());
+			w.writeD(0).writeD(0).writeD(0).writeD(0);
+			w.writeC(0);
+			w.writeC(summon.owner() != null ? summon.owner().team() : 0);
+			w.writeF(t.collisionRadius() > 0 ? t.collisionRadius() : 9.0);
+			w.writeF(t.collisionHeight() > 0 ? t.collisionHeight() : 22.0);
+			w.writeD(0x00).writeD(0x00);
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xB0 PetStatusShow: abre a janela de controle do Pet/Servitor no cliente. */
+	record PetStatusShow(int summonType) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xb0).writeD(summonType).toByteArray();
+		}
+	}
+
+	/** 0xB1 PetInfo: status completo do Pet/Servitor para o dono. */
+	record PetInfo(com.lopez.l2j.game.summon.SummonInstance summon, int val) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			var t = summon.template();
+			PacketWriter w = new PacketWriter().writeC(0xb1);
+			w.writeD(summon.summonType());
+			w.writeD(summon.objectId());
+			w.writeD(summon.idTemplate() + 1000000);
+			w.writeD(0);
+			w.writeD(summon.x()).writeD(summon.y()).writeD(summon.z()).writeD(summon.heading());
+			w.writeD(0);
+			w.writeD(summon.mAtkSpd()).writeD(summon.pAtkSpd());
+			w.writeD(summon.runSpd()).writeD(summon.walkSpd());
+			w.writeD(summon.runSpd()).writeD(summon.walkSpd());
+			w.writeD(summon.runSpd()).writeD(summon.walkSpd());
+			w.writeD(summon.runSpd()).writeD(summon.walkSpd());
+			w.writeF(1.1);
+			w.writeF(summon.pAtkSpd() / 277.478340719);
+			w.writeF(t.collisionRadius() > 0 ? t.collisionRadius() : 9.0);
+			w.writeF(t.collisionHeight() > 0 ? t.collisionHeight() : 22.0);
+			w.writeD(t.rhand()).writeD(t.armor()).writeD(t.lhand());
+			w.writeC(1); // owner online
+			w.writeC(summon.running() ? 1 : 0);
+			w.writeC(summon.isInCombat() ? 1 : 0);
+			w.writeC(summon.isDead() ? 1 : 0);
+			w.writeC(val); // 0=teleported, 1=default, 2=summoned
+			w.writeS(summon.name());
+			w.writeS(summon.title());
+			w.writeD(1);
+			w.writeD(summon.owner() != null ? summon.owner().pvpFlag() : 0);
+			w.writeD(summon.owner() != null ? summon.owner().karma() : 0);
+			w.writeD(summon.currentFed());
+			w.writeD(summon.maxFed());
+			w.writeD((int) summon.currentHp());
+			w.writeD(summon.maxHp());
+			w.writeD((int) summon.currentMp());
+			w.writeD(summon.maxMp());
+			w.writeD(summon.sp());
+			w.writeD(summon.level());
+			w.writeQ(summon.exp());
+			w.writeQ(0L); // exp this level
+			w.writeQ(1000L); // exp next level
+			w.writeD(0); // curLoad
+			w.writeD(0); // maxLoad
+			w.writeD(summon.pAtk());
+			w.writeD(summon.pDef());
+			w.writeD(summon.mAtk());
+			w.writeD(summon.mDef());
+			w.writeD(summon.accuracy());
+			w.writeD(summon.evasion());
+			w.writeD(summon.critical());
+			w.writeD(summon.runSpd());
+			w.writeD(summon.pAtkSpd());
+			w.writeD(summon.mAtkSpd());
+			w.writeD(summon.abnormalEffect());
+			w.writeH(0); // mountable
+			w.writeC(0);
+			w.writeH(0);
+			w.writeC(summon.owner() != null ? summon.owner().team() : 0);
+			w.writeD(1); // soulshots per hit
+			w.writeD(1); // spiritshots per hit
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xB5 PetStatusUpdate: atualiza barras de HP/MP/Fome do Pet/Servitor para o dono. */
+	record PetStatusUpdate(com.lopez.l2j.game.summon.SummonInstance summon) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0xb5);
+			w.writeD(summon.summonType());
+			w.writeD(summon.objectId());
+			w.writeD(summon.x()).writeD(summon.y()).writeD(summon.z());
+			w.writeS(summon.title());
+			w.writeD(summon.currentFed());
+			w.writeD(summon.maxFed());
+			w.writeD((int) summon.currentHp());
+			w.writeD(summon.maxHp());
+			w.writeD((int) summon.currentMp());
+			w.writeD(summon.maxMp());
+			w.writeD(summon.level());
+			w.writeQ(summon.exp());
+			w.writeQ(0L);
+			w.writeQ(1000L);
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xB6 PetDelete: fecha a janela do Pet/Servitor no cliente. */
+	record PetDelete(int summonType, int objId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xb6).writeD(summonType).writeD(objId).toByteArray();
+		}
+	}
+
 	/** 0x12 DeleteObject: remove um objeto visivel (NPC ou player que saiu do alcance). */
 	record DeleteObject(int objectId) implements GameServerPacket {
 		@Override
@@ -1336,8 +1492,12 @@ public sealed interface GameServerPacket {
 
 	/** 0x03 CharInfo: visualizacao de outro jogador no mundo. */
 	record CharInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll, int clanCrestId, int allyId, int allyCrestId) implements GameServerPacket {
+		public CharInfo(PlayerCharacter c) {
+			this(c, null, c.inventory() != null ? c.inventory().paperdollView() : null, 0, 0, 0);
+		}
+
 		public CharInfo(PlayerCharacter c, CharTemplate t) {
-			this(c, t, c.inventory().paperdollView(), 0, 0, 0);
+			this(c, t, c.inventory() != null ? c.inventory().paperdollView() : null, 0, 0, 0);
 		}
 
 		public CharInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll) {
@@ -1355,17 +1515,17 @@ public sealed interface GameServerPacket {
 			w.writeD(c.classId());
 
 			// 12 slots visiveis de paperdoll (item IDs)
-			int hairall = paperdoll.itemId(ItemSlots.HAIRALL);
-			int head = paperdoll.itemId(ItemSlots.HEAD);
-			int rhand = paperdoll.itemId(ItemSlots.RHAND);
-			int lhand = paperdoll.itemId(ItemSlots.LHAND);
-			int gloves = paperdoll.itemId(ItemSlots.GLOVES);
-			int chest = paperdoll.itemId(ItemSlots.CHEST);
-			int legs = paperdoll.itemId(ItemSlots.LEGS);
-			int feet = paperdoll.itemId(ItemSlots.FEET);
-			int back = paperdoll.itemId(ItemSlots.BACK);
-			int hair = paperdoll.itemId(ItemSlots.HAIR);
-			int face = paperdoll.itemId(ItemSlots.FACE);
+			int hairall = paperdoll != null ? paperdoll.itemId(ItemSlots.HAIRALL) : 0;
+			int head = paperdoll != null ? paperdoll.itemId(ItemSlots.HEAD) : 0;
+			int rhand = paperdoll != null ? paperdoll.itemId(ItemSlots.RHAND) : 0;
+			int lhand = paperdoll != null ? paperdoll.itemId(ItemSlots.LHAND) : 0;
+			int gloves = paperdoll != null ? paperdoll.itemId(ItemSlots.GLOVES) : 0;
+			int chest = paperdoll != null ? paperdoll.itemId(ItemSlots.CHEST) : 0;
+			int legs = paperdoll != null ? paperdoll.itemId(ItemSlots.LEGS) : 0;
+			int feet = paperdoll != null ? paperdoll.itemId(ItemSlots.FEET) : 0;
+			int back = paperdoll != null ? paperdoll.itemId(ItemSlots.BACK) : 0;
+			int hair = paperdoll != null ? paperdoll.itemId(ItemSlots.HAIR) : 0;
+			int face = paperdoll != null ? paperdoll.itemId(ItemSlots.FACE) : 0;
 
 			if (c.isDressMe()) {
 				if (c.dressMeArmor() != null && c.dressMeArmor().armor() != null) {
@@ -1427,7 +1587,7 @@ public sealed interface GameServerPacket {
 
 			w.writeD(run).writeD(walk).writeD(swimRun).writeD(swimWalk).writeD(run).writeD(walk).writeD(0).writeD(0);
 			w.writeF(moveMultiplier).writeF(atkSpeedMultiplier);
-			w.writeF(t.collisionRadius(c.female())).writeF(t.collisionHeight(c.female()));
+			w.writeF(t != null ? t.collisionRadius(c.female()) : 9.0).writeF(t != null ? t.collisionHeight(c.female()) : 23.0);
 
 			w.writeD(c.hairStyle()).writeD(c.hairColor()).writeD(c.face());
 			w.writeS(c.title());
@@ -1459,7 +1619,7 @@ public sealed interface GameServerPacket {
 				}
 			}
 			w.writeC(charEnchantEffect); // enchant effect (weapon glow: 0=none, 4-15=blue, 16+=red)
-			w.writeC(0); // team
+			w.writeC(c.team()); // team
 			w.writeD(0);
 			w.writeC(0).writeC(0);
 			w.writeC(0).writeD(0).writeD(0).writeD(0);
@@ -2887,61 +3047,55 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/**
-	 * 0xa0 TutorialShowHtml: exibe pagina HTML de tutorial.
-	 * <p>
-	 * ATENCAO: no Interlude (C6) o opcode 0xa6 pertence a MyTargetSelected. Enviar o tutorial com 0xa6 faz o
-	 * cliente interpretar o HTML como objectId de alvo e gera "General protection fault" (MyTargetSelected) no
-	 * primeiro login de personagens novos.
-	 */
+	/** 0xa6 TutorialShowHtml: exibe pagina HTML de tutorial. */
 	record TutorialShowHtml(String html) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xa0)
+					.writeC(0xa6)
 					.writeS(html != null ? html : "")
 					.toByteArray();
 		}
 	}
 
-	/** 0xa1 TutorialShowQuestionMark: exibe icone de interrogacao de tutorial. */
+	/** 0xa7 TutorialShowQuestionMark: exibe icone de interrogacao de tutorial. */
 	record TutorialShowQuestionMark(int markId) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xa1)
+					.writeC(0xa7)
 					.writeD(markId)
 					.toByteArray();
 		}
 	}
 
-	/** 0xa2 TutorialEnableClientEvent: habilita gatilho de evento no cliente para o tutorial. */
+	/** 0xa8 TutorialEnableClientEvent: habilita gatilho de evento no cliente para o tutorial. */
 	record TutorialEnableClientEvent(int eventId) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xa2)
+					.writeC(0xa8)
 					.writeD(eventId)
 					.toByteArray();
 		}
 	}
 
-	/** 0xa3 TutorialCloseHtml: fecha janela de tutorial. */
+	/** 0xa9 TutorialCloseHtml: fecha janela de tutorial. */
 	record TutorialCloseHtml() implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xa3)
+					.writeC(0xa9)
 					.toByteArray();
 		}
 	}
 
-	/** 0xeb RadarControl: adiciona ou remove marcador no radar do minimapa (Interlude C6). */
+	/** 0xf1 RadarControl: adiciona ou remove marcador no radar do minimapa. */
 	record RadarControl(int show, int type, int x, int y, int z) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xeb)
+					.writeC(0xf1)
 					.writeD(show)
 					.writeD(type)
 					.writeD(x)
@@ -3026,6 +3180,284 @@ public sealed interface GameServerPacket {
 				}
 			}
 			return w.toByteArray();
+		}
+	}
+
+	/** 0x1e TradeStart: abre a janela de troca com a lista de itens negociaveis do jogador. */
+	record TradeStart(int partnerObjId, List<ItemInstance> items) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0x1e).writeD(partnerObjId).writeH(items.size());
+			for (var item : items) {
+				var t = item.template();
+				w.writeH(t != null ? t.type1() : 0);
+				w.writeD(item.objectId());
+				w.writeD(item.itemId());
+				w.writeD(item.count());
+				w.writeH(t != null ? t.type2() : 0);
+				w.writeH(item.customType1());
+				w.writeD(t != null ? t.bodyPart() : 0);
+				w.writeH(item.enchant());
+				w.writeH(item.customType2());
+				w.writeH(0);
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x20 TradeOwnAdd: adiciona item na propria metade da janela de troca. */
+	record TradeOwnAdd(ItemInstance item, int count) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			var t = item.template();
+			return new PacketWriter().writeC(0x20).writeH(1)
+					.writeH(t != null ? t.type1() : 0)
+					.writeD(item.objectId())
+					.writeD(item.itemId())
+					.writeD(count)
+					.writeH(t != null ? t.type2() : 0)
+					.writeH(item.customType1())
+					.writeD(t != null ? t.bodyPart() : 0)
+					.writeH(item.enchant())
+					.writeH(item.customType2())
+					.writeH(0)
+					.toByteArray();
+		}
+	}
+
+	/** 0x21 TradeOtherAdd: adiciona item na metade do parceiro da janela de troca. */
+	record TradeOtherAdd(ItemInstance item, int count) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			var t = item.template();
+			return new PacketWriter().writeC(0x21).writeH(1)
+					.writeH(t != null ? t.type1() : 0)
+					.writeD(item.objectId())
+					.writeD(item.itemId())
+					.writeD(count)
+					.writeH(t != null ? t.type2() : 0)
+					.writeH(item.customType1())
+					.writeD(t != null ? t.bodyPart() : 0)
+					.writeH(item.enchant())
+					.writeH(item.customType2())
+					.writeH(0)
+					.toByteArray();
+		}
+	}
+
+	/** 0x22 SendTradeDone: fecha a janela de troca (1 = sucesso, 0 = cancelado). */
+	record SendTradeDone(int num) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x22).writeD(num).toByteArray();
+		}
+	}
+
+	/** 0x75 TradePressOwnOk: trava o botao OK na propria janela de troca. */
+	record TradePressOwnOk() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x75).toByteArray();
+		}
+	}
+
+	/** 0x7c TradePressOtherOk: trava o botao OK do parceiro na janela de troca. */
+	record TradePressOtherOk() implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x7c).toByteArray();
+		}
+	}
+
+	/** 0xb7 PrivateStoreManageListBuy: abre a configuracao de loja pessoal de compra. */
+	record PrivateStoreManageListBuy(int objId, int adena, List<PrivateStoreItem> current, List<PrivateStoreItem> available) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0xb7).writeD(objId).writeD(adena);
+			w.writeD(available.size());
+			for (var item : available) {
+				w.writeD(item.itemId());
+				w.writeH(item.enchant());
+				w.writeD(item.count());
+				w.writeD(item.price());
+				w.writeH(0);
+				w.writeD(item.bodyPart());
+				w.writeH(0);
+			}
+			w.writeD(current.size());
+			for (var item : current) {
+				w.writeD(item.itemId());
+				w.writeH(item.enchant());
+				w.writeD(item.count());
+				w.writeD(item.price());
+				w.writeH(0);
+				w.writeD(item.bodyPart());
+				w.writeH(0);
+				w.writeD(item.price());
+				w.writeD(item.price());
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xb8 PrivateStoreListBuy: exibe a lista de compra de outro jogador. */
+	record PrivateStoreListBuy(int buyerObjId, int sellerAdena, List<PrivateStoreItem> items) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0xb8).writeD(buyerObjId).writeD(sellerAdena).writeD(items.size());
+			for (var item : items) {
+				w.writeD(item.objectId());
+				w.writeD(item.itemId());
+				w.writeH(item.enchant());
+				w.writeD(item.count());
+				w.writeD(item.price());
+				w.writeH(0);
+				w.writeD(item.bodyPart());
+				w.writeH(0);
+				w.writeD(item.price());
+				w.writeD(item.count());
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xb9 PrivateStoreMsgBuy: exibe a placa da loja de compra sobre a cabeca do jogador. */
+	record PrivateStoreMsgBuy(int objId, String storeMsg) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xb9).writeD(objId).writeS(storeMsg != null ? storeMsg : "").toByteArray();
+		}
+	}
+
+	/** 0xdd RecipeItemMakeInfo: abre a janela de criacao de item (Dwarven/Common Craft). */
+	record RecipeItemMakeInfo(int id, boolean isDwarven, int currentMp, int maxMp, int status) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xdd)
+					.writeD(id)
+					.writeD(isDwarven ? 0 : 1)
+					.writeD(currentMp)
+					.writeD(maxMp)
+					.writeD(status)
+					.toByteArray();
+		}
+	}
+
+	/** 0xc9 SiegeInfo: exibe informacoes da Siege do castelo. */
+	record SiegeInfo(int castleId, int ownerClanId, String castleName, String ownerName, String leaderName, int siegeTimeSeconds) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0xc9);
+			w.writeD(castleId);
+			w.writeD(ownerClanId > 0 ? 1 : 0);
+			w.writeD(ownerClanId);
+			w.writeS(castleName != null ? castleName : "Castle");
+			if (ownerClanId > 0) {
+				w.writeS(ownerName != null ? ownerName : "");
+				w.writeS(leaderName != null ? leaderName : "");
+				w.writeD(0);
+				w.writeS("");
+			}
+			w.writeD((int) (System.currentTimeMillis() / 1000L));
+			w.writeD(siegeTimeSeconds);
+			w.writeD(0);
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xca SiegeAttackerList: lista de clas atacantes registrados na Siege. */
+	record SiegeAttackerList(int castleId, List<Integer> clanIds, List<String> clanNames, List<String> leaderNames) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			int size = clanIds != null ? clanIds.size() : 0;
+			PacketWriter w = new PacketWriter().writeC(0xca).writeD(castleId).writeD(0).writeD(1).writeD(0).writeD(size).writeD(size);
+			for (int i = 0; i < size; i++) {
+				w.writeD(clanIds.get(i));
+				w.writeS(clanNames != null && i < clanNames.size() ? clanNames.get(i) : "");
+				w.writeS(leaderNames != null && i < leaderNames.size() ? leaderNames.get(i) : "");
+				w.writeD(0);
+				w.writeD(0);
+				w.writeD(0);
+				w.writeS("");
+				w.writeS("");
+				w.writeD(0);
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xcb SiegeDefenderList: lista de clas defensores registrados na Siege. */
+	record SiegeDefenderList(int castleId, List<Integer> clanIds, List<String> clanNames, List<String> leaderNames) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			int size = clanIds != null ? clanIds.size() : 0;
+			PacketWriter w = new PacketWriter().writeC(0xcb).writeD(castleId).writeD(0).writeD(1).writeD(0).writeD(size).writeD(size);
+			for (int i = 0; i < size; i++) {
+				w.writeD(clanIds.get(i));
+				w.writeS(clanNames != null && i < clanNames.size() ? clanNames.get(i) : "");
+				w.writeS(leaderNames != null && i < leaderNames.size() ? leaderNames.get(i) : "");
+				w.writeD(0);
+				w.writeD(0);
+				w.writeD(1); // approved defender
+				w.writeD(0);
+				w.writeS("");
+				w.writeS("");
+				w.writeD(0);
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xc4 Earthquake: efeito de terremoto de camera no cliente (Grand Bosses). */
+	record Earthquake(int x, int y, int z, int intensity, int duration) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xc4)
+					.writeD(x).writeD(y).writeD(z)
+					.writeD(intensity).writeD(duration).writeD(0)
+					.toByteArray();
+		}
+	}
+
+	/** 0xc7 SpecialCamera: cutscene cinematografica de Grand Boss (Antharas, Valakas, Baium, Frintezza). */
+	record SpecialCamera(int id, int dist, int yaw, int pitch, int time, int duration) implements GameServerPacket {
+		public SpecialCamera(int id, int dist, int yaw, int pitch, int time, int duration, int turn, int rise, int widescreen, int unk) {
+			this(id, dist, yaw, pitch, time, duration);
+		}
+
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xc7)
+					.writeD(id).writeD(dist).writeD(yaw).writeD(pitch).writeD(time).writeD(duration)
+					.toByteArray();
+		}
+	}
+
+	/** 0xfe:0x2b ExOlympiadMode: alterna modo de camera/UI da Olimpiada (0=normal, 1=lutador1, 2=lutador2, 3=espectador). */
+	record ExOlympiadMode(int mode) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x2b).writeC(mode).toByteArray();
+		}
+	}
+
+	/** 0xfe:0x29 ExOlympiadUserInfo: exibe barra de HP/CP do oponente nas Olimpiadas. */
+	record ExOlympiadUserInfo(int side, int objectId, String name, int classId, int curHp, int maxHp, int curCp, int maxCp) implements GameServerPacket {
+		public static ExOlympiadUserInfo of(PlayerCharacter p, int side) {
+			return new ExOlympiadUserInfo(side, p.objectId(), p.name(), p.classId(),
+					(int) p.currentHp(), p.maxHp(), (int) p.currentCp(), p.maxCp());
+		}
+
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x29)
+					.writeC(side)
+					.writeD(objectId)
+					.writeS(name != null ? name : "")
+					.writeD(classId)
+					.writeD(curHp).writeD(maxHp)
+					.writeD(curCp).writeD(maxCp)
+					.toByteArray();
 		}
 	}
 }

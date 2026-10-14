@@ -362,6 +362,69 @@ public sealed interface GameClientPacket {
 	/** 0x7e - evento disparado pelo cliente para o tutorial. */
 	record RequestTutorialClientEvent(int eventId) implements GameClientPacket {}
 
+	/** 0x15 - solicitar troca direta com outro jogador. */
+	record TradeRequest(int objectId) implements GameClientPacket {}
+
+	/** 0x16 - adicionar item na janela de troca. */
+	record AddTradeItem(int tradeId, int objectId, int count) implements GameClientPacket {}
+
+	/** 0x17 - confirmar (1) ou cancelar (0) a troca. */
+	record TradeDone(int response) implements GameClientPacket {}
+
+	/** 0x44 - responder ao pedido de troca (1 = aceitar, 0 = recusar). */
+	record AnswerTradeRequest(int response) implements GameClientPacket {}
+
+	record BuyStoreItemRequest(int itemId, int enchant, int count, int price) {}
+	record SellToBuyStoreRequest(int objectId, int itemId, int enchant, int count, int price) {}
+
+	/** 0x90 - abrir configuracao de loja pessoal de compra. */
+	record RequestPrivateStoreManageBuy() implements GameClientPacket {}
+
+	/** 0x91 - definir lista de itens a comprar na loja pessoal. */
+	record SetPrivateStoreListBuy(java.util.List<BuyStoreItemRequest> items) implements GameClientPacket {}
+
+	/** 0x93 - fechar loja pessoal de compra. */
+	record RequestPrivateStoreQuitBuy() implements GameClientPacket {}
+
+	/** 0x94 - definir mensagem da loja pessoal de compra. */
+	record SetPrivateStoreMsgBuy(String storeMsg) implements GameClientPacket {}
+
+	/** 0x96 - vender itens para a loja pessoal de compra de outro jogador. */
+	record RequestPrivateStoreSell(int buyerId, java.util.List<SellToBuyStoreRequest> items) implements GameClientPacket {}
+
+	/** 0xae - abrir janela de criacao de item (recipe info). */
+	record RequestRecipeItemMakeInfo(int id) implements GameClientPacket {}
+
+	/** 0xaf - executar criacao de item (craftar). */
+	record RequestRecipeItemMakeSelf(int id) implements GameClientPacket {}
+
+	/** 0x4d - declarar guerra de cla. */
+	record RequestStartPledgeWar(String pledgeName) implements GameClientPacket {}
+
+	/** 0x4f - encerrar guerra de cla. */
+	record RequestStopPledgeWar(String pledgeName) implements GameClientPacket {}
+
+	/** 0x82 - convidar cla para alianca. */
+	record RequestJoinAlly(int targetObjId) implements GameClientPacket {}
+
+	/** 0x83 - responder convite de alianca (1 = aceitar, 0 = recusar). */
+	record RequestAnswerJoinAlly(int response) implements GameClientPacket {}
+
+	/** 0xa2 - solicitar lista de atacantes de Siege. */
+	record RequestSiegeAttackerList(int castleId) implements GameClientPacket {}
+
+	/** 0xa3 - solicitar lista de defensores de Siege. */
+	record RequestSiegeDefenderList(int castleId) implements GameClientPacket {}
+
+	/** 0xa4 - inscrever ou remover cla de uma Siege. */
+	record RequestJoinSiege(int castleId, int isAttacker, int isJoining) implements GameClientPacket {}
+
+	/** 0xa5 - aprovar defensor na lista de espera da Siege. */
+	record RequestConfirmSiegeWaitingList(int castleId, int clanId, int approved) implements GameClientPacket {}
+
+	/** 0xc0 - consultar ou definir privilegios de membro/rank do cla. */
+	record RequestPledgePower(int rank, int action, int privs) implements GameClientPacket {}
+
 	record Unknown(int opcode, int subOpcode) implements GameClientPacket {
 	}
 
@@ -403,6 +466,9 @@ public sealed interface GameClientPacket {
 					case 0x04 -> new Action(r.readD(), r.readD(), r.readD(), r.readD(), r.readC());
 					case 0x21 -> new RequestBypassToServer(r.readS());
 					case 0x22 -> readBBSwrite(r);
+					case 0x15 -> r.remaining() >= 4 ? new TradeRequest(r.readD()) : new Unknown(op, -1);
+					case 0x16 -> r.remaining() >= 12 ? new AddTradeItem(r.readD(), r.readD(), r.readD()) : new Unknown(op, -1);
+					case 0x17 -> r.remaining() >= 4 ? new TradeDone(r.readD()) : new Unknown(op, -1);
 					case 0x1b -> new RequestSocialAction(r.readD());
 					case 0x1e -> readSellItem(r);
 					case 0x1f -> readBuyItem(r);
@@ -415,7 +481,10 @@ public sealed interface GameClientPacket {
 					case 0x33 -> new RequestShortCutReg(r.readD(), r.readD(), r.readD(), r.readD());
 					case 0x35 -> new RequestShortCutDel(r.readD());
 					case 0x37 -> new RequestTargetCancel();
+					case 0x44 -> r.remaining() >= 4 ? new AnswerTradeRequest(r.readD()) : new Unknown(op, -1);
 					case 0x45 -> new RequestActionUse(r.readD(), r.readD() == 1, r.readC() == 1);
+					case 0x4d -> r.remaining() >= 2 ? new RequestStartPledgeWar(r.readS()) : new Unknown(op, -1);
+					case 0x4f -> r.remaining() >= 2 ? new RequestStopPledgeWar(r.readS()) : new Unknown(op, -1);
 					case 0x0f -> new RequestItemList();
 					case 0x14 -> new UseItem(r.readD());
 					case 0x11 -> new RequestUnEquipItem(r.readD());
@@ -448,6 +517,13 @@ public sealed interface GameClientPacket {
 					case 0x7c -> new RequestTutorialPassCmdToServer(r.readS());
 					case 0x7d -> new RequestTutorialQuestionMark(r.readD());
 					case 0x7e -> new RequestTutorialClientEvent(r.readD());
+					case 0x82 -> r.remaining() >= 4 ? new RequestJoinAlly(r.readD()) : new Unknown(op, -1);
+					case 0x83 -> r.remaining() >= 4 ? new RequestAnswerJoinAlly(r.readD()) : new Unknown(op, -1);
+					case 0x90 -> new RequestPrivateStoreManageBuy();
+					case 0x91 -> readSetPrivateStoreListBuy(r);
+					case 0x93 -> new RequestPrivateStoreQuitBuy();
+					case 0x94 -> new SetPrivateStoreMsgBuy(r.remaining() >= 2 ? r.readS() : "");
+					case 0x96 -> readRequestPrivateStoreSell(r);
 					case 0x5e -> new RequestFriendInvite(r.readS());
 					case 0x5f -> new RequestAnswerFriendInvite(r.readD());
 					case 0x60 -> new RequestFriendList();
@@ -457,7 +533,13 @@ public sealed interface GameClientPacket {
 					case 0x46 -> new RequestRestart();
 					case 0xaa -> new RequestUserCommand(r.readD());
 					case 0xac -> new RequestRecipeBookOpen(r.remaining() >= 4 ? r.readD() == 0 : true);
+					case 0xae -> r.remaining() >= 4 ? new RequestRecipeItemMakeInfo(r.readD()) : new Unknown(op, -1);
+					case 0xaf -> r.remaining() >= 4 ? new RequestRecipeItemMakeSelf(r.readD()) : new Unknown(op, -1);
 					case 0xa0 -> readBlock(r);
+					case 0xa2 -> r.remaining() >= 4 ? new RequestSiegeAttackerList(r.readD()) : new Unknown(op, -1);
+					case 0xa3 -> r.remaining() >= 4 ? new RequestSiegeDefenderList(r.readD()) : new Unknown(op, -1);
+					case 0xa4 -> r.remaining() >= 12 ? new RequestJoinSiege(r.readD(), r.readD(), r.readD()) : new Unknown(op, -1);
+					case 0xa5 -> r.remaining() >= 12 ? new RequestConfirmSiegeWaitingList(r.readD(), r.readD(), r.readD()) : new Unknown(op, -1);
 					case 0xa7 -> readMultiSellChoose(r);
 					case 0xb9 -> new RequestEvaluate(r.readD());
 					case 0xba -> new RequestHennaList();
@@ -466,6 +548,12 @@ public sealed interface GameClientPacket {
 					case 0xbd -> new RequestHennaUnequipList(r.remaining() >= 4 ? r.readD() : 0);
 					case 0xbe -> new RequestHennaUnequipInfo(r.readD());
 					case 0xbf -> new RequestHennaUnequip(r.readD());
+					case 0xc0 -> {
+						int rank = r.remaining() >= 4 ? r.readD() : 0;
+						int action = r.remaining() >= 4 ? r.readD() : 0;
+						int privs = (action == 2 && r.remaining() >= 4) ? r.readD() : 0;
+						yield new RequestPledgePower(rank, action, privs);
+					}
 					case 0xc1 -> readMakeMacro(r);
 					case 0xc2 -> new RequestDeleteMacro(r.readD());
 					case 0xc7 -> r.remaining() >= 1 ? new RequestSSQStatus(r.readC()) : new Unknown(op, -1);
@@ -477,6 +565,48 @@ public sealed interface GameClientPacket {
 		} catch (IllegalArgumentException e) {
 			return Optional.empty();
 		}
+	}
+
+	private static SetPrivateStoreListBuy readSetPrivateStoreListBuy(PacketReader r) {
+		if (r.remaining() < 4) {
+			return new SetPrivateStoreListBuy(java.util.List.of());
+		}
+		int count = r.readD();
+		if (count <= 0 || count > 100 || r.remaining() < count * 12) {
+			return new SetPrivateStoreListBuy(java.util.List.of());
+		}
+		java.util.List<BuyStoreItemRequest> list = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			int itemId = r.readD();
+			int enchant = r.readH();
+			r.readH(); // pad
+			int cnt = r.readD();
+			int price = r.readD();
+			list.add(new BuyStoreItemRequest(itemId, enchant, cnt, price));
+		}
+		return new SetPrivateStoreListBuy(list);
+	}
+
+	private static RequestPrivateStoreSell readRequestPrivateStoreSell(PacketReader r) {
+		if (r.remaining() < 8) {
+			return new RequestPrivateStoreSell(0, java.util.List.of());
+		}
+		int buyerId = r.readD();
+		int count = r.readD();
+		if (count <= 0 || count > 100 || r.remaining() < count * 20) {
+			return new RequestPrivateStoreSell(buyerId, java.util.List.of());
+		}
+		java.util.List<SellToBuyStoreRequest> list = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			int objId = r.readD();
+			int itemId = r.readD();
+			int enchant = r.readH();
+			r.readH();
+			int cnt = r.readD();
+			int price = r.readD();
+			list.add(new SellToBuyStoreRequest(objId, itemId, enchant, cnt, price));
+		}
+		return new RequestPrivateStoreSell(buyerId, list);
 	}
 
 	private static RequestBlock readBlock(PacketReader r) {
