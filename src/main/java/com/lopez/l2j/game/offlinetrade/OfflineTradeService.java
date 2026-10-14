@@ -12,17 +12,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Servico responsavel pelo gerenciamento de Lojas Offline (Offline Trade) - Item 94.
- * Permite que personagens continuem vendendo ou comprando itens apos desconexao,
- * persistindo as configuracoes nas tabelas character_offline e character_offline_shop.
+ * Servico responsavel pelo gerenciamento de Lojas Privadas em memoria (SellStoreList / BuyStoreList)
+ * e Lojas Offline (Offline Trade) - Item 94.
+ * Permite que personagens vendam ou comprem itens reais (online e apos desconexao),
+ * persistindo as configuracoes offline nas tabelas character_offline e character_offline_shop.
  */
 @Service
 public class OfflineTradeService {
 
     private static final Logger log = LoggerFactory.getLogger(OfflineTradeService.class);
+    private static volatile OfflineTradeService instance = new OfflineTradeService();
 
     // Tipos de Lojas Privadas
     public static final int STORE_PRIVATE_SELL = 1;
@@ -33,17 +36,72 @@ public class OfflineTradeService {
     // Duracao padrao de loja offline: 7 dias em milissegundos
     public static final long DEFAULT_OFFLINE_DURATION = 7L * 24 * 60 * 60 * 1000;
 
+    /**
+     * Lista em memoria de itens reais a venda em loja privada de um jogador.
+     */
+    public record SellStoreList(int playerObjectId, boolean packageSale, String title, List<OfflineShopItem> items) {
+        public SellStoreList {
+            title = title == null ? "" : title;
+            items = items == null ? new CopyOnWriteArrayList<>() : new CopyOnWriteArrayList<>(items);
+        }
+    }
+
+    /**
+     * Lista em memoria de pedidos de compra em loja privada de um jogador.
+     */
+    public record BuyStoreList(int playerObjectId, String title, List<OfflineShopItem> items) {
+        public BuyStoreList {
+            title = title == null ? "" : title;
+            items = items == null ? new CopyOnWriteArrayList<>() : new CopyOnWriteArrayList<>(items);
+        }
+    }
+
     @Autowired(required = false)
     private JdbcClient jdbc;
 
     private final AtomicInteger shopIdGen = new AtomicInteger(1000);
     private final Map<Integer, OfflineTrader> activeTraders = new ConcurrentHashMap<>();
 
+    private static final Map<Integer, SellStoreList> sellStoreLists = new ConcurrentHashMap<>();
+    private static final Map<Integer, BuyStoreList> buyStoreLists = new ConcurrentHashMap<>();
+
     public OfflineTradeService() {
+        instance = this;
     }
 
     public OfflineTradeService(JdbcClient jdbc) {
         this.jdbc = jdbc;
+        instance = this;
+    }
+
+    public static OfflineTradeService getInstance() {
+        return instance;
+    }
+
+    // ---- Gerenciamento em Memoria de Lojas Privadas (Venda e Compra) ----
+
+    public void setSellStoreList(int playerObjectId, boolean packageSale, String title, List<OfflineShopItem> items) {
+        sellStoreLists.put(playerObjectId, new SellStoreList(playerObjectId, packageSale, title, items));
+    }
+
+    public SellStoreList getSellStoreList(int playerObjectId) {
+        return sellStoreLists.get(playerObjectId);
+    }
+
+    public void removeSellStoreList(int playerObjectId) {
+        sellStoreLists.remove(playerObjectId);
+    }
+
+    public void setBuyStoreList(int playerObjectId, String title, List<OfflineShopItem> items) {
+        buyStoreLists.put(playerObjectId, new BuyStoreList(playerObjectId, title, items));
+    }
+
+    public BuyStoreList getBuyStoreList(int playerObjectId) {
+        return buyStoreLists.get(playerObjectId);
+    }
+
+    public void removeBuyStoreList(int playerObjectId) {
+        buyStoreLists.remove(playerObjectId);
     }
 
     /**
@@ -136,6 +194,8 @@ public class OfflineTradeService {
      */
     public synchronized boolean stopOfflineTrade(int charId) {
         OfflineTrader trader = activeTraders.remove(charId);
+        sellStoreLists.remove(charId);
+        buyStoreLists.remove(charId);
         if (jdbc != null) {
             try {
                 if (trader != null) {
