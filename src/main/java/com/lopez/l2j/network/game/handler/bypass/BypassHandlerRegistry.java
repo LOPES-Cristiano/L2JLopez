@@ -6,6 +6,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -15,11 +17,30 @@ import java.util.List;
 public class BypassHandlerRegistry {
 
 	private static final Logger log = LoggerFactory.getLogger(BypassHandlerRegistry.class);
-	private final List<IBypassHandler> handlers;
+	private final List<IBypassHandler> handlers = new ArrayList<>();
+
+	public BypassHandlerRegistry() {
+		this(null);
+	}
 
 	@Autowired
 	public BypassHandlerRegistry(@Autowired(required = false) List<IBypassHandler> handlers) {
-		this.handlers = handlers != null ? handlers : List.of();
+		if (handlers != null) {
+			this.handlers.addAll(handlers);
+		}
+		if (this.handlers.stream().noneMatch(h -> h instanceof BypassEventsAndPveHandler)) {
+			this.handlers.add(new BypassEventsAndPveHandler());
+		}
+	}
+
+	public void register(IBypassHandler handler) {
+		if (handler != null && !this.handlers.contains(handler)) {
+			this.handlers.add(handler);
+		}
+	}
+
+	public List<IBypassHandler> getHandlers() {
+		return Collections.unmodifiableList(handlers);
 	}
 
 	public boolean execute(String command, GameSession session) {

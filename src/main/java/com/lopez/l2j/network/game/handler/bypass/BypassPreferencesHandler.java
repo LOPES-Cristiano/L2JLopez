@@ -99,8 +99,8 @@ public class BypassPreferencesHandler implements IBypassHandler {
 			String menuHtm = ctx.htmls().getHtml("mods/menu.htm");
 			if (menuHtm != null) {
 				var p = ctx.preferences().getPreferences(active.objectId());
-				String on = "<font color=\"00FF00\">ON</font>";
-				String off = "<font color=\"CC0000\">OFF</font>";
+				String on = "<font color=\"8FA888\">ON</font>";
+				String off = "<font color=\"B86B6B\">OFF</font>";
 				String rendered = menuHtm
 						.replace("%notraders%", off)
 						.replace("%notrade%", p.isTradeRefusal() ? on : off)
