@@ -150,7 +150,7 @@ public class RouletteService {
 		StringBuilder sb = new StringBuilder();
 		sb.append("<html><title>Lucky Roulette</title><body><center>");
 		sb.append("<font color=\"LEVEL\">=== Lucky Wheel of Fortune ===</font><br>");
-		sb.append("Spin cost: <font color=\"00FF00\">").append(String.format("%,d", defaultCostCount)).append(" Adena</font><br><br>");
+		sb.append("Spin cost: <font color=\"8FA888\">").append(String.format("%,d", defaultCostCount)).append(" Adena</font><br><br>");
 
 		sb.append("<button value=\"SPIN WHEEL!\" action=\"bypass -h voiced_roulette spin\" width=120 height=28 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br><br>");
 
@@ -158,9 +158,9 @@ public class RouletteService {
 		sb.append("<tr><td colspan=2 align=center><font color=\"LEVEL\">Possible Rewards</font></td></tr>");
 		for (RouletteItem item : prizePool) {
 			String color = switch (item.rarity()) {
-				case JACKPOT -> "FF9900";
-				case EPIC -> "CC33FF";
-				case RARE -> "0099FF";
+				case JACKPOT -> "C8B588";
+				case EPIC -> "B0B5BC";
+				case RARE -> "8FA8BE";
 				case COMMON -> "FFFFFF";
 			};
 			sb.append("<tr>");
@@ -180,14 +180,14 @@ public class RouletteService {
 		sb.append("<html><title>Roulette Result</title><body><center>");
 		if (result.success()) {
 			sb.append("<font color=\"LEVEL\">*** YOU WON! ***</font><br><br>");
-			sb.append("<font color=\"00FF00\">").append(result.item().name()).append("</font><br1>");
+			sb.append("<font color=\"8FA888\">").append(result.item().name()).append("</font><br1>");
 			sb.append("Amount: <font color=\"FFFFFF\">").append(result.item().count()).append("</font><br>");
 			if (result.item().enchantLevel() > 0) {
 				sb.append("Enchant: <font color=\"LEVEL\">+").append(result.item().enchantLevel()).append("</font><br>");
 			}
 			sb.append("<br><button value=\"Spin Again\" action=\"bypass -h voiced_roulette spin\" width=100 height=24 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
 		} else {
-			sb.append("<font color=\"FF0000\">*** SPIN FAILED ***</font><br><br>");
+			sb.append("<font color=\"B86B6B\">*** SPIN FAILED ***</font><br><br>");
 			sb.append("<font color=\"FFFFFF\">").append(result.message()).append("</font><br><br>");
 			sb.append("<button value=\"Back\" action=\"bypass -h voiced_roulette\" width=80 height=22 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
 		}
