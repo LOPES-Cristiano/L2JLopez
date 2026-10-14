@@ -3,9 +3,20 @@ package com.lopez.l2j.game.instance.frintezza;
 import com.lopez.l2j.game.boss.GrandBossManager;
 import com.lopez.l2j.game.item.Inventory;
 import com.lopez.l2j.game.item.ItemTemplate;
+import com.lopez.l2j.game.model.ObjectIdFactory;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.npc.NpcInstance;
+import com.lopez.l2j.game.npc.NpcTemplate;
+import com.lopez.l2j.game.npc.NpcTemplateTable;
+import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
+import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
+import com.lopez.l2j.network.game.packet.GameServerPacket.Earthquake;
+import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.SpecialCamera;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -43,15 +54,31 @@ public class FrintezzaService {
 	private FrintezzaStatus status = FrintezzaStatus.ALIVE;
 	private long respawnTime = 0L;
 	private final List<Integer> playersInside = new CopyOnWriteArrayList<>();
+	private NpcInstance frintezzaNpc;
+	private NpcInstance activeScarlet;
 
 	private final GrandBossManager grandBossManager;
 	private final JdbcClient jdbc;
+	private final NpcTemplateTable templates;
+	private final GameWorld world;
+	private final ObjectIdFactory objectIds;
+
+	public FrintezzaService(GrandBossManager grandBossManager, JdbcClient jdbc) {
+		this(grandBossManager, jdbc, null, null, null);
+	}
 
 	@Autowired
-	public FrintezzaService(@Autowired(required = false) GrandBossManager grandBossManager,
-							@Autowired(required = false) JdbcClient jdbc) {
+	public FrintezzaService(
+			@Autowired(required = false) GrandBossManager grandBossManager,
+			@Autowired(required = false) JdbcClient jdbc,
+			@Autowired(required = false) NpcTemplateTable templates,
+			@Autowired(required = false) GameWorld world,
+			@Autowired(required = false) ObjectIdFactory objectIds) {
 		this.grandBossManager = grandBossManager;
 		this.jdbc = jdbc;
+		this.templates = templates;
+		this.world = world;
+		this.objectIds = objectIds;
 		loadState();
 	}
 
@@ -65,6 +92,10 @@ public class FrintezzaService {
 
 	public List<Integer> getPlayersInside() {
 		return Collections.unmodifiableList(playersInside);
+	}
+
+	public Optional<NpcInstance> activeScarlet() {
+		return Optional.ofNullable(activeScarlet);
 	}
 
 	/**
@@ -98,20 +129,29 @@ public class FrintezzaService {
 		Inventory inv = leader.inventory();
 		inv.byItemId(FORCE_FIELD_SCROLL).ifPresent(inv::remove);
 
+		GameWorld gw = world != null ? world : GameWorld.getInstance();
 		playersInside.clear();
 		if (partyMembers != null) {
 			for (PlayerCharacter pc : partyMembers) {
 				if (pc != null && pc.level() >= MIN_LEVEL) {
-					pc.x(TOMB_X);
-					pc.y(TOMB_Y);
-					pc.z(TOMB_Z);
+					if (gw != null) {
+						gw.teleportPlayer(pc, TOMB_X, TOMB_Y, TOMB_Z, 0);
+					} else {
+						pc.x(TOMB_X);
+						pc.y(TOMB_Y);
+						pc.z(TOMB_Z);
+					}
 					playersInside.add(pc.objectId());
 				}
 			}
 		} else {
-			leader.x(TOMB_X);
-			leader.y(TOMB_Y);
-			leader.z(TOMB_Z);
+			if (gw != null) {
+				gw.teleportPlayer(leader, TOMB_X, TOMB_Y, TOMB_Z, 0);
+			} else {
+				leader.x(TOMB_X);
+				leader.y(TOMB_Y);
+				leader.z(TOMB_Z);
+			}
 			playersInside.add(leader.objectId());
 		}
 
@@ -129,6 +169,7 @@ public class FrintezzaService {
 			return;
 		}
 		status = FrintezzaStatus.PHASE_1_WEAK;
+		spawnScarletPhase(SCARLET_WEAK_ID, "Scarlet Van Halisha");
 		log.info("Frintezza inicia a melodia do orgao! Scarlet Van Halisha Fase 1 (NPC {}) surge!", SCARLET_WEAK_ID);
 	}
 
@@ -140,6 +181,7 @@ public class FrintezzaService {
 			return;
 		}
 		status = FrintezzaStatus.PHASE_2_MEDIUM;
+		spawnScarletPhase(SCARLET_MEDIUM_ID, "Scarlet Van Halisha");
 		log.info("Scarlet Van Halisha se transforma para a Fase 2 (Media - NPC {})!", SCARLET_MEDIUM_ID);
 	}
 
@@ -151,6 +193,7 @@ public class FrintezzaService {
 			return;
 		}
 		status = FrintezzaStatus.PHASE_3_STRONG;
+		spawnScarletPhase(SCARLET_STRONG_ID, "Scarlet Van Halisha");
 		log.info("Scarlet Van Halisha atinge sua forma suprema (Fase 3 - NPC {})!", SCARLET_STRONG_ID);
 	}
 
@@ -161,12 +204,58 @@ public class FrintezzaService {
 		status = FrintezzaStatus.DEAD;
 		respawnTime = System.currentTimeMillis() + RESPAWN_INTERVAL_MILLIS;
 
+		GameWorld gw = world != null ? world : GameWorld.getInstance();
+		if (activeScarlet != null && gw != null) {
+			gw.removeNpc(activeScarlet);
+			activeScarlet = null;
+		}
+		if (frintezzaNpc != null && gw != null) {
+			gw.removeNpc(frintezzaNpc);
+			frintezzaNpc = null;
+		}
+		if (gw != null) {
+			gw.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Frintezza",
+					"Scarlet Van Halisha has fallen! The Imperial Tomb falls silent..."), p -> true);
+		}
+
 		if (grandBossManager != null) {
 			grandBossManager.notifyBossKilled(FRINTEZZA_NPC_ID);
 		}
 
 		saveState();
 		log.info("Scarlet Van Halisha foi derrotada! O Colar de Frintezza (Item {}) foi liberado.", NECKLACE_OF_FRINTEZZA);
+	}
+
+	private void spawnScarletPhase(int scarletNpcId, String name) {
+		GameWorld gw = world != null ? world : GameWorld.getInstance();
+		if (gw == null || objectIds == null) {
+			return;
+		}
+		if (activeScarlet != null) {
+			int oldId = activeScarlet.objectId();
+			gw.removeNpc(activeScarlet);
+			gw.broadcast(new DeleteObject(oldId), p -> playersInside.contains(p.objectId()));
+			activeScarlet = null;
+		}
+		if (frintezzaNpc == null) {
+			NpcTemplate frintTpl = templates != null
+					? templates.get(FRINTEZZA_NPC_ID).orElseGet(() -> NpcTemplate.fallback(FRINTEZZA_NPC_ID, "Frintezza", "L2GrandBoss"))
+					: NpcTemplate.fallback(FRINTEZZA_NPC_ID, "Frintezza", "L2GrandBoss");
+			frintezzaNpc = new NpcInstance(objectIds.nextId(), frintTpl, TOMB_X, TOMB_Y - 500, TOMB_Z + 100, 16384);
+			gw.addNpc(frintezzaNpc);
+			gw.broadcast(NpcInfo.of(frintezzaNpc), p -> playersInside.contains(p.objectId()));
+		}
+
+		NpcTemplate scarletTpl = templates != null
+				? templates.get(scarletNpcId).orElseGet(() -> NpcTemplate.fallback(scarletNpcId, name, "L2GrandBoss"))
+				: NpcTemplate.fallback(scarletNpcId, name, "L2GrandBoss");
+		activeScarlet = new NpcInstance(objectIds.nextId(), scarletTpl, TOMB_X, TOMB_Y, TOMB_Z, 0);
+		gw.addNpc(activeScarlet);
+
+		gw.broadcast(NpcInfo.of(activeScarlet), p -> playersInside.contains(p.objectId()));
+		gw.broadcast(new Earthquake(TOMB_X, TOMB_Y, TOMB_Z, 35, 8), p -> playersInside.contains(p.objectId()));
+		gw.broadcast(new SpecialCamera(activeScarlet.objectId(), 250, 180, 25, 2500, 6000, 0, 0, 1, 0),
+				p -> playersInside.contains(p.objectId()));
 	}
 
 	public void resetToAlive() {
