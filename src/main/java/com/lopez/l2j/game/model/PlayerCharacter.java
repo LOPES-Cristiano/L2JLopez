@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * sempre pela thread da
  * conexao dona do personagem.
  */
-public final class PlayerCharacter {
+public final class PlayerCharacter implements Creature {
 
 	private final int objectId;
 	private final String account;
@@ -1502,5 +1502,60 @@ public final class PlayerCharacter {
 
 	public void pvpFlagEndTime(long pvpFlagEndTime) {
 		this.pvpFlagEndTime = pvpFlagEndTime;
+	}
+
+	@Override
+	public double maxHpValue() {
+		return maxHp;
+	}
+
+	@Override
+	public double maxMpValue() {
+		return maxMp;
+	}
+
+	@Override
+	public double maxCpValue() {
+		return maxCp;
+	}
+
+	@Override
+	public boolean isPlayer() {
+		return true;
+	}
+
+	public static final int STORE_NONE = 0;
+	public static final int STORE_SELL = 1;
+	public static final int STORE_BUY = 3;
+	public static final int STORE_MANUFACTURE = 5;
+	public static final int STORE_PACKAGE_SELL = 8;
+
+	public static final int STORE_TYPE_NONE = 0;
+	public static final int STORE_TYPE_SELL = 1;
+	public static final int STORE_TYPE_BUY = 3;
+
+	private volatile int team;
+
+	public int team() {
+		return team;
+	}
+
+	public void team(int team) {
+		this.team = team;
+	}
+
+	private volatile com.lopez.l2j.game.summon.SummonInstance activeSummon;
+
+	public com.lopez.l2j.game.summon.SummonInstance activeSummon() {
+		return activeSummon;
+	}
+
+	public void activeSummon(com.lopez.l2j.game.summon.SummonInstance summon) {
+		this.activeSummon = summon;
+		this.petObjectId = summon != null ? summon.objectId() : 0;
+	}
+
+	public boolean hasSummon() {
+		return activeSummon != null && !activeSummon.isDead();
 	}
 }
