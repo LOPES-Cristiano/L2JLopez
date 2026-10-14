@@ -154,33 +154,33 @@ public class PlayerPreferencesService {
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body><center>");
         sb.append("<font color=\"LEVEL\">=== Configuracoes Pessoais (.menu) ===</font><br>");
-        sb.append("Jogador: <font color=\"00FFFF\">").append(playerName).append("</font><br><br>");
+        sb.append("Jogador: <font color=\"8FA8BE\">").append(playerName).append("</font><br><br>");
 
         sb.append("<table width=260>");
 
         // AutoLoot
         sb.append("<tr><td>Auto Loot:</td><td>");
-        sb.append(p.isAutoLoot() ? "<font color=\"00FF00\">ATIVADO</font>" : "<font color=\"FF0000\">DESATIVADO</font>");
+        sb.append(p.isAutoLoot() ? "<font color=\"8FA888\">ATIVADO</font>" : "<font color=\"B86B6B\">DESATIVADO</font>");
         sb.append("</td><td><button value=\"Alternar\" action=\"bypass -h voiced_menutoggle autoloot\" width=65 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td></tr>");
 
         // Trade Refusal
         sb.append("<tr><td>Recusar Trade:</td><td>");
-        sb.append(p.isTradeRefusal() ? "<font color=\"FF0000\">RECUSANDO</font>" : "<font color=\"00FF00\">ACEITANDO</font>");
+        sb.append(p.isTradeRefusal() ? "<font color=\"B86B6B\">RECUSANDO</font>" : "<font color=\"8FA888\">ACEITANDO</font>");
         sb.append("</td><td><button value=\"Alternar\" action=\"bypass -h voiced_menutoggle trade\" width=65 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td></tr>");
 
         // Block Buffs
         sb.append("<tr><td>Bloquear Buffs:</td><td>");
-        sb.append(p.isBlockBuffs() ? "<font color=\"FF0000\">BLOQUEADO</font>" : "<font color=\"00FF00\">PERMITIDO</font>");
+        sb.append(p.isBlockBuffs() ? "<font color=\"B86B6B\">BLOQUEADO</font>" : "<font color=\"8FA888\">PERMITIDO</font>");
         sb.append("</td><td><button value=\"Alternar\" action=\"bypass -h voiced_menutoggle blockbuff\" width=65 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td></tr>");
 
         // Block Party
         sb.append("<tr><td>Recusar Party:</td><td>");
-        sb.append(p.isBlockParty() ? "<font color=\"FF0000\">RECUSANDO</font>" : "<font color=\"00FF00\">ACEITANDO</font>");
+        sb.append(p.isBlockParty() ? "<font color=\"B86B6B\">RECUSANDO</font>" : "<font color=\"8FA888\">ACEITANDO</font>");
         sb.append("</td><td><button value=\"Alternar\" action=\"bypass -h voiced_menutoggle party\" width=65 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td></tr>");
 
         // Block Exp
         sb.append("<tr><td>Trava de EXP:</td><td>");
-        sb.append(p.isBlockExp() ? "<font color=\"FF0000\">TRAVADO</font>" : "<font color=\"00FF00\">NORMAL</font>");
+        sb.append(p.isBlockExp() ? "<font color=\"B86B6B\">TRAVADO</font>" : "<font color=\"8FA888\">NORMAL</font>");
         sb.append("</td><td><button value=\"Alternar\" action=\"bypass -h voiced_menutoggle exp\" width=65 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td></tr>");
 
         sb.append("</table>");

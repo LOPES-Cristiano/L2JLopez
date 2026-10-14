@@ -175,7 +175,7 @@ public class WarehousePasskeyService {
 		sb.append("<font color=\"LEVEL\">=== Seguranca do Armazem (Passkey) ===</font><br><br>");
 
 		if (feedbackMessage != null && !feedbackMessage.isBlank()) {
-			sb.append("<font color=\"FF0000\">").append(feedbackMessage).append("</font><br><br>");
+			sb.append("<font color=\"B86B6B\">").append(feedbackMessage).append("</font><br><br>");
 		}
 
 		if (!configured) {
@@ -186,7 +186,7 @@ public class WarehousePasskeyService {
 		}
 
 		String display = (currentInput == null || currentInput.isEmpty()) ? "____" : "*".repeat(currentInput.length());
-		sb.append("<font color=\"00FF00\"><b><h2>").append(display).append("</h2></b></font><br>");
+		sb.append("<font color=\"8FA888\"><b><h2>").append(display).append("</h2></b></font><br>");
 
 		// Teclado Numerico 3x4
 		sb.append("<table width=160>");

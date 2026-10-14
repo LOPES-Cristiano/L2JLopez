@@ -248,14 +248,14 @@ public class SchemeBufferService {
 		sb.append("</table><br>");
 
 		sb.append("<table width=260 bgcolor=222222 border=1 cellpadding=4 cellspacing=0>");
-		sb.append("<tr><td align=center colspan=2><font color=\"00FF00\"><b>Esquemas Salvos</b></font></td></tr>");
+		sb.append("<tr><td align=center colspan=2><font color=\"8FA888\"><b>Esquemas Salvos</b></font></td></tr>");
 		sb.append("<tr><td align=center><button value=\"Esquema 1 (Fighter)\" action=\"bypass -h voiced_buffer 1\" width=120 height=24 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
 		sb.append("<td align=center><button value=\"Esquema 2 (Mage)\" action=\"bypass -h voiced_buffer 2\" width=120 height=24 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td></tr>");
 		sb.append("<tr><td align=center colspan=2><button value=\"Esquema 3 (Personalizado)\" action=\"bypass -h voiced_buffer 3\" width=140 height=24 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td></tr>");
 		sb.append("</table><br>");
 
 		sb.append("<table width=260 bgcolor=222222 border=1 cellpadding=4 cellspacing=0>");
-		sb.append("<tr><td align=center colspan=2><font color=\"FF9900\"><b>Opcoes Utilitarias</b></font></td></tr>");
+		sb.append("<tr><td align=center colspan=2><font color=\"C8B588\"><b>Opcoes Utilitarias</b></font></td></tr>");
 		sb.append("<tr><td align=center><button value=\"Restaurar HP/MP/CP\" action=\"bypass -h voiced_buffer heal\" width=120 height=22 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
 		sb.append("<td align=center><button value=\"Cancelar Buffs\" action=\"bypass -h voiced_buffer cancel\" width=120 height=22 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td></tr>");
 		sb.append("</table><br>");

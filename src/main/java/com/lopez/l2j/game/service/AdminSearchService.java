@@ -264,9 +264,9 @@ public class AdminSearchService {
 		StringBuilder sb = new StringBuilder(4096);
 		sb.append("<html><title>NPC Search Engine</title><body><center>");
 		sb.append("<table width=270><tr>");
-		sb.append("<td width=45><a action=\"bypass -h admin_admin\"><font color=\"FFD306\">Main</font></a></td>");
+		sb.append("<td width=45><a action=\"bypass -h admin_admin\"><font color=\"D4C49A\">Main</font></a></td>");
 		sb.append("<td width=180 align=center><font color=\"LEVEL\">NPC Search & Tool</font></td>");
-		sb.append("<td width=45 align=right><a action=\"bypass -h admin_spawn_menu\"><font color=\"FFD306\">Spawn</font></a></td>");
+		sb.append("<td width=45 align=right><a action=\"bypass -h admin_spawn_menu\"><font color=\"D4C49A\">Spawn</font></a></td>");
 		sb.append("</tr></table>");
 
 		sb.append("<img src=\"L2UI.SquareGray\" width=290 height=1><br>");
@@ -280,19 +280,19 @@ public class AdminSearchService {
 		String safeQuery = query != null ? query.replace('"', ' ').trim() : "";
 		sb.append("<table width=280><tr>");
 		sb.append("<td width=180><font color=\"B09979\">Query: </font><font color=\"FFFFFF\">").append(safeQuery.isEmpty() ? "All" : safeQuery).append("</font></td>");
-		sb.append("<td width=100 align=right><font color=\"00FF7F\">Total: ").append(total).append("</font></td>");
+		sb.append("<td width=100 align=right><font color=\"8FA888\">Total: ").append(total).append("</font></td>");
 		sb.append("</tr></table>");
 
 		sb.append("<img src=\"L2UI.SquareGray\" width=290 height=1><br>");
 
 		if (slice.isEmpty()) {
-			sb.append("<br><br><font color=\"FF4444\">Nenhum NPC encontrado para o termo pesquisado.</font><br>");
+			sb.append("<br><br><font color=\"B86B6B\">Nenhum NPC encontrado para o termo pesquisado.</font><br>");
 			sb.append("<font color=\"AAAAAA\">Tente digitar parte do nome (ex: Antharas, Guard, Merchant, Wolf)</font><br><br>");
 		} else {
 			for (NpcSearchResult npc : slice) {
 				sb.append("<table width=285 bgcolor=\"181818\">");
 				sb.append("<tr>");
-				sb.append("<td width=185><font color=\"FFD700\"><b>").append(npc.name()).append("</b></font>");
+				sb.append("<td width=185><font color=\"D4C49A\"><b>").append(npc.name()).append("</b></font>");
 				if (npc.title() != null && !npc.title().isBlank()) {
 					sb.append(" <font color=\"AAAAAA\">&lt;").append(npc.title()).append("&gt;</font>");
 				}
@@ -300,7 +300,7 @@ public class AdminSearchService {
 						.append("</font> <font color=\"808080\">Lv: </font><font color=\"FFFFFF\">").append(npc.level())
 						.append("</font> <font color=\"808080\">Tipo: </font><font color=\"FFFFFF\">").append(npc.type()).append("</font>");
 				if (npc.isSpawnedInWorld()) {
-					sb.append("<br><font color=\"00FF00\">Ativo no Mundo: </font><font color=\"FFFF00\">").append(npc.spawnedCount()).append("x</font>");
+					sb.append("<br><font color=\"8FA888\">Ativo no Mundo: </font><font color=\"D4C49A\">").append(npc.spawnedCount()).append("x</font>");
 				}
 				sb.append("</td>");
 
@@ -351,9 +351,9 @@ public class AdminSearchService {
 		StringBuilder sb = new StringBuilder(4096);
 		sb.append("<html><title>Item Search Engine</title><body><center>");
 		sb.append("<table width=270><tr>");
-		sb.append("<td width=45><a action=\"bypass -h admin_admin\"><font color=\"FFD306\">Main</font></a></td>");
+		sb.append("<td width=45><a action=\"bypass -h admin_admin\"><font color=\"D4C49A\">Main</font></a></td>");
 		sb.append("<td width=180 align=center><font color=\"LEVEL\">Item Search & Creator</font></td>");
-		sb.append("<td width=45 align=right><a action=\"bypass -h admin_itemcreation\"><font color=\"FFD306\">Create</font></a></td>");
+		sb.append("<td width=45 align=right><a action=\"bypass -h admin_itemcreation\"><font color=\"D4C49A\">Create</font></a></td>");
 		sb.append("</tr></table>");
 
 		sb.append("<img src=\"L2UI.SquareGray\" width=290 height=1><br>");
@@ -367,21 +367,21 @@ public class AdminSearchService {
 		String safeQuery = query != null ? query.replace('"', ' ').trim() : "";
 		sb.append("<table width=280><tr>");
 		sb.append("<td width=180><font color=\"B09979\">Query: </font><font color=\"FFFFFF\">").append(safeQuery.isEmpty() ? "All" : safeQuery).append("</font></td>");
-		sb.append("<td width=100 align=right><font color=\"00FF7F\">Total: ").append(total).append("</font></td>");
+		sb.append("<td width=100 align=right><font color=\"8FA888\">Total: ").append(total).append("</font></td>");
 		sb.append("</tr></table>");
 
 		sb.append("<img src=\"L2UI.SquareGray\" width=290 height=1><br>");
 
 		if (slice.isEmpty()) {
-			sb.append("<br><br><font color=\"FF4444\">Nenhum item encontrado para o termo pesquisado.</font><br>");
+			sb.append("<br><br><font color=\"B86B6B\">Nenhum item encontrado para o termo pesquisado.</font><br>");
 			sb.append("<font color=\"AAAAAA\">Tente digitar parte do nome (ex: Draconic, Tateossian, Soulshot, Blessed)</font><br><br>");
 		} else {
 			for (ItemSearchResult item : slice) {
 				sb.append("<table width=285 bgcolor=\"181818\">");
 				sb.append("<tr>");
-				sb.append("<td width=190><font color=\"FFD700\"><b>").append(item.name()).append("</b></font>");
+				sb.append("<td width=190><font color=\"D4C49A\"><b>").append(item.name()).append("</b></font>");
 				sb.append("<br><font color=\"808080\">ID: </font><font color=\"FFFFFF\">").append(item.id())
-						.append("</font> <font color=\"808080\">Grade: </font><font color=\"FFFF77\">").append(item.grade().toUpperCase(Locale.ROOT))
+						.append("</font> <font color=\"808080\">Grade: </font><font color=\"D4C49A\">").append(item.grade().toUpperCase(Locale.ROOT))
 						.append("</font> <font color=\"808080\">Tipo: </font><font color=\"AAAAAA\">").append(item.type()).append("</font>");
 				sb.append("</td>");
 
@@ -429,9 +429,9 @@ public class AdminSearchService {
 		StringBuilder sb = new StringBuilder(4096);
 		sb.append("<html><title>Skill Search Engine</title><body><center>");
 		sb.append("<table width=270><tr>");
-		sb.append("<td width=45><a action=\"bypass -h admin_admin\"><font color=\"FFD306\">Main</font></a></td>");
+		sb.append("<td width=45><a action=\"bypass -h admin_admin\"><font color=\"D4C49A\">Main</font></a></td>");
 		sb.append("<td width=180 align=center><font color=\"LEVEL\">Skill Search & Add</font></td>");
-		sb.append("<td width=45 align=right><a action=\"bypass -h admin_show_skills\"><font color=\"FFD306\">Skills</font></a></td>");
+		sb.append("<td width=45 align=right><a action=\"bypass -h admin_show_skills\"><font color=\"D4C49A\">Skills</font></a></td>");
 		sb.append("</tr></table>");
 
 		sb.append("<img src=\"L2UI.SquareGray\" width=290 height=1><br>");
@@ -445,21 +445,21 @@ public class AdminSearchService {
 		String safeQuery = query != null ? query.replace('"', ' ').trim() : "";
 		sb.append("<table width=280><tr>");
 		sb.append("<td width=180><font color=\"B09979\">Query: </font><font color=\"FFFFFF\">").append(safeQuery.isEmpty() ? "All" : safeQuery).append("</font></td>");
-		sb.append("<td width=100 align=right><font color=\"00FF7F\">Total: ").append(total).append("</font></td>");
+		sb.append("<td width=100 align=right><font color=\"8FA888\">Total: ").append(total).append("</font></td>");
 		sb.append("</tr></table>");
 
 		sb.append("<img src=\"L2UI.SquareGray\" width=290 height=1><br>");
 
 		if (slice.isEmpty()) {
-			sb.append("<br><br><font color=\"FF4444\">Nenhuma skill encontrada para o termo pesquisado.</font><br>");
+			sb.append("<br><br><font color=\"B86B6B\">Nenhuma skill encontrada para o termo pesquisado.</font><br>");
 			sb.append("<font color=\"AAAAAA\">Tente digitar parte do nome (ex: Haste, Might, Wind Walk, Shield, Heal)</font><br><br>");
 		} else {
 			for (SkillSearchResult sk : slice) {
 				sb.append("<table width=285 bgcolor=\"181818\">");
 				sb.append("<tr>");
-				sb.append("<td width=185><font color=\"FFD700\"><b>").append(sk.name()).append("</b></font>");
+				sb.append("<td width=185><font color=\"D4C49A\"><b>").append(sk.name()).append("</b></font>");
 				sb.append("<br><font color=\"808080\">ID: </font><font color=\"FFFFFF\">").append(sk.id())
-						.append("</font> <font color=\"808080\">Max Lv: </font><font color=\"00FFFF\">").append(sk.maxLevel())
+						.append("</font> <font color=\"808080\">Max Lv: </font><font color=\"8FA8BE\">").append(sk.maxLevel())
 						.append("</font> <font color=\"808080\">Tipo: </font><font color=\"AAAAAA\">").append(sk.operateType()).append("</font>");
 				sb.append("</td>");
 
@@ -503,9 +503,9 @@ public class AdminSearchService {
 		StringBuilder sb = new StringBuilder(2048);
 		sb.append("<html><title>Global Game Search</title><body><center>");
 		sb.append("<table width=270><tr>");
-		sb.append("<td width=45><a action=\"bypass -h admin_admin\"><font color=\"FFD306\">Main</font></a></td>");
+		sb.append("<td width=45><a action=\"bypass -h admin_admin\"><font color=\"D4C49A\">Main</font></a></td>");
 		sb.append("<td width=180 align=center><font color=\"LEVEL\">Global Search Hub</font></td>");
-		sb.append("<td width=45 align=right><a action=\"bypass -h admin_admin\"><font color=\"FFD306\">Back</font></a></td>");
+		sb.append("<td width=45 align=right><a action=\"bypass -h admin_admin\"><font color=\"D4C49A\">Back</font></a></td>");
 		sb.append("</tr></table>");
 
 		sb.append("<img src=\"L2UI.SquareGray\" width=290 height=1><br>");
@@ -516,13 +516,13 @@ public class AdminSearchService {
 
 		sb.append("<table width=280 bgcolor=\"181818\">");
 		sb.append("<tr><td colspan=2><font color=\"LEVEL\">Resultados para: </font><font color=\"FFFFFF\">").append(safeQuery.isEmpty() ? "(Todos)" : safeQuery).append("</font></td></tr>");
-		sb.append("<tr><td width=170><font color=\"00FF7F\">NPCs Encontrados:</font> ").append(npcsFound).append("</td>");
+		sb.append("<tr><td width=170><font color=\"8FA888\">NPCs Encontrados:</font> ").append(npcsFound).append("</td>");
 		sb.append("<td width=110 align=right><button value=\"Ver NPCs\" action=\"bypass -h admin_find_npc ").append(safeQuery).append("\" width=85 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td></tr>");
 
-		sb.append("<tr><td width=170><font color=\"00FFFF\">Itens Encontrados:</font> ").append(itemsFound).append("</td>");
+		sb.append("<tr><td width=170><font color=\"8FA8BE\">Itens Encontrados:</font> ").append(itemsFound).append("</td>");
 		sb.append("<td width=110 align=right><button value=\"Ver Itens\" action=\"bypass -h admin_find_item ").append(safeQuery).append("\" width=85 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td></tr>");
 
-		sb.append("<tr><td width=170><font color=\"FFD700\">Skills Encontradas:</font> ").append(skillsFound).append("</td>");
+		sb.append("<tr><td width=170><font color=\"D4C49A\">Skills Encontradas:</font> ").append(skillsFound).append("</td>");
 		sb.append("<td width=110 align=right><button value=\"Ver Skills\" action=\"bypass -h admin_find_skill ").append(safeQuery).append("\" width=85 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td></tr>");
 		sb.append("</table>");
 

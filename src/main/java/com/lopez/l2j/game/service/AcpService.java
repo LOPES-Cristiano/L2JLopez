@@ -164,21 +164,21 @@ public class AcpService {
 		sb.append("<table width=260 bgcolor=222222 border=1 cellpadding=4 cellspacing=0>");
 		sb.append("<tr><td><b>Status:</b></td><td align=center>");
 		if (cfg.enabled()) {
-			sb.append("<font color=\"00FF00\"><b>ATIVADO</b></font></td><td>");
+			sb.append("<font color=\"8FA888\"><b>ATIVADO</b></font></td><td>");
 			sb.append("<button value=\"Desativar\" action=\"bypass -h voiced_acp off\" width=65 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
 		} else {
-			sb.append("<font color=\"FF0000\"><b>DESATIVADO</b></font></td><td>");
+			sb.append("<font color=\"B86B6B\"><b>DESATIVADO</b></font></td><td>");
 			sb.append("<button value=\"Ativar\" action=\"bypass -h voiced_acp on\" width=65 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
 		}
 		sb.append("</td></tr>");
 
-		sb.append("<tr><td><b>CP Minimo:</b></td><td align=center><font color=\"FFFF00\">").append(cfg.cpPercent()).append("%</font></td>");
+		sb.append("<tr><td><b>CP Minimo:</b></td><td align=center><font color=\"D4C49A\">").append(cfg.cpPercent()).append("%</font></td>");
 		sb.append("<td align=center><a action=\"bypass -h voiced_acp cp 80\">[80%]</a> <a action=\"bypass -h voiced_acp cp 90\">[90%]</a></td></tr>");
 
-		sb.append("<tr><td><b>HP Minimo:</b></td><td align=center><font color=\"FF5555\">").append(cfg.hpPercent()).append("%</font></td>");
+		sb.append("<tr><td><b>HP Minimo:</b></td><td align=center><font color=\"B86B6B\">").append(cfg.hpPercent()).append("%</font></td>");
 		sb.append("<td align=center><a action=\"bypass -h voiced_acp hp 60\">[60%]</a> <a action=\"bypass -h voiced_acp hp 75\">[75%]</a></td></tr>");
 
-		sb.append("<tr><td><b>MP Minimo:</b></td><td align=center><font color=\"5599FF\">").append(cfg.mpPercent()).append("%</font></td>");
+		sb.append("<tr><td><b>MP Minimo:</b></td><td align=center><font color=\"8FA8BE\">").append(cfg.mpPercent()).append("%</font></td>");
 		sb.append("<td align=center><a action=\"bypass -h voiced_acp mp 50\">[50%]</a> <a action=\"bypass -h voiced_acp mp 70\">[70%]</a></td></tr>");
 		sb.append("</table><br>");
 

@@ -458,7 +458,7 @@ public class AioService {
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body><center>");
         sb.append("<font color=\"LEVEL\">=== Painel de Buffer AIOx ===</font><br>");
-        sb.append("Ola, <font color=\"00FFFF\">").append(player.getName()).append("</font>!<br>");
+        sb.append("Ola, <font color=\"8FA8BE\">").append(player.getName()).append("</font>!<br>");
         sb.append("Utilize o menu abaixo para aplicar buffs ou retirar itens.<br><br>");
         sb.append("<button value=\"Retirar Consumiveis (.getaiogoods)\" action=\"bypass -h voiced_getaiogoods\" width=190 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br><br>");
         sb.append("<table width=240>");

@@ -145,10 +145,10 @@ public class BankingService {
 		StringBuilder sb = new StringBuilder();
 		sb.append("<html><body><center>");
 		sb.append("<font color=\"LEVEL\">=== Sistema Bancario (.bank) ===</font><br>");
-		sb.append("Taxa de Cambio: 1 Gold Bar = <font color=\"00FF00\">").append(String.format("%,d", adenaRate)).append("</font> Adenas<br><br>");
+		sb.append("Taxa de Cambio: 1 Gold Bar = <font color=\"8FA888\">").append(String.format("%,d", adenaRate)).append("</font> Adenas<br><br>");
 		sb.append("Seu Saldo:<br>");
-		sb.append("Adena: <font color=\"FFFF00\">").append(String.format("%,d", currentAdena)).append("</font><br>");
-		sb.append("Gold Bars: <font color=\"FFA500\">").append(currentBars).append("</font><br><br>");
+		sb.append("Adena: <font color=\"D4C49A\">").append(String.format("%,d", currentAdena)).append("</font><br>");
+		sb.append("Gold Bars: <font color=\"C8B588\">").append(currentBars).append("</font><br><br>");
 		sb.append("<table width=240>");
 		sb.append("<tr>");
 		sb.append("<td><button value=\"Depositar (1 Bar)\" action=\"bypass -h voiced_deposit\" width=115 height=22 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");

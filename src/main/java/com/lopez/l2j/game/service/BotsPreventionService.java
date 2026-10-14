@@ -160,7 +160,7 @@ public class BotsPreventionService {
         sb.append("<html><body><center>");
         sb.append("<font color=\"LEVEL\">=== Verificacao de Seguranca Anti-Bot ===</font><br><br>");
         sb.append("Para continuar caçando, selecione o seguinte numero na tela:<br><br>");
-        sb.append("<font color=\"00FF00\"><b><h1>").append(challenge.getCorrectNumber()).append("</h1></b></font><br>");
+        sb.append("<font color=\"8FA888\"><b><h1>").append(challenge.getCorrectNumber()).append("</h1></b></font><br>");
         sb.append("<table width=200>");
         sb.append("<tr>");
         for (int opt : challenge.getOptions()) {
@@ -169,7 +169,7 @@ public class BotsPreventionService {
               .append("\" width=60 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
         }
         sb.append("</tr></table><br>");
-        sb.append("<font color=\"FF0000\">Voce tem ").append(validationTimeoutSeconds).append(" segundos para responder.</font>");
+        sb.append("<font color=\"B86B6B\">Voce tem ").append(validationTimeoutSeconds).append(" segundos para responder.</font>");
         sb.append("</center></body></html>");
         return sb.toString();
     }
