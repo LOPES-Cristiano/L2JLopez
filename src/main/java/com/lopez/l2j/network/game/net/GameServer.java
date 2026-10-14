@@ -45,6 +45,10 @@ public class GameServer implements SmartLifecycle {
 	private volatile boolean running;
 
 	@Autowired
+	public GameServer(ServerProperties p, org.springframework.context.ApplicationContext applicationContext) {
+		this(p.network().gamePort(), com.lopez.l2j.network.game.GameEngineContext.buildSessionContext(applicationContext, p));
+	}
+
 	public GameServer(ServerProperties p, SessionKeyRegistry sessionKeys, CharacterService characters,
 			InventoryService inventories, GameWorld world, HtmCache htmls, TeleportLocationTable teleports,
 			BuyListTable buylists, com.lopez.l2j.game.combat.CombatService combat,
