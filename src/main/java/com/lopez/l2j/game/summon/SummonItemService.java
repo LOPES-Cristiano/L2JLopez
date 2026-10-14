@@ -139,21 +139,49 @@ public class SummonItemService {
 
 				int petId = idFactory.nextId();
 				int petLevel = item.enchant() > 0 ? item.enchant() : 1;
+				String petName = player.name() + "'s Pet";
+				int maxHp = 100 + petLevel * 20;
+				int maxMp = 50 + petLevel * 10;
+				var npcTmpl = npcTemplates != null ? npcTemplates.get(sitem.npcId()).orElse(null) : null;
+				if (npcTmpl != null) {
+					petName = npcTmpl.name();
+					maxHp = Math.max(maxHp, (int) npcTmpl.maxHp());
+					maxMp = Math.max(maxMp, (int) npcTmpl.maxMp());
+				} else {
+					npcTmpl = com.lopez.l2j.game.npc.NpcTemplate.fallback(sitem.npcId(), petName, "L2Pet");
+				}
+
 				PetInfo pet = new PetInfo(
 						petId,
 						player.objectId(),
 						sitem.npcId(),
 						item.objectId(),
-						player.name() + "'s Pet",
+						petName,
 						petLevel,
-						100 + petLevel * 20,
-						100 + petLevel * 20,
-						50 + petLevel * 10,
-						50 + petLevel * 10
+						maxHp,
+						maxHp,
+						maxMp,
+						maxMp
 				);
+
+				SummonInstance summon = new SummonInstance(
+						petId, player, npcTmpl, SummonInstance.TYPE_PET, item.objectId(), 0, petLevel);
+				summon.x(player.x() + 40);
+				summon.y(player.y() + 40);
+				summon.z(player.z());
+				summon.heading(player.heading());
+				player.activeSummon(summon);
+				com.lopez.l2j.game.world.GameWorld.getInstance().addSummon(summon);
 
 				activePets.put(player.objectId(), pet);
 				player.petObjectId(petId);
+				clientSender.accept(new GameServerPacket.PetStatusShow(SummonInstance.TYPE_PET));
+				clientSender.accept(new GameServerPacket.PetInfo(summon, 2));
+				var npcInfo = GameServerPacket.NpcInfo.forSummon(summon);
+				for (var near : com.lopez.l2j.game.world.GameWorld.getInstance().findPlayersAround(
+						summon.x(), summon.y(), com.lopez.l2j.game.world.GameWorld.VISIBILITY_RADIUS, player.instanceId())) {
+					near.send(npcInfo);
+				}
 				clientSender.accept(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pet " + pet.name() + " invocado!"));
 				return true;
 			}
@@ -173,16 +201,32 @@ public class SummonItemService {
 	 * Remove ou recolhe o pet ativo.
 	 */
 	public boolean unsummonPet(PlayerCharacter player, Consumer<GameServerPacket> clientSender) {
-		if (player == null || !player.hasPet()) {
+		if (player == null || (!player.hasPet() && !player.hasSummon())) {
 			return false;
 		}
 
 		PetInfo pet = activePets.remove(player.objectId());
+		SummonInstance activeSummon = player.activeSummon();
+		int removedObjId = pet != null ? pet.petObjectId() : (activeSummon != null ? activeSummon.objectId() : player.petObjectId());
+		int summonType = activeSummon != null ? activeSummon.summonType() : SummonInstance.TYPE_PET;
+
 		player.petObjectId(0);
+		player.activeSummon(null);
+		if (removedObjId > 0) {
+			com.lopez.l2j.game.world.GameWorld.getInstance().removeSummon(removedObjId);
+			var del = new GameServerPacket.DeleteObject(removedObjId);
+			for (var near : com.lopez.l2j.game.world.GameWorld.getInstance().findPlayersAround(
+					player.x(), player.y(), com.lopez.l2j.game.world.GameWorld.VISIBILITY_RADIUS, player.instanceId())) {
+				near.send(del);
+			}
+		}
 		if (clientSender != null) {
+			if (removedObjId > 0) {
+				clientSender.accept(new GameServerPacket.PetDelete(summonType, removedObjId));
+			}
 			clientSender.accept(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pet recolhido."));
 		}
-		return pet != null;
+		return pet != null || activeSummon != null;
 	}
 
 	/**
