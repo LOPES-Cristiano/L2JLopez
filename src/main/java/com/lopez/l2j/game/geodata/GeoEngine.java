@@ -13,16 +13,22 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Motor nativo de Geodata & Line of Sight (LoS) 3D do Lineage II Interlude.
- * Carrega arquivos binarios .l2j e executa raycasting tridimensional de visibilidade e colisao.
+ * Motor nativo de Geodata & Line of Sight (LoS) 3D e Pathfinding A* do Lineage II Interlude.
+ * Carrega arquivos binarios .l2j sob demanda (lazy load) e executa raycasting tridimensional
+ * de visibilidade, colisao direcional NSWE e portas/barreiras dinamicas.
  */
 @Service
 public class GeoEngine {
@@ -33,26 +39,54 @@ public class GeoEngine {
 	public static final byte BLOCK_TYPE_COMPLEX = 1;
 	public static final byte BLOCK_TYPE_MULTILAYER = 2;
 
+	public static final byte TYPE_FLAT = 0;
+	public static final byte TYPE_COMPLEX = 1;
+	public static final byte TYPE_MULTILEVEL = 2;
+
 	public static final byte EAST = 1;
 	public static final byte WEST = 2;
 	public static final byte SOUTH = 4;
 	public static final byte NORTH = 8;
 	public static final byte ALL_DIRECTIONS = 15;
 
+	public static final byte NSWE_EAST = 1;
+	public static final byte NSWE_WEST = 2;
+	public static final byte NSWE_SOUTH = 4;
+	public static final byte NSWE_NORTH = 8;
+	public static final byte NSWE_ALL = 15;
+
 	public static final int ELEVATION_EYE_OFFSET = 45; // Altura dos olhos do atacante em relacao aos pes
 	public static final int RAY_STEP_SIZE = 16;        // Tamanho de 1 celula de geodata (16 unidades de mundo)
+
+	private static volatile GeoEngine instance;
+
+	public static GeoEngine getInstance() {
+		if (instance == null) {
+			synchronized (GeoEngine.class) {
+				if (instance == null) {
+					instance = new GeoEngine(DoorTable.getInstance());
+				}
+			}
+		}
+		return instance;
+	}
+
+	public static GeoEngine peekInstance() {
+		return instance;
+	}
 
 	private final String geodataDir;
 	private final boolean enabled;
 	private final DoorTable doorTable;
 	private final Map<Integer, RegionData> regions = new ConcurrentHashMap<>();
-	private final java.util.Set<GeoObject> dynamicGeoObjects = ConcurrentHashMap.newKeySet();
+	private final Set<Integer> missingRegions = ConcurrentHashMap.newKeySet();
+	private final Set<GeoObject> dynamicGeoObjects = ConcurrentHashMap.newKeySet();
 
 	private static final class RegionData {
-		final MappedByteBuffer buffer;
+		final ByteBuffer buffer;
 		final int[] blockOffsets;
 
-		RegionData(MappedByteBuffer buffer, int[] blockOffsets) {
+		RegionData(ByteBuffer buffer, int[] blockOffsets) {
 			this.buffer = buffer;
 			this.blockOffsets = blockOffsets;
 		}
@@ -63,18 +97,19 @@ public class GeoEngine {
 			@Value("${l2.geodata.dir:data/geodata}") String geodataDir,
 			@Value("${l2.geodata.enabled:true}") boolean enabled,
 			@Autowired(required = false) DoorTable doorTable) {
-		this.geodataDir = geodataDir;
+		this.geodataDir = (geodataDir != null && !geodataDir.isBlank()) ? geodataDir : "data/geodata";
 		this.enabled = enabled;
 		this.doorTable = doorTable;
+		instance = this;
 
 		if (this.enabled) {
-			File dir = new File(geodataDir);
+			File dir = new File(this.geodataDir);
 			if (dir.isDirectory()) {
 				File[] files = dir.listFiles((d, name) -> name.endsWith(".l2j"));
 				int count = files != null ? files.length : 0;
 				log.info("GeoEngine: Inicializado com {} arquivos de geodata disponiveis em {}", count, dir.getAbsolutePath());
 			} else {
-				log.warn("GeoEngine: Diretorio de geodata nao encontrado: {}", dir.getAbsolutePath());
+				log.debug("GeoEngine: Diretorio de geodata nao encontrado (modo fallback ativo): {}", dir.getAbsolutePath());
 			}
 		} else {
 			log.info("GeoEngine: Geodata desativado por configuracao.");
@@ -83,6 +118,18 @@ public class GeoEngine {
 		if (this.doorTable != null) {
 			this.doorTable.allDoors().forEach(this::addGeoObject);
 		}
+	}
+
+	public GeoEngine(String geodataDir, DoorTable doorTable) {
+		this(geodataDir, true, doorTable);
+	}
+
+	public GeoEngine(DoorTable doorTable) {
+		this("data/geodata", true, doorTable);
+	}
+
+	public GeoEngine() {
+		this("data/geodata", true, DoorTable.getInstance());
 	}
 
 	public void addGeoObject(GeoObject object) {
@@ -97,16 +144,8 @@ public class GeoEngine {
 		}
 	}
 
-	public java.util.Set<GeoObject> dynamicGeoObjects() {
-		return java.util.Collections.unmodifiableSet(dynamicGeoObjects);
-	}
-
-	public GeoEngine(String geodataDir, DoorTable doorTable) {
-		this(geodataDir, true, doorTable);
-	}
-
-	public GeoEngine(DoorTable doorTable) {
-		this("data/geodata", true, doorTable);
+	public Set<GeoObject> dynamicGeoObjects() {
+		return Collections.unmodifiableSet(dynamicGeoObjects);
 	}
 
 	public int loadedRegionsCount() {
@@ -127,6 +166,32 @@ public class GeoEngine {
 
 	public static int getRegionKey(int regionX, int regionY) {
 		return (regionX << 16) | (regionY & 0xFFFF);
+	}
+
+	public static short encodeGeoShort(int height, int nswe) {
+		return (short) (((height << 1) & 0xFFF0) | (nswe & 0x0F));
+	}
+
+	public static short decodeGeoHeight(short raw) {
+		return (short) ((short) (raw & 0xFFF0) >> 1);
+	}
+
+	public static byte decodeNSWE(short raw) {
+		return (byte) (raw & 0x0F);
+	}
+
+	/**
+	 * Carrega diretamente dados binarios .l2j em memoria para uma regiao (util para testes sinteticos).
+	 */
+	public void loadRegionFromBytes(int regionX, int regionY, byte[] data) {
+		if (data == null || data.length == 0) {
+			return;
+		}
+		ByteBuffer buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
+		RegionData parsed = parseRegionBuffer(buffer, data.length);
+		int key = getRegionKey(regionX, regionY);
+		missingRegions.remove(key);
+		regions.put(key, parsed);
 	}
 
 	/**
@@ -154,7 +219,7 @@ public class GeoEngine {
 			return (short) z;
 		}
 
-		MappedByteBuffer buf = region.buffer;
+		ByteBuffer buf = region.buffer;
 		byte type = buf.get(offset);
 
 		if (type == BLOCK_TYPE_FLAT) {
@@ -164,7 +229,7 @@ public class GeoEngine {
 			int cellY = (localY >> 4) & 0x07;
 			int cellIdx = (cellX << 3) | cellY;
 			short raw = buf.getShort(offset + 1 + (cellIdx << 1));
-			return (short) ((short) (raw & 0xFFF0) >> 1);
+			return decodeGeoHeight(raw);
 		} else if (type == BLOCK_TYPE_MULTILAYER) {
 			int cellX = (localX >> 4) & 0x07;
 			int cellY = (localY >> 4) & 0x07;
@@ -176,20 +241,130 @@ public class GeoEngine {
 				curOffset++;
 				if (c == targetCell) {
 					short bestZ = Short.MIN_VALUE;
+					short closestZ = (short) z;
+					int minDiff = Integer.MAX_VALUE;
 					for (int l = 0; l < layers; l++) {
 						short raw = buf.getShort(curOffset + (l << 1));
-						short layerZ = (short) ((short) (raw & 0xFFF0) >> 1);
+						short layerZ = decodeGeoHeight(raw);
+						int diff = Math.abs(layerZ - z);
+						if (diff < minDiff) {
+							minDiff = diff;
+							closestZ = layerZ;
+						}
 						if (layerZ <= z + 64 && layerZ > bestZ) {
 							bestZ = layerZ;
 						}
 					}
-					return bestZ != Short.MIN_VALUE ? bestZ : (short) z;
+					return bestZ != Short.MIN_VALUE ? bestZ : closestZ;
 				}
 				curOffset += (layers << 1);
 			}
 		}
 
 		return (short) z;
+	}
+
+	/**
+	 * Obtem as flags de movimento direcional NSWE (East=1, West=2, South=4, North=8) da celula (X, Y, Z).
+	 */
+	public byte getNSWE(int x, int y, int z) {
+		if (!isEnabled()) {
+			return ALL_DIRECTIONS;
+		}
+
+		int regX = getRegionX(x);
+		int regY = getRegionY(y);
+		RegionData region = getRegion(regX, regY);
+		if (region == null) {
+			return ALL_DIRECTIONS;
+		}
+
+		int localX = x - ((regX - 20) << 15);
+		int localY = y - ((regY - 18) << 15);
+		int blockX = (localX >> 7) & 0xFF;
+		int blockY = (localY >> 7) & 0xFF;
+		int blockIdx = (blockX << 8) | blockY;
+		int offset = region.blockOffsets[blockIdx];
+		if (offset < 0 || offset >= region.buffer.capacity()) {
+			return ALL_DIRECTIONS;
+		}
+
+		ByteBuffer buf = region.buffer;
+		byte type = buf.get(offset);
+
+		if (type == BLOCK_TYPE_FLAT) {
+			return ALL_DIRECTIONS;
+		} else if (type == BLOCK_TYPE_COMPLEX) {
+			int cellX = (localX >> 4) & 0x07;
+			int cellY = (localY >> 4) & 0x07;
+			int cellIdx = (cellX << 3) | cellY;
+			short raw = buf.getShort(offset + 1 + (cellIdx << 1));
+			return decodeNSWE(raw);
+		} else if (type == BLOCK_TYPE_MULTILAYER) {
+			int cellX = (localX >> 4) & 0x07;
+			int cellY = (localY >> 4) & 0x07;
+			int targetCell = (cellX << 3) | cellY;
+
+			int curOffset = offset + 1;
+			for (int c = 0; c < 64; c++) {
+				byte layers = buf.get(curOffset);
+				curOffset++;
+				if (c == targetCell) {
+					short bestZ = Short.MIN_VALUE;
+					byte bestNswe = ALL_DIRECTIONS;
+					byte closestNswe = ALL_DIRECTIONS;
+					int minDiff = Integer.MAX_VALUE;
+					for (int l = 0; l < layers; l++) {
+						short raw = buf.getShort(curOffset + (l << 1));
+						short layerZ = decodeGeoHeight(raw);
+						byte nswe = decodeNSWE(raw);
+						int diff = Math.abs(layerZ - z);
+						if (diff < minDiff) {
+							minDiff = diff;
+							closestNswe = nswe;
+						}
+						if (layerZ <= z + 64 && layerZ > bestZ) {
+							bestZ = layerZ;
+							bestNswe = nswe;
+						}
+					}
+					return bestZ != Short.MIN_VALUE ? bestNswe : closestNswe;
+				}
+				curOffset += (layers << 1);
+			}
+		}
+
+		return ALL_DIRECTIONS;
+	}
+
+	/**
+	 * Verifica se as flags NSWE da celula (x, y, z) permitem o passo em direcao a (tx, ty).
+	 */
+	public boolean checkNSWE(int x, int y, int z, int tx, int ty) {
+		if (!isEnabled()) {
+			return true;
+		}
+		int gx1 = x >> 4;
+		int gy1 = y >> 4;
+		int gx2 = tx >> 4;
+		int gy2 = ty >> 4;
+		if (gx1 == gx2 && gy1 == gy2) {
+			return true;
+		}
+		byte nswe = getNSWE(x, y, z);
+		if (gx2 > gx1 && (nswe & EAST) == 0) {
+			return false;
+		}
+		if (gx2 < gx1 && (nswe & WEST) == 0) {
+			return false;
+		}
+		if (gy2 > gy1 && (nswe & SOUTH) == 0) {
+			return false;
+		}
+		if (gy2 < gy1 && (nswe & NORTH) == 0) {
+			return false;
+		}
+		return true;
 	}
 
 	/**
@@ -218,7 +393,7 @@ public class GeoEngine {
 			return Short.MAX_VALUE;
 		}
 
-		MappedByteBuffer buf = region.buffer;
+		ByteBuffer buf = region.buffer;
 		byte type = buf.get(offset);
 
 		if (type == BLOCK_TYPE_MULTILAYER) {
@@ -234,7 +409,7 @@ public class GeoEngine {
 					short lowestCeiling = Short.MAX_VALUE;
 					for (int l = 0; l < layers; l++) {
 						short raw = buf.getShort(curOffset + (l << 1));
-						short layerZ = (short) ((short) (raw & 0xFFF0) >> 1);
+						short layerZ = decodeGeoHeight(raw);
 						if (layerZ > z + 64 && layerZ < lowestCeiling) {
 							lowestCeiling = layerZ;
 						}
@@ -248,9 +423,33 @@ public class GeoEngine {
 		return Short.MAX_VALUE;
 	}
 
+	public boolean isBlockedByDynamicObjects(int x, int y, int z, int tx, int ty, int tz) {
+		for (GeoObject obj : dynamicGeoObjects) {
+			if (obj.isBlocking() && intersectsGeoObject(x, y, z, tx, ty, tz, obj)) {
+				return true;
+			}
+		}
+		if (doorTable != null) {
+			for (DoorInstance door : doorTable.allDoors()) {
+				if (door.isBlocking() && intersectsDoor(x, y, z, tx, ty, tz, door)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	public boolean hasLineOfSight(int x, int y, int z, int tx, int ty, int tz) {
+		return canSeeTarget(x, y, z, tx, ty, tz);
+	}
+
+	public boolean hasLineOfSight(com.lopez.l2j.game.model.Creature actor, com.lopez.l2j.game.model.Creature target) {
+		return canSeeTarget(actor, target);
+	}
+
 	/**
 	 * Verifica linha de visao (Line of Sight - LoS) 3D entre duas posicoes no mundo.
-	 * Utiliza raycasting com amostragem de celulas e checagem de portas fechadas.
+	 * Utiliza raycasting com amostragem de celulas, NSWE e checagem de portas fechadas/GeoObjects.
 	 */
 	public boolean canSeeTarget(int x, int y, int z, int tx, int ty, int tz) {
 		if (!isEnabled()) {
@@ -258,18 +457,8 @@ public class GeoEngine {
 		}
 
 		// Checagem de portas e barreiras dinamicas (GeoObject) no trajeto
-		for (GeoObject obj : dynamicGeoObjects) {
-			if (obj.isBlocking() && intersectsGeoObject(x, y, z, tx, ty, tz, obj)) {
-				return false;
-			}
-		}
-
-		if (doorTable != null) {
-			for (DoorInstance door : doorTable.allDoors()) {
-				if (!door.isOpen() && intersectsDoor(x, y, z, tx, ty, tz, door)) {
-					return false;
-				}
-			}
+		if (isBlockedByDynamicObjects(x, y, z, tx, ty, tz)) {
+			return false;
 		}
 
 		// 1. Checagem de teto em camadas (multilayer): se um estiver em caverna/andar inferior e o outro acima do teto
@@ -293,13 +482,7 @@ public class GeoEngine {
 		double dz = tz - z;
 		double dist2d = Math.sqrt(dx * dx + dy * dy);
 
-		// Em curta/media distancia (<= 250 unidades, combate melee / proximo), visao e garantida
-		// a menos que haja um desnivel vertical abrupto (> 150 unidades, ex: topo de muralha)
-		if (dist2d <= 250.0) {
-			return Math.abs(dz) <= 150.0;
-		}
-
-		// Raycasting em passos de RAY_STEP_SIZE para alvos a longa distancia
+		// Raycasting em passos de RAY_STEP_SIZE
 		int steps = Math.max(1, (int) Math.round(dist2d / RAY_STEP_SIZE));
 		double stepX = dx / steps;
 		double stepY = dy / steps;
@@ -308,6 +491,34 @@ public class GeoEngine {
 		double curX = x;
 		double curY = y;
 		double curZ = z + ELEVATION_EYE_OFFSET;
+
+		int prevX = x;
+		int prevY = y;
+		short prevGroundZ = getHeight(x, y, z);
+
+		if (dist2d <= 250.0) {
+			if (Math.abs(dz) > 150.0) {
+				return false;
+			}
+			// Mesmo em curta distancia, verifica se ha parede/muro solido (NSWE=0 ou parede plana bloqueada ou obstaculo alto)
+			for (int i = 1; i <= steps; i++) {
+				int ix = (int) Math.round(x + i * stepX);
+				int iy = (int) Math.round(y + i * stepY);
+				int iz = (int) Math.round(z + i * stepZ);
+				short groundZ = getHeight(ix, iy, iz);
+				if (groundZ > Math.max(z, tz) + 64) {
+					return false;
+				}
+				byte nswe = getNSWE(prevX, prevY, prevGroundZ);
+				if (nswe == 0 || (groundZ == prevGroundZ && !checkNSWE(prevX, prevY, prevGroundZ, ix, iy))) {
+					return false;
+				}
+				prevX = ix;
+				prevY = iy;
+				prevGroundZ = groundZ;
+			}
+			return true;
+		}
 
 		for (int i = 1; i < steps; i++) {
 			curX += stepX;
@@ -324,58 +535,61 @@ public class GeoEngine {
 				return false;
 			}
 
+			byte nswe = getNSWE(prevX, prevY, prevGroundZ);
+			if (nswe == 0 || (groundZ == prevGroundZ && !checkNSWE(prevX, prevY, prevGroundZ, ix, iy))) {
+				return false;
+			}
+
 			// Se houver um teto intermediario que foi ultrapassado pela linha de visao
 			short ceilIntermediate = getCeilingZ(ix, iy, groundZ);
 			if (ceilIntermediate != Short.MAX_VALUE && curZ > ceilIntermediate) {
 				return false;
 			}
+
+			prevX = ix;
+			prevY = iy;
+			prevGroundZ = groundZ;
 		}
 
 		return true;
 	}
 
-	public boolean canSeeTarget(PlayerCharacter player, NpcInstance npc) {
-		if (player == null || npc == null) {
+	public boolean canSeeTarget(com.lopez.l2j.game.model.Creature actor, com.lopez.l2j.game.model.Creature target) {
+		if (actor == null || target == null) {
+			return false;
+		}
+		if (actor.instanceId() != target.instanceId()) {
 			return false;
 		}
 		if (!isEnabled()) {
 			return true;
 		}
-		int pz = player.z();
-		int nz = npc.z();
-		short geoNz = getHeight(npc.x(), npc.y(), nz);
-		if (Math.abs(geoNz - nz) < 500) {
-			nz = geoNz;
+		int az = actor.z();
+		int tz = target.z();
+		short geoTz = getHeight(target.x(), target.y(), tz);
+		if (Math.abs(geoTz - tz) < 500) {
+			tz = geoTz;
 		}
-		short geoPz = getHeight(player.x(), player.y(), pz);
-		if (Math.abs(geoPz - pz) < 500) {
-			pz = geoPz;
+		short geoAz = getHeight(actor.x(), actor.y(), az);
+		if (Math.abs(geoAz - az) < 500) {
+			az = geoAz;
 		}
-		return canSeeTarget(player.x(), player.y(), pz, npc.x(), npc.y(), nz);
+		return canSeeTarget(actor.x(), actor.y(), az, target.x(), target.y(), tz);
+	}
+
+	public boolean canSeeTarget(PlayerCharacter player, NpcInstance npc) {
+		return canSeeTarget((com.lopez.l2j.game.model.Creature) player, (com.lopez.l2j.game.model.Creature) npc);
 	}
 
 	public boolean canSeeTarget(NpcInstance npc, PlayerCharacter player) {
-		if (npc == null || player == null) {
-			return false;
-		}
-		if (!isEnabled()) {
-			return true;
-		}
-		int nz = npc.z();
-		int pz = player.z();
-		short geoNz = getHeight(npc.x(), npc.y(), nz);
-		if (Math.abs(geoNz - nz) < 500) {
-			nz = geoNz;
-		}
-		short geoPz = getHeight(player.x(), player.y(), pz);
-		if (Math.abs(geoPz - pz) < 500) {
-			pz = geoPz;
-		}
-		return canSeeTarget(npc.x(), npc.y(), nz, player.x(), player.y(), pz);
+		return canSeeTarget((com.lopez.l2j.game.model.Creature) npc, (com.lopez.l2j.game.model.Creature) player);
 	}
 
 	public boolean canSeeTarget(PlayerCharacter player, PlayerCharacter target) {
 		if (player == null || target == null) {
+			return false;
+		}
+		if (player.instanceId() != target.instanceId()) {
 			return false;
 		}
 		if (!isEnabled()) {
@@ -437,7 +651,20 @@ public class GeoEngine {
 
 	private RegionData getRegion(int regionX, int regionY) {
 		int key = getRegionKey(regionX, regionY);
-		return regions.computeIfAbsent(key, k -> loadRegion(regionX, regionY));
+		RegionData cached = regions.get(key);
+		if (cached != null) {
+			return cached;
+		}
+		if (missingRegions.contains(key)) {
+			return null;
+		}
+		RegionData loaded = loadRegion(regionX, regionY);
+		if (loaded != null) {
+			regions.put(key, loaded);
+			return loaded;
+		}
+		missingRegions.add(key);
+		return null;
 	}
 
 	private RegionData loadRegion(int regionX, int regionY) {
@@ -452,65 +679,63 @@ public class GeoEngine {
 			long size = channel.size();
 			MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, size);
 			buffer.order(ByteOrder.LITTLE_ENDIAN);
-
-			int[] blockOffsets = new int[65536];
-			int curOffset = 0;
-
-			for (int b = 0; b < 65536; b++) {
-				if (curOffset >= size) {
-					break;
-				}
-				blockOffsets[b] = curOffset;
-				byte type = buffer.get(curOffset);
-
-				if (type == BLOCK_TYPE_FLAT) {
-					curOffset += 3;
-				} else if (type == BLOCK_TYPE_COMPLEX) {
-					curOffset += (1 + (64 << 1));
-				} else if (type == BLOCK_TYPE_MULTILAYER) {
-					curOffset += 1;
-					for (int c = 0; c < 64; c++) {
-						if (curOffset >= size) {
-							break;
-						}
-						byte layers = buffer.get(curOffset);
-						curOffset += (1 + (layers << 1));
-					}
-				} else {
-					curOffset += 3; // fallback de seguranca
-				}
-			}
-
-			return new RegionData(buffer, blockOffsets);
+			return parseRegionBuffer(buffer, size);
 		} catch (Exception e) {
 			log.warn("Erro ao carregar geodata para regiao {}_{}: {}", regionX, regionY, e.getMessage());
 			return null;
 		}
 	}
 
-	public record Location(int x, int y, int z) {}
+	private RegionData parseRegionBuffer(ByteBuffer buffer, long size) {
+		int[] blockOffsets = new int[65536];
+		Arrays.fill(blockOffsets, -1);
+		int curOffset = 0;
+
+		for (int b = 0; b < 65536; b++) {
+			if (curOffset >= size) {
+				break;
+			}
+			blockOffsets[b] = curOffset;
+			byte type = buffer.get(curOffset);
+
+			if (type == BLOCK_TYPE_FLAT) {
+				curOffset += 3;
+			} else if (type == BLOCK_TYPE_COMPLEX) {
+				curOffset += (1 + (64 << 1));
+			} else if (type == BLOCK_TYPE_MULTILAYER) {
+				curOffset += 1;
+				for (int c = 0; c < 64; c++) {
+					if (curOffset >= size) {
+						break;
+					}
+					byte layers = buffer.get(curOffset);
+					curOffset += (1 + (layers << 1));
+				}
+			} else {
+				curOffset += 3; // fallback de seguranca
+			}
+		}
+
+		return new RegionData(buffer, blockOffsets);
+	}
+
+	public record Location(int x, int y, int z) {
+		public int[] toArray() {
+			return new int[]{x, y, z};
+		}
+	}
 
 	/**
 	 * Verifica movimentacao do ponto (x,y,z) ate (tx,ty,tz).
-	 * Se bloqueado por porta fechada ou desnivel intransponivel, retorna a ultima posicao valida.
+	 * Se bloqueado por porta fechada, flag NSWE ou desnivel intransponivel, retorna a ultima posicao valida.
 	 */
 	public Location moveCheck(int x, int y, int z, int tx, int ty, int tz) {
 		if (!isEnabled()) {
 			return new Location(tx, ty, tz);
 		}
 
-		for (GeoObject obj : dynamicGeoObjects) {
-			if (obj.isBlocking() && intersectsGeoObject(x, y, z, tx, ty, tz, obj)) {
-				return new Location(x, y, z);
-			}
-		}
-
-		if (doorTable != null) {
-			for (DoorInstance door : doorTable.allDoors()) {
-				if (!door.isOpen() && intersectsDoor(x, y, z, tx, ty, tz, door)) {
-					return new Location(x, y, z);
-				}
-			}
+		if (isBlockedByDynamicObjects(x, y, z, tx, ty, tz)) {
+			return new Location(x, y, z);
 		}
 
 		double dx = tx - x;
@@ -524,7 +749,7 @@ public class GeoEngine {
 
 		int lastX = x;
 		int lastY = y;
-		int lastZ = z;
+		int lastZ = getHeight(x, y, z);
 
 		for (int i = 1; i <= steps; i++) {
 			int curX = (int) Math.round(x + i * stepX);
@@ -532,12 +757,12 @@ public class GeoEngine {
 			int curZ = (int) Math.round(z + i * stepZ);
 
 			short geoZ = getHeight(curX, curY, curZ);
-			if (Math.abs(geoZ - curZ) > 64) {
+			if (Math.abs(geoZ - lastZ) > 64 || !checkNSWE(lastX, lastY, lastZ, curX, curY)) {
 				return new Location(lastX, lastY, lastZ);
 			}
 			lastX = curX;
 			lastY = curY;
-			lastZ = curZ;
+			lastZ = geoZ;
 		}
 
 		return new Location(tx, ty, tz);
@@ -547,35 +772,59 @@ public class GeoEngine {
 		if (!isEnabled()) {
 			return true;
 		}
-		for (GeoObject obj : dynamicGeoObjects) {
-			if (obj.isBlocking() && intersectsGeoObject(x, y, z, tx, ty, tz, obj)) {
-				return false;
-			}
-		}
-		if (doorTable != null) {
-			for (DoorInstance door : doorTable.allDoors()) {
-				if (!door.isOpen() && intersectsDoor(x, y, z, tx, ty, tz, door)) {
-					return false;
-				}
-			}
+		if (isBlockedByDynamicObjects(x, y, z, tx, ty, tz)) {
+			return false;
 		}
 		Location loc = moveCheck(x, y, z, tx, ty, tz);
 		double distToEnd = Math.hypot(loc.x() - tx, loc.y() - ty);
 		return distToEnd <= 32.0;
 	}
 
+	public boolean canMoveToTarget(com.lopez.l2j.game.model.Creature actor, com.lopez.l2j.game.model.Creature target) {
+		if (actor == null || target == null) return false;
+		if (actor.instanceId() != target.instanceId()) return false;
+		return canMoveToTarget(actor.x(), actor.y(), actor.z(), target.x(), target.y(), target.z());
+	}
+
 	public boolean canMoveToTarget(PlayerCharacter player, PlayerCharacter target) {
-		if (player == null || target == null) return false;
-		return canMoveToTarget(player.x(), player.y(), player.z(), target.x(), target.y(), target.z());
+		return canMoveToTarget((com.lopez.l2j.game.model.Creature) player, (com.lopez.l2j.game.model.Creature) target);
 	}
 
 	public boolean canMoveToTarget(PlayerCharacter player, NpcInstance npc) {
-		if (player == null || npc == null) return false;
-		return canMoveToTarget(player.x(), player.y(), player.z(), npc.x(), npc.y(), npc.z());
+		return canMoveToTarget((com.lopez.l2j.game.model.Creature) player, (com.lopez.l2j.game.model.Creature) npc);
 	}
 
 	public boolean canMoveToTarget(NpcInstance npc, PlayerCharacter player) {
-		if (npc == null || player == null) return false;
-		return canMoveToTarget(npc.x(), npc.y(), npc.z(), player.x(), player.y(), player.z());
+		return canMoveToTarget((com.lopez.l2j.game.model.Creature) npc, (com.lopez.l2j.game.model.Creature) player);
+	}
+
+	/**
+	 * Executa busca de caminho A* (limitada a 512 iteracoes) retornando a lista de waypoints [x, y, z].
+	 */
+	public List<int[]> findPath(int startX, int startY, int startZ, int targetX, int targetY, int targetZ, int instanceId) {
+		return PathFind.findPath(this, startX, startY, startZ, targetX, targetY, targetZ, instanceId, PathFind.DEFAULT_MAX_ITERATIONS);
+	}
+
+	/**
+	 * Sobrecarga de findPath sem instanceId (instancia mundo padrao = 0).
+	 */
+	public List<int[]> findPath(int startX, int startY, int startZ, int targetX, int targetY, int targetZ) {
+		return findPath(startX, startY, startZ, targetX, targetY, targetZ, 0);
+	}
+
+	/**
+	 * Retorna a lista de waypoints como registros Location(x, y, z).
+	 */
+	public List<Location> findPathLocations(int startX, int startY, int startZ, int targetX, int targetY, int targetZ, int instanceId) {
+		List<int[]> raw = findPath(startX, startY, startZ, targetX, targetY, targetZ, instanceId);
+		List<Location> result = new ArrayList<>(raw.size());
+		for (int[] wp : raw) {
+			result.add(new Location(wp[0], wp[1], wp[2]));
+		}
+		return result;
+	}
+
+	public List<Location> findPathLocations(int startX, int startY, int startZ, int targetX, int targetY, int targetZ) {
+		return findPathLocations(startX, startY, startZ, targetX, targetY, targetZ, 0);
 	}
 }
