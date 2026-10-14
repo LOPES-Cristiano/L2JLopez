@@ -1,6 +1,7 @@
 package com.lopez.l2j.game.ai;
 
 import com.lopez.l2j.game.combat.CombatService;
+import com.lopez.l2j.game.geodata.GeoEngine;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.npc.NpcSkillTable;
 import com.lopez.l2j.game.skill.SkillTable;
@@ -10,12 +11,12 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToLocation;
 
 /**
  * Arquetipo RangerAI: Monstros arqueiros e de ataque à distância.
- * Mantem distancia de seguranca (kiting) recuando se o jogador se aproximar a menos de 150 unidades,
+ * Mantem distancia de seguranca (kiting) recuando se o jogador se aproximar a menos de 100 unidades,
  * disparando flechas e habilidades de longo alcance.
  */
 public class RangerAI extends FighterAI {
 
-	public static final int SAFE_DISTANCE = 80;
+	public static final int SAFE_DISTANCE = 100;
 	public static final int DESIRED_RANGE = 500;
 	private long lastRetreatTime = 0;
 
@@ -44,8 +45,7 @@ public class RangerAI extends FighterAI {
 		var player = playerOpt.get();
 		var character = player.character();
 		if (character == null || character.isDead() || player.isTeleporting()) return;
-		if (zones != null && (zones.isInsidePeace(player.x(), player.y(), player.z())
-				|| zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
+		if (isPeaceBlocked(player.x(), player.y(), player.z(), character)) {
 			return;
 		}
 
@@ -56,17 +56,15 @@ public class RangerAI extends FighterAI {
 		double dist3d = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
 		if (dist3d > 1500.0) return;
-		if (Math.abs(dz) > 400.0 || !combatService.canSeeTarget(npc, character)) return;
+		if (Math.abs(dz) > 400.0 || !hasLineOfSight(character)) return;
 
 		int attackRange = Math.max(500, npc.template().attackRange());
 
 		if (npc.isDisabled()) return;
 
 		long now = System.currentTimeMillis();
-		// Kiting moderado: Apenas se o jogador estiver muito colado (< 80u), nao estiver enraizado (rooted),
-		// com cooldown de 8 segundos e 35% de chance (evita teleportes continuos de arqueiros)
-		if (dist < SAFE_DISTANCE && !npc.isRooted() && (now - lastRetreatTime >= 8000L)
-				&& java.util.concurrent.ThreadLocalRandom.current().nextInt(100) < 35) {
+		// Kiting: se o alvo colar (< 100u) e nao estiver enraizado (rooted), da um passo de recuo
+		if (dist < SAFE_DISTANCE && !npc.isRooted() && (now - lastRetreatTime >= 3000L)) {
 			lastRetreatTime = now;
 			retreatFromTarget(player.x(), player.y(), dist);
 			return;
@@ -82,21 +80,35 @@ public class RangerAI extends FighterAI {
 	}
 
 	private void retreatFromTarget(int targetX, int targetY, double dist) {
-		if (dist <= 0) return;
 		double dx = npc.x() - targetX;
 		double dy = npc.y() - targetY;
+		if (dist <= 0.001) {
+			dx = 1.0;
+			dy = 0.0;
+			dist = 1.0;
+		}
 		double retreatStep = 120.0;
 		int fromX = npc.x();
 		int fromY = npc.y();
 		int fromZ = npc.z();
 		int newX = (int) Math.round(fromX + (dx / dist) * retreatStep);
 		int newY = (int) Math.round(fromY + (dy / dist) * retreatStep);
+		int newZ = fromZ;
+
+		GeoEngine geo = (combatService != null) ? combatService.geoEngine() : null;
+		if (geo != null && geo.isEnabled()) {
+			GeoEngine.Location checked = geo.moveCheck(fromX, fromY, fromZ, newX, newY, fromZ);
+			newX = checked.x();
+			newY = checked.y();
+			newZ = checked.z();
+		}
+
 		int heading = (int) Math.round(Math.atan2(dy, dx) * 10430.378);
 
-		npc.moveTo(newX, newY, fromZ, heading);
+		npc.moveTo(newX, newY, newZ, heading);
 		world.updateNpcPosition(npc, fromX, fromY);
 
-		var moveLoc = new MoveToLocation(npc.objectId(), newX, newY, fromZ, fromX, fromY, fromZ);
+		var moveLoc = new MoveToLocation(npc.objectId(), newX, newY, newZ, fromX, fromY, fromZ);
 		world.broadcastAround(fromX, fromY, GameWorld.VISIBILITY_RADIUS, moveLoc);
 	}
 }

@@ -9,8 +9,6 @@ import com.lopez.l2j.game.template.CharTemplateTable;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket.*;
 
-import java.util.concurrent.ThreadLocalRandom;
-
 /**
  * Arquetipo FighterAI: Monstros de combate corpo-a-corpo padrão.
  * Avanca diretamente em direcao ao alvo ate a distancia de alcance de melee e ataca.
@@ -42,8 +40,7 @@ public class FighterAI extends AbstractNpcAI {
 		var player = playerOpt.get();
 		var character = player.character();
 		if (character == null || character.isDead() || player.isTeleporting()) return;
-		if (zones != null && (zones.isInsidePeace(player.x(), player.y(), player.z())
-				|| zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
+		if (isPeaceBlocked(player.x(), player.y(), player.z(), character)) {
 			return;
 		}
 
@@ -56,7 +53,7 @@ public class FighterAI extends AbstractNpcAI {
 		if (dist3d > 1500.0) return;
 
 		// Diferença vertical severa ou sem linha de visão (ex: monstro na caverna subterrânea e jogador na superfície)
-		if (Math.abs(dz) > 250.0 || !combatService.canSeeTarget(npc, character)) {
+		if (Math.abs(dz) > 250.0 || !hasLineOfSight(character)) {
 			return;
 		}
 
@@ -78,8 +75,7 @@ public class FighterAI extends AbstractNpcAI {
 		if (character.isDead() || npc.isCasting() || npc.isAttacking() || player.isTeleporting()) {
 			return;
 		}
-		if (zones != null && (zones.isInsidePeace(player.x(), player.y(), player.z())
-				|| zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
+		if (isPeaceBlocked(player.x(), player.y(), player.z(), character)) {
 			return;
 		}
 
@@ -97,62 +93,59 @@ public class FighterAI extends AbstractNpcAI {
 		if (now - npc.lastAttackTime() >= cooldownMs) {
 			npc.lastAttackTime(now);
 			npc.attackEndTime(now + cooldownMs);
-			var template = charTemplates.get(character.classId()).orElse(null);
-			if (template != null) {
-				SkillTemplate chosenSkill = chooseMonsterSkill();
-				if (chosenSkill != null) {
-					castMonsterSkill(chosenSkill, player, character, template);
-				} else {
-					int timeToHit = isRanged ? (int) (cooldownMs * 0.70) : (int) (cooldownMs * 0.62);
+			var template = charTemplates != null ? charTemplates.get(character.classId()).orElse(null) : null;
+			SkillTemplate chosenSkill = chooseMonsterSkill();
+			if (chosenSkill != null) {
+				castMonsterSkill(chosenSkill, player, character, template);
+			} else if (template != null && combatService != null) {
+				int timeToHit = isRanged ? (int) (cooldownMs * 0.70) : (int) (cooldownMs * 0.62);
 
-					var plan = combatService.planAttackPlayerByNpc(npc, character, template);
-					if (plan != null) {
-						int heading = (int) Math.round(Math.atan2(player.y() - npc.y(), player.x() - npc.x()) * 10430.378);
-						npc.heading(heading);
+				var plan = combatService.planAttackPlayerByNpc(npc, character, template);
+				if (plan != null) {
+					int heading = (int) Math.round(Math.atan2(player.y() - npc.y(), player.x() - npc.x()) * 10430.378);
+					npc.heading(heading);
 
-						var atk = new Attack(npc.objectId(), character.objectId(), plan.damage(), plan.flags(),
-								npc.x(), npc.y(), npc.z());
-						player.send(atk);
-						world.broadcastAround(player, GameWorld.VISIBILITY_RADIUS, atk, false);
+					var atk = new Attack(npc.objectId(), character.objectId(), plan.damage(), plan.flags(),
+							npc.x(), npc.y(), npc.z());
+					player.send(atk);
+					world.broadcastAround(player, GameWorld.VISIBILITY_RADIUS, atk, false);
 
-						var task = scheduler.schedule(() -> {
-							if (npc.isDead() || !npc.inCombat() || npc.targetPlayerId() != player.objectId()) {
-								return;
-							}
-							if (character.isDead() || character.invul() || player.isTeleporting()) {
-								return;
-							}
-							if (zones != null && (zones.isInsidePeace(player.x(), player.y(), player.z())
-									|| zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
-								return;
-							}
-							double curDist = Math.hypot(player.x() - npc.x(), player.y() - npc.y());
-							if (curDist > (attackRange + 150) || Math.abs(player.z() - npc.z()) > (isRanged ? 400 : 150)) {
-								return;
-							}
-							if (!combatService.canSeeTarget(npc, character)) {
-								return;
-							}
-							if (plan.miss()) {
-								return;
-							}
+					var task = scheduler.schedule(() -> {
+						if (npc.isDead() || !npc.inCombat() || npc.targetPlayerId() != player.objectId()) {
+							return;
+						}
+						if (character.isDead() || character.invul() || player.isTeleporting()) {
+							return;
+						}
+						if (isPeaceBlocked(player.x(), player.y(), player.z(), character)) {
+							return;
+						}
+						double curDist = Math.hypot(player.x() - npc.x(), player.y() - npc.y());
+						if (curDist > (attackRange + 150) || Math.abs(player.z() - npc.z()) > (isRanged ? 400 : 150)) {
+							return;
+						}
+						if (!hasLineOfSight(character)) {
+							return;
+						}
+						if (plan.miss()) {
+							return;
+						}
 
-							var hit = combatService.applyDamageToPlayer(npc, character, plan.damage(), plan.flags());
-							if (hit != null && hit.damage() > 0) {
-								player.onAttacked(npc.objectId(), hit.damage());
-								player.send(SystemMessage.of(SystemMessage.S1_GAVE_YOU_S2_DMG,
-										new SystemMessage.Text(npc.name()),
-										new SystemMessage.Number(hit.damage())));
-								player.send(StatusUpdate.hp(character.objectId(), (int) character.currentHp(), character.maxHp()));
-								player.send(new UserInfo(character, template));
+						var hit = combatService.applyDamageToPlayer(npc, character, plan.damage(), plan.flags());
+						if (hit != null && hit.damage() > 0) {
+							player.onAttacked(npc.objectId(), hit.damage());
+							player.send(SystemMessage.of(SystemMessage.S1_GAVE_YOU_S2_DMG,
+									new SystemMessage.Text(npc.name()),
+									new SystemMessage.Number(hit.damage())));
+							player.send(StatusUpdate.hp(character.objectId(), (int) character.currentHp(), character.maxHp()));
+							player.send(new UserInfo(character, template));
 
-								if (hit.isDead()) {
-									player.onDeath(npc.objectId());
-								}
+							if (hit.isDead()) {
+								player.onDeath(npc.objectId());
 							}
-						}, timeToHit, java.util.concurrent.TimeUnit.MILLISECONDS);
-						npc.currentAttackTask(task);
-					}
+						}
+					}, timeToHit, java.util.concurrent.TimeUnit.MILLISECONDS);
+					npc.currentAttackTask(task);
 				}
 			}
 		}
@@ -163,11 +156,10 @@ public class FighterAI extends AbstractNpcAI {
 		if ((character.isDead() || player.isTeleporting()) && !skill.isHeal()) {
 			return;
 		}
-		if (!skill.isHeal() && (Math.abs(player.z() - npc.z()) > 400 || !combatService.canSeeTarget(npc, character))) {
+		if (!skill.isHeal() && (Math.abs(player.z() - npc.z()) > 400 || !hasLineOfSight(character))) {
 			return;
 		}
-		if (zones != null && (zones.isInsidePeace(player.x(), player.y(), player.z())
-				|| zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
+		if (!skill.isHeal() && isPeaceBlocked(player.x(), player.y(), player.z(), character)) {
 			return;
 		}
 		if (skill.mpConsume() > 0) {
@@ -180,12 +172,17 @@ public class FighterAI extends AbstractNpcAI {
 		npc.casting(true);
 
 		if (skill.isHeal()) {
-			double healAmount = skill.power() > 0 ? skill.power() : (npc.template().maxHp() * 0.25);
-			npc.currentHp(Math.min(npc.template().maxHp(), npc.currentHp() + healAmount));
+			double healAmount = skill.power() > 0 ? skill.power() : (npc.maxHp() * 0.25);
+			npc.currentHp(Math.min(npc.maxHp(), npc.currentHp() + healAmount));
 			var msu = new MagicSkillUse(npc.objectId(), npc.objectId(), skill.id(), skill.level(),
 					effHitTime, skill.reuseDelay(), npc.x(), npc.y(), npc.z(), npc.x(), npc.y(), npc.z());
-			player.send(msu);
+			var su = StatusUpdate.hp(npc.objectId(), (int) npc.currentHp(), (int) npc.maxHp());
+			if (player != null) {
+				player.send(msu);
+				player.send(su);
+			}
 			world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, msu);
+			world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, su);
 			npc.casting(false);
 		} else {
 			var msu = new MagicSkillUse(npc.objectId(), character.objectId(), skill.id(), skill.level(),
@@ -201,20 +198,19 @@ public class FighterAI extends AbstractNpcAI {
 				if (character.isDead() || character.invul() || player.isTeleporting()) {
 					return;
 				}
-				if (zones != null && (zones.isInsidePeace(player.x(), player.y(), player.z())
-						|| zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
+				if (isPeaceBlocked(player.x(), player.y(), player.z(), character)) {
 					return;
 				}
 				double curDist = Math.hypot(player.x() - npc.x(), player.y() - npc.y());
 				if (curDist > 1500.0 || Math.abs(player.z() - npc.z()) > 400.0) {
 					return;
 				}
-				if (!combatService.canSeeTarget(npc, character)) {
+				if (!hasLineOfSight(character)) {
 					return;
 				}
 
 				boolean isDmg = (skill.isPhysicalDamage() || skill.isMagicDamage()) && skill.power() > 0;
-				if (isDmg) {
+				if (isDmg && combatService != null && template != null) {
 					var counter = combatService.skillAttackPlayer(npc, character, template, skill.power(),
 							skill.isMagicDamage(), skill.magicLevel());
 					if (counter != null && counter.damage() > 0) {
@@ -229,7 +225,7 @@ public class FighterAI extends AbstractNpcAI {
 							return;
 						}
 					}
-				} else if (skill.isManaBurn() && skill.power() > 0) {
+				} else if (skill.isManaBurn() && skill.power() > 0 && combatService != null && template != null) {
 					int mpDam = combatService.skillManaDamNpcToPlayer(npc, character, template, skill.power(), skill.magicLevel());
 					if (mpDam > 0) {
 						character.currentMp(Math.max(0, character.currentMp() - mpDam));
@@ -240,7 +236,7 @@ public class FighterAI extends AbstractNpcAI {
 					}
 				}
 
-				if (!character.isDead() && player instanceof com.lopez.l2j.network.game.GameSession gs) {
+				if (!character.isDead() && combatService != null && player instanceof com.lopez.l2j.network.game.GameSession gs) {
 					if (skill.effects().isEmpty()) {
 						String st = skill.skillType().toLowerCase(java.util.Locale.ROOT);
 						boolean control = st.equals("stun") || st.equals("sleep") || st.equals("paralyze")

@@ -1,6 +1,7 @@
 package com.lopez.l2j.game.ai;
 
 import com.lopez.l2j.game.combat.CombatService;
+import com.lopez.l2j.game.geodata.GeoEngine;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.npc.NpcSkillTable;
 import com.lopez.l2j.game.skill.SkillTable;
@@ -31,11 +32,27 @@ public class GuardAI extends FighterAI {
 	}
 
 	@Override
+	public void processCombat() {
+		if (npc.isDead() || npc.isCasting() || npc.isAttacking()) return;
+		if (npc.targetPlayerId() == 0) {
+			Integer pkId = scanForCriminals();
+			if (pkId != null) {
+				npc.targetPlayerId(pkId);
+				npc.inCombat(true);
+			} else {
+				return;
+			}
+		}
+		super.processCombat();
+	}
+
+	@Override
 	protected void moveTowards(int targetX, int targetY, int targetZ, int targetObjId, int attackRange, double dist) {
+		if (dist <= 0.001) return;
 		npc.running(true);
 		// Guardas correm 50% mais rapido para interceptar criminosos
 		double runSpeed = Math.max(90, npc.template().runSpd() * 1.5);
-		double step = Math.min(dist - attackRange, runSpeed * 0.5);
+		double step = Math.max(16.0, Math.min(dist - attackRange, runSpeed * 0.5));
 		double dx = targetX - npc.x();
 		double dy = targetY - npc.y();
 		int newX = (int) Math.round(npc.x() + (dx / dist) * step);
@@ -45,8 +62,9 @@ public class GuardAI extends FighterAI {
 		int fromY = npc.y();
 
 		int newZ = npc.z();
-		if (combatService != null && combatService.geoEngine() != null && combatService.geoEngine().isEnabled()) {
-			short geoZ = combatService.geoEngine().getHeight(newX, newY, npc.z());
+		GeoEngine geo = (combatService != null) ? combatService.geoEngine() : null;
+		if (geo != null && geo.isEnabled()) {
+			short geoZ = geo.getHeight(newX, newY, npc.z());
 			if (Math.abs(geoZ - npc.z()) <= 100) {
 				newZ = geoZ;
 			}
@@ -75,9 +93,10 @@ public class GuardAI extends FighterAI {
 		var players = world.findPlayersAround(npc.x(), npc.y(), 1000);
 		for (var session : players) {
 			var character = session.character();
-			if (character != null && !character.isDead() && !character.isGm() && character.karma() > 0) {
+			if (character != null && !character.isDead() && !character.isGm()
+					&& character.karma() > 0 && character.instanceId() == npc.instanceId()) {
 				if (Math.abs(session.z() - npc.z()) <= 150) {
-					if (combatService == null || combatService.canSeeTarget(npc, character)) {
+					if (hasLineOfSight(character)) {
 						return character.objectId();
 					}
 				}

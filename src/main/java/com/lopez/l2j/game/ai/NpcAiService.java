@@ -8,19 +8,12 @@ import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.game.npc.NpcSkillTable;
 import com.lopez.l2j.game.skill.SkillTable;
 import com.lopez.l2j.game.skill.SkillTemplate;
-import com.lopez.l2j.network.game.packet.GameServerPacket.Attack;
 import com.lopez.l2j.network.game.packet.GameServerPacket.AutoAttackStop;
 import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
-import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillCanceld;
-import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToLocation;
-import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToPawn;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SocialAction;
-import com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate;
-import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
-import com.lopez.l2j.network.game.packet.GameServerPacket.UserInfo;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.util.Set;
@@ -35,8 +28,9 @@ import org.springframework.stereotype.Service;
 
 /**
  * Servico de IA para NPCs e monstros:
- * - Perseguicao e combate contra jogadores
- * - Deteccao de jogadores por monstros agressivos (aggroRange)
+ * - Perseguicao e combate contra jogadores por arquetipo (Fighter, Ranger, Mystic, Priest, Guard)
+ * - Faction Social Call (V.07A) para aliados da mesma faccao ou mesmo npcId em raio de 400u
+ * - Deteccao de jogadores por monstros agressivos (aggroRange) e Guardas contra PKs (karma > 0)
  * - Movimentacao aleatoria (roaming) ao redor do ponto de spawn
  * - Despawn/decay de corpos e renascimento (respawn) automatico de monstros
  */
@@ -122,8 +116,37 @@ public class NpcAiService {
 		}
 	}
 
+	private boolean isGuardNpc(NpcInstance npc) {
+		if (npc == null || npc.template() == null) {
+			return false;
+		}
+		String type = npc.template().type();
+		String name = npc.template().name() != null ? npc.template().name().toLowerCase(java.util.Locale.ROOT) : "";
+		return "L2Guard".equalsIgnoreCase(type) || npc.template().isGuard() || name.contains("guard") || name.contains("sentry");
+	}
+
+	private boolean hasLoS(int x1, int y1, int z1, int x2, int y2, int z2) {
+		if (combatService == null || combatService.geoEngine() == null) {
+			return Math.abs(z2 - z1) <= 250;
+		}
+		return combatService.canSeeTarget(x1, y1, z1, x2, y2, z2);
+	}
+
+	private boolean hasLoS(NpcInstance npc, com.lopez.l2j.game.model.PlayerCharacter character) {
+		if (npc == null || character == null) {
+			return false;
+		}
+		if (npc.instanceId() != character.instanceId()) {
+			return false;
+		}
+		if (combatService == null || combatService.geoEngine() == null) {
+			return Math.abs(character.z() - npc.z()) <= 250;
+		}
+		return combatService.canSeeTarget(npc, character);
+	}
+
 	/**
-	 * Registra ou atualiza um monstro em estado de combate perseguindo/atacando um jogador.
+	 * Registra ou atualiza um monstro/guarda em estado de combate perseguindo/atacando um jogador.
 	 */
 	public void startCombat(NpcInstance npc, int targetPlayerId) {
 		if (npc == null || npc.isDead()) {
@@ -132,7 +155,10 @@ public class NpcAiService {
 		var playerOpt = world.player(targetPlayerId);
 		if (playerOpt.isPresent()) {
 			var p = playerOpt.get();
-			if (zones != null && (zones.isInsidePeace(p.x(), p.y(), p.z()) || zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
+			var ch = p.character();
+			boolean guardHuntingPk = isGuardNpc(npc) && ch != null && ch.karma() > 0;
+			if (!guardHuntingPk && zones != null
+					&& (zones.isInsidePeace(p.x(), p.y(), p.z()) || zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
 				return;
 			}
 		}
@@ -144,9 +170,7 @@ public class NpcAiService {
 
 		world.player(targetPlayerId).ifPresent(p -> p.onAttacked(npc.objectId()));
 
-		int pAtkSpd = Math.max(100, npc.template().pAtkSpd());
-		long cooldownMs = 500_000L / pAtkSpd;
-		npc.lastAttackTime(System.currentTimeMillis() - cooldownMs + 600);
+		npc.lastAttackTime(0L);
 
 		activeCombatNpcs.add(npc);
 
@@ -178,7 +202,7 @@ public class NpcAiService {
 			});
 		}
 
-		// Notifica monstros aliados da mesma Faccao (Social Call / Help Clan)
+		// 3. Faction Social Call (V.07A): Notifica monstros aliados da mesma Faccao ou mesmo npcId em raio de 400u
 		notifyFactionCall(npc, targetPlayerId);
 	}
 
@@ -187,24 +211,29 @@ public class NpcAiService {
 			return;
 		}
 		String factionId = npc.template().factionId();
-		if (factionId == null || factionId.isBlank() || "null".equalsIgnoreCase(factionId)) {
-			return;
-		}
-		int range = npc.template().factionRange();
-		if (range <= 0) {
-			return;
-		}
-		var nearby = world.findNpcsAround(npc.x(), npc.y(), range);
+		boolean hasFaction = factionId != null && !factionId.isBlank() && !"null".equalsIgnoreCase(factionId);
+		int factionRange = (hasFaction && npc.template().factionRange() > 0) ? npc.template().factionRange() : 400;
+		int searchRadius = Math.max(400, factionRange);
+
+		var nearby = world.findNpcsAround(npc.x(), npc.y(), searchRadius);
 		for (NpcInstance ally : nearby) {
 			if (ally == npc || ally.isDead() || ally.inCombat() || !ally.isMonster()) {
 				continue;
 			}
-			// Aliados da facção só respondem ao chamado se estiverem no mesmo plano vertical (não em andares/cavernas)
+			if (ally.instanceId() != npc.instanceId()) {
+				continue;
+			}
+			// Aliados da faccao so respondem ao chamado se estiverem no mesmo plano vertical (nao em andares/cavernas)
 			if (Math.abs(ally.z() - npc.z()) > 150) {
 				continue;
 			}
-			if (ally.template() != null && factionId.equalsIgnoreCase(ally.template().factionId())) {
-				if (combatService != null && !combatService.canSeeTarget(ally.x(), ally.y(), ally.z(), npc.x(), npc.y(), npc.z())) {
+			double dist2d = Math.hypot(ally.x() - npc.x(), ally.y() - npc.y());
+			boolean sameFaction = hasFaction && ally.template() != null
+					&& factionId.equalsIgnoreCase(ally.template().factionId()) && dist2d <= factionRange;
+			boolean sameNpcClan = (ally.npcId() > 0 && ally.npcId() == npc.npcId() && dist2d <= 400.0);
+
+			if (sameFaction || sameNpcClan) {
+				if (!hasLoS(ally.x(), ally.y(), ally.z(), npc.x(), npc.y(), npc.z())) {
 					continue;
 				}
 				startCombat(ally, targetPlayerId);
@@ -389,12 +418,17 @@ public class NpcAiService {
 	}
 
 	/**
-	 * Executa um ciclo da IA para monstros em combate, deteccao de aggro e movimentacao.
+	 * Executa um ciclo da IA para monstros em combate, deteccao de aggro, guardas contra PKs e movimentacao.
 	 */
 	public void tick() {
 		tickCount++;
 
-		// 1. Processa monstros em combate
+		// 1. Checagem de aggro e Guardas contra PKs
+		if (tickCount == 1 || tickCount % 2 == 0) {
+			checkAggroAroundPlayers();
+		}
+
+		// 2. Processa monstros e guardas em combate
 		for (NpcInstance npc : activeCombatNpcs) {
 			try {
 				processCombatNpc(npc);
@@ -403,14 +437,27 @@ public class NpcAiService {
 			}
 		}
 
-		// 2. Checagem de aggro (a cada 1 segundo = 2 ticks)
-		if (tickCount % 2 == 0) {
-			checkAggroAroundPlayers();
-		}
+		// 3. Suporte de Priests ociosos proximos a aliados feridos
+		processIdlePriests();
 
-		// 3. Roaming aleatorio de monstros pacíficos / ociosos (a cada 10 segundos = 20 ticks)
+		// 4. Roaming aleatorio de monstros pacificos / ociosos (a cada 10 segundos = 20 ticks)
 		if (tickCount % 20 == 0) {
 			roamIdleMonsters();
+		}
+	}
+
+	private void processIdlePriests() {
+		for (NpcInstance npc : world.npcs()) {
+			if (npc == null || npc.isDead() || npc.inCombat() || npc.isCasting()) {
+				continue;
+			}
+			AbstractNpcAI ai = getOrAssignAI(npc);
+			if (ai instanceof PriestAI priestAI) {
+				NpcInstance wounded = priestAI.findWoundedAlly();
+				if (wounded != null) {
+					priestAI.processCombat();
+				}
+			}
 		}
 	}
 
@@ -420,17 +467,35 @@ public class NpcAiService {
 			if (character == null || character.isDead() || character.isGm()) {
 				continue;
 			}
-			if (zones != null && zones.isInsidePeace(player.x(), player.y(), player.z())) {
-				continue;
-			}
+			boolean inPeaceZone = zones != null && zones.isInsidePeace(player.x(), player.y(), player.z());
 			var nearbyNpcs = world.findNpcsAround(player.x(), player.y(), 1000);
 			for (var npc : nearbyNpcs) {
-				if (npc.isDead() || npc.inCombat() || !npc.isMonster()) {
+				if (npc.isDead() || npc.inCombat()) {
 					continue;
 				}
-				// Diferença vertical: monstros subterrâneos ou em andares diferentes não agram na superfície
+				if (npc.instanceId() != character.instanceId()) {
+					continue;
+				}
+				// Diferenca vertical: monstros subterraneos ou em andares diferentes nao agram na superficie
 				int deltaZ = Math.abs(npc.z() - player.z());
 				if (deltaZ > 150) {
+					continue;
+				}
+
+				// Guardas atacam automaticamente jogadores com karma > 0 (PKs) no raio de visao
+				if (isGuardNpc(npc)) {
+					if (character.karma() > 0) {
+						int guardRange = (npc.template() != null && npc.template().aggroRange() > 0)
+								? npc.template().aggroRange() : 1000;
+						double dist3d = Math.sqrt(Math.pow(npc.x() - player.x(), 2) + Math.pow(npc.y() - player.y(), 2) + Math.pow(deltaZ, 2));
+						if (dist3d <= guardRange && hasLoS(npc, character)) {
+							startCombat(npc, player.objectId());
+						}
+					}
+					continue;
+				}
+
+				if (inPeaceZone || !npc.isMonster()) {
 					continue;
 				}
 				// Regra oficial Lineage II / L2JDream: Friendly Mobs (ex: Pixy, Bloody Pixy, Treant) so agram jogadores PK (Karma > 0)
@@ -452,7 +517,7 @@ public class NpcAiService {
 					double dist3d = Math.sqrt(Math.pow(npc.x() - player.x(), 2) + Math.pow(npc.y() - player.y(), 2) + Math.pow(deltaZ, 2));
 					if (dist3d <= aggroRange) {
 						// Linha de visao (LoS): monstro precisa ver o jogador
-						if (combatService != null && !combatService.canSeeTarget(npc, character)) {
+						if (!hasLoS(npc, character)) {
 							continue;
 						}
 						startCombat(npc, player.objectId());
@@ -518,8 +583,10 @@ public class NpcAiService {
 			return;
 		}
 
-		// Se o jogador ou o monstro estiver em zona de paz (ex: vila/cidade), interrompe combate imediatamente
-		if (zones != null && (zones.isInsidePeace(player.x(), player.y(), player.z()) || zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
+		boolean guardHuntingPk = isGuardNpc(npc) && character.karma() > 0;
+		// Se o jogador ou o monstro estiver em zona de paz (ex: vila/cidade), interrompe combate imediatamente (exceto Guardas contra PK)
+		if (!guardHuntingPk && zones != null
+				&& (zones.isInsidePeace(player.x(), player.y(), player.z()) || zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
 			returnToSpawn(npc);
 			var stopAtk = new AutoAttackStop(npc.objectId());
 			player.send(stopAtk);
@@ -530,7 +597,6 @@ public class NpcAiService {
 		double dx = player.x() - npc.x();
 		double dy = player.y() - npc.y();
 		double dz = player.z() - npc.z();
-		double dist = Math.hypot(dx, dy);
 		double dist3d = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
 		// Perda de aggro se o jogador fugir muito longe (> 1500) ou se a diferenca de altura for excessiva (> 350)
@@ -564,48 +630,6 @@ public class NpcAiService {
 				}
 			}
 		}
-	}
-
-	private SkillTemplate chooseMonsterSkill(NpcInstance npc) {
-		if (npcSkillTable == null || skillTable == null) {
-			return null;
-		}
-		var holders = npcSkillTable.getSkills(npc.npcId());
-		if (holders.isEmpty()) {
-			return null;
-		}
-
-		// 1. Se HP < 50%, prioriza habilidade de cura se possuir
-		if (npc.template() != null && npc.currentHp() < (npc.template().maxHp() * 0.5)) {
-			for (var holder : holders) {
-				var opt = skillTable.get(holder.skillId(), holder.level());
-				if (opt.isPresent()) {
-					var sk = opt.get();
-					if (sk.isHeal() && npc.currentMp() >= sk.mpConsume()) {
-						return sk;
-					}
-				}
-			}
-		}
-
-		// 2. ~35% de chance de conjurar habilidade ofensiva, buff ou debuff
-		if (ThreadLocalRandom.current().nextInt(100) >= 35) {
-			return null;
-		}
-
-		for (var holder : holders) {
-			var opt = skillTable.get(holder.skillId(), holder.level());
-			if (opt.isPresent()) {
-				var sk = opt.get();
-				if (!sk.isPassive() && !sk.isToggle()) {
-					if ((sk.isOffensive() || sk.isPhysicalDamage() || sk.isMagicDamage() || sk.isDebuff() || sk.isBuff())
-							&& npc.currentMp() >= sk.mpConsume()) {
-						return sk;
-					}
-				}
-			}
-		}
-		return null;
 	}
 
 	public void returnToSpawn(NpcInstance npc) {
