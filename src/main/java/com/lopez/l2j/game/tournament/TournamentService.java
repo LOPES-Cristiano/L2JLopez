@@ -346,20 +346,20 @@ public class TournamentService {
 
 		if (inMatch) {
 			TournamentMatch m = getPlayerMatch(playerId);
-			sb.append("<font color=\"00FF00\">Voce esta em combate na partida #").append(m != null ? m.matchId() : "").append("</font><br>");
+			sb.append("<font color=\"8FA888\">Voce esta em combate na partida #").append(m != null ? m.matchId() : "").append("</font><br>");
 		} else if (registered) {
-			sb.append("<font color=\"FFFF00\">Voce esta na fila de espera do Torneio!</font><br><br>");
+			sb.append("<font color=\"D4C49A\">Voce esta na fila de espera do Torneio!</font><br><br>");
 			sb.append("<button value=\"Cancelar Inscricao\" action=\"bypass -h tournament_leave\" width=130 height=22 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>");
 		} else {
 			sb.append("Escolha a modalidade de torneio desejada:<br><br>");
 			sb.append("<table width=240>");
-			sb.append("<tr><td><font color=\"00FF00\">Torneio 1x1 (Individual)</font></td>");
+			sb.append("<tr><td><font color=\"8FA888\">Torneio 1x1 (Individual)</font></td>");
 			sb.append("<td><button value=\"Inscrever\" action=\"bypass -h tournament_join 1x1\" width=70 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td></tr>");
 
-			sb.append("<tr><td><font color=\"00FF00\">Torneio 3x3 (Trio)</font></td>");
+			sb.append("<tr><td><font color=\"8FA888\">Torneio 3x3 (Trio)</font></td>");
 			sb.append("<td><button value=\"Inscrever\" action=\"bypass -h tournament_join 3x3\" width=70 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td></tr>");
 
-			sb.append("<tr><td><font color=\"00FF00\">Torneio 5x5 (Party)</font></td>");
+			sb.append("<tr><td><font color=\"8FA888\">Torneio 5x5 (Party)</font></td>");
 			sb.append("<td><button value=\"Inscrever\" action=\"bypass -h tournament_join 5x5\" width=70 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td></tr>");
 			sb.append("</table><br>");
 		}
