@@ -43,6 +43,7 @@ public class OlympiadGameService {
 	}
 
 	private final OlympiadManager olympiadManager;
+	private OlyClassDamageManager damageManager;
 
 	private final Map<OlympiadMode, List<OlympiadParticipant>> queues = new ConcurrentHashMap<>();
 	private final Map<Integer, OlympiadMatch> activeMatches = new ConcurrentHashMap<>();
@@ -54,6 +55,15 @@ public class OlympiadGameService {
 		for (OlympiadMode mode : OlympiadMode.values()) {
 			queues.put(mode, Collections.synchronizedList(new ArrayList<>()));
 		}
+	}
+
+	@Autowired(required = false)
+	public void setDamageManager(OlyClassDamageManager damageManager) {
+		this.damageManager = damageManager;
+	}
+
+	public OlyClassDamageManager damageManager() {
+		return damageManager;
 	}
 
 	public RegisterResult register(GameSession session, OlympiadMode mode) {
@@ -128,6 +138,69 @@ public class OlympiadGameService {
 		}
 
 		log.info("Jogador {} (Classe {}) registrado com sucesso na fila {}", player.name(), player.classId(), mode);
+		return RegisterResult.SUCCESS;
+	}
+
+	/**
+	 * Registra uma equipe de 3 jogadores na modalidade TEAM_BASED (3x3),
+	 * aplicando validacao individual e anti-feed por IP entre os membros e a fila.
+	 */
+	public RegisterResult registerTeam(List<GameSession> teamSessions) {
+		if (!Config.OLYMPIAD_ENABLED) {
+			return RegisterResult.DISABLED;
+		}
+		if (teamSessions == null || teamSessions.size() != 3) {
+			return RegisterResult.NOT_NOBLE;
+		}
+		List<String> teamIps = new ArrayList<>();
+		for (GameSession s : teamSessions) {
+			if (s == null || s.activeChar() == null) {
+				return RegisterResult.NOT_NOBLE;
+			}
+			PlayerCharacter p = s.activeChar();
+			if (olympiadManager != null && !olympiadManager.isNoble(p.objectId())) {
+				return RegisterResult.NOT_NOBLE;
+			}
+			if (p.level() < 75) {
+				return RegisterResult.LEVEL_TOO_LOW;
+			}
+			if (p.karma() > 0) {
+				return RegisterResult.HAS_KARMA;
+			}
+			if (isAlreadyRegistered(p.objectId())) {
+				return RegisterResult.ALREADY_REGISTERED;
+			}
+			if (olympiadManager != null) {
+				var nobleOpt = olympiadManager.getNoble(p.objectId());
+				if (nobleOpt.isPresent() && nobleOpt.get().points() <= 0) {
+					return RegisterResult.INSUFFICIENT_POINTS;
+				}
+			}
+			String ip = s.clientIp() != null ? s.clientIp() : "127.0.0.1";
+			if (Config.ALT_OLY_SAME_IP && !"127.0.0.1".equals(ip)) {
+				if (teamIps.contains(ip)) {
+					return RegisterResult.SAME_IP_BLOCKED;
+				}
+				teamIps.add(ip);
+			}
+		}
+
+		List<OlympiadParticipant> queue = queues.get(OlympiadMode.TEAM_BASED);
+		synchronized (queue) {
+			if (Config.ALT_OLY_SAME_IP) {
+				for (String ip : teamIps) {
+					boolean sameIpInQueue = queue.stream()
+							.anyMatch(p -> ip.equals(p.ipAddress()) && !"127.0.0.1".equals(ip));
+					if (sameIpInQueue) {
+						return RegisterResult.SAME_IP_BLOCKED;
+					}
+				}
+			}
+			for (GameSession s : teamSessions) {
+				PlayerCharacter p = s.activeChar();
+				queue.add(new OlympiadParticipant(s, p.x(), p.y(), p.z()));
+			}
+		}
 		return RegisterResult.SUCCESS;
 	}
 
@@ -254,8 +327,13 @@ public class OlympiadGameService {
 			it.remove();
 		}
 		while (it.hasNext() && sideB.size() < 3) {
-			sideB.add(it.next());
-			it.remove();
+			OlympiadParticipant candidate = it.next();
+			boolean ipConflict = sideA.stream().anyMatch(a ->
+					a.ipAddress() != null && !"127.0.0.1".equals(a.ipAddress()) && a.ipAddress().equals(candidate.ipAddress()));
+			if (!ipConflict) {
+				sideB.add(candidate);
+				it.remove();
+			}
 		}
 
 		if (sideA.size() == 3 && sideB.size() == 3) {
@@ -267,13 +345,13 @@ public class OlympiadGameService {
 		}
 
 		// Se nao conseguiu formar, reinjeta
-		queue.addAll(sideA);
-		queue.addAll(sideB);
+		queue.addAll(0, sideB);
+		queue.addAll(0, sideA);
 		return null;
 	}
 
 	/**
-	 * Prepara os combatentes: remove buffs externos, restaura CP/HP/MP a 100%.
+	 * Prepara os combatentes: ativa modo Olimpiada, remove buffs externos, restaura CP/HP/MP a 100%.
 	 */
 	public void prepareCombatants(OlympiadMatch match) {
 		List<OlympiadParticipant> all = new ArrayList<>();
@@ -283,6 +361,7 @@ public class OlympiadGameService {
 		for (OlympiadParticipant p : all) {
 			if (p.session() != null && p.session().activeChar() != null) {
 				PlayerCharacter ch = p.session().activeChar();
+				ch.olympiadMode(true);
 				// Retail Interlude: strip outside buffs
 				ch.effects().clear();
 				// Full heal if enabled
@@ -306,6 +385,16 @@ public class OlympiadGameService {
 		}
 
 		OlympiadMatch.MatchResult result = match.evaluateOutcome();
+
+		List<OlympiadParticipant> all = new ArrayList<>();
+		all.addAll(match.teamA());
+		all.addAll(match.teamB());
+		for (OlympiadParticipant p : all) {
+			if (p.session() != null && p.session().activeChar() != null) {
+				PlayerCharacter ch = p.session().activeChar();
+				ch.olympiadMode(false);
+			}
+		}
 
 		if (olympiadManager != null) {
 			if (match.mode() == OlympiadMode.CLASS_FREE || match.mode() == OlympiadMode.CLASS_BASED) {

@@ -11,6 +11,10 @@ public enum OlympiadMode {
 	CLASS_BASED("Class-Based 1v1", 4, 1, 10),
 	TEAM_BASED("Team-Based 3v3", 6, 3, 20);
 
+	public static final OlympiadMode NON_CLASSED = CLASS_FREE;
+	public static final OlympiadMode CLASSED = CLASS_BASED;
+	public static final OlympiadMode TEAM = TEAM_BASED;
+
 	private final String displayName;
 	private final int minQueueSize;
 	private final int teamSize;
