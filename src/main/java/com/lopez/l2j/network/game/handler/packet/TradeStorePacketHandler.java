@@ -332,7 +332,8 @@ public class TradeStorePacketHandler {
 					if (skOpt.isPresent()) {
 						var sk = skOpt.get();
 						session.applySkillEffects(sk, false);
-						var anim = new MagicSkillUse(sellerChar.objectId(), active.objectId(), sk.id(), sk.level(), 500, 0);
+						var anim = new MagicSkillUse(sellerChar.objectId(), active.objectId(), sk.id(), sk.level(), 500, 0,
+								sellerChar.x(), sellerChar.y(), sellerChar.z(), active.x(), active.y(), active.z());
 						session.send(anim);
 						sellerOnline.send(anim);
 					}

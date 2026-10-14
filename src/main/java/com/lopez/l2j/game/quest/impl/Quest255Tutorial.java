@@ -224,6 +224,10 @@ public class Quest255Tutorial extends Quest {
 		} else if (cleanEvent.startsWith("bypass -h ")) {
 			cleanEvent = cleanEvent.substring(10).trim();
 		}
+		// HTMLs oficiais usam "tutorial_close_N" (equivalente ao "TE0N" dos scripts L2J).
+		if (cleanEvent.startsWith("tutorial_close_")) {
+			cleanEvent = "TE0" + cleanEvent.substring("tutorial_close_".length());
+		}
 
 		if (cleanEvent.startsWith("QM")) {
 			int markId = 0;
@@ -424,6 +428,8 @@ public class Quest255Tutorial extends Quest {
 			} else if (teId == 28) {
 				String htm = qs.loadTutorialHtml("tutorial_28.htm");
 				if (htm != null) qs.showTutorialHtml(htm);
+			} else {
+				qs.closeTutorialHtml();
 			}
 		}
 		return null;

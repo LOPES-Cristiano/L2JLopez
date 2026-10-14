@@ -2147,7 +2147,11 @@ public class NpcBypassPacketHandler {
 				var sk = skOpt.get();
 				session.applySkillEffects(sk, false);
 				int npcObjId = npc != null ? npc.objectId() : active().objectId();
-				var anim = new MagicSkillUse(npcObjId, active().objectId(), sk.id(), sk.level(), 500, 0);
+				int cx = npc != null ? npc.x() : active().x();
+				int cy = npc != null ? npc.y() : active().y();
+				int cz = npc != null ? npc.z() : active().z();
+				var anim = new MagicSkillUse(npcObjId, active().objectId(), sk.id(), sk.level(), 500, 0,
+						cx, cy, cz, active().x(), active().y(), active().z());
 				send(anim);
 				if (ctx().world() != null) {
 					ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, anim, false);
@@ -2188,7 +2192,11 @@ public class NpcBypassPacketHandler {
 				new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) active().currentCp())
 		)));
 		int npcObjId = npc != null ? npc.objectId() : active().objectId();
-		send(new MagicSkillUse(npcObjId, active().objectId(), 1012, 1, 0, 0));
+		int cx = npc != null ? npc.x() : active().x();
+		int cy = npc != null ? npc.y() : active().y();
+		int cz = npc != null ? npc.z() : active().z();
+		send(new MagicSkillUse(npcObjId, active().objectId(), 1012, 1, 0, 0,
+				cx, cy, cz, active().x(), active().y(), active().z()));
 		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Buffer", "HP, MP e CP totalmente restaurados."));
 		if (npc != null) {
 			showNpcHtml(npc, 0);
@@ -2202,7 +2210,11 @@ public class NpcBypassPacketHandler {
 		}
 		active().effects().clear();
 		int npcObjId = npc != null ? npc.objectId() : active().objectId();
-		send(new MagicSkillUse(npcObjId, active().objectId(), 1056, 1, 0, 0));
+		int cx = npc != null ? npc.x() : active().x();
+		int cy = npc != null ? npc.y() : active().y();
+		int cz = npc != null ? npc.z() : active().z();
+		send(new MagicSkillUse(npcObjId, active().objectId(), 1056, 1, 0, 0,
+				cx, cy, cz, active().x(), active().y(), active().z()));
 		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Buffer", "Todos os buffs foram removidos."));
 		if (npc != null) {
 			showNpcHtml(npc, 0);
@@ -2228,7 +2240,11 @@ public class NpcBypassPacketHandler {
 				var sk = skOpt.get();
 				session.applySkillEffects(sk, false);
 				int npcObjId = npc != null ? npc.objectId() : active().objectId();
-				var anim = new MagicSkillUse(npcObjId, active().objectId(), sk.id(), sk.level(), 500, 0);
+				int cx = npc != null ? npc.x() : active().x();
+				int cy = npc != null ? npc.y() : active().y();
+				int cz = npc != null ? npc.z() : active().z();
+				var anim = new MagicSkillUse(npcObjId, active().objectId(), sk.id(), sk.level(), 500, 0,
+						cx, cy, cz, active().x(), active().y(), active().z());
 				send(anim);
 				if (ctx().world() != null) {
 					ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, anim, false);
@@ -2996,9 +3012,10 @@ public class NpcBypassPacketHandler {
 
 				send(SystemMessage.id(SystemMessage.ADD_NEW_SUBCLASS));
 				send(new PlaySound("ItemSound.quest_fanfare_2"));
-				send(new MagicSkillUse(active().objectId(), active().objectId(), 4339, 1, 0, 0));
-				ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
-						new MagicSkillUse(active().objectId(), active().objectId(), 4339, 1, 0, 0), false);
+				var msuSub = new MagicSkillUse(active().objectId(), active().objectId(), 4339, 1, 0, 0,
+						active().x(), active().y(), active().z(), active().x(), active().y(), active().z());
+				send(msuSub);
+				ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msuSub, false);
 				send(new SocialAction(active().objectId(), 3));
 				ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
 						new SocialAction(active().objectId(), 3), false);
@@ -3181,9 +3198,10 @@ public class NpcBypassPacketHandler {
 		active().effects().clear();
 		session.refreshBuffs();
 
-		send(new MagicSkillUse(active().objectId(), active().objectId(), 4383, 1, 0, 0));
-		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
-				new MagicSkillUse(active().objectId(), active().objectId(), 4383, 1, 0, 0), false);
+		var msuSwitch = new MagicSkillUse(active().objectId(), active().objectId(), 4383, 1, 0, 0,
+				active().x(), active().y(), active().z(), active().x(), active().y(), active().z());
+		send(msuSwitch);
+		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msuSwitch, false);
 
 		session.refreshWeightAndPenalties();
 		session.sendSkillList();
@@ -3382,9 +3400,10 @@ public class NpcBypassPacketHandler {
 
 		// Som e efeitos visuais canonicos de Lineage 2
 		send(new PlaySound("ItemSound.quest_fanfare_2"));
-		send(new MagicSkillUse(active().objectId(), active().objectId(), 4339, 1, 0, 0));
-		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
-				new MagicSkillUse(active().objectId(), active().objectId(), 4339, 1, 0, 0), false);
+		var msuClass = new MagicSkillUse(active().objectId(), active().objectId(), 4339, 1, 0, 0,
+				active().x(), active().y(), active().z(), active().x(), active().y(), active().z());
+		send(msuClass);
+		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msuClass, false);
 		send(new SocialAction(active().objectId(), 3));
 		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
 				new SocialAction(active().objectId(), 3), false);
@@ -3722,7 +3741,12 @@ public class NpcBypassPacketHandler {
 			}
 		}
 
-		send(new MagicSkillUse(npc != null ? npc.objectId() : 0, active().objectId(), 1204, 1, 1000, 0));
+		int npcObjId = npc != null ? npc.objectId() : active().objectId();
+		int cx = npc != null ? npc.x() : active().x();
+		int cy = npc != null ? npc.y() : active().y();
+		int cz = npc != null ? npc.z() : active().z();
+		send(new MagicSkillUse(npcObjId, active().objectId(), 1204, 1, 1000, 0,
+				cx, cy, cz, active().x(), active().y(), active().z()));
 		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Newbie Guide",
 				"May the blessings of the Einhasad protect your path."));
 	}

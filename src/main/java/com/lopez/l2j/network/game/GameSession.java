@@ -4481,12 +4481,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		double distSq = Math.pow(active.x() - npc.x(), 2) + Math.pow(active.y() - npc.y(), 2);
 		if (distSq <= 250.0 * 250.0) {
 			pendingNpcInteractObjectId = 0;
-			int heading = (int) (Math.atan2(npc.y() - active.y(), npc.x() - active.x()) * 32768.0 / Math.PI);
+			int heading = (int) (Math.atan2(npc.y() - active.y(), npc.x() - active.x()) * 32768.0 / Math.PI) & 0xFFFF;
 			active.heading(heading);
-			int npcHeading = (int) (Math.atan2(active.y() - npc.y(), active.x() - npc.x()) * 32768.0 / Math.PI);
+			int npcHeading = (int) (Math.atan2(active.y() - npc.y(), active.x() - npc.x()) * 32768.0 / Math.PI) & 0xFFFF;
 			npc.heading(npcHeading);
-			var valLoc = new ValidateLocation(npc.objectId(), npc.x(), npc.y(), npc.z(), npcHeading);
-			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, valLoc, true);
 			showNpcHtml(npc, 0);
 		}
 	}

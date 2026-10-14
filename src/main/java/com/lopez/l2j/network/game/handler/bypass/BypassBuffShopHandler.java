@@ -412,7 +412,8 @@ public class BypassBuffShopHandler implements IBypassHandler {
 					var sk = skOpt.get();
 					session.applySkillEffects(sk, false);
 					if (sellerChar != null) {
-						var anim = new MagicSkillUse(sellerChar.objectId(), active.objectId(), sk.id(), sk.level(), 500, 0);
+						var anim = new MagicSkillUse(sellerChar.objectId(), active.objectId(), sk.id(), sk.level(), 500, 0,
+								sellerChar.x(), sellerChar.y(), sellerChar.z(), active.x(), active.y(), active.z());
 						session.send(anim);
 						if (ctx.world() != null) {
 							ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, anim, false);

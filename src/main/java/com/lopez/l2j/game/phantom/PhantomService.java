@@ -395,7 +395,12 @@ public class PhantomService {
 				}
 				case CAST_SKILL -> {
 					player.currentMp(Math.max(0, player.currentMp() - 20));
-					MagicSkillUse msu = new MagicSkillUse(player.objectId(), action.targetId(), action.skillId(), 1, 1000, 1500);
+					var tgtNpc = world.npc(action.targetId()).orElse(null);
+					int tx = tgtNpc != null ? tgtNpc.x() : player.x();
+					int ty = tgtNpc != null ? tgtNpc.y() : player.y();
+					int tz = tgtNpc != null ? tgtNpc.z() : player.z();
+					MagicSkillUse msu = new MagicSkillUse(player.objectId(), action.targetId(), action.skillId(), 1, 1000, 1500,
+							player.x(), player.y(), player.z(), tx, ty, tz);
 					world.broadcast(msu, op -> op.character() != null
 							&& Math.hypot(op.character().x() - player.x(), op.character().y() - player.y()) <= GameWorld.VISIBILITY_RADIUS);
 					world.npc(action.targetId()).ifPresent(npc -> {

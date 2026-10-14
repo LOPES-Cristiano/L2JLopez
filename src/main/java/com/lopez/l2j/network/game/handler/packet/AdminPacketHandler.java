@@ -1145,9 +1145,10 @@ public class AdminPacketHandler {
 			gs.applySubClassSwitch(nextIndex, targetClassId, 40, baseExp40, 0);
 			gs.send(SystemMessage.id(SystemMessage.ADD_NEW_SUBCLASS));
 			gs.send(new PlaySound("ItemSound.quest_fanfare_2"));
-			gs.send(new MagicSkillUse(targetChar.objectId(), targetChar.objectId(), 4339, 1, 0, 0));
-			ctx.world().broadcastAround(gs, GameWorld.VISIBILITY_RADIUS,
-					new MagicSkillUse(targetChar.objectId(), targetChar.objectId(), 4339, 1, 0, 0), false);
+			var msu = new MagicSkillUse(targetChar.objectId(), targetChar.objectId(), 4339, 1, 0, 0,
+					targetChar.x(), targetChar.y(), targetChar.z(), targetChar.x(), targetChar.y(), targetChar.z());
+			gs.send(msu);
+			ctx.world().broadcastAround(gs, GameWorld.VISIBILITY_RADIUS, msu, false);
 			gs.send(new SocialAction(targetChar.objectId(), 3));
 			ctx.world().broadcastAround(gs, GameWorld.VISIBILITY_RADIUS,
 					new SocialAction(targetChar.objectId(), 3), false);
