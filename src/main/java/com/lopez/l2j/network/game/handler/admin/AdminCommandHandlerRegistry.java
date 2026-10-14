@@ -41,6 +41,18 @@ public class AdminCommandHandlerRegistry {
 		}
 		IAdminCommandHandler handler = handlers.get(command.toLowerCase(Locale.ROOT));
 		if (handler != null) {
+			AdminSecurityService sec = AdminSecurityService.getInstance();
+			if (!sec.canExecute(session, command)) {
+				if (session != null) {
+					int req = sec.requiredLevelForCommand(command);
+					int cur = session.activeChar() != null ? session.activeChar().accessLevel() : 0;
+					session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay(
+							0, com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay.ALL, "SYS",
+							"Permissao insuficiente para //" + command + " (Necessario: " + req + ", Atual: " + cur + ")."));
+					session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.ActionFailed());
+				}
+				return true;
+			}
 			try {
 				return handler.useAdminCommand(command, session, params);
 			} catch (Exception e) {

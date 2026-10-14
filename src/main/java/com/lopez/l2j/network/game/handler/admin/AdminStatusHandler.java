@@ -183,6 +183,11 @@ public class AdminStatusHandler implements IAdminCommandHandler {
 		TargetOnly parsed = parseTargetOnly(session, params);
 		if (parsed.onlinePlayer != null) {
 			PlayerCharacter targetChar = parsed.onlinePlayer.character();
+			if (!AdminSecurityService.getInstance().canTargetPlayer(session.activeCharacter(), targetChar)) {
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Acao negada: voce nao pode remover status de um GM de nivel superior."));
+				return true;
+			}
 			heroService.removeHero(targetChar);
 			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 					"Status Hero removido de " + targetChar.getName() + "."));
@@ -197,6 +202,11 @@ public class AdminStatusHandler implements IAdminCommandHandler {
 			if (offline == null) {
 				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 						"Personagem '" + parsed.charName + "' nao encontrado no mundo nem no banco."));
+				return true;
+			}
+			if (!AdminSecurityService.getInstance().canTargetPlayer(session.activeCharacter(), offline)) {
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Acao negada: voce nao pode remover status de um GM de nivel superior."));
 				return true;
 			}
 			heroService.removeHero(offline.objectId());

@@ -176,7 +176,14 @@ public class AdminSearchHandler implements IAdminCommandHandler {
 				if (parts.length >= 1 && !parts[0].isEmpty()) {
 					try {
 						int itemId = Integer.parseInt(parts[0]);
-						int count = parts.length >= 2 ? Math.max(1, Integer.parseInt(parts[1])) : 1;
+						long rawCount = parts.length >= 2 ? Math.max(1L, Long.parseLong(parts[1])) : 1L;
+						var tplOpt = ctx.inventories() != null && ctx.inventories().templates() != null
+								? ctx.inventories().templates().get(itemId)
+								: java.util.Optional.<com.lopez.l2j.game.item.ItemTemplate>empty();
+						boolean stackable = tplOpt.map(com.lopez.l2j.game.item.ItemTemplate::stackable).orElse(false);
+						int maxAllowed = stackable ? AdminSecurityService.MAX_STACKABLE_ITEM_COUNT
+								: AdminSecurityService.MAX_NON_STACKABLE_ITEM_COUNT;
+						int count = (int) Math.min(maxAllowed, rawCount);
 						var added = ctx.inventories().addItem(active.inventory(), itemId, count, "AdminSearchCreate");
 						if (added != null) {
 							session.send(new InventoryUpdate(List.of(ItemInfo.of(added.item(),
@@ -198,7 +205,14 @@ public class AdminSearchHandler implements IAdminCommandHandler {
 				if (parts.length >= 1 && !parts[0].isEmpty()) {
 					try {
 						int itemId = Integer.parseInt(parts[0]);
-						int count = parts.length >= 2 ? Math.max(1, Integer.parseInt(parts[1])) : 1;
+						long rawCount = parts.length >= 2 ? Math.max(1L, Long.parseLong(parts[1])) : 1L;
+						var tplOpt = ctx.inventories() != null && ctx.inventories().templates() != null
+								? ctx.inventories().templates().get(itemId)
+								: java.util.Optional.<com.lopez.l2j.game.item.ItemTemplate>empty();
+						boolean stackable = tplOpt.map(com.lopez.l2j.game.item.ItemTemplate::stackable).orElse(false);
+						int maxAllowed = stackable ? AdminSecurityService.MAX_STACKABLE_ITEM_COUNT
+								: AdminSecurityService.MAX_NON_STACKABLE_ITEM_COUNT;
+						int count = (int) Math.min(maxAllowed, rawCount);
 						int targetObjId = session.targetObjectId();
 						var targetPlayer = targetObjId != 0 ? ctx.world().player(targetObjId).orElse(null) : null;
 						var destChar = targetPlayer != null && targetPlayer.character() != null ? targetPlayer.character() : active;
@@ -229,11 +243,16 @@ public class AdminSearchHandler implements IAdminCommandHandler {
 				if (parts.length >= 1 && !parts[0].isEmpty()) {
 					try {
 						int skillId = Integer.parseInt(parts[0]);
-						int level = parts.length >= 2 ? Integer.parseInt(parts[1]) : 1;
+						int level = Math.max(1, parts.length >= 2 ? Integer.parseInt(parts[1]) : 1);
 						int targetObjId = session.targetObjectId();
 						var targetPlayer = targetObjId != 0 ? ctx.world().player(targetObjId).orElse(null) : null;
 						var destChar = targetPlayer != null && targetPlayer.character() != null ? targetPlayer.character() : active;
 						var destSession = targetPlayer != null ? targetPlayer : session;
+						if (!AdminSecurityService.getInstance().canTargetPlayer(active, destChar)) {
+							session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									"Acao negada: voce nao pode alterar skills de um GM de nivel superior."));
+							return true;
+						}
 
 						destChar.skills().put(skillId, level);
 						if (ctx.skillService() != null) {
@@ -263,6 +282,11 @@ public class AdminSearchHandler implements IAdminCommandHandler {
 						var targetPlayer = targetObjId != 0 ? ctx.world().player(targetObjId).orElse(null) : null;
 						var destChar = targetPlayer != null && targetPlayer.character() != null ? targetPlayer.character() : active;
 						var destSession = targetPlayer != null ? targetPlayer : session;
+						if (!AdminSecurityService.getInstance().canTargetPlayer(active, destChar)) {
+							session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									"Acao negada: voce nao pode remover skills de um GM de nivel superior."));
+							return true;
+						}
 
 						destChar.skills().remove(skillId);
 						if (ctx.skillService() != null) {
