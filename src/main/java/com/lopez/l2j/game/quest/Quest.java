@@ -56,8 +56,30 @@ public abstract class Quest {
 		return descr != null && !descr.isBlank() ? descr : name;
 	}
 
+	private volatile QuestManager registeredManager;
+
+	void setRegisteredManager(QuestManager manager) {
+		this.registeredManager = manager;
+	}
+
 	public Set<Integer> getQuestItemIds() {
 		return Collections.unmodifiableSet(questItemIds);
+	}
+
+	public Set<Integer> getStartNpcIds() {
+		return Collections.unmodifiableSet(startNpcIds);
+	}
+
+	public Set<Integer> getTalkNpcIds() {
+		return Collections.unmodifiableSet(talkNpcIds);
+	}
+
+	public Set<Integer> getKillNpcIds() {
+		return Collections.unmodifiableSet(killNpcIds);
+	}
+
+	public Set<Integer> getFirstTalkNpcIds() {
+		return Collections.unmodifiableSet(firstTalkNpcIds);
 	}
 
 	public void registerQuestItems(int... itemIds) {
@@ -78,6 +100,10 @@ public abstract class Quest {
 				startNpcIds.add(id);
 				talkNpcIds.add(id);
 			}
+			QuestManager qm = this.registeredManager;
+			if (qm != null) {
+				qm.indexQuestNpcs(this);
+			}
 		}
 	}
 
@@ -85,6 +111,10 @@ public abstract class Quest {
 		if (npcIds != null) {
 			for (int id : npcIds) {
 				talkNpcIds.add(id);
+			}
+			QuestManager qm = this.registeredManager;
+			if (qm != null) {
+				qm.indexQuestNpcs(this);
 			}
 		}
 	}
@@ -102,6 +132,10 @@ public abstract class Quest {
 			for (int id : npcIds) {
 				killNpcIds.add(id);
 			}
+			QuestManager qm = this.registeredManager;
+			if (qm != null) {
+				qm.indexQuestNpcs(this);
+			}
 		}
 	}
 
@@ -109,6 +143,10 @@ public abstract class Quest {
 		if (npcIds != null) {
 			for (int id : npcIds) {
 				firstTalkNpcIds.add(id);
+			}
+			QuestManager qm = this.registeredManager;
+			if (qm != null) {
+				qm.indexQuestNpcs(this);
 			}
 		}
 	}

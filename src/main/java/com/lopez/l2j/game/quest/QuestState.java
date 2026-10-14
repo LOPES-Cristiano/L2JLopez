@@ -448,16 +448,16 @@ public class QuestState {
 	}
 
 	public String loadTutorialHtml(String path) {
-		if (player != null && player.context().htmls() != null && path != null) {
-			String raw = player.context().htmls().getHtml(path);
-			if (raw == null || raw.isBlank()) {
-				raw = player.context().htmls().getIndexedHtml(path);
-			}
+		if (player != null && player.context() != null && player.context().htmls() != null && path != null) {
+			String raw = player.context().htmls().getQuestHtml(255, "255_Tutorial", path);
 			if (raw == null || raw.isBlank()) {
 				raw = player.context().htmls().getHtml("quests/255_Tutorial/" + path);
 			}
 			if (raw == null || raw.isBlank()) {
 				raw = player.context().htmls().getHtml("data/scripts/quests/255_Tutorial/" + path);
+			}
+			if (raw == null || raw.isBlank()) {
+				raw = player.context().htmls().getIndexedHtml(path);
 			}
 			return raw;
 		}

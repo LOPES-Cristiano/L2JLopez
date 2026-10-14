@@ -6,12 +6,18 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.QuestList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.QuestList.QuestEntry;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.aop.SpringProxy;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -20,17 +26,63 @@ import org.springframework.stereotype.Service;
  * Controla registro de quests, persistencia de variaveis em character_quests e despacho de eventos.
  */
 @Service
-public class QuestManager {
+public class QuestManager implements SmartInitializingSingleton {
 
 	private static final Logger log = LoggerFactory.getLogger(QuestManager.class);
+	private static final Comparator<Quest> QUEST_ID_COMPARATOR = Comparator.comparingInt(Quest::getQuestId);
 
 	private final JdbcTemplate jdbcTemplate;
+	private final List<Quest> discoveredQuests;
+	private volatile boolean discoveredInitialized = false;
+
 	private final Map<Integer, Quest> questsById = new ConcurrentHashMap<>();
 	private final Map<String, Quest> questsByName = new ConcurrentHashMap<>();
+	private final Map<Integer, List<Quest>> questsByStartNpc = new ConcurrentHashMap<>();
+	private final Map<Integer, List<Quest>> questsByTalkNpc = new ConcurrentHashMap<>();
+	private final Map<Integer, List<Quest>> questsByFirstTalkNpc = new ConcurrentHashMap<>();
+	private final Map<Integer, List<Quest>> questsByKillNpc = new ConcurrentHashMap<>();
+
+	public QuestManager(JdbcTemplate jdbcTemplate) {
+		this(jdbcTemplate, null);
+	}
 
 	@Autowired
-	public QuestManager(@Autowired(required = false) JdbcTemplate jdbcTemplate) {
+	public QuestManager(
+			@Autowired(required = false) JdbcTemplate jdbcTemplate,
+			@Autowired(required = false) @Lazy List<Quest> discoveredQuests) {
 		this.jdbcTemplate = jdbcTemplate;
+		this.discoveredQuests = discoveredQuests;
+		if (discoveredQuests != null && !(discoveredQuests instanceof SpringProxy)) {
+			this.discoveredInitialized = true;
+			registerAll(discoveredQuests);
+		}
+	}
+
+	@Override
+	public void afterSingletonsInstantiated() {
+		ensureDiscoveredQuestsRegistered();
+	}
+
+	private void ensureDiscoveredQuestsRegistered() {
+		if (!discoveredInitialized && discoveredQuests != null) {
+			discoveredInitialized = true;
+			try {
+				registerAll(discoveredQuests);
+			} catch (Exception e) {
+				log.debug("Auto-registro de quests diferido: {}", e.getMessage());
+			}
+		}
+	}
+
+	public void registerAll(Collection<Quest> quests) {
+		if (quests == null) {
+			return;
+		}
+		for (Quest q : quests) {
+			if (q != null) {
+				registerQuest(q);
+			}
+		}
 	}
 
 	public void registerQuest(Quest quest) {
@@ -50,17 +102,79 @@ public class QuestManager {
 		questsByName.putIfAbsent("q" + String.format("%03d", qid), quest);
 		questsByName.putIfAbsent("quest" + qid, quest);
 
-		// Variacoes com ou sem underscore inicial
-		if (qName.startsWith("_")) {
-			questsByName.putIfAbsent(qName.substring(1), quest);
-		} else {
-			questsByName.putIfAbsent("_" + qName, quest);
+		// Variacoes com ou sem underscore inicial e prefixos Q001_ / 1_
+		String noUnder = qName.startsWith("_") ? qName.substring(1) : qName;
+		questsByName.putIfAbsent(noUnder, quest);
+		questsByName.putIfAbsent("_" + noUnder, quest);
+		int underIdx = noUnder.indexOf('_');
+		if (qid > 0 && underIdx > 0) {
+			String suffix = noUnder.substring(underIdx);
+			questsByName.putIfAbsent(qid + suffix, quest);
+			questsByName.putIfAbsent(String.format("%03d%s", qid, suffix), quest);
+			questsByName.putIfAbsent(String.format("q%03d%s", qid, suffix), quest);
+			questsByName.putIfAbsent(String.format("q%d%s", qid, suffix), quest);
 		}
+
+		quest.setRegisteredManager(this);
+		indexQuestNpcs(quest);
 
 		log.info("Quest registrada: [{}] {}", quest.getQuestId(), quest.getName());
 	}
 
+	void indexQuestNpcs(Quest quest) {
+		if (quest == null) {
+			return;
+		}
+		for (int npcId : quest.getStartNpcIds()) {
+			addQuestToNpcIndex(questsByStartNpc, npcId, quest);
+		}
+		for (int npcId : quest.getTalkNpcIds()) {
+			addQuestToNpcIndex(questsByTalkNpc, npcId, quest);
+		}
+		for (int npcId : quest.getFirstTalkNpcIds()) {
+			addQuestToNpcIndex(questsByFirstTalkNpc, npcId, quest);
+		}
+		for (int npcId : quest.getKillNpcIds()) {
+			addQuestToNpcIndex(questsByKillNpc, npcId, quest);
+		}
+	}
+
+	private static void addQuestToNpcIndex(Map<Integer, List<Quest>> index, int npcId, Quest quest) {
+		index.compute(npcId, (k, existing) -> {
+			List<Quest> list = existing != null ? new ArrayList<>(existing) : new ArrayList<>();
+			list.removeIf(q -> q.getQuestId() == quest.getQuestId() && q.getName().equals(quest.getName()));
+			list.add(quest);
+			list.sort(QUEST_ID_COMPARATOR);
+			return new CopyOnWriteArrayList<>(list);
+		});
+	}
+
+	public List<Quest> getQuestsForStartNpc(int npcId) {
+		ensureDiscoveredQuestsRegistered();
+		List<Quest> list = questsByStartNpc.get(npcId);
+		return list != null ? Collections.unmodifiableList(list) : List.of();
+	}
+
+	public List<Quest> getQuestsForTalkNpc(int npcId) {
+		ensureDiscoveredQuestsRegistered();
+		List<Quest> list = questsByTalkNpc.get(npcId);
+		return list != null ? Collections.unmodifiableList(list) : List.of();
+	}
+
+	public List<Quest> getQuestsForFirstTalkNpc(int npcId) {
+		ensureDiscoveredQuestsRegistered();
+		List<Quest> list = questsByFirstTalkNpc.get(npcId);
+		return list != null ? Collections.unmodifiableList(list) : List.of();
+	}
+
+	public List<Quest> getQuestsForKillNpc(int npcId) {
+		ensureDiscoveredQuestsRegistered();
+		List<Quest> list = questsByKillNpc.get(npcId);
+		return list != null ? Collections.unmodifiableList(list) : List.of();
+	}
+
 	public Quest getQuest(int questId) {
+		ensureDiscoveredQuestsRegistered();
 		return questsById.get(questId);
 	}
 
@@ -68,6 +182,7 @@ public class QuestManager {
 		if (name == null || name.isBlank()) {
 			return null;
 		}
+		ensureDiscoveredQuestsRegistered();
 		String clean = name.trim().toLowerCase(java.util.Locale.ROOT);
 		Quest q = questsByName.get(clean);
 		if (q != null) {
@@ -101,6 +216,7 @@ public class QuestManager {
 	}
 
 	public Collection<Quest> getAllQuests() {
+		ensureDiscoveredQuestsRegistered();
 		return questsById.values();
 	}
 
@@ -183,6 +299,7 @@ public class QuestManager {
 	// ==================== Dispatchers ====================
 
 	public void onPlayerLogin(GameSession player) {
+		ensureDiscoveredQuestsRegistered();
 		loadQuestsForPlayer(player);
 		for (Quest q : questsById.values()) {
 			q.onEnterWorld(player);
@@ -208,12 +325,10 @@ public class QuestManager {
 			return null;
 		}
 		int npcId = npc.npcId();
-		for (Quest q : questsById.values()) {
-			if (q.hasTalkNpc(npcId) || q.hasStartNpc(npcId)) {
-				String html = q.notifyTalk(npc, player);
-				if (html != null && !html.isBlank()) {
-					return html;
-				}
+		for (Quest q : getQuestsForTalkNpc(npcId)) {
+			String html = q.notifyTalk(npc, player);
+			if (html != null && !html.isBlank()) {
+				return html;
 			}
 		}
 		return null;
@@ -224,12 +339,10 @@ public class QuestManager {
 			return null;
 		}
 		int npcId = npc.npcId();
-		for (Quest q : questsById.values()) {
-			if (q.hasFirstTalkNpc(npcId)) {
-				String html = q.notifyFirstTalk(npc, player);
-				if (html != null && !html.isBlank()) {
-					return html;
-				}
+		for (Quest q : getQuestsForFirstTalkNpc(npcId)) {
+			String html = q.notifyFirstTalk(npc, player);
+			if (html != null && !html.isBlank()) {
+				return html;
 			}
 		}
 		return null;
@@ -240,10 +353,8 @@ public class QuestManager {
 			return;
 		}
 		int npcId = npc.npcId();
-		for (Quest q : questsById.values()) {
-			if (q.hasKillNpc(npcId)) {
-				q.notifyKill(npc, player, isPet);
-			}
+		for (Quest q : getQuestsForKillNpc(npcId)) {
+			q.notifyKill(npc, player, isPet);
 		}
 	}
 

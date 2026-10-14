@@ -59,7 +59,7 @@ public class Bingo {
 		for (int i = 1; i <= 9; ++i) {
 			String string2 = "%cell" + i + "%";
 			int n = this.azo.get(i - 1);
-			string = this.azp.contains(n) ? string.replaceFirst(string2, "<font color=\"" + (this.azp.size() == 6 ? "ff0000" : "ffff00") + "\">" + n + "</font>") : string.replaceFirst(string2, "?");
+			string = this.azp.contains(n) ? string.replaceFirst(string2, "<font color=\"" + (this.azp.size() == 6 ? "B86B6B" : "D4C49A") + "\">" + n + "</font>") : string.replaceFirst(string2, "?");
 		}
 		return string;
 	}
