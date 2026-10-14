@@ -36,6 +36,7 @@ public class DmEventService {
     }
 
     public static class Participant {
+        private final PlayerCharacter player;
         private final int objectId;
         private final String name;
         private final int level;
@@ -45,6 +46,7 @@ public class DmEventService {
         private final int origZ;
 
         public Participant(PlayerCharacter player, int origX, int origY, int origZ) {
+            this.player = player;
             this.objectId = player.getObjectId();
             this.name = player.getName();
             this.level = player.getLevel();
@@ -54,6 +56,7 @@ public class DmEventService {
             this.kills = 0;
         }
 
+        public PlayerCharacter getPlayer() { return player; }
         public int getObjectId() { return objectId; }
         public String getName() { return name; }
         public int getLevel() { return level; }
@@ -63,6 +66,8 @@ public class DmEventService {
         public int getOrigY() { return origY; }
         public int getOrigZ() { return origZ; }
     }
+
+    public static final int DM_INSTANCE_ID = 9103;
 
     private volatile EventState state = EventState.INACTIVE;
     private int minLevel = Config.DM_MIN_LEVEL;
@@ -78,10 +83,18 @@ public class DmEventService {
     private int reward2Count = Config.DM_REWARD_AMOUNT / 2;
     private int reward3ItemId = Config.DM_REWARD_ID;
     private int reward3Count = Config.DM_REWARD_AMOUNT / 4;
+    private final com.lopez.l2j.game.service.InventoryService inventoryService;
 
     private final Map<Integer, Participant> participants = new ConcurrentHashMap<>();
 
-    public DmEventService() {}
+    public DmEventService() {
+        this(null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DmEventService(@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.service.InventoryService inventoryService) {
+        this.inventoryService = inventoryService;
+    }
 
     public synchronized void openRegistration() {
         openRegistration(Config.DM_MIN_LEVEL, Config.DM_MAX_LEVEL);
@@ -138,6 +151,23 @@ public class DmEventService {
             return false;
         }
 
+        var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+        int idx = 0;
+        for (Participant p : participants.values()) {
+            PlayerCharacter pc = p.getPlayer();
+            if (pc != null) {
+                pc.currentHp(pc.maxHp());
+                pc.currentMp(pc.maxMp());
+                pc.currentCp(pc.maxCp());
+                double angle = (idx++ % 8) * (Math.PI * 2.0 / 8.0);
+                int sx = arenaX + (int) (Math.cos(angle) * 200);
+                int sy = arenaY + (int) (Math.sin(angle) * 200);
+                if (world != null) {
+                    world.teleportPlayer(pc, sx, sy, arenaZ, DM_INSTANCE_ID);
+                }
+            }
+        }
+
         state = EventState.RUNNING;
         log.info("DM: Batalha iniciada com {} gladiadores no DeathMatch!", participants.size());
         return true;
@@ -154,6 +184,17 @@ public class DmEventService {
         }
 
         killer.addKill();
+        PlayerCharacter vChar = victim.getPlayer();
+        if (vChar != null) {
+            vChar.currentHp(vChar.maxHp());
+            vChar.currentMp(vChar.maxMp());
+            vChar.currentCp(vChar.maxCp());
+            var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+            if (world != null) {
+                world.sendPacket(vChar.objectId(), new com.lopez.l2j.network.game.packet.GameServerPacket.Revive(vChar.objectId()));
+                world.teleportPlayer(vChar, arenaX, arenaY, arenaZ, DM_INSTANCE_ID);
+            }
+        }
         log.info("DM: {} abateu {}! Frags de {}: {}", killer.getName(), victim.getName(), killer.getName(), killer.getKills());
         return true;
     }
@@ -169,6 +210,34 @@ public class DmEventService {
             return Collections.emptyList();
         }
         List<Participant> ranking = getRanking();
+        var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+        for (int i = 0; i < ranking.size(); i++) {
+            Participant p = ranking.get(i);
+            PlayerCharacter pc = p.getPlayer();
+            if (pc == null) continue;
+            pc.currentHp(pc.maxHp());
+            pc.currentMp(pc.maxMp());
+            pc.currentCp(pc.maxCp());
+            if (i < 3 && p.getKills() > 0 && pc.inventory() != null) {
+                int rId = (i == 0) ? reward1ItemId : (i == 1 ? reward2ItemId : reward3ItemId);
+                int rCnt = (i == 0) ? reward1Count : (i == 1 ? reward2Count : reward3Count);
+                if (rCnt > 0) {
+                    if (inventoryService != null) {
+                        var added = inventoryService.addItem(pc.inventory(), rId, rCnt, "DmReward");
+                        if (added != null && added.item() != null && world != null) {
+                            world.sendPacket(pc.objectId(), new com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate(List.of(
+                                    com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.of(added.item(),
+                                            added.created() ? com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.ADDED : com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED))));
+                        }
+                    } else {
+                        pc.inventory().byItemId(rId).ifPresent(it -> it.count(it.count() + rCnt));
+                    }
+                }
+            }
+            if (world != null) {
+                world.teleportPlayer(pc, p.getOrigX(), p.getOrigY(), p.getOrigZ(), 0);
+            }
+        }
         state = EventState.INACTIVE;
         log.info("DM: Evento encerrado! Total gladiadores: {}", ranking.size());
         return ranking;

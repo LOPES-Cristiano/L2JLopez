@@ -61,6 +61,7 @@ public class CtfEventService {
     }
 
     public static class Participant {
+        private final PlayerCharacter player;
         private final int objectId;
         private final String name;
         private final int level;
@@ -71,6 +72,7 @@ public class CtfEventService {
         private final int origZ;
 
         public Participant(PlayerCharacter player, int origX, int origY, int origZ) {
+            this.player = player;
             this.objectId = player.getObjectId();
             this.name = player.getName();
             this.level = player.getLevel();
@@ -80,6 +82,7 @@ public class CtfEventService {
             this.flagCaptures = 0;
         }
 
+        public PlayerCharacter getPlayer() { return player; }
         public int getObjectId() { return objectId; }
         public String getName() { return name; }
         public int getLevel() { return level; }
@@ -98,11 +101,14 @@ public class CtfEventService {
         DROPPED
     }
 
+    public static final int CTF_INSTANCE_ID = 9102;
+
     private volatile EventState state = EventState.INACTIVE;
     private int minLevel = Config.CTF_MIN_LEVEL;
     private int maxLevel = Config.CTF_MAX_LEVEL;
     private int rewardItemId = Config.CTF_REWARD_ID;
     private int rewardItemCount = Config.CTF_REWARD_AMOUNT;
+    private final com.lopez.l2j.game.service.InventoryService inventoryService;
 
     private final Map<Integer, Participant> participants = new ConcurrentHashMap<>();
     private final Map<TeamType, Integer> teamScores = new ConcurrentHashMap<>();
@@ -112,6 +118,12 @@ public class CtfEventService {
     private final Map<TeamType, Integer> flagCarriers = new ConcurrentHashMap<>(); // flag team -> carrier player objectId
 
     public CtfEventService() {
+        this(null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public CtfEventService(@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.service.InventoryService inventoryService) {
+        this.inventoryService = inventoryService;
         resetFlags();
         teamScores.put(TeamType.BLUE, 0);
         teamScores.put(TeamType.RED, 0);
@@ -187,6 +199,7 @@ public class CtfEventService {
 
         int blueCount = 0;
         int redCount = 0;
+        var world = com.lopez.l2j.game.world.GameWorld.getInstance();
         for (Participant p : list) {
             if (blueCount <= redCount) {
                 p.setTeam(TeamType.BLUE);
@@ -195,6 +208,33 @@ public class CtfEventService {
                 p.setTeam(TeamType.RED);
                 redCount++;
             }
+            PlayerCharacter pc = p.getPlayer();
+            if (pc != null) {
+                pc.team(p.getTeam() == TeamType.BLUE ? 1 : 2);
+                pc.currentHp(pc.maxHp());
+                pc.currentMp(pc.maxMp());
+                pc.currentCp(pc.maxCp());
+                if (world != null) {
+                    world.teleportPlayer(pc, p.getTeam().getBaseX(), p.getTeam().getBaseY(), p.getTeam().getBaseZ(), CTF_INSTANCE_ID);
+                    world.player(pc.objectId()).ifPresent(op -> {
+                        if (op instanceof com.lopez.l2j.network.game.GameSession gs) {
+                            gs.sendUserInfoAndBroadcastCharInfo();
+                        }
+                    });
+                }
+            }
+        }
+
+        if (world != null) {
+            world.removeNpcsByInstance(CTF_INSTANCE_ID);
+            var blueFlagTmpl = com.lopez.l2j.game.npc.NpcTemplate.fallback(35062, "Blue Flag", "L2Npc");
+            var redFlagTmpl = com.lopez.l2j.game.npc.NpcTemplate.fallback(35062, "Red Flag", "L2Npc");
+            var blueFlag = new com.lopez.l2j.game.npc.NpcInstance(0x57000001, blueFlagTmpl, TeamType.BLUE.getBaseX(), TeamType.BLUE.getBaseY(), TeamType.BLUE.getBaseZ(), 0);
+            blueFlag.instanceId(CTF_INSTANCE_ID);
+            var redFlag = new com.lopez.l2j.game.npc.NpcInstance(0x57000002, redFlagTmpl, TeamType.RED.getBaseX(), TeamType.RED.getBaseY(), TeamType.RED.getBaseZ(), 0);
+            redFlag.instanceId(CTF_INSTANCE_ID);
+            world.addNpc(blueFlag);
+            world.addNpc(redFlag);
         }
 
         teamScores.put(TeamType.BLUE, 0);
@@ -319,6 +359,39 @@ public class CtfEventService {
             winner = null; // Tie
         }
 
+        var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+        if (world != null) {
+            world.removeNpcsByInstance(CTF_INSTANCE_ID);
+        }
+        for (Participant p : participants.values()) {
+            PlayerCharacter pc = p.getPlayer();
+            if (pc == null) continue;
+            pc.team(0);
+            pc.currentHp(pc.maxHp());
+            pc.currentMp(pc.maxMp());
+            pc.currentCp(pc.maxCp());
+            if (winner != null && p.getTeam() == winner && rewardItemCount > 0 && pc.inventory() != null) {
+                if (inventoryService != null) {
+                    var added = inventoryService.addItem(pc.inventory(), rewardItemId, rewardItemCount, "CtfReward");
+                    if (added != null && added.item() != null && world != null) {
+                        world.sendPacket(pc.objectId(), new com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate(List.of(
+                                com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.of(added.item(),
+                                        added.created() ? com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.ADDED : com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED))));
+                    }
+                } else {
+                    pc.inventory().byItemId(rewardItemId).ifPresent(it -> it.count(it.count() + rewardItemCount));
+                }
+            }
+            if (world != null) {
+                world.teleportPlayer(pc, p.getOrigX(), p.getOrigY(), p.getOrigZ(), 0);
+                world.player(pc.objectId()).ifPresent(op -> {
+                    if (op instanceof com.lopez.l2j.network.game.GameSession gs) {
+                        gs.sendUserInfoAndBroadcastCharInfo();
+                    }
+                });
+            }
+        }
+
         state = EventState.INACTIVE;
         resetFlags();
         log.info("CTF: Encerrado! Vencedor: {}", winner);
@@ -337,8 +410,8 @@ public class CtfEventService {
         sb.append("Niveis: ").append(minLevel).append(" - ").append(maxLevel).append("<br>");
         sb.append("Inscritos: ").append(participants.size()).append("<br>");
         if (state == EventState.RUNNING) {
-            sb.append("<br><font color=\"0000FF\">Bandeiras Azul: </font>").append(teamScores.getOrDefault(TeamType.BLUE, 0)).append("<br>");
-            sb.append("<font color=\"FF0000\">Bandeiras Vermelho: </font>").append(teamScores.getOrDefault(TeamType.RED, 0)).append("<br>");
+            sb.append("<br><font color=\"8FA8BE\">Bandeiras Azul: </font>").append(teamScores.getOrDefault(TeamType.BLUE, 0)).append("<br>");
+            sb.append("<font color=\"B86B6B\">Bandeiras Vermelho: </font>").append(teamScores.getOrDefault(TeamType.RED, 0)).append("<br>");
             sb.append("Status Bandeira Azul: ").append(flagStatuses.get(TeamType.BLUE)).append("<br>");
             sb.append("Status Bandeira Vermelha: ").append(flagStatuses.get(TeamType.RED)).append("<br>");
         }

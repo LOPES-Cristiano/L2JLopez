@@ -61,6 +61,7 @@ public class TvtEventService {
     }
 
     public static class Participant {
+        private final PlayerCharacter player;
         private final int objectId;
         private final String name;
         private final int level;
@@ -71,6 +72,7 @@ public class TvtEventService {
         private final int origZ;
 
         public Participant(PlayerCharacter player, int origX, int origY, int origZ) {
+            this.player = player;
             this.objectId = player.getObjectId();
             this.name = player.getName();
             this.level = player.getLevel();
@@ -80,6 +82,7 @@ public class TvtEventService {
             this.kills = 0;
         }
 
+        public PlayerCharacter getPlayer() { return player; }
         public int getObjectId() { return objectId; }
         public String getName() { return name; }
         public int getLevel() { return level; }
@@ -92,16 +95,25 @@ public class TvtEventService {
         public int getOrigZ() { return origZ; }
     }
 
+    public static final int TVT_INSTANCE_ID = 9101;
+
     private volatile EventState state = EventState.INACTIVE;
     private int minLevel = Config.TVT_MIN_LEVEL;
     private int maxLevel = Config.TVT_MAX_LEVEL;
     private int rewardItemId = Config.TVT_REWARD_ID;
     private int rewardItemCount = Config.TVT_REWARD_AMOUNT;
+    private final com.lopez.l2j.game.service.InventoryService inventoryService;
 
     private final Map<Integer, Participant> participants = new ConcurrentHashMap<>();
     private final Map<TeamType, Integer> teamScores = new ConcurrentHashMap<>();
 
     public TvtEventService() {
+        this(null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TvtEventService(@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.service.InventoryService inventoryService) {
+        this.inventoryService = inventoryService;
         teamScores.put(TeamType.BLUE, 0);
         teamScores.put(TeamType.RED, 0);
     }
@@ -169,6 +181,7 @@ public class TvtEventService {
 
         int blueCount = 0;
         int redCount = 0;
+        var world = com.lopez.l2j.game.world.GameWorld.getInstance();
         for (Participant p : list) {
             if (blueCount <= redCount) {
                 p.setTeam(TeamType.BLUE);
@@ -176,6 +189,21 @@ public class TvtEventService {
             } else {
                 p.setTeam(TeamType.RED);
                 redCount++;
+            }
+            PlayerCharacter pc = p.getPlayer();
+            if (pc != null) {
+                pc.team(p.getTeam() == TeamType.BLUE ? 1 : 2);
+                pc.currentHp(pc.maxHp());
+                pc.currentMp(pc.maxMp());
+                pc.currentCp(pc.maxCp());
+                if (world != null) {
+                    world.teleportPlayer(pc, p.getTeam().getSpawnX(), p.getTeam().getSpawnY(), p.getTeam().getSpawnZ(), TVT_INSTANCE_ID);
+                    world.player(pc.objectId()).ifPresent(op -> {
+                        if (op instanceof com.lopez.l2j.network.game.GameSession gs) {
+                            gs.sendUserInfoAndBroadcastCharInfo();
+                        }
+                    });
+                }
             }
         }
 
@@ -202,6 +230,18 @@ public class TvtEventService {
 
         killer.addKill();
         teamScores.merge(killer.getTeam(), 1, Integer::sum);
+
+        PlayerCharacter vChar = victim.getPlayer();
+        if (vChar != null && victim.getTeam() != null) {
+            vChar.currentHp(vChar.maxHp());
+            vChar.currentMp(vChar.maxMp());
+            vChar.currentCp(vChar.maxCp());
+            var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+            if (world != null) {
+                world.sendPacket(vChar.objectId(), new com.lopez.l2j.network.game.packet.GameServerPacket.Revive(vChar.objectId()));
+                world.teleportPlayer(vChar, victim.getTeam().getSpawnX(), victim.getTeam().getSpawnY(), victim.getTeam().getSpawnZ(), TVT_INSTANCE_ID);
+            }
+        }
         return true;
     }
 
@@ -221,6 +261,36 @@ public class TvtEventService {
             winner = null; // Tie
         }
 
+        var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+        for (Participant p : participants.values()) {
+            PlayerCharacter pc = p.getPlayer();
+            if (pc == null) continue;
+            pc.team(0);
+            pc.currentHp(pc.maxHp());
+            pc.currentMp(pc.maxMp());
+            pc.currentCp(pc.maxCp());
+            if (winner != null && p.getTeam() == winner && rewardItemCount > 0 && pc.inventory() != null) {
+                if (inventoryService != null) {
+                    var added = inventoryService.addItem(pc.inventory(), rewardItemId, rewardItemCount, "TvTReward");
+                    if (added != null && added.item() != null && world != null) {
+                        world.sendPacket(pc.objectId(), new com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate(List.of(
+                                com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.of(added.item(),
+                                        added.created() ? com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.ADDED : com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED))));
+                    }
+                } else {
+                    pc.inventory().byItemId(rewardItemId).ifPresent(it -> it.count(it.count() + rewardItemCount));
+                }
+            }
+            if (world != null) {
+                world.teleportPlayer(pc, p.getOrigX(), p.getOrigY(), p.getOrigZ(), 0);
+                world.player(pc.objectId()).ifPresent(op -> {
+                    if (op instanceof com.lopez.l2j.network.game.GameSession gs) {
+                        gs.sendUserInfoAndBroadcastCharInfo();
+                    }
+                });
+            }
+        }
+
         state = EventState.INACTIVE;
         log.info("TvT: Encerrado! Azul: {}, Vermelho: {}. Vencedor: {}", blueScore, redScore, winner);
         return winner;
@@ -234,8 +304,8 @@ public class TvtEventService {
         sb.append("Niveis: ").append(minLevel).append(" - ").append(maxLevel).append("<br>");
         sb.append("Inscritos: ").append(participants.size()).append("<br>");
         if (state == EventState.RUNNING) {
-            sb.append("<br><font color=\"0000FF\">Time Azul: </font>").append(teamScores.getOrDefault(TeamType.BLUE, 0)).append(" kills<br>");
-            sb.append("<font color=\"FF0000\">Time Vermelho: </font>").append(teamScores.getOrDefault(TeamType.RED, 0)).append(" kills<br>");
+            sb.append("<br><font color=\"8FA8BE\">Time Azul: </font>").append(teamScores.getOrDefault(TeamType.BLUE, 0)).append(" kills<br>");
+            sb.append("<font color=\"B86B6B\">Time Vermelho: </font>").append(teamScores.getOrDefault(TeamType.RED, 0)).append(" kills<br>");
         }
         sb.append("<br>");
         if (state == EventState.REGISTRATION) {
