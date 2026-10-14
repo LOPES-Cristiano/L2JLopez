@@ -139,9 +139,13 @@ public class AntharasService {
 			});
 		}
 
-		player.x(LAIR_X);
-		player.y(LAIR_Y);
-		player.z(LAIR_Z);
+		if (world != null) {
+			world.teleportPlayer(player, LAIR_X, LAIR_Y, LAIR_Z);
+		} else {
+			player.x(LAIR_X);
+			player.y(LAIR_Y);
+			player.z(LAIR_Z);
+		}
 		playersInside.add(player.objectId());
 
 		if (status == BossStatus.NOTSPAWN) {
@@ -187,6 +191,16 @@ public class AntharasService {
 		}
 
 		if (world != null) {
+			var npcInfo = new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(activeAntharas);
+			var quake = new com.lopez.l2j.network.game.packet.GameServerPacket.Earthquake(BOSS_X, BOSS_Y, BOSS_Z, 20, 10);
+			var cam = new com.lopez.l2j.network.game.packet.GameServerPacket.SpecialCamera(activeAntharas.objectId(), 700, 13, -19, 0, 10000);
+			for (int pid : playersInside) {
+				world.player(pid).ifPresent(op -> {
+					op.send(npcInfo);
+					op.send(quake);
+					op.send(cam);
+				});
+			}
 			world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Earth Dragon",
 					"Antharas has awakened and descends into the Lair!"), p -> true);
 		}
@@ -262,9 +276,7 @@ public class AntharasService {
 			world.player(playerId).ifPresent(p -> {
 				PlayerCharacter pc = p.character();
 				if (pc != null) {
-					pc.x(EXIT_X);
-					pc.y(EXIT_Y);
-					pc.z(EXIT_Z);
+					world.teleportPlayer(pc, EXIT_X, EXIT_Y, EXIT_Z);
 				}
 			});
 		}

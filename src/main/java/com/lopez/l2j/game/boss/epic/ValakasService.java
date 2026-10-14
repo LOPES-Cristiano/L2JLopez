@@ -128,9 +128,13 @@ public class ValakasService {
 			});
 		}
 
-		player.x(LAIR_X);
-		player.y(LAIR_Y);
-		player.z(LAIR_Z);
+		if (world != null) {
+			world.teleportPlayer(player, LAIR_X, LAIR_Y, LAIR_Z);
+		} else {
+			player.x(LAIR_X);
+			player.y(LAIR_Y);
+			player.z(LAIR_Z);
+		}
 		playersInside.add(player.objectId());
 
 		if (status == BossStatus.NOTSPAWN) {
@@ -165,6 +169,16 @@ public class ValakasService {
 		}
 
 		if (world != null) {
+			var npcInfo = new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(activeValakas);
+			var quake = new com.lopez.l2j.network.game.packet.GameServerPacket.Earthquake(LAIR_X, LAIR_Y, LAIR_Z, 25, 10);
+			var cam = new com.lopez.l2j.network.game.packet.GameServerPacket.SpecialCamera(activeValakas.objectId(), 1800, 180, -1, 1500, 15000);
+			for (int pid : playersInside) {
+				world.player(pid).ifPresent(op -> {
+					op.send(npcInfo);
+					op.send(quake);
+					op.send(cam);
+				});
+			}
 			world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Fire Dragon",
 					"Valakas has awakened in a fiery storm!"), p -> true);
 		}
@@ -216,9 +230,7 @@ public class ValakasService {
 			world.player(playerId).ifPresent(p -> {
 				PlayerCharacter pc = p.character();
 				if (pc != null) {
-					pc.x(EXIT_X);
-					pc.y(EXIT_Y);
-					pc.z(EXIT_Z);
+					world.teleportPlayer(pc, EXIT_X, EXIT_Y, EXIT_Z);
 				}
 			});
 		}

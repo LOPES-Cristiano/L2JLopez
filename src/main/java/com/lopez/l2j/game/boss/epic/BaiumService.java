@@ -11,6 +11,10 @@ import com.lopez.l2j.game.npc.NpcTemplate;
 import com.lopez.l2j.game.npc.NpcTemplateTable;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
+import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
+import com.lopez.l2j.network.game.packet.GameServerPacket.Earthquake;
+import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.SpecialCamera;
 import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -145,9 +149,13 @@ public class BaiumService {
 			});
 		}
 
-		player.x(FLOOR14_X);
-		player.y(FLOOR14_Y);
-		player.z(FLOOR14_Z);
+		if (world != null) {
+			world.teleportPlayer(player, FLOOR14_X, FLOOR14_Y, FLOOR14_Z, 0);
+		} else {
+			player.x(FLOOR14_X);
+			player.y(FLOOR14_Y);
+			player.z(FLOOR14_Z);
+		}
 		playersInside.add(player.objectId());
 
 		log.info("Baium: Jogador {} entrou no 14o andar da Torre da Insolencia.", player.name());
@@ -174,8 +182,10 @@ public class BaiumService {
 		}
 
 		// Despawna estatua
+		int oldStatueId = baiumStatue.objectId();
 		if (world != null) {
 			world.removeNpc(baiumStatue);
+			world.broadcast(new DeleteObject(oldStatueId), p -> playersInside.contains(p.objectId()));
 		}
 		baiumStatue = null;
 
@@ -186,6 +196,11 @@ public class BaiumService {
 			int objId = objectIds.nextId();
 			activeBaium = new NpcInstance(objId, baiumTpl, FLOOR14_X, FLOOR14_Y, FLOOR14_Z, BAIUM_HEADING);
 			world.addNpc(activeBaium);
+
+			world.broadcast(NpcInfo.of(activeBaium), p -> playersInside.contains(p.objectId()));
+			world.broadcast(new Earthquake(FLOOR14_X, FLOOR14_Y, FLOOR14_Z, 40, 10), p -> playersInside.contains(p.objectId()));
+			world.broadcast(new SpecialCamera(activeBaium.objectId(), 200, 180, 30, 3000, 10000, 0, 0, 1, 0),
+					p -> playersInside.contains(p.objectId()));
 
 			// Spawna 5 Arcanjos ao redor
 			NpcTemplate archangelTpl = templates.get(ARCHANGEL)
@@ -200,6 +215,7 @@ public class BaiumService {
 				activeBaium.minions().add(angel);
 				archangels.add(angel);
 				world.addNpc(angel);
+				world.broadcast(NpcInfo.of(angel), p -> playersInside.contains(p.objectId()));
 			}
 		}
 
@@ -222,7 +238,10 @@ public class BaiumService {
 
 		// Remove arcanjos remanescentes
 		for (NpcInstance angel : archangels) {
-			if (world != null) world.removeNpc(angel);
+			if (world != null) {
+				world.removeNpc(angel);
+				world.broadcast(new DeleteObject(angel.objectId()), p -> playersInside.contains(p.objectId()));
+			}
 		}
 		archangels.clear();
 
@@ -261,6 +280,7 @@ public class BaiumService {
 				.orElseGet(() -> NpcTemplate.fallback(TELEPORT_CUBE, "Teleportation Cube", "L2Npc"));
 		exitCube = new NpcInstance(objectIds.nextId(), cubeTpl, FLOOR14_X, FLOOR14_Y, FLOOR14_Z, 0);
 		world.addNpc(exitCube);
+		world.broadcast(NpcInfo.of(exitCube), p -> playersInside.contains(p.objectId()));
 
 		int unspawnSec = Config.BAIUM_UNSPAWN_CUBE;
 		scheduler.schedule(this::clearFloor, unspawnSec, TimeUnit.SECONDS);
@@ -280,9 +300,7 @@ public class BaiumService {
 				world.player(playerId).ifPresent(p -> {
 					PlayerCharacter pc = p.character();
 					if (pc != null) {
-						pc.x(EXIT_X);
-						pc.y(EXIT_Y);
-						pc.z(EXIT_Z);
+						world.teleportPlayer(pc, EXIT_X, EXIT_Y, EXIT_Z, 0);
 					}
 				});
 			}
