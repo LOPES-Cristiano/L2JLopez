@@ -94,8 +94,21 @@ public class DungeonService {
 	private final Map<Integer, DungeonSession> activeSessions = new ConcurrentHashMap<>();
 	private final Map<Integer, Long> playerCooldowns = new ConcurrentHashMap<>();
 	private final AtomicInteger instanceCounter = new AtomicInteger(1000);
+	private final com.lopez.l2j.game.npc.NpcTemplateTable npcTemplates;
+	private final com.lopez.l2j.game.service.InventoryService inventoryService;
+	private final com.lopez.l2j.game.model.ObjectIdFactory idFactory;
 
 	public DungeonService() {
+		this(null, null, null);
+	}
+
+	@Autowired
+	public DungeonService(@Autowired(required = false) com.lopez.l2j.game.npc.NpcTemplateTable npcTemplates,
+						  @Autowired(required = false) com.lopez.l2j.game.service.InventoryService inventoryService,
+						  @Autowired(required = false) com.lopez.l2j.game.model.ObjectIdFactory idFactory) {
+		this.npcTemplates = npcTemplates;
+		this.inventoryService = inventoryService;
+		this.idFactory = idFactory != null ? idFactory : com.lopez.l2j.game.model.ObjectIdFactory.sequential(0x55000000);
 		loadDungeons();
 	}
 
@@ -224,19 +237,28 @@ public class DungeonService {
 				if (opt.isEmpty() || opt.get().count() < template.entryFeeCount()) {
 					return DungeonResult.fail("Adena insuficiente para entrada na Dungeon. Necessario: " + template.entryFeeCount());
 				}
-				opt.get().count((int) (opt.get().count() - template.entryFeeCount()));
+				if (inventoryService != null) {
+					var consumed = inventoryService.consumeItem(player.inventory(), template.entryFeeItemId(), (int) template.entryFeeCount(), "DungeonEntry");
+					if (consumed != null) {
+						com.lopez.l2j.game.world.GameWorld.getInstance().sendPacket(player.objectId(),
+								new com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate(List.of(
+										com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.of(consumed.item(),
+												consumed.removed() ? com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.REMOVED : com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED))));
+					}
+				} else {
+					opt.get().count((int) (opt.get().count() - template.entryFeeCount()));
+				}
 			}
 		}
 
 		int instanceId = instanceCounter.incrementAndGet();
 		player.instanceId(instanceId);
 
-		// Teleporta para o primeiro estagio
+		// Teleporta para o primeiro estagio e spawna os monstros no GameWorld
 		if (!template.stages().isEmpty()) {
 			DungeonStage stage1 = template.stages().get(0);
-			player.x(stage1.x());
-			player.y(stage1.y());
-			player.z(stage1.z());
+			com.lopez.l2j.game.world.GameWorld.getInstance().teleportPlayer(player, stage1.x(), stage1.y(), stage1.z(), instanceId);
+			spawnStageMonsters(instanceId, stage1);
 		}
 
 		DungeonSession session = new DungeonSession(instanceId, template, player);
@@ -246,6 +268,29 @@ public class DungeonService {
 		playerCooldowns.put(player.objectId(), System.currentTimeMillis() + (template.cooldownMinutes() * 60L * 1000L));
 
 		return DungeonResult.ok("Dungeon '" + template.name() + "' iniciada com sucesso!", session);
+	}
+
+	private void spawnStageMonsters(int instanceId, DungeonStage stage) {
+		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (world == null || stage == null) return;
+		for (DungeonSpawn sp : stage.spawns()) {
+			var tmpl = npcTemplates != null ? npcTemplates.get(sp.npcId()).orElse(null) : null;
+			if (tmpl == null) {
+				tmpl = com.lopez.l2j.game.npc.NpcTemplate.fallback(sp.npcId(), "Dungeon Monster", "L2Monster");
+			}
+			for (int i = 0; i < sp.count(); i++) {
+				int offsetX = (i % 5) * 45 - 90;
+				int offsetY = (i / 5) * 45 - 45;
+				var npc = new com.lopez.l2j.game.npc.NpcInstance(
+						idFactory.nextId(), tmpl, sp.x() + offsetX, sp.y() + offsetY, sp.z(), 0);
+				npc.instanceId(instanceId);
+				world.addNpc(npc);
+				var info = new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(npc);
+				for (var near : world.findPlayersAround(npc.x(), npc.y(), com.lopez.l2j.game.world.GameWorld.VISIBILITY_RADIUS, instanceId)) {
+					near.send(info);
+				}
+			}
+		}
 	}
 
 	/**
@@ -262,20 +307,35 @@ public class DungeonService {
 
 		if (session.remainingMonstersInStage <= 0) {
 			session.currentStageIndex++;
+			var world = com.lopez.l2j.game.world.GameWorld.getInstance();
 			if (session.currentStageIndex >= session.template.stages().size()) {
 				// Conclusão total da Dungeon!
 				session.completed = true;
+				if (world != null) {
+					world.removeNpcsByInstance(instanceId);
+				}
 				deliverCompletionRewards(session);
+				if (session.leader != null && world != null) {
+					world.sendMessage(session.leader.objectId(), "Parabens! Voce concluiu a Dungeon '" + session.template.name() + "'!");
+				}
 				return true;
 			} else {
 				// Avanca para o proximo estagio
 				session.initStage();
 				DungeonStage nextStage = session.template.stages().get(session.currentStageIndex);
-				if (nextStage.teleport()) {
-					session.leader.x(nextStage.x());
-					session.leader.y(nextStage.y());
-					session.leader.z(nextStage.z());
+				if (world != null) {
+					world.removeNpcsByInstance(instanceId);
 				}
+				if (nextStage.teleport() && session.leader != null) {
+					if (world != null) {
+						world.teleportPlayer(session.leader, nextStage.x(), nextStage.y(), nextStage.z(), instanceId);
+					} else {
+						session.leader.x(nextStage.x());
+						session.leader.y(nextStage.y());
+						session.leader.z(nextStage.z());
+					}
+				}
+				spawnStageMonsters(instanceId, nextStage);
 				return true;
 			}
 		}
@@ -287,12 +347,30 @@ public class DungeonService {
 		PlayerCharacter leader = session.leader();
 		if (leader != null && leader.inventory() != null) {
 			// Premiação da conclusão: 500,000 Adena e 5 Event Tokens (4037)
-			var adenaOpt = leader.inventory().byItemId(57);
-			adenaOpt.ifPresent(adena -> adena.count(adena.count() + 500000));
+			if (inventoryService != null) {
+				List<com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo> updates = new ArrayList<>();
+				var addAdena = inventoryService.addItem(leader.inventory(), 57, 500000, "DungeonReward");
+				if (addAdena != null && addAdena.item() != null) {
+					updates.add(com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.of(addAdena.item(),
+							addAdena.created() ? com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.ADDED : com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED));
+				}
+				var addTokens = inventoryService.addItem(leader.inventory(), 4037, 5, "DungeonReward");
+				if (addTokens != null && addTokens.item() != null) {
+					updates.add(com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.of(addTokens.item(),
+							addTokens.created() ? com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.ADDED : com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED));
+				}
+				if (!updates.isEmpty()) {
+					com.lopez.l2j.game.world.GameWorld.getInstance().sendPacket(leader.objectId(),
+							new com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate(updates));
+				}
+			} else {
+				var adenaOpt = leader.inventory().byItemId(57);
+				adenaOpt.ifPresent(adena -> adena.count(adena.count() + 500000));
 
-			var tokenOpt = leader.inventory().byItemId(4037);
-			if (tokenOpt.isPresent()) {
-				tokenOpt.get().count(tokenOpt.get().count() + 5);
+				var tokenOpt = leader.inventory().byItemId(4037);
+				if (tokenOpt.isPresent()) {
+					tokenOpt.get().count(tokenOpt.get().count() + 5);
+				}
 			}
 		}
 	}

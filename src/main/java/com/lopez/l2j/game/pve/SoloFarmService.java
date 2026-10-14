@@ -72,8 +72,21 @@ public class SoloFarmService {
 
 	private final Map<Integer, SoloFarmSession> activeSessions = new ConcurrentHashMap<>();
 	private final AtomicInteger instanceCounter = new AtomicInteger(5000);
+	private final com.lopez.l2j.game.npc.NpcTemplateTable npcTemplates;
+	private final com.lopez.l2j.game.service.InventoryService inventoryService;
+	private final com.lopez.l2j.game.model.ObjectIdFactory idFactory;
 
 	public SoloFarmService() {
+		this(null, null, null);
+	}
+
+	@org.springframework.beans.factory.annotation.Autowired
+	public SoloFarmService(@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.npc.NpcTemplateTable npcTemplates,
+						   @org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.service.InventoryService inventoryService,
+						   @org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.model.ObjectIdFactory idFactory) {
+		this.npcTemplates = npcTemplates;
+		this.inventoryService = inventoryService;
+		this.idFactory = idFactory != null ? idFactory : com.lopez.l2j.game.model.ObjectIdFactory.sequential(0x56000000);
 		loadConfiguration();
 	}
 
@@ -113,22 +126,54 @@ public class SoloFarmService {
 			if (adenaOpt.isEmpty() || adenaOpt.get().count() < totalCostAdena) {
 				return SoloFarmResult.fail("Adena insuficiente! Custo para " + mobCount + " monstros: " + totalCostAdena + " Adena.");
 			}
-			adenaOpt.get().count((int) (adenaOpt.get().count() - totalCostAdena));
+			if (inventoryService != null) {
+				var consumed = inventoryService.consumeItem(player.inventory(), 57, (int) totalCostAdena, "SoloFarmEntry");
+				if (consumed != null) {
+					com.lopez.l2j.game.world.GameWorld.getInstance().sendPacket(player.objectId(),
+							new com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate(java.util.List.of(
+									com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.of(consumed.item(),
+											consumed.removed() ? com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.REMOVED : com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED))));
+				}
+			} else {
+				adenaOpt.get().count((int) (adenaOpt.get().count() - totalCostAdena));
+			}
 		}
 
 		int instanceId = instanceCounter.incrementAndGet();
-		player.instanceId(instanceId);
-		player.x(ENTRY_X);
-		player.y(ENTRY_Y);
-		player.z(ENTRY_Z);
+		com.lopez.l2j.game.world.GameWorld.getInstance().teleportPlayer(player, ENTRY_X, ENTRY_Y, ENTRY_Z, instanceId);
 
 		SoloFarmSession session = new SoloFarmSession(instanceId, player, mobCount);
 		activeSessions.put(instanceId, session);
+
+		int initialWave = Math.min(mobCount, 12);
+		for (int i = 0; i < initialWave; i++) {
+			spawnSoloFarmMob(instanceId, i);
+		}
 
 		log.info("SoloFarm iniciado: Jogador {} contratou {} monstros na instancia {}.",
 				player.name(), mobCount, instanceId);
 
 		return SoloFarmResult.ok("Arena SoloFarm iniciada com sucesso! " + mobCount + " monstros liberados.", session);
+	}
+
+	private void spawnSoloFarmMob(int instanceId, int index) {
+		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (world == null) return;
+		int npcId = 21314; // Ketra / Solo Farm Monster
+		var tmpl = npcTemplates != null ? npcTemplates.get(npcId).orElse(null) : null;
+		if (tmpl == null) {
+			tmpl = com.lopez.l2j.game.npc.NpcTemplate.fallback(npcId, "SoloFarm Guardian", "L2Monster");
+		}
+		double angle = (index % 12) * (Math.PI * 2.0 / 12.0);
+		int mx = ENTRY_X + (int) (Math.cos(angle) * 160);
+		int my = ENTRY_Y + (int) (Math.sin(angle) * 160);
+		var npc = new com.lopez.l2j.game.npc.NpcInstance(idFactory.nextId(), tmpl, mx, my, ENTRY_Z, 0);
+		npc.instanceId(instanceId);
+		world.addNpc(npc);
+		var info = new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(npc);
+		for (var near : world.findPlayersAround(mx, my, com.lopez.l2j.game.world.GameWorld.VISIBILITY_RADIUS, instanceId)) {
+			near.send(info);
+		}
 	}
 
 	/**
@@ -144,20 +189,38 @@ public class SoloFarmService {
 
 		// Recompensa organica por monstro (1500 Adena)
 		if (session.player().inventory() != null) {
-			var adenaOpt = session.player().inventory().byItemId(57);
-			adenaOpt.ifPresent(adena -> adena.count(adena.count() + 1500));
+			if (inventoryService != null) {
+				var added = inventoryService.addItem(session.player().inventory(), 57, 1500, "SoloFarmKill");
+				if (added != null && added.item() != null) {
+					com.lopez.l2j.game.world.GameWorld.getInstance().sendPacket(session.player().objectId(),
+							new com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate(java.util.List.of(
+									com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.of(added.item(),
+											added.created() ? com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.ADDED : com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED))));
+				}
+			} else {
+				var adenaOpt = session.player().inventory().byItemId(57);
+				adenaOpt.ifPresent(adena -> adena.count(adena.count() + 1500));
+			}
 		}
 
+		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
 		if (session.mobsKilled >= session.totalMobsBought) {
 			session.completed = true;
-			// Teleporta de volta para fora da arena
-			session.player().instanceId(0);
-			session.player().x(EXIT_X);
-			session.player().y(EXIT_Y);
-			session.player().z(EXIT_Z);
+			if (world != null) {
+				world.removeNpcsByInstance(instanceId);
+				world.teleportPlayer(session.player(), EXIT_X, EXIT_Y, EXIT_Z, 0);
+				world.sendMessage(session.player().objectId(), "SoloFarm concluido! Voce abateu todos os " + session.mobsKilled + " monstros.");
+			} else {
+				session.player().instanceId(0);
+				session.player().x(EXIT_X);
+				session.player().y(EXIT_Y);
+				session.player().z(EXIT_Z);
+			}
 			log.info("SoloFarm concluido para jogador {}! Total mortos: {}",
 					session.player().name(), session.mobsKilled);
 			return true;
+		} else if (session.mobsKilled + 12 <= session.totalMobsBought) {
+			spawnSoloFarmMob(instanceId, session.mobsKilled);
 		}
 
 		return false;
