@@ -101,6 +101,26 @@ public class GameWorld {
 
 		default void removeKnownObject(int objectId) {
 		}
+
+		default int instanceId() {
+			PlayerCharacter ch = character();
+			return ch != null ? ch.instanceId() : 0;
+		}
+
+		default void teleportToLocation(int x, int y, int z, int instanceId) {
+			PlayerCharacter ch = character();
+			if (ch != null) {
+				ch.instanceId(instanceId);
+				ch.x(x);
+				ch.y(y);
+				ch.z(z);
+			}
+			send(new GameServerPacket.TeleportToLocation(objectId(), x, y, z, 0));
+		}
+
+		default void teleportToLocation(int x, int y, int z) {
+			teleportToLocation(x, y, z, instanceId());
+		}
 	}
 
 	public static final int LOCAL_CHAT_RANGE = 1250;
@@ -113,16 +133,38 @@ public class GameWorld {
 	private final Map<Integer, NpcInstance> npcsById = new ConcurrentHashMap<>();
 	private final Map<Long, Set<NpcInstance>> npcsByCell = new ConcurrentHashMap<>();
 
+	private final Map<Integer, com.lopez.l2j.game.summon.SummonInstance> summonsById = new ConcurrentHashMap<>();
+
 	// ---- PLAYERS ----
 
 	public void add(OnlinePlayer p) {
 		playersById.put(p.objectId(), p);
-		playersByName.put(key(p.name()), p);
+		if (p.name() != null) {
+			playersByName.put(key(p.name()), p);
+		}
 	}
 
 	public void remove(OnlinePlayer p) {
 		playersById.remove(p.objectId(), p);
-		playersByName.remove(key(p.name()), p);
+		if (p.name() != null) {
+			playersByName.remove(key(p.name()), p);
+		}
+	}
+
+	public void removeById(int objectId) {
+		OnlinePlayer p = playersById.remove(objectId);
+		if (p != null && p.name() != null) {
+			playersByName.remove(key(p.name()), p);
+		}
+	}
+
+	public record PhantomOnlinePlayer(PlayerCharacter character) implements OnlinePlayer {
+		@Override public int objectId() { return character.objectId(); }
+		@Override public String name() { return character.name(); }
+		@Override public int x() { return character.x(); }
+		@Override public int y() { return character.y(); }
+		@Override public int z() { return character.z(); }
+		@Override public void send(GameServerPacket packet) {}
 	}
 
 	public int online() {
@@ -162,10 +204,59 @@ public class GameWorld {
 		return p != null ? p.character() : null;
 	}
 
+	public void teleportPlayer(PlayerCharacter player, int x, int y, int z) {
+		teleportPlayer(player, x, y, z, player != null ? player.instanceId() : 0);
+	}
+
+	public void teleportPlayer(PlayerCharacter player, int x, int y, int z, int instanceId) {
+		if (player == null) {
+			return;
+		}
+		player.instanceId(instanceId);
+		player.x(x);
+		player.y(y);
+		player.z(z);
+		OnlinePlayer op = playersById.get(player.objectId());
+		if (op != null) {
+			op.teleportToLocation(x, y, z, instanceId);
+		}
+	}
+
+	public void teleportPlayer(int playerObjectId, int x, int y, int z, int instanceId) {
+		OnlinePlayer op = playersById.get(playerObjectId);
+		if (op != null) {
+			op.teleportToLocation(x, y, z, instanceId);
+		}
+	}
+
+	public void sendPacket(int playerObjectId, GameServerPacket packet) {
+		if (packet == null) {
+			return;
+		}
+		OnlinePlayer op = playersById.get(playerObjectId);
+		if (op != null) {
+			op.send(packet);
+		}
+	}
+
+	public void sendMessage(int playerObjectId, String message) {
+		OnlinePlayer op = playersById.get(playerObjectId);
+		if (op != null) {
+			op.sendMessage(message);
+		}
+	}
+
 	public List<OnlinePlayer> findPlayersAround(int x, int y, int range) {
+		return findPlayersAround(x, y, range, 0);
+	}
+
+	public List<OnlinePlayer> findPlayersAround(int x, int y, int range, int instanceId) {
 		long r2 = (long) range * range;
 		List<OnlinePlayer> list = new ArrayList<>();
 		for (OnlinePlayer p : playersById.values()) {
+			if (p.instanceId() != instanceId) {
+				continue;
+			}
 			long dx = p.x() - x;
 			long dy = p.y() - y;
 			if (dx * dx + dy * dy <= r2) {
@@ -193,8 +284,12 @@ public class GameWorld {
 
 	public void broadcastAround(OnlinePlayer origin, int range, GameServerPacket packet, boolean includeSelf) {
 		long r2 = (long) range * range;
+		int origInstance = origin.instanceId();
 		broadcast(packet, p -> {
 			if (!includeSelf && p.objectId() == origin.objectId()) {
+				return false;
+			}
+			if (p.instanceId() != origInstance) {
 				return false;
 			}
 			long dx = p.x() - origin.x();
@@ -204,12 +299,65 @@ public class GameWorld {
 	}
 
 	public void broadcastAround(int x, int y, int range, GameServerPacket packet) {
+		broadcastAround(x, y, range, 0, packet);
+	}
+
+	public void broadcastAround(int x, int y, int range, int instanceId, GameServerPacket packet) {
 		long r2 = (long) range * range;
 		broadcast(packet, p -> {
+			if (p.instanceId() != instanceId) {
+				return false;
+			}
 			long dx = p.x() - x;
 			long dy = p.y() - y;
 			return dx * dx + dy * dy <= r2;
 		});
+	}
+
+	// ---- SUMMONS / PETS ----
+
+	public void addSummon(com.lopez.l2j.game.summon.SummonInstance summon) {
+		if (summon != null) {
+			summonsById.put(summon.objectId(), summon);
+		}
+	}
+
+	public void removeSummon(com.lopez.l2j.game.summon.SummonInstance summon) {
+		if (summon != null) {
+			summonsById.remove(summon.objectId());
+		}
+	}
+
+	public void removeSummon(int objectId) {
+		summonsById.remove(objectId);
+	}
+
+	public void removeSummonById(int objectId) {
+		summonsById.remove(objectId);
+	}
+
+	public Optional<com.lopez.l2j.game.summon.SummonInstance> summon(int objectId) {
+		return Optional.ofNullable(summonsById.get(objectId));
+	}
+
+	public Collection<com.lopez.l2j.game.summon.SummonInstance> summons() {
+		return summonsById.values();
+	}
+
+	public List<com.lopez.l2j.game.summon.SummonInstance> findSummonsAround(int x, int y, int range, int instanceId) {
+		long r2 = (long) range * range;
+		List<com.lopez.l2j.game.summon.SummonInstance> list = new ArrayList<>();
+		for (var s : summonsById.values()) {
+			if (s.instanceId() != instanceId) {
+				continue;
+			}
+			long dx = s.x() - x;
+			long dy = s.y() - y;
+			if (dx * dx + dy * dy <= r2) {
+				list.add(s);
+			}
+		}
+		return list;
 	}
 
 	// ---- NPCS E SPATIAL GRID ----
@@ -229,6 +377,21 @@ public class GameWorld {
 			if (cell.isEmpty()) {
 				npcsByCell.remove(key, Collections.emptySet());
 			}
+		}
+	}
+
+	public void removeNpcsByInstance(int instanceId) {
+		if (instanceId <= 0) {
+			return;
+		}
+		List<NpcInstance> toRemove = new ArrayList<>();
+		for (NpcInstance npc : npcsById.values()) {
+			if (npc.instanceId() == instanceId) {
+				toRemove.add(npc);
+			}
+		}
+		for (NpcInstance npc : toRemove) {
+			removeNpc(npc);
 		}
 	}
 
@@ -260,6 +423,10 @@ public class GameWorld {
 	}
 
 	public List<NpcInstance> findNpcsAround(int x, int y, int range) {
+		return findNpcsAround(x, y, range, 0);
+	}
+
+	public List<NpcInstance> findNpcsAround(int x, int y, int range, int instanceId) {
 		long r2 = (long) range * range;
 		int minCellX = (x - range) >> 12;
 		int maxCellX = (x + range) >> 12;
@@ -273,6 +440,9 @@ public class GameWorld {
 				Set<NpcInstance> cell = npcsByCell.get(key);
 				if (cell != null) {
 					for (NpcInstance npc : cell) {
+						if (npc.instanceId() != instanceId) {
+							continue;
+						}
 						long dx = npc.x() - x;
 						long dy = npc.y() - y;
 						if (dx * dx + dy * dy <= r2) {
