@@ -5,12 +5,21 @@ import com.lopez.l2j.game.castle.Castle;
 import com.lopez.l2j.game.castle.CastleManager;
 import com.lopez.l2j.game.clan.Clan;
 import com.lopez.l2j.game.clan.ClanTable;
+import com.lopez.l2j.game.npc.NpcInstance;
+import com.lopez.l2j.game.npc.NpcTemplate;
+import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
+import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
+import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +40,13 @@ public class SiegeService {
 	public static final long SIEGE_DURATION_MILLIS = 2 * 60 * 60 * 1000L; // 2 horas
 	public static final long SIEGE_CYCLE_MILLIS = 14 * 24 * 60 * 60 * 1000L; // 14 dias
 
+	public static final int CONTROL_TOWER_NPC_ID = 13002;
+	public static final int FLAME_TOWER_NPC_ID = 13004;
+	public static final int HOLY_ARTIFACT_NPC_ID = 35062;
+
 	private final Map<Integer, SiegeRecord> sieges = new ConcurrentHashMap<>();
+	private final Map<Integer, List<NpcInstance>> siegeNpcsByCastle = new ConcurrentHashMap<>();
+	private final AtomicInteger siegeNpcIdSeq = new AtomicInteger(1_970_000_000);
 	private final CastleManager castleManager;
 	private final ClanTable clanTable;
 	private final JdbcClient jdbc;
@@ -172,7 +187,7 @@ public class SiegeService {
 	}
 
 	/**
-	 * Inicia a batalha de cerco.
+	 * Inicia a batalha de cerco, materializando Control Towers, Flame Towers e Holy Artifact no GameWorld.
 	 */
 	public boolean startSiege(int castleId) {
 		SiegeRecord siege = sieges.get(castleId);
@@ -184,6 +199,17 @@ public class SiegeService {
 		siege.registrationOver(true);
 		siege.controlTowersActive(3);
 		siege.flameTowersActive(2);
+
+		spawnSiegeStructures(castleId);
+
+		Castle castle = castleManager.getCastleById(castleId).orElse(null);
+		String castleName = castle != null ? castle.name() : ("Castle #" + castleId);
+		GameWorld world = GameWorld.getInstance();
+		if (world != null) {
+			world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Siege",
+					"The siege of " + castleName + " Castle has begun!"), p -> true);
+		}
+
 		log.info("Cerco ao Castelo {} iniciado com sucesso!", castleId);
 		return true;
 	}
@@ -220,6 +246,21 @@ public class SiegeService {
 
 		castleManager.setOwner(castleId, newOwnerClanId);
 
+		// Restaura as Control Towers para o novo defensor
+		siege.controlTowersActive(3);
+		despawnSiegeStructures(castleId);
+		spawnSiegeStructures(castleId);
+
+		GameWorld world = GameWorld.getInstance();
+		if (world != null) {
+			Castle castle = castleManager.getCastleById(castleId).orElse(null);
+			String castleName = castle != null ? castle.name() : ("Castle #" + castleId);
+			Clan newClan = clanTable != null ? clanTable.byClanId(newOwnerClanId).orElse(null) : null;
+			String clanName = newClan != null ? newClan.name() : ("Clan #" + newOwnerClanId);
+			world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Siege",
+					"Clan " + clanName + " has engraved the Holy Artifact of " + castleName + " Castle (Mid-Victory)!"), p -> true);
+		}
+
 		// Se nao sobrou nenhum outro atacante, cerco encerra imediatamente
 		if (siege.attackers().isEmpty()) {
 			endSiege(castleId, newOwnerClanId);
@@ -240,6 +281,7 @@ public class SiegeService {
 
 		siege.status(SiegeStatus.FINISHED);
 		siege.registrationOver(false);
+		despawnSiegeStructures(castleId);
 
 		Castle castle = castleManager.getCastleById(castleId).orElse(null);
 		if (castle != null && winnerClanId > 0) {
@@ -258,6 +300,13 @@ public class SiegeService {
 			}
 		}
 
+		GameWorld world = GameWorld.getInstance();
+		if (world != null) {
+			String castleName = castle != null ? castle.name() : ("Castle #" + castleId);
+			world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Siege",
+					"The siege of " + castleName + " Castle has ended!"), p -> true);
+		}
+
 		// Reagenda cerco para 14 dias no futuro
 		long nextSiege = System.currentTimeMillis() + SIEGE_CYCLE_MILLIS;
 		siege.siegeDate(nextSiege);
@@ -268,6 +317,74 @@ public class SiegeService {
 		clearSiegeClans(castleId);
 		log.info("Cerco ao Castelo {} finalizado! Vencedor: Cla {}", castleId, winnerClanId);
 		return true;
+	}
+
+	private void spawnSiegeStructures(int castleId) {
+		GameWorld world = GameWorld.getInstance();
+		if (world == null) {
+			return;
+		}
+		int[] baseCoords = castleBaseCoords(castleId);
+		int bx = baseCoords[0];
+		int by = baseCoords[1];
+		int bz = baseCoords[2];
+
+		List<NpcInstance> spawned = new CopyOnWriteArrayList<>();
+		// 3 Control Towers
+		NpcTemplate ctTpl = NpcTemplate.fallback(CONTROL_TOWER_NPC_ID, "Control Tower", "L2ControlTower");
+		for (int i = 0; i < 3; i++) {
+			NpcInstance ct = new NpcInstance(siegeNpcIdSeq.incrementAndGet(), ctTpl, bx + (i - 1) * 250, by + 200, bz, 0);
+			world.addNpc(ct);
+			world.broadcast(NpcInfo.of(ct), p -> p.character() != null && Math.hypot(p.character().x() - ct.x(), p.character().y() - ct.y()) <= GameWorld.VISIBILITY_RADIUS);
+			spawned.add(ct);
+		}
+
+		// 2 Flame Towers
+		NpcTemplate ftTpl = NpcTemplate.fallback(FLAME_TOWER_NPC_ID, "Flame Control Tower", "L2FlameTower");
+		for (int i = 0; i < 2; i++) {
+			NpcInstance ft = new NpcInstance(siegeNpcIdSeq.incrementAndGet(), ftTpl, bx + (i == 0 ? -180 : 180), by - 150, bz, 0);
+			world.addNpc(ft);
+			world.broadcast(NpcInfo.of(ft), p -> p.character() != null && Math.hypot(p.character().x() - ft.x(), p.character().y() - ft.y()) <= GameWorld.VISIBILITY_RADIUS);
+			spawned.add(ft);
+		}
+
+		// 1 Holy Artifact
+		NpcTemplate artTpl = NpcTemplate.fallback(HOLY_ARTIFACT_NPC_ID, "Holy Artifact", "L2EffectPoint");
+		NpcInstance artifact = new NpcInstance(siegeNpcIdSeq.incrementAndGet(), artTpl, bx, by, bz, 0);
+		world.addNpc(artifact);
+		world.broadcast(NpcInfo.of(artifact), p -> p.character() != null && Math.hypot(p.character().x() - artifact.x(), p.character().y() - artifact.y()) <= GameWorld.VISIBILITY_RADIUS);
+		spawned.add(artifact);
+
+		siegeNpcsByCastle.put(castleId, spawned);
+	}
+
+	private void despawnSiegeStructures(int castleId) {
+		List<NpcInstance> list = siegeNpcsByCastle.remove(castleId);
+		if (list == null || list.isEmpty()) {
+			return;
+		}
+		GameWorld world = GameWorld.getInstance();
+		for (NpcInstance npc : list) {
+			if (world != null) {
+				world.removeNpc(npc);
+				world.broadcast(new DeleteObject(npc.objectId()), p -> true);
+			}
+		}
+	}
+
+	private int[] castleBaseCoords(int castleId) {
+		return switch (castleId) {
+			case 1 -> new int[]{-18100, 109400, -2490}; // Gludio
+			case 2 -> new int[]{22070, 160350, -2690};  // Dion
+			case 3 -> new int[]{116500, 145100, -2560}; // Giran
+			case 4 -> new int[]{82600, 37100, -2280};   // Oren
+			case 5 -> new int[]{147450, 4650, -340};    // Aden
+			case 6 -> new int[]{116000, 249100, -780};  // Innadril
+			case 7 -> new int[]{147400, -48500, -2270}; // Goddard
+			case 8 -> new int[]{14300, -49150, -530};   // Rune
+			case 9 -> new int[]{77550, -152100, -540};  // Schuttgart
+			default -> new int[]{116500, 145100, -2560};
+		};
 	}
 
 	public boolean isAttacker(int castleId, int clanId) {
