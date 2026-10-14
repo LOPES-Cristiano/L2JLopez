@@ -1793,47 +1793,47 @@ public class MagicSkillPacketHandler {
 				}
 				switch (f.stat()) {
 					case "pDef" -> {
-						double prev = summon.pDefMul();
-						summon.pDefMul(Math.max(prev, val));
-						GameSession.autoAttackScheduler().schedule(() -> summon.pDefMul(prev), dur, TimeUnit.MILLISECONDS);
+						int prev = summon.pDef();
+						summon.pDef((int) Math.round(prev * val));
+						GameSession.autoAttackScheduler().schedule(() -> summon.pDef(prev), dur, TimeUnit.MILLISECONDS);
 					}
 					case "mDef" -> {
-						double prev = summon.mDefMul();
-						summon.mDefMul(Math.max(prev, val));
-						GameSession.autoAttackScheduler().schedule(() -> summon.mDefMul(prev), dur, TimeUnit.MILLISECONDS);
+						int prev = summon.mDef();
+						summon.mDef((int) Math.round(prev * val));
+						GameSession.autoAttackScheduler().schedule(() -> summon.mDef(prev), dur, TimeUnit.MILLISECONDS);
 					}
 					case "pAtk" -> {
-						double prev = summon.pAtkMul();
-						summon.pAtkMul(Math.max(prev, val));
-						GameSession.autoAttackScheduler().schedule(() -> summon.pAtkMul(prev), dur, TimeUnit.MILLISECONDS);
+						int prev = summon.pAtk();
+						summon.pAtk((int) Math.round(prev * val));
+						GameSession.autoAttackScheduler().schedule(() -> summon.pAtk(prev), dur, TimeUnit.MILLISECONDS);
 					}
 					case "mAtk" -> {
-						double prev = summon.mAtkMul();
-						summon.mAtkMul(Math.max(prev, val));
-						GameSession.autoAttackScheduler().schedule(() -> summon.mAtkMul(prev), dur, TimeUnit.MILLISECONDS);
+						int prev = summon.mAtk();
+						summon.mAtk((int) Math.round(prev * val));
+						GameSession.autoAttackScheduler().schedule(() -> summon.mAtk(prev), dur, TimeUnit.MILLISECONDS);
 					}
 					case "runSpd" -> {
-						double prev = summon.runSpdMul();
-						summon.runSpdMul(Math.max(prev, val));
+						int prev = summon.runSpd();
+						summon.runSpd((int) Math.round(prev * val));
 						ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, new SummonNpcInfo(summon), false);
 						GameSession.autoAttackScheduler().schedule(() -> {
-							summon.runSpdMul(prev);
+							summon.runSpd(prev);
 							ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, new SummonNpcInfo(summon), false);
 						}, dur, TimeUnit.MILLISECONDS);
 					}
 					case "pAtkSpd" -> {
-						double prev = summon.pAtkSpdMul();
-						summon.pAtkSpdMul(Math.max(prev, val));
+						int prev = summon.pAtkSpd();
+						summon.pAtkSpd((int) Math.round(prev * val));
 						ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, new SummonNpcInfo(summon), false);
 						GameSession.autoAttackScheduler().schedule(() -> {
-							summon.pAtkSpdMul(prev);
+							summon.pAtkSpd(prev);
 							ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, new SummonNpcInfo(summon), false);
 						}, dur, TimeUnit.MILLISECONDS);
 					}
 					case "mAtkSpd" -> {
-						double prev = summon.mAtkSpdMul();
-						summon.mAtkSpdMul(Math.max(prev, val));
-						GameSession.autoAttackScheduler().schedule(() -> summon.mAtkSpdMul(prev), dur, TimeUnit.MILLISECONDS);
+						int prev = summon.mAtkSpd();
+						summon.mAtkSpd((int) Math.round(prev * val));
+						GameSession.autoAttackScheduler().schedule(() -> summon.mAtkSpd(prev), dur, TimeUnit.MILLISECONDS);
 					}
 				}
 			}
