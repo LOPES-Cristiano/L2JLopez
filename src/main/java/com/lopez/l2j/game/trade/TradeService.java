@@ -78,6 +78,7 @@ public class TradeService {
 	}
 
 	private final Map<Integer, Integer> pendingRequests = new ConcurrentHashMap<>();
+	private final Map<Integer, Integer> partnerToRequester = new ConcurrentHashMap<>();
 	private final Map<Integer, TradeSession> activeTrades = new ConcurrentHashMap<>();
 	private final InventoryService inventoryService;
 
@@ -85,8 +86,13 @@ public class TradeService {
 		this(null);
 	}
 
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
 	public TradeService(InventoryService inventoryService) {
 		this.inventoryService = inventoryService;
+	}
+
+	public Optional<Integer> getPendingRequester(int partnerObjectId) {
+		return Optional.ofNullable(partnerToRequester.get(partnerObjectId));
 	}
 
 	public boolean isTrading(int playerObjectId) {
@@ -137,6 +143,7 @@ public class TradeService {
 		}
 
 		pendingRequests.put(requester.objectId(), partner.objectId());
+		partnerToRequester.put(partner.objectId(), requester.objectId());
 		return true;
 	}
 
@@ -149,6 +156,7 @@ public class TradeService {
 			return Optional.empty();
 		}
 
+		partnerToRequester.remove(partner.objectId());
 		Integer requestedPartnerId = pendingRequests.remove(requester.objectId());
 		if (requestedPartnerId == null || requestedPartnerId != partner.objectId()) {
 			return Optional.empty();
