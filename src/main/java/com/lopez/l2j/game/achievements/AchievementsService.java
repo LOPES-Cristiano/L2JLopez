@@ -177,7 +177,7 @@ public class AchievementsService {
 		StringBuilder sb = new StringBuilder();
 		sb.append("<html><title>Achievements System</title><body><center>");
 		sb.append("<font color=\"LEVEL\">=== Lineage II Achievements ===</font><br>");
-		sb.append("Progress: <font color=\"00FF00\">").append(completed.size()).append("</font> / ")
+		sb.append("Progress: <font color=\"8FA888\">").append(completed.size()).append("</font> / ")
 				.append(achievements.size()).append(" Completed<br><br>");
 
 		sb.append("<table width=290 border=0>");
@@ -187,13 +187,13 @@ public class AchievementsService {
 
 			sb.append("<tr>");
 			sb.append("<td width=190>");
-			sb.append("<font color=\"").append(isDone ? "00FF00" : (canClaim ? "LEVEL" : "FFFFFF")).append("\">")
+			sb.append("<font color=\"").append(isDone ? "8FA888" : (canClaim ? "LEVEL" : "FFFFFF")).append("\">")
 					.append(def.name()).append("</font><br1>");
 			sb.append("<font color=\"B09878\">").append(def.description()).append("</font>");
 			sb.append("</td>");
 			sb.append("<td width=100 align=center>");
 			if (isDone) {
-				sb.append("<font color=\"00FF00\">Completed</font>");
+				sb.append("<font color=\"8FA888\">Completed</font>");
 			} else if (canClaim) {
 				sb.append("<button value=\"Claim\" action=\"bypass -h achieve_claim ").append(def.id())
 						.append("\" width=60 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
