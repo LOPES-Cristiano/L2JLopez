@@ -185,7 +185,7 @@ public class OfficialEventService {
 		for (OfficialEventDef def : events.values()) {
 			boolean active = def.getState() == OfficialEventState.ACTIVE;
 			sb.append("<table width=280 bgcolor=000000><tr>");
-			sb.append("<td><font color=\"").append(active ? "00FF00" : "FF0000").append("\">")
+			sb.append("<td><font color=\"").append(active ? "8FA888" : "B86B6B").append("\">")
 					.append(def.getName()).append(" [").append(def.getState()).append("]</font><br1>");
 			sb.append("<font color=\"B09878\">").append(def.getDescription()).append("</font></td>");
 			sb.append("</tr></table><br1>");
