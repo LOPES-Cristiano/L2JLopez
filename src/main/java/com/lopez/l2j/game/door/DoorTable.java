@@ -59,6 +59,10 @@ public class DoorTable {
 		if (door != null) {
 			byDoorId.put(door.doorId(), door);
 			byObjectId.put(door.objectId(), door);
+			com.lopez.l2j.game.geodata.GeoEngine geo = com.lopez.l2j.game.geodata.GeoEngine.peekInstance();
+			if (geo != null) {
+				geo.addGeoObject(door);
+			}
 		}
 	}
 

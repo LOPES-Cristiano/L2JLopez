@@ -1,9 +1,11 @@
 package com.lopez.l2j.game.door;
 
+import com.lopez.l2j.game.geodata.GeoEngine;
 import com.lopez.l2j.game.geodata.GeoObject;
 
 /**
  * Representa uma porta no mundo (castelos, clanhalls, templos, fortes).
+ * Implementa GeoObject e sincroniza com o GeoEngine para bloqueio/liberacao dinamica em tempo real.
  */
 public class DoorInstance implements GeoObject {
 
@@ -47,10 +49,20 @@ public class DoorInstance implements GeoObject {
 		this.mDef = mDef;
 		this.unlockable = unlockable;
 		this.open = open;
+		syncWithGeoEngine();
+	}
+
+	private void syncWithGeoEngine() {
+		GeoEngine geo = GeoEngine.peekInstance();
+		if (geo != null) {
+			geo.addGeoObject(this);
+		}
 	}
 
 	public int objectId() { return objectId; }
+	public int getObjectId() { return objectId; }
 	public int doorId() { return doorId; }
+	public int getDoorId() { return doorId; }
 	public String name() { return name; }
 	public int x() { return x; }
 	public int y() { return y; }
@@ -63,16 +75,32 @@ public class DoorInstance implements GeoObject {
 	public int zMax() { return zMax; }
 	public int maxHp() { return maxHp; }
 	public int currentHp() { return currentHp; }
-	public void currentHp(int hp) { this.currentHp = Math.max(0, Math.min(hp, maxHp)); }
+	public void currentHp(int hp) {
+		this.currentHp = Math.max(0, Math.min(hp, maxHp));
+		syncWithGeoEngine();
+	}
 	public int pDef() { return pDef; }
 	public int mDef() { return mDef; }
 	public boolean unlockable() { return unlockable; }
 	public boolean isOpen() { return open; }
-	public void open(boolean open) { this.open = open; }
+	public boolean isClosed() { return !open; }
+	public void open(boolean open) {
+		this.open = open;
+		syncWithGeoEngine();
+	}
 	public void open() { openDoor(); }
 	public void close() { closeDoor(); }
 
+	public boolean openMe() {
+		return openDoor();
+	}
+
+	public boolean closeMe() {
+		return closeDoor();
+	}
+
 	public boolean openDoor() {
+		syncWithGeoEngine();
 		if (!open) {
 			open = true;
 			return true;
@@ -81,6 +109,7 @@ public class DoorInstance implements GeoObject {
 	}
 
 	public boolean closeDoor() {
+		syncWithGeoEngine();
 		if (open) {
 			open = false;
 			return true;
@@ -90,6 +119,7 @@ public class DoorInstance implements GeoObject {
 
 	public boolean toggleDoor() {
 		open = !open;
+		syncWithGeoEngine();
 		return true;
 	}
 
