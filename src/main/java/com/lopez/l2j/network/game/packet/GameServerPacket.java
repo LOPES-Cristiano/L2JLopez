@@ -2887,45 +2887,51 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0xa6 TutorialShowHtml: exibe pagina HTML de tutorial. */
+	/**
+	 * 0xa0 TutorialShowHtml: exibe pagina HTML de tutorial.
+	 * <p>
+	 * ATENCAO: no Interlude (C6) o opcode 0xa6 pertence a MyTargetSelected. Enviar o tutorial com 0xa6 faz o
+	 * cliente interpretar o HTML como objectId de alvo e gera "General protection fault" (MyTargetSelected) no
+	 * primeiro login de personagens novos.
+	 */
 	record TutorialShowHtml(String html) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xa6)
+					.writeC(0xa0)
 					.writeS(html != null ? html : "")
 					.toByteArray();
 		}
 	}
 
-	/** 0xa7 TutorialShowQuestionMark: exibe icone de interrogacao de tutorial. */
+	/** 0xa1 TutorialShowQuestionMark: exibe icone de interrogacao de tutorial. */
 	record TutorialShowQuestionMark(int markId) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xa7)
+					.writeC(0xa1)
 					.writeD(markId)
 					.toByteArray();
 		}
 	}
 
-	/** 0xa8 TutorialEnableClientEvent: habilita gatilho de evento no cliente para o tutorial. */
+	/** 0xa2 TutorialEnableClientEvent: habilita gatilho de evento no cliente para o tutorial. */
 	record TutorialEnableClientEvent(int eventId) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xa8)
+					.writeC(0xa2)
 					.writeD(eventId)
 					.toByteArray();
 		}
 	}
 
-	/** 0xa9 TutorialCloseHtml: fecha janela de tutorial. */
+	/** 0xa3 TutorialCloseHtml: fecha janela de tutorial. */
 	record TutorialCloseHtml() implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xa9)
+					.writeC(0xa3)
 					.toByteArray();
 		}
 	}
