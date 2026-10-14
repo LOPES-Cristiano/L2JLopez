@@ -2936,12 +2936,12 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0xf1 RadarControl: adiciona ou remove marcador no radar do minimapa. */
+	/** 0xeb RadarControl: adiciona ou remove marcador no radar do minimapa (Interlude C6). */
 	record RadarControl(int show, int type, int x, int y, int z) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter()
-					.writeC(0xf1)
+					.writeC(0xeb)
 					.writeD(show)
 					.writeD(type)
 					.writeD(x)
