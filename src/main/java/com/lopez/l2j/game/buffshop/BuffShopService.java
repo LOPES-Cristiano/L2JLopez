@@ -508,7 +508,7 @@ public class BuffShopService {
 		if (allAvailable.isEmpty() && !isBuffShop(seller.objectId())) {
 			return "<html><body><center>"
 					+ "<table width=290><tr><td align=center><font color=\"LEVEL\">=== Buff Store Manager ===</font></td></tr></table>"
-					+ "<br><br><font color=\"FF5555\">Sua classe atual nao possui buffs para venda!</font><br><br>"
+					+ "<br><br><font color=\"B86B6B\">Sua classe atual nao possui buffs para venda!</font><br><br>"
 					+ "<font color=\"B09B79\">Classes compativeis: Prophet, Bishop, Elven Elder, Shillien Elder, Warcryer, Overlord, Bladedancer, Swordsinger e AIOx.</font>"
 					+ "<br><br><button value=\"Fechar\" action=\"bypass -h voiced_buffshop close\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">"
 					+ "</center></body></html>";
@@ -536,8 +536,8 @@ public class BuffShopService {
 		sb.append("<table width=285><tr><td align=center><font color=\"LEVEL\">=== Buff Store Manager ===</font></td></tr></table>");
 		sb.append("<table width=285 bgcolor=\"000000\" cellpadding=2>");
 		sb.append("<tr>");
-		sb.append("<td width=140><font color=\"AAAAAA\">Status:</font> ").append(isRunning ? "<font color=\"00FF00\">ATIVA</font>" : "<font color=\"FF9900\">EDITANDO</font>").append("</td>");
-		sb.append("<td width=145 align=right><font color=\"AAAAAA\">Total:</font> <font color=\"00FF00\">").append(totalDraftCount).append("</font>/").append(allAvailable.size()).append("</td>");
+		sb.append("<td width=140><font color=\"AAAAAA\">Status:</font> ").append(isRunning ? "<font color=\"8FA888\">ATIVA</font>" : "<font color=\"C8B588\">EDITANDO</font>").append("</td>");
+		sb.append("<td width=145 align=right><font color=\"AAAAAA\">Total:</font> <font color=\"8FA888\">").append(totalDraftCount).append("</font>/").append(allAvailable.size()).append("</td>");
 		sb.append("</tr>");
 		sb.append("<tr>");
 		sb.append("<td colspan=2><font color=\"AAAAAA\">Titulo:</font> <font color=\"LEVEL\">").append(title).append("</font> <a action=\"bypass -h voiced_buffshop title_menu\">[Alterar]</a></td>");
@@ -654,7 +654,7 @@ public class BuffShopService {
 		String cur = getDraftTitle(seller);
 		return "<html><body><center>"
 				+ "<table width=290><tr><td align=center><font color=\"LEVEL\">=== Titulo da Buff Store ===</font></td></tr></table>"
-				+ "<br><br>Titulo atual: <font color=\"00FF00\">" + cur + "</font><br><br>"
+				+ "<br><br>Titulo atual: <font color=\"8FA888\">" + cur + "</font><br><br>"
 				+ "Digite o novo titulo abaixo:<br>"
 				+ "<edit var=\"t\" width=180 height=15><br><br>"
 				+ "<button value=\"Salvar Titulo\" action=\"bypass -h voiced_buffshop title $t\" width=110 height=22 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br><br>"
@@ -681,7 +681,7 @@ public class BuffShopService {
 				+ "<table width=290><tr><td align=center><font color=\"LEVEL\">=== Preco do Buff ===</font></td></tr></table>"
 				+ "<br><img src=\"" + icon + "\" width=32 height=32><br>"
 				+ "<font color=\"FFFFFF\">" + name + "</font><br>"
-				+ "Preco atual: <font color=\"00FF00\">" + formatAdena(curPrice) + " Adena</font><br><br>"
+				+ "Preco atual: <font color=\"8FA888\">" + formatAdena(curPrice) + " Adena</font><br><br>"
 				+ "Precos rapidos:<br>"
 				+ "<button value=\"10.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 10000 " + category.getCode() + " " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>"
 				+ "<button value=\"50.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 50000 " + category.getCode() + " " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>"
@@ -708,7 +708,7 @@ public class BuffShopService {
 
 		BuffShop shop = activeShops.get(sellerId);
 		if (shop == null) {
-			return "<html><body><center><br><br><font color=\"FF5555\">Esta loja de buffs nao esta mais ativa.</font></center></body></html>";
+			return "<html><body><center><br><br><font color=\"B86B6B\">Esta loja de buffs nao esta mais ativa.</font></center></body></html>";
 		}
 
 		List<BuffShopItem> allItems = new ArrayList<>(shop.items().values());
@@ -737,7 +737,7 @@ public class BuffShopService {
 		sb.append("<table width=285 bgcolor=\"000000\" cellpadding=2>");
 		sb.append("<tr>");
 		sb.append("<td width=140><font color=\"AAAAAA\">Vendedor:</font> <font color=\"FFFFFF\">").append(shop.sellerName()).append("</font></td>");
-		sb.append("<td width=145 align=right><font color=\"AAAAAA\">Seu Saldo:</font> <font color=\"00FF00\">").append(formatAdena(buyerAdena)).append("</font></td>");
+		sb.append("<td width=145 align=right><font color=\"AAAAAA\">Seu Saldo:</font> <font color=\"8FA888\">").append(formatAdena(buyerAdena)).append("</font></td>");
 		sb.append("</tr>");
 		sb.append("<tr>");
 		sb.append("<td colspan=2><font color=\"AAAAAA\">Categoria:</font> <font color=\"LEVEL\">").append(curCat.getLabel()).append("</font> <font color=\"888888\">(").append(filtered.size()).append(" buffs disponiveis)</font></td>");
