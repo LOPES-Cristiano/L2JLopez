@@ -1,5 +1,7 @@
 package com.lopez.l2j.game.effect;
 
+import com.lopez.l2j.config.Config;
+import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.skill.StatFunc;
 import java.util.ArrayList;
 import java.util.List;
@@ -8,44 +10,65 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Buffs ativos de um jogador, indexados por stackType (mesma regra do L2J: um efeito por stackType, o novo
- * substitui o antigo). Thread-safe: e lido pelo calculo de stats e alterado pelos timers de expiracao.
+ * substitui o antigo respeitando stackOrder). Thread-safe: e lido pelo calculo de stats e alterado pelos timers de expiracao.
  */
 public final class PlayerEffects {
 
 	/** Duracao "infinita" usada por toggles (o icone vai com -1). */
 	public static final long PERMANENT = Long.MAX_VALUE;
 
+	/** Limite padrao de debuffs simultaneos no L2J Interlude. */
+	public static final int MAX_DEBUFF_AMOUNT = 10;
+
 	/**
 	 * Buff temporario com modificadores de stats (porta enxuta de L2Effect + FuncAdd/FuncMul).
 	 *
 	 * @param funcs funcoes de stat vindas do skill (buffs/debuffs/toggles); as pocoes usam os campos fixos
 	 */
-	public record ActiveBuff(int skillId, int level, String stackType, long endTimeMillis, int runSpdAdd,
-			double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd, List<StatFunc> funcs, boolean isDebuff) {
+	public record ActiveBuff(int skillId, int level, String stackType, int stackOrder, long endTimeMillis,
+			int runSpdAdd, double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd, List<StatFunc> funcs,
+			boolean isDebuff) {
+
+		public ActiveBuff(int skillId, int level, String stackType, long endTimeMillis, int runSpdAdd,
+				double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd, List<StatFunc> funcs, boolean isDebuff) {
+			this(skillId, level, stackType, level, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, funcs, isDebuff);
+		}
 
 		public ActiveBuff(int skillId, int level, String stackType, long endTimeMillis, int runSpdAdd,
 				double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd, List<StatFunc> funcs) {
-			this(skillId, level, stackType, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, funcs, false);
+			this(skillId, level, stackType, level, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, funcs, false);
 		}
 
 		public ActiveBuff(int skillId, int level, String stackType, long endTimeMillis, int runSpdAdd,
 				double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd) {
-			this(skillId, level, stackType, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, List.of(), false);
+			this(skillId, level, stackType, level, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, List.of(), false);
 		}
 
 		/** Buff de skill: so funcoes de stat. */
 		public static ActiveBuff ofSkill(int skillId, int level, String stackType, long endTimeMillis,
 				List<StatFunc> funcs) {
-			return new ActiveBuff(skillId, level, stackType, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), false);
+			return new ActiveBuff(skillId, level, stackType, level, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), false);
 		}
 
 		public static ActiveBuff ofSkill(int skillId, int level, String stackType, long endTimeMillis,
 				List<StatFunc> funcs, boolean isDebuff) {
-			return new ActiveBuff(skillId, level, stackType, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), isDebuff);
+			return new ActiveBuff(skillId, level, stackType, level, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), isDebuff);
+		}
+
+		public static ActiveBuff ofSkill(int skillId, int level, String stackType, int stackOrder, long endTimeMillis,
+				List<StatFunc> funcs, boolean isDebuff) {
+			return new ActiveBuff(skillId, level, stackType, stackOrder, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), isDebuff);
 		}
 
 		public boolean isPermanent() {
 			return endTimeMillis == PERMANENT;
+		}
+
+		public long remainingMillis(long now) {
+			if (isPermanent()) {
+				return Long.MAX_VALUE;
+			}
+			return Math.max(0L, endTimeMillis - now);
 		}
 
 		public int remainingSeconds(long now) {
@@ -56,29 +79,82 @@ public final class PlayerEffects {
 		}
 	}
 
-	private final Map<String, ActiveBuff> byStack = new ConcurrentHashMap<>();
-
-	public void put(ActiveBuff buff) {
-		put(buff, com.lopez.l2j.config.Config.MAX_BUFF_AMOUNT);
+	/** Retorna true para Songs e Dances de Bard no Interlude. */
+	public static boolean isDanceOrSong(int skillId) {
+		return (skillId >= 264 && skillId <= 311) || skillId == 349 || (skillId >= 363 && skillId <= 367);
 	}
 
-	public void put(ActiveBuff buff, int maxBuffs) {
-		if (buff == null || buff.stackType() == null) return;
-		if (!buff.isDebuff() && !buff.isPermanent() && maxBuffs > 0 && !byStack.containsKey(buff.stackType())) {
-			List<ActiveBuff> current = active().stream().filter(b -> !b.isDebuff() && !b.isPermanent()).toList();
-			if (current.size() >= maxBuffs) {
-				ActiveBuff oldest = null;
-				for (ActiveBuff b : current) {
-					if (oldest == null || b.endTimeMillis() < oldest.endTimeMillis()) {
-						oldest = b;
-					}
+	/** Retorna slots extras de buff conferidos por Divine Inspiration (skill 1405, niveis 1 a 4). */
+	public static int getExtraBuffSlots(PlayerCharacter ch) {
+		return ch != null && ch.skills() != null ? Math.max(0, Math.min(4, ch.skills().getOrDefault(1405, 0))) : 0;
+	}
+
+	private final Map<String, ActiveBuff> byStack = new ConcurrentHashMap<>();
+	private int extraBuffSlots = 0;
+
+	public int extraBuffSlots() {
+		return extraBuffSlots;
+	}
+
+	public void extraBuffSlots(int slots) {
+		this.extraBuffSlots = Math.max(0, slots);
+	}
+
+	public void put(ActiveBuff buff) {
+		put(buff, this.extraBuffSlots);
+	}
+
+	public boolean put(ActiveBuff buff, int extraSlots) {
+		if (buff == null || buff.stackType() == null) {
+			return false;
+		}
+		this.extraBuffSlots = Math.max(0, extraSlots);
+		long now = System.currentTimeMillis();
+		ActiveBuff existing = byStack.get(buff.stackType());
+		if (existing != null && existing.remainingMillis(now) > 0) {
+			if (!buff.isPermanent() && !existing.isPermanent() && buff.stackOrder() < existing.stackOrder()) {
+				return false;
+			}
+		} else {
+			if (buff.isDebuff()) {
+				List<ActiveBuff> debuffs = active().stream()
+						.filter(ActiveBuff::isDebuff)
+						.toList();
+				if (debuffs.size() >= MAX_DEBUFF_AMOUNT) {
+					evictOldest(debuffs);
 				}
-				if (oldest != null) {
-					remove(oldest);
+			} else if (!buff.isPermanent() && isDanceOrSong(buff.skillId())) {
+				int maxDances = Math.max(1, Config.getInt("MaxDanceAmount", 12));
+				List<ActiveBuff> dances = active().stream()
+						.filter(b -> !b.isDebuff() && !b.isPermanent() && isDanceOrSong(b.skillId()))
+						.toList();
+				if (dances.size() >= maxDances) {
+					evictOldest(dances);
+				}
+			} else if (!buff.isPermanent()) {
+				int maxBuffs = Math.max(1, Config.MAX_BUFF_AMOUNT) + Math.max(0, extraSlots);
+				List<ActiveBuff> normalBuffs = active().stream()
+						.filter(b -> !b.isDebuff() && !b.isPermanent() && !isDanceOrSong(b.skillId()))
+						.toList();
+				if (normalBuffs.size() >= maxBuffs) {
+					evictOldest(normalBuffs);
 				}
 			}
 		}
 		byStack.put(buff.stackType(), buff);
+		return true;
+	}
+
+	private void evictOldest(List<ActiveBuff> candidates) {
+		ActiveBuff oldest = null;
+		for (ActiveBuff b : candidates) {
+			if (oldest == null || b.endTimeMillis() < oldest.endTimeMillis()) {
+				oldest = b;
+			}
+		}
+		if (oldest != null) {
+			remove(oldest);
+		}
 	}
 
 	/** Remove apenas se o buff do stack ainda for este (evita apagar um buff renovado). */
