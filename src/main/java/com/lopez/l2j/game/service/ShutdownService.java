@@ -108,8 +108,9 @@ public class ShutdownService {
 		instance = this;
 		this.onlyGm = Config.SERVER_GM_ONLY;
 		scheduleDailyAutoRestart();
-		log.info("ShutdownService inicializado. AutoRestart: {} (Horario: {}), Modo Apenas GM: {}",
-				Config.AUTO_RESTART_ENABLED, Config.AUTO_RESTART_TIME, onlyGm);
+		log.info("ShutdownService inicializado. AutoRestart: {} (EnableRestart: {}, Horario: {}/{}, TimeZone: {}), SafeReboot: {} ({}s), Modo Apenas GM: {}",
+				Config.AUTO_RESTART_ENABLED, Config.ENABLE_RESTART, Config.AUTO_RESTART_TIME, Config.RESTART_TIME,
+				Config.TIME_ZONE, Config.SAFE_REBOOT, Config.SAFE_REBOOT_TIME, onlyGm);
 	}
 
 	@PreDestroy
@@ -137,6 +138,34 @@ public class ShutdownService {
 		this.onlyGm = onlyGm;
 		Config.SERVER_GM_ONLY = onlyGm;
 		log.info("Modo Apenas GM alterado para: {}", onlyGm);
+	}
+
+	public boolean isSafeRebootActive() {
+		return isShuttingDown && Config.SAFE_REBOOT && secondsRemaining <= Math.max(1, Config.SAFE_REBOOT_TIME);
+	}
+
+	public boolean isEnchantDisabledBySafeReboot() {
+		return isSafeRebootActive() && Config.SAFE_REBOOT_DISABLE_ENCHANT;
+	}
+
+	public boolean isTeleportDisabledBySafeReboot() {
+		return isSafeRebootActive() && Config.SAFE_REBOOT_DISABLE_TELEPORT;
+	}
+
+	public boolean isCreateItemDisabledBySafeReboot() {
+		return isSafeRebootActive() && Config.SAFE_REBOOT_DISABLE_CREATE_ITEM;
+	}
+
+	public boolean isTransactionDisabledBySafeReboot() {
+		return isSafeRebootActive() && Config.SAFE_REBOOT_DISABLE_TRANSACTION;
+	}
+
+	public boolean isPcInteractionDisabledBySafeReboot() {
+		return isSafeRebootActive() && Config.SAFE_REBOOT_DISABLE_PC_INTERACTION;
+	}
+
+	public boolean isNpcInteractionDisabledBySafeReboot() {
+		return isSafeRebootActive() && Config.SAFE_REBOOT_DISABLE_NPC_INTERACTION;
 	}
 
 	/**
@@ -172,6 +201,14 @@ public class ShutdownService {
 			}
 			executeShutdown(activeMode);
 			return;
+		}
+
+		if (Config.SAFE_REBOOT && secondsRemaining == Config.SAFE_REBOOT_TIME) {
+			log.info("SafeReboot ativado ({}s restantes): disableEnchant={}, disableTeleport={}, disableCreateItem={}, disableTransaction={}, disablePcInteraction={}, disableNpcInteraction={}",
+					secondsRemaining, Config.SAFE_REBOOT_DISABLE_ENCHANT, Config.SAFE_REBOOT_DISABLE_TELEPORT,
+					Config.SAFE_REBOOT_DISABLE_CREATE_ITEM, Config.SAFE_REBOOT_DISABLE_TRANSACTION,
+					Config.SAFE_REBOOT_DISABLE_PC_INTERACTION, Config.SAFE_REBOOT_DISABLE_NPC_INTERACTION);
+			broadcastAnnouncement("ATENCAO: Modo Safe Reboot ativado! Operacoes sensiveis foram temporariamente bloqueadas para proteger seus dados.");
 		}
 
 		boolean shouldAnnounce = false;
@@ -316,31 +353,46 @@ public class ShutdownService {
 	}
 
 	private void scheduleDailyAutoRestart() {
-		if (!Config.AUTO_RESTART_ENABLED) {
+		if (!Config.AUTO_RESTART_ENABLED && !Config.ENABLE_RESTART) {
 			return;
 		}
+		String timeStr = (Config.ENABLE_RESTART && Config.RESTART_TIME != null && !Config.RESTART_TIME.isBlank())
+				? Config.RESTART_TIME.trim()
+				: Config.AUTO_RESTART_TIME.trim();
+		int warnSeconds = (Config.ENABLE_RESTART && Config.RESTART_WARN_TIME > 0)
+				? Config.RESTART_WARN_TIME
+				: Config.AUTO_RESTART_COUNTDOWN;
 		try {
-			String[] parts = Config.AUTO_RESTART_TIME.trim().split(":");
+			String[] parts = timeStr.split(":");
 			int targetHour = Integer.parseInt(parts[0].trim());
 			int targetMin = parts.length > 1 ? Integer.parseInt(parts[1].trim()) : 0;
+			int targetSec = parts.length > 2 ? Integer.parseInt(parts[2].trim()) : 0;
 
-			java.time.ZonedDateTime now = java.time.ZonedDateTime.now();
-			java.time.ZonedDateTime nextRun = now.withHour(targetHour).withMinute(targetMin).withSecond(0).withNano(0);
+			java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+			if (Config.TIME_ZONE != null && !Config.TIME_ZONE.isBlank()) {
+				try {
+					zone = java.time.ZoneId.of(Config.TIME_ZONE.trim());
+				} catch (Exception ignored) {
+				}
+			}
+
+			java.time.ZonedDateTime now = java.time.ZonedDateTime.now(zone);
+			java.time.ZonedDateTime nextRun = now.withHour(targetHour).withMinute(targetMin).withSecond(targetSec).withNano(0);
 			if (now.compareTo(nextRun) >= 0) {
 				nextRun = nextRun.plusDays(1);
 			}
 			long delaySeconds = java.time.Duration.between(now, nextRun).getSeconds();
 
 			scheduler.schedule(() -> {
-				log.warn("AutoRestart diario disparado para as {}!", Config.AUTO_RESTART_TIME);
-				startShutdown(Config.AUTO_RESTART_COUNTDOWN, Mode.RESTART, "AutoRestart");
+				log.warn("AutoRestart diario disparado para as {}!", timeStr);
+				startShutdown(warnSeconds, Mode.RESTART, "AutoRestart");
 				scheduleDailyAutoRestart();
 			}, delaySeconds, TimeUnit.SECONDS);
 
 			log.info("AutoRestart programado com sucesso para {} (em {}h {}m)",
 					nextRun, delaySeconds / 3600, (delaySeconds % 3600) / 60);
 		} catch (Exception e) {
-			log.error("Falha ao programar AutoRestart diario (horario '{}'): {}", Config.AUTO_RESTART_TIME, e.getMessage());
+			log.error("Falha ao programar AutoRestart diario (horario '{}'): {}", timeStr, e.getMessage());
 		}
 	}
 

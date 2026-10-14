@@ -73,9 +73,10 @@ public class SpawnService {
 		int tomb = loadSpawns("lastimperialtomb_spawnlist");
 		int fort = loadFortSpawns();
 		int random = loadRandomSpawns();
+		int primeval = spawnPrimevalFlyingMonsters();
 		int minions = spawnMinionsForWorldMasters();
-		log.info("SpawnService: {} padrao, {} custom, {} raid bosses, {} vanhalter, {} tomb, {} fort, {} random, {} minions carregados (total npcs ativos no mundo: {}) em {} ms",
-				std, custom, raid, vanHalter, tomb, fort, random, minions, world.totalNpcs(), (System.nanoTime() - start) / 1_000_000);
+		log.info("SpawnService: {} padrao, {} custom, {} raid bosses, {} vanhalter, {} tomb, {} fort, {} random, {} primeval flying, {} minions carregados (total npcs ativos no mundo: {}) em {} ms",
+				std, custom, raid, vanHalter, tomb, fort, random, primeval, minions, world.totalNpcs(), (System.nanoTime() - start) / 1_000_000);
 	}
 
 	public synchronized int reloadSpawns() {
@@ -87,6 +88,20 @@ public class SpawnService {
 	}
 
 	private int correctZ(int x, int y, int z) {
+		return correctZ(null, x, y, z);
+	}
+
+	private int correctZ(NpcTemplate template, int x, int y, int z) {
+		String mode = Config.GEO_CORRECT_Z != null ? Config.GEO_CORRECT_Z.trim().toUpperCase() : "ALL";
+		if ("OFF".equals(mode) || "NONE".equals(mode) || "FALSE".equals(mode)) {
+			return z;
+		}
+		if ("MONSTER".equals(mode) && template != null && !template.isMonster()) {
+			return z;
+		}
+		if ("TOWN".equals(mode) && template != null && template.isMonster()) {
+			return z;
+		}
 		if (geoEngine != null && geoEngine.isEnabled()) {
 			short geoZ = geoEngine.getHeight(x, y, z);
 			if (geoZ != (short) z && Math.abs(geoZ - z) < 500) {
@@ -107,7 +122,7 @@ public class SpawnService {
 	public Optional<NpcInstance> spawn(int npcId, int x, int y, int z, int heading, boolean storeInDb) {
 		return templates.get(npcId).map(template -> {
 			int objectId = objectIds.nextId();
-			NpcInstance npc = new NpcInstance(objectId, template, x, y, correctZ(x, y, z), heading);
+			NpcInstance npc = new NpcInstance(objectId, template, x, y, correctZ(template, x, y, z), heading);
 			if (championService != null) {
 				championService.tryRollChampion(npc);
 			}
@@ -166,8 +181,17 @@ public class SpawnService {
 
 			int spawned = 0;
 			for (SpawnRecord rec : spawns) {
+				if (!Config.SPAWN_CLASS_MASTER && rec.npcTemplateId() == 31228) {
+					continue;
+				}
 				NpcTemplate template = templates.get(rec.npcTemplateId())
 						.orElseGet(() -> fallbackTemplate(rec.npcTemplateId(), "NPC " + rec.npcTemplateId(), "L2Npc"));
+				if (!Config.SPAWN_CLASS_MASTER && "L2ClassMaster".equalsIgnoreCase(template.type())) {
+					continue;
+				}
+				if (!Config.ALLOW_PET_WALKER && "L2PetWalker".equalsIgnoreCase(template.type())) {
+					continue;
+				}
 				int count = Math.max(1, rec.count());
 				for (int c = 0; c < count; c++) {
 					int objectId = objectIds.nextId();
@@ -175,11 +199,14 @@ public class SpawnService {
 					int sy = rec.y();
 					if (c > 0) {
 						double angle = (2 * Math.PI * c) / count;
-						int dist = 40 + (c * 25);
+						int baseDist = (Config.USE_MONSTER_RND_SPAWN && template.isMonster())
+								? Math.max(40, Config.RND_SPAWN_ZONE / 2)
+								: 40;
+						int dist = baseDist + (c * 25);
 						sx += (int) (Math.cos(angle) * dist);
 						sy += (int) (Math.sin(angle) * dist);
 					}
-					NpcInstance npc = new NpcInstance(objectId, template, sx, sy, correctZ(sx, sy, rec.z()), rec.heading());
+					NpcInstance npc = new NpcInstance(objectId, template, sx, sy, correctZ(template, sx, sy, rec.z()), rec.heading());
 					if (championService != null) {
 						championService.tryRollChampion(npc);
 					}
@@ -192,6 +219,26 @@ public class SpawnService {
 			log.warn("Tabela {} nao carregada: {}", tableName, e.getMessage());
 			return 0;
 		}
+	}
+
+	private int spawnPrimevalFlyingMonsters() {
+		if (!Config.PRIMAVEL_HAS_FLYING_MONSTERS || Config.PRIMAVEL_FLYING_MONSTERS_COUNT <= 0) {
+			return 0;
+		}
+		int count = Config.PRIMAVEL_FLYING_MONSTERS_COUNT;
+		int pterosaurId = 22199;
+		NpcTemplate tpl = templates.get(pterosaurId)
+				.orElseGet(() -> fallbackTemplate(pterosaurId, "Pterosaur", "L2Monster"));
+		int spawned = 0;
+		for (int i = 0; i < count; i++) {
+			int px = 10468 + (i * 180);
+			int py = -24569 + (i * 180);
+			int pz = -3645;
+			NpcInstance mob = new NpcInstance(objectIds.nextId(), tpl, px, py, correctZ(tpl, px, py, pz), 0);
+			world.addNpc(mob);
+			spawned++;
+		}
+		return spawned;
 	}
 
 	private int loadRaidBossSpawns() {
@@ -218,7 +265,7 @@ public class SpawnService {
 				NpcTemplate template = templates.get(rec.npcTemplateId())
 						.orElseGet(() -> fallbackTemplate(rec.npcTemplateId(), "Fort NPC " + rec.npcTemplateId(), "L2FortSiegeGuard"));
 				int objectId = objectIds.nextId();
-				NpcInstance npc = new NpcInstance(objectId, template, rec.x(), rec.y(), correctZ(rec.x(), rec.y(), rec.z()), rec.heading());
+				NpcInstance npc = new NpcInstance(objectId, template, rec.x(), rec.y(), correctZ(template, rec.x(), rec.y(), rec.z()), rec.heading());
 				world.addNpc(npc);
 				spawned++;
 			}
@@ -230,6 +277,9 @@ public class SpawnService {
 	}
 
 	private int loadRandomSpawns() {
+		if (!Config.USE_MONSTER_RND_SPAWN && Config.RND_SPAWN_ZONE <= 0) {
+			return 0;
+		}
 		try {
 			record RandomLoc(int groupId, int x, int y, int z, int heading) {}
 			List<RandomLoc> locs = jdbc.sql("SELECT groupId, x, y, z, heading FROM random_spawn_loc")
@@ -257,6 +307,7 @@ public class SpawnService {
 					.list();
 
 			int spawned = 0;
+			int maxZoneRadius = Math.max(30, Config.RND_SPAWN_ZONE);
 			for (RandomGroup g : groups) {
 				RandomLoc loc = locByGroup.get(g.groupId());
 				if (loc == null) {
@@ -269,13 +320,13 @@ public class SpawnService {
 					int objectId = objectIds.nextId();
 					int sx = loc.x();
 					int sy = loc.y();
-					if (c > 0) {
+					if (c > 0 && Config.USE_MONSTER_RND_SPAWN) {
 						double angle = (2 * Math.PI * c) / count;
-						int dist = 30 + (c * 20);
+						int dist = Math.min(maxZoneRadius, 30 + (c * 20));
 						sx += (int) (Math.cos(angle) * dist);
 						sy += (int) (Math.sin(angle) * dist);
 					}
-					NpcInstance npc = new NpcInstance(objectId, template, sx, sy, correctZ(sx, sy, loc.z()), loc.heading());
+					NpcInstance npc = new NpcInstance(objectId, template, sx, sy, correctZ(template, sx, sy, loc.z()), loc.heading());
 					if (championService != null) {
 						championService.tryRollChampion(npc);
 					}

@@ -1,5 +1,7 @@
 package com.lopez.l2j.game.service;
 
+import com.lopez.l2j.game.item.Inventory;
+import com.lopez.l2j.game.model.PlayerCharacter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -14,6 +16,18 @@ class MonsterRaceServiceTest {
     @BeforeEach
     void setUp() {
         raceService = new MonsterRaceService();
+    }
+
+    private PlayerCharacter createPlayer(int id, String name, int initialAdena) {
+        PlayerCharacter player = new PlayerCharacter(id, "acc", name, 40, 0, 0, 0, 0, 0, false,
+                0, 0, 0, 1000, 500, 500, 0, 0, 0, 0, "", 0, 0, 0,
+                0, 0, 0, 0, 1000, 500, 500);
+        Inventory inv = new Inventory(id);
+        if (initialAdena > 0) {
+            inv.addAdena(initialAdena);
+        }
+        player.inventory(inv);
+        return player;
     }
 
     @Test
@@ -46,4 +60,19 @@ class MonsterRaceServiceTest {
         int payoutLose = raceService.calculatePayout(bet, loseOutcome);
         assertEquals(0, payoutLose);
     }
+
+    @Test
+    void testPlayerPlaceBetAndRunRaceAndSettle() {
+        PlayerCharacter player = createPlayer(50, "DerbyPlayer", 10000);
+        // Aposta 1000 em todas as 8 raias para garantir que uma venca
+        for (int lane = 1; lane <= 8; lane++) {
+            assertTrue(raceService.placeBet(player, lane, 1000));
+        }
+        assertEquals(2000L, player.inventory().adena());
+
+        int won = raceService.runRaceAndSettlePlayer(player);
+        assertEquals(3500, won);
+        assertEquals(5500L, player.inventory().adena());
+    }
 }
+

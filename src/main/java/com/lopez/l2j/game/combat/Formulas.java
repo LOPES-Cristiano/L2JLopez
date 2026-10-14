@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.combat;
 
+import com.lopez.l2j.config.Config;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -23,6 +24,9 @@ public final class Formulas {
 	 * Modificador multiplicativo baseado no nivel do personagem.
 	 */
 	public static double calcLevelMod(int level) {
+		if (!Config.USE_CHAR_LEVEL_MODIFIER) {
+			return 1.0;
+		}
 		return (Math.max(1, level) + 89.0) / 100.0;
 	}
 
@@ -47,6 +51,14 @@ public final class Formulas {
 	}
 
 	/**
+	 * Verifica se o bloqueio de escudo foi um bloqueio perfeito (dano reduzido a 1).
+	 */
+	public static boolean isPerfectShieldBlock() {
+		int perfectRate = Math.max(0, Config.ALT_PERFECT_SHIELD_BLOCK_RATE);
+		return perfectRate > 0 && ThreadLocalRandom.current().nextInt(100) < perfectRate;
+	}
+
+	/**
 	 * Calculo de dano fisico padrao com reducao de escudo opcional.
 	 */
 	public static int calcPhysicalDamage(double pAtk, double pDef, boolean soulshot, double rndMult,
@@ -55,6 +67,9 @@ public final class Formulas {
 		double effectivePDef = Math.max(1.0, pDef);
 
 		if (shieldBlock && shieldDef > 0) {
+			if (Config.ALT_SHIELD_BLOCKS && isPerfectShieldBlock()) {
+				return 1;
+			}
 			effectivePDef += shieldDef;
 		}
 
@@ -64,6 +79,9 @@ public final class Formulas {
 		}
 
 		double finalDmg = baseDamage * (rndMult > 0 ? rndMult : 1.0);
+		if (shieldBlock && Config.ALT_SHIELD_BLOCKS) {
+			finalDmg = Math.max(1.0, finalDmg - shieldDef);
+		}
 		return Math.max(1, (int) Math.round(finalDmg));
 	}
 
@@ -104,9 +122,17 @@ public final class Formulas {
 	 * Resistencia magica baseada na diferenca de nivel entre o caster e o alvo.
 	 */
 	public static boolean calcMagicSuccess(int magicLevel, int attackerLevel, int targetLevel) {
-		int effMagicLvl = magicLevel > 0 ? Math.min(magicLevel, attackerLevel) : attackerLevel;
+		if (!Config.MAGIC_FAILURES) {
+			return true;
+		}
+		int effMagicLvl;
+		if (Config.USE_LEVEL_PENALTY) {
+			effMagicLvl = magicLevel > 0 ? Math.min(magicLevel, attackerLevel) : attackerLevel;
+		} else {
+			effMagicLvl = magicLevel > 0 ? magicLevel : attackerLevel;
+		}
 		int lvlDiff = targetLevel - effMagicLvl;
-		if (lvlDiff <= 0) {
+		if (!Config.USE_CHAR_LEVEL_MODIFIER || lvlDiff <= 0) {
 			return true;
 		}
 		int rate = (int) Math.round(Math.pow(1.3, lvlDiff) * 100.0);
@@ -114,6 +140,121 @@ public final class Formulas {
 			return false;
 		}
 		return ThreadLocalRandom.current().nextInt(10000) >= rate;
+	}
+
+	/**
+	 * Calcula o intervalo entre ataques fisicos considerando ALT_ATTACK_DELAY.
+	 */
+	public static int calcPAtkDelay(int pAtkSpd) {
+		double delayMod = Config.ALT_ATTACK_DELAY > 0 ? Config.ALT_ATTACK_DELAY : 1.0;
+		return (int) Math.max(100, Math.round((500000.0 / Math.max(1, pAtkSpd)) * delayMod));
+	}
+
+	/**
+	 * Calcula o dano de queda considerando ALT_MINIMUM_FALL_HEIGHT.
+	 */
+	public static int calcFallDamage(int fallHeight, int maxHp) {
+		int minHeight = Config.ALT_MINIMUM_FALL_HEIGHT > 0 ? Config.ALT_MINIMUM_FALL_HEIGHT : 400;
+		if (fallHeight <= minHeight || maxHp <= 0) {
+			return 0;
+		}
+		double excess = fallHeight - minHeight;
+		return (int) Math.max(1, Math.min(maxHp - 1, Math.round(maxHp * (excess / 1000.0))));
+	}
+
+	/**
+	 * Verifica se a habilidade Fake Death teve sucesso ou falhou (FAIL_FAKE_DEATH).
+	 */
+	public static boolean calcFakeDeathSuccess(int casterLevel, int targetLevel) {
+		if (!Config.FAIL_FAKE_DEATH) {
+			return true;
+		}
+		int diff = targetLevel - casterLevel;
+		if (diff <= 0) {
+			return true;
+		}
+		int failChance = Math.min(90, diff * 5);
+		return ThreadLocalRandom.current().nextInt(100) >= failChance;
+	}
+
+	/**
+	 * Verifica se um golpe interrompe a conjuracao de magia (ALT_GAME_CANCEL_BY_HIT).
+	 */
+	public static boolean calcCastBreakOnHit(boolean hitByBow, boolean isCritical) {
+		String mode = Config.ALT_GAME_CANCEL_BY_HIT != null ? Config.ALT_GAME_CANCEL_BY_HIT.trim().toLowerCase() : "all";
+		boolean allowed = switch (mode) {
+			case "all" -> true;
+			case "bow" -> hitByBow;
+			case "cast" -> !hitByBow;
+			default -> false;
+		};
+		if (!allowed) {
+			return false;
+		}
+		int chance = isCritical ? 35 : 15;
+		return ThreadLocalRandom.current().nextInt(100) < chance;
+	}
+
+	/**
+	 * Calcula o tempo de recarga (reuse delay) de uma skill considerando reuse estatico,
+	 * Olimpiadas, skills de itens e o delay minimo configurado.
+	 */
+	public static int calcSkillReuseDelay(int baseReuseMs, boolean isItemSkill, boolean isMagic,
+			boolean isOlympiad, int pAtkSpd, int mAtkSpd) {
+		int minDelay = Math.max(0, Config.SKILL_REUSE_DELAY);
+		if (baseReuseMs <= 0) {
+			return minDelay;
+		}
+		if ((isItemSkill && Config.ALT_ITEM_SKILLS_NOT_INFLUENCED)
+				|| Config.ENABLE_STATIC_REUSE
+				|| (isOlympiad && Config.OLY_USE_STATIC_REUSE)) {
+			return Math.max(minDelay, baseReuseMs);
+		}
+		double spd = isMagic ? Math.max(1, mAtkSpd) : Math.max(1, pAtkSpd);
+		int scaled = (int) Math.round(baseReuseMs * (333.0 / spd));
+		return Math.max(minDelay, scaled);
+	}
+
+	/**
+	 * Verifica se a chance de sucesso da skill deve ser exibida ao jogador.
+	 */
+	public static boolean shouldShowSkillChance(boolean isDebuff) {
+		if (!Config.SHOW_SUCCESS_CHANCE) {
+			return false;
+		}
+		return !Config.SHOW_DEBUFF_ONLY || isDebuff;
+	}
+
+	/**
+	 * Calcula a regeneracao de HP de NPCs e Raid Bosses considerando os multiplicadores configurados.
+	 */
+	public static double calcNpcHpRegen(double baseRegen, boolean isRaid) {
+		int mult = isRaid ? Config.RAID_HP_REGEN_MULTIPLIER : Config.NPC_HP_REGEN_MULTIPLIER;
+		return baseRegen * (mult > 0 ? mult / 100.0 : 1.0);
+	}
+
+	/**
+	 * Calcula a regeneracao de MP de NPCs e Raid Bosses considerando os multiplicadores configurados.
+	 */
+	public static double calcNpcMpRegen(double baseRegen, boolean isRaid) {
+		int mult = isRaid ? Config.RAID_MP_REGEN_MULTIPLIER : Config.NPC_MP_REGEN_MULTIPLIER;
+		return baseRegen * (mult > 0 ? mult / 100.0 : 1.0);
+	}
+
+	/**
+	 * Calcula a regeneracao de HP de Pets considerando o multiplicador configurado.
+	 */
+	public static double calcPetHpRegen(double baseRegen) {
+		int mult = Config.PET_HP_REGEN_MULTIPLIER;
+		return baseRegen * (mult > 0 ? mult / 100.0 : 1.0);
+	}
+
+	/**
+	 * Calcula a regeneracao de MP de Pets considerando o multiplicador configurado.
+	 */
+	public static double calcPetMpRegen(double baseRegen) {
+		int mult = Config.PET_MP_REGEN_MULTIPLIER;
+		return baseRegen * (mult > 0 ? mult / 100.0 : 1.0);
 	}
 
 	/**

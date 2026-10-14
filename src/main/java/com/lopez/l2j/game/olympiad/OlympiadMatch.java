@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.olympiad;
 
+import com.lopez.l2j.config.Config;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -87,6 +88,32 @@ public class OlympiadMatch {
 
 	public void transferredPoints(int pts) {
 		this.transferredPoints = pts;
+	}
+
+	public long startTime() {
+		return startTime;
+	}
+
+	public long battleDurationMs() {
+		return Config.ALT_OLY_BATTLE > 0 ? Config.ALT_OLY_BATTLE : 360000L;
+	}
+
+	public int battleLoadWaitSeconds() {
+		return Config.OLYMPIAD_COUNT_BATTLE_LOAD_WAIT > 0 ? Config.OLYMPIAD_COUNT_BATTLE_LOAD_WAIT : 45;
+	}
+
+	public boolean isBattleTimeExpired(long nowMs) {
+		return nowMs - startTime >= battleDurationMs();
+	}
+
+	public int battleRewardItemId() {
+		return Config.ALT_OLY_BATTLE_REW_ITEM > 0 ? Config.ALT_OLY_BATTLE_REW_ITEM : 6651;
+	}
+
+	public int battleRewardItemCount() {
+		return mode == OlympiadMode.CLASS_BASED
+				? Math.max(0, Config.ALT_OLY_CLASSED_REW_ITEM_COUNT)
+				: Math.max(0, Config.ALT_OLY_NON_CLASSED_REW_ITEM_COUNT);
 	}
 
 	public double totalDamageTeamA() {

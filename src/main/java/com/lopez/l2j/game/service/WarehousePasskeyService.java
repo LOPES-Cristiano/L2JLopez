@@ -23,7 +23,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WarehousePasskeyService {
 
 	private static final Logger log = LoggerFactory.getLogger(WarehousePasskeyService.class);
+	private static volatile WarehousePasskeyService instance = new WarehousePasskeyService();
+
 	public static final String VAR_NAME = "wh_passkey";
+	public static final String VAR_PASSKEY_HASH = "WH_PASSKEY_HASH";
 	public static final int MAX_FAILED_ATTEMPTS = 3;
 	public static final long LOCKOUT_DURATION_MS = 5 * 60 * 1000L; // 5 minutos
 
@@ -41,6 +44,7 @@ public class WarehousePasskeyService {
 	}
 
 	private final CharacterVariablesService characterVariables;
+	private final Map<Integer, String> passkeyHashes = new ConcurrentHashMap<>();
 	private final Set<Integer> unlockedSessions = ConcurrentHashMap.newKeySet();
 	private final Map<Integer, FailedAttemptData> failedAttempts = new ConcurrentHashMap<>();
 
@@ -51,16 +55,34 @@ public class WarehousePasskeyService {
 	@Autowired(required = false)
 	public WarehousePasskeyService(CharacterVariablesService characterVariables) {
 		this.characterVariables = characterVariables;
+		instance = this;
+	}
+
+	public static WarehousePasskeyService getInstance() {
+		return instance;
+	}
+
+	private String resolveStoredHash(int playerId) {
+		if (characterVariables != null) {
+			String hash = characterVariables.get(playerId, VAR_NAME);
+			if (hash != null && !hash.isBlank()) {
+				passkeyHashes.put(playerId, hash);
+				return hash;
+			}
+			String upperHash = characterVariables.get(playerId, VAR_PASSKEY_HASH);
+			if (upperHash != null && !upperHash.isBlank()) {
+				passkeyHashes.put(playerId, upperHash);
+				return upperHash;
+			}
+		}
+		return passkeyHashes.get(playerId);
 	}
 
 	/**
 	 * Verifica se o jogador possui uma senha configurada.
 	 */
 	public boolean hasPasskey(int playerId) {
-		if (characterVariables == null) {
-			return false;
-		}
-		String hash = characterVariables.get(playerId, VAR_NAME);
+		String hash = resolveStoredHash(playerId);
 		return hash != null && !hash.isBlank();
 	}
 
@@ -88,15 +110,20 @@ public class WarehousePasskeyService {
 		if (pin == null || !pin.matches("\\d{4,8}")) {
 			return false;
 		}
-		if (characterVariables == null) {
-			return false;
-		}
 		String hashed = hashPin(playerId, pin.trim());
-		characterVariables.set(playerId, VAR_NAME, hashed);
+		passkeyHashes.put(playerId, hashed);
+		if (characterVariables != null) {
+			characterVariables.set(playerId, VAR_NAME, hashed);
+			characterVariables.set(playerId, VAR_PASSKEY_HASH, hashed);
+		}
 		unlockedSessions.add(playerId);
 		failedAttempts.remove(playerId);
 		log.info("Passkey configurada com sucesso para player {}", playerId);
 		return true;
+	}
+
+	public boolean setPasskey(int playerId, String pin) {
+		return setupPasskey(playerId, pin);
 	}
 
 	/**
@@ -113,7 +140,8 @@ public class WarehousePasskeyService {
 	 * Valida o PIN inserido pelo jogador.
 	 */
 	public ValidationResult unlock(int playerId, String pin) {
-		if (!hasPasskey(playerId)) {
+		String expectedHash = resolveStoredHash(playerId);
+		if (expectedHash == null || expectedHash.isBlank()) {
 			return ValidationResult.NOT_CONFIGURED;
 		}
 
@@ -124,7 +152,6 @@ public class WarehousePasskeyService {
 			return ValidationResult.LOCKED_OUT;
 		}
 
-		String expectedHash = characterVariables.get(playerId, VAR_NAME);
 		String candidateHash = hashPin(playerId, pin != null ? pin.trim() : "");
 
 		if (expectedHash.equalsIgnoreCase(candidateHash)) {
@@ -142,6 +169,10 @@ public class WarehousePasskeyService {
 			return ValidationResult.LOCKED_OUT;
 		}
 		return ValidationResult.INVALID;
+	}
+
+	public boolean verifyPasskey(int playerId, String pin) {
+		return unlock(playerId, pin) == ValidationResult.SUCCESS;
 	}
 
 	/**

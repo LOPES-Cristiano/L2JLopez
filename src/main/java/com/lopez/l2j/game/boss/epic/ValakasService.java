@@ -56,6 +56,7 @@ public class ValakasService {
 	private NpcInstance activeValakas;
 	private NpcInstance exitCube;
 	private ScheduledFuture<?> arrivalTask;
+	private ScheduledFuture<?> activityTimeoutTask;
 
 	private final GrandBossManager grandBossManager;
 	private final NpcTemplateTable templates;
@@ -82,6 +83,9 @@ public class ValakasService {
 	@PostConstruct
 	public void init() {
 		if (grandBossManager != null) {
+			if (Config.VALAKAS_RESPAWN_TIME_PATTERN != null && !Config.VALAKAS_RESPAWN_TIME_PATTERN.isBlank()) {
+				grandBossManager.setBossCron(GrandBossManager.VALAKAS, Config.VALAKAS_RESPAWN_TIME_PATTERN);
+			}
 			this.status = grandBossManager.getStatus(GrandBossManager.VALAKAS);
 		}
 	}
@@ -95,7 +99,7 @@ public class ValakasService {
 	}
 
 	public boolean canEnter(PlayerCharacter player) {
-		if (player == null || player.isDead()) {
+		if (!Config.VALAKAS_ENABLED || player == null || player.isDead()) {
 			return false;
 		}
 		if (status == BossStatus.INTERVAL || status == BossStatus.DEAD) {
@@ -152,7 +156,7 @@ public class ValakasService {
 	}
 
 	public synchronized void spawnValakas() {
-		if (templates == null || world == null || objectIds == null) {
+		if (!Config.VALAKAS_ENABLED || templates == null || world == null || objectIds == null) {
 			return;
 		}
 
@@ -184,11 +188,42 @@ public class ValakasService {
 		}
 
 		log.info("Valakas gerado com sucesso no covil com {} jogadores presentes!", playersInside.size());
+
+		if (Config.VALAKAS_ACTIVE_TIME > 0) {
+			if (activityTimeoutTask != null) {
+				activityTimeoutTask.cancel(false);
+			}
+			activityTimeoutTask = scheduler.schedule(this::putValakasToSleep,
+					Config.VALAKAS_ACTIVE_TIME * 60L, TimeUnit.SECONDS);
+		}
+	}
+
+	public int calculateSleepDurationMinutes() {
+		int minSleep = Math.max(1, Config.VALAKAS_MIN_SLEEP_TIME);
+		int maxSleep = Math.max(minSleep, Config.VALAKAS_MAX_SLEEP_TIME);
+		return maxSleep > minSleep
+				? java.util.concurrent.ThreadLocalRandom.current().nextInt(minSleep, maxSleep + 1)
+				: minSleep;
+	}
+
+	public synchronized void putValakasToSleep() {
+		if (status != BossStatus.ALIVE) {
+			return;
+		}
+		clearLair();
+		int sleepMinutes = calculateSleepDurationMinutes();
+		status = BossStatus.NOTSPAWN;
+		if (grandBossManager != null) {
+			grandBossManager.setStatus(GrandBossManager.VALAKAS, BossStatus.NOTSPAWN);
+		}
+		log.info("Valakas voltou a adormecer por inatividade ({} min; proximo ciclo de sono {} min).",
+				Config.VALAKAS_ACTIVE_TIME, sleepMinutes);
 	}
 
 	public synchronized void onValakasKilled(PlayerCharacter killer) {
 		status = BossStatus.INTERVAL;
 		if (arrivalTask != null) arrivalTask.cancel(false);
+		if (activityTimeoutTask != null) activityTimeoutTask.cancel(false);
 
 		if (grandBossManager != null) {
 			grandBossManager.onBossKilled(GrandBossManager.VALAKAS);

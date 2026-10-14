@@ -105,4 +105,25 @@ class ClanSkillServiceTest {
 		assertTrue(skillService.isMemberEligibleForClanSkills(mainMember));
 		assertFalse(skillService.isMemberEligibleForClanSkills(academyMember));
 	}
+
+	@Test
+	void testApplyAndRemoveClanSkillsToPlayer() {
+		clan.addSkill(370, 2); // Clan Vitality Lv 2 (+5% Max HP)
+		clan.addSkill(376, 1); // Clan Might Lv 1 (+3% P.Atk)
+
+		skillService.applyClanSkillsToPlayer(leader);
+
+		assertTrue(leader.skills().containsKey(370));
+		assertEquals(2, leader.skills().get(370));
+		assertTrue(leader.skills().containsKey(376));
+		assertFalse(leader.passiveFuncs().isEmpty());
+
+		var bonuses = skillService.calculateClanSkillBonuses(leader);
+		assertEquals(1.05, bonuses.maxHpMul(), 0.001);
+		assertEquals(1.03, bonuses.pAtkMul(), 0.001);
+
+		skillService.removeClanSkillsFromPlayer(leader);
+		assertFalse(leader.skills().containsKey(370));
+		assertFalse(leader.skills().containsKey(376));
+	}
 }

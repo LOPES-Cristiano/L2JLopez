@@ -134,4 +134,58 @@ class DimensionalRiftServiceTest {
         boolean manual2 = riftService.manualJump(leader, party);
         assertFalse(manual2);
     }
+
+    @Test
+    void testRiftWithInventoryServiceAndGameWorldSpawnsAndTeleports() {
+        com.lopez.l2j.game.item.InMemoryItemRepository repo = new com.lopez.l2j.game.item.InMemoryItemRepository();
+        ItemTemplate fragTpl = ItemTemplate.etc(DimensionalRiftService.DIMENSIONAL_FRAGMENT_ID,
+                DimensionalRiftService.DIMENSIONAL_FRAGMENT_ID,
+                "Dimensional Fragment", "quest", "asset", 1, "none", 0, false, false, false, false);
+        ItemTemplate aaTpl = ItemTemplate.etc(DimensionalRiftService.ANCIENT_ADENA_ID,
+                DimensionalRiftService.ANCIENT_ADENA_ID, "Ancient Adena", "asset", "asset", 0, "none", 0, false, false, true, false);
+        com.lopez.l2j.game.item.ItemTemplateTable itemTable = com.lopez.l2j.game.item.ItemTemplateTable.of(List.of(fragTpl, aaTpl), List.of());
+        ObjectIdFactory ids = ObjectIdFactory.sequential(5000);
+        com.lopez.l2j.game.service.InventoryService invService = new com.lopez.l2j.game.service.InventoryService(itemTable, repo, ids, 0);
+        com.lopez.l2j.game.world.GameWorld world = new com.lopez.l2j.game.world.GameWorld();
+        com.lopez.l2j.game.npc.NpcTemplateTable npcTemplates = com.lopez.l2j.game.npc.NpcTemplateTable.of(List.of());
+
+        DimensionalRiftService fullRiftService = new DimensionalRiftService(itemTable, ids, invService, world, npcTemplates);
+
+        PlayerCharacter leader = dummyPlayer(10, "RiftDbLeader", 76);
+        PlayerCharacter member = dummyPlayer(20, "RiftDbMember", 75);
+        List<PlayerCharacter> party = List.of(leader, member);
+
+        invService.addItem(leader.inventory(), DimensionalRiftService.DIMENSIONAL_FRAGMENT_ID, 50, "Test");
+        invService.addItem(member.inventory(), DimensionalRiftService.DIMENSIONAL_FRAGMENT_ID, 50, "Test");
+
+        java.util.List<com.lopez.l2j.network.game.packet.GameServerPacket> leaderPackets = new java.util.ArrayList<>();
+        world.add(new com.lopez.l2j.game.world.GameWorld.OnlinePlayer() {
+            @Override public int objectId() { return leader.objectId(); }
+            @Override public String name() { return leader.name(); }
+            @Override public int x() { return leader.x(); }
+            @Override public int y() { return leader.y(); }
+            @Override public int z() { return leader.z(); }
+            @Override public PlayerCharacter character() { return leader; }
+            @Override public void send(com.lopez.l2j.network.game.packet.GameServerPacket packet) { leaderPackets.add(packet); }
+        });
+
+        assertTrue(fullRiftService.enterRift(leader, RiftTier.HERO, party));
+
+        // Fragment consumption persisted in ItemRepository (50 - 33 = 17)
+        assertEquals(17, repo.findInventory(leader.objectId()).get(0).count());
+        assertEquals(17, repo.findInventory(member.objectId()).get(0).count());
+
+        // Teleport packet sent to session
+        assertTrue(leaderPackets.stream().anyMatch(p -> p instanceof com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation));
+
+        // Monsters spawned in GameWorld for the room
+        assertFalse(fullRiftService.getSpawnedMonsters(leader.objectId()).isEmpty());
+        assertTrue(world.totalNpcs() > 0);
+
+        // Leave rift cleans up monsters and teleports to waiting room
+        fullRiftService.leaveRift(leader.objectId(), party);
+        assertTrue(fullRiftService.getSpawnedMonsters(leader.objectId()).isEmpty());
+        assertEquals(0, world.totalNpcs());
+        assertEquals(DimensionalRiftService.WAITING_ROOM_X, leader.x());
+    }
 }

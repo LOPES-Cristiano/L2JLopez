@@ -12,6 +12,7 @@ public class OlympiadParticipant {
 	private final String charName;
 	private final int classId;
 	private final String ipAddress;
+	private final String account;
 	private final GameSession session;
 	private final int origX;
 	private final int origY;
@@ -28,6 +29,7 @@ public class OlympiadParticipant {
 		this.charName = active != null ? active.name() : "Unknown";
 		this.classId = active != null ? active.classId() : 0;
 		this.ipAddress = session != null && session.clientIp() != null ? session.clientIp() : "127.0.0.1";
+		this.account = active != null && active.account() != null ? active.account() : "";
 		this.origX = origX;
 		this.origY = origY;
 		this.origZ = origZ;
@@ -40,6 +42,7 @@ public class OlympiadParticipant {
 		this.charName = charName;
 		this.classId = classId;
 		this.ipAddress = ipAddress != null ? ipAddress : "127.0.0.1";
+		this.account = "";
 		this.origX = origX;
 		this.origY = origY;
 		this.origZ = origZ;
@@ -59,6 +62,10 @@ public class OlympiadParticipant {
 
 	public String ipAddress() {
 		return ipAddress;
+	}
+
+	public String account() {
+		return account;
 	}
 
 	public GameSession session() {

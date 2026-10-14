@@ -149,4 +149,26 @@ class PlayerStatsTest {
 		com.lopez.l2j.config.Config.setProperty("MaxEvasion", "200");
 		com.lopez.l2j.config.Config.setProperty("AltPCriticalCap", "500");
 	}
+
+	@Test
+	void bossDollsInInventoryIncreasePlayerStatsNonCumulatively() {
+		var baseStats = PlayerStats.calculate(player, template);
+
+		// Baium Doll Lv 1 (6392, power 2.0) e Baium Doll Lv 3 (20702, power 6.0 -> +60 P.Atk, +60 P.Def, +30 Crit)
+		var baiumLv1Tpl = ItemTemplate.etc(6392, 6392, "Baium Doll Lv1", "other", "normal", 0, "none", 0, true, true, true, true);
+		var baiumLv3Tpl = ItemTemplate.etc(20702, 20702, "Baium Doll Lv3", "other", "normal", 0, "none", 0, true, true, true, true);
+		// Orfen Doll Lv 2 (20710, power 4.0 -> +60 M.Atk, +48 M.Def)
+		var orfenLv2Tpl = ItemTemplate.etc(20710, 20710, "Orfen Doll Lv2", "other", "normal", 0, "none", 0, true, true, true, true);
+
+		inventory.add(new ItemInstance(0x30000010, baiumLv1Tpl, player.objectId(), 1));
+		inventory.add(new ItemInstance(0x30000011, baiumLv3Tpl, player.objectId(), 1));
+		inventory.add(new ItemInstance(0x30000012, orfenLv2Tpl, player.objectId(), 1));
+
+		var dollStats = PlayerStats.calculate(player, template);
+		assertEquals(baseStats.pAtk() + 60, dollStats.pAtk(), "Baium Doll Lv 3 (nao cumulativa com Lv 1) deve somar +60 P.Atk");
+		assertEquals(baseStats.pDef() + 60 + 0, dollStats.pDef(), "Baium Doll Lv 3 deve somar +60 P.Def");
+		assertEquals(baseStats.mAtk() + 60, dollStats.mAtk(), "Orfen Doll Lv 2 deve somar +60 M.Atk");
+		assertEquals(baseStats.mDef() + 48, dollStats.mDef(), "Orfen Doll Lv 2 deve somar +48 M.Def");
+		assertEquals(baseStats.critical() + 30, dollStats.critical(), "Baium Doll Lv 3 deve somar +30 Critical");
+	}
 }

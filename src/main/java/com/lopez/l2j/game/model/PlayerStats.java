@@ -109,7 +109,7 @@ public record PlayerStats(
 		int effectiveMen = Math.max(1, (int) Math.round(apply(player, funcs, "MEN", baseMen)));
 		int level = Math.max(1, player.level());
 
-		double levelModRatio = (level + 89.0) / 90.0;
+		double levelModRatio = com.lopez.l2j.config.Config.USE_CHAR_LEVEL_MODIFIER ? (level + 89.0) / 90.0 : 1.0;
 		double strRatio = com.lopez.l2j.game.template.BaseStatsTable.strBonus(effectiveStr) / com.lopez.l2j.game.template.BaseStatsTable.strBonus(template.str());
 		double conRatio = com.lopez.l2j.game.template.BaseStatsTable.conBonus(effectiveCon) / com.lopez.l2j.game.template.BaseStatsTable.conBonus(template.con());
 		double dexRatio = com.lopez.l2j.game.template.BaseStatsTable.dexBonus(effectiveDex) / com.lopez.l2j.game.template.BaseStatsTable.dexBonus(template.dex());
@@ -205,11 +205,16 @@ public record PlayerStats(
 			runSpeed = (int) Math.round(apply(player, funcs, "runSpd", runSpeed));
 		}
 
+		// Multiplicador global de velocidade de movimento (RateRunSpeed)
+		if (com.lopez.l2j.config.Config.RATE_RUN_SPEED > 0 && com.lopez.l2j.config.Config.RATE_RUN_SPEED != 1.0f) {
+			runSpeed = (int) Math.round(runSpeed * com.lopez.l2j.config.Config.RATE_RUN_SPEED);
+		}
+
 		// Penalidade de Grau (Grade / Expertise Penalty)
 		int charExpertise = player.expertiseGrade();
 		int weaponPenalty = 0;
 		int armorPenalty = 0;
-		if (inv != null) {
+		if (com.lopez.l2j.config.Config.GRADE_PENALTY && inv != null) {
 			for (var item : inv.equipped()) {
 				var it = item.template();
 				int grade = it.crystalGrade();
@@ -321,20 +326,22 @@ public record PlayerStats(
 				effectiveStr, effectiveDex, effectiveCon, effectiveInt, effectiveWit, effectiveMen);
 	}
 
-	/** Passivas + buffs de skill + sets de armadura + augmentacao do jogador. */
+	/** Passivas + buffs de skill + sets de armadura + augmentacao + Boss Dolls na mochila do jogador. */
 	public static List<StatFunc> allFuncs(PlayerCharacter player) {
 		var passive = player.passiveFuncs();
 		var buffs = player.effects().funcs();
 		var sets = player.armorSetFuncs();
 		var aug = player.augmentationFuncs();
-		if (buffs.isEmpty() && sets.isEmpty() && aug.isEmpty()) {
+		var dolls = com.lopez.l2j.game.pve.DollService.getInstance().getActiveStatFuncs(player);
+		if (buffs.isEmpty() && sets.isEmpty() && aug.isEmpty() && dolls.isEmpty()) {
 			return passive;
 		}
-		List<StatFunc> all = new ArrayList<>(passive.size() + buffs.size() + sets.size() + aug.size());
+		List<StatFunc> all = new ArrayList<>(passive.size() + buffs.size() + sets.size() + aug.size() + dolls.size());
 		all.addAll(passive);
 		all.addAll(buffs);
 		all.addAll(sets);
 		all.addAll(aug);
+		all.addAll(dolls);
 		return all;
 	}
 

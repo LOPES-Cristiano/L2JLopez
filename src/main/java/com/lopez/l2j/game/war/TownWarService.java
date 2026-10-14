@@ -1,8 +1,14 @@
 package com.lopez.l2j.game.war;
 
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.service.InventoryService;
+import com.lopez.l2j.game.zone.Zone;
+import com.lopez.l2j.game.zone.ZoneShape;
+import com.lopez.l2j.game.zone.ZoneTable;
+import com.lopez.l2j.game.zone.ZoneType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -31,6 +37,10 @@ public class TownWarService {
 			double dist = Math.hypot(x - centerX, y - centerY);
 			return dist <= radius && Math.abs(z - centerZ) <= 1500;
 		}
+
+		public boolean contains2D(int x, int y) {
+			return Math.hypot(x - centerX, y - centerY) <= radius;
+		}
 	}
 
 	public static class ActiveTownWar {
@@ -50,10 +60,22 @@ public class TownWarService {
 		public Map<Integer, Integer> killCounters() { return killCounters; }
 	}
 
+	private ZoneTable zoneTable;
+	private InventoryService inventoryService;
+
 	private final Map<Integer, TownWarConfig> supportedTowns = new ConcurrentHashMap<>();
 	private final Map<Integer, ActiveTownWar> activeWars = new ConcurrentHashMap<>();
 
 	public TownWarService() {
+		this(null, null);
+	}
+
+	@Autowired
+	public TownWarService(
+			@Autowired(required = false) ZoneTable zoneTable,
+			@Autowired(required = false) InventoryService inventoryService) {
+		this.zoneTable = zoneTable;
+		this.inventoryService = inventoryService;
 		// Registra capitais oficiais de Lineage II
 		registerTown(new TownWarConfig(9, "Giran Castle Town", 83400, 148000, -3400, 4500));
 		registerTown(new TownWarConfig(8, "Dion Castle Town", 15670, 142983, -2705, 3500));
@@ -108,15 +130,78 @@ public class TownWarService {
 	}
 
 	/**
-	 * Verifica se as coordenadas fornecidas estao dentro de alguma cidade atualmente em guerra.
+	 * Verifica se as coordenadas (x, y, z) estao dentro de alguma cidade atualmente em guerra,
+	 * consultando tanto os raios das capitais configuradas quanto as TownZones do ZoneTable.
 	 */
 	public boolean isInsideWarZone(int x, int y, int z) {
+		return getActiveWarTownId(x, y, z, this.zoneTable) > 0;
+	}
+
+	/**
+	 * Verifica se as coordenadas 2D (x, y) estao dentro de alguma cidade atualmente em guerra.
+	 */
+	public boolean isInsideWarZone(int x, int y) {
 		for (ActiveTownWar war : activeWars.values()) {
-			if (!war.isExpired() && war.config().contains(x, y, z)) {
+			if (!war.isExpired() && war.config().contains2D(x, y)) {
 				return true;
 			}
 		}
+		if (zoneTable != null) {
+			for (Zone zone : zoneTable.zonesByType(ZoneType.TOWN)) {
+				if (zone.townId() > 0 && isTownWarActive(zone.townId())) {
+					for (ZoneShape shape : zone.shapes()) {
+						if (shape.polygon().contains(x, y)) {
+							return true;
+						}
+					}
+				}
+			}
+		}
 		return false;
+	}
+
+	/**
+	 * Verifica se o jogador esta posicionado dentro de uma cidade em guerra ativa.
+	 */
+	public boolean isInsideWarZone(PlayerCharacter player) {
+		if (player == null) {
+			return false;
+		}
+		return isInsideWarZone(player.x(), player.y(), player.z());
+	}
+
+	/**
+	 * Verifica se o jogador esta posicionado dentro de uma cidade em guerra ativa cruzando com ZoneTable.
+	 */
+	public boolean isInsideWarZone(PlayerCharacter player, ZoneTable customZoneTable) {
+		if (player == null) {
+			return false;
+		}
+		return getActiveWarTownId(player.x(), player.y(), player.z(),
+				customZoneTable != null ? customZoneTable : this.zoneTable) > 0;
+	}
+
+	/**
+	 * Retorna o townId da cidade em guerra nas coordenadas (x, y, z), ou 0 se nao houver guerra ativa no local.
+	 */
+	public int getActiveWarTownId(int x, int y, int z) {
+		return getActiveWarTownId(x, y, z, this.zoneTable);
+	}
+
+	public int getActiveWarTownId(int x, int y, int z, ZoneTable zt) {
+		for (ActiveTownWar war : activeWars.values()) {
+			if (!war.isExpired() && war.config().contains(x, y, z)) {
+				return war.config().townId();
+			}
+		}
+		if (zt != null) {
+			for (Zone zone : zt.getZonesAt(x, y, z)) {
+				if ((zone.type() == ZoneType.TOWN || zone.townId() > 0) && isTownWarActive(zone.townId())) {
+					return zone.townId();
+				}
+			}
+		}
+		return 0;
 	}
 
 	/**
@@ -136,18 +221,34 @@ public class TownWarService {
 		}
 
 		// Checa se o combate ocorreu dentro de uma Town War ativa
-		if (!isInsideWarZone(victim.x(), victim.y(), victim.z())) {
+		int townId = getActiveWarTownId(victim.x(), victim.y(), victim.z());
+		if (townId <= 0) {
+			townId = getActiveWarTownId(killer.x(), killer.y(), killer.z());
+		}
+		if (townId <= 0) {
 			return false;
 		}
 
-		// Recompensa em Adena
-		if (killer.inventory() != null) {
-			var opt = killer.inventory().byItemId(57);
-			opt.ifPresent(adena -> adena.count(adena.count() + REWARD_PER_WAR_KILL));
+		ActiveTownWar activeWar = activeWars.get(townId);
+		if (activeWar != null) {
+			activeWar.killCounters().merge(killer.objectId(), 1, Integer::sum);
 		}
 
-		log.info("Town War Kill: {} eliminou {} dentro da zona de guerra urbana. Recompensa: {} Adena.",
-				killer.name(), victim.name(), REWARD_PER_WAR_KILL);
+		// Recompensa em Adena com persistencia via InventoryService e fallback em memoria
+		if (killer.inventory() != null) {
+			boolean persisted = false;
+			if (inventoryService != null) {
+				var added = inventoryService.addItem(killer.inventory(), 57, REWARD_PER_WAR_KILL, "TownWarKill");
+				persisted = (added != null);
+			}
+			if (!persisted) {
+				var opt = killer.inventory().byItemId(57);
+				opt.ifPresent(adena -> adena.count(adena.count() + REWARD_PER_WAR_KILL));
+			}
+		}
+
+		log.info("Town War Kill: {} eliminou {} dentro da zona de guerra urbana (TownID={}). Recompensa: {} Adena.",
+				killer.name(), victim.name(), townId, REWARD_PER_WAR_KILL);
 		return true;
 	}
 
@@ -157,5 +258,13 @@ public class TownWarService {
 
 	public Map<Integer, TownWarConfig> supportedTowns() {
 		return Collections.unmodifiableMap(supportedTowns);
+	}
+
+	public void setZoneTable(ZoneTable zoneTable) {
+		this.zoneTable = zoneTable;
+	}
+
+	public void setInventoryService(InventoryService inventoryService) {
+		this.inventoryService = inventoryService;
 	}
 }

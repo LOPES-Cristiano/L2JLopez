@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.service;
 
+import com.lopez.l2j.game.model.PlayerCharacter;
 import org.springframework.stereotype.Service;
 
 /**
@@ -9,6 +10,9 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class PvPColorService {
+
+    public static final int DEFAULT_NAME_COLOR = 0xFFFFFF;
+    public static final int DEFAULT_TITLE_COLOR = 0xFFFF77;
 
     private boolean enabled = true;
     private boolean affectName = true;
@@ -37,6 +41,13 @@ public class PvPColorService {
     public PvPColorService() {}
 
     /**
+     * Calcula a cor do nome baseada na contagem de abates PvP usando a cor padrão (0xFFFFFF).
+     */
+    public int getNameColor(int pvpKills) {
+        return getNameColor(pvpKills, DEFAULT_NAME_COLOR);
+    }
+
+    /**
      * Calcula a cor do nome baseada na contagem de abates PvP.
      */
     public int getNameColor(int pvpKills, int defaultColor) {
@@ -58,7 +69,14 @@ public class PvPColorService {
     }
 
     /**
-     * Calcula a cor do título baseada na contagem de abates PvP.
+     * Calcula a cor do título baseada na contagem de abates usando a cor padrão (0xFFFF77).
+     */
+    public int getTitleColor(int kills) {
+        return getTitleColor(kills, DEFAULT_TITLE_COLOR);
+    }
+
+    /**
+     * Calcula a cor do título baseada na contagem de abates PvP/PK.
      */
     public int getTitleColor(int pvpKills, int defaultColor) {
         if (!enabled || !affectTitle) {
@@ -78,6 +96,24 @@ public class PvPColorService {
         return defaultColor;
     }
 
+    /**
+     * Calcula e aplica dinamicamente as cores de nome (baseada em pvpKills)
+     * e de título (baseada em pkKills, com fallback para pvpKills caso pkKills não atinja a faixa) no jogador.
+     */
+    public void applyColors(PlayerCharacter player) {
+        if (player == null || !enabled) {
+            return;
+        }
+        if (affectName) {
+            player.nameColor(getNameColor(player.pvpKills(), player.nameColor()));
+        }
+        if (affectTitle) {
+            int killsForTitle = player.pkKills() >= amount1 ? player.pkKills()
+                    : (player.pvpKills() >= amount1 ? player.pvpKills() : player.pkKills());
+            player.titleColor(getTitleColor(killsForTitle, player.titleColor()));
+        }
+    }
+
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public boolean isAffectName() { return affectName; }
@@ -94,4 +130,9 @@ public class PvPColorService {
     public int getNameColor3() { return nameColor3; }
     public int getNameColor4() { return nameColor4; }
     public int getNameColor5() { return nameColor5; }
+    public int getTitleColor1() { return titleColor1; }
+    public int getTitleColor2() { return titleColor2; }
+    public int getTitleColor3() { return titleColor3; }
+    public int getTitleColor4() { return titleColor4; }
+    public int getTitleColor5() { return titleColor5; }
 }

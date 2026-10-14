@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.sevensigns;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
 import jakarta.annotation.PostConstruct;
@@ -513,6 +514,13 @@ public class SevenSignsManager implements AutoCloseable {
 		}
 
 		int earnedAA = (blue * SEAL_STONE_BLUE_VALUE) + (green * SEAL_STONE_GREEN_VALUE) + (red * SEAL_STONE_RED_VALUE);
+		int maxContrib = getMaxPlayerContrib();
+		if (maxContrib > 0 && existing.ancientAdena() + earnedAA > maxContrib) {
+			earnedAA = Math.max(0, maxContrib - existing.ancientAdena());
+			if (earnedAA == 0) {
+				return 0;
+			}
+		}
 		long scoreGain = (blue * BLUE_CONTRIB_POINTS) + (green * GREEN_CONTRIB_POINTS) + (red * RED_CONTRIB_POINTS);
 
 		if (existing.cabal() == CABAL_DAWN) {
@@ -530,8 +538,116 @@ public class SevenSignsManager implements AutoCloseable {
 		players.put(charId, updated);
 
 		persistPlayerData(updated);
-		persistStatus();
+		if (!isLazyUpdateEnabled() || activePeriod != PERIOD_COMPETITION) {
+			persistStatus();
+		} else {
+			persistStatus();
+		}
 		return earnedAA;
+	}
+
+	public int getMaxPlayerContrib() {
+		return Config.ALT_MAXIMUM_PLAYER_CONTRIB > 0 ? Config.ALT_MAXIMUM_PLAYER_CONTRIB : 1_000_000;
+	}
+
+	public boolean isLazyUpdateEnabled() {
+		return Config.ALT_SEVENSIGNS_LAZY_UPDATE;
+	}
+
+	public boolean isCastleRequiredForDawn() {
+		return Config.ALT_GAME_REQUIRE_CASTLE_DAWN;
+	}
+
+	public boolean isClanCastleRequiredForDawn() {
+		return Config.ALT_GAME_REQUIRE_CLAN_CASTLE;
+	}
+
+	public boolean isWin7sRequiredForDungeon() {
+		return Config.ALT_GAME_REQUIRE_WIN_7S;
+	}
+
+	public int getDawnTicketCost() {
+		return Config.SSQ_DAWN_TICKET_COST > 0 ? Config.SSQ_DAWN_TICKET_COST : 50_000;
+	}
+
+	public int getDawnTicketMaxQuantity() {
+		return Config.SSQ_DAWN_TICKET_QUANTITY > 0 ? Config.SSQ_DAWN_TICKET_QUANTITY : 30_000;
+	}
+
+	public int getDawnTicketBundle() {
+		return Config.SSQ_DAWN_TICKET_BUNDLE > 0 ? Config.SSQ_DAWN_TICKET_BUNDLE : 10;
+	}
+
+	public int getManorsAgreementItemId() {
+		return Config.SSQ_MANORS_AGREEMENT_ID > 0 ? Config.SSQ_MANORS_AGREEMENT_ID : CERTIFICATE_OF_APPROVAL_ID;
+	}
+
+	public int getJoinDawnAdenaFee() {
+		return Config.SSQ_JOIN_DAWN_ADENA_FEE >= 0 ? Config.SSQ_JOIN_DAWN_ADENA_FEE : 50_000;
+	}
+
+	public boolean canJoinDawn(boolean hasCastle, boolean hasClanCastle, boolean hasManorsAgreement, long adenaAmount) {
+		if (hasCastle || (isClanCastleRequiredForDawn() && hasClanCastle)) {
+			return true;
+		}
+		if (isCastleRequiredForDawn()) {
+			return hasManorsAgreement || adenaAmount >= getJoinDawnAdenaFee();
+		}
+		return true;
+	}
+
+	public int getFestivalMinPlayers() {
+		return Config.ALT_FESTIVAL_MIN_PLAYER > 0 ? Config.ALT_FESTIVAL_MIN_PLAYER : 5;
+	}
+
+	public long getFestivalManagerStartMs() {
+		return Config.ALT_FESTIVAL_MANAGER_START > 0 ? Config.ALT_FESTIVAL_MANAGER_START : 120_000L;
+	}
+
+	public long getFestivalLengthMs() {
+		return Config.ALT_FESTIVAL_LENGTH > 0 ? Config.ALT_FESTIVAL_LENGTH : 1_080_000L;
+	}
+
+	public long getFestivalCycleLengthMs() {
+		return Config.ALT_FESTIVAL_CYCLE_LENGTH > 0 ? Config.ALT_FESTIVAL_CYCLE_LENGTH : 2_280_000L;
+	}
+
+	public long getFestivalFirstSpawnMs() {
+		return Config.ALT_FESTIVAL_FIRST_SPAWN > 0 ? Config.ALT_FESTIVAL_FIRST_SPAWN : 120_000L;
+	}
+
+	public long getFestivalFirstSwarmMs() {
+		return Config.ALT_FESTIVAL_FIRST_SWARM > 0 ? Config.ALT_FESTIVAL_FIRST_SWARM : 300_000L;
+	}
+
+	public long getFestivalSecondSpawnMs() {
+		return Config.ALT_FESTIVAL_SECOND_SPAWN > 0 ? Config.ALT_FESTIVAL_SECOND_SPAWN : 540_000L;
+	}
+
+	public long getFestivalSecondSwarmMs() {
+		return Config.ALT_FESTIVAL_SECOND_SWARM > 0 ? Config.ALT_FESTIVAL_SECOND_SWARM : 720_000L;
+	}
+
+	public long getFestivalChestSpawnMs() {
+		return Config.ALT_FESTIVAL_CHEST_SPAWN > 0 ? Config.ALT_FESTIVAL_CHEST_SPAWN : 900_000L;
+	}
+
+	public int getMammonBlacksmithNpcId() {
+		return Config.ALT_MAMMON_BLACKSMITH > 0 ? Config.ALT_MAMMON_BLACKSMITH : MAMMON_BLACKSMITH_ID;
+	}
+
+	public int getMammonMerchantNpcId() {
+		return Config.ALT_MAMMON_MERCHANT > 0 ? Config.ALT_MAMMON_MERCHANT : MAMMON_MERCHANT_ID;
+	}
+
+	public int calculateSevenSignsSealStoneDrop(int baseCount) {
+		double rate = Config.RATE_SEVEN_SIGNS_DROP > 0 ? Config.RATE_SEVEN_SIGNS_DROP : 1.0;
+		return (int) Math.max(1, Math.round(baseCount * rate));
+	}
+
+	public int calculateFestivalBloodOfferingDrop(int baseCount) {
+		double rate = Config.RATE_FESTIVAL_DROP > 0 ? Config.RATE_FESTIVAL_DROP : 1.0;
+		return (int) Math.max(1, Math.round(baseCount * rate));
 	}
 
 	public synchronized int claimAncientAdena(int charId) {
@@ -728,18 +844,20 @@ public class SevenSignsManager implements AutoCloseable {
 		currentMerchantLocIndex = (currentMerchantLocIndex + 1) % MAMMON_MERCHANT_LOCS.size();
 		var bLoc = getMammonBlacksmithLocation();
 		var mLoc = getMammonMerchantLocation();
-		log.info("SevenSignsManager: Mammons realocados. Blacksmith: {}, Merchant: {}",
-				bLoc.dungeonName(), mLoc.dungeonName());
+		int blacksmithId = getMammonBlacksmithNpcId();
+		int merchantId = getMammonMerchantNpcId();
+		log.info("SevenSignsManager: Mammons realocados. Blacksmith ({}): {}, Merchant ({}): {}",
+				blacksmithId, bLoc.dungeonName(), merchantId, mLoc.dungeonName());
 		if (world != null) {
 			for (var npc : world.npcs()) {
-				if (npc.npcId() == MAMMON_BLACKSMITH_ID) {
+				if (npc.npcId() == MAMMON_BLACKSMITH_ID || npc.npcId() == blacksmithId) {
 					int oldX = npc.x();
 					int oldY = npc.y();
 					npc.x(bLoc.x());
 					npc.y(bLoc.y());
 					npc.z(bLoc.z());
 					world.updateNpcPosition(npc, oldX, oldY);
-				} else if (npc.npcId() == MAMMON_MERCHANT_ID) {
+				} else if (npc.npcId() == MAMMON_MERCHANT_ID || npc.npcId() == merchantId) {
 					int oldX = npc.x();
 					int oldY = npc.y();
 					npc.x(mLoc.x());
@@ -772,12 +890,18 @@ public class SevenSignsManager implements AutoCloseable {
 	}
 
 	public boolean isMammonBlacksmithActive() {
+		if (Config.SSQ_OPEN_MAMMON_SPAWN) {
+			return true;
+		}
 		return activePeriod == PERIOD_SEAL_VALIDATION
 				&& previousWinner != CABAL_NULL
 				&& gnosisOwner == previousWinner;
 	}
 
 	public boolean isMammonMerchantActive() {
+		if (Config.SSQ_OPEN_MAMMON_SPAWN) {
+			return true;
+		}
 		return activePeriod == PERIOD_SEAL_VALIDATION
 				&& previousWinner != CABAL_NULL
 				&& avariceOwner == previousWinner;
@@ -785,6 +909,9 @@ public class SevenSignsManager implements AutoCloseable {
 
 	public DungeonAccess checkDungeonEntry(int charId, boolean isNecropolis) {
 		int cabal = getPlayerCabal(charId);
+		if (!isWin7sRequiredForDungeon()) {
+			return cabal != CABAL_NULL ? DungeonAccess.ALLOWED : DungeonAccess.NOT_REGISTERED;
+		}
 		if (activePeriod == PERIOD_COMPETITION) {
 			if (cabal == CABAL_NULL) {
 				return DungeonAccess.NOT_REGISTERED;

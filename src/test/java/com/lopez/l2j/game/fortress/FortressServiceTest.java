@@ -99,5 +99,14 @@ class FortressServiceTest {
 		// O cerco termina e o cla 77 passa a ser o novo dono da fortaleza
 		assertEquals(SiegeStatus.FINISHED, fortressSiegeService.getSiege(fortId).orElseThrow().status());
 		assertEquals(77, fortressService.getFortressById(fortId).orElseThrow().ownerClanId());
+
+		// Ativa funcao cobrando Adena do lider (que ainda possui 250.000 Adena)
+		player.clanId(77);
+		assertTrue(fortressService.activateFunction(player, fortId, FortressService.FUNC_SUPPORT, 1, 50_000, 1, 3600000L));
+		assertEquals(200_000, player.inventory().byItemId(ItemTemplate.ADENA_ID).orElseThrow().count());
+
+		// Recompensa Blood Oath ao lider
+		assertTrue(fortressService.rewardBloodOath(player, fortId, 2));
+		assertEquals(2, player.inventory().getItemCount(FortressService.BLOOD_OATH_ITEM_ID));
 	}
 }

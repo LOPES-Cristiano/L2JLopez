@@ -89,6 +89,10 @@ public class ChatPacketHandler {
 			return;
 		}
 
+		if (com.lopez.l2j.config.Config.LOG_CHAT_ON_FILE && ctx != null && ctx.wordFilter() != null) {
+			ctx.wordFilter().logChatMessage(active.name(), channel, text);
+		}
+
 		if (ctx == null || ctx.world() == null) {
 			return;
 		}

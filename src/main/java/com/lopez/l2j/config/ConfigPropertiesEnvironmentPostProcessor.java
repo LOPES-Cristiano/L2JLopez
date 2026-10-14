@@ -69,6 +69,31 @@ public class ConfigPropertiesEnvironmentPostProcessor implements EnvironmentPost
 			mapIfPresent(raw, "AuthPort", springProps, "l2.network.login-internal-port", "9014");
 			mapIfPresent(raw, "MinProtocolVersion", springProps, "l2.network.protocol-min", "730");
 			mapIfPresent(raw, "MaxProtocolVersion", springProps, "l2.network.protocol-max", "746");
+			mapIfPresent(raw, "AuthServerHostName", springProps, "l2.network.login-host", Config.AUTH_SERVER_HOSTNAME);
+			mapIfPresent(raw, "AuthHostName", springProps, "l2.network.login-auth-host", Config.LOGIN_AUTH_HOSTNAME);
+			mapIfPresent(raw, "IpUpdateTime", springProps, "l2.network.ip-update-time", String.valueOf(Config.IP_UPDATE_TIME));
+			mapIfPresent(raw, "LoginHost", springProps, "l2.network.game-login-host", Config.LOGIN_HOST);
+			mapIfPresent(raw, "InternalHostname", springProps, "l2.network.internal-host", Config.INTERNAL_HOSTNAME);
+
+			// Database / HikariPool (network.properties)
+			String dbDriver = Config.DB_DRIVER != null ? Config.DB_DRIVER.trim() : "com.mysql.cj.jdbc.Driver";
+			String dbUrl = Config.DB_URL != null ? Config.DB_URL.trim() : "";
+			String dbLogin = Config.DB_LOGIN != null ? Config.DB_LOGIN.trim() : "root";
+			String dbPassword = Config.DB_PASSWORD != null ? Config.DB_PASSWORD : "";
+			int maxDbConns = Math.max(10, Config.MAXIMUM_DB_CONNECTIONS);
+			springProps.put("l2.datasource.driver-class-name", dbDriver);
+			springProps.put("l2.datasource.url", dbUrl);
+			springProps.put("l2.datasource.username", dbLogin);
+			springProps.put("l2.datasource.password", dbPassword);
+			springProps.put("l2.datasource.maximum-pool-size", String.valueOf(maxDbConns));
+			springProps.putIfAbsent("spring.datasource.hikari.maximum-pool-size", String.valueOf(maxDbConns));
+			if ("true".equalsIgnoreCase(environment.getProperty("l2.datasource.override"))
+					&& !dbUrl.isEmpty() && !dbUrl.contains("localhost/l2jdream")) {
+				springProps.put("spring.datasource.driver-class-name", dbDriver);
+				springProps.put("spring.datasource.url", dbUrl);
+				springProps.put("spring.datasource.username", dbLogin);
+				springProps.put("spring.datasource.password", dbPassword);
+			}
 
 			// Login (authserver.properties / gameserver.properties / network.properties)
 			mapIfPresent(raw, "AutoCreateAccounts", springProps, "l2.login.auto-create-accounts", "true");
@@ -77,6 +102,23 @@ public class ConfigPropertiesEnvironmentPostProcessor implements EnvironmentPost
 			mapIfPresent(raw, "ShowLicence", springProps, "l2.login.show-licence", "true");
 			mapIfPresent(raw, "ExternalHostname", springProps, "l2.login.game-server-host", "127.0.0.1");
 			mapIfPresent(raw, "GameserverHostname", springProps, "l2.login.game-server-host", "127.0.0.1");
+			springProps.put("l2.login.server-list-brackets", String.valueOf(Config.SERVER_LIST_BRACKETS));
+			springProps.put("l2.login.server-list-clock", String.valueOf(Config.SERVER_LIST_CLOCK));
+			springProps.put("l2.game.request-server-id", String.valueOf(Config.REQUEST_SERVER_ID));
+			springProps.put("l2.game.accept-alternate-id", String.valueOf(Config.ACCEPT_ALTERNATE_ID));
+			springProps.put("l2.idfactory.type", Config.ID_FACTORY != null ? Config.ID_FACTORY : "BitSet");
+			springProps.put("l2.idfactory.bad-id-checking", String.valueOf(Config.BAD_ID_CHECKING));
+			springProps.put("l2.idfactory.clean-bad-ids", String.valueOf(Config.CLEAN_BAD_IDS));
+			springProps.put("l2.restart.enabled", String.valueOf(Config.ENABLE_RESTART));
+			springProps.put("l2.restart.time", Config.RESTART_TIME != null ? Config.RESTART_TIME : "06:20:00");
+			springProps.put("l2.restart.warn-time", String.valueOf(Config.RESTART_WARN_TIME));
+			if (Config.TIME_ZONE != null && !Config.TIME_ZONE.isBlank()) {
+				springProps.put("l2.game.time-zone", Config.TIME_ZONE.trim());
+				try {
+					java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(java.time.ZoneId.of(Config.TIME_ZONE.trim())));
+				} catch (Exception ignored) {
+				}
+			}
 
 			// Listeners (respeita se o ambiente ja tiver desativado, ex: profile de teste)
 			String envGameListen = environment.getProperty("l2.game.listen");

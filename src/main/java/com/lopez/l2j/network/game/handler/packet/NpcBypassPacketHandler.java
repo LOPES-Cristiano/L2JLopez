@@ -1479,37 +1479,44 @@ public class NpcBypassPacketHandler {
 		}
 		if (cmd.startsWith("achieve_claim ")) {
 			if (ctx().achievements() != null && active() != null) {
-				int achId = Integer.parseInt(cmd.substring(14).trim());
-				int adena = active().inventory().byItemId(57).map(ItemInstance::count).orElse(0);
-				boolean ok = ctx().achievements().claimAchievement(active(), achId, adena, 0, 0, 0);
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", ok ? "Conquista resgatada com sucesso!" : "Requisitos nao satisfeitos."));
-				String html = ctx().achievements().generateHtml(active(), adena, 0, 0, 0);
-				send(new NpcHtmlMessage(0, html));
+				var res = ctx().achievements().claimAchievement(active(), cmd.substring(14).trim());
+				if (res.success()) {
+					send(ItemList.of(active().inventory().items(), false));
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", res.message()));
+				send(new NpcHtmlMessage(0, ctx().achievements().generateHtml(active())));
 			}
 			return;
 		}
 		if (cmd.startsWith("event_exchange ")) {
 			if (ctx().officialEvent() != null && active() != null) {
 				int exId = Integer.parseInt(cmd.substring(15).trim());
-				Map<Integer, Integer> inv = new HashMap<>();
-				for (var item : active().inventory().items()) {
-					inv.put(item.itemId(), item.count());
+				var res = ctx().officialEvent().exchangeReward(active(), exId);
+				if (res.success()) {
+					send(ItemList.of(active().inventory().items(), false));
 				}
-				boolean ok = ctx().officialEvent().exchangeReward(active(), exId, inv);
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", ok ? "Troca efetuada com sucesso!" : "Itens insuficientes."));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", res.message()));
 				send(new NpcHtmlMessage(0, ctx().officialEvent().generateHtml(active())));
+			}
+			return;
+		}
+		if (cmd.startsWith("l2day_exchange ")) {
+			if (ctx().l2day() != null && active() != null) {
+				String word = cmd.substring(15).trim();
+				var res = ctx().l2day().exchangeWord(active(), word);
+				if (res.success()) {
+					send(ItemList.of(active().inventory().items(), false));
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", res.message()));
+				send(new NpcHtmlMessage(0, ctx().l2day().generateHtml(active())));
 			}
 			return;
 		}
 		if (cmd.startsWith("voiced_roulette")) {
 			if (ctx().roulette() != null && active() != null) {
 				if (cmd.contains("spin")) {
-					Map<Integer, Long> inv = new HashMap<>();
-					int adena = active().inventory().byItemId(57).map(ItemInstance::count).orElse(0);
-					inv.put(57, (long) adena);
-					var result = ctx().roulette().spin(active(), ctx().roulette().getDefaultCostItemId(), ctx().roulette().getDefaultCostCount(), inv);
+					var result = ctx().roulette().spin(active());
 					if (result.success()) {
-						ctx().inventories().consumeItem(active().inventory(), ctx().roulette().getDefaultCostItemId(), (int) ctx().roulette().getDefaultCostCount(), "RouletteSpin");
 						send(ItemList.of(active().inventory().items(), false));
 					}
 					send(new NpcHtmlMessage(0, ctx().roulette().generateResultHtml(result)));
@@ -1521,16 +1528,265 @@ public class NpcBypassPacketHandler {
 		}
 		if (cmd.startsWith("voiced_reset")) {
 			if (ctx().characterReset() != null && active() != null) {
-				Map<Integer, Long> inv = new HashMap<>();
-				int adena = active().inventory().byItemId(57).map(ItemInstance::count).orElse(0);
-				inv.put(57, (long) adena);
-				boolean ok = ctx().characterReset().performReset(active(), inv);
+				boolean ok = ctx().characterReset().performReset(active());
 				if (ok) {
-					ctx().inventories().consumeItem(active().inventory(), 57, (int) (adena - inv.get(57)), "CharacterReset");
+					send(ItemList.of(active().inventory().items(), false));
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Reset efetuado com sucesso! Nivel reiniciado para 1."));
 					send(new UserInfo(active(), ctx().characters().template(active())));
 				} else {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel realizar o reset."));
+				}
+			}
+			return;
+		}
+		if (cmd.startsWith("wh_passkey_unlock ")) {
+			if (active() != null) {
+				String pin = cmd.substring("wh_passkey_unlock ".length()).trim();
+				boolean ok = com.lopez.l2j.game.service.WarehousePasskeyService.getInstance().verifyPasskey(active().objectId(), pin);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", ok ? "Armazem desbloqueado com sucesso!" : "Senha incorreta."));
+			}
+			return;
+		}
+		if (cmd.startsWith("wh_passkey_set ")) {
+			if (active() != null) {
+				String pin = cmd.substring("wh_passkey_set ".length()).trim();
+				boolean ok = com.lopez.l2j.game.service.WarehousePasskeyService.getInstance().setPasskey(active().objectId(), pin);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", ok ? "Senha do armazem definida com sucesso!" : "PIN invalido."));
+			}
+			return;
+		}
+		if (cmd.startsWith("learn_clan_skill ")) {
+			String[] parts = cmd.substring("learn_clan_skill ".length()).trim().split("\\s+");
+			int skillId = Integer.parseInt(parts[0]);
+			int skillLvl = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+			session.partyClanHandler().handleLearnClanSkill(skillId, skillLvl);
+			return;
+		}
+		if (cmd.startsWith("create_subpledge ")) {
+			String[] parts = cmd.substring("create_subpledge ".length()).trim().split("\\s+");
+			int pledgeType = Integer.parseInt(parts[0]);
+			String subName = parts.length > 1 ? parts[1] : "SubUnit";
+			String leaderName = parts.length > 2 ? parts[2] : "";
+			session.partyClanHandler().handleCreateSubPledge(pledgeType, subName, leaderName);
+			return;
+		}
+		if (cmd.startsWith("ch_activate_func ")) {
+			if (ctx().clanHallFunctions() != null && active() != null) {
+				String[] parts = cmd.substring("ch_activate_func ".length()).trim().split("\\s+");
+				int hallId = Integer.parseInt(parts[0]);
+				int funcType = Integer.parseInt(parts[1]);
+				int funcLvl = Integer.parseInt(parts[2]);
+				if (ctx().clanHallFunctions().activateFunction(active(), hallId, funcType, funcLvl)) {
+					send(ItemList.of(active().inventory().items(), false));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Funcao do Clan Hall ativada com sucesso."));
+				}
+			}
+			return;
+		}
+		if (cmd.startsWith("ch_siege_register ")) {
+			if (ctx().clanHallSieges() != null && active() != null && active().clanId() > 0) {
+				int hallId = Integer.parseInt(cmd.substring("ch_siege_register ".length()).trim());
+				boolean ok = ctx().clanHallSieges().registerAttacker(hallId, active().clanId(), active().isClanLeader());
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", ok ? "Cla registrado na Siege do Clan Hall!" : "Nao foi possivel registrar na Siege."));
+			}
+			return;
+		}
+		if (cmd.startsWith("merc_buy_ticket ")) {
+			if (ctx().mercenaries() != null && active() != null) {
+				String[] parts = cmd.substring("merc_buy_ticket ".length()).trim().split("\\s+");
+				int castleId = Integer.parseInt(parts[0]);
+				int ticketId = Integer.parseInt(parts[1]);
+				int count = parts.length > 2 ? Integer.parseInt(parts[2]) : 1;
+				if (ctx().mercenaries().buyMercenaryTicket(active(), castleId, ticketId, count)) {
+					send(ItemList.of(active().inventory().items(), false));
+				}
+			}
+			return;
+		}
+		if (cmd.startsWith("castle_claim_crown ")) {
+			if (ctx().crowns() != null && active() != null) {
+				int castleId = Integer.parseInt(cmd.substring("castle_claim_crown ".length()).trim());
+				ctx().crowns().rewardLordCrown(active(), castleId);
+				send(ItemList.of(active().inventory().items(), false));
+			}
+			return;
+		}
+		if (cmd.startsWith("fort_activate_func ")) {
+			if (ctx().fortresses() != null && active() != null) {
+				String[] parts = cmd.substring("fort_activate_func ".length()).trim().split("\\s+");
+				int fortId = Integer.parseInt(parts[0]);
+				int type = Integer.parseInt(parts[1]);
+				int level = Integer.parseInt(parts[2]);
+				int lease = parts.length > 3 ? Integer.parseInt(parts[3]) : 50_000;
+				if (ctx().fortresses().activateFunction(active(), fortId, type, level, lease, 1L, 7L * 86_400_000L)) {
+					send(ItemList.of(active().inventory().items(), false));
+				}
+			}
+			return;
+		}
+		if (cmd.startsWith("fort_claim_blood_oath ")) {
+			if (ctx().fortresses() != null && active() != null) {
+				int fortId = Integer.parseInt(cmd.substring("fort_claim_blood_oath ".length()).trim());
+				if (ctx().fortresses().rewardBloodOath(active(), fortId, 1)) {
+					send(ItemList.of(active().inventory().items(), false));
+				}
+			}
+			return;
+		}
+		if (cmd.startsWith("fort_siege_register ")) {
+			if (ctx().fortressSieges() != null && active() != null) {
+				int fortId = Integer.parseInt(cmd.substring("fort_siege_register ".length()).trim());
+				var clan = ctx().clans() != null ? ctx().clans().byClanId(active().clanId()).orElse(null) : null;
+				if (clan != null && ctx().fortressSieges().registerAttacker(fortId, active(), clan)) {
+					send(ItemList.of(active().inventory().items(), false));
+				}
+			}
+			return;
+		}
+		if (cmd.startsWith("rift_enter ")) {
+			if (ctx().dimensionalRift() != null && active() != null) {
+				byte tierId = Byte.parseByte(cmd.substring("rift_enter ".length()).trim());
+				var tier = com.lopez.l2j.game.instance.dimensionalrift.RiftTier.fromId(tierId);
+				if (tier != null) {
+					List<PlayerCharacter> members = new ArrayList<>();
+					if (session.party() != null && ctx().world() != null) {
+						for (int mId : session.party().members()) {
+							ctx().world().player(mId).ifPresent(op -> {
+								if (op instanceof GameSession gs && gs.active() != null) {
+									members.add(gs.active());
+								}
+							});
+						}
+					}
+					if (members.isEmpty()) {
+						members.add(active());
+					}
+					ctx().dimensionalRift().enterRift(active(), tier, members);
+				}
+			}
+			return;
+		}
+		if (cmd.equals("rift_jump") && ctx().dimensionalRift() != null && active() != null) {
+			List<PlayerCharacter> members = List.of(active());
+			ctx().dimensionalRift().manualJump(active(), members);
+			return;
+		}
+		if (cmd.equals("rift_leave") && ctx().dimensionalRift() != null && active() != null) {
+			List<PlayerCharacter> members = List.of(active());
+			ctx().dimensionalRift().leaveRift(active(), members);
+			return;
+		}
+		if (cmd.startsWith("sepulcher_enter ")) {
+			if (ctx().fourSepulchers() != null && active() != null) {
+				int sepId = Integer.parseInt(cmd.substring("sepulcher_enter ".length()).trim());
+				List<PlayerCharacter> members = new ArrayList<>();
+				if (session.party() != null && ctx().world() != null) {
+					for (int mId : session.party().members()) {
+						ctx().world().player(mId).ifPresent(op -> {
+							if (op instanceof GameSession gs && gs.active() != null) {
+								members.add(gs.active());
+							}
+						});
+					}
+				}
+				if (members.isEmpty()) {
+					members.add(active());
+				}
+				ctx().fourSepulchers().tryEnter(sepId, active(), members);
+			}
+			return;
+		}
+		if (cmd.equals("sepulcher_goblets") && ctx().fourSepulchers() != null && active() != null) {
+			if (ctx().fourSepulchers().combineFourGoblets(active())) {
+				send(ItemList.of(active().inventory().items(), false));
+			}
+			return;
+		}
+		if (cmd.startsWith("doll_upgrade ")) {
+			if (active() != null) {
+				int dollItemId = Integer.parseInt(cmd.substring("doll_upgrade ".length()).trim());
+				var upgraded = com.lopez.l2j.game.pve.DollService.getInstance().upgradeDoll(active(), dollItemId);
+				if (upgraded.isPresent()) {
+					send(ItemList.of(active().inventory().items(), false));
+					session.sendUserInfoAndBroadcastCharInfo();
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Boss Doll evoluida para Lv." + upgraded.get().level() + "!"));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce precisa de 2 Dolls iguais na mochila para evoluir."));
+				}
+			}
+			return;
+		}
+		if (cmd.startsWith("lottery_buy ")) {
+			if (ctx().lottery() != null && active() != null) {
+				String[] parts = cmd.substring("lottery_buy ".length()).trim().split("\\s+");
+				Set<Integer> nums = new java.util.HashSet<>();
+				for (String p : parts) {
+					nums.add(Integer.parseInt(p));
+				}
+				if (ctx().lottery().buyTicket(active(), nums)) {
+					send(ItemList.of(active().inventory().items(), false));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Bilhete de loteria adquirido!"));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel comprar o bilhete de loteria."));
+				}
+			}
+			return;
+		}
+		if (cmd.startsWith("lottery_claim ")) {
+			if (ctx().lottery() != null && active() != null) {
+				int round = Integer.parseInt(cmd.substring("lottery_claim ".length()).trim());
+				int prize = ctx().lottery().claimPrize(active(), round);
+				if (prize > 0) {
+					send(ItemList.of(active().inventory().items(), false));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Premio de " + prize + " Adena recebido!"));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhum premio disponivel para esta rodada."));
+				}
+			}
+			return;
+		}
+		if (cmd.startsWith("monrace_bet ")) {
+			if (ctx().monsterRace() != null && active() != null) {
+				String[] parts = cmd.substring("monrace_bet ".length()).trim().split("\\s+");
+				int lane = Integer.parseInt(parts[0]);
+				int amount = Integer.parseInt(parts[1]);
+				if (ctx().monsterRace().placeBet(active(), lane, amount)) {
+					send(ItemList.of(active().inventory().items(), false));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Aposta registrada na raia " + lane + "!"));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel registrar a aposta."));
+				}
+			}
+			return;
+		}
+		if (cmd.equals("monrace_run") && ctx().monsterRace() != null && active() != null) {
+			int payout = ctx().monsterRace().runRaceAndSettlePlayer(active());
+			if (payout > 0) {
+				send(ItemList.of(active().inventory().items(), false));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce venceu " + payout + " Adena na Monster Race!"));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Corrida encerrada."));
+			}
+			return;
+		}
+		if (cmd.equals("fishchamp_claim") && ctx().fishingChampionship() != null && active() != null) {
+			int reward = ctx().fishingChampionship().claimReward(active());
+			if (reward > 0) {
+				send(ItemList.of(active().inventory().items(), false));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Recompensa do Campeonato de Pesca recebida: " + reward + " Adena!"));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhuma recompensa de pesca disponivel no momento."));
+			}
+			return;
+		}
+		if (cmd.startsWith("boat_board ")) {
+			if (ctx().boat() != null && active() != null) {
+				String[] parts = cmd.substring("boat_board ".length()).trim().split("\\s+");
+				int boatId = Integer.parseInt(parts[0]);
+				int ticketId = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+				int priceAdena = parts.length > 2 ? Integer.parseInt(parts[2]) : 0;
+				if (ctx().boat().boardAndTravel(active(), boatId, ticketId, priceAdena)) {
+					send(ItemList.of(active().inventory().items(), false));
 				}
 			}
 			return;

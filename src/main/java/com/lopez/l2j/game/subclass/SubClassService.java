@@ -240,6 +240,20 @@ public class SubClassService {
 	}
 
 	/**
+	 * Verifica se um Village Master especifico pode gerenciar a subclasse do jogador,
+	 * ou se Config.ALT_SUBCLASS_EVERYWHERE permite em qualquer Village Master.
+	 */
+	public boolean canManageSubClassAtNpc(PlayerCharacter player, int npcRace) {
+		if (player == null) {
+			return false;
+		}
+		if (Config.ALT_SUBCLASS_EVERYWHERE || player.isGm()) {
+			return true;
+		}
+		return npcRace < 0 || npcRace == player.race();
+	}
+
+	/**
 	 * Retorna a lista de 2nd classes que o jogador pode escolher como subclasse.
 	 */
 	public List<Integer> getAvailableSubClasses(PlayerCharacter player) {

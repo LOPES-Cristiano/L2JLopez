@@ -1,11 +1,15 @@
 package com.lopez.l2j.game.war;
 
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.service.CharacterVariablesService;
+import com.lopez.l2j.game.service.InventoryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -28,13 +32,18 @@ public class GvEService {
 	private static final Logger log = LoggerFactory.getLogger(GvEService.class);
 
 	public static final int REWARD_PER_KILL_ADENA = 5000;
+	public static final int KILL_REWARD_ADENA = REWARD_PER_KILL_ADENA;
 	public static final int RELIC_CAPTURE_POINTS = 50;
+	public static final String VAR_GVE_FACTION = "GVE_FACTION";
 
 	public record GvEZone(String name, int minX, int maxX, int minY, int maxY, int minZ, int maxZ) {
 		public boolean contains(int x, int y, int z) {
 			return x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ;
 		}
 	}
+
+	private InventoryService inventoryService;
+	private CharacterVariablesService characterVariables;
 
 	private volatile boolean active = true;
 	private final AtomicInteger goodScore = new AtomicInteger(0);
@@ -43,6 +52,15 @@ public class GvEService {
 	private final Map<String, FactionType> relicOwners = new ConcurrentHashMap<>();
 
 	public GvEService() {
+		this(null, null);
+	}
+
+	@Autowired
+	public GvEService(
+			@Autowired(required = false) InventoryService inventoryService,
+			@Autowired(required = false) CharacterVariablesService characterVariables) {
+		this.inventoryService = inventoryService;
+		this.characterVariables = characterVariables;
 		// Registra zona padrao de fronteira GvE (ex: Gludio Borderlands)
 		registerGvEZone("Gludio Borderlands", -20000, 20000, 100000, 140000, -5000, 5000);
 	}
@@ -69,7 +87,7 @@ public class GvEService {
 	}
 
 	/**
-	 * Associa o jogador a uma facção e atualiza sua cor de nome.
+	 * Associa o jogador a uma facção, atualiza sua cor de nome e persiste em CharacterVariablesService.
 	 */
 	public void joinFaction(PlayerCharacter player, FactionType faction) {
 		if (player == null || faction == null) {
@@ -77,12 +95,19 @@ public class GvEService {
 		}
 		player.faction(faction);
 		player.nameColor(faction.nameColor());
+		if (characterVariables != null) {
+			if (faction == FactionType.NONE) {
+				characterVariables.delete(player.objectId(), VAR_GVE_FACTION);
+			} else {
+				characterVariables.set(player.objectId(), VAR_GVE_FACTION, faction.name());
+			}
+		}
 		log.info("Jogador {} ingressou na faccao {} (Cor: 0x{})",
 				player.name(), faction.displayName(), Integer.toHexString(faction.nameColor()));
 	}
 
 	/**
-	 * Desassocia o jogador da facção e restaura a cor de nome padrao.
+	 * Desassocia o jogador da facção, restaura a cor de nome padrao e remove a variavel persistida.
 	 */
 	public void leaveFaction(PlayerCharacter player) {
 		if (player == null) {
@@ -90,7 +115,34 @@ public class GvEService {
 		}
 		player.faction(FactionType.NONE);
 		player.nameColor(0xFFFFFF);
+		if (characterVariables != null) {
+			characterVariables.delete(player.objectId(), VAR_GVE_FACTION);
+		}
 		log.info("Jogador {} deixou sua faccao GvE.", player.name());
+	}
+
+	/**
+	 * Carrega a facção salva do jogador no login via CharacterVariablesService.
+	 */
+	public FactionType loadPlayerFaction(PlayerCharacter player) {
+		if (player == null) {
+			return FactionType.NONE;
+		}
+		if (characterVariables != null) {
+			String saved = characterVariables.get(player.objectId(), VAR_GVE_FACTION);
+			if (saved != null && !saved.isBlank()) {
+				try {
+					FactionType ft = FactionType.valueOf(saved.trim().toUpperCase(Locale.ROOT));
+					player.faction(ft);
+					if (ft != FactionType.NONE) {
+						player.nameColor(ft.nameColor());
+					}
+					return ft;
+				} catch (IllegalArgumentException ignored) {
+				}
+			}
+		}
+		return player.faction();
 	}
 
 	/**
@@ -139,10 +191,17 @@ public class GvEService {
 			evilScore.incrementAndGet();
 		}
 
-		// Recompensa em Adena
+		// Recompensa em Adena com persistencia real via InventoryService e fallback em memoria
 		if (killer.inventory() != null) {
-			var opt = killer.inventory().byItemId(57);
-			opt.ifPresent(adena -> adena.count(adena.count() + REWARD_PER_KILL_ADENA));
+			boolean persisted = false;
+			if (inventoryService != null) {
+				var added = inventoryService.addItem(killer.inventory(), 57, KILL_REWARD_ADENA, "GvEKill");
+				persisted = (added != null);
+			}
+			if (!persisted) {
+				var opt = killer.inventory().byItemId(57);
+				opt.ifPresent(adena -> adena.count(adena.count() + KILL_REWARD_ADENA));
+			}
 		}
 
 		log.info("GvE Kill: {} [{}] eliminou {} [{}]. Placar Good: {} vs Evil: {}",
@@ -176,5 +235,13 @@ public class GvEService {
 
 	public FactionType getRelicOwner(String relicName) {
 		return relicOwners.getOrDefault(relicName, FactionType.NONE);
+	}
+
+	public void setInventoryService(InventoryService inventoryService) {
+		this.inventoryService = inventoryService;
+	}
+
+	public void setCharacterVariablesService(CharacterVariablesService characterVariables) {
+		this.characterVariables = characterVariables;
 	}
 }

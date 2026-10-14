@@ -66,25 +66,46 @@ public class GrandBossManager {
 				Config.getString("OrfenCron", "")));
 		register(new GrandBossInfo(ANTHARAS, "Antharas", 181323, 114850, -7670, 32542,
 				Config.ANTHARAS_MIN_RESPAWN, Config.ANTHARAS_MAX_RESPAWN,
-				Config.getString("AntharasCron", "")));
+				resolveCronPattern(Config.ANTHARAS_RESPAWN_TIME_PATTERN, "AntharasCron")));
 		register(new GrandBossInfo(BAIUM, "Baium", 116033, 17447, 10107, 40188,
 				Config.BAIUM_MIN_RESPAWN, Config.BAIUM_MAX_RESPAWN,
-				Config.getString("BaiumCron", "")));
+				resolveCronPattern(Config.BAIUM_RESPAWN_TIME_PATTERN, "BaiumCron")));
 		register(new GrandBossInfo(ZAKEN, "Zaken", 55312, 219168, -3223, 0,
 				Config.ZAKEN_MIN_RESPAWN, Config.ZAKEN_MAX_RESPAWN,
 				Config.getString("ZakenCron", "")));
 		register(new GrandBossInfo(VALAKAS, "Valakas", 212852, -114842, -1632, 833,
 				Config.VALAKAS_MIN_RESPAWN, Config.VALAKAS_MAX_RESPAWN,
-				Config.getString("ValakasCron", "")));
+				resolveCronPattern(Config.VALAKAS_RESPAWN_TIME_PATTERN, "ValakasCron")));
 		register(new GrandBossInfo(FRINTEZZA, "Frintezza", -87784, -155083, -9083, 16048,
 				Config.FRINTEZZA_MIN_RESPAWN, Config.FRINTEZZA_MAX_RESPAWN,
-				Config.getString("FrintezzaCron", "")));
+				resolveCronPattern(Config.FRINTEZZA_RESPAWN_TIME_PATTERN, "FrintezzaCron")));
 		register(new GrandBossInfo(VAN_HALTER, "High Priestess van Halter", -16375, -53658, 10448, 0,
 				Config.VAN_HALTER_MIN_RESPAWN, Config.VAN_HALTER_MAX_RESPAWN,
 				Config.getString("VanHalterCron", "")));
 		register(new GrandBossInfo(SAILREN, "Sailren", 27333, -6835, -1970, 0,
 				Config.SAILREN_MIN_RESPAWN, Config.SAILREN_MAX_RESPAWN,
-				Config.getString("SailrenCron", "")));
+				resolveCronPattern(Config.SAILREN_RESPAWN_TIME_PATTERN, "SailrenCron")));
+	}
+
+	private static String resolveCronPattern(String patternConfig, String fallbackKey) {
+		if (patternConfig != null && !patternConfig.isBlank()) {
+			return patternConfig.trim();
+		}
+		return Config.getString(fallbackKey, "");
+	}
+
+	public boolean isBossEnabled(int bossId) {
+		return switch (bossId) {
+			case QUEEN_ANT -> Config.QUEEN_ANT_ENABLED;
+			case CORE -> Config.CORE_ENABLED;
+			case ZAKEN -> Config.ZAKEN_ENABLED;
+			case SAILREN -> Config.SAILREN_ENABLED;
+			case ANTHARAS -> Config.ANTHARAS_ENABLED;
+			case VALAKAS -> Config.VALAKAS_ENABLED;
+			case BAIUM -> Config.BAIUM_ENABLED;
+			case FRINTEZZA -> Config.FRINTEZZA_ENABLED;
+			default -> true;
+		};
 	}
 
 	public void register(GrandBossInfo info) {
@@ -138,7 +159,7 @@ public class GrandBossManager {
 
 	public synchronized void onBossKilled(int bossId) {
 		GrandBossInfo info = bosses.get(bossId);
-		if (info == null) {
+		if (info == null || !isBossEnabled(bossId)) {
 			return;
 		}
 
@@ -163,6 +184,10 @@ public class GrandBossManager {
 		if (info == null) {
 			return;
 		}
+		if (!isBossEnabled(bossId)) {
+			log.info("GrandBoss {} (ID {}) esta desabilitado via Config; spawn ignorado.", info.name(), bossId);
+			return;
+		}
 
 		info.status(BossStatus.ALIVE);
 		info.respawnTime(0);
@@ -177,6 +202,10 @@ public class GrandBossManager {
 
 	private void scheduleOrSpawnAll() {
 		for (GrandBossInfo info : bosses.values()) {
+			if (!isBossEnabled(info.bossId())) {
+				log.info("GrandBoss {} (ID {}) desabilitado por configuracao.", info.name(), info.bossId());
+				continue;
+			}
 			if (info.status() == BossStatus.INTERVAL || info.status() == BossStatus.DEAD) {
 				long interval = info.getIntervalMillis();
 				if (interval <= 0) {

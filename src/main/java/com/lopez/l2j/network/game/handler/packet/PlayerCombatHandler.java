@@ -174,6 +174,19 @@ public final class PlayerCombatHandler {
 			}
 		}
 
+		// Integração com PartyFarm Event (drop especial de moeda do evento)
+		if (ctx.partyFarm() != null && ctx.partyFarm().isPartyFarmMonster(npc.objectId())) {
+			int coinId = ctx.partyFarm().getEventCoinItemId();
+			if (coinId > 0 && ctx.inventories() != null && active.inventory() != null) {
+				var added = ctx.inventories().addItem(active.inventory(), coinId, 1, "PartyFarmDrop");
+				if (added != null) {
+					session.send(SystemMessage.of(SystemMessage.YOU_PICKED_UP_S1_S2,
+							new SystemMessage.Number(1),
+							new SystemMessage.ItemName(coinId)));
+				}
+			}
+		}
+
 		// Integração com Anti-Bot Captcha (BotsPreventionService)
 		if (ctx.botsPrevention() != null && ctx.botsPrevention().isEnabled()) {
 			Optional<BotsPreventionService.CaptchaChallenge> challengeOpt = ctx.botsPrevention().onMobKill(active.objectId());
@@ -187,6 +200,95 @@ public final class PlayerCombatHandler {
 			ctx.characters().save(active, true);
 		}
 		session.saveBuffs();
+	}
+
+	/**
+	 * Processa a morte de um jogador abatido por outro jogador (PvP, PK, TownWar, GvE, FlagZone).
+	 */
+	public static void handlePlayerDeath(
+			GameSession killerSession,
+			GameSession victimSession,
+			GameSession.Context ctx,
+			PlayerCharacter attacker,
+			PlayerCharacter targetPlayer) {
+		if (attacker == null || targetPlayer == null || attacker.objectId() == targetPlayer.objectId()) {
+			return;
+		}
+
+		com.lopez.l2j.game.war.GvEService gve = ctx != null ? ctx.getBean(com.lopez.l2j.game.war.GvEService.class) : null;
+		com.lopez.l2j.game.war.TownWarService townWar = ctx != null ? ctx.getBean(com.lopez.l2j.game.war.TownWarService.class) : null;
+		com.lopez.l2j.game.zone.FlagZoneService flagZone = ctx != null ? ctx.getBean(com.lopez.l2j.game.zone.FlagZoneService.class) : null;
+		com.lopez.l2j.game.service.PvPColorService pvpColor = ctx != null && ctx.pvpColor() != null
+				? ctx.pvpColor()
+				: (ctx != null ? ctx.getBean(com.lopez.l2j.game.service.PvPColorService.class) : null);
+		com.lopez.l2j.game.service.PvPRankService pvpRank = ctx != null && ctx.pvpRank() != null
+				? ctx.pvpRank()
+				: (ctx != null ? ctx.getBean(com.lopez.l2j.game.service.PvPRankService.class) : null);
+
+		handlePlayerKill(attacker, targetPlayer, killerSession, victimSession, ctx, gve, townWar, flagZone, pvpColor, pvpRank);
+	}
+
+	/**
+	 * Processa o abate entre jogadores integrando TownWar, GvE, FlagZone, PvPColor e PvPRank.
+	 */
+	public static void handlePlayerKill(
+			PlayerCharacter attacker,
+			PlayerCharacter targetPlayer,
+			GameSession killerSession,
+			GameSession victimSession,
+			GameSession.Context ctx,
+			com.lopez.l2j.game.war.GvEService gve,
+			com.lopez.l2j.game.war.TownWarService townWar,
+			com.lopez.l2j.game.zone.FlagZoneService flagZone,
+			com.lopez.l2j.game.service.PvPColorService pvpColor,
+			com.lopez.l2j.game.service.PvPRankService pvpRank) {
+		if (attacker == null || targetPlayer == null || attacker.objectId() == targetPlayer.objectId()) {
+			return;
+		}
+
+		boolean inTownWar = townWar != null
+				&& (townWar.isInsideWarZone(targetPlayer, ctx != null ? ctx.zones() : null)
+						|| townWar.isInsideWarZone(attacker, ctx != null ? ctx.zones() : null));
+		boolean inFlagZone = flagZone != null
+				&& (flagZone.isInFlagZone(targetPlayer) || flagZone.isInFlagZone(attacker));
+		boolean inGvE = gve != null && gve.isEnemy(attacker, targetPlayer);
+
+		if (inTownWar) {
+			townWar.onWarKill(attacker, targetPlayer);
+		}
+		if (inGvE) {
+			gve.onKill(attacker, targetPlayer);
+		}
+		if (inFlagZone) {
+			flagZone.onPlayerDeath(targetPlayer, victimSession != null ? victimSession::send : null);
+		}
+
+		boolean karmaFreeEventOrWar = inTownWar || inFlagZone || inGvE;
+
+		if (ctx != null && ctx.pvpRewards() != null && killerSession != null && victimSession != null) {
+			ctx.pvpRewards().handleKill(killerSession, victimSession, karmaFreeEventOrWar);
+		} else {
+			boolean isPvp = karmaFreeEventOrWar || targetPlayer.pvpFlag() > 0 || targetPlayer.karma() > 0;
+			if (isPvp) {
+				attacker.pvpKills(attacker.pvpKills() + 1);
+			} else {
+				attacker.pkKills(attacker.pkKills() + 1);
+				int karmaToAdd = Math.max(1000, 2000 * attacker.pkKills());
+				attacker.karma(attacker.karma() + karmaToAdd);
+			}
+			if (pvpColor != null) {
+				pvpColor.applyColors(attacker);
+			}
+			if (pvpRank != null) {
+				pvpRank.recordKill(attacker.objectId(), targetPlayer.objectId());
+			}
+			if (killerSession != null) {
+				killerSession.sendUserInfoAndBroadcastCharInfo();
+			}
+			if (ctx != null && ctx.characters() != null) {
+				ctx.characters().save(attacker, true);
+			}
+		}
 	}
 
 	/**

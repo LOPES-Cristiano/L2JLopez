@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.instance.frintezza;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.boss.GrandBossManager;
 import com.lopez.l2j.game.item.Inventory;
 import com.lopez.l2j.game.item.ItemTemplate;
@@ -17,8 +18,6 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.SpecialCamera;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,6 +81,38 @@ public class FrintezzaService {
 		loadState();
 	}
 
+	public static int getRegistrationMode() {
+		return Config.REGISTRATION_MODE;
+	}
+
+	public static int getRegistrationTimeMinutes() {
+		return Math.max(1, Config.REGISTRATION_TIME);
+	}
+
+	public static int getMinPartyCount() {
+		return Math.max(1, Config.MIN_PARTY_COUNT);
+	}
+
+	public static int getMaxPartyCount() {
+		return Math.max(getMinPartyCount(), Config.MAX_PARTY_COUNT);
+	}
+
+	public static int getMinPlayerCount() {
+		return Math.max(1, Config.MIN_PLAYER_COUNT);
+	}
+
+	public static int getMaxPlayerCount() {
+		return Math.max(getMinPlayerCount(), Config.MAX_PLAYER_COUNT);
+	}
+
+	public static int getTimeLimitMinutes() {
+		return Math.max(1, Config.TIME_LIMIT);
+	}
+
+	public static long getTimeLimitMillis() {
+		return getTimeLimitMinutes() * 60_000L;
+	}
+
 	public FrintezzaStatus getStatus() {
 		return status;
 	}
@@ -119,11 +150,37 @@ public class FrintezzaService {
 	}
 
 	/**
+	 * Verifica se o grupo/command channel atende aos limites configurados para Last Imperial Tomb
+	 * (Config.REGISTRATION_MODE, Config.MIN_PARTY_COUNT, Config.MAX_PARTY_COUNT, Config.MIN_PLAYER_COUNT, Config.MAX_PLAYER_COUNT).
+	 */
+	public boolean canEnterWithGroup(PlayerCharacter leader, int partyCount, List<PlayerCharacter> members) {
+		if (!canEnter(leader)) {
+			return false;
+		}
+		int totalPlayers = members != null ? members.size() : 1;
+		if (Config.REGISTRATION_MODE == 0) {
+			if (partyCount < getMinPartyCount() || partyCount > getMaxPartyCount()) {
+				return false;
+			}
+		} else {
+			if (totalPlayers < getMinPlayerCount() || totalPlayers > getMaxPlayerCount()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Consome o pergaminho de remocao do campo de forca e teleporta o grupo para dentro da camara.
 	 */
 	public boolean enterTomb(PlayerCharacter leader, List<PlayerCharacter> partyMembers) {
 		if (!canEnter(leader)) {
 			return false;
+		}
+		if (partyMembers != null && !partyMembers.isEmpty()) {
+			if (partyMembers.size() < getMinPlayerCount() || partyMembers.size() > getMaxPlayerCount()) {
+				return false;
+			}
 		}
 
 		Inventory inv = leader.inventory();
@@ -156,8 +213,8 @@ public class FrintezzaService {
 		}
 
 		status = FrintezzaStatus.ENTRY;
-		log.info("{} e seu grupo entraram no Ultimo Tumulo Imperial ({} jogadores)",
-				leader.name(), playersInside.size());
+		log.info("{} e seu grupo entraram no Ultimo Tumulo Imperial ({} jogadores, limite {} min)",
+				leader.name(), playersInside.size(), getTimeLimitMinutes());
 		return true;
 	}
 

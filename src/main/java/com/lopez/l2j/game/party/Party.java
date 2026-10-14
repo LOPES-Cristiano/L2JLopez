@@ -200,6 +200,18 @@ public final class Party {
 		return com.lopez.l2j.config.Config.ALT_PARTY_RANGE > 0 ? com.lopez.l2j.config.Config.ALT_PARTY_RANGE : PARTY_RANGE;
 	}
 
+	public static double getPartyLootRange() {
+		return com.lopez.l2j.config.Config.ALT_PARTY_RANGE2 > 0 ? com.lopez.l2j.config.Config.ALT_PARTY_RANGE2 : getPartyRange();
+	}
+
+	public boolean isInLootRange(PlayerCharacter reference, PlayerCharacter member) {
+		if (reference == null || member == null || member.isDead()) {
+			return false;
+		}
+		double dist = Math.hypot(member.x() - reference.x(), member.y() - reference.y());
+		return dist <= getPartyLootRange();
+	}
+
 	/**
 	 * Divide a experiencia e SP entre os membros do grupo presentes no raio do monstro derrotado,
 	 * aplicando o bonus de grupo proporcional a quantidade de jogadores e seus niveis,

@@ -81,6 +81,9 @@ public class SailrenService {
 	@PostConstruct
 	public void init() {
 		if (grandBossManager != null) {
+			if (Config.SAILREN_RESPAWN_TIME_PATTERN != null && !Config.SAILREN_RESPAWN_TIME_PATTERN.isBlank()) {
+				grandBossManager.setBossCron(GrandBossManager.SAILREN, Config.SAILREN_RESPAWN_TIME_PATTERN);
+			}
 			this.status = grandBossManager.getStatus(GrandBossManager.SAILREN);
 		}
 	}
@@ -93,8 +96,19 @@ public class SailrenService {
 		return Collections.unmodifiableList(playersInside);
 	}
 
+	public boolean isSinglePlayerAllowed() {
+		return Config.SAILREN_ENABLE_SINGLE_PLAYER;
+	}
+
 	public boolean canEnter(PlayerCharacter player) {
-		if (player == null || player.isDead()) {
+		return canEnter(player, Config.SAILREN_ENABLE_SINGLE_PLAYER);
+	}
+
+	public boolean canEnter(PlayerCharacter player, boolean hasPartyOrSingleAllowed) {
+		if (!Config.SAILREN_ENABLED || player == null || player.isDead()) {
+			return false;
+		}
+		if (!Config.SAILREN_ENABLE_SINGLE_PLAYER && !hasPartyOrSingleAllowed) {
 			return false;
 		}
 		if (status == BossStatus.INTERVAL || status == BossStatus.DEAD) {
@@ -141,16 +155,17 @@ public class SailrenService {
 	}
 
 	private void startWaveSequence() {
-		log.info("Sailren: Sequencia de ondas de dinossauros iniciada!");
-		// Onda 1: Velociraptor e Pterosaur (apos 10 segundos)
-		scheduler.schedule(() -> spawnWaveMob(VELOCIRAPTOR, "Velociraptor"), 10, TimeUnit.SECONDS);
-		scheduler.schedule(() -> spawnWaveMob(PTEROSAUR, "Pterosaur"), 25, TimeUnit.SECONDS);
+		int intervalSec = Math.max(1, Config.SAILREN_INTERVAL_OF_MONSTERS) * 10;
+		log.info("Sailren: Sequencia de ondas de dinossauros iniciada (intervalo base {}s)!", intervalSec);
+		// Onda 1: Velociraptor e Pterosaur
+		scheduler.schedule(() -> spawnWaveMob(VELOCIRAPTOR, "Velociraptor"), intervalSec, TimeUnit.SECONDS);
+		scheduler.schedule(() -> spawnWaveMob(PTEROSAUR, "Pterosaur"), intervalSec * 2L + 5L, TimeUnit.SECONDS);
 
-		// Onda 2: Trex (apos 45 segundos)
-		scheduler.schedule(() -> spawnWaveMob(TREX, "Tyrannosaurus"), 45, TimeUnit.SECONDS);
+		// Onda 2: Trex
+		scheduler.schedule(() -> spawnWaveMob(TREX, "Tyrannosaurus"), intervalSec * 4L + 5L, TimeUnit.SECONDS);
 
-		// Onda 3: Sailren (apos 75 segundos)
-		scheduler.schedule(this::spawnSailren, 75, TimeUnit.SECONDS);
+		// Onda 3: Sailren
+		scheduler.schedule(this::spawnSailren, intervalSec * 7L + 5L, TimeUnit.SECONDS);
 	}
 
 	private void spawnWaveMob(int npcId, String mobName) {
@@ -163,7 +178,7 @@ public class SailrenService {
 	}
 
 	public synchronized void spawnSailren() {
-		if (templates == null || world == null || objectIds == null) return;
+		if (!Config.SAILREN_ENABLED || templates == null || world == null || objectIds == null) return;
 		NpcTemplate tpl = templates.get(SAILREN).orElseGet(() -> NpcTemplate.fallback(SAILREN, "Sailren", "L2GrandBoss"));
 		activeSailren = new NpcInstance(objectIds.nextId(), tpl, NEST_X, NEST_Y, NEST_Z, 0);
 		world.addNpc(activeSailren);
@@ -175,7 +190,19 @@ public class SailrenService {
 
 		world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Sailren",
 				"The ancient raptor Sailren has appeared in the nest!"), p -> true);
-		log.info("Sailren gerado no ninho!");
+		log.info("Sailren gerado no ninho (activityTime={}m)!", Config.SAILREN_ACTIVITY_TIME);
+
+		if (Config.SAILREN_ACTIVITY_TIME > 0) {
+			scheduler.schedule(() -> {
+				if (status == BossStatus.ALIVE) {
+					clearNest();
+					status = BossStatus.NOTSPAWN;
+					if (grandBossManager != null) {
+						grandBossManager.setStatus(GrandBossManager.SAILREN, BossStatus.NOTSPAWN);
+					}
+				}
+			}, Config.SAILREN_ACTIVITY_TIME * 60L, TimeUnit.SECONDS);
+		}
 	}
 
 	public synchronized void onSailrenKilled(PlayerCharacter killer) {

@@ -329,6 +329,7 @@ public class NpcAiService {
 			}
 
 			// 2. Respawn: Apos o tempo de renascimento, revive com HP total no spawn original
+			long respawnDelayMs = resolveRespawnDelayMs(npc);
 			scheduler.schedule(() -> {
 				try {
 					if (npc.isMinion() && npc.masterObjectId() != 0) {
@@ -352,9 +353,19 @@ public class NpcAiService {
 				} catch (Exception e) {
 					log.warn("Erro ao executar respawn do monstro {}: {}", npc.name(), e.getMessage());
 				}
-			}, RESPAWN_DELAY_MS, TimeUnit.MILLISECONDS);
+			}, respawnDelayMs, TimeUnit.MILLISECONDS);
 
 		}, DECAY_DELAY_MS, TimeUnit.MILLISECONDS);
+	}
+
+	public long resolveRespawnDelayMs(NpcInstance npc) {
+		if (npc != null && npc.isRaidMinion() && Config.RAID_MINION_RESPAWN_TIME > 0) {
+			return Config.RAID_MINION_RESPAWN_TIME;
+		}
+		if (npc != null && npc.isMinion() && Config.ALL_MINIONS_RESPAWN_INTERVAL > 0) {
+			return Config.ALL_MINIONS_RESPAWN_INTERVAL;
+		}
+		return RESPAWN_DELAY_MS;
 	}
 
 	private void respawnNpc(NpcInstance npc) {
@@ -461,6 +472,10 @@ public class NpcAiService {
 		}
 	}
 
+	public boolean isMobAggroAllowedInPeaceZone() {
+		return Config.ALT_MOB_AGGRO_IN_PEACE_ZONE;
+	}
+
 	private void checkAggroAroundPlayers() {
 		for (var player : world.players()) {
 			var character = player.character();
@@ -495,7 +510,7 @@ public class NpcAiService {
 					continue;
 				}
 
-				if (inPeaceZone || !npc.isMonster()) {
+				if ((inPeaceZone && (!Config.ALT_MOB_AGGRO_IN_PEACE_ZONE || zones != null)) || !npc.isMonster()) {
 					continue;
 				}
 				// Regra oficial Lineage II / L2JDream: Friendly Mobs (ex: Pixy, Bloody Pixy, Treant) so agram jogadores PK (Karma > 0)
@@ -530,6 +545,13 @@ public class NpcAiService {
 
 	private void roamIdleMonsters() {
 		ThreadLocalRandom rnd = ThreadLocalRandom.current();
+		int minMonsterAnim = Math.max(0, Config.MIN_MONSTER_ANIMATION);
+		int maxMonsterAnim = Math.max(minMonsterAnim, Config.MAX_MONSTER_ANIMATION);
+		int minNpcAnim = Math.max(0, Config.MIN_NPC_ANIMATION);
+		int maxNpcAnim = Math.max(minNpcAnim, Config.MAX_NPC_ANIMATION);
+		int minWalkAnim = Math.max(0, Config.MIN_NPC_WALK_ANIMATION);
+		int maxWalkAnim = Math.max(minWalkAnim, Config.MAX_NPC_WALK_ANIMATION);
+
 		for (var player : world.players()) {
 			var nearbyNpcs = world.findNpcsAround(player.x(), player.y(), 1200);
 			for (var npc : nearbyNpcs) {
@@ -537,8 +559,11 @@ public class NpcAiService {
 					continue;
 				}
 				if (npc.isMonster()) {
-					// 25% de chance de caminhar um pouco
-					if (rnd.nextInt(100) < 25) {
+					if (maxMonsterAnim <= 0 || maxWalkAnim <= 0) {
+						continue;
+					}
+					int chance = Math.clamp(100 - minMonsterAnim, 10, 50);
+					if (rnd.nextInt(100) < chance) {
 						int maxOffset = Config.MAX_DRIFT_RANGE > 0 ? Config.MAX_DRIFT_RANGE : 120;
 						int targetX = npc.spawnX() + rnd.nextInt(-maxOffset, maxOffset + 1);
 						int targetY = npc.spawnY() + rnd.nextInt(-maxOffset, maxOffset + 1);
@@ -553,8 +578,12 @@ public class NpcAiService {
 						world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, movePkt);
 					}
 				} else {
-					// NPCs de cidade / Guardas / Mestres: 20% de chance de animacao social (respirar, olhar em volta)
-					if (rnd.nextInt(100) < 20) {
+					if (maxNpcAnim <= 0) {
+						continue;
+					}
+					int chance = Math.clamp(100 - minNpcAnim, 10, 40);
+					// NPCs de cidade / Guardas / Mestres: animacao social (respirar, olhar em volta)
+					if (rnd.nextInt(100) < chance) {
 						int actionId = rnd.nextInt(2, 4); // SocialAction 2 ou 3
 						var social = new SocialAction(npc.objectId(), actionId);
 						world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, social);
@@ -562,6 +591,28 @@ public class NpcAiService {
 				}
 			}
 		}
+	}
+
+	public boolean tryRollHotSpringDebuff(NpcInstance npc) {
+		if (npc == null || Config.HOT_SPRING_DEBUFF_CHANCE <= 0) {
+			return false;
+		}
+		int id = npc.npcId();
+		if (id >= 21314 && id <= 21323) {
+			return ThreadLocalRandom.current().nextInt(100) < Config.HOT_SPRING_DEBUFF_CHANCE;
+		}
+		return false;
+	}
+
+	public boolean tryRollFogMobClone(NpcInstance npc) {
+		if (npc == null || Config.FOG_MOBS_CLONE_CHANCE <= 0) {
+			return false;
+		}
+		int id = npc.npcId();
+		if (id >= 21376 && id <= 21437) {
+			return ThreadLocalRandom.current().nextInt(100) < Config.FOG_MOBS_CLONE_CHANCE;
+		}
+		return false;
 	}
 
 	private void processCombatNpc(NpcInstance npc) {
@@ -607,6 +658,9 @@ public class NpcAiService {
 			world.broadcastAround(player, GameWorld.VISIBILITY_RADIUS, stopAtk, false);
 			return;
 		}
+
+		tryRollHotSpringDebuff(npc);
+		tryRollFogMobClone(npc);
 
 		AbstractNpcAI ai = getOrAssignAI(npc);
 		ai.processCombat();

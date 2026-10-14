@@ -1608,11 +1608,18 @@ public class MagicSkillPacketHandler {
 		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, dieObserver, false);
 
 		if (killer != null && ctx() != null && ctx().world() != null) {
-			ctx().world().player(killer.objectId()).ifPresent(op -> {
-				if (op instanceof GameSession killerSession && ctx().pvpRewards() != null) {
-					ctx().pvpRewards().handleKill(killerSession, session);
+			ctx().world().player(killer.objectId()).ifPresentOrElse(op -> {
+				if (op instanceof GameSession killerSession) {
+					PlayerCombatHandler.handlePlayerDeath(killerSession, session, ctx(), killer, active());
+				} else {
+					PlayerCombatHandler.handlePlayerDeath(null, session, ctx(), killer, active());
 				}
-			});
+			}, () -> PlayerCombatHandler.handlePlayerDeath(null, session, ctx(), killer, active()));
+		} else if (ctx() != null) {
+			com.lopez.l2j.game.zone.FlagZoneService flagZone = ctx().getBean(com.lopez.l2j.game.zone.FlagZoneService.class);
+			if (flagZone != null && flagZone.isInFlagZone(active())) {
+				flagZone.onPlayerDeath(active(), session::send);
+			}
 		}
 
 		ctx().characters().save(active(), true);

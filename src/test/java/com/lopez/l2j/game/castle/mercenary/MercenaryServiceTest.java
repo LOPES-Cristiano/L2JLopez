@@ -94,4 +94,23 @@ class MercenaryServiceTest {
 		mercenaryService.clearCastleMercenaries(CastleManager.GLUDIO);
 		assertEquals(0, mercenaryService.getHiredMercenaries(CastleManager.GLUDIO).size());
 	}
+
+	@Test
+	void testBuyAndDropMercenaryTicket() {
+		PlayerCharacter lord = dummyPlayer(100, "CastleLord");
+		lord.clanId(1);
+		Clan clan = new Clan(1, "LordClan", 100, "CastleLord", 5);
+		clan.castleId(CastleManager.GLUDIO);
+		castleManager.getCastleById(CastleManager.GLUDIO).orElseThrow().ownerClanId(1);
+
+		lord.inventory().add(new ItemInstance(1, dummyTemplate(ItemTemplate.ADENA_ID, "Adena"), lord.objectId(), 500_000));
+
+		int ticketId = 3960;
+		assertTrue(mercenaryService.buyMercenaryTicket(lord, CastleManager.GLUDIO, ticketId, 2));
+		assertEquals(2, lord.inventory().getItemCount(ticketId));
+
+		assertTrue(mercenaryService.dropMercenaryTicket(lord, clan, ticketId, 1500, 2500, -1000, 0));
+		assertEquals(1, lord.inventory().getItemCount(ticketId));
+		assertEquals(1, mercenaryService.getHiredMercenaries(CastleManager.GLUDIO).size());
+	}
 }

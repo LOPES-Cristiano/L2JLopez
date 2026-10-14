@@ -66,12 +66,20 @@ public class ZoneTable {
 		return Optional.ofNullable(byId.get(id));
 	}
 
+	private static boolean isJailZone(Zone zone) {
+		return zone != null && zone.name() != null
+				&& zone.name().toLowerCase(Locale.ROOT).contains("jail");
+	}
+
 	/**
 	 * Verifica se as coordenadas informadas estao dentro de uma Zona de Paz.
 	 */
 	public boolean isInsidePeace(int x, int y, int z) {
 		for (Zone zone : allZones) {
 			if (zone.type() == ZoneType.TOWN && com.lopez.l2j.config.Config.ZONE_TOWN == 2) {
+				continue;
+			}
+			if (isJailZone(zone) && com.lopez.l2j.config.Config.JAIL_IS_PVP_ZONE) {
 				continue;
 			}
 			if ((zone.isPeace() || zone.type() == ZoneType.PEACE || zone.type() == ZoneType.TOWN)
@@ -95,7 +103,8 @@ public class ZoneTable {
 	public boolean isInsideArena(int x, int y, int z) {
 		for (Zone zone : allZones) {
 			if ((zone.isArena() || zone.type() == ZoneType.ARENA
-					|| (zone.type() == ZoneType.TOWN && com.lopez.l2j.config.Config.ZONE_TOWN == 2))
+					|| (zone.type() == ZoneType.TOWN && com.lopez.l2j.config.Config.ZONE_TOWN == 2)
+					|| (isJailZone(zone) && com.lopez.l2j.config.Config.JAIL_IS_PVP_ZONE))
 					&& zone.contains(x, y, z)) {
 				return true;
 			}
@@ -121,7 +130,8 @@ public class ZoneTable {
 	public boolean isInsidePvpCombatZone(int x, int y, int z) {
 		for (Zone zone : allZones) {
 			if ((zone.isArena() || zone.type() == ZoneType.ARENA || zone.type() == ZoneType.SIEGE || zone.type() == ZoneType.FLAG
-					|| (zone.type() == ZoneType.TOWN && com.lopez.l2j.config.Config.ZONE_TOWN == 2))
+					|| (zone.type() == ZoneType.TOWN && com.lopez.l2j.config.Config.ZONE_TOWN == 2)
+					|| (isJailZone(zone) && com.lopez.l2j.config.Config.JAIL_IS_PVP_ZONE))
 					&& zone.contains(x, y, z)) {
 				return true;
 			}
@@ -129,10 +139,17 @@ public class ZoneTable {
 		return false;
 	}
 
+	public boolean isInsidePvp(int x, int y, int z) {
+		return isInsidePvpCombatZone(x, y, z);
+	}
+
 	/**
 	 * Verifica se as coordenadas informadas estao dentro de uma Zona de Agua (nado/afogamento).
 	 */
 	public boolean isInsideWater(int x, int y, int z) {
+		if (!com.lopez.l2j.config.Config.ALLOW_WATER) {
+			return false;
+		}
 		List<Zone> waters = byType.get(ZoneType.WATER);
 		if (waters == null || waters.isEmpty()) {
 			return false;
@@ -143,6 +160,39 @@ public class ZoneTable {
 			}
 		}
 		return false;
+	}
+
+	public boolean isFishingAllowed(int x, int y, int z) {
+		return com.lopez.l2j.config.Config.ALLOW_FISHING;
+	}
+
+	public boolean isBoatAllowed() {
+		return com.lopez.l2j.config.Config.ALLOW_BOAT;
+	}
+
+	public int getNoRestartKickTimeSeconds() {
+		return com.lopez.l2j.config.Config.NO_RESTART_KICK_TIME;
+	}
+
+	/**
+	 * Verifica se atacante e Grand Boss estao na mesma Boss Zone (respeitando CAN_ATTACK_FROM_ANOTHER_ZONE_TO_EPIC).
+	 */
+	public boolean isInSameBossZone(int x1, int y1, int z1, int x2, int y2, int z2) {
+		if (com.lopez.l2j.config.Config.CAN_ATTACK_FROM_ANOTHER_ZONE_TO_EPIC) {
+			return true;
+		}
+		List<Zone> bossZones = byType.get(ZoneType.BOSS);
+		if (bossZones == null || bossZones.isEmpty()) {
+			return true;
+		}
+		for (Zone bz : bossZones) {
+			boolean c1 = bz.contains(x1, y1, z1);
+			boolean c2 = bz.contains(x2, y2, z2);
+			if (c1 || c2) {
+				return c1 && c2;
+			}
+		}
+		return true;
 	}
 
 	/**

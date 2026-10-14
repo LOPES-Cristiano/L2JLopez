@@ -666,6 +666,21 @@ public class TradeStorePacketHandler {
 		session.send(new ActionFailed());
 	}
 
+	private com.lopez.l2j.game.service.WarehousePasskeyService resolveWarehousePasskeyService(GameSession.Context ctx) {
+		if (ctx != null) {
+			var bean = ctx.getBean(com.lopez.l2j.game.service.WarehousePasskeyService.class);
+			if (bean != null) {
+				return bean;
+			}
+		}
+		var engineBean = GameEngineContext.getBean(com.lopez.l2j.game.service.WarehousePasskeyService.class);
+		return engineBean != null ? engineBean : com.lopez.l2j.game.service.WarehousePasskeyService.getInstance();
+	}
+
+	public void handleSendWarehouseWithdrawList(SendWareHouseWithDrawList p) {
+		handleWareHouseWithdraw(p);
+	}
+
 	public void handleWareHouseWithdraw(SendWareHouseWithDrawList p) {
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
@@ -678,6 +693,15 @@ public class TradeStorePacketHandler {
 			return;
 		}
 		if (!com.lopez.l2j.config.Config.ALT_KARMA_PLAYER_CAN_USE_WAREHOUSE && active.karma() > 0) {
+			session.send(new ActionFailed());
+			return;
+		}
+		var passkeyService = resolveWarehousePasskeyService(ctx);
+		if (passkeyService != null && passkeyService.hasPasskey(active.objectId()) && !passkeyService.isUnlocked(active.objectId())) {
+			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay(
+					0, 2, "Warehouse", "Seu armazem esta protegido por Passkey. Desbloqueie antes de retirar itens."));
+			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(
+					0, passkeyService.buildPasskeyHtml(active.objectId(), "unlock", "", "Desbloqueie o armazem para retirar itens.")));
 			session.send(new ActionFailed());
 			return;
 		}

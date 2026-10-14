@@ -104,6 +104,42 @@ public class OfflineTradeService {
         buyStoreLists.remove(playerObjectId);
     }
 
+    public long resolveOfflineDurationMillis(int mode, long requestedDurationMillis) {
+        if (requestedDurationMillis != 0L) {
+            return requestedDurationMillis;
+        }
+        int priceHours = (mode == STORE_PRIVATE_MANUFACTURE)
+                ? Config.OFFLINE_CRAFT_PRICE_ID_TIME
+                : Config.OFFLINE_TRADE_PRICE_ID_TIME;
+        if (priceHours > 0) {
+            return priceHours * 3_600_000L;
+        }
+        if (Config.ALLOW_OFFLINE_HOUR > 0) {
+            return Config.ALLOW_OFFLINE_HOUR * 3_600_000L;
+        }
+        return DEFAULT_OFFLINE_DURATION;
+    }
+
+    public boolean chargeOfflineFeeIfApplicable(PlayerCharacter player, int mode) {
+        if (player == null || player.inventory() == null || player.inventory().items().isEmpty()) {
+            return true;
+        }
+        int feeItemId = (mode == STORE_PRIVATE_MANUFACTURE)
+                ? Config.OFFLINE_CRAFT_PRICE_ID
+                : Config.OFFLINE_TRADE_PRICE_ID;
+        long feeCount = (mode == STORE_PRIVATE_MANUFACTURE)
+                ? Config.OFFLINE_CRAFT_PRICE_COUNT
+                : Config.OFFLINE_TRADE_PRICE_COUNT;
+        if (feeItemId <= 0 || feeCount <= 0) {
+            return true;
+        }
+        var feeItem = player.inventory().byItemId(feeItemId).orElse(null);
+        if (feeItem == null || feeItem.count() < feeCount) {
+            return false;
+        }
+        return player.inventory().destroyItemByItemId(feeItemId, (int) Math.min(Integer.MAX_VALUE, feeCount));
+    }
+
     /**
      * Inicia o modo de loja offline para o personagem informado.
      */
@@ -111,6 +147,11 @@ public class OfflineTradeService {
                                                  String title, List<OfflineShopItem> items, long durationMillis) {
         if (player == null || player.isDead() || player.karma() > 0) {
             log.warn("Offline Trade recusado para {}", player != null ? player.name() : "null");
+            return false;
+        }
+
+        if (player.isBuffShop() && !Config.ALLOW_OFFLINE_BUFF && !Config.ALLOW_OFFLINE_TRADE) {
+            log.warn("Offline Buff Shop desativado nas configuracoes para {}", player.name());
             return false;
         }
 
@@ -129,6 +170,11 @@ public class OfflineTradeService {
             return false;
         }
 
+        if (!chargeOfflineFeeIfApplicable(player, mode)) {
+            log.warn("Offline Trade recusado para {}: taxa de item insuficiente", player.name());
+            return false;
+        }
+
         if (Config.ALLOW_OFFLINE_TRADE_COLOR_NAME && Config.OFFLINE_TRADE_COLOR_NAME != null) {
             try {
                 int color = Integer.decode("0x" + Config.OFFLINE_TRADE_COLOR_NAME.trim());
@@ -142,7 +188,8 @@ public class OfflineTradeService {
 
         int charId = player.objectId();
         int shopId = shopIdGen.incrementAndGet();
-        long endTime = durationMillis != 0 ? System.currentTimeMillis() + durationMillis : System.currentTimeMillis() + DEFAULT_OFFLINE_DURATION;
+        long effectiveDuration = resolveOfflineDurationMillis(mode, durationMillis);
+        long endTime = System.currentTimeMillis() + effectiveDuration;
 
         OfflineTrader trader = new OfflineTrader(charId, shopId, mode, packaged, title, endTime, items);
         activeTraders.put(charId, trader);

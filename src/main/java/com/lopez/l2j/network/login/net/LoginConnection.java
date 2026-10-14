@@ -46,6 +46,11 @@ final class LoginConnection implements Runnable {
 			send(out, session.init());
 			while (true) {
 				byte[] payload = readFrame(in);
+				if (session.isExpired()) {
+					log.debug("{} sessao expirada (InactiveTimeOut={}m, SessionTTL={}m); fechando",
+							peer, com.lopez.l2j.config.Config.INACTIVE_TIMEOUT, com.lopez.l2j.config.Config.SESSION_TTL);
+					return;
+				}
 				if (!crypt.decrypt(payload, 0, payload.length)) {
 					log.warn("Checksum invalido de {}; fechando", peer);
 					return;

@@ -368,6 +368,142 @@ public final class NpcInstance implements Creature {
 		}
 	}
 
+	// ---- Propriedades e regras de configuracao (npc.properties / bosses.properties / options.properties) ----
+
+	public boolean isRaid() {
+		return template != null && (template.isRaidBoss() || template.isGrandBoss() || isRaidMinion());
+	}
+
+	public boolean canBeAttackedByPlayer() {
+		return isAttackable() || (com.lopez.l2j.config.Config.ALT_ATTACKABLE_NPCS && !invul);
+	}
+
+	public String displayTitle() {
+		String baseTitle = champion && championTitle != null && !championTitle.isBlank()
+				? championTitle
+				: (template != null && template.title() != null ? template.title() : "");
+		if (com.lopez.l2j.config.Config.SHOW_NPC_LEVEL && template != null) {
+			String lvlPrefix = "Lv " + level() + (template.aggroRange() > 0 ? "* " : " ");
+			return baseTitle.isBlank() ? lvlPrefix.trim() : lvlPrefix + baseTitle;
+		}
+		return baseTitle;
+	}
+
+	public boolean isLethalProtected() {
+		if (isRaid()) {
+			return true;
+		}
+		if (com.lopez.l2j.config.Config.ALLOW_LETHAL_PROTECTION_MOBS
+				&& com.lopez.l2j.config.Config.LETHAL_PROTECTED_MOBS != null) {
+			return com.lopez.l2j.config.Config.LETHAL_PROTECTED_MOBS.contains(npcId());
+		}
+		return false;
+	}
+
+	public boolean shouldApplyRaidCurse(int attackerLevel) {
+		if (com.lopez.l2j.config.Config.DISABLE_RAID_BOSS_FOSSILIZATION || !isRaid()) {
+			return false;
+		}
+		return (attackerLevel - level()) > com.lopez.l2j.config.Config.MAX_LEVEL_RAID_BOSS_CURSE;
+	}
+
+	public long effectiveExpReward() {
+		if (template == null) {
+			return 0L;
+		}
+		double rate = isRaid() ? com.lopez.l2j.config.Config.RATE_RAID_EXP : 1.0;
+		return Math.round(template.exp() * Math.max(0.0, rate));
+	}
+
+	public int effectiveSpReward() {
+		if (template == null) {
+			return 0;
+		}
+		double rate = isRaid() ? com.lopez.l2j.config.Config.RATE_RAID_SP : 1.0;
+		return (int) Math.round(template.sp() * Math.max(0.0, rate));
+	}
+
+	public double effectiveRaidDropMultiplier() {
+		return isRaid() ? Math.max(0.0, com.lopez.l2j.config.Config.RATE_RAID_BOSS) : 1.0;
+	}
+
+	public double effectiveRaidRegenMultiplier() {
+		return isRaid() ? Math.max(0.1, com.lopez.l2j.config.Config.RATE_RAID_REGEN) : 1.0;
+	}
+
+	public double effectiveRaidAttackMultiplier() {
+		return isRaid() ? Math.max(0.1, com.lopez.l2j.config.Config.RATE_RAID_ATTACK) : 1.0;
+	}
+
+	public double effectiveRaidDefenseMultiplier() {
+		return isRaid() ? Math.max(0.1, com.lopez.l2j.config.Config.RATE_RAID_DEFENSE) : 1.0;
+	}
+
+	public double effectiveRaidMAtkModifier() {
+		return isRaid() ? Math.max(0.1, com.lopez.l2j.config.Config.RAID_BOSS_M_ATK_MODIFIER) : 1.0;
+	}
+
+	public static int getMountSpeed(boolean wyvern) {
+		return wyvern ? com.lopez.l2j.config.Config.WYVERN_SPEED : com.lopez.l2j.config.Config.STRIDER_SPEED;
+	}
+
+	public boolean canRentPet() {
+		return com.lopez.l2j.config.Config.ALLOW_RENT_PET;
+	}
+
+	public boolean canUpgradeWyvern(int crystalCount) {
+		return com.lopez.l2j.config.Config.ALLOW_WYVERN_UPGRADER
+				&& crystalCount >= com.lopez.l2j.config.Config.MANAGER_CRYSTAL_COUNT;
+	}
+
+	public int getRequiredWyvernCrystals() {
+		return com.lopez.l2j.config.Config.MANAGER_CRYSTAL_COUNT;
+	}
+
+	public int getUrnTempFailChance() {
+		return com.lopez.l2j.config.Config.URN_TEMP_FAIL;
+	}
+
+	public boolean canWearItems() {
+		return com.lopez.l2j.config.Config.ALLOW_WEAR;
+	}
+
+	public boolean canUseLottery() {
+		return com.lopez.l2j.config.Config.ALLOW_LOTTERY;
+	}
+
+	public boolean canUseFishingService() {
+		return com.lopez.l2j.config.Config.ALLOW_FISHING;
+	}
+
+	public boolean isClassMaster() {
+		return npcId() == 31228 || (template != null && "L2ClassMaster".equalsIgnoreCase(template.type()));
+	}
+
+	public boolean isClassMasterSpawnEnabled() {
+		return com.lopez.l2j.config.Config.SPAWN_CLASS_MASTER;
+	}
+
+	public boolean isClassMasterDialogAllowed() {
+		return com.lopez.l2j.config.Config.ALLOW_DIALOG_CLASS_MASTER;
+	}
+
+	public boolean isClassMasterEntireTree() {
+		return com.lopez.l2j.config.Config.CLASS_MASTER_ENTIRE_TREE;
+	}
+
+	public boolean canClassMasterUpdateStrider() {
+		return com.lopez.l2j.config.Config.CLASS_MASTER_UPDATE_STRIDER;
+	}
+
+	public String getClassMasterConfigLine() {
+		return com.lopez.l2j.config.Config.CONFIG_CLASS_MASTER;
+	}
+
+	public boolean shouldResetToBaseClassIfFail() {
+		return com.lopez.l2j.config.Config.RESET_TO_BASE_CLASS_IF_FAIL;
+	}
+
 	@Override
 	public String toString() {
 		return template.name() + " (" + template.id() + ") #" + objectId + " [" + x + "," + y + "," + z + "]";

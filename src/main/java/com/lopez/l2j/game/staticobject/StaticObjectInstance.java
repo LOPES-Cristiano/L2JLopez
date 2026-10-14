@@ -1,5 +1,9 @@
 package com.lopez.l2j.game.staticobject;
 
+import com.lopez.l2j.config.Config;
+import com.lopez.l2j.game.clan.Clan;
+import com.lopez.l2j.game.model.PlayerCharacter;
+
 /**
  * Representa um objeto estatico no cenario (StaticObject / L2StaticObjectInstance do L2JDream).
  * Exemplos: Mapas de vila (Town Map), Placas de sinalizacao (Signboard), Tronos e Estatuas.
@@ -79,5 +83,22 @@ public class StaticObjectInstance {
 
 	public boolean isThroneOrStatue() {
 		return type == TYPE_THRONE_STATUE;
+	}
+
+	/**
+	 * Verifica se o jogador pode sentar no trono deste objeto estatico,
+	 * respeitando Config.ONLY_CLAN_LEADER_CAN_SIT_ON_THRONE (L2StaticObjectInstance do L2JDream).
+	 */
+	public boolean canSitOnThrone(PlayerCharacter player, Clan clan, int castleOwnerClanId) {
+		if (!isThroneOrStatue() || player == null) {
+			return false;
+		}
+		if (castleOwnerClanId > 0 && player.clanId() != castleOwnerClanId) {
+			return false;
+		}
+		if (Config.ONLY_CLAN_LEADER_CAN_SIT_ON_THRONE) {
+			return clan != null && clan.isLeader(player.objectId());
+		}
+		return true;
 	}
 }

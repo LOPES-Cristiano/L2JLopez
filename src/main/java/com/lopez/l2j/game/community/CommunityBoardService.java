@@ -45,6 +45,9 @@ public class CommunityBoardService {
     private final CharacterRepository characterRepository;
     private final Map<Integer, Map<Integer, String>> localFavorites = new ConcurrentHashMap<>();
     private final Map<String, String> accountPasswordHashes = new ConcurrentHashMap<>();
+    private final Map<Integer, Integer> playerPetitionsCount = new ConcurrentHashMap<>();
+    private final List<String> pendingPetitions = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final List<String> archivedDeletedMailLetters = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     @Autowired(required = false)
     private GameWorld gameWorld;
@@ -130,6 +133,11 @@ public class CommunityBoardService {
             return getBufferHtml(player);
         } else if (cmd.equals("_bbstop") || cmd.equals("_bbsranking") || cmd.equals("_bbsloc")) {
             return getRankingsHtml(player);
+        } else if (cmd.startsWith("_bbsregion")) {
+            return getOnlinePlayersRegionHtml(player, 1);
+        } else if (cmd.startsWith("_bbspetition")) {
+            String petText = cmd.length() > 12 ? cmd.substring(12).replaceFirst("^[;\\s]+", "").trim() : "Suporte Geral";
+            return submitPetition(player, petText, isAnyGmOnline());
         } else if (cmd.equals("_bbsinfo")) {
             return getInfoHtml(player);
         } else if (cmd.startsWith("_bbsservice;repair")) {
@@ -804,6 +812,154 @@ public class CommunityBoardService {
         }
         if (upper.contains("TRADE") && player.isInTrade()) {
             return true;
+        }
+        return false;
+    }
+
+    /**
+     * Renderiza a lista de jogadores online na aba Region do Community Board (_bbsregion)
+     * utilizando as configuracoes de options.properties.
+     */
+    public String getOnlinePlayersRegionHtml(PlayerCharacter viewer, int page) {
+        int pageSize = Math.max(1, Config.NAME_PAGE_SIZE_ON_COMMUNITY_BOARD);
+        int perRow = Math.max(1, Config.NAME_PER_ROW_ON_COMMUNITY_BOARD);
+
+        List<PlayerCharacter> onlinePlayers = new ArrayList<>();
+        if (gameWorld != null) {
+            for (var session : gameWorld.players()) {
+                if (session != null && session.character() != null) {
+                    PlayerCharacter p = session.character();
+                    if (!Config.SHOW_KARMA_PLAYERS && p.karma() > 0) continue;
+                    if (!Config.SHOW_JAILED_PLAYERS && p.isInJail()) continue;
+                    onlinePlayers.add(p);
+                }
+            }
+        } else if (viewer != null) {
+            onlinePlayers.add(viewer);
+        }
+
+        int totalPages = Math.max(1, (int) Math.ceil((double) onlinePlayers.size() / pageSize));
+        int curPage = Math.clamp(page, 1, totalPages);
+        int fromIdx = (curPage - 1) * pageSize;
+        int toIdx = Math.min(fromIdx + pageSize, onlinePlayers.size());
+        List<PlayerCharacter> pageList = onlinePlayers.subList(fromIdx, toIdx);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("<html><body><br>");
+        sb.append(renderNavigationBar());
+        sb.append("<table width=750 border=0 cellpadding=2 cellspacing=2>");
+        sb.append("<tr><td align=center><font color=\"LEVEL\" size=3><b>JOGADORES ONLINE NA REGIAO</b></font></td></tr>");
+        if (Config.SHOW_STATUS_ON_COMMUNITY_BOARD) {
+            sb.append("<tr><td align=center><font color=\"8FA888\">Status do Servidor: ONLINE (").append(onlinePlayers.size()).append(" jogadores visiveis)</font></td></tr>");
+        }
+        sb.append("</table><br>");
+
+        if (Config.CUSTOM_COMMUNITY_BOARD && Config.SHOW_LEGEND) {
+            sb.append("<table width=750 bgcolor=111111 border=1 cellpadding=3 cellspacing=0><tr><td align=center>");
+            sb.append("Legenda: [GM] Admin | ");
+            if (Config.SHOW_CLAN_LEADER) {
+                sb.append("[Lider Cla Nv.").append(Config.SHOW_CLAN_LEADER_AT_CLAN_LEVEL).append("+] | ");
+            }
+            if (Config.SHOW_CURSED_WEAPON_OWNER) {
+                sb.append("[Arma Amaldicoada] | ");
+            }
+            if (Config.SHOW_JAILED_PLAYERS) {
+                sb.append("[Preso]");
+            }
+            sb.append("</td></tr></table><br>");
+        }
+
+        String defaultColor = "FFFFFF";
+        if (Config.COLOR_COMMUNITY_BOARD != null && !Config.COLOR_COMMUNITY_BOARD.isBlank()) {
+            String[] colors = Config.COLOR_COMMUNITY_BOARD.split(",");
+            if (colors.length > 0 && !colors[0].isBlank()) {
+                defaultColor = colors[0].trim();
+            }
+        }
+
+        sb.append("<table width=750 bgcolor=151515 border=1 cellpadding=4 cellspacing=0><tr>");
+        int col = 0;
+        for (PlayerCharacter p : pageList) {
+            if (col > 0 && col % perRow == 0) {
+                sb.append("</tr><tr>");
+            }
+            StringBuilder tag = new StringBuilder();
+            if (Config.CUSTOM_COMMUNITY_BOARD) {
+                if (Config.SHOW_CLAN_LEADER && p.isClanLeader()) {
+                    Clan c = p.getClan();
+                    int clanLvl = c != null ? c.level() : Config.SHOW_CLAN_LEADER_AT_CLAN_LEVEL;
+                    if (clanLvl >= Config.SHOW_CLAN_LEADER_AT_CLAN_LEVEL) {
+                        tag.append("[CL] ");
+                    }
+                }
+                if (Config.SHOW_CURSED_WEAPON_OWNER && p.karma() > 9999) {
+                    tag.append("[CW] ");
+                }
+                if (Config.SHOW_JAILED_PLAYERS && p.isInJail()) {
+                    tag.append("[Jail] ");
+                }
+            }
+            sb.append("<td><font color=\"").append(defaultColor).append("\">")
+                    .append(tag).append(p.name()).append("</font></td>");
+            col++;
+        }
+        sb.append("</tr></table></body></html>");
+        return sb.toString();
+    }
+
+    /**
+     * Registra ou descarta uma carta deletada do correio de acordo com MAIL_STORE_DELETED_LETTERS.
+     */
+    public boolean deleteMailLetter(int playerId, int letterId, String letterSummary) {
+        if (Config.MAIL_STORE_DELETED_LETTERS) {
+            archivedDeletedMailLetters.add(playerId + ":" + letterId + ":" + (letterSummary != null ? letterSummary : ""));
+            return true;
+        }
+        return false;
+    }
+
+    public List<String> getArchivedDeletedMailLetters() {
+        return List.copyOf(archivedDeletedMailLetters);
+    }
+
+    /**
+     * Processa o envio de uma Petition respeitando PETITIONING_ALLOWED, MAX_PETITIONS_PER_PLAYER,
+     * MAX_PETITIONS_PENDING, SEND_PAGE_ON_PETITION e PETITIONING_NEED_GM_ONLINE.
+     */
+    public String submitPetition(PlayerCharacter player, String content, boolean gmOnline) {
+        if (player == null) {
+            return "<html><body>Sessao invalida.</body></html>";
+        }
+        if (!Config.PETITIONING_ALLOWED) {
+            if (Config.SEND_PAGE_ON_PETITION) {
+                return "<html><body><center><font color=\"LEVEL\">Sistema de Peticoes Desativado</font><br>"
+                        + "Visite o painel da comunidade ou nosso suporte oficial.</center></body></html>";
+            }
+            return "O sistema de peticoes esta desativado no momento.";
+        }
+        if (Config.PETITIONING_NEED_GM_ONLINE && !gmOnline) {
+            return "Nao ha Game Masters online no momento para receber peticoes.";
+        }
+        if (pendingPetitions.size() >= Config.MAX_PETITIONS_PENDING) {
+            return "O limite global de peticoes pendentes (" + Config.MAX_PETITIONS_PENDING + ") foi atingido.";
+        }
+        int playerCount = playerPetitionsCount.getOrDefault(player.objectId(), 0);
+        if (playerCount >= Config.MAX_PETITIONS_PER_PLAYER) {
+            return "Voce ja atingiu o limite diario de " + Config.MAX_PETITIONS_PER_PLAYER + " peticoes.";
+        }
+        playerPetitionsCount.put(player.objectId(), playerCount + 1);
+        pendingPetitions.add(player.name() + ": " + (content != null ? content : ""));
+        return "Peticao enviada com sucesso (#" + pendingPetitions.size() + ").";
+    }
+
+    private boolean isAnyGmOnline() {
+        if (gameWorld == null) {
+            return true;
+        }
+        for (var s : gameWorld.players()) {
+            if (s != null && s.character() != null && s.character().isGm()) {
+                return true;
+            }
         }
         return false;
     }

@@ -1,5 +1,6 @@
 package com.lopez.l2j.network.login;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.network.login.crypt.LoginCredentials;
 import com.lopez.l2j.network.login.crypt.LoginCredentials.Credentials;
 import com.lopez.l2j.network.login.crypt.ScrambledRsaKeyPair;
@@ -24,6 +25,8 @@ import com.lopez.l2j.network.session.SessionKey;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.function.BiConsumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Maquina de estados de UMA conexao de login (porta de L2AuthClient + L2AuthPacketHandler + os
@@ -32,6 +35,8 @@ import java.util.function.BiConsumer;
  * Suporta autenticacao RSA e comunicacao estrita com LoginAccountService.
  */
 public final class LoginSession {
+
+	private static final Logger log = LoggerFactory.getLogger(LoginSession.class);
 
 	/** Resposta a um pacote: o que enviar e se a conexao deve fechar depois. */
 	public record Reply(List<LoginServerPacket> packets, boolean close) {
@@ -59,13 +64,17 @@ public final class LoginSession {
 	private final int loginOk2;
 	private final int playOk1;
 	private final int playOk2;
+	private final long createdAtMs;
 
 	private final BiConsumer<String, SessionKey> onPlayOk;
 
 	private LoginClientPacket.State state = LoginClientPacket.State.CONNECTED;
 	private String account;
+	private int accessLevel;
 	private int lastServerId;
+	private boolean hasServerList;
 	private boolean joinedGameServer;
+	private long lastActivityMs;
 
 	public LoginSession(ScrambledRsaKeyPair rsa, byte[] blowfishKey, boolean showLicence, String ip,
 			LoginAccountService accounts, GameServerDirectory servers, SecureRandom random) {
@@ -89,6 +98,8 @@ public final class LoginSession {
 		this.loginOk2 = random.nextInt();
 		this.playOk1 = random.nextInt();
 		this.playOk2 = random.nextInt();
+		this.createdAtMs = System.currentTimeMillis();
+		this.lastActivityMs = this.createdAtMs;
 	}
 
 	public int sessionId() {
@@ -113,8 +124,21 @@ public final class LoginSession {
 		return account;
 	}
 
+	public boolean isExpired() {
+		long now = System.currentTimeMillis();
+		if (Config.INACTIVE_TIMEOUT > 0 && (now - lastActivityMs) > Config.INACTIVE_TIMEOUT * 60_000L) {
+			return true;
+		}
+		if (Config.DDOS_PROTECTION && Config.SESSION_TTL > 0 && !joinedGameServer
+				&& (now - createdAtMs) > Config.SESSION_TTL * 60_000L) {
+			return true;
+		}
+		return false;
+	}
+
 	/** Processa o corpo (opcode + dados) de um pacote do cliente. */
 	public Reply handle(byte[] body) {
+		lastActivityMs = System.currentTimeMillis();
 		var decoded = LoginClientPacket.decode(state, body);
 		if (decoded.isEmpty()) {
 			return Reply.failAuth(AuthFailReason.ACCESS_FAILED);
@@ -152,6 +176,7 @@ public final class LoginSession {
 		return switch (result.status()) {
 			case SUCCESS -> {
 				account = c.user();
+				accessLevel = result.accessLevel();
 				lastServerId = result.lastServerId();
 				state = LoginClientPacket.State.AUTHED_LOGIN;
 				yield showLicence ? Reply.send(new AuthOk(loginOk1, loginOk2)) : Reply.send(serverList());
@@ -174,16 +199,41 @@ public final class LoginSession {
 		if (showLicence && !keyMatches(p.loginOk1(), p.loginOk2())) {
 			return Reply.failAuth(AuthFailReason.ACCESS_FAILED);
 		}
+		if (Config.BRUT_PROTECTION && !hasServerList) {
+			return Reply.failAuth(AuthFailReason.ACCESS_FAILED);
+		}
 		var server = servers.find(p.serverId());
+		boolean isGm = accessLevel >= Math.max(1, Config.GM_MIN_LEVEL);
 		if (server.isEmpty() || !server.get().up()
-				|| server.get().currentPlayers() >= server.get().maxPlayers()) {
+				|| (server.get().currentPlayers() >= server.get().maxPlayers() && !isGm)) {
 			return Reply.fail(new PlayFail(PlayFailReason.TOO_MANY_PLAYERS));
 		}
 		lastServerId = p.serverId();
 		accounts.recordLastServer(account, ip, lastServerId);
 		joinedGameServer = true;
+		handleSelectServerHook();
 		onPlayOk.accept(account, new SessionKey(loginOk1, loginOk2, playOk1, playOk2));
 		return Reply.send(new PlayOk(playOk1, playOk2));
+	}
+
+	private void handleSelectServerHook() {
+		String action = Config.ON_SELECT_SERVER;
+		if (action == null || action.isBlank()) {
+			return;
+		}
+		if (action.toLowerCase(java.util.Locale.ROOT).startsWith("execute")) {
+			String cmd = Config.ON_SELECT_SERVER_COMMAND;
+			if (cmd != null && !cmd.isBlank() && ip != null) {
+				String resolved = cmd.replace("%ip%", ip);
+				try {
+					Runtime.getRuntime().exec(resolved.split("\\s+"));
+				} catch (Exception e) {
+					log.warn("Falha ao executar OnSelectServerCommand '{}': {}", resolved, e.getMessage());
+				}
+			}
+		} else if (action.toLowerCase(java.util.Locale.ROOT).startsWith("notify")) {
+			log.debug("Conta {} selecionou GameServer ID {} (IP: {})", account, lastServerId, ip);
+		}
 	}
 
 	private boolean keyMatches(int ok1, int ok2) {
@@ -191,6 +241,7 @@ public final class LoginSession {
 	}
 
 	private ServerList serverList() {
+		hasServerList = true;
 		return new ServerList(servers.servers(), lastServerId);
 	}
 

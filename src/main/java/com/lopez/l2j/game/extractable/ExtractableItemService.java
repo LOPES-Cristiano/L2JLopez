@@ -85,20 +85,22 @@ public class ExtractableItemService {
 			return true;
 		}
 
-		// Entrega as recompensas
+		// Entrega as recompensas (aplicando RATE_EXTR_FISH quando o item extraido for um peixe)
+		int fishRate = isFishItem(item) ? Math.max(1, com.lopez.l2j.config.Config.RATE_EXTR_FISH) : 1;
 		for (ExtractableProduct.ProductItem reward : selectedProduct.items()) {
+			int finalCount = Math.max(1, reward.count() * fishRate);
 			if (inventoryService != null) {
-				inventoryService.addItem(inv, reward.itemId(), reward.count(), "Extract");
+				inventoryService.addItem(inv, reward.itemId(), finalCount, "Extract");
 			} else {
 				// Fallback sintetico para testes sem servico completo
 				inv.destroyItemByItemId(reward.itemId(), 0); // no-op check
 			}
 
 			if (clientSender != null) {
-				if (reward.count() > 1) {
+				if (finalCount > 1) {
 					clientSender.accept(SystemMessage.of(SystemMessage.YOU_PICKED_UP_S1_S2,
 							new SystemMessage.ItemName(reward.itemId()),
-							new SystemMessage.Number(reward.count())));
+							new SystemMessage.Number(finalCount)));
 				} else {
 					clientSender.accept(SystemMessage.of(SystemMessage.YOU_PICKED_UP_S1,
 							new SystemMessage.ItemName(reward.itemId())));
@@ -107,5 +109,17 @@ public class ExtractableItemService {
 		}
 
 		return true;
+	}
+
+	public static boolean isFishItem(ItemInstance item) {
+		if (item == null) {
+			return false;
+		}
+		int id = item.itemId();
+		if (id >= 6411 && id <= 6518) {
+			return true;
+		}
+		return item.template() != null && item.template().name() != null
+				&& item.template().name().toLowerCase(java.util.Locale.ROOT).contains("fish");
 	}
 }

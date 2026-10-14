@@ -316,6 +316,9 @@ public class RecipeService {
 	}
 
 	public boolean registerRecipe(int charId, int recipeId) {
+		if (!com.lopez.l2j.config.Config.CRAFTING_ENABLED) {
+			return false;
+		}
 		RecipeEntry recipe = recipesById.get(recipeId);
 		if (recipe == null) {
 			return false;
@@ -323,6 +326,57 @@ public class RecipeService {
 		Map<Integer, Set<Integer>> targetMap = recipe.isDwarven() ? dwarvenBookByChar : commonBookByChar;
 		Set<Integer> book = targetMap.computeIfAbsent(charId, k -> ConcurrentHashMap.newKeySet());
 		return book.add(recipeId);
+	}
+
+	public boolean isCraftingEnabled() {
+		return com.lopez.l2j.config.Config.CRAFTING_ENABLED;
+	}
+
+	public boolean isAltGameCreationEnabled() {
+		return com.lopez.l2j.config.Config.ALT_GAME_CREATION;
+	}
+
+	public double getCreationSpeedLoad(int recipeLevel) {
+		if (!com.lopez.l2j.config.Config.ALT_GAME_CREATION) {
+			return 0.0;
+		}
+		double speed = Math.max(0.1, com.lopez.l2j.config.Config.ALT_GAME_CREATION_SPEED);
+		return Math.max(1, recipeLevel) / speed;
+	}
+
+	public long calculateCreationExpReward(RecipeEntry recipe) {
+		if (recipe == null || !com.lopez.l2j.config.Config.ALT_GAME_CREATION) {
+			return 0L;
+		}
+		double baseExp = recipe.mpCost() * recipe.level() * 10.0;
+		return Math.max(0L, Math.round(baseExp * Math.max(0.0, com.lopez.l2j.config.Config.ALT_GAME_CREATION_RATE_XP)));
+	}
+
+	public int calculateCreationSpReward(RecipeEntry recipe) {
+		if (recipe == null || !com.lopez.l2j.config.Config.ALT_GAME_CREATION) {
+			return 0;
+		}
+		double baseSp = recipe.mpCost() * recipe.level() * 1.5;
+		return (int) Math.max(0L, Math.round(baseSp * Math.max(0.0, com.lopez.l2j.config.Config.ALT_GAME_CREATION_RATE_SP)));
+	}
+
+	public int calculateEffectiveIngredientCount(Ingredient ingredient) {
+		if (ingredient == null) {
+			return 0;
+		}
+		float mult = com.lopez.l2j.config.Config.RATE_CRAFT_COST;
+		if (mult <= 0f || mult == 1.0f) {
+			return ingredient.count();
+		}
+		return Math.max(1, Math.round(ingredient.count() * mult));
+	}
+
+	public int calculateConsumablePrice(int basePrice) {
+		float mult = com.lopez.l2j.config.Config.RATE_CONSUMABLE_COST;
+		if (mult <= 0f || mult == 1.0f) {
+			return basePrice;
+		}
+		return Math.max(1, Math.round(basePrice * mult));
 	}
 
 	public boolean unregisterRecipe(int charId, int recipeId) {

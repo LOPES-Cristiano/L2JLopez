@@ -292,7 +292,7 @@ public class CombatService {
 		var stats = PlayerStats.calculate(attacker, template);
 		boolean soulshot = soulshotGrade >= 0;
 		double pAtk = stats.pAtk() * (soulshot ? 2.0 : 1.0);
-		double pDef = Math.max(1, target.pDef());
+		double pDef = getEffectiveNpcPDef(target);
 
 		// Chance de acerto: precisao vs evasao
 		int acc = stats.accuracy();
@@ -316,6 +316,10 @@ public class CombatService {
 			double cAtkAdd = PlayerStats.applyStat(attacker, "cAtkAdd", 0.0);
 			baseDam = (baseDam * 2.0 * cAtk) + cAtkAdd;
 		}
+		if (Config.ALT_GAME_TIREDNESS && attacker != null && attacker.maxCp() > 0) {
+			double tirednessMod = (1000.0 - Math.max(0.0, attacker.maxCp() - attacker.currentCp()) * 0.1) / 1000.0;
+			baseDam *= Math.max(0.1, tirednessMod);
+		}
 
 		// Variacao aleatoria baseada no rnd_dam da arma (ex: 5% dagger, 10% sword, 20% blunt)
 		double rnd = calcRndMultiplier(attacker);
@@ -327,6 +331,32 @@ public class CombatService {
 		}
 
 		return new HitPlan(damage, flags, false, crit);
+	}
+
+	public static double getEffectiveNpcPDef(NpcInstance target) {
+		if (target == null) {
+			return 1.0;
+		}
+		double pDef = Math.max(1.0, target.pDef());
+		boolean isRaid = target.template() != null
+				&& (target.template().isRaidBoss() || target.template().isGrandBoss() || target.isRaidMinion());
+		if (isRaid && Config.RAID_P_DEFENCE_MULTIPLIER > 0 && Config.RAID_P_DEFENCE_MULTIPLIER != 100) {
+			pDef *= Config.RAID_P_DEFENCE_MULTIPLIER / 100.0;
+		}
+		return Math.max(1.0, pDef);
+	}
+
+	public static double getEffectiveNpcMDef(NpcInstance target) {
+		if (target == null) {
+			return 1.0;
+		}
+		double mDef = Math.max(1.0, target.mDef());
+		boolean isRaid = target.template() != null
+				&& (target.template().isRaidBoss() || target.template().isGrandBoss() || target.isRaidMinion());
+		if (isRaid && Config.RAID_M_DEFENCE_MULTIPLIER > 0 && Config.RAID_M_DEFENCE_MULTIPLIER != 100) {
+			mDef *= Config.RAID_M_DEFENCE_MULTIPLIER / 100.0;
+		}
+		return Math.max(1.0, mDef);
 	}
 
 	public HitPlan planAttackPlayer(PlayerCharacter attacker, CharTemplate attackerTemplate,
@@ -356,6 +386,10 @@ public class CombatService {
 			double cAtk = PlayerStats.applyStat(attacker, "cAtk", 1.0);
 			double cAtkAdd = PlayerStats.applyStat(attacker, "cAtkAdd", 0.0);
 			baseDam = (baseDam * 2.0 * cAtk) + cAtkAdd;
+		}
+		if (Config.ALT_GAME_TIREDNESS && attacker != null && attacker.maxCp() > 0) {
+			double tirednessMod = (1000.0 - Math.max(0.0, attacker.maxCp() - attacker.currentCp()) * 0.1) / 1000.0;
+			baseDam *= Math.max(0.1, tirednessMod);
 		}
 		double rnd = calcRndMultiplier(attacker);
 		double bowMult = calcBowDistanceMultiplier(attacker, target.x(), target.y());
@@ -388,7 +422,7 @@ public class CombatService {
 		if (plan.miss()) {
 			return new HitResult(0, plan.flags(), false, (int) target.currentHp(), target.template().maxHp(), 0, 0);
 		}
-		return applyDamage(target, plan.damage(), plan.flags());
+		return applyDamage(target, plan.damage(), plan.flags(), false, attacker != null ? attacker.level() : 0);
 	}
 
 	/**
@@ -413,7 +447,7 @@ public class CombatService {
 		}
 		var stats = PlayerStats.calculate(attacker, template);
 		double pAtk = stats.pAtk() * (soulshot ? 2.0 : 1.0);
-		double pDef = Math.max(1, target.pDef());
+		double pDef = getEffectiveNpcPDef(target);
 		double dmg = (pAtk + power) * 70.0 / pDef;
 		if (chargeDam) {
 			dmg *= (0.8 + 0.201 * attacker.charges());
@@ -434,7 +468,7 @@ public class CombatService {
 			dmg = (dmg * 2.0 * cAtk) + cAtkAdd;
 		}
 		dmg *= 0.95 + ThreadLocalRandom.current().nextDouble() * 0.10;
-		return applyDamage(target, Math.max(1, (int) Math.round(dmg)), crit ? 0x20 : 0);
+		return applyDamage(target, Math.max(1, (int) Math.round(dmg)), crit ? 0x20 : 0, false, attacker != null ? attacker.level() : 0);
 	}
 
 	/**
@@ -469,7 +503,7 @@ public class CombatService {
 		} else if (sps) {
 			mAtk *= 2.0;
 		}
-		double mDef = Math.max(1, target.mDef());
+		double mDef = getEffectiveNpcMDef(target);
 		double dmg = 91.0 * Math.sqrt(mAtk) * power / mDef;
 		int mCritCap = Config.getInt("AltMCriticalCap", 200);
 		int mCritRate = (int) Math.min(mCritCap, Math.max(10, Math.round(template.wit() * 1.5)));
@@ -480,12 +514,14 @@ public class CombatService {
 		dmg *= 0.95 + ThreadLocalRandom.current().nextDouble() * 0.10;
 
 		// --- PENALIDADE DE LEVEL DE SKILLS & RESISTENCIA MAGICA (Retail L2 / L2JDream) ---
-		int effMagicLvl = magicLevel > 0 ? Math.min(magicLevel, attacker.level()) : attacker.level();
+		int effMagicLvl = Config.USE_LEVEL_PENALTY
+				? (magicLevel > 0 ? Math.min(magicLevel, attacker.level()) : attacker.level())
+				: (magicLevel > 0 ? magicLevel : attacker.level());
 		int targetLvl = target.template().level();
 		int lvlDiff = targetLvl - effMagicLvl;
 		boolean resisted = false;
 
-		if (lvlDiff > 0) {
+		if (Config.MAGIC_FAILURES && lvlDiff > 0) {
 			boolean success = calcMagicSuccess(magicLevel, attacker.level(), targetLvl);
 			if (!success) {
 				resisted = true;
@@ -504,7 +540,7 @@ public class CombatService {
 			}
 		}
 
-		return applyDamage(target, Math.max(1, (int) Math.round(dmg)), (crit ? 0x20 : 0) | (resisted ? 0x40 : 0), resisted);
+		return applyDamage(target, Math.max(1, (int) Math.round(dmg)), (crit ? 0x20 : 0) | (resisted ? 0x40 : 0), resisted, attacker != null ? attacker.level() : 0);
 	}
 
 	/** Chance (0-100) de um debuff pegar num monstro: base = power do skill, menos a diferenca de nivel. */
@@ -515,8 +551,10 @@ public class CombatService {
 	public boolean debuffLands(double basePower, int magicLevel, int attackerLevel, NpcInstance target,
 			boolean sps, boolean bss) {
 		double chance = basePower > 0 ? basePower : 50;
-		int lvl = magicLevel > 0 ? Math.min(magicLevel, attackerLevel) : attackerLevel;
-		double lvlDiff = Math.max(0, target.template().level() - lvl);
+		int lvl = Config.USE_LEVEL_PENALTY
+				? (magicLevel > 0 ? Math.min(magicLevel, attackerLevel) : attackerLevel)
+				: (magicLevel > 0 ? magicLevel : attackerLevel);
+		double lvlDiff = Config.USE_CHAR_LEVEL_MODIFIER ? Math.max(0, target.template().level() - lvl) : 0;
 		if (lvlDiff >= 15) {
 			return false; // Diferenca de 15+ niveis: debuff nunca pega
 		}
@@ -535,10 +573,14 @@ public class CombatService {
 	}
 
 	public HitResult applyDamage(NpcInstance target, int damage, int flags) {
-		return applyDamage(target, damage, flags, false);
+		return applyDamage(target, damage, flags, false, 0);
 	}
 
 	public HitResult applyDamage(NpcInstance target, int damage, int flags, boolean resisted) {
+		return applyDamage(target, damage, flags, resisted, 0);
+	}
+
+	public HitResult applyDamage(NpcInstance target, int damage, int flags, boolean resisted, int attackerLevel) {
 		int newHp;
 		synchronized (target) {
 			if (target.isDead() || target.invul()) {
@@ -564,7 +606,33 @@ public class CombatService {
 		double activeRateSp = Config.RATE_SP > 0 ? Config.RATE_SP : (rateSp > 0 ? rateSp : 1.0);
 		long exp = isDead ? (long) Math.round(baseExp * activeRateXp) : 0;
 		int sp = isDead ? (int) Math.round(baseSp * activeRateSp) : 0;
+		if (isDead && attackerLevel > 0 && target.template() != null) {
+			exp = applyExponentXpPenalty(exp, attackerLevel, target.template().level());
+			sp = applyExponentSpPenalty(sp, attackerLevel, target.template().level());
+		}
 		return new HitResult(damage, flags, isDead, isDead ? 0 : newHp, (int) target.maxHp(), exp, sp, resisted);
+	}
+
+	public static long applyExponentXpPenalty(long exp, int attackerLevel, int mobLevel) {
+		if (Config.ALT_GAME_EXPONENT_XP != 0 && attackerLevel > 0 && mobLevel > 0) {
+			int diff = Math.abs(attackerLevel - mobLevel);
+			if (diff > Config.ALT_GAME_EXPONENT_XP) {
+				double factor = Math.pow(2.0, -((diff - Config.ALT_GAME_EXPONENT_XP) / (double) Config.ALT_GAME_EXPONENT_XP));
+				return Math.max(0L, Math.round(exp * factor));
+			}
+		}
+		return exp;
+	}
+
+	public static int applyExponentSpPenalty(int sp, int attackerLevel, int mobLevel) {
+		if (Config.ALT_GAME_EXPONENT_SP != 0 && attackerLevel > 0 && mobLevel > 0) {
+			int diff = Math.abs(attackerLevel - mobLevel);
+			if (diff > Config.ALT_GAME_EXPONENT_SP) {
+				double factor = Math.pow(2.0, -((diff - Config.ALT_GAME_EXPONENT_SP) / (double) Config.ALT_GAME_EXPONENT_SP));
+				return (int) Math.max(0L, Math.round(sp * factor));
+			}
+		}
+		return sp;
 	}
 
 	public HitPlan planAttackPlayerByNpc(NpcInstance attacker, PlayerCharacter target, CharTemplate targetTemplate) {
@@ -790,9 +858,11 @@ public class CombatService {
 		dmg *= 0.95 + ThreadLocalRandom.current().nextDouble() * 0.10;
 
 		// --- PENALIDADE DE LEVEL DE SKILLS & RESISTENCIA MAGICA (PvP) ---
-		int effMagicLvl = magicLevel > 0 ? Math.min(magicLevel, attacker.level()) : attacker.level();
+		int effMagicLvl = Config.USE_LEVEL_PENALTY
+				? (magicLevel > 0 ? Math.min(magicLevel, attacker.level()) : attacker.level())
+				: (magicLevel > 0 ? magicLevel : attacker.level());
 		int lvlDiff = target.level() - effMagicLvl;
-		if (lvlDiff > 0) {
+		if (Config.MAGIC_FAILURES && lvlDiff > 0) {
 			boolean success = calcMagicSuccess(magicLevel, attacker.level(), target.level());
 			if (!success) {
 				if (lvlDiff <= 9) {
@@ -824,7 +894,7 @@ public class CombatService {
 		} else if (sps) {
 			mAtk *= 2.0;
 		}
-		double mDef = Math.max(1, target.template().mDef());
+		double mDef = getEffectiveNpcMDef(target);
 		double targetMp = Math.min(3500.0, Math.max(1.0, target.template().maxMp()));
 		double dmg = (Math.sqrt(mAtk) * power * (targetMp / 97.0)) / mDef;
 		boolean crit = ThreadLocalRandom.current().nextInt(100) < 5;
@@ -833,9 +903,11 @@ public class CombatService {
 		}
 		dmg *= 0.95 + ThreadLocalRandom.current().nextDouble() * 0.10;
 
-		int effMagicLvl = magicLevel > 0 ? Math.min(magicLevel, attacker.level()) : attacker.level();
+		int effMagicLvl = Config.USE_LEVEL_PENALTY
+				? (magicLevel > 0 ? Math.min(magicLevel, attacker.level()) : attacker.level())
+				: (magicLevel > 0 ? magicLevel : attacker.level());
 		int lvlDiff = target.template().level() - effMagicLvl;
-		if (lvlDiff > 0) {
+		if (Config.MAGIC_FAILURES && lvlDiff > 0) {
 			boolean success = calcMagicSuccess(magicLevel, attacker.level(), target.template().level());
 			if (!success) {
 				if (lvlDiff <= 9) {
@@ -874,9 +946,11 @@ public class CombatService {
 		}
 		dmg *= 0.95 + ThreadLocalRandom.current().nextDouble() * 0.10;
 
-		int effMagicLvl = magicLevel > 0 ? Math.min(magicLevel, attacker.level()) : attacker.level();
+		int effMagicLvl = Config.USE_LEVEL_PENALTY
+				? (magicLevel > 0 ? Math.min(magicLevel, attacker.level()) : attacker.level())
+				: (magicLevel > 0 ? magicLevel : attacker.level());
 		int lvlDiff = target.level() - effMagicLvl;
-		if (lvlDiff > 0) {
+		if (Config.MAGIC_FAILURES && lvlDiff > 0) {
 			boolean success = calcMagicSuccess(magicLevel, attacker.level(), target.level());
 			if (!success) {
 				if (lvlDiff <= 9) {
@@ -914,7 +988,7 @@ public class CombatService {
 
 		int effMagicLvl = magicLevel > 0 ? magicLevel : attacker.template().level();
 		int lvlDiff = target.level() - effMagicLvl;
-		if (lvlDiff > 0) {
+		if (Config.MAGIC_FAILURES && lvlDiff > 0) {
 			boolean success = calcMagicSuccess(magicLevel, attacker.template().level(), target.level());
 			if (!success) {
 				if (lvlDiff <= 9) {
@@ -934,8 +1008,10 @@ public class CombatService {
 	public boolean debuffLandsPlayer(double basePower, int magicLevel, int attackerLevel, PlayerCharacter target,
 			boolean sps, boolean bss) {
 		double chance = basePower > 0 ? basePower : 50;
-		int lvl = magicLevel > 0 ? Math.min(magicLevel, attackerLevel) : attackerLevel;
-		double lvlDiff = Math.max(0, target.level() - lvl);
+		int lvl = Config.USE_LEVEL_PENALTY
+				? (magicLevel > 0 ? Math.min(magicLevel, attackerLevel) : attackerLevel)
+				: (magicLevel > 0 ? magicLevel : attackerLevel);
+		double lvlDiff = Config.USE_CHAR_LEVEL_MODIFIER ? Math.max(0, target.level() - lvl) : 0;
 		if (lvlDiff >= 15) {
 			return false; // Diferenca de 15+ niveis: debuff nunca pega
 		}
@@ -1038,7 +1114,7 @@ public class CombatService {
 		if (summon.soulshotCharged()) {
 			pAtk *= 2;
 		}
-		int pDef = Math.max(1, (int) target.pDef());
+		int pDef = Math.max(1, (int) Math.round(getEffectiveNpcPDef(target)));
 		boolean crit = ThreadLocalRandom.current().nextInt(1000) < summon.critical() * 10;
 		double raw = (70.0 * pAtk) / pDef;
 		if (crit) {
@@ -1061,6 +1137,8 @@ public class CombatService {
 		if (died && target.template() != null) {
 			expReward = Math.round(target.template().exp() * rateXp);
 			spReward = (int) Math.round(target.template().sp() * rateSp);
+			expReward = applyExponentXpPenalty(expReward, summon.level(), target.template().level());
+			spReward = applyExponentSpPenalty(spReward, summon.level(), target.template().level());
 		}
 		return new HitResult(damage, flags, died, (int) target.currentHp(), (int) target.maxHp(), expReward, spReward);
 	}
@@ -1102,5 +1180,81 @@ public class CombatService {
 			target.currentHp(Math.max(0.0, target.currentHp() - damage));
 			return target.isDead();
 		}
+	}
+
+	// ==================== KARMA, PK, SA, PROTECTION & PLAYER RULES ====================
+
+	public static int calculateKarmaGain(int pkCount, int victimLevel) {
+		int minKarma = Math.max(1, Config.MIN_KARMA);
+		int maxKarma = Math.max(minKarma, Config.MAX_KARMA);
+		float rate = Config.KARMA_RATE > 0 ? Config.KARMA_RATE : 1.0f;
+		int raw = (int) Math.round(minKarma * (1.0 + 0.05 * Math.max(0, pkCount)) * rate);
+		return Math.min(maxKarma, Math.max(minKarma, raw));
+	}
+
+	public static int calculateKarmaLost(long expEarned) {
+		int divider = Math.max(1, Config.XP_DIVIDER);
+		int lost = (int) (Math.max(0L, expEarned) / divider);
+		return Math.max(Math.max(0, Config.BASE_KARMA_LOST), lost);
+	}
+
+	public static long calculateDeathExpLost(PlayerCharacter victim, long baseExpLost) {
+		if (victim != null && victim.karma() > 0 && Config.RATE_KARMA_EXP_LOST > 0) {
+			return Math.round(baseExpLost * Config.RATE_KARMA_EXP_LOST);
+		}
+		return baseExpLost;
+	}
+
+	public static boolean shouldAwardPvpPointForPkKill(PlayerCharacter victim) {
+		return victim != null && victim.karma() > 0 && Config.AWARD_PK_KILL_PVP_POINT;
+	}
+
+	public static boolean rollSoulCrystalLevelUp() {
+		int chance = Math.max(0, Config.CHANCE_TO_LEVEL_SA);
+		return chance > 0 && ThreadLocalRandom.current().nextInt(100) < chance;
+	}
+
+	public static int calcBufferHate(int baseAggro) {
+		int div = Math.max(1, Config.BUFFER_HATE);
+		return Math.max(1, baseAggro / div);
+	}
+
+	public static boolean shouldConsumeSkillCost(boolean skillSucceeded) {
+		return !Config.CONSUME_ON_SUCCESS || skillSucceeded;
+	}
+
+	public static long getSpawnProtectionDurationMs() {
+		return Math.max(0, Config.PLAYER_SPAWN_PROTECTION) * 1000L;
+	}
+
+	public static long getFakeDeathUpProtectionDurationMs() {
+		return Math.max(0, Config.PLAYER_FAKE_DEATH_UP_PROTECTION) * 1000L;
+	}
+
+	public static boolean rollDeathPenalty(PlayerCharacter player, boolean killedByMob) {
+		if (!killedByMob || player == null || player.isGm()) {
+			return false;
+		}
+		int chance = Math.max(0, Config.DEATH_PENALTY_CHANCE);
+		return chance > 0 && ThreadLocalRandom.current().nextInt(100) < chance;
+	}
+
+	public static boolean canInteractWithNpc(PlayerCharacter player, boolean isCursedWeaponEquipped) {
+		if (isCursedWeaponEquipped && !Config.CURSED_WEAPON_NPC_INTERACT) {
+			return player != null && player.isGm();
+		}
+		return true;
+	}
+
+	public static boolean isUserMenuAllowed() {
+		return Config.ALLOW_USER_MENU;
+	}
+
+	public static boolean isExpSetAllowed() {
+		return Config.ALLOW_USE_EXP_SET;
+	}
+
+	public static boolean isKeyboardMovementAllowed() {
+		return Config.ALLOW_KEYBOARD_MOVEMENT;
 	}
 }

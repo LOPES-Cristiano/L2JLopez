@@ -309,6 +309,17 @@ public class ItemPacketHandler {
 			session.send(new ActionFailed());
 			return;
 		}
+		if (ctx.mercenaries() != null && active.clanId() > 0 && item.itemId() >= 3960 && item.itemId() <= 3975) {
+			var clan = ctx.clans() != null ? ctx.clans().byClanId(active.clanId()).orElse(null) : null;
+			if (clan != null && clan.castleId() > 0) {
+				if (ctx.mercenaries().dropMercenaryTicket(active, clan, item.itemId(), p.x(), p.y(), p.z(), active.heading())) {
+					session.send(ItemList.of(active.inventory().items(), false));
+					session.refreshWeightAndPenalties();
+					session.send(new ActionFailed());
+					return;
+				}
+			}
+		}
 		var result = ctx.inventories().destroyItem(active.inventory(), p.objectId(), p.count(), "Drop");
 		if (result == null) {
 			session.send(new ActionFailed());
@@ -380,7 +391,7 @@ public class ItemPacketHandler {
 		}
 
 		String targetGrade = target.template().crystalType();
-		boolean gradeMatch = scrollInfo.isDonator() || "all".equalsIgnoreCase(scrollInfo.grade())
+		boolean gradeMatch = "all".equalsIgnoreCase(scrollInfo.grade())
 				|| (targetGrade != null && targetGrade.equalsIgnoreCase(scrollInfo.grade()));
 		if (!gradeMatch) {
 			session.send(SystemMessage.id(SystemMessage.INAPPROPRIATE_ENCHANT_CONDITION));

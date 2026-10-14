@@ -1,8 +1,9 @@
 package com.lopez.l2j.features;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.events.PlayerKilledEvent;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -25,13 +26,15 @@ public class QuakeAnnounceListener {
 		streaks.remove(event.victimId());
 		int streak = streaks.merge(event.killerId(), 1, Integer::sum);
 		String title = switch (streak) {
-			case 3 -> "Killing Spree";
-			case 5 -> "Rampage";
-			case 7 -> "Godlike";
+			case 3 -> Config.PVP_COLOR_SYSTEM && Config.TITLE_FOR_AMMOUNT_1 != null ? Config.TITLE_FOR_AMMOUNT_1 : "Killing Spree";
+			case 5 -> Config.PVP_COLOR_SYSTEM && Config.TITLE_FOR_AMMOUNT_2 != null ? Config.TITLE_FOR_AMMOUNT_2 : "Rampage";
+			case 7 -> Config.PVP_COLOR_SYSTEM && Config.TITLE_FOR_AMMOUNT_3 != null ? Config.TITLE_FOR_AMMOUNT_3 : "Godlike";
 			default -> null;
 		};
 		if (title != null) {
-			log.info("Player {} esta em {} ({} kills seguidas)", event.killerId(), title, streak);
+			String modeTag = Config.ANNOUNCE_PK_PVP_NORMAL_MESSAGE ? "NORMAL_MSG" : "ANNOUNCEMENT";
+			log.info("[{}] Player {} esta em {} ({} kills seguidas)", modeTag, event.killerId(), title, streak);
 		}
 	}
 }
+

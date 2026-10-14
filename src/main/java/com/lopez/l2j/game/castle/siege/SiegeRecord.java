@@ -34,6 +34,12 @@ public class SiegeRecord {
 		this.registrationOver = false;
 	}
 
+	public long countdownDurationMillis() {
+		return com.lopez.l2j.config.Config.COUNTDOWN_LENGTH > 0
+				? (long) com.lopez.l2j.config.Config.COUNTDOWN_LENGTH * 60 * 1000L
+				: 10 * 60 * 1000L;
+	}
+
 	public int castleId() {
 		return castleId;
 	}

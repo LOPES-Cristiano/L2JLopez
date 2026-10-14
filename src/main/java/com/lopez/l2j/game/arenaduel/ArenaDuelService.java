@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.arenaduel;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.item.ItemRepository;
 import com.lopez.l2j.game.item.ItemTemplateTable;
@@ -11,6 +12,9 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -32,14 +36,19 @@ public class ArenaDuelService {
 	private final ItemRepository itemRepository;
 	private final ItemTemplateTable itemTable;
 	private final ObjectIdFactory idFactory;
+	private ScheduledExecutorService scheduler;
 
 	public record QueuedPlayer(PlayerCharacter player, ArenaLoc originalLoc) {}
+	public record RewardEntry(int itemId, int count) {}
 
 	public ArenaDuelService(ItemRepository itemRepository, ItemTemplateTable itemTable, ObjectIdFactory idFactory) {
 		this.itemRepository = itemRepository;
 		this.itemTable = itemTable;
 		this.idFactory = idFactory != null ? idFactory : ObjectIdFactory.sequential(0x50000000);
 		initializeDefaultArenas();
+		if (Config.ARENA_DUEL_ENABLE || Config.ARENA_ENABLED) {
+			startScheduledArenaTasks();
+		}
 	}
 
 	public ArenaDuelService() {
@@ -64,6 +73,117 @@ public class ArenaDuelService {
 				new ArenaLoc(-85000, 145000, -3600),
 				new ArenaLoc(-84000, 145000, -3600),
 				new ArenaLoc(-84500, 145500, -3400)));
+
+		ArenaLoc configuredLoc = parseConfiguredArenaLoc();
+		if (configuredLoc != null) {
+			arenas.put(5, new ArenaDefinition(5, "Configured Arena Duel Stadium",
+					new ArenaLoc(configuredLoc.x() - 350, configuredLoc.y(), configuredLoc.z()),
+					new ArenaLoc(configuredLoc.x() + 350, configuredLoc.y(), configuredLoc.z()),
+					new ArenaLoc(configuredLoc.x(), configuredLoc.y() + 450, configuredLoc.z() + 150)));
+		}
+	}
+
+	public ArenaLoc parseConfiguredArenaLoc() {
+		String raw = Config.ARENA_DUEL_LOC;
+		if (raw == null || raw.isBlank()) {
+			return null;
+		}
+		String[] parts = raw.trim().split(",");
+		if (parts.length >= 3) {
+			try {
+				return new ArenaLoc(
+						Integer.parseInt(parts[0].trim()),
+						Integer.parseInt(parts[1].trim()),
+						Integer.parseInt(parts[2].trim()));
+			} catch (NumberFormatException ignored) {
+			}
+		}
+		return null;
+	}
+
+	public synchronized void startScheduledArenaTasks() {
+		if (scheduler != null && !scheduler.isShutdown()) {
+			return;
+		}
+		scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+			Thread t = new Thread(r, "ArenaDuel-Scheduler");
+			t.setDaemon(true);
+			return t;
+		});
+		int checkSec = getCheckIntervalSeconds();
+		scheduler.scheduleAtFixedRate(this::processQueue, checkSec, checkSec, TimeUnit.SECONDS);
+		if (Config.ARENA_ENABLED && Config.ARENA_INTERVAL > 0) {
+			long intervalMs = Config.ARENA_INTERVAL * 60_000L;
+			scheduler.scheduleAtFixedRate(this::processQueue, intervalMs, intervalMs, TimeUnit.MILLISECONDS);
+		}
+		log.info("ArenaDuelService: agendador iniciado (check={}s, call={}s, wait={}s, arenaInterval={}min)",
+				getCheckIntervalSeconds(), getCallIntervalSeconds(), getWaitIntervalSeconds(), getArenaEventIntervalMinutes());
+	}
+
+	public synchronized void stopScheduledArenaTasks() {
+		if (scheduler != null) {
+			scheduler.shutdownNow();
+			scheduler = null;
+		}
+	}
+
+	public boolean isArenaDuelEnabled() {
+		return Config.ARENA_DUEL_ENABLE || Config.ARENA_ENABLED;
+	}
+
+	public int getCheckIntervalSeconds() {
+		return Math.max(1, Config.ARENA_DUEL_CHECK_INTERVAL);
+	}
+
+	public int getCallIntervalSeconds() {
+		return Math.max(1, Config.ARENA_DUEL_CALL_INTERVAL);
+	}
+
+	public int getWaitIntervalSeconds() {
+		return Math.max(1, Config.ARENA_DUEL_WAIT_INTERVAL);
+	}
+
+	public int getArenaEventIntervalMinutes() {
+		return Math.max(1, Config.ARENA_INTERVAL);
+	}
+
+	public Set<Integer> getRestrictedItemIds() {
+		Set<Integer> restricted = new HashSet<>();
+		String raw = Config.ARENA_DUEL_ITEMS_RESTRICTION;
+		if (raw != null && !raw.isBlank()) {
+			for (String token : raw.split(",")) {
+				String trimmed = token.trim();
+				if (!trimmed.isEmpty()) {
+					try {
+						restricted.add(Integer.parseInt(trimmed));
+					} catch (NumberFormatException ignored) {
+					}
+				}
+			}
+		}
+		return restricted;
+	}
+
+	public boolean hasRestrictedEquipment(PlayerCharacter player) {
+		if (player == null || player.inventory() == null || player.inventory().items() == null) {
+			return false;
+		}
+		Set<Integer> restrictedIds = getRestrictedItemIds();
+		for (ItemInstance item : player.inventory().items()) {
+			if (item == null || !item.isEquipped()) {
+				continue;
+			}
+			if (restrictedIds.contains(item.itemId())) {
+				return true;
+			}
+			if (!Config.ARENA_ALLOW_S && item.template() != null) {
+				String crystal = item.template().crystalType();
+				if ("s".equalsIgnoreCase(crystal) || "s80".equalsIgnoreCase(crystal)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	public synchronized boolean register(PlayerCharacter player) {
@@ -71,6 +191,10 @@ public class ArenaDuelService {
 			return false;
 		}
 		if (isRegistered(player.objectId()) || isInMatch(player.objectId())) {
+			return false;
+		}
+		if (hasRestrictedEquipment(player)) {
+			log.info("Player {} blocked from Arena Duel due to restricted item or S-grade restriction.", player.name());
 			return false;
 		}
 
@@ -329,6 +453,34 @@ public class ArenaDuelService {
 				.orElse(null);
 	}
 
+	public List<RewardEntry> getConfiguredDuelRewards() {
+		List<RewardEntry> rewards = new ArrayList<>();
+		String raw = Config.ARENA_DUEL_REWARD;
+		if (raw != null && !raw.isBlank()) {
+			for (String entry : raw.split(";")) {
+				String trimmed = entry.trim();
+				if (trimmed.isEmpty()) {
+					continue;
+				}
+				String[] kv = trimmed.split(",");
+				if (kv.length >= 2) {
+					try {
+						int itemId = Integer.parseInt(kv[0].trim());
+						int count = Integer.parseInt(kv[1].trim());
+						if (itemId > 0 && count > 0) {
+							rewards.add(new RewardEntry(itemId, count));
+						}
+					} catch (NumberFormatException ignored) {
+					}
+				}
+			}
+		}
+		if (Config.ARENA_ENABLED && Config.ARENA_REWARD_ID > 0 && Config.ARENA_REWARD_COUNT > 0) {
+			rewards.add(new RewardEntry(Config.ARENA_REWARD_ID, Config.ARENA_REWARD_COUNT));
+		}
+		return rewards;
+	}
+
 	private void awardWinner(PlayerCharacter winner) {
 		if (itemRepository != null && itemTable != null) {
 			// 1,000,000 Adena (item 57) + 5 Festival Adena (item 6673)
@@ -346,6 +498,17 @@ public class ArenaDuelService {
 					winner.inventory().add(item);
 				}
 			});
+			if (Config.ARENA_DUEL_ENABLE || Config.ARENA_ENABLED) {
+				for (RewardEntry reward : getConfiguredDuelRewards()) {
+					itemTable.get(reward.itemId()).ifPresent(tmpl -> {
+						ItemInstance item = new ItemInstance(idFactory.nextId(), tmpl, winner.objectId(), reward.count());
+						itemRepository.insert(item, "ArenaConfiguredReward");
+						if (winner.inventory() != null) {
+							winner.inventory().add(item);
+						}
+					});
+				}
+			}
 		}
 	}
 }

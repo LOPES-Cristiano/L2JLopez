@@ -74,6 +74,18 @@ public class ClanPrivilegeService {
 	}
 
 	/**
+	 * Consulta a mascara de privilegios configurada para determinado rank (1 a 9) do cla do jogador.
+	 */
+	public int getRankPrivilege(PlayerCharacter player, int rank) {
+		if (player == null || player.clanId() <= 0 || rank < 1 || rank > 9) {
+			return Clan.CP_NOTHING;
+		}
+		return clanTable.byClanId(player.clanId())
+				.map(c -> c.getRankPrivilege(rank))
+				.orElse(Clan.CP_NOTHING);
+	}
+
+	/**
 	 * Atualiza os privilegios associados a um determinado power grade (1 a 9).
 	 */
 	public synchronized boolean setRankPrivilege(PlayerCharacter leader, int rank, int privBitmask) {
@@ -85,7 +97,7 @@ public class ClanPrivilegeService {
 			return false;
 		}
 		Clan clan = clanOpt.get();
-		if (!clan.isLeader(leader.objectId())) {
+		if (!clan.isLeader(leader.objectId()) && !hasPrivilege(leader, Clan.CP_CL_MANAGE_RANKS)) {
 			return false;
 		}
 
@@ -123,7 +135,7 @@ public class ClanPrivilegeService {
 			return false;
 		}
 		Clan clan = clanOpt.get();
-		if (!clan.isLeader(leader.objectId())) {
+		if (!clan.isLeader(leader.objectId()) && !hasPrivilege(leader, Clan.CP_CL_MANAGE_RANKS)) {
 			return false;
 		}
 

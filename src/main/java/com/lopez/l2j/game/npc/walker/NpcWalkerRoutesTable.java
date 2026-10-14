@@ -55,6 +55,11 @@ public class NpcWalkerRoutesTable {
 		routesByNpcId.clear();
 		totalNodes = 0;
 
+		if (!com.lopez.l2j.config.Config.ALLOW_NPC_WALKERS) {
+			log.info("NpcWalkerRoutesTable: NpcWalkers desabilitados via Config (AllowNpcWalkers=false).");
+			return;
+		}
+
 		if (!Files.exists(path)) {
 			log.warn("Arquivo walkers_routes.xml nao encontrado em {}. Tabela vazia.", path.toAbsolutePath());
 			return;

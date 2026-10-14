@@ -157,7 +157,8 @@ public class PetService {
 		PetDataRecord pet = createOrGetDefault(itemObjectId, npcId, "Pet");
 		PetStatTemplate stat = petDataTable.getStat(npcId, pet.level()).orElse(null);
 		int maxFed = stat != null ? stat.feedMax() : 100;
-		int fedGain = Math.max(10, maxFed * 20 / 100); // Recupera 20%
+		int foodRate = Math.max(1, com.lopez.l2j.config.Config.PET_FOOD_RATE);
+		int fedGain = Math.max(10, (maxFed * 20 / 100) * foodRate); // Recupera 20% * PET_FOOD_RATE
 		int newFed = Math.min(maxFed, pet.fed() + fedGain);
 
 		PetDataRecord updated = pet.withFed(newFed);
@@ -170,15 +171,20 @@ public class PetService {
 	}
 
 	/**
-	 * Concede experiencia ao mascote e processa level-up se necessario.
+	 * Concede experiencia ao mascote (aplicando PET_XP_RATE ou SIN_EATER_XP_RATE para npcId 12564) e processa level-up se necessario.
 	 */
 	public boolean addExp(int itemObjectId, int npcId, long expAmount, Consumer<GameServerPacket> clientSender) {
 		if (expAmount <= 0) {
 			return false;
 		}
 
+		double xpMult = (npcId == 12564)
+				? Math.max(0.1, com.lopez.l2j.config.Config.SIN_EATER_XP_RATE)
+				: Math.max(0.1, com.lopez.l2j.config.Config.PET_XP_RATE);
+		long scaledExp = xpMult == 1.0 ? expAmount : Math.max(1L, Math.round(expAmount * xpMult));
+
 		PetDataRecord pet = createOrGetDefault(itemObjectId, npcId, "Pet");
-		long totalExp = pet.exp() + expAmount;
+		long totalExp = pet.exp() + scaledExp;
 		int curLevel = pet.level();
 
 		// Verifica se sobe de nivel
@@ -203,6 +209,15 @@ public class PetService {
 			clientSender.accept(new CreatureSay(0, CreatureSay.ALL, "Pet", pet.name() + " alcancou o nivel " + curLevel + "!"));
 		}
 		return leveledUp;
+	}
+
+	public int getMaximumSlotsForPet() {
+		return Math.max(1, com.lopez.l2j.config.Config.MAXIMUM_SLOTS_FOR_PET);
+	}
+
+	public boolean canRentPetAtNpc(int npcId) {
+		return com.lopez.l2j.config.Config.LIST_PET_RENT_NPC != null
+				&& com.lopez.l2j.config.Config.LIST_PET_RENT_NPC.contains(npcId);
 	}
 
 	/**

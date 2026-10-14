@@ -3,6 +3,7 @@ package com.lopez.l2j.game.clan;
 import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.ObjectIdFactory;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -145,6 +146,46 @@ public class ClanTable {
 		return clan;
 	}
 
+	public static long getCreateClanPenaltyMillis() {
+		return Math.max(0, Config.DAYS_BEFORE_CREATE_A_CLAN) * 86_400_000L;
+	}
+
+	public static long getDissolveDelayMillis() {
+		return Math.max(0, Config.DAYS_TO_PASS_TO_DISSOLVE_A_CLAN) * 86_400_000L;
+	}
+
+	/**
+	 * Agenda a dissolucao de um cla respeitando Config.DAYS_TO_PASS_TO_DISSOLVE_A_CLAN.
+	 */
+	public synchronized boolean requestDissolveClan(Clan clan, PlayerCharacter leader) {
+		if (clan == null || (leader != null && !clan.isLeader(leader.objectId()))) {
+			return false;
+		}
+		long delayMillis = getDissolveDelayMillis();
+		if (delayMillis <= 0L) {
+			if (leader != null) {
+				leader.clanCreateExpiryTime(System.currentTimeMillis() + getCreateClanPenaltyMillis());
+			}
+			return dissolveClan(clan.clanId());
+		}
+		long expiryTime = System.currentTimeMillis() + delayMillis;
+		clan.dissolvingExpiryTime(expiryTime);
+		if (leader != null) {
+			leader.clanCreateExpiryTime(System.currentTimeMillis() + getCreateClanPenaltyMillis());
+		}
+		if (jdbc != null) {
+			try {
+				jdbc.sql("UPDATE clan_data SET dissolving_expiry_time = :exp WHERE clan_id = :clanId")
+						.param("exp", expiryTime)
+						.param("clanId", clan.clanId())
+						.update();
+			} catch (Exception ex) {
+				log.error("Erro ao agendar dissolucao do cla {}", clan.name(), ex);
+			}
+		}
+		return true;
+	}
+
 	/**
 	 * Remove/dissolve um cla.
 	 */
@@ -155,12 +196,21 @@ public class ClanTable {
 		}
 		byClanName.remove(clan.name().toLowerCase(java.util.Locale.ROOT));
 
+		long createPenaltyExpiry = System.currentTimeMillis() + getCreateClanPenaltyMillis();
+
 		for (ClanMember m : clan.members()) {
 			if (jdbc != null) {
 				try {
-					jdbc.sql("UPDATE characters SET clanid = 0 WHERE charId = :charId")
-							.param("charId", m.objectId())
-							.update();
+					if (m.objectId() == clan.leaderId()) {
+						jdbc.sql("UPDATE characters SET clanid = 0, clan_create_expiry_time = :exp WHERE charId = :charId")
+								.param("exp", createPenaltyExpiry)
+								.param("charId", m.objectId())
+								.update();
+					} else {
+						jdbc.sql("UPDATE characters SET clanid = 0 WHERE charId = :charId")
+								.param("charId", m.objectId())
+								.update();
+					}
 				} catch (Exception ignored) {}
 			}
 		}
@@ -177,6 +227,87 @@ public class ClanTable {
 
 		log.info("Cla '{}' (ID {}) dissolvido", clan.name(), clanId);
 		return true;
+	}
+
+	/**
+	 * Processa ou agenda a transferencia de lideranca de cla usando
+	 * Config.ALT_CLAN_LEADER_INSTANT_ACTIVATION, Config.ALT_CLAN_LEADER_DATE_CHANGE e Config.ALT_CLAN_LEADER_HOUR_CHANGE.
+	 */
+	public synchronized boolean requestLeaderChange(Clan clan, int newLeaderObjectId) {
+		if (clan == null) {
+			return false;
+		}
+		ClanMember target = clan.getMember(newLeaderObjectId);
+		if (target == null) {
+			return false;
+		}
+		if (Config.ALT_CLAN_LEADER_INSTANT_ACTIVATION) {
+			clan.leaderId(newLeaderObjectId);
+			clan.leaderName(target.name());
+			clan.newLeaderId(0);
+			if (jdbc != null) {
+				try {
+					jdbc.sql("UPDATE clan_data SET leader_id = :lid WHERE clan_id = :cid")
+							.param("lid", newLeaderObjectId)
+							.param("cid", clan.clanId())
+							.update();
+				} catch (Exception ex) {
+					log.error("Erro ao atualizar lider do cla {}", clan.name(), ex);
+				}
+			}
+			return true;
+		}
+		clan.newLeaderId(newLeaderObjectId);
+		long scheduledTime = computeNextLeaderChangeExecutionTime();
+		log.info("Mudanca de lider do cla {} agendada para {} (novo lider ID {})",
+				clan.name(), scheduledTime, newLeaderObjectId);
+		return true;
+	}
+
+	/**
+	 * Calcula o proximo horario agendado para efetivacao de mudanca de lideranca de cla
+	 * conforme Config.ALT_CLAN_LEADER_DATE_CHANGE (1=Dom..7=Sab) e Config.ALT_CLAN_LEADER_HOUR_CHANGE ("HH:mm:ss").
+	 */
+	public static long computeNextLeaderChangeExecutionTime() {
+		Calendar cal = Calendar.getInstance();
+		int dayOfWeek = Math.max(1, Math.min(7, Config.ALT_CLAN_LEADER_DATE_CHANGE));
+		cal.set(Calendar.DAY_OF_WEEK, dayOfWeek);
+
+		int hour = 0;
+		int minute = 0;
+		int second = 0;
+		String hourSpec = Config.ALT_CLAN_LEADER_HOUR_CHANGE;
+		if (hourSpec != null && !hourSpec.isBlank()) {
+			String[] parts = hourSpec.trim().split(":");
+			try {
+				if (parts.length >= 1) hour = Integer.parseInt(parts[0].trim());
+				if (parts.length >= 2) minute = Integer.parseInt(parts[1].trim());
+				if (parts.length >= 3) second = Integer.parseInt(parts[2].trim());
+			} catch (NumberFormatException ignored) {}
+		}
+		cal.set(Calendar.HOUR_OF_DAY, hour);
+		cal.set(Calendar.MINUTE, minute);
+		cal.set(Calendar.SECOND, second);
+		cal.set(Calendar.MILLISECOND, 0);
+		if (cal.getTimeInMillis() <= System.currentTimeMillis()) {
+			cal.add(Calendar.WEEK_OF_YEAR, 1);
+		}
+		return cal.getTimeInMillis();
+	}
+
+	/**
+	 * Aplica o ganho/perda de reputacao por morte em guerra de clas conforme Config.REPUTATION_SCORE_PER_KILL.
+	 */
+	public synchronized void rewardWarKillReputation(Clan killerClan, Clan victimClan) {
+		if (killerClan == null || victimClan == null || !killerClan.isMutualWarWith(victimClan.clanId())) {
+			return;
+		}
+		int delta = Math.max(0, Config.REPUTATION_SCORE_PER_KILL);
+		if (delta <= 0) {
+			return;
+		}
+		updateClanReputation(killerClan.clanId(), killerClan.reputationScore() + delta);
+		updateClanReputation(victimClan.clanId(), victimClan.reputationScore() - delta);
 	}
 
 	/**

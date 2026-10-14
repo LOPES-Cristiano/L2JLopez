@@ -42,12 +42,31 @@ public class RaidBossAI extends FighterAI {
 			return;
 		}
 
-		// 2. Verificacao de zonas proibidas (Vilas / Zonas de Paz)
-		if (Config.RETURN_HOME_BOSSES_FROM_TOWN && world != null) {
-			// Se entrou em zona de paz, teleporta/retorna ao ponto de origem
-			// para evitar exploits de levar o boss para cidades
-			if (npc.x() != npc.spawnX() && npc.y() != npc.spawnY() && distFromSpawn > 1000) {
-				// continua normalmente a menos que ultrapasse
+		// 2. Verificacao de zonas proibidas (Vilas / Zonas de Paz / Zonas PvP)
+		if (Config.RETURN_HOME_BOSSES_FROM_TOWN && zones != null
+				&& zones.isInsidePeace(npc.x(), npc.y(), npc.z())) {
+			returnHome();
+			return;
+		}
+		if (Config.RETURN_HOME_BOSSES_FROM_PVP && zones != null
+				&& zones.isInsidePvp(npc.x(), npc.y(), npc.z())
+				&& !zones.isInsidePvp(npc.spawnX(), npc.spawnY(), npc.spawnZ())) {
+			returnHome();
+			return;
+		}
+
+		// 3. Verificacao de ataque entre zonas diferentes contra Epic/Grand Boss (CAN_ATTACK_FROM_ANOTHER_ZONE_TO_EPIC)
+		if (!Config.CAN_ATTACK_FROM_ANOTHER_ZONE_TO_EPIC
+				&& npc.template() != null && npc.template().isGrandBoss()
+				&& zones != null && world != null && npc.targetPlayerId() != 0) {
+			var targetOpt = world.player(npc.targetPlayerId());
+			if (targetOpt.isPresent()) {
+				var target = targetOpt.get();
+				if (!zones.isInSameBossZone(npc.x(), npc.y(), npc.z(), target.x(), target.y(), target.z())) {
+					npc.targetPlayerId(0);
+					npc.inCombat(false);
+					return;
+				}
 			}
 		}
 

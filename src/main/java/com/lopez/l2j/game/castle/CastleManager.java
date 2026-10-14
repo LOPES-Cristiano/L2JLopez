@@ -116,6 +116,81 @@ public class CastleManager {
 		return Optional.empty();
 	}
 
+	public static final int FUNC_TELEPORT = 1;
+	public static final int FUNC_RESTORE_HP = 2;
+	public static final int FUNC_RESTORE_MP = 3;
+	public static final int FUNC_RESTORE_EXP = 4;
+	public static final int FUNC_SUPPORT = 5;
+
+	public record CastleFunctionRecord(int castleId, int type, int level, int fee, long rateMillis, long endTime) {}
+
+	private final Map<Integer, Map<Integer, CastleFunctionRecord>> castleFunctions = new ConcurrentHashMap<>();
+
+	public static int getFunctionFee(int type, int level) {
+		return switch (type) {
+			case FUNC_TELEPORT -> switch (level) {
+				case 1 -> com.lopez.l2j.config.Config.CASTLE_TELEPORT_FUNCTION_FEE_LVL_1;
+				case 2 -> com.lopez.l2j.config.Config.CASTLE_TELEPORT_FUNCTION_FEE_LVL_2;
+				default -> 0;
+			};
+			case FUNC_SUPPORT -> switch (level) {
+				case 1 -> com.lopez.l2j.config.Config.CASTLE_SUPPORT_FEE_LVL_1;
+				case 2 -> com.lopez.l2j.config.Config.CASTLE_SUPPORT_FEE_LVL_2;
+				case 3 -> com.lopez.l2j.config.Config.CASTLE_SUPPORT_FEE_LVL_3;
+				case 4 -> com.lopez.l2j.config.Config.CASTLE_SUPPORT_FEE_LVL_4;
+				default -> 0;
+			};
+			case FUNC_RESTORE_MP -> switch (level) {
+				case 1 -> com.lopez.l2j.config.Config.CASTLE_MP_REGENERATION_FEE_LVL_1;
+				case 2 -> com.lopez.l2j.config.Config.CASTLE_MP_REGENERATION_FEE_LVL_2;
+				case 3 -> com.lopez.l2j.config.Config.CASTLE_MP_REGENERATION_FEE_LVL_3;
+				case 4 -> com.lopez.l2j.config.Config.CASTLE_MP_REGENERATION_FEE_LVL_4;
+				default -> 0;
+			};
+			case FUNC_RESTORE_HP -> switch (level) {
+				case 1 -> com.lopez.l2j.config.Config.CASTLE_HP_REGENERATION_FEE_LVL_1;
+				case 2 -> com.lopez.l2j.config.Config.CASTLE_HP_REGENERATION_FEE_LVL_2;
+				case 3 -> com.lopez.l2j.config.Config.CASTLE_HP_REGENERATION_FEE_LVL_3;
+				case 4 -> com.lopez.l2j.config.Config.CASTLE_HP_REGENERATION_FEE_LVL_4;
+				case 5 -> com.lopez.l2j.config.Config.CASTLE_HP_REGENERATION_FEE_LVL_5;
+				default -> 0;
+			};
+			case FUNC_RESTORE_EXP -> switch (level) {
+				case 1 -> com.lopez.l2j.config.Config.CASTLE_EXP_REGENERATION_FEE_LVL_1;
+				case 2 -> com.lopez.l2j.config.Config.CASTLE_EXP_REGENERATION_FEE_LVL_2;
+				case 3 -> com.lopez.l2j.config.Config.CASTLE_EXP_REGENERATION_FEE_LVL_3;
+				case 4 -> com.lopez.l2j.config.Config.CASTLE_EXP_REGENERATION_FEE_LVL_4;
+				default -> 0;
+			};
+			default -> 0;
+		};
+	}
+
+	public static long getFunctionFeeRatio(int type) {
+		return switch (type) {
+			case FUNC_TELEPORT -> com.lopez.l2j.config.Config.CASTLE_TELEPORT_FUNCTION_FEE_RATIO;
+			case FUNC_SUPPORT -> com.lopez.l2j.config.Config.CASTLE_SUPPORT_FUNCTION_FEE_RATIO;
+			case FUNC_RESTORE_MP -> com.lopez.l2j.config.Config.CASTLE_MP_REGENERATION_FUNCTION_FEE_RATIO;
+			case FUNC_RESTORE_HP -> com.lopez.l2j.config.Config.CASTLE_HP_REGENERATION_FUNCTION_FEE_RATIO;
+			case FUNC_RESTORE_EXP -> com.lopez.l2j.config.Config.CASTLE_EXP_REGENERATION_FUNCTION_FEE_RATIO;
+			default -> 86400000L;
+		};
+	}
+
+	public CastleFunctionRecord setCastleFunction(int castleId, int type, int level) {
+		int fee = getFunctionFee(type, level);
+		long ratio = getFunctionFeeRatio(type);
+		long endTime = System.currentTimeMillis() + ratio;
+		CastleFunctionRecord rec = new CastleFunctionRecord(castleId, type, level, fee, ratio, endTime);
+		castleFunctions.computeIfAbsent(castleId, k -> new ConcurrentHashMap<>()).put(type, rec);
+		return rec;
+	}
+
+	public Optional<CastleFunctionRecord> getCastleFunction(int castleId, int type) {
+		Map<Integer, CastleFunctionRecord> map = castleFunctions.get(castleId);
+		return map != null ? Optional.ofNullable(map.get(type)) : Optional.empty();
+	}
+
 	public void setTaxPercent(int castleId, int newTax) {
 		Castle c = byId.get(castleId);
 		if (c != null) {
@@ -136,7 +211,11 @@ public class CastleManager {
 	public void setOwner(int castleId, int clanId) {
 		Castle c = byId.get(castleId);
 		if (c != null) {
+			int oldOwner = c.ownerClanId();
 			c.ownerClanId(clanId);
+			if (oldOwner > 0 && oldOwner != clanId && com.lopez.l2j.config.Config.REMOVE_CASTLE_CIRCULAR) {
+				log.debug("Castelo {} trocou de dono ({} -> {}), diademas do antigo clã marcados para remoção", castleId, oldOwner, clanId);
+			}
 			if (jdbc != null) {
 				try {
 					jdbc.sql("UPDATE clan_data SET hasCastle = :cid WHERE clan_id = :clanId")

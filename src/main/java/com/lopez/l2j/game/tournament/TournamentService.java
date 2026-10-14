@@ -1,7 +1,9 @@
 package com.lopez.l2j.game.tournament;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.arenaduel.ArenaDefinition;
 import com.lopez.l2j.game.arenaduel.ArenaLoc;
+import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import org.slf4j.Logger;
@@ -12,6 +14,9 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -29,6 +34,8 @@ public class TournamentService {
 	public static final int REWARD_ADENA_AMOUNT_1X1 = 1_000_000;
 	public static final int REWARD_ADENA_AMOUNT_3X3 = 5_000_000;
 	public static final int REWARD_ADENA_AMOUNT_5X5 = 10_000_000;
+
+	public record RewardEntry(int itemId, int count) {}
 
 	public enum TournamentMode {
 		SOLO_1X1(1, "1x1"),
@@ -122,6 +129,7 @@ public class TournamentService {
 	private final AtomicInteger teamIdGenerator = new AtomicInteger(1);
 
 	private final InventoryService inventoryService;
+	private ScheduledExecutorService scheduler;
 
 	public TournamentService() {
 		this(null);
@@ -134,6 +142,9 @@ public class TournamentService {
 			waitingQueues.put(mode, new ConcurrentLinkedQueue<>());
 		}
 		initDefaultArenas();
+		if (Config.TOURNAMENT_1X1_ENABLE) {
+			startScheduledTournamentTasks();
+		}
 	}
 
 	private void initDefaultArenas() {
@@ -145,6 +156,169 @@ public class TournamentService {
 				new ArenaLoc(-58700, -56800, -200),
 				new ArenaLoc(-57700, -56800, -200),
 				new ArenaLoc(-58200, -56800, -200)));
+
+		ArenaLoc configured1x1 = parseConfigured1x1ArenaLoc();
+		if (configured1x1 != null) {
+			arenas.put(3, new ArenaDefinition(3, "Configured Tournament 1x1 Arena",
+					new ArenaLoc(configured1x1.x() - 350, configured1x1.y(), configured1x1.z()),
+					new ArenaLoc(configured1x1.x() + 350, configured1x1.y(), configured1x1.z()),
+					new ArenaLoc(configured1x1.x(), configured1x1.y() + 450, configured1x1.z() + 150)));
+		}
+	}
+
+	public ArenaLoc parseConfigured1x1ArenaLoc() {
+		String raw = Config.TOURNAMENT_1X1_LOC;
+		if (raw == null || raw.isBlank()) {
+			return null;
+		}
+		String[] parts = raw.trim().split(",");
+		if (parts.length >= 3) {
+			try {
+				return new ArenaLoc(
+						Integer.parseInt(parts[0].trim()),
+						Integer.parseInt(parts[1].trim()),
+						Integer.parseInt(parts[2].trim()));
+			} catch (NumberFormatException ignored) {
+			}
+		}
+		return null;
+	}
+
+	public synchronized void startScheduledTournamentTasks() {
+		if (scheduler != null && !scheduler.isShutdown()) {
+			return;
+		}
+		scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+			Thread t = new Thread(r, "Tournament-Scheduler");
+			t.setDaemon(true);
+			return t;
+		});
+		int checkSec = getCheckIntervalSeconds();
+		scheduler.scheduleAtFixedRate(() -> {
+			for (TournamentMode mode : TournamentMode.values()) {
+				if (canRegisterScheduled(mode)) {
+					processQueue(mode);
+				}
+			}
+		}, checkSec, checkSec, TimeUnit.SECONDS);
+		log.info("TournamentService: agendador iniciado (1x1Enable={}, check={}s, call={}s, wait={}s)",
+				is1x1Enabled(), getCheckIntervalSeconds(), getCallIntervalSeconds(), getWaitIntervalSeconds());
+	}
+
+	public synchronized void stopScheduledTournamentTasks() {
+		if (scheduler != null) {
+			scheduler.shutdownNow();
+			scheduler = null;
+		}
+	}
+
+	public boolean is1x1Enabled() {
+		return Config.TOURNAMENT_1X1_ENABLE;
+	}
+
+	public boolean canRegisterScheduled(TournamentMode mode) {
+		if (mode == TournamentMode.SOLO_1X1) {
+			return Config.TOURNAMENT_1X1_ENABLE;
+		}
+		return true;
+	}
+
+	public int getCheckIntervalSeconds() {
+		return Math.max(1, Config.TOURNAMENT_CHECK_INTERVAL);
+	}
+
+	public int getCallIntervalSeconds() {
+		return Math.max(1, Config.TOURNAMENT_CALL_INTERVAL);
+	}
+
+	public int getWaitIntervalSeconds() {
+		return Math.max(1, Config.TOURNAMENT_WAIT_INTERVAL);
+	}
+
+	public Set<Integer> getRestrictedItemIds() {
+		Set<Integer> restricted = new HashSet<>();
+		String raw = Config.TOURNAMENT_ITEMS_RESTRICTION;
+		if (raw != null && !raw.isBlank()) {
+			for (String token : raw.split(",")) {
+				String trimmed = token.trim();
+				if (!trimmed.isEmpty()) {
+					try {
+						restricted.add(Integer.parseInt(trimmed));
+					} catch (NumberFormatException ignored) {
+					}
+				}
+			}
+		}
+		return restricted;
+	}
+
+	public boolean hasRestrictedEquipment(PlayerCharacter player) {
+		if (player == null || player.inventory() == null || player.inventory().items() == null) {
+			return false;
+		}
+		Set<Integer> restrictedIds = getRestrictedItemIds();
+		for (ItemInstance item : player.inventory().items()) {
+			if (item == null || !item.isEquipped()) {
+				continue;
+			}
+			if (restrictedIds.contains(item.itemId())) {
+				return true;
+			}
+			if (!Config.ARENA_ALLOW_S && item.template() != null) {
+				String crystal = item.template().crystalType();
+				if ("s".equalsIgnoreCase(crystal) || "s80".equalsIgnoreCase(crystal)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	public boolean isHwidBlockedFor1x1(PlayerCharacter candidate) {
+		if (!Config.TOURNAMENT_1X1_HWID_BLOCK || candidate == null) {
+			return false;
+		}
+		String candidateAccount = candidate.account();
+		if (candidateAccount == null || candidateAccount.isBlank()) {
+			return false;
+		}
+		Queue<TournamentTeam> soloQueue = waitingQueues.get(TournamentMode.SOLO_1X1);
+		if (soloQueue == null) {
+			return false;
+		}
+		for (TournamentTeam team : soloQueue) {
+			for (PlayerCharacter existing : team.members()) {
+				if (existing != null && candidateAccount.equalsIgnoreCase(existing.account())) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	public List<RewardEntry> getConfigured1x1Rewards() {
+		List<RewardEntry> rewards = new ArrayList<>();
+		String raw = Config.TOURNAMENT_1X1_REWARD;
+		if (raw != null && !raw.isBlank()) {
+			for (String entry : raw.split(";")) {
+				String trimmed = entry.trim();
+				if (trimmed.isEmpty()) {
+					continue;
+				}
+				String[] kv = trimmed.split(",");
+				if (kv.length >= 2) {
+					try {
+						int itemId = Integer.parseInt(kv[0].trim());
+						int count = Integer.parseInt(kv[1].trim());
+						if (itemId > 0 && count > 0) {
+							rewards.add(new RewardEntry(itemId, count));
+						}
+					} catch (NumberFormatException ignored) {
+					}
+				}
+			}
+		}
+		return rewards;
 	}
 
 	public synchronized boolean register(TournamentMode mode, List<PlayerCharacter> members) {
@@ -153,6 +327,14 @@ public class TournamentService {
 		}
 		for (var m : members) {
 			if (m.isDead() || isRegistered(m.objectId()) || isInMatch(m.objectId())) {
+				return false;
+			}
+			if (hasRestrictedEquipment(m)) {
+				log.info("Tournament: Jogador {} bloqueado por item restrito ou grade S.", m.name());
+				return false;
+			}
+			if (mode == TournamentMode.SOLO_1X1 && isHwidBlockedFor1x1(m)) {
+				log.info("Tournament: Jogador {} bloqueado por HWID/Account duplicado no 1x1.", m.name());
 				return false;
 			}
 		}
@@ -291,9 +473,15 @@ public class TournamentService {
 		};
 
 		if (winner != null && inventoryService != null) {
+			List<RewardEntry> custom1x1Rewards = (match.mode() == TournamentMode.SOLO_1X1)
+					? getConfigured1x1Rewards()
+					: Collections.emptyList();
 			for (var member : winner.members()) {
 				if (member.inventory() != null) {
 					inventoryService.addItem(member.inventory(), REWARD_ADENA_ID, rewardAdena, "TournamentReward");
+					for (RewardEntry entry : custom1x1Rewards) {
+						inventoryService.addItem(member.inventory(), entry.itemId(), entry.count(), "Tournament1x1CustomReward");
+					}
 				}
 			}
 		}

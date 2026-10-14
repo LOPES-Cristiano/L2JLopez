@@ -799,10 +799,28 @@ public class GeoEngine {
 	}
 
 	/**
-	 * Executa busca de caminho A* (limitada a 512 iteracoes) retornando a lista de waypoints [x, y, z].
+	 * Executa busca de caminho A* retornando a lista de waypoints [x, y, z].
 	 */
 	public List<int[]> findPath(int startX, int startY, int startZ, int targetX, int targetY, int targetZ, int instanceId) {
-		return PathFind.findPath(this, startX, startY, startZ, targetX, targetY, targetZ, instanceId, PathFind.DEFAULT_MAX_ITERATIONS);
+		if (!Config.ENABLE_PATH_FINDING) {
+			return List.of(new int[]{targetX, targetY, targetZ});
+		}
+		int maxIter = Config.MAX_PATH_LENGTH > 0
+				? Math.max(PathFind.DEFAULT_MAX_ITERATIONS, Config.MAX_PATH_LENGTH / RAY_STEP_SIZE)
+				: PathFind.DEFAULT_MAX_ITERATIONS;
+		return PathFind.findPath(this, startX, startY, startZ, targetX, targetY, targetZ, instanceId, maxIter);
+	}
+
+	public boolean isPathFindingEnabled() {
+		return isEnabled() && Config.ENABLE_PATH_FINDING && !"0".equals(Config.PATH_FINDING_MODE);
+	}
+
+	public String getGeoCorrectZMode() {
+		return Config.GEO_CORRECT_Z;
+	}
+
+	public int getZAxisDensity() {
+		return Config.Z_AXIS_DENSITY;
 	}
 
 	/**

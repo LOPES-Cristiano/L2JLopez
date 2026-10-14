@@ -112,4 +112,18 @@ class VipAndVoteConfigurationTest {
 		assertFalse(Config.ANNOUNCE_HERO_LOGIN);
 		assertFalse(Config.ANNOUNCE_VIP_LOGIN);
 	}
+
+	@Test
+	void testClaimVoteReward() {
+		PlayerCharacter player = createPlayer(3005, "VoterChar");
+		com.lopez.l2j.game.item.Inventory inv = new com.lopez.l2j.game.item.Inventory(3005);
+		player.inventory(inv);
+
+		assertTrue(voteRewardService.claimVoteReward(player, "TOPZONE"));
+		assertEquals(100_000L, player.inventory().adena());
+
+		// Cooldown de 12h ativo para o mesmo site
+		assertFalse(voteRewardService.claimVoteReward(player, "TOPZONE"));
+	}
 }
+

@@ -252,28 +252,27 @@ class EnchantAndEquipmentConfigurationTest {
 	}
 
 	@Test
-	@DisplayName("EnchantTableService: Pergaminhos Donator (9210, 9211) com chances personalizadas e limite seguro")
+	@DisplayName("EnchantTableService: Zero Donations — pergaminhos 9210/9211 seguem regras normais sem privilegio donator")
 	void testDonatorScrolls() {
-		Config.DONATOR_WEAPON_ENCHANT_LEVEL = "1,100;2,100;3,100;4,100;5,100;6,100;7,100;8,100;9,100;10,100;11,100;12,100;13,100;14,100;15,100;16,100;17,100;18,100;19,100;20,100;";
-		Config.ENCHANT_MAX_WEAPON_DONATOR = 20;
+		Config.NORMAL_WEAPON_ENCHANT_LEVEL = "1,100;2,100;3,100;4,60;5,50;";
+		Config.ENCHANT_MAX_WEAPON_NORMAL = 16;
 
-		var donatorWeaponScroll = EnchantScrollTable.get(9210).orElseThrow();
-		assertTrue(donatorWeaponScroll.isDonator());
-		assertEquals("all", donatorWeaponScroll.grade());
+		var scroll9210 = EnchantScrollTable.get(9210).orElseThrow();
+		assertEquals("all", scroll9210.grade());
 
 		var weaponTpl = ItemTemplate.weapon(1, 1, "Sword", "rhand", "sword", 1000, "s", 100, 50, 300, 10, 0, 1000, true, true, true, true);
-		var item19 = createItem(70, weaponTpl, 19);
-		var item20 = createItem(71, weaponTpl, 20);
+		var item3 = createItem(70, weaponTpl, 3);
+		var item16 = createItem(71, weaponTpl, 16);
 
-		// Nível 19 -> 100% de chance pelo DonatorWeaponEnchantLevel
-		assertEquals(100, EnchantTableService.getEnchantChance(donatorWeaponScroll, item19, 0));
-		assertFalse(EnchantTableService.isOverEnchant(item19, donatorWeaponScroll));
+		// Nível 3 -> +4 usa NormalWeaponEnchantLevel (60%), sem bônus donator
+		assertEquals(60, EnchantTableService.getEnchantChance(scroll9210, item3, 0));
+		assertFalse(EnchantTableService.isOverEnchant(item3, scroll9210));
 
-		// Nível 20 atingiu o limite de Donator
-		assertTrue(EnchantTableService.isOverEnchant(item20, donatorWeaponScroll));
+		// Nível 16 atingiu o limite normal
+		assertTrue(EnchantTableService.isOverEnchant(item16, scroll9210));
 
-		// Falha de Donator Scroll não quebra o item
-		assertEquals(19, EnchantTableService.calculateFailureEnchant(donatorWeaponScroll, item19));
+		// Zero Donations: falha quebra o item (-1) como pergaminho normal
+		assertEquals(-1, EnchantTableService.calculateFailureEnchant(scroll9210, item3));
 	}
 
 	@Test

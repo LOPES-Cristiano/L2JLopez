@@ -1,11 +1,13 @@
 package com.lopez.l2j.network.login.service;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.config.ServerProperties;
 import com.lopez.l2j.network.login.crypt.LegacyPasswordHasher;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +31,9 @@ public class LoginAccountService {
 	private final ServerProperties.Login config;
 	private final Set<String> online = ConcurrentHashMap.newKeySet();
 	private final Map<String, Integer> creationsByIp = new ConcurrentHashMap<>();
+	private final Map<String, Integer> failedAttemptsByIp = new ConcurrentHashMap<>();
+	private final Map<String, Long> blockedIpUntilMs = new ConcurrentHashMap<>();
+	private final AtomicInteger totalRegistrations = new AtomicInteger(0);
 
 	@org.springframework.beans.factory.annotation.Autowired
 	public LoginAccountService(AccountStore store, ServerProperties properties) {
@@ -42,6 +47,10 @@ public class LoginAccountService {
 
 	/** Autentica e, em caso de sucesso, reserva a conta (libere com {@link #release}). */
 	public Result authenticate(String login, String password, String ip) {
+		if (ip != null && isIpTemporarilyBlocked(ip)) {
+			log.warn("Login bloqueado temporariamente por excesso de tentativas para o IP {}", ip);
+			return Result.of(AuthResult.BANNED);
+		}
 		if (login == null || password == null || !VALID_LOGIN.matcher(login).matches()) {
 			return Result.of(AuthResult.INVALID_CREDENTIALS);
 		}
@@ -61,9 +70,14 @@ public class LoginAccountService {
 				}
 				if (!LegacyPasswordHasher.matches(password, account.passwordHash())) {
 					log.info("Senha incorreta para {} de {}", login, ip);
+					recordFailedAttempt(ip);
 					return Result.of(AuthResult.INVALID_CREDENTIALS);
 				}
 				creationsByIp.remove(ip);
+				if (ip != null) {
+					failedAttemptsByIp.remove(ip);
+					blockedIpUntilMs.remove(ip);
+				}
 			}
 			if (!online.add(login)) {
 				return Result.of(AuthResult.ALREADY_LOGGED_IN);
@@ -74,6 +88,35 @@ public class LoginAccountService {
 		} catch (RuntimeException e) {
 			log.error("Falha ao autenticar {}", login, e);
 			return Result.of(AuthResult.SYSTEM_ERROR);
+		}
+	}
+
+	public boolean isIpTemporarilyBlocked(String ip) {
+		if (ip == null) {
+			return false;
+		}
+		Long until = blockedIpUntilMs.get(ip);
+		if (until == null) {
+			return false;
+		}
+		if (System.currentTimeMillis() < until) {
+			return true;
+		}
+		blockedIpUntilMs.remove(ip);
+		failedAttemptsByIp.remove(ip);
+		return false;
+	}
+
+	private void recordFailedAttempt(String ip) {
+		if (ip == null || Config.LOGIN_TRY_BEFORE_BAN <= 0) {
+			return;
+		}
+		int maxTries = Math.max(3, Config.LOGIN_TRY_BEFORE_BAN);
+		int fails = failedAttemptsByIp.merge(ip, 1, Integer::sum);
+		if (fails >= maxTries) {
+			long blockSeconds = Math.max(1, Config.LOGIN_BLOCK_AFTER_BAN);
+			blockedIpUntilMs.put(ip, System.currentTimeMillis() + (blockSeconds * 1000L));
+			log.warn("IP {} bloqueado por {}s apos {} tentativas invalidas de login", ip, blockSeconds, fails);
 		}
 	}
 
@@ -96,16 +139,30 @@ public class LoginAccountService {
 		return store.find(login).map(Account::accessLevel).orElse(0);
 	}
 
+	public boolean isGm(String login) {
+		int minGmLevel = Math.max(1, Config.GM_MIN_LEVEL);
+		return getAccessLevel(login) >= minGmLevel;
+	}
+
 	private boolean createIfAllowed(String login, String password, String ip) {
 		if (!config.autoCreateAccounts()) {
 			return false;
 		}
+		int globalMax = Config.MAX_ACCOUNT_REGISTRATION;
+		if (globalMax > 0 && totalRegistrations.get() >= globalMax) {
+			log.warn("Limite global de registro de contas ({}) atingido ao criar {}", globalMax, login);
+			return false;
+		}
 		int attempts = creationsByIp.merge(ip, 1, Integer::sum);
-		if (attempts > config.maxAccountCreationsPerIp()) {
-			log.warn("IP {} excedeu o limite de criacao de contas", ip);
+		int maxPerIp = config.maxAccountCreationsPerIp() > 0
+				? config.maxAccountCreationsPerIp()
+				: Math.max(1, globalMax);
+		if (attempts > maxPerIp) {
+			log.warn("IP {} excedeu o limite de criacao de contas ({})", ip, maxPerIp);
 			return false;
 		}
 		store.create(login, LegacyPasswordHasher.hash(password), ip);
+		totalRegistrations.incrementAndGet();
 		log.info("Conta criada automaticamente: {}", login);
 		return true;
 	}

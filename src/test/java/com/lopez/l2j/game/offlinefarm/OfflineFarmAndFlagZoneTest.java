@@ -108,6 +108,16 @@ class OfflineFarmAndFlagZoneTest {
 		defender.setX(55000);
 		defender.setY(55000);
 		assertTrue(flagZoneService.isKarmaFree(attacker, defender), "Dentro da Flag Zone nao pode gerar karma");
+
+		// Movimentacao dinamica atualizando flag
+		assertTrue(flagZoneService.updatePlayerZonePosition(defender));
+		assertEquals(1, defender.pvpFlag());
+		assertEquals(Long.MAX_VALUE, defender.pvpFlagEndTime());
+
+		// Morte na Flag Zone reseta flag infinito
+		flagZoneService.onPlayerDeath(defender);
+		assertEquals(0, defender.pvpFlag());
+		assertEquals(0L, defender.pvpFlagEndTime());
 	}
 
 	@Test

@@ -498,11 +498,79 @@ public class BossManager {
 			case "boss_sailren_exit" -> {
 				session.teleportToCoordinates(19688, -8478, -1184);
 			}
+			case "boss_frintezza_enter" -> {
+				if (!Config.FRINTEZZA_ENABLED || frintezzaService == null) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Frintezza Imperial Tomb esta desabilitada no momento."));
+					return true;
+				}
+				if (!canEnterFrintezza(player, null)) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Requisitos de Command Channel (" + Config.FRINTEZZA_MIN_PARTY_IN_CC + "-" + Config.FRINTEZZA_MAX_PARTY_IN_CC
+									+ " parties) ou distancia maxima (" + Config.FRINTEZZA_MIN_DISTANCE_FOR_ENTRANCE + ") nao cumpridos."));
+					return true;
+				}
+				boolean ok = frintezzaService.enterTomb(player);
+				if (ok) {
+					session.teleportToCoordinates(player.x(), player.y(), player.z());
+				}
+			}
 			default -> {
 				return false;
 			}
 		}
 
 		return true;
+	}
+
+	/**
+	 * Verifica se o jogador/CommandChannel cumpre as regras de entrada na Imperial Tomb (Frintezza)
+	 * conforme bosses.properties (FRINTEZZA_ENABLED, FRINTEZZA_MIN_PARTY_IN_CC, FRINTEZZA_MAX_PARTY_IN_CC,
+	 * FRINTEZZA_MIN_DISTANCE_FOR_ENTRANCE, FRINTEZZA_ACTIVE_TIME, FRINTEZZA_TOMB_PASS_TIME).
+	 */
+	public boolean canEnterFrintezza(PlayerCharacter leader, NpcInstance guideNpc) {
+		if (!Config.FRINTEZZA_ENABLED || leader == null) {
+			return false;
+		}
+		if (grandBossManager != null) {
+			BossStatus st = grandBossManager.getStatus(GrandBossManager.FRINTEZZA);
+			if (st == BossStatus.INTERVAL || st == BossStatus.DEAD) {
+				return false;
+			}
+		}
+		if (guideNpc != null && Config.FRINTEZZA_MIN_DISTANCE_FOR_ENTRANCE > 0) {
+			double dist = Math.hypot(leader.x() - guideNpc.x(), leader.y() - guideNpc.y());
+			if (dist > Config.FRINTEZZA_MIN_DISTANCE_FOR_ENTRANCE) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	public boolean isValidFrintezzaCommandChannel(int partyCount) {
+		return Config.FRINTEZZA_ENABLED
+				&& partyCount >= Config.FRINTEZZA_MIN_PARTY_IN_CC
+				&& partyCount <= Config.FRINTEZZA_MAX_PARTY_IN_CC;
+	}
+
+	public long getFrintezzaActiveTimeMs() {
+		return Config.FRINTEZZA_ACTIVE_TIME * 60_000L;
+	}
+
+	public long getFrintezzaTombPassTimeMs() {
+		return Config.FRINTEZZA_TOMB_PASS_TIME * 60_000L;
+	}
+
+	/**
+	 * Verifica se o atacante deve sofrer Raid Curse / Fossilizacao ao atacar um Raid/Grand Boss
+	 * com base em DISABLE_RAID_BOSS_FOSSILIZATION e MAX_LEVEL_RAID_BOSS_CURSE.
+	 */
+	public boolean shouldApplyRaidFossilization(PlayerCharacter attacker, NpcInstance boss) {
+		if (Config.DISABLE_RAID_BOSS_FOSSILIZATION || attacker == null || boss == null) {
+			return false;
+		}
+		if (!boss.isRaid()) {
+			return false;
+		}
+		return attacker.level() - boss.level() > Config.MAX_LEVEL_RAID_BOSS_CURSE;
 	}
 }

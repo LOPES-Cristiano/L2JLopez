@@ -5,8 +5,11 @@ import com.lopez.l2j.game.item.ItemRepository;
 import com.lopez.l2j.game.item.ItemTemplateTable;
 import com.lopez.l2j.game.model.ObjectIdFactory;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.service.InventoryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,6 +21,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * categorias de raridade (Common, Rare, Epic, Jackpot), protecao contra flood
  * e interfaces visuais HTML.
  */
+@Service
 public class RouletteService {
 
 	private static final Logger log = LoggerFactory.getLogger(RouletteService.class);
@@ -29,19 +33,30 @@ public class RouletteService {
 	private int defaultCostItemId = 57; // Adena
 	private long defaultCostCount = 5_000_000L; // 5M Adena
 
+	private final InventoryService inventoryService;
 	private final ItemRepository itemRepository;
 	private final ItemTemplateTable itemTable;
 	private final ObjectIdFactory idFactory;
 
 	public RouletteService(ItemRepository itemRepository, ItemTemplateTable itemTable, ObjectIdFactory idFactory) {
+		this(null, itemRepository, itemTable, idFactory);
+	}
+
+	@Autowired
+	public RouletteService(
+			@Autowired(required = false) InventoryService inventoryService,
+			@Autowired(required = false) ItemRepository itemRepository,
+			@Autowired(required = false) ItemTemplateTable itemTable,
+			@Autowired(required = false) ObjectIdFactory idFactory) {
+		this.inventoryService = inventoryService;
 		this.itemRepository = itemRepository;
-		this.itemTable = itemTable;
+		this.itemTable = itemTable != null ? itemTable : (inventoryService != null ? inventoryService.templates() : null);
 		this.idFactory = idFactory != null ? idFactory : ObjectIdFactory.sequential(0x60000000);
 		initializeDefaultPrizes();
 	}
 
 	public RouletteService() {
-		this(null, null, null);
+		this(null, null, null, null);
 	}
 
 	private void initializeDefaultPrizes() {
@@ -84,6 +99,20 @@ public class RouletteService {
 		return defaultCostCount;
 	}
 
+	public synchronized RouletteSpinResult spin(PlayerCharacter player) {
+		return spin(player, defaultCostItemId, defaultCostCount);
+	}
+
+	public synchronized RouletteSpinResult spin(PlayerCharacter player, int costItemId, long costCount) {
+		Map<Integer, Long> counts = new HashMap<>();
+		if (player != null && player.inventory() != null) {
+			for (ItemInstance item : player.inventory().items()) {
+				counts.merge(item.itemId(), (long) item.count(), Long::sum);
+			}
+		}
+		return spin(player, costItemId, costCount, counts);
+	}
+
 	public synchronized RouletteSpinResult spin(PlayerCharacter player, int costItemId, long costCount, Map<Integer, Long> playerInventoryCounts) {
 		if (player == null || player.isDead()) {
 			return RouletteSpinResult.failure("You cannot spin while dead.");
@@ -96,13 +125,20 @@ public class RouletteService {
 			return RouletteSpinResult.failure("Please wait " + waitSec + " seconds before spinning again.");
 		}
 
-		long ownedCurrency = playerInventoryCounts.getOrDefault(costItemId, 0L);
+		long ownedInMap = playerInventoryCounts != null ? playerInventoryCounts.getOrDefault(costItemId, 0L) : 0L;
+		long ownedInInv = (player.inventory() != null)
+				? player.inventory().byItemId(costItemId).map(i -> (long) i.count()).orElse(0L)
+				: 0L;
+		long ownedCurrency = Math.max(ownedInMap, ownedInInv);
 		if (ownedCurrency < costCount) {
 			return RouletteSpinResult.failure("You do not have enough required currency for the roulette.");
 		}
 
-		// Deduct currency
-		playerInventoryCounts.put(costItemId, ownedCurrency - costCount);
+		// Deduct currency in map and real inventory/DB
+		if (playerInventoryCounts != null) {
+			playerInventoryCounts.put(costItemId, Math.max(0L, ownedCurrency - costCount));
+		}
+		consumeCostFromInventory(player, costItemId, (int) Math.min(Integer.MAX_VALUE, costCount));
 		cooldowns.put(player.objectId(), now);
 
 		// Roll prize
@@ -111,21 +147,91 @@ public class RouletteService {
 			return RouletteSpinResult.failure("The roulette wheel stopped on nothing.");
 		}
 
-		// Award item
-		if (itemRepository != null && itemTable != null) {
-			itemTable.get(wonItem.itemId()).ifPresent(tmpl -> {
-				ItemInstance item = new ItemInstance(idFactory.nextId(), tmpl, player.objectId(), (int) wonItem.count());
-				if (wonItem.enchantLevel() > 0) {
-					item.enchant(wonItem.enchantLevel());
-				}
-				itemRepository.insert(item, "RouletteReward");
-			});
-		}
+		// Award item to both player.inventory() and DB
+		awardPrizeToInventoryAndDb(player, wonItem);
 
 		log.info("Player {} (ID: {}) spun roulette and won {} x{} (Rarity: {})",
 				player.name(), player.objectId(), wonItem.name(), wonItem.count(), wonItem.rarity());
 
 		return RouletteSpinResult.success(wonItem);
+	}
+
+	private void consumeCostFromInventory(PlayerCharacter player, int costItemId, int costCount) {
+		if (costCount <= 0 || player == null || player.inventory() == null) {
+			return;
+		}
+		ItemInstance existing = player.inventory().byItemId(costItemId).orElse(null);
+		if (existing == null) {
+			return;
+		}
+		if (inventoryService != null && existing.count() >= costCount) {
+			inventoryService.consumeItem(player.inventory(), costItemId, costCount, "RouletteBet");
+			return;
+		}
+		if (existing.count() > costCount) {
+			existing.count(existing.count() - costCount);
+			if (itemRepository != null) {
+				itemRepository.update(existing);
+			}
+		} else {
+			player.inventory().remove(existing);
+			existing.count(0);
+			if (itemRepository != null) {
+				itemRepository.delete(existing.objectId());
+			}
+		}
+	}
+
+	private void awardPrizeToInventoryAndDb(PlayerCharacter player, RouletteItem wonItem) {
+		int count = (int) Math.min(Integer.MAX_VALUE, wonItem.count());
+		if (count <= 0) {
+			return;
+		}
+		if (inventoryService != null && player.inventory() != null && wonItem.enchantLevel() <= 0) {
+			try {
+				var addResult = inventoryService.addItem(player.inventory(), wonItem.itemId(), count, "RouletteReward");
+				if (addResult != null && addResult.item() != null) {
+					return;
+				}
+			} catch (Exception e) {
+				log.debug("InventoryService.addItem fallback for roulette prize {}: {}", wonItem.itemId(), e.getMessage());
+			}
+		}
+		ItemTemplateTable templates = this.itemTable != null ? this.itemTable
+				: (inventoryService != null ? inventoryService.templates() : null);
+		if (templates != null) {
+			var tmplOpt = templates.get(wonItem.itemId());
+			if (tmplOpt.isPresent()) {
+				var tmpl = tmplOpt.get();
+				if (player.inventory() != null && tmpl.isStackable() && wonItem.enchantLevel() <= 0) {
+					ItemInstance existing = player.inventory().byItemId(wonItem.itemId()).orElse(null);
+					if (existing != null) {
+						existing.count((int) Math.min(Integer.MAX_VALUE, (long) existing.count() + count));
+						if (itemRepository != null) {
+							itemRepository.update(existing);
+						}
+						return;
+					}
+				}
+				ItemInstance item = new ItemInstance(idFactory.nextId(), tmpl, player.objectId(), count);
+				if (wonItem.enchantLevel() > 0) {
+					item.enchant(wonItem.enchantLevel());
+				}
+				if (player.inventory() != null) {
+					player.inventory().add(item);
+				}
+				if (itemRepository != null) {
+					itemRepository.insert(item, "RouletteReward");
+				}
+				return;
+			}
+		}
+		if (player.inventory() != null) {
+			player.inventory().addItem(wonItem.itemId(), count);
+			if (wonItem.enchantLevel() > 0) {
+				player.inventory().byItemId(wonItem.itemId()).ifPresent(it -> it.enchant(wonItem.enchantLevel()));
+			}
+		}
 	}
 
 	public RouletteItem selectRandomPrize() {

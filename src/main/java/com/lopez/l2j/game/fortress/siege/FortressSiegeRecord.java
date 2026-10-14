@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.fortress.siege;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.castle.siege.SiegeStatus;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,16 +31,24 @@ public class FortressSiegeRecord {
 		this.fortId = fortId;
 		this.status = SiegeStatus.REGISTRATION;
 		this.siegeDate = siegeDate;
-		this.siegeEndDate = siegeDate + (60 * 60 * 1000L); // 1 hora de batalha
+		long durationMinutes = Config.FORT_SIEGE_LENGTH > 0 ? Config.FORT_SIEGE_LENGTH : 60L;
+		this.siegeEndDate = siegeDate + (durationMinutes * 60_000L);
 	}
 
 	public int fortId() { return fortId; }
 	public SiegeStatus status() { return status; }
 	public void status(SiegeStatus status) { this.status = status; }
 	public long siegeDate() { return siegeDate; }
-	public void siegeDate(long siegeDate) { this.siegeDate = siegeDate; }
+	public void siegeDate(long siegeDate) {
+		this.siegeDate = siegeDate;
+		long durationMinutes = Config.FORT_SIEGE_LENGTH > 0 ? Config.FORT_SIEGE_LENGTH : 60L;
+		this.siegeEndDate = siegeDate + (durationMinutes * 60_000L);
+	}
 	public long siegeEndDate() { return siegeEndDate; }
 	public void siegeEndDate(long siegeEndDate) { this.siegeEndDate = siegeEndDate; }
+	public long countdownDurationMillis() {
+		return Math.max(0, Config.FORT_COUNT_DOWN_LENGTH) * 60_000L;
+	}
 	public Set<Integer> attackerClans() { return attackerClans; }
 	public int reactorsDisabled() { return reactorsDisabled; }
 	public void reactorsDisabled(int count) { this.reactorsDisabled = Math.min(TOTAL_REACTORS, count); }

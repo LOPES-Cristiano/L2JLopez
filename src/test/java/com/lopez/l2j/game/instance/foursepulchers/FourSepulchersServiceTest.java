@@ -107,4 +107,57 @@ class FourSepulchersServiceTest {
 		// Recebe Passe do Tumulo Imperial (8073)
 		assertTrue(player.inventory().byItemId(FourSepulchersService.IMPERIAL_TOMB_PASS).isPresent());
 	}
+
+	@Test
+	void testSepulcherWithInventoryServiceAndGameWorldSpawnsAndEvictAll() {
+		com.lopez.l2j.game.item.InMemoryItemRepository repo = new com.lopez.l2j.game.item.InMemoryItemRepository();
+		ItemTemplate passTpl = questTemplate(FourSepulchersService.PASS_OF_DARKNESS);
+		ItemTemplate keyTpl = questTemplate(FourSepulchersService.CHAPEL_KEY);
+		ItemTemplate gobTpl = questTemplate(FourSepulchersService.GOBLET_CONQUERORS);
+		com.lopez.l2j.game.item.ItemTemplateTable itemTable = com.lopez.l2j.game.item.ItemTemplateTable.of(List.of(passTpl, keyTpl, gobTpl), List.of());
+		ObjectIdFactory ids = ObjectIdFactory.sequential(6000);
+		com.lopez.l2j.game.service.InventoryService invService = new com.lopez.l2j.game.service.InventoryService(itemTable, repo, ids, 0);
+		com.lopez.l2j.game.world.GameWorld world = new com.lopez.l2j.game.world.GameWorld();
+		com.lopez.l2j.game.npc.NpcTemplateTable npcTemplates = com.lopez.l2j.game.npc.NpcTemplateTable.of(List.of());
+
+		FourSepulchersService fullService = new FourSepulchersService(itemTable, ids, invService, world, npcTemplates, repo);
+
+		PlayerCharacter leader = dummyPlayer(10, "SepLeader", 78);
+		List<PlayerCharacter> party = List.of(
+				leader,
+				dummyPlayer(20, "P2", 78),
+				dummyPlayer(30, "P3", 78),
+				dummyPlayer(40, "P4", 78)
+		);
+		invService.addItem(leader.inventory(), FourSepulchersService.PASS_OF_DARKNESS, 1, "Test");
+
+		java.util.List<com.lopez.l2j.network.game.packet.GameServerPacket> leaderPackets = new java.util.ArrayList<>();
+		world.add(new com.lopez.l2j.game.world.GameWorld.OnlinePlayer() {
+			@Override public int objectId() { return leader.objectId(); }
+			@Override public String name() { return leader.name(); }
+			@Override public int x() { return leader.x(); }
+			@Override public int y() { return leader.y(); }
+			@Override public int z() { return leader.z(); }
+			@Override public PlayerCharacter character() { return leader; }
+			@Override public void send(com.lopez.l2j.network.game.packet.GameServerPacket packet) { leaderPackets.add(packet); }
+		});
+
+		int mausoleumId = FourSepulchersService.SEPULCHER_CONQUERORS;
+		assertTrue(fullService.tryEnter(mausoleumId, leader, party));
+		// Pass of Darkness removed from DB
+		assertTrue(repo.findInventory(leader.objectId()).isEmpty());
+		assertTrue(leaderPackets.stream().anyMatch(p -> p instanceof com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation));
+		assertEquals(4, fullService.getSpawnedMonsters(mausoleumId).size());
+
+		// Advance wave grants Chapel Key in DB and openNextRoomDoor consumes it
+		assertTrue(fullService.advanceWave(mausoleumId, leader));
+		assertTrue(repo.findInventory(leader.objectId()).stream().anyMatch(i -> i.itemId() == FourSepulchersService.CHAPEL_KEY));
+		assertTrue(fullService.openNextRoomDoor(mausoleumId, leader));
+		assertTrue(repo.findInventory(leader.objectId()).stream().noneMatch(i -> i.itemId() == FourSepulchersService.CHAPEL_KEY));
+
+		// EvictAll cleans up monsters and teleports to lobby
+		fullService.evictAll();
+		assertEquals(0, world.totalNpcs());
+		assertEquals(FourSepulchersService.LOBBY_X, leader.x());
+	}
 }

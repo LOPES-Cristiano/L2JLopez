@@ -104,4 +104,23 @@ public class GuardAI extends FighterAI {
 		}
 		return null;
 	}
+
+	/**
+	 * Quando Config.ALLOW_GUARDS esta ativo (options.properties AllowGuards = True),
+	 * guardas de vilas tambem atacam monstros agressivos que se aproximem das entradas.
+	 */
+	public NpcInstance scanForAggressiveMonsters() {
+		if (!com.lopez.l2j.config.Config.ALLOW_GUARDS || world == null) {
+			return null;
+		}
+		var nearbyNpcs = world.findNpcsAround(npc.x(), npc.y(), 600);
+		for (NpcInstance mob : nearbyNpcs) {
+			if (mob != null && !mob.isDead() && mob.isMonster()
+					&& mob.template() != null && mob.template().aggroRange() > 0
+					&& Math.abs(mob.z() - npc.z()) <= 150) {
+				return mob;
+			}
+		}
+		return null;
+	}
 }

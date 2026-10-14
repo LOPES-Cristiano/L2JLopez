@@ -191,4 +191,24 @@ class FishingServiceTest {
 		assertTrue(top.get(0).fishLength() >= top.get(1).fishLength());
 		assertTrue(top.get(1).fishLength() >= top.get(2).fishLength());
 	}
+
+	@Test
+	@DisplayName("Pesca registra comprimento realista (60-180 cm) no campeonato e permite resgatar premio")
+	void testReelInAndClaimReward() {
+		PlayerCharacter player = createPlayer(10, "ChampFisher", 60);
+		Inventory inv = new Inventory(10);
+		player.inventory(inv);
+
+		double length = service.reelIn(player, sentPackets::add);
+		assertTrue(length >= 60.0 && length <= 180.0);
+		assertEquals(1, championship.getRank(player.objectId()));
+
+		int reward = championship.claimReward(player);
+		assertEquals(800000, reward);
+		assertEquals(800000L, player.inventory().adena());
+
+		// Nao permite resgatar novamente no mesmo ciclo
+		assertEquals(0, championship.claimReward(player));
+	}
 }
+

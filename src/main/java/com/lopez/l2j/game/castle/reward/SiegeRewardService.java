@@ -2,12 +2,13 @@ package com.lopez.l2j.game.castle.reward;
 
 import com.lopez.l2j.game.clan.Clan;
 import com.lopez.l2j.game.clan.ClanMember;
-import com.lopez.l2j.game.model.ObjectIdFactory;
 import com.lopez.l2j.game.item.Inventory;
 import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.item.ItemTemplate;
 import com.lopez.l2j.game.item.ItemTemplateTable;
+import com.lopez.l2j.game.model.ObjectIdFactory;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.service.InventoryService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -44,14 +45,23 @@ public class SiegeRewardService {
 	private final ItemTemplateTable itemTable;
 	private final ObjectIdFactory idFactory;
 	private final JdbcClient jdbc;
+	private InventoryService inventoryService;
+
+	public SiegeRewardService(ItemTemplateTable itemTable,
+							  ObjectIdFactory idFactory,
+							  JdbcClient jdbc) {
+		this(itemTable, idFactory, jdbc, null);
+	}
 
 	@Autowired
 	public SiegeRewardService(@Autowired(required = false) ItemTemplateTable itemTable,
 							  @Autowired(required = false) ObjectIdFactory idFactory,
-							  @Autowired(required = false) JdbcClient jdbc) {
+							  @Autowired(required = false) JdbcClient jdbc,
+							  @Autowired(required = false) InventoryService inventoryService) {
 		this.itemTable = itemTable;
 		this.idFactory = idFactory != null ? idFactory : ObjectIdFactory.sequential(0x55000000);
 		this.jdbc = jdbc;
+		this.inventoryService = inventoryService;
 
 		initDefaultRules();
 		loadOfflineRewards();
@@ -64,6 +74,9 @@ public class SiegeRewardService {
 		// Todos os membros recebem 50 Knight Epaulettes e 1.000.000 Adena
 		rewardRules.add(new RewardRule(KNIGHT_EPAULETTE, 50, false));
 		rewardRules.add(new RewardRule(ADENA, 1_000_000L, false));
+		if (com.lopez.l2j.config.Config.REWARD_ID > 0 && com.lopez.l2j.config.Config.REWARD_COUNT > 0) {
+			rewardRules.add(new RewardRule(com.lopez.l2j.config.Config.REWARD_ID, com.lopez.l2j.config.Config.REWARD_COUNT, true));
+		}
 	}
 
 	public void addRewardRule(int itemId, long count, boolean leaderOnly) {
@@ -86,13 +99,22 @@ public class SiegeRewardService {
 			return;
 		}
 
+		List<RewardRule> activeRules = new ArrayList<>(rewardRules);
+		if (com.lopez.l2j.config.Config.REWARD_ID > 0 && com.lopez.l2j.config.Config.REWARD_COUNT > 0) {
+			boolean alreadyHas = activeRules.stream()
+					.anyMatch(r -> r.itemId() == com.lopez.l2j.config.Config.REWARD_ID && r.count() == com.lopez.l2j.config.Config.REWARD_COUNT);
+			if (!alreadyHas) {
+				activeRules.add(new RewardRule(com.lopez.l2j.config.Config.REWARD_ID, com.lopez.l2j.config.Config.REWARD_COUNT, true));
+			}
+		}
+
 		for (ClanMember member : winnerClan.members()) {
 			int charId = member.objectId();
 			boolean isLeader = winnerClan.isLeader(charId);
 
 			PlayerCharacter online = onlinePlayers != null ? onlinePlayers.get(charId) : null;
 
-			for (RewardRule rule : rewardRules) {
+			for (RewardRule rule : activeRules) {
 				if (rule.leaderOnly() && !isLeader) {
 					continue;
 				}
@@ -139,14 +161,24 @@ public class SiegeRewardService {
 	}
 
 	private void deliverRewardToInventory(PlayerCharacter player, int itemId, long count) {
+		int safeCount = (int) Math.min(Integer.MAX_VALUE, count);
+		if (safeCount <= 0) {
+			return;
+		}
 		Inventory inv = player.inventory();
+		if (inventoryService != null) {
+			var added = inventoryService.addItem(inv, itemId, safeCount, "SiegeReward");
+			if (added != null) {
+				return;
+			}
+		}
 		var existingOpt = inv.byItemId(itemId);
 		if (existingOpt.isPresent() && existingOpt.get().template().stackable()) {
 			ItemInstance item = existingOpt.get();
 			item.count((int) Math.min(Integer.MAX_VALUE, item.count() + count));
 		} else {
 			ItemTemplate tmpl = resolveTemplate(itemId);
-			ItemInstance newItem = new ItemInstance(idFactory.nextId(), tmpl, player.objectId(), (int) Math.min(Integer.MAX_VALUE, count));
+			ItemInstance newItem = new ItemInstance(idFactory.nextId(), tmpl, player.objectId(), safeCount);
 			inv.add(newItem);
 		}
 	}

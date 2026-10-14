@@ -111,17 +111,7 @@ public final class EnchantTableService {
 		boolean isWeapon = item.template().type2() == ItemTemplate.TYPE2_WEAPON;
 		boolean isJewelry = item.template().type2() == ItemTemplate.TYPE2_ACCESSORY;
 
-		if (scroll.isDonator()) {
-			if (isWeapon && Config.ENCHANT_MAX_WEAPON_DONATOR > 0 && current >= Config.ENCHANT_MAX_WEAPON_DONATOR) {
-				return true;
-			}
-			if (isJewelry && Config.ENCHANT_MAX_JEWELRY_DONATOR > 0 && current >= Config.ENCHANT_MAX_JEWELRY_DONATOR) {
-				return true;
-			}
-			if (!isWeapon && !isJewelry && Config.ENCHANT_MAX_ARMOR_DONATOR > 0 && current >= Config.ENCHANT_MAX_ARMOR_DONATOR) {
-				return true;
-			}
-		} else if (scroll.isCrystal()) {
+		if (scroll.isCrystal()) {
 			if (isWeapon && Config.ENCHANT_MAX_WEAPON_CRYSTAL > 0 && current >= Config.ENCHANT_MAX_WEAPON_CRYSTAL) {
 				return true;
 			}
@@ -172,10 +162,7 @@ public final class EnchantTableService {
 		boolean isJewelry = item.template().type2() == ItemTemplate.TYPE2_ACCESSORY;
 
 		String series;
-		if (scroll.isDonator()) {
-			series = isWeapon ? Config.DONATOR_WEAPON_ENCHANT_LEVEL
-					: (isJewelry ? Config.DONATOR_JEWELRY_ENCHANT_LEVEL : Config.DONATOR_ARMOR_ENCHANT_LEVEL);
-		} else if (scroll.isCrystal()) {
+		if (scroll.isCrystal()) {
 			series = isWeapon ? Config.CRYSTAL_WEAPON_ENCHANT_LEVEL
 					: (isJewelry ? Config.CRYSTAL_JEWELRY_ENCHANT_LEVEL : Config.CRYSTAL_ARMOR_ENCHANT_LEVEL);
 		} else if (scroll.isBlessed()) {
@@ -210,8 +197,8 @@ public final class EnchantTableService {
 		if (scroll == null || item == null) {
 			return -1;
 		}
-		if (scroll.isDonator() || scroll.isCrystal()) {
-			// Scroll Donator ou Cristal: falha mantem o nivel de encantamento sem quebrar o item
+		if (scroll.isCrystal()) {
+			// Scroll Cristal: falha mantem o nivel de encantamento sem quebrar o item
 			return item.enchant();
 		}
 		if (scroll.isBlessed()) {

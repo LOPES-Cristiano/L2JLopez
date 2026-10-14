@@ -461,6 +461,37 @@ public class GameWorld {
 		return (((long) cx) << 32) | (cy & 0xFFFFFFFFL);
 	}
 
+	public boolean isGridAlwaysOn() {
+		return com.lopez.l2j.config.Config.GRIDS_ALWAYS_ON;
+	}
+
+	public int getGridNeighborTurnOnTimeSeconds() {
+		return com.lopez.l2j.config.Config.GRID_NEIGHBOR_TURN_ON_TIME;
+	}
+
+	public int getGridNeighborTurnOffTimeSeconds() {
+		return com.lopez.l2j.config.Config.GRID_NEIGHBOR_TURN_OFF_TIME;
+	}
+
+	public boolean isCellActive(int x, int y) {
+		if (com.lopez.l2j.config.Config.GRIDS_ALWAYS_ON) {
+			return true;
+		}
+		return !findPlayersAround(x, y, GRID_SIZE).isEmpty();
+	}
+
+	public int getNoRestartKickTimeSeconds() {
+		return com.lopez.l2j.config.Config.NO_RESTART_KICK_TIME;
+	}
+
+	public boolean isBoatAllowed() {
+		return com.lopez.l2j.config.Config.ALLOW_BOAT;
+	}
+
+	public boolean isWaterAllowed() {
+		return com.lopez.l2j.config.Config.ALLOW_WATER;
+	}
+
 	private static String key(String name) {
 		return name.toLowerCase(java.util.Locale.ROOT);
 	}

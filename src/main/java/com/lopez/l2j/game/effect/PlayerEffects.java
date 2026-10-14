@@ -112,7 +112,8 @@ public final class PlayerEffects {
 		long now = System.currentTimeMillis();
 		ActiveBuff existing = byStack.get(buff.stackType());
 		if (existing != null && existing.remainingMillis(now) > 0) {
-			if (!buff.isPermanent() && !existing.isPermanent() && buff.stackOrder() < existing.stackOrder()) {
+			if (Config.CANCEL_LESSER_EFFECT && !buff.isPermanent() && !existing.isPermanent()
+					&& buff.stackOrder() < existing.stackOrder()) {
 				return false;
 			}
 		} else {
@@ -124,7 +125,7 @@ public final class PlayerEffects {
 					evictOldest(debuffs);
 				}
 			} else if (!buff.isPermanent() && isDanceOrSong(buff.skillId())) {
-				int maxDances = Math.max(1, Config.getInt("MaxDanceAmount", 12));
+				int maxDances = Math.max(1, Config.MAX_DANCES_AMOUNT);
 				List<ActiveBuff> dances = active().stream()
 						.filter(b -> !b.isDebuff() && !b.isPermanent() && isDanceOrSong(b.skillId()))
 						.toList();
@@ -132,7 +133,7 @@ public final class PlayerEffects {
 					evictOldest(dances);
 				}
 			} else if (!buff.isPermanent()) {
-				int maxBuffs = Math.max(1, Config.MAX_BUFF_AMOUNT) + Math.max(0, extraSlots);
+				int maxBuffs = Math.max(1, Config.MAX_BUFFS_AMOUNT) + Math.max(0, extraSlots);
 				List<ActiveBuff> normalBuffs = active().stream()
 						.filter(b -> !b.isDebuff() && !b.isPermanent() && !isDanceOrSong(b.skillId()))
 						.toList();
@@ -165,6 +166,63 @@ public final class PlayerEffects {
 	/** Remove todos os efeitos de um skill (toggle desligado); devolve true se havia algum. */
 	public boolean removeSkill(int skillId) {
 		return byStack.values().removeIf(b -> b.skillId() == skillId);
+	}
+
+	/**
+	 * Remove o efeito ativo de uma skill de Argumentacao (Life Stone) ao desequipar a arma,
+	 * caso Config.CANCEL_AUGMENTATION_EFFECT esteja habilitado.
+	 */
+	public boolean removeAugmentationEffects(int augSkillId) {
+		if (!Config.CANCEL_AUGMENTATION_EFFECT) {
+			return false;
+		}
+		if (augSkillId > 0) {
+			return removeSkill(augSkillId);
+		}
+		return byStack.values().removeIf(b -> b.skillId() >= 3123 && b.skillId() <= 3259);
+	}
+
+	/**
+	 * Executa o efeito Cancel/Bane removendo buffs positivos conforme Config.CANCEL_MODE ("new" ou "old").
+	 */
+	public int cancelBuffs(int maxCancel) {
+		int limit = maxCancel > 0 ? maxCancel : 5;
+		List<ActiveBuff> cancelable = active().stream()
+				.filter(b -> !b.isDebuff() && !b.isPermanent())
+				.toList();
+		if (cancelable.isEmpty()) {
+			return 0;
+		}
+		int removed = 0;
+		if ("old".equalsIgnoreCase(Config.CANCEL_MODE)) {
+			for (ActiveBuff b : cancelable) {
+				if (removed >= limit) {
+					break;
+				}
+				if (java.util.concurrent.ThreadLocalRandom.current().nextInt(100) < 50 && remove(b)) {
+					removed++;
+				}
+			}
+		} else {
+			List<ActiveBuff> ordered = new ArrayList<>(cancelable);
+			ordered.sort((a, b) -> {
+				boolean da = isDanceOrSong(a.skillId());
+				boolean db = isDanceOrSong(b.skillId());
+				if (da != db) {
+					return da ? -1 : 1;
+				}
+				return Long.compare(b.endTimeMillis(), a.endTimeMillis());
+			});
+			for (ActiveBuff b : ordered) {
+				if (removed >= limit) {
+					break;
+				}
+				if (remove(b)) {
+					removed++;
+				}
+			}
+		}
+		return removed;
 	}
 
 	public boolean hasSkill(int skillId) {

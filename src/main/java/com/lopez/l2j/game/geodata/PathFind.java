@@ -57,7 +57,11 @@ public final class PathFind {
 	 */
 	public static List<int[]> findPath(GeoEngine engine, int startX, int startY, int startZ,
 			int targetX, int targetY, int targetZ, int instanceId, int maxIterations) {
-		if (engine == null || !engine.isEnabled()) {
+		if (engine == null || !engine.isEnabled() || !com.lopez.l2j.config.Config.ENABLE_PATH_FINDING) {
+			return List.of(new int[]{targetX, targetY, targetZ});
+		}
+		String pfMode = com.lopez.l2j.config.Config.PATH_FINDING_MODE;
+		if ("0".equals(pfMode) || "OFF".equalsIgnoreCase(pfMode) || "FALSE".equalsIgnoreCase(pfMode)) {
 			return List.of(new int[]{targetX, targetY, targetZ});
 		}
 
@@ -84,7 +88,13 @@ public final class PathFind {
 			return List.of(new int[]{targetX, targetY, targetZ});
 		}
 
-		int limit = maxIterations > 0 ? maxIterations : DEFAULT_MAX_ITERATIONS;
+		int configuredMaxSteps = com.lopez.l2j.config.Config.MAX_PATH_LENGTH > 0
+				? Math.max(64, com.lopez.l2j.config.Config.MAX_PATH_LENGTH / CELL_SIZE)
+				: DEFAULT_MAX_ITERATIONS;
+		if ("2".equals(pfMode)) {
+			configuredMaxSteps = Math.max(configuredMaxSteps, DEFAULT_MAX_ITERATIONS * 2);
+		}
+		int limit = maxIterations > 0 ? maxIterations : Math.max(DEFAULT_MAX_ITERATIONS, configuredMaxSteps);
 		PriorityQueue<Node> openSet = new PriorityQueue<>();
 		Map<Long, Double> bestG = new HashMap<>();
 		Set<Long> closedSet = new HashSet<>();
@@ -173,7 +183,9 @@ public final class PathFind {
 	}
 
 	private static boolean canStep(GeoEngine engine, int x1, int y1, int z1, int x2, int y2, int z2) {
-		if (Math.abs(z2 - z1) > MAX_STEP_HEIGHT) {
+		int zDensity = Math.max(1, com.lopez.l2j.config.Config.Z_AXIS_DENSITY);
+		int maxStepHeight = Math.max(MAX_STEP_HEIGHT, zDensity * 16);
+		if (Math.abs(z2 - z1) > maxStepHeight) {
 			return false;
 		}
 		if (!engine.checkNSWE(x1, y1, z1, x2, y2)) {

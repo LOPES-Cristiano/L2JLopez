@@ -5,8 +5,12 @@ import com.lopez.l2j.game.item.ItemRepository;
 import com.lopez.l2j.game.item.ItemTemplateTable;
 import com.lopez.l2j.game.model.ObjectIdFactory;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.service.CharacterService;
+import com.lopez.l2j.game.service.InventoryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -22,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * aumentando seu contador de resets, registrando no ranking diario/mensal (reset_rankings)
  * e concedendo recompensas e bonus de rebirth.
  */
+@Service
 public class CharacterResetService {
 
 	private static final Logger log = LoggerFactory.getLogger(CharacterResetService.class);
@@ -32,21 +37,36 @@ public class CharacterResetService {
 
 	private CharacterResetRequirement requirement;
 	private final DataSource dataSource;
+	private final InventoryService inventoryService;
+	private final CharacterService characterService;
 	private final ItemRepository itemRepository;
 	private final ItemTemplateTable itemTable;
 	private final ObjectIdFactory idFactory;
 
 	public CharacterResetService(DataSource dataSource, ItemRepository itemRepository, ItemTemplateTable itemTable, ObjectIdFactory idFactory) {
+		this(dataSource, null, null, itemRepository, itemTable, idFactory);
+	}
+
+	@Autowired
+	public CharacterResetService(
+			@Autowired(required = false) DataSource dataSource,
+			@Autowired(required = false) InventoryService inventoryService,
+			@Autowired(required = false) CharacterService characterService,
+			@Autowired(required = false) ItemRepository itemRepository,
+			@Autowired(required = false) ItemTemplateTable itemTable,
+			@Autowired(required = false) ObjectIdFactory idFactory) {
 		this.dataSource = dataSource;
+		this.inventoryService = inventoryService;
+		this.characterService = characterService;
 		this.itemRepository = itemRepository;
-		this.itemTable = itemTable;
+		this.itemTable = itemTable != null ? itemTable : (inventoryService != null ? inventoryService.templates() : null);
 		this.idFactory = idFactory != null ? idFactory : ObjectIdFactory.sequential(0x65000000);
 		initializeDefaultRequirement();
 		loadRankingsFromDatabase();
 	}
 
 	public CharacterResetService() {
-		this(null, null, null, null);
+		this(null, null, null, null, null, null);
 	}
 
 	private void initializeDefaultRequirement() {
@@ -60,6 +80,10 @@ public class CharacterResetService {
 
 	public void setRequirement(CharacterResetRequirement requirement) {
 		this.requirement = requirement;
+	}
+
+	public boolean canReset(PlayerCharacter player) {
+		return canReset(player, buildInventoryMap(player));
 	}
 
 	public boolean canReset(PlayerCharacter player, Map<Integer, Long> inventoryCounts) {
@@ -78,12 +102,19 @@ public class CharacterResetService {
 		}
 		// Required items
 		for (Map.Entry<Integer, Long> req : requirement.requiredItems().entrySet()) {
-			long owned = inventoryCounts.getOrDefault(req.getKey(), 0L);
-			if (owned < req.getValue()) {
+			long ownedMap = inventoryCounts != null ? inventoryCounts.getOrDefault(req.getKey(), 0L) : 0L;
+			long ownedInv = player.inventory() != null
+					? player.inventory().byItemId(req.getKey()).map(i -> (long) i.count()).orElse(0L)
+					: 0L;
+			if (Math.max(ownedMap, ownedInv) < req.getValue()) {
 				return false;
 			}
 		}
 		return true;
+	}
+
+	public synchronized boolean performReset(PlayerCharacter player) {
+		return performReset(player, buildInventoryMap(player));
 	}
 
 	public synchronized boolean performReset(PlayerCharacter player, Map<Integer, Long> inventoryCounts) {
@@ -91,10 +122,15 @@ public class CharacterResetService {
 			return false;
 		}
 
-		// Deduct cost items
+		// Deduct cost items in map and real inventory/DB
 		for (Map.Entry<Integer, Long> req : requirement.requiredItems().entrySet()) {
-			long owned = inventoryCounts.getOrDefault(req.getKey(), 0L);
-			inventoryCounts.put(req.getKey(), owned - req.getValue());
+			int itemId = req.getKey();
+			long reqCount = req.getValue();
+			if (inventoryCounts != null && inventoryCounts.containsKey(itemId)) {
+				long owned = inventoryCounts.getOrDefault(itemId, 0L);
+				inventoryCounts.put(itemId, Math.max(0L, owned - reqCount));
+			}
+			consumeFromInventoryAndDb(player, itemId, (int) Math.min(Integer.MAX_VALUE, reqCount));
 		}
 
 		// Apply reset to player
@@ -102,25 +138,109 @@ public class CharacterResetService {
 		player.exp(0L);
 		player.sp(0);
 
+		if (characterService != null) {
+			try {
+				characterService.save(player, true);
+			} catch (Exception e) {
+				log.warn("Failed to persist character state after reset for player {}: {}", player.objectId(), e.getMessage());
+			}
+		}
+
 		// Increment counts
 		int playerId = player.objectId();
 		int total = totalResets.merge(playerId, 1, Integer::sum);
 		int daily = dailyResets.merge(playerId, 1, Integer::sum);
 		int monthly = monthlyResets.merge(playerId, 1, Integer::sum);
 
-		// Award Rebirth reward: 5 Coin of Luck (4037)
-		if (itemRepository != null && itemTable != null) {
-			itemTable.get(4037).ifPresent(tmpl -> {
-				ItemInstance item = new ItemInstance(idFactory.nextId(), tmpl, playerId, 5);
-				itemRepository.insert(item, "ResetReward");
-			});
-		}
+		// Award Rebirth reward: 5 Coin of Luck (4037) in both inventory and DB
+		awardRewardToInventoryAndDb(player, 4037, 5);
 
 		saveRankingToDatabase(playerId, daily, monthly);
 
 		log.info("Player {} (ID: {}) successfully performed Reset #{}. Daily: {}, Monthly: {}",
 				player.name(), playerId, total, daily, monthly);
 		return true;
+	}
+
+	private Map<Integer, Long> buildInventoryMap(PlayerCharacter player) {
+		Map<Integer, Long> counts = new HashMap<>();
+		if (player != null && player.inventory() != null) {
+			for (ItemInstance item : player.inventory().items()) {
+				counts.merge(item.itemId(), (long) item.count(), Long::sum);
+			}
+		}
+		return counts;
+	}
+
+	private void consumeFromInventoryAndDb(PlayerCharacter player, int itemId, int count) {
+		if (count <= 0 || player == null || player.inventory() == null) {
+			return;
+		}
+		ItemInstance existing = player.inventory().byItemId(itemId).orElse(null);
+		if (existing == null) {
+			return;
+		}
+		if (inventoryService != null && existing.count() >= count) {
+			inventoryService.consumeItem(player.inventory(), itemId, count, "ResetCost");
+			return;
+		}
+		if (existing.count() > count) {
+			existing.count(existing.count() - count);
+			if (itemRepository != null) {
+				itemRepository.update(existing);
+			}
+		} else {
+			player.inventory().remove(existing);
+			existing.count(0);
+			if (itemRepository != null) {
+				itemRepository.delete(existing.objectId());
+			}
+		}
+	}
+
+	private void awardRewardToInventoryAndDb(PlayerCharacter player, int itemId, int count) {
+		if (count <= 0 || player == null) {
+			return;
+		}
+		if (inventoryService != null && player.inventory() != null) {
+			try {
+				var res = inventoryService.addItem(player.inventory(), itemId, count, "ResetReward");
+				if (res != null && res.item() != null) {
+					return;
+				}
+			} catch (Exception e) {
+				log.debug("InventoryService.addItem fallback for reset reward {}: {}", itemId, e.getMessage());
+			}
+		}
+		ItemTemplateTable templates = this.itemTable != null ? this.itemTable
+				: (inventoryService != null ? inventoryService.templates() : null);
+		if (templates != null) {
+			var tmplOpt = templates.get(itemId);
+			if (tmplOpt.isPresent()) {
+				var tmpl = tmplOpt.get();
+				if (player.inventory() != null && tmpl.isStackable()) {
+					ItemInstance existing = player.inventory().byItemId(itemId).orElse(null);
+					if (existing != null) {
+						existing.count((int) Math.min(Integer.MAX_VALUE, (long) existing.count() + count));
+						if (itemRepository != null) {
+							itemRepository.update(existing);
+						}
+						return;
+					}
+				}
+				ItemInstance item = new ItemInstance(idFactory.nextId(), tmpl, player.objectId(), count);
+				if (player.inventory() != null) {
+					player.inventory().add(item);
+				}
+				if (itemRepository != null) {
+					itemRepository.insert(item, "ResetReward");
+				}
+				return;
+			}
+		}
+		if (player.inventory() != null) {
+			player.inventory().addItem(itemId, count);
+		}
 	}
 
 	public int getTotalResets(int playerId) {
@@ -148,6 +268,10 @@ public class CharacterResetService {
 		return list.size() > limit ? list.subList(0, limit) : list;
 	}
 
+	public String generateHtml(PlayerCharacter player) {
+		return generateHtml(player, buildInventoryMap(player));
+	}
+
 	public String generateHtml(PlayerCharacter player, Map<Integer, Long> inventoryCounts) {
 		StringBuilder sb = new StringBuilder();
 		sb.append("<html><title>Character Rebirth System</title><body><center>");
@@ -162,7 +286,11 @@ public class CharacterResetService {
 				.append("\">").append(player.pvpKills()).append(" / ").append(requirement.minPvP()).append("</font></td></tr>");
 
 		for (Map.Entry<Integer, Long> req : requirement.requiredItems().entrySet()) {
-			long owned = inventoryCounts.getOrDefault(req.getKey(), 0L);
+			long ownedMap = inventoryCounts != null ? inventoryCounts.getOrDefault(req.getKey(), 0L) : 0L;
+			long ownedInv = player.inventory() != null
+					? player.inventory().byItemId(req.getKey()).map(i -> (long) i.count()).orElse(0L)
+					: 0L;
+			long owned = Math.max(ownedMap, ownedInv);
 			sb.append("<tr><td>Cost (Item ").append(req.getKey()).append("): <font color=\"")
 					.append(owned >= req.getValue() ? "8FA888" : "B86B6B").append("\">")
 					.append(String.format("%,d", owned)).append(" / ").append(String.format("%,d", req.getValue())).append("</font></td></tr>");

@@ -93,7 +93,13 @@ public class BaiumService {
 
 	@PostConstruct
 	public void init() {
+		if (!Config.BAIUM_ENABLED) {
+			return;
+		}
 		if (grandBossManager != null) {
+			if (Config.BAIUM_RESPAWN_TIME_PATTERN != null && !Config.BAIUM_RESPAWN_TIME_PATTERN.isBlank()) {
+				grandBossManager.setBossCron(GrandBossManager.BAIUM, Config.BAIUM_RESPAWN_TIME_PATTERN);
+			}
 			this.status = grandBossManager.getStatus(GrandBossManager.BAIUM);
 		}
 		if (this.status == BossStatus.NOTSPAWN || this.status == BossStatus.ALIVE) {
@@ -118,7 +124,7 @@ public class BaiumService {
 	}
 
 	public boolean canEnter(PlayerCharacter player) {
-		if (player == null || player.isDead()) {
+		if (!Config.BAIUM_ENABLED || player == null || player.isDead()) {
 			return false;
 		}
 		// Quando o combate contra Baium comecou (FIGHTING), ninguem mais entra!
@@ -163,7 +169,7 @@ public class BaiumService {
 	}
 
 	public synchronized boolean awakenBaium(PlayerCharacter player) {
-		if (baiumStatue == null || status == BossStatus.FIGHTING) {
+		if (!Config.BAIUM_ENABLED || baiumStatue == null || status == BossStatus.FIGHTING) {
 			return false;
 		}
 
@@ -224,17 +230,48 @@ public class BaiumService {
 			grandBossManager.setStatus(GrandBossManager.BAIUM, BossStatus.ALIVE);
 		}
 
+		int noAttackMin = Math.max(1, Config.BAIUM_NO_ATTACK_TIME);
+		int activeMin = Math.max(noAttackMin, Config.BAIUM_ACTIVE_TIME);
+		if (sleepCheckTask != null) {
+			sleepCheckTask.cancel(false);
+		}
+		sleepCheckTask = scheduler.schedule(this::putBaiumToSleep,
+				Math.min(noAttackMin, activeMin) * 60L, TimeUnit.SECONDS);
+
 		if (world != null) {
 			world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Baium",
 					"Someone dared to awaken Baium! The doors are sealed!"), p -> true);
 		}
 
-		log.info("Baium despertou! 5 arcanjos gerados e status FIGHTING ativado.");
+		log.info("Baium despertou! 5 arcanjos gerados e status FIGHTING ativado (activeTime={}m, noAttackTime={}m).",
+				activeMin, noAttackMin);
 		return true;
+	}
+
+	public synchronized void putBaiumToSleep() {
+		if (status != BossStatus.FIGHTING) {
+			return;
+		}
+		for (NpcInstance angel : archangels) {
+			if (world != null) {
+				world.removeNpc(angel);
+			}
+		}
+		archangels.clear();
+		clearFloor();
+		status = BossStatus.ALIVE;
+		if (grandBossManager != null) {
+			grandBossManager.setStatus(GrandBossManager.BAIUM, BossStatus.ALIVE);
+		}
+		spawnStatue();
+		log.info("Baium voltou ao estado de estatua por inatividade.");
 	}
 
 	public synchronized void onBaiumKilled(PlayerCharacter killer) {
 		status = BossStatus.INTERVAL;
+		if (sleepCheckTask != null) {
+			sleepCheckTask.cancel(false);
+		}
 
 		// Remove arcanjos remanescentes
 		for (NpcInstance angel : archangels) {

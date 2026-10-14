@@ -111,6 +111,7 @@ public class ActionPacketHandler {
 				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, sMove, false);
 			}
 		}
+		MovementPacketHandler.checkFlagZoneOnMove(session);
 		session.updateKnownObjects();
 	}
 
@@ -136,6 +137,7 @@ public class ActionPacketHandler {
 		}
 		active.moveTo(p.x(), p.y(), p.z());
 		active.heading(p.heading());
+		MovementPacketHandler.checkFlagZoneOnMove(session);
 		session.updateKnownObjects();
 		session.checkPendingNpcInteract();
 		if (session.pendingGroundItemPickupObjectId() != 0) {

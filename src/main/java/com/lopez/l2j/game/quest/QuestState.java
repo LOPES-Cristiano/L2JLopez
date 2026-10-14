@@ -24,8 +24,8 @@ import org.slf4j.LoggerFactory;
 public class QuestState {
 
 	private static final Logger log = LoggerFactory.getLogger(QuestState.class);
-	private static final ScheduledExecutorService QUEST_TIMER_POOL =
-			Executors.newScheduledThreadPool(4, Thread.ofVirtual().name("QuestTimer-", 0).factory());
+	private static final ScheduledExecutorService QUEST_TIMER_POOL = Executors.newScheduledThreadPool(4,
+			Thread.ofVirtual().name("QuestTimer-", 0).factory());
 
 	public static final String SOUND_ACCEPT = "ItemSound.quest_accept";
 	public static final String SOUND_MIDDLE = "ItemSound.quest_middle";
@@ -194,15 +194,21 @@ public class QuestState {
 	}
 
 	public double getRateQuestsAdenaReward() {
-		return 1.0;
+		return com.lopez.l2j.config.Config.RATE_QUESTS_REWARD_ADENA > 0
+				? com.lopez.l2j.config.Config.RATE_QUESTS_REWARD_ADENA
+				: 1.0;
 	}
 
 	public double getRateQuestsReward() {
-		return 1.0;
+		return com.lopez.l2j.config.Config.RATE_QUESTS_REWARD_ITEMS > 0
+				? com.lopez.l2j.config.Config.RATE_QUESTS_REWARD_ITEMS
+				: 1.0;
 	}
 
 	public double getRateQuestsDrop() {
-		return 1.0;
+		return com.lopez.l2j.config.Config.RATE_DROP_QUEST > 0
+				? com.lopez.l2j.config.Config.RATE_DROP_QUEST
+				: 1.0;
 	}
 
 	public void dropItemDelay(com.lopez.l2j.game.npc.NpcInstance npc, int itemId, int count) {
@@ -278,27 +284,28 @@ public class QuestState {
 		var invSvc = player.context() != null ? player.context().inventories() : null;
 		var inv = player.activeChar().inventory();
 		if (inv != null) {
-			if (invSvc != null) {
-				var added = invSvc.addItem(inv, itemId, count, "Quest");
-				if (added != null) {
-					player.send(new InventoryUpdate(List.of(
-							ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
-					player.refreshWeightAndPenalties();
-				}
+			var added = (invSvc != null) ? invSvc.addItem(inv, itemId, count, "Quest") : null;
+			if (added != null) {
+				player.send(new InventoryUpdate(List.of(
+						ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
+				player.refreshWeightAndPenalties();
 			} else {
 				var opt = inv.byItemId(itemId);
 				if (opt.isPresent()) {
 					opt.get().count(opt.get().count() + count);
 				} else {
-					ItemTemplate dummy = ItemTemplate.etc(itemId, itemId, "QuestItem_" + itemId, "quest", "asset", 1, "none", 0, false, false, false, false);
-					inv.add(new ItemInstance(0x40000000 + (itemId & 0xFFFF), dummy, player.activeChar().objectId(), count));
+					ItemTemplate dummy = ItemTemplate.etc(itemId, itemId, "QuestItem_" + itemId, "quest", "asset", 1,
+							"none", 0, false, false, false, false);
+					inv.add(new ItemInstance(0x40000000 + (itemId & 0xFFFF), dummy, player.activeChar().objectId(),
+							count));
 				}
 				player.send(new InventoryUpdate(List.of(
 						ItemInfo.of(inv.byItemId(itemId).get(), ItemInfo.MODIFIED))));
 				player.refreshWeightAndPenalties();
 			}
 			if (count > 1) {
-				player.send(SystemMessage.of(SystemMessage.EARNED_S2_S1_S, new SystemMessage.Number(count), new SystemMessage.ItemName(itemId)));
+				player.send(SystemMessage.of(SystemMessage.EARNED_S2_S1_S, new SystemMessage.Number(count),
+						new SystemMessage.ItemName(itemId)));
 			} else {
 				player.send(SystemMessage.of(SystemMessage.EARNED_S1, new SystemMessage.ItemName(itemId)));
 			}
@@ -310,7 +317,9 @@ public class QuestState {
 	}
 
 	public void rewardItems(int itemId, int count) {
-		giveItems(itemId, count);
+		double rate = itemId == 57 ? getRateQuestsAdenaReward() : getRateQuestsReward();
+		int scaledCount = (rate == 1.0 || count <= 0) ? count : Math.max(1, (int) Math.round(count * rate));
+		giveItems(itemId, scaledCount);
 	}
 
 	public PlayerCharacter getPlayerCharacter() {
@@ -338,13 +347,11 @@ public class QuestState {
 		if (inv != null) {
 			int toTake = count < 0 ? (int) getQuestItemsCount(itemId) : count;
 			if (toTake > 0) {
-				if (invSvc != null) {
-					var consumed = invSvc.consumeItem(inv, itemId, toTake, "Quest");
-					if (consumed != null) {
-						player.send(new InventoryUpdate(List.of(
-								ItemInfo.of(consumed.item(), consumed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
-						player.refreshWeightAndPenalties();
-					}
+				var consumed = (invSvc != null) ? invSvc.consumeItem(inv, itemId, toTake, "Quest") : null;
+				if (consumed != null) {
+					player.send(new InventoryUpdate(List.of(
+							ItemInfo.of(consumed.item(), consumed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+					player.refreshWeightAndPenalties();
 				} else {
 					var opt = inv.byItemId(itemId);
 					if (opt.isPresent()) {
@@ -378,8 +385,11 @@ public class QuestState {
 	}
 
 	public boolean rollAndGive(int itemId, int count, double chance) {
-		if (chance <= 0) return false;
-		if (chance >= 100.0 || java.util.concurrent.ThreadLocalRandom.current().nextDouble(100.0) < chance) {
+		if (chance <= 0)
+			return false;
+		double effectiveChance = chance * getRateQuestsDrop();
+		if (effectiveChance >= 100.0
+				|| java.util.concurrent.ThreadLocalRandom.current().nextDouble(100.0) < effectiveChance) {
 			giveItems(itemId, count);
 			playSound(SOUND_ITEMGET);
 			return true;
@@ -388,11 +398,16 @@ public class QuestState {
 	}
 
 	public boolean rollAndGive(int itemId, int count, int countMax, int limit, double chance) {
-		if (chance <= 0) return false;
+		if (chance <= 0)
+			return false;
 		long current = getQuestItemsCount(itemId);
-		if (limit > 0 && current >= limit) return false;
-		if (chance >= 100.0 || java.util.concurrent.ThreadLocalRandom.current().nextDouble(100.0) < chance) {
-			int add = countMax > count ? java.util.concurrent.ThreadLocalRandom.current().nextInt(count, countMax + 1) : count;
+		if (limit > 0 && current >= limit)
+			return false;
+		double effectiveChance = chance * getRateQuestsDrop();
+		if (effectiveChance >= 100.0
+				|| java.util.concurrent.ThreadLocalRandom.current().nextDouble(100.0) < effectiveChance) {
+			int add = countMax > count ? java.util.concurrent.ThreadLocalRandom.current().nextInt(count, countMax + 1)
+					: count;
 			if (limit > 0 && current + add > limit) {
 				add = (int) (limit - current);
 			}
@@ -409,7 +424,10 @@ public class QuestState {
 		if (player == null || player.activeChar() == null) {
 			return;
 		}
-		player.applyExpAndSp(exp, sp);
+		float mult = com.lopez.l2j.config.Config.RATE_QUESTS_REWARD_EXP_SP;
+		long scaledExp = (mult > 0f && mult != 1.0f) ? Math.round(exp * mult) : exp;
+		int scaledSp = (mult > 0f && mult != 1.0f) ? Math.round(sp * mult) : sp;
+		player.applyExpAndSp(scaledExp, scaledSp);
 	}
 
 	public void addExpAndSp(long exp, long sp) {
@@ -584,7 +602,8 @@ public class QuestState {
 	}
 
 	public long getQuestItemsCount(int... itemIds) {
-		if (itemIds == null) return 0;
+		if (itemIds == null)
+			return 0;
 		long total = 0;
 		for (int id : itemIds) {
 			total += getQuestItemsCount(id);

@@ -124,5 +124,11 @@ class ClanHallServiceTest {
 		// Remove function
 		assertTrue(functionService.removeFunction(hallId, ClanHallFunctionRecord.FUNC_RESTORE_HP));
 		assertEquals(1.0, functionService.calculateHpRegenBonus(leader, hallId));
+
+		// Activate function debiting Adena from leader
+		leader.inventory().add(new ItemInstance(1003, createItemTemplate(57, "Adena"), leader.objectId(), 500_000));
+		assertTrue(functionService.activateFunction(leader, hallId, ClanHallFunctionService.FunctionType.TELEPORT, 2));
+		assertTrue(functionService.getFunction(hallId, ClanHallFunctionRecord.FUNC_TELEPORT).isPresent());
+		assertTrue(leader.inventory().getItemCount(57) < 500_000);
 	}
 }

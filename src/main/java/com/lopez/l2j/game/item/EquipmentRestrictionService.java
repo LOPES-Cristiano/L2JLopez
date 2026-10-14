@@ -12,6 +12,25 @@ public final class EquipmentRestrictionService {
 	private EquipmentRestrictionService() {
 	}
 
+	public static boolean isHeroItem(int itemId) {
+		return (itemId >= 6611 && itemId <= 6621) || itemId == 6842;
+	}
+
+	/**
+	 * Verifica se o jogador mantém status de Hero ao logar sem clã (LOG_IS_HERO_NO_CLAN)
+	 * e se itens Hero devem ser removidos quando o jogador não é Hero (STRICT_HERO_SYSTEM).
+	 */
+	public static boolean checkHeroStatusOnLogin(PlayerCharacter player) {
+		if (player == null) {
+			return false;
+		}
+		if (player.isHero() && player.clanId() <= 0 && !Config.LOG_IS_HERO_NO_CLAN) {
+			player.setHero(false);
+			return false;
+		}
+		return player.isHero();
+	}
+
 	/**
 	 * Verifica se o jogador possui permissao para equipar o item.
 	 *
@@ -22,6 +41,16 @@ public final class EquipmentRestrictionService {
 	public static boolean canEquip(PlayerCharacter player, ItemInstance item) {
 		if (player == null || item == null) {
 			return false;
+		}
+
+		// 0. Restricao de Itens de Heroi (StrictHeroSystem e LogIsHeroNoClan)
+		if (isHeroItem(item.itemId()) && Config.STRICT_HERO_SYSTEM) {
+			if (!player.isHero()) {
+				return false;
+			}
+			if (player.clanId() <= 0 && !Config.LOG_IS_HERO_NO_CLAN) {
+				return false;
+			}
 		}
 
 		// 1. Verificacao de nivel de encantamento maximo permitido para equipar

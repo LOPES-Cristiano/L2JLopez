@@ -1,5 +1,7 @@
 package com.lopez.l2j.game.service;
 
+import com.lopez.l2j.game.item.Inventory;
+import com.lopez.l2j.game.model.PlayerCharacter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +17,18 @@ class LotteryServiceTest {
     @BeforeEach
     void setUp() {
         lotteryService = new LotteryService();
+    }
+
+    private PlayerCharacter createPlayer(int id, String name, int initialAdena) {
+        PlayerCharacter player = new PlayerCharacter(id, "acc", name, 40, 0, 0, 0, 0, 0, false,
+                0, 0, 0, 1000, 500, 500, 0, 0, 0, 0, "", 0, 0, 0,
+                0, 0, 0, 0, 1000, 500, 500);
+        Inventory inv = new Inventory(id);
+        if (initialAdena > 0) {
+            inv.addAdena(initialAdena);
+        }
+        player.inventory(inv);
+        return player;
     }
 
     @Test
@@ -44,4 +58,23 @@ class LotteryServiceTest {
         assertTrue(lotteryService.getCurrentTickets().isEmpty(), "Ingressos devem resetar apos o sorteio");
         assertEquals(initialLotteryId + 1, lotteryService.getCurrentLotteryId());
     }
+
+    @Test
+    void testPlayerBuyTicketAndClaimPrize() {
+        PlayerCharacter player = createPlayer(100, "LuckyPlayer", 5000);
+        int round = lotteryService.getCurrentLotteryId();
+
+        assertTrue(lotteryService.buyTicket(player, Set.of(1, 2, 3, 4, 5)));
+        assertEquals(3000L, player.inventory().adena());
+
+        lotteryService.drawLotteryWithNumbers(Set.of(1, 2, 3, 4, 5));
+
+        int prize = lotteryService.claimPrize(player, round);
+        assertTrue(prize > 0);
+        assertEquals(3000L + prize, player.inventory().adena());
+
+        // Nao deve resgatar duas vezes na mesma rodada
+        assertEquals(0, lotteryService.claimPrize(player, round));
+    }
 }
+

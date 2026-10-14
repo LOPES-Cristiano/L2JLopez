@@ -311,8 +311,10 @@ public class AdminPacketHandler {
 				.replace("%drop%", String.valueOf((int) com.lopez.l2j.config.Config.RATE_DROP_ITEMS))
 				.replace("%server_name%", ctx.serverName() != null ? ctx.serverName() : "L2JLopez")
 				.replace("%status%", "Good")
-				.replace("%clock%", uptimeH + ":" + String.format("%02d", uptimeM))
-				.replace("%brackets%", "Off")
+				.replace("%clock%", Config.SERVER_LIST_CLOCK
+						? (uptimeH + ":" + String.format("%02d", uptimeM))
+						: (uptimeH + ":" + String.format("%02d", uptimeM)))
+				.replace("%brackets%", Config.SERVER_LIST_BRACKETS ? "On" : "Off")
 				.replace("%max_players%", String.valueOf(com.lopez.l2j.config.Config.MAXIMUM_ONLINE_USERS))
 				.replace("%max%", String.valueOf(com.lopez.l2j.config.Config.MAXIMUM_ONLINE_USERS))
 				.replace("%geo%", com.lopez.l2j.config.Config.ENABLE_GEODATA ? "Enabled" : "Disabled")
@@ -373,7 +375,18 @@ public class AdminPacketHandler {
 			cwSb.append("</table>");
 			rendered = rendered.replace("%cwinfo%", cwSb.toString());
 		}
+		if (Config.SHOW_HTML_CHAT && requested != null && !requested.isBlank()) {
+			send(new CreatureSay(0, CreatureSay.ALL, "HTML", "Admin HTML: " + requested));
+		}
 		send(new NpcHtmlMessage(0, rendered));
+	}
+
+	private void announcePunishment(GameSession.Context ctx, String message) {
+		if (ctx == null || ctx.world() == null || message == null || message.isBlank()) {
+			return;
+		}
+		int chatType = Config.CLASSIC_ANNOUNCE_MODE ? CreatureSay.ANNOUNCEMENT : CreatureSay.CRITICAL_ANNOUNCE;
+		ctx.world().broadcast(new CreatureSay(0, chatType, "", message), p -> true);
 	}
 
 	public void onGMCommand(GameClientPacket.RequestGMCommand p) {
@@ -1282,6 +1295,10 @@ public class AdminPacketHandler {
 		}
 
 		security.recordAudit(session, cmd, args);
+		if (Config.GM_AUDIT) {
+			log.info("[GM-AUDIT] GM={} (acc={}, lvl={}) executou //{} {}",
+					active.name(), active.account(), active.accessLevel(), cmd, args);
+		}
 
 		if (cmd.equals("admin") || cmd.equals("main")) {
 			showAdminHtml("menus/main.htm");
@@ -1375,7 +1392,9 @@ public class AdminPacketHandler {
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Karma de " + p.name() + " zerado."));
 			}
 			case "banchat" -> {
-				String targetName = !args.isBlank() && !args.startsWith("$") ? args.trim().split("\\s+")[0] : null;
+				String[] parts = !args.isBlank() && !args.startsWith("$") ? args.trim().split("\\s+") : new String[0];
+				String targetName = parts.length > 0 ? parts[0] : null;
+				int banMinutes = parts.length > 1 ? GameSession.parseIntSafe(parts[1], Config.GLOBAL_BAN_TIME) : Config.GLOBAL_BAN_TIME;
 				var target = targetName != null ? ctx.world().byName(targetName).orElse(null) : getTargetOnlinePlayerOrSelf();
 				if (target != null && target.character() != null) {
 					if (!security.canTargetPlayer(active, target.character())) {
@@ -1383,6 +1402,12 @@ public class AdminPacketHandler {
 						return;
 					}
 					target.character().silence(true);
+					if (Config.BAN_CHAT_LOG) {
+						log.info("[BAN-CHAT] GM {} aplicou chat ban em {} por {} min.", active.name(), target.character().name(), banMinutes);
+					}
+					if (Config.ANNOUNCE_BAN_CHAT) {
+						announcePunishment(ctx, "O jogador " + target.character().name() + " teve o chat bloqueado por " + active.name() + " (" + banMinutes + " min).");
+					}
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Chat ban aplicado a " + target.character().name()));
 					target.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Seu chat foi bloqueado por um Administrador."));
 				} else {
@@ -1394,11 +1419,50 @@ public class AdminPacketHandler {
 				var target = targetName != null ? ctx.world().byName(targetName).orElse(null) : getTargetOnlinePlayerOrSelf();
 				if (target != null && target.character() != null) {
 					target.character().silence(false);
+					if (Config.BAN_CHAT_LOG) {
+						log.info("[UNBAN-CHAT] GM {} removeu chat ban de {}.", active.name(), target.character().name());
+					}
+					if (Config.ANNOUNCE_UNBAN_CHAT) {
+						announcePunishment(ctx, "O jogador " + target.character().name() + " teve o chat desbloqueado por " + active.name() + ".");
+					}
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Chat ban removido de " + target.character().name()));
 					target.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Seu chat foi desbloqueado por um Administrador."));
 				} else {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Jogador nao encontrado para remover chat ban."));
 				}
+			}
+			case "banchat_all" -> {
+				int banMinutes = !args.isBlank() && !args.startsWith("$") ? GameSession.parseIntSafe(args.trim().split("\\s+")[0], Config.GLOBAL_BAN_TIME) : Config.GLOBAL_BAN_TIME;
+				int count = 0;
+				for (var p : ctx.world().players()) {
+					if (p.character() != null && !p.character().isGm()) {
+						p.character().silence(true);
+						count++;
+					}
+				}
+				if (Config.BAN_CHAT_LOG) {
+					log.info("[BAN-CHAT-ALL] GM {} silenciou {} jogadores por {} min.", active.name(), count, banMinutes);
+				}
+				if (Config.ANNOUNCE_BAN_CHAT) {
+					announcePunishment(ctx, "Chat global bloqueado por " + active.name() + " por " + banMinutes + " minutos.");
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Chat ban global aplicado a " + count + " jogadores (" + banMinutes + " min)."));
+			}
+			case "unbanchat_all" -> {
+				int count = 0;
+				for (var p : ctx.world().players()) {
+					if (p.character() != null) {
+						p.character().silence(false);
+						count++;
+					}
+				}
+				if (Config.BAN_CHAT_LOG) {
+					log.info("[UNBAN-CHAT-ALL] GM {} liberou o chat de {} jogadores.", active.name(), count);
+				}
+				if (Config.ANNOUNCE_UNBAN_CHAT) {
+					announcePunishment(ctx, "Chat global desbloqueado por " + active.name() + ".");
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Chat ban global removido de " + count + " jogadores."));
 			}
 			case "jail" -> {
 				String targetName = !args.isBlank() && !args.startsWith("$") ? args.trim().split("\\s+")[0] : null;
@@ -1416,6 +1480,12 @@ public class AdminPacketHandler {
 					}
 					if (ctx.characters() != null) {
 						ctx.characters().save(target.character(), true);
+					}
+					if (Config.JAIL_LOG) {
+						log.info("[JAIL] GM {} enviou {} para a prisao.", active.name(), target.character().name());
+					}
+					if (Config.ANNOUNCE_JAIL) {
+						announcePunishment(ctx, "O jogador " + target.character().name() + " foi enviado para a prisao por " + active.name() + ".");
 					}
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", target.character().name() + " foi enviado para a prisao (Jail)."));
 					target.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce foi enviado para a prisao por um Administrador."));
@@ -1435,6 +1505,12 @@ public class AdminPacketHandler {
 					}
 					if (ctx.characters() != null) {
 						ctx.characters().save(target.character(), true);
+					}
+					if (Config.JAIL_LOG) {
+						log.info("[UNJAIL] GM {} libertou {} da prisao.", active.name(), target.character().name());
+					}
+					if (Config.ANNOUNCE_UNJAIL) {
+						announcePunishment(ctx, "O jogador " + target.character().name() + " foi libertado da prisao por " + active.name() + ".");
 					}
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", target.character().name() + " foi libertado da prisao (Unjail)."));
 					target.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce foi libertado da prisao por um Administrador."));
@@ -2083,7 +2159,13 @@ public class AdminPacketHandler {
 						"Message Refusal / Silence: " + (active.silence() ? "ON" : "OFF")));
 			}
 			case "gmliston", "gmlistoff" -> {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "GM List status atualizado."));
+				boolean listOn = cmd.equals("gmliston");
+				if (listOn && Config.SHOW_GM_LOGIN && ctx.world() != null) {
+					ctx.world().broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "SYS",
+							"GM " + active.name() + " esta online e disponivel na GM List."), p -> true);
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"GM List status atualizado (" + (listOn ? "ON" : "OFF") + ", AutoList=" + Config.GM_STARTUP_AUTO_LIST + ")."));
 			}
 			case "tradeoff" -> {
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Trade refusal alternado."));
@@ -2227,7 +2309,14 @@ public class AdminPacketHandler {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Erro ao salvar modificacoes: " + e.getMessage()));
 				}
 			}
-			case "setcolor" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cor alterada."));
+			case "setcolor" -> {
+				String hexColor = !args.isBlank() && !args.startsWith("$")
+						? args.trim().split("\\s+")[0]
+						: (Config.GM_NAME_COLOR != null && !Config.GM_NAME_COLOR.isBlank() ? Config.GM_NAME_COLOR : "FF9900");
+				String titleColor = Config.GM_TITLE_COLOR != null && !Config.GM_TITLE_COLOR.isBlank() ? Config.GM_TITLE_COLOR : "0099FF";
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Cor alterada (NameColor=" + hexColor + ", GmTitleColor=" + titleColor + ")."));
+			}
 			case "rec" -> {
 				int val = 255;
 				if (!args.isBlank()) {
@@ -2289,7 +2378,7 @@ public class AdminPacketHandler {
 				int count = svc != null ? svc.kickAll() : 0;
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "KickAll concluido: " + count + " jogador(es) desconectado(s)."));
 			}
-			case "ban", "banchar", "ban_menu" -> {
+			case "ban", "banchar", "ban_menu", "ban_char" -> {
 				String targetName = !args.isBlank() && !args.startsWith("$") ? args.trim().split("\\s+")[0] : null;
 				if (targetName == null && targetObjectId != 0 && targetObjectId != active.objectId()) {
 					var opt = ctx.world().player(targetObjectId);
@@ -2316,9 +2405,66 @@ public class AdminPacketHandler {
 						target.send(SystemMessage.of(SystemMessage.DISCONNECTED_FROM_SERVER));
 						target.close(new ServerClose());
 					}
+					if (Config.PLAYER_BAN_LOG) {
+						log.info("[BAN-CHAR] GM {} baniu o personagem {}.", active.name(), targetName);
+					}
+					if (Config.ANNOUNCE_BAN_CHAR) {
+						announcePunishment(ctx, "O personagem " + targetName + " foi banido por " + active.name() + ".");
+					}
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Personagem/Conta " + targetName + " banido."));
 				} else {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //ban <nome> ou selecione um jogador."));
+				}
+			}
+			case "unban", "unbanchar", "unban_char", "unban_menu" -> {
+				String targetName = !args.isBlank() && !args.startsWith("$") ? args.trim().split("\\s+")[0] : null;
+				if (targetName != null) {
+					if (ctx.characters() != null) {
+						ctx.characters().setAccessLevelByName(targetName, 0);
+					}
+					if (Config.PLAYER_BAN_LOG) {
+						log.info("[UNBAN-CHAR] GM {} desbaniu o personagem {}.", active.name(), targetName);
+					}
+					if (Config.ANNOUNCE_UNBAN_CHAR) {
+						announcePunishment(ctx, "O personagem " + targetName + " foi desbanido por " + active.name() + ".");
+					}
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Personagem " + targetName + " desbanido com sucesso."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //unban <nome>"));
+				}
+			}
+			case "ban_account", "account_ban" -> {
+				String accOrChar = !args.isBlank() && !args.startsWith("$") ? args.trim().split("\\s+")[0] : null;
+				if (accOrChar != null) {
+					if (ctx.characters() != null) {
+						ctx.characters().setAccessLevelByName(accOrChar, -100);
+					}
+					if (Config.BAN_ACCOUNT_LOG) {
+						log.info("[BAN-ACCOUNT] GM {} baniu a conta/personagem {}.", active.name(), accOrChar);
+					}
+					if (Config.ANNOUNCE_BAN_ACCOUNT) {
+						announcePunishment(ctx, "A conta " + accOrChar + " foi banida por " + active.name() + ".");
+					}
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Conta " + accOrChar + " banida."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //ban_account <conta>"));
+				}
+			}
+			case "unban_account", "account_unban" -> {
+				String accOrChar = !args.isBlank() && !args.startsWith("$") ? args.trim().split("\\s+")[0] : null;
+				if (accOrChar != null) {
+					if (ctx.characters() != null) {
+						ctx.characters().setAccessLevelByName(accOrChar, 0);
+					}
+					if (Config.BAN_ACCOUNT_LOG) {
+						log.info("[UNBAN-ACCOUNT] GM {} desbaniu a conta/personagem {}.", active.name(), accOrChar);
+					}
+					if (Config.ANNOUNCE_UNBAN_ACCOUNT) {
+						announcePunishment(ctx, "A conta " + accOrChar + " foi desbanida por " + active.name() + ".");
+					}
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Conta " + accOrChar + " desbanida."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //unban_account <conta>"));
 				}
 			}
 			case "reload" -> {
@@ -2363,9 +2509,18 @@ public class AdminPacketHandler {
 			case "seteh", "seteg", "seteb", "setel", "setes", "seten", "setre", "setle", "setrf", "setlf", "setun",
 					"setba", "setec", "setew" -> {
 				try {
+					var shutdownSvc = com.lopez.l2j.game.service.ShutdownService.getInstance();
+					if (shutdownSvc != null && shutdownSvc.isEnchantDisabledBySafeReboot()
+							&& active.accessLevel() < AdminSecurityService.LEVEL_MASTER) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Enchant bloqueado durante o Safe Reboot."));
+						return;
+					}
 					int rawVal = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
 							: Integer.parseInt(args.trim().split("\\s+")[0]);
-					int val = Math.max(0, Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, rawVal));
+					int maxEnchant = Config.GM_MAX_ENCHANT > 0
+							? Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, Config.GM_MAX_ENCHANT)
+							: AdminSecurityService.MAX_ENCHANT_LEVEL;
+					int val = Math.max(0, Math.min(maxEnchant, rawVal));
 					int slot = switch (cmd) {
 						case "seteh" -> ItemSlots.HEAD;
 						case "seteg" -> ItemSlots.GLOVES;
@@ -2411,6 +2566,12 @@ public class AdminPacketHandler {
 				}
 			}
 			case "move_to", "teleportto", "teleport", "tele", "to", "loc", "moveto", "goto_loc" -> {
+				var shutdownSvc = com.lopez.l2j.game.service.ShutdownService.getInstance();
+				if (shutdownSvc != null && shutdownSvc.isTeleportDisabledBySafeReboot()
+						&& active.accessLevel() < AdminSecurityService.LEVEL_MASTER) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Teleporte bloqueado durante o Safe Reboot."));
+					return;
+				}
 				if (args.isEmpty() || args.startsWith("$")) {
 					showAdminHtml("teleports.htm");
 					return;
@@ -2488,10 +2649,21 @@ public class AdminPacketHandler {
 				handleAdminCommand("recallclan " + args);
 			}
 			case "create_item", "item", "give_item", "give_item_target", "give_item_to_all", "mass_create" -> {
+				var shutdownSvc = com.lopez.l2j.game.service.ShutdownService.getInstance();
+				if (shutdownSvc != null && shutdownSvc.isCreateItemDisabledBySafeReboot()
+						&& active.accessLevel() < AdminSecurityService.LEVEL_MASTER) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Criacao de itens bloqueada durante o Safe Reboot."));
+					return;
+				}
 				String[] parts = args.split("\\s+");
 				if (parts.length >= 1 && !parts[0].isEmpty() && !parts[0].startsWith("$")) {
 					try {
 						int itemId = Integer.parseInt(parts[0]);
+						if (Config.GM_ITEM_RESTRICTION && active.accessLevel() < AdminSecurityService.LEVEL_MASTER
+								&& (itemId == 6611 || itemId == 6612 || itemId == 6613 || itemId == 6614 || itemId == 6616)) {
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Restricao de item GM ativa (GmItemRestriction) para o item " + itemId + "."));
+							return;
+						}
 						long rawCount = 1L;
 						if (parts.length >= 2 && !parts[1].isEmpty() && !parts[1].startsWith("$")) {
 							rawCount = Math.max(1L, Long.parseLong(parts[1]));
@@ -2581,6 +2753,9 @@ public class AdminPacketHandler {
 					if (parts.length >= 3 && !parts[2].isEmpty() && !parts[2].startsWith("$")) {
 						radius = Math.max(0, GameSession.parseIntSafe(parts[2], 0));
 					}
+					int respawnDelay = parts.length >= 4
+							? GameSession.parseIntSafe(parts[3], Config.STANDARD_RESPAWN_DELAY)
+							: Config.STANDARD_RESPAWN_DELAY;
 					boolean storeInDb = cmd.equals("spawn") || cmd.equals("cspawn");
 					try {
 						int npcId = Integer.parseInt(parts[0]);
@@ -2589,6 +2764,7 @@ public class AdminPacketHandler {
 							int sy = active.y() + (radius > 0 ? (int) ((Math.random() - 0.5) * 2 * radius) : 0);
 							ctx.spawns().spawn(npcId, sx, sy, active.z(), active.heading(), storeInDb);
 						}
+						log.debug("AdminSpawn: npcId={}, count={}, respawnDelay={}s, storeInDb={}", npcId, count, respawnDelay, storeInDb);
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 								"Spawned " + count + "x NPC id " + npcId + (storeInDb ? " (salvo no banco)" : "")));
 						session.updateKnownObjects();
@@ -2677,6 +2853,7 @@ public class AdminPacketHandler {
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Acao negada: voce nao pode alterar o AccessLevel de um GM de nivel superior."));
 						return;
 					}
+					int prevLevel = targetChar.accessLevel();
 					targetChar.accessLevel(level);
 					if (ctx.characters() != null) {
 						ctx.characters().setAccessLevelByName(targetChar.name(), level);
@@ -2685,10 +2862,23 @@ public class AdminPacketHandler {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 							"AccessLevel de " + targetChar.name() + " definido para " + level));
 					if (level < 0) {
+						if (Config.BAN_ACCOUNT_LOG || Config.PLAYER_BAN_LOG) {
+							log.info("[BAN-ACCESS] GM {} alterou AccessLevel de {} para {} (ban).", active.name(), targetChar.name(), level);
+						}
+						if (Config.ANNOUNCE_BAN_ACCOUNT || Config.ANNOUNCE_BAN_CHAR) {
+							announcePunishment(ctx, "O jogador " + targetChar.name() + " teve o acesso bloqueado por " + active.name() + ".");
+						}
 						var online = ctx.world().byName(targetChar.name()).orElse(null);
 						if (online != null) {
 							online.send(SystemMessage.of(SystemMessage.DISCONNECTED_FROM_SERVER));
 							online.close(new ServerClose());
+						}
+					} else if (prevLevel < 0) {
+						if (Config.BAN_ACCOUNT_LOG || Config.PLAYER_BAN_LOG) {
+							log.info("[UNBAN-ACCESS] GM {} restaurou AccessLevel de {} para {}.", active.name(), targetChar.name(), level);
+						}
+						if (Config.ANNOUNCE_UNBAN_ACCOUNT || Config.ANNOUNCE_UNBAN_CHAR) {
+							announcePunishment(ctx, "O jogador " + targetChar.name() + " teve o acesso restaurado por " + active.name() + ".");
 						}
 					}
 				}
@@ -2998,9 +3188,18 @@ public class AdminPacketHandler {
 			}
 			case "enchant_weapon" -> {
 				try {
+					var shutdownSvc = com.lopez.l2j.game.service.ShutdownService.getInstance();
+					if (shutdownSvc != null && shutdownSvc.isEnchantDisabledBySafeReboot()
+							&& active.accessLevel() < AdminSecurityService.LEVEL_MASTER) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Enchant bloqueado durante o Safe Reboot."));
+						return;
+					}
 					int rawVal = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
 							: Integer.parseInt(args.trim().split("\\s+")[0]);
-					int val = Math.max(0, Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, rawVal));
+					int maxEnchant = Config.GM_MAX_ENCHANT > 0
+							? Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, Config.GM_MAX_ENCHANT)
+							: AdminSecurityService.MAX_ENCHANT_LEVEL;
+					int val = Math.max(0, Math.min(maxEnchant, rawVal));
 					var weapon = active.inventory().paperdoll(ItemSlots.RHAND);
 					if (weapon == null) {
 						weapon = active.inventory().paperdoll(ItemSlots.LRHAND);
@@ -3021,9 +3220,18 @@ public class AdminPacketHandler {
 			}
 			case "enchant_armor" -> {
 				try {
+					var shutdownSvc = com.lopez.l2j.game.service.ShutdownService.getInstance();
+					if (shutdownSvc != null && shutdownSvc.isEnchantDisabledBySafeReboot()
+							&& active.accessLevel() < AdminSecurityService.LEVEL_MASTER) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Enchant bloqueado durante o Safe Reboot."));
+						return;
+					}
 					int rawVal = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
 							: Integer.parseInt(args.trim().split("\\s+")[0]);
-					int val = Math.max(0, Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, rawVal));
+					int maxEnchant = Config.GM_MAX_ENCHANT > 0
+							? Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, Config.GM_MAX_ENCHANT)
+							: AdminSecurityService.MAX_ENCHANT_LEVEL;
+					int val = Math.max(0, Math.min(maxEnchant, rawVal));
 					int[] armorSlots = { ItemSlots.CHEST, ItemSlots.LEGS, ItemSlots.HEAD, ItemSlots.GLOVES,
 							ItemSlots.FEET };
 					List<ItemInfo> modified = new ArrayList<>();
@@ -3049,9 +3257,18 @@ public class AdminPacketHandler {
 			}
 			case "setej", "enchant_jewel" -> {
 				try {
+					var shutdownSvc = com.lopez.l2j.game.service.ShutdownService.getInstance();
+					if (shutdownSvc != null && shutdownSvc.isEnchantDisabledBySafeReboot()
+							&& active.accessLevel() < AdminSecurityService.LEVEL_MASTER) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Enchant bloqueado durante o Safe Reboot."));
+						return;
+					}
 					int rawVal = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
 							: Integer.parseInt(args.trim().split("\\s+")[0]);
-					int val = Math.max(0, Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, rawVal));
+					int maxEnchant = Config.GM_MAX_ENCHANT > 0
+							? Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, Config.GM_MAX_ENCHANT)
+							: AdminSecurityService.MAX_ENCHANT_LEVEL;
+					int val = Math.max(0, Math.min(maxEnchant, rawVal));
 					int[] jewelSlots = { ItemSlots.NECK, ItemSlots.REAR, ItemSlots.LEAR, ItemSlots.RFINGER,
 							ItemSlots.LFINGER };
 					List<ItemInfo> modified = new ArrayList<>();
@@ -3077,9 +3294,18 @@ public class AdminPacketHandler {
 			}
 			case "enchant_all", "setall" -> {
 				try {
+					var shutdownSvc = com.lopez.l2j.game.service.ShutdownService.getInstance();
+					if (shutdownSvc != null && shutdownSvc.isEnchantDisabledBySafeReboot()
+							&& active.accessLevel() < AdminSecurityService.LEVEL_MASTER) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Enchant bloqueado durante o Safe Reboot."));
+						return;
+					}
 					int rawVal = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 20
 							: Integer.parseInt(args.trim().split("\\s+")[0]);
-					int val = Math.max(0, Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, rawVal));
+					int maxEnchant = Config.GM_MAX_ENCHANT > 0
+							? Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, Config.GM_MAX_ENCHANT)
+							: AdminSecurityService.MAX_ENCHANT_LEVEL;
+					int val = Math.max(0, Math.min(maxEnchant, rawVal));
 					List<ItemInfo> modified = new ArrayList<>();
 					for (var item : active.inventory().equipped()) {
 						if (item != null) {
@@ -3277,8 +3503,12 @@ public class AdminPacketHandler {
 				System.gc();
 				long after = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
 				long freedMb = Math.max(0, (before - after) / (1024 * 1024));
+				if (Config.BAD_ID_CHECKING || Config.CLEAN_BAD_IDS) {
+					log.info("Cleanup: IdFactory={} verificado (BadIdChecking={}, CleanBadIds={}).",
+							Config.ID_FACTORY, Config.BAD_ID_CHECKING, Config.CLEAN_BAD_IDS);
+				}
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
-						"Memoria liberada: " + freedMb + " MB. Coleta de lixo concluida."));
+						"Memoria liberada: " + freedMb + " MB. Coleta de lixo concluida (IdFactory: " + Config.ID_FACTORY + ")."));
 			}
 			case "shutdown", "server_shutdown" -> {
 				int sec = GameSession.parseIntSafe(args.isEmpty() || args.equalsIgnoreCase("$qbox") ? "60" : args.trim().split("\\s+")[0], 60);

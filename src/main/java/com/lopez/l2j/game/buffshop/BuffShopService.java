@@ -290,6 +290,27 @@ public class BuffShopService {
 			1016, 1018, 1020, 1031, 1340
 	);
 
+	public static Set<Integer> getConfiguredValidBuffShopSkills() {
+		String raw = Config.VALID_BUFF_SHOP_SKILLS;
+		if (raw == null || raw.isBlank()) {
+			return Collections.emptySet();
+		}
+		Set<Integer> allowed = new LinkedHashSet<>();
+		for (String part : raw.split("[,;\\s]+")) {
+			String trimmed = part.trim();
+			if (!trimmed.isEmpty()) {
+				try {
+					allowed.add(Integer.parseInt(trimmed));
+				} catch (NumberFormatException ignored) {}
+			}
+		}
+		return allowed;
+	}
+
+	public boolean isOfflineBuffShopAllowed() {
+		return Config.ALLOW_OFFLINE_BUFF;
+	}
+
 	/**
 	 * Identifica quais skills ativas o personagem possui que podem ser disponibilizadas para venda como buff.
 	 */
@@ -299,9 +320,14 @@ public class BuffShopService {
 			return list;
 		}
 
+		Set<Integer> configuredValidSkills = getConfiguredValidBuffShopSkills();
+
 		for (var entry : player.skills().entrySet()) {
 			int skillId = entry.getKey();
 			if (EXCLUDED_BUFF_SHOP_SKILLS.contains(skillId)) {
+				continue;
+			}
+			if (!configuredValidSkills.isEmpty() && !configuredValidSkills.contains(skillId)) {
 				continue;
 			}
 			int level = entry.getValue();
@@ -358,8 +384,12 @@ public class BuffShopService {
 			cleanTitle = cleanTitle.substring(0, 50);
 		}
 
+		Set<Integer> configuredValidSkills = getConfiguredValidBuffShopSkills();
 		Map<Integer, BuffShopItem> itemMap = new ConcurrentHashMap<>();
 		for (BuffShopItem item : items) {
+			if (!configuredValidSkills.isEmpty() && !configuredValidSkills.contains(item.skillId())) {
+				continue;
+			}
 			if (item.price() >= 0 && itemMap.size() < MAX_BUFFS_PER_SHOP) {
 				itemMap.put(item.skillId(), item);
 			}
@@ -373,6 +403,9 @@ public class BuffShopService {
 		seller.privateStoreType(1); // STORE_PRIVATE_SELL
 		seller.storeTitle(cleanTitle);
 		seller.setBuffShop(true);
+		if (Config.BUFF_SHOP_EFFECT > 0) {
+			seller.startAbnormalEffect(Config.BUFF_SHOP_EFFECT);
+		}
 
 		if (Config.BUFF_SHOP_TITLE_COLOR != null && !Config.BUFF_SHOP_TITLE_COLOR.isBlank()) {
 			try {
@@ -402,6 +435,9 @@ public class BuffShopService {
 		seller.storeTitle(null);
 		seller.setBuffShop(false);
 		seller.sitting(false);
+		if (Config.BUFF_SHOP_EFFECT > 0) {
+			seller.stopAbnormalEffect(Config.BUFF_SHOP_EFFECT);
+		}
 		seller.titleColor(0xFFFF77);
 		seller.nameColor(0xFFFFFF);
 

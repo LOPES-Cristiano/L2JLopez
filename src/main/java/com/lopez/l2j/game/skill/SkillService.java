@@ -80,24 +80,68 @@ public class SkillService {
 				}
 			}
 		}
-		cleanInvalidSkills(p);
+		if (Config.CHECK_SKILLS_ON_ENTER || !Config.ALT_SUBCLASS_SKILLS) {
+			cleanInvalidSkills(p);
+		}
 		refreshPassives(p);
 	}
 
-	/** Junta as funcoes de stat de todas as passivas conhecidas. */
+	/** Junta as funcoes de stat de todas as passivas conhecidas (respeitando DISABLE_SKILLS_ON_LEVEL_LOST). */
 	public void refreshPassives(PlayerCharacter p) {
 		List<StatFunc> funcs = new ArrayList<>();
 		for (var e : p.skills().entrySet()) {
+			if (isSkillDisabledByLevelLoss(p, e.getKey(), e.getValue())) {
+				continue;
+			}
 			table.get(e.getKey(), e.getValue()).filter(SkillTemplate::isPassive).ifPresent(s -> funcs.addAll(s.funcs()));
 		}
 		p.passiveFuncs(funcs);
 	}
 
-	/** Lista para o pacote SkillList (ordenada por id). */
+	/**
+	 * Verifica se um skill deve ser desativado devido a perda de nivel (DISABLE_SKILLS_ON_LEVEL_LOST).
+	 */
+	public boolean isSkillDisabledByLevelLoss(PlayerCharacter p, int skillId, int skillLevel) {
+		if (!Config.DISABLE_SKILLS_ON_LEVEL_LOST || p == null || trees == null) {
+			return false;
+		}
+		int reqLvl = 0;
+		for (SkillLearn sl : trees.allFor(p.classId())) {
+			if (sl.id() == skillId && sl.level() == skillLevel) {
+				reqLvl = sl.minLevel();
+				break;
+			}
+		}
+		return reqLvl > 0 && (reqLvl - p.level()) >= 9;
+	}
+
+	/**
+	 * Calcula o consumo de MP adicional de Dances/Songs (ALT_DANCE_MP_CONSUME).
+	 */
+	public static int calculateEffectiveSkillMpConsume(SkillTemplate skill, int activeDanceSongCount) {
+		if (skill == null) {
+			return 0;
+		}
+		int baseMp = skill.mpInitialConsume() + skill.mpConsume();
+		boolean isDanceOrSong = (skill.id() >= 264 && skill.id() <= 311)
+				|| (skill.id() >= 349 && skill.id() <= 367);
+		if (isDanceOrSong && !Config.ALT_DANCE_MP_CONSUME) {
+			return baseMp;
+		}
+		if (isDanceOrSong && activeDanceSongCount > 0) {
+			return baseMp + (activeDanceSongCount * 30);
+		}
+		return baseMp;
+	}
+
+	/** Lista para o pacote SkillList (ordenada por id), filtrando NOTDONE se SEND_NOT_DONE_SKILLS=false. */
 	public List<Skill> skillList(PlayerCharacter p) {
 		List<Skill> out = new ArrayList<>();
 		for (var e : p.skills().entrySet()) {
 			var t = table.get(e.getKey(), e.getValue());
+			if (!Config.SEND_NOT_DONE_SKILLS && t.isPresent() && "NOTDONE".equalsIgnoreCase(t.get().skillType())) {
+				continue;
+			}
 			out.add(new Skill(e.getKey(), e.getValue(), t.map(SkillTemplate::name).orElse(""),
 					t.map(SkillTemplate::isPassive).orElse(false)));
 		}
@@ -106,8 +150,8 @@ public class SkillService {
 	}
 
 	/**
-	 * Recompensas de nivel: skills iniciais (personagem novo), Lucky, entradas gratuitas (Expertise, Common Craft)
-	 * e, com AutoLearnSkills, todos os skills liberados para o nivel.
+	 * Recompensas de nivel: skills iniciais (personagem novo), Lucky, entradas gratuitas (Expertise, Common Craft),
+	 * Divine Inspiration (se AUTO_LEARN_DIVINE_INSPIRATION=true) e, com AutoLearnSkills, todos os skills liberados para o nivel.
 	 *
 	 * @return true se algum skill mudou
 	 */
@@ -125,6 +169,16 @@ public class SkillService {
 			removeSkill(p, SKILL_LUCKY);
 			changed = true;
 		}
+		if (Config.AUTO_LEARN_DIVINE_INSPIRATION) {
+			int diLevel = 0;
+			if (p.level() >= 78) diLevel = 4;
+			else if (p.level() >= 76) diLevel = 3;
+			else if (p.level() >= 61) diLevel = 2;
+			else if (p.level() >= 52) diLevel = 1;
+			if (diLevel > 0) {
+				changed |= grant(p, 1405, diLevel);
+			}
+		}
 		boolean auto = autoLearn && Config.AUTO_LEARN_SKILLS && (autoLearnMaxLevel <= 0 || p.level() <= autoLearnMaxLevel);
 		for (var e : trees.unlocked(p.classId(), p.level(), !auto).entrySet()) {
 			changed |= grant(p, e.getKey(), e.getValue());
@@ -135,9 +189,14 @@ public class SkillService {
 		return changed;
 	}
 
-	/** Skills que o treinador pode ensinar agora. */
+	/** Skills que o treinador pode ensinar agora (respeitando ALT_GAME_SKILL_LEARN). */
 	public List<SkillLearn> available(PlayerCharacter p) {
-		return trees.available(p.classId(), p.level(), p.skills());
+		return available(p, p.classId());
+	}
+
+	public List<SkillLearn> available(PlayerCharacter p, int npcTeachClassId) {
+		int targetClassId = (Config.ALT_GAME_SKILL_LEARN && npcTeachClassId >= 0) ? npcTeachClassId : p.classId();
+		return trees.available(targetClassId, p.level(), p.skills());
 	}
 
 	public int minLevelForNewSkill(PlayerCharacter p) {
@@ -149,9 +208,18 @@ public class SkillService {
 		return available(p).stream().filter(s -> s.id() == id && s.level() == level).findFirst();
 	}
 
-	/** Livro exigido (SpBookNeeded: so para o nivel 1), ou -1. */
+	/**
+	 * Livro exigido (SpBookNeeded: so para o nivel 1; DivineInspirationSpBookNeeded para skill 1405;
+	 * LifeCrystalNeeded para skills de cla), ou -1.
+	 */
 	public int requiredBook(int id, int level) {
-		boolean needBook = Config.getBoolean("SpBookNeeded", spBookNeeded);
+		if (id == 1405) {
+			return Config.DIVINE_INSPIRATION_SP_BOOK_NEEDED ? trees.spellbookFor(id) : -1;
+		}
+		if (id >= 370 && id <= 391) {
+			return Config.LIFE_CRYSTAL_NEEDED ? trees.spellbookFor(id) : -1;
+		}
+		boolean needBook = Config.SP_BOOK_NEEDED && spBookNeeded;
 		return needBook && level == 1 ? trees.spellbookFor(id) : -1;
 	}
 
@@ -204,9 +272,10 @@ public class SkillService {
 	/**
 	 * Remove habilidades que nao pertencem a arvore da classe atual nem sao habilidades comuns/especiais,
 	 * prevenindo o acúmulo indevido de skills entre classes ao trocar/adicionar subclasses.
+	 * Respeita CHECK_SKILLS_ON_ENTER, CHECK_ADDITIONAL_SKILLS e ALLOWED_SKILLS.
 	 */
 	public void cleanInvalidSkills(PlayerCharacter p) {
-		if (Config.ALT_SUBCLASS_SKILLS || (p != null && p.isAio())) {
+		if (Config.ALT_SUBCLASS_SKILLS || Config.ALT_GAME_SKILL_LEARN || (p != null && p.isAio())) {
 			return;
 		}
 		Set<Integer> validSkillIds = new HashSet<>();
@@ -221,7 +290,10 @@ public class SkillService {
 			if (p.armorSetSkillIds().contains(skillId) || p.equippedItemSkills().containsKey(skillId)) {
 				continue;
 			}
-			if (isCommonOrSpecialSkill(skillId)) {
+			if (isCommonOrSpecialSkill(skillId) || isAllowedCustomSkill(skillId)) {
+				continue;
+			}
+			if (!Config.CHECK_ADDITIONAL_SKILLS && (skillId == 1405 || (skillId >= 1368 && skillId <= 1373))) {
 				continue;
 			}
 			toRemove.add(skillId);
@@ -239,17 +311,33 @@ public class SkillService {
 		}
 	}
 
+	public static boolean isAllowedCustomSkill(int skillId) {
+		String raw = Config.ALLOWED_SKILLS;
+		if (raw == null || raw.isBlank() || "0".equals(raw.trim())) {
+			return false;
+		}
+		for (String part : raw.split(",")) {
+			try {
+				if (Integer.parseInt(part.trim()) == skillId) {
+					return true;
+				}
+			} catch (NumberFormatException ignored) {
+			}
+		}
+		return false;
+	}
+
 	private boolean isCommonOrSpecialSkill(int skillId) {
-		// Lucky (194), Expertise (239), Common Craft / Dwarven Craft / Crystallize (1320-1322, 248)
-		if (skillId == SKILL_LUCKY || skillId == 239 || skillId == 248 || (skillId >= 1320 && skillId <= 1322)) {
+		// Lucky (194), Expertise (239), Common Craft / Dwarven Craft / Crystallize (1320-1322, 248), Divine Inspiration (1405)
+		if (skillId == SKILL_LUCKY || skillId == 239 || skillId == 248 || skillId == 1405 || (skillId >= 1320 && skillId <= 1322)) {
 			return true;
 		}
 		// Seal of Ruler (246, 247)
 		if (skillId == 246 || skillId == 247) {
 			return true;
 		}
-		// Fishing & expansion skills (1312-1319)
-		if (skillId >= 1312 && skillId <= 1319) {
+		// Fishing & expansion skills (1312-1319, 1368-1373)
+		if ((skillId >= 1312 && skillId <= 1319) || (skillId >= 1368 && skillId <= 1373)) {
 			return true;
 		}
 		// Clan skills (370-391)

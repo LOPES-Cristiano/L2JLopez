@@ -172,11 +172,12 @@ public class RaidBossSpawnManager {
 		int objectId = objectIds.nextId();
 		NpcInstance boss = new NpcInstance(objectId, template, rec.locX(), rec.locY(), rec.locZ(), rec.heading());
 
-		// Aplica modificadores de stats de Raid Boss (Lucera / Dream formulas.properties)
-		boss.pAtkMul(Math.max(0.1, Config.RAID_BOSS_P_ATK_MODIFIER));
-		boss.pDefMul(Math.max(0.1, Config.RAID_BOSS_P_DEF_MODIFIER));
-		boss.mDefMul(Math.max(0.1, Config.RAID_BOSS_M_DEF_MODIFIER));
-		boss.maxHpMul(Math.max(0.1, Config.RAID_BOSS_MAX_HP_MODIFIER));
+		// Aplica modificadores de stats de Raid Boss (Lucera / Dream formulas.properties + bosses.properties)
+		boss.pAtkMul(Math.max(0.1, Config.RAID_BOSS_P_ATK_MODIFIER * Config.RATE_RAID_ATTACK));
+		boss.mAtkMul(Math.max(0.1, Config.RAID_BOSS_M_ATK_MODIFIER * Config.RATE_RAID_ATTACK));
+		boss.pDefMul(Math.max(0.1, Config.RAID_BOSS_P_DEF_MODIFIER * Config.RATE_RAID_DEFENSE));
+		boss.mDefMul(Math.max(0.1, Config.RAID_BOSS_M_DEF_MODIFIER * Config.RATE_RAID_DEFENSE));
+		boss.maxHpMul(Math.max(0.1, Config.RAID_BOSS_MAX_HP_MODIFIER * Config.RATE_RAID_REGEN));
 		boss.currentHp(boss.maxHp());
 		boss.currentMp(template.maxMp() * Math.max(0.1, Config.RAID_BOSS_MAX_MP_MODIFIER));
 
@@ -221,12 +222,7 @@ public class RaidBossSpawnManager {
 		activeBosses.remove(bossId);
 
 		// Calculo do proximo renascimento com randomizador e multiplicadores
-		long minDelay = rec.minDelaySec();
-		long maxDelay = rec.maxDelaySec();
-		long delaySec = minDelay;
-		if (maxDelay > minDelay) {
-			delaySec += java.util.concurrent.ThreadLocalRandom.current().nextLong(maxDelay - minDelay);
-		}
+		long delaySec = calculateRespawnDelaySec(rec);
 		long delayMs = delaySec * 1000L;
 		long nextRespawnTime = System.currentTimeMillis() + delayMs;
 
@@ -244,8 +240,9 @@ public class RaidBossSpawnManager {
 					"Raid Boss " + npc.name() + " has been defeated by " + killerName + "!"), p -> true);
 		}
 
-		log.info("RaidBoss {} (ID {}) foi morto! Respawn agendado para {} ({} ms)",
-				npc.name(), bossId, FORMATTER.format(Instant.ofEpochMilli(nextRespawnTime)), delayMs);
+		log.info("RaidBoss {} (ID {}) foi morto! Respawn agendado para {} ({} ms, expRate={}, spRate={}, dropRate={})",
+				npc.name(), bossId, FORMATTER.format(Instant.ofEpochMilli(nextRespawnTime)), delayMs,
+				Config.RATE_RAID_EXP, Config.RATE_RAID_SP, Config.RATE_RAID_BOSS);
 
 		scheduleSpawn(bossId, delayMs);
 	}
@@ -265,21 +262,54 @@ public class RaidBossSpawnManager {
 		schedules.put(bossId, future);
 	}
 
+	public synchronized void updateBossStatusInDb(int bossId) {
+		NpcInstance boss = activeBosses.get(bossId);
+		RaidBossRecord rec = storedInfo.get(bossId);
+		if (boss != null && rec != null) {
+			RaidBossRecord updated = new RaidBossRecord(
+					rec.bossId(), rec.amount(), boss.x(), boss.y(), boss.z(), rec.zoneSize(), boss.heading(),
+					rec.minDelaySec(), rec.maxDelaySec(), rec.respawnTime(), boss.currentHp(), boss.currentMp(), rec.broadcastSpawn()
+			);
+			storedInfo.put(bossId, updated);
+			if (Config.FORCE_UPDATE_RAID_BOSS_ON_DB) {
+				persistDb(updated);
+			}
+		}
+	}
+
 	private void persistDb(RaidBossRecord rec) {
 		if (jdbc == null) {
 			return;
 		}
 		try {
-			jdbc.sql("""
-					UPDATE raidboss_spawnlist
-					SET respawn_time = :respawn_time, currentHp = :currentHp, currentMp = :currentMp
-					WHERE boss_id = :boss_id
-					""")
-					.param("boss_id", rec.bossId())
-					.param("respawn_time", rec.respawnTime())
-					.param("currentHp", rec.currentHp())
-					.param("currentMp", rec.currentMp())
-					.update();
+			if (Config.FORCE_UPDATE_RAID_BOSS_ON_DB) {
+				jdbc.sql("""
+						UPDATE raidboss_spawnlist
+						SET loc_x = :loc_x, loc_y = :loc_y, loc_z = :loc_z, heading = :heading,
+						    respawn_time = :respawn_time, currentHp = :currentHp, currentMp = :currentMp
+						WHERE boss_id = :boss_id
+						""")
+						.param("boss_id", rec.bossId())
+						.param("loc_x", rec.locX())
+						.param("loc_y", rec.locY())
+						.param("loc_z", rec.locZ())
+						.param("heading", rec.heading())
+						.param("respawn_time", rec.respawnTime())
+						.param("currentHp", rec.currentHp())
+						.param("currentMp", rec.currentMp())
+						.update();
+			} else {
+				jdbc.sql("""
+						UPDATE raidboss_spawnlist
+						SET respawn_time = :respawn_time, currentHp = :currentHp, currentMp = :currentMp
+						WHERE boss_id = :boss_id
+						""")
+						.param("boss_id", rec.bossId())
+						.param("respawn_time", rec.respawnTime())
+						.param("currentHp", rec.currentHp())
+						.param("currentMp", rec.currentMp())
+						.update();
+			}
 		} catch (Exception ex) {
 			log.warn("Erro ao atualizar raidboss_spawnlist para {}: {}", rec.bossId(), ex.getMessage());
 		}

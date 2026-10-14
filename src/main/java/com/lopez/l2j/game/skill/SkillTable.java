@@ -231,7 +231,7 @@ public class SkillTable {
 			if (forElement != null) {
 				for (Element f : SkillCondition.children(forElement)) {
 					if (f.getTagName().equals("effect")) {
-						effects.add(parseEffect(f, r));
+						effects.add(parseEffect(id, f, r));
 					} else {
 						StatFunc func = parseFunc(f, r);
 						if (func != null) {
@@ -319,7 +319,7 @@ public class SkillTable {
 					if (routeFor != null) {
 						for (Element f : SkillCondition.children(routeFor)) {
 							if (f.getTagName().equals("effect")) {
-								effects.add(parseEffect(f, r));
+								effects.add(parseEffect(id, f, r));
 							} else {
 								StatFunc func = parseFunc(f, r);
 								if (func != null) {
@@ -360,7 +360,7 @@ public class SkillTable {
 		}
 	}
 
-	private static EffectTemplate parseEffect(Element e, Resolver r) {
+	private static EffectTemplate parseEffect(int skillId, Element e, Resolver r) {
 		List<StatFunc> funcs = new ArrayList<>();
 		for (Element f : SkillCondition.children(e)) {
 			StatFunc func = parseFunc(f, r);
@@ -369,9 +369,55 @@ public class SkillTable {
 			}
 		}
 		String stack = r.str(e.getAttribute("stackType"), "none");
+		int baseTime = r.integer(e.getAttribute("time"), 0);
+		int effectiveTime = resolveBuffDurationSeconds(skillId, baseTime);
 		return new EffectTemplate(e.getAttribute("name"), r.integer(e.getAttribute("count"), 1),
-				r.integer(e.getAttribute("time"), 0), r.number(e.getAttribute("val"), 0),
+				effectiveTime, r.number(e.getAttribute("val"), 0),
 				stack.isBlank() ? "none" : stack, r.number(e.getAttribute("stackOrder"), 0), List.copyOf(funcs));
+	}
+
+	/**
+	 * Aplica os multiplicadores de duracao de buffs do altgame.properties (ALT_BUFFER_TIME, ALT_5MIN_TIME,
+	 * ALT_DANCE_TIME, ALT_SONG_TIME, ALT_HERO_TIME, ALT_CH_TIME), exceto para skills em UNAFFECTED_SKILLS.
+	 */
+	public static int resolveBuffDurationSeconds(int skillId, int baseTimeSeconds) {
+		if (baseTimeSeconds <= 0 || isUnaffectedSkill(skillId)) {
+			return baseTimeSeconds;
+		}
+		float mult = 1.0f;
+		if (skillId == 395 || skillId == 396 || (skillId >= 1374 && skillId <= 1376)) {
+			mult = com.lopez.l2j.config.Config.ALT_HERO_TIME;
+		} else if ((skillId >= 271 && skillId <= 277) || skillId == 307 || skillId == 309 || skillId == 310 || skillId == 311 || skillId == 365 || skillId == 366 || skillId == 367) {
+			mult = com.lopez.l2j.config.Config.ALT_DANCE_TIME;
+		} else if ((skillId >= 264 && skillId <= 270) || (skillId >= 304 && skillId <= 306) || skillId == 308 || skillId == 349 || skillId == 363 || skillId == 364) {
+			mult = com.lopez.l2j.config.Config.ALT_SONG_TIME;
+		} else if (skillId >= 4342 && skillId <= 4360) {
+			mult = com.lopez.l2j.config.Config.ALT_CH_TIME;
+		} else if (baseTimeSeconds >= 240 && baseTimeSeconds <= 300) {
+			mult = com.lopez.l2j.config.Config.ALT_5MIN_TIME;
+		} else if (baseTimeSeconds > 300 && baseTimeSeconds <= 1800) {
+			mult = com.lopez.l2j.config.Config.ALT_BUFFER_TIME;
+		}
+		if (mult <= 0f || mult == 1.0f) {
+			return baseTimeSeconds;
+		}
+		return Math.max(1, Math.round(baseTimeSeconds * mult));
+	}
+
+	public static boolean isUnaffectedSkill(int skillId) {
+		String raw = com.lopez.l2j.config.Config.UNAFFECTED_SKILLS;
+		if (raw == null || raw.isBlank() || "0".equals(raw.trim())) {
+			return false;
+		}
+		for (String part : raw.split(",")) {
+			try {
+				if (Integer.parseInt(part.trim()) == skillId) {
+					return true;
+				}
+			} catch (NumberFormatException ignored) {
+			}
+		}
+		return false;
 	}
 
 	private static StatFunc parseFunc(Element f, Resolver r) {

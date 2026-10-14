@@ -127,7 +127,11 @@ public class GrandBossInfo {
 	public long calculateNextRespawnTime() {
 		if (cronExpression != null && !cronExpression.isBlank()) {
 			try {
-				CronExpression cron = CronExpression.parse(cronExpression);
+				String expr = cronExpression.trim();
+				if (expr.split("\\s+").length == 5) {
+					expr = "0 " + expr;
+				}
+				CronExpression cron = CronExpression.parse(expr);
 				ZonedDateTime next = cron.next(ZonedDateTime.now(ZoneId.systemDefault()));
 				if (next != null) {
 					return next.toInstant().toEpochMilli();

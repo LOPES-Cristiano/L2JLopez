@@ -1,5 +1,7 @@
 package com.lopez.l2j.game.instance.dimensionalrift;
 
+import com.lopez.l2j.config.Config;
+
 /**
  * Representa os 6 tiers/niveis do Dimensional Rift:
  * 1. Recruit (20-30)
@@ -50,7 +52,15 @@ public enum RiftTier {
     }
 
     public int getFragmentCost() {
-        return fragmentCost;
+        int configured = switch (this) {
+            case RECRUIT -> Config.RECRUIT_COST;
+            case SOLDIER -> Config.SOLDIER_COST;
+            case OFFICER -> Config.OFFICER_COST;
+            case CAPTAIN -> Config.CAPTAIN_COST;
+            case COMMANDER -> Config.COMMANDER_COST;
+            case HERO -> Config.HERO_COST;
+        };
+        return configured > 0 ? configured : fragmentCost;
     }
 
     public int getBossNpcId() {

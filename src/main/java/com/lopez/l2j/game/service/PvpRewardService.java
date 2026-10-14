@@ -120,6 +120,10 @@ public class PvpRewardService {
 	}
 
 	public void handleKill(GameSession killerSession, GameSession victimSession) {
+		handleKill(killerSession, victimSession, false);
+	}
+
+	public void handleKill(GameSession killerSession, GameSession victimSession, boolean forceKarmaFreePvp) {
 		if (killerSession == null || victimSession == null) {
 			return;
 		}
@@ -129,7 +133,7 @@ public class PvpRewardService {
 			return;
 		}
 
-		boolean isPvp = victim.pvpFlag() > 0 || victim.karma() > 0;
+		boolean isPvp = forceKarmaFreePvp || victim.pvpFlag() > 0 || victim.karma() > 0;
 
 		if (isPvp) {
 			killer.pvpKills(killer.pvpKills() + 1);
@@ -193,14 +197,7 @@ public class PvpRewardService {
 		}
 
 		if (pvpColorService != null) {
-			int newNameColor = pvpColorService.getNameColor(killer.pvpKills(), killer.nameColor());
-			if (newNameColor != killer.nameColor()) {
-				killer.nameColor(newNameColor);
-			}
-			int newTitleColor = pvpColorService.getTitleColor(killer.pvpKills(), killer.titleColor());
-			if (newTitleColor != killer.titleColor()) {
-				killer.titleColor(newTitleColor);
-			}
+			pvpColorService.applyColors(killer);
 		}
 
 		if (Config.QUAKE_RESET_ON_DIE) {

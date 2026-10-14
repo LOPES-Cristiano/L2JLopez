@@ -89,6 +89,9 @@ public class BuyListTable {
 								if (priceAttr != null) {
 									price = Integer.parseInt(priceAttr.getNodeValue());
 								}
+								if (price > 0) {
+									price = applyPriceRate(prodId, price);
+								}
 								int count = -1;
 								Node countAttr = pAttrs.getNamedItem("count");
 								if (countAttr != null) {
@@ -102,6 +105,19 @@ public class BuyListTable {
 				}
 			}
 		}
+	}
+
+	public static int applyPriceRate(int itemId, int basePrice) {
+		float mult = com.lopez.l2j.config.Config.RATE_CONSUMABLE_COST;
+		if (mult <= 0f || mult == 1.0f) {
+			return basePrice;
+		}
+		return Math.max(1, Math.round(basePrice * mult));
+	}
+
+	public static long calculateSiegeGuardPrice(long baseGuardPrice) {
+		double mult = Math.max(0.1, com.lopez.l2j.config.Config.RATE_SIEGE_GUARDS_PRICE);
+		return Math.max(1L, Math.round(baseGuardPrice * mult));
 	}
 
 	public Optional<NpcBuyList> get(int listId) {

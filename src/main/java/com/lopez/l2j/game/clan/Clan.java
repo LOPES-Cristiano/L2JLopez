@@ -112,6 +112,19 @@ public class Clan {
 		this.reputationScore += amount;
 		return this.reputationScore;
 	}
+	public int addReputationForWarKill() {
+		int scoreDelta = Math.max(0, Config.REPUTATION_SCORE_PER_KILL);
+		this.reputationScore += scoreDelta;
+		return this.reputationScore;
+	}
+	public int deductReputationForWarDeath() {
+		int scoreDelta = Math.max(0, Config.REPUTATION_SCORE_PER_KILL);
+		this.reputationScore -= scoreDelta;
+		return this.reputationScore;
+	}
+	public static boolean shouldRemoveCastleCirclets() {
+		return Config.REMOVE_CASTLE_CIRCULAR;
+	}
 	public int getHasHideout() { return clanHallId; }
 	public ClanMember getLeader() { return leader(); }
 	public void level(int level) { this.level = level; }
@@ -277,4 +290,3 @@ public class Clan {
 		}
 	}
 }
-

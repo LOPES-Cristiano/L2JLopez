@@ -1,8 +1,11 @@
 package com.lopez.l2j.game.service;
 
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.world.GameWorld;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -18,6 +21,8 @@ import java.util.concurrent.CopyOnWriteArraySet;
 public class BoatService {
 
     private static final Logger log = LoggerFactory.getLogger(BoatService.class);
+
+    public static final int ADENA_ITEM_ID = 57;
 
     public record BoatWaypoint(int x, int y, int z, int speed) {}
 
@@ -60,13 +65,37 @@ public class BoatService {
         }
     }
 
+    private GameWorld gameWorld;
+    private InventoryService inventoryService;
+
     private final Map<Integer, BoatRoute> boats = new ConcurrentHashMap<>();
 
     public BoatService() {
         initDefaultRoutes();
     }
 
-    private void initDefaultRoutes() {
+    @Autowired
+    public BoatService(
+            @Autowired(required = false) GameWorld gameWorld,
+            @Autowired(required = false) InventoryService inventoryService) {
+        this.gameWorld = gameWorld;
+        this.inventoryService = inventoryService;
+        initDefaultRoutes();
+    }
+
+    public void setGameWorld(GameWorld gameWorld) {
+        this.gameWorld = gameWorld;
+    }
+
+    public void setInventoryService(InventoryService inventoryService) {
+        this.inventoryService = inventoryService;
+    }
+
+    @PostConstruct
+    public void initDefaultRoutes() {
+        if (!boats.isEmpty()) {
+            return;
+        }
         // Barco 1: Talking Island <-> Gludin Harbor (Ticket 1074)
         boats.put(1, new BoatRoute(1, "Talking Island - Gludin", 1074, Arrays.asList(
                 new BoatWaypoint(-96883, 262135, -3600, 300),
@@ -83,12 +112,81 @@ public class BoatService {
                 new BoatWaypoint(-96883, 262135, -3600, 300)
         )));
 
-        // Barco 3: Rune <-> Primeval Isle (Ticket 8925)
+        // Barco 3: Rune Harbor <-> Primeval Isle (Ticket 8925)
         boats.put(3, new BoatRoute(3, "Rune - Primeval Isle", 8925, Arrays.asList(
                 new BoatWaypoint(34513, -38009, -3610, 350),
                 new BoatWaypoint(20000, -30000, -3610, 450),
                 new BoatWaypoint(10447, -24982, -3610, 350)
         )));
+
+        // Barco 4: Giran Harbor <-> Gludin Harbor (Ticket 3946)
+        boats.put(4, new BoatRoute(4, "Giran Harbor - Gludin Harbor", 3946, Arrays.asList(
+                new BoatWaypoint(48950, 190613, -3610, 350),
+                new BoatWaypoint(15000, 180000, -3610, 450),
+                new BoatWaypoint(-90015, 150000, -3600, 350)
+        )));
+    }
+
+    /**
+     * Embarca o jogador e realiza a viagem marítima até o próximo porto:
+     * consome o bilhete de barco (ou cobra Adena via InventoryService),
+     * avança o waypoint do barco (advanceWaypoint) e teleporta o jogador via GameWorld.
+     */
+    public synchronized boolean boardAndTravel(PlayerCharacter player, int boatId, int ticketItemId, int priceAdena) {
+        if (player == null) {
+            return false;
+        }
+        BoatRoute boat = boats.get(boatId);
+        if (boat == null || boat.getWaypoints().isEmpty()) {
+            return false;
+        }
+
+        var inv = player.inventory();
+        boolean paid = false;
+
+        if (ticketItemId <= 0 && priceAdena <= 0) {
+            paid = true;
+        } else if (inv != null) {
+            if (ticketItemId > 0) {
+                if (inventoryService != null) {
+                    paid = inventoryService.consumeItem(inv, ticketItemId, 1, "BoatTicket") != null;
+                } else {
+                    paid = inv.destroyItemByItemId(ticketItemId, 1);
+                }
+            }
+            if (!paid && priceAdena > 0) {
+                if (inventoryService != null) {
+                    paid = inventoryService.consumeItem(inv, ADENA_ITEM_ID, priceAdena, "BoatAdena") != null;
+                } else {
+                    paid = inv.destroyItemByItemId(ADENA_ITEM_ID, priceAdena);
+                }
+            }
+        }
+
+        if (!paid) {
+            return false;
+        }
+
+        boat.getOnboardPlayers().add(player.objectId());
+        advanceWaypoint(boatId);
+
+        BoatWaypoint dest = boat.getCurrentWaypoint();
+        int destX = dest.x();
+        int destY = dest.y();
+        int destZ = dest.z();
+
+        player.setX(destX);
+        player.setY(destY);
+        player.setZ(destZ);
+
+        GameWorld world = gameWorld != null ? gameWorld : GameWorld.getInstance();
+        if (world != null) {
+            world.teleportPlayer(player, destX, destY, destZ);
+        }
+
+        log.info("BoatService: Jogador {} viajou no barco #{} ({}) para ({}, {}, {})",
+                player.name(), boatId, boat.getName(), destX, destY, destZ);
+        return true;
     }
 
     public boolean boardBoat(PlayerCharacter player, int boatId) {
@@ -134,3 +232,4 @@ public class BoatService {
     public Optional<BoatRoute> getBoat(int boatId) { return Optional.ofNullable(boats.get(boatId)); }
     public Collection<BoatRoute> getAllBoats() { return Collections.unmodifiableCollection(boats.values()); }
 }
+

@@ -226,4 +226,39 @@ class InstancedPvEAndProgressionTest {
 		// Total de poder: 6.0 + 4.0 = 10.0
 		assertEquals(10.0, dollService.calculateTotalPower(player));
 	}
+
+	@Test
+	@DisplayName("Criterio Onda C9: Fusão com InventoryService persiste consumo e item fundido no ItemRepository")
+	void testFusionWithInventoryServicePersistsInDatabase() {
+		com.lopez.l2j.game.item.InMemoryItemRepository repo = new com.lopez.l2j.game.item.InMemoryItemRepository();
+		ItemTemplate baseTpl = ItemTemplate.weapon(2407, 2407, "Imperial Breastplate", "chest", "heavy", 1000, "s", 10, 10, 300, 8, 0, 100, true, true, true, true);
+		ItemTemplate adenaTpl = ItemTemplate.etc(57, 57, "Adena", "asset", "asset", 0, "none", 0, false, false, true, false);
+		ItemTemplate resTpl = ItemTemplate.weapon(6373, 6373, "Enhanced Breastplate", "chest", "heavy", 1000, "s", 20, 20, 300, 8, 0, 100, true, true, true, true);
+		com.lopez.l2j.game.item.ItemTemplateTable itemTable = com.lopez.l2j.game.item.ItemTemplateTable.of(List.of(baseTpl, adenaTpl, resTpl), List.of());
+		com.lopez.l2j.game.model.ObjectIdFactory ids = com.lopez.l2j.game.model.ObjectIdFactory.sequential(7000);
+		com.lopez.l2j.game.service.InventoryService invService = new com.lopez.l2j.game.service.InventoryService(itemTable, repo, ids, 0);
+
+		FusionItemService dbFusionService = new FusionItemService(invService, itemTable, ids, repo);
+
+		PlayerCharacter player = createPlayer(1006, "DbFusionPlayer", 83400, 148000, -3400);
+		var addedArmor = invService.addItem(player.inventory(), 2407, 1, "Test");
+		addedArmor.item().enchant(7);
+		invService.saveItem(addedArmor.item());
+		var addedAdena = invService.addItem(player.inventory(), 57, 5000000, "Test");
+
+		FusionItemService.FusionRecipe recipe = new FusionItemService.FusionRecipe(
+				"Armor",
+				List.of(new FusionItemService.FusionIngredient(2407, 1), new FusionItemService.FusionIngredient(57, 5000000)),
+				6373, 1, 100, 2407, 1
+		);
+
+		var result = dbFusionService.fuse(player, recipe, List.of(addedArmor.item(), addedAdena.item()));
+		assertTrue(result.success());
+		assertEquals(7, result.resultingEnchant());
+
+		var dbItems = repo.findInventory(player.objectId());
+		assertEquals(1, dbItems.size(), "Ingredientes consumidos devem ser removidos do banco e restar apenas o item fundido");
+		assertEquals(6373, dbItems.get(0).itemId());
+		assertEquals(7, dbItems.get(0).enchant(), "Enchant +7 deve estar persistido no ItemRepository");
+	}
 }

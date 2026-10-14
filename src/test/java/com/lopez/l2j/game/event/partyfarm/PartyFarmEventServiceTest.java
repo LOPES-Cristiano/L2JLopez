@@ -47,4 +47,25 @@ class PartyFarmEventServiceTest {
         Optional<String> msg = partyFarmService.checkSchedule(tuesday1500);
         assertTrue(msg.isEmpty());
     }
+
+    @Test
+    void testRealWorldSpawningAndCleanup() {
+        com.lopez.l2j.game.world.GameWorld world = new com.lopez.l2j.game.world.GameWorld();
+        PartyFarmEventService svc = new PartyFarmEventService(world, null);
+
+        assertEquals(0, world.totalNpcs());
+
+        svc.startEvent();
+        // Default has 5 + 3 = 8 monsters
+        assertEquals(8, svc.getSpawnedMonsterObjectIds().size());
+        assertEquals(8, world.totalNpcs());
+        for (int objId : svc.getSpawnedMonsterObjectIds()) {
+            assertTrue(world.npc(objId).isPresent());
+            assertTrue(svc.isPartyFarmMonster(objId));
+        }
+
+        svc.endEvent();
+        assertTrue(svc.getSpawnedMonsterObjectIds().isEmpty());
+        assertEquals(0, world.totalNpcs());
+    }
 }

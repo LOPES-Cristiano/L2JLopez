@@ -85,11 +85,14 @@ public class GroundItemService {
 		if (instance == null) {
 			return null;
 		}
+		if (dropperId > 0 && Config.DESTROY_PLAYER_INVENTORY_DROP) {
+			log.debug("Item {} destruido imediatamente por Config.DESTROY_PLAYER_INVENTORY_DROP", instance.itemId());
+			return null;
+		}
 		boolean isHerb = instance.template() != null && instance.template().name() != null
 				&& instance.template().name().toLowerCase(java.util.Locale.ROOT).contains("herb");
-		int lifetimeSec = isHerb ? Config.getInt("HerbAutoDestroyTime", 15) : Config.AUTO_DESTROY_DROPPED_ITEM_AFTER;
 		long now = System.currentTimeMillis();
-		long expireMs = lifetimeSec > 0 ? now + (lifetimeSec * 1000L) : Long.MAX_VALUE;
+		long expireMs = resolveExpireTimeMs(now, dropperId, instance.itemId(), instance.template(), isHerb);
 
 		boolean stackable = instance.template() != null && instance.template().isStackable();
 		if (Config.MULTIPLE_ITEM_DROP && stackable) {
@@ -133,12 +136,15 @@ public class GroundItemService {
 	}
 
 	public GroundItem dropItem(int dropperId, int itemId, int count, int x, int y, int z) {
+		if (dropperId > 0 && Config.DESTROY_PLAYER_INVENTORY_DROP) {
+			log.debug("Item {} destruido imediatamente por Config.DESTROY_PLAYER_INVENTORY_DROP", itemId);
+			return null;
+		}
 		var tpl = templates != null ? templates.get(itemId).orElse(null) : null;
 		boolean stackable = tpl != null && tpl.isStackable();
 		boolean isHerb = tpl != null && tpl.name() != null && tpl.name().toLowerCase(java.util.Locale.ROOT).contains("herb");
-		int lifetimeSec = isHerb ? Config.getInt("HerbAutoDestroyTime", 15) : Config.AUTO_DESTROY_DROPPED_ITEM_AFTER;
 		long now = System.currentTimeMillis();
-		long expireMs = lifetimeSec > 0 ? now + (lifetimeSec * 1000L) : Long.MAX_VALUE;
+		long expireMs = resolveExpireTimeMs(now, dropperId, itemId, tpl, isHerb);
 
 		if (Config.MULTIPLE_ITEM_DROP && stackable) {
 			for (GroundItem existing : itemsByObjectId.values()) {
@@ -181,6 +187,70 @@ public class GroundItemService {
 	}
 
 	/**
+	 * Calcula o tempo de expiracao de um item no chao respeitando AUTO_DESTROY_HERB_TIME,
+	 * LIST_OF_PROTECTED_ITEMS, DESTROY_PLAYER_DROPPED_ITEM e DESTROY_EQUIPABLE_ITEM.
+	 */
+	public static long resolveExpireTimeMs(long nowMs, int dropperId, int itemId, ItemTemplate tpl, boolean isHerb) {
+		if (Config.LIST_OF_PROTECTED_ITEMS != null && Config.LIST_OF_PROTECTED_ITEMS.contains(itemId)) {
+			return Long.MAX_VALUE;
+		}
+		if (isHerb) {
+			int herbSec = Config.AUTO_DESTROY_HERB_TIME;
+			return herbSec > 0 ? nowMs + (herbSec * 1000L) : Long.MAX_VALUE;
+		}
+		if (dropperId > 0 && !Config.DESTROY_PLAYER_DROPPED_ITEM) {
+			return Long.MAX_VALUE;
+		}
+		boolean equipable = tpl != null && (tpl.isWeapon() || tpl.isArmor());
+		if (equipable && !Config.DESTROY_EQUIPABLE_ITEM) {
+			return Long.MAX_VALUE;
+		}
+		int lifetimeSec = Config.AUTO_DESTROY_DROPPED_ITEM_AFTER;
+		return lifetimeSec > 0 ? nowMs + (lifetimeSec * 1000L) : Long.MAX_VALUE;
+	}
+
+	/**
+	 * Verifica se um jogador tem permissao para descartar ou destruir um item do inventario.
+	 */
+	public boolean canPlayerDiscardOrDropItem(PlayerCharacter player, int itemId) {
+		if (player != null && player.accessLevel() > 0) {
+			return true;
+		}
+		if (!Config.ALLOW_DISCARD_ITEM) {
+			return false;
+		}
+		if (Config.LIST_OF_NON_DROPPABLE_ITEMS != null && Config.LIST_OF_NON_DROPPABLE_ITEMS.contains(itemId)) {
+			return false;
+		}
+		if (Config.LIST_OF_PET_ITEMS != null && Config.LIST_OF_PET_ITEMS.contains(itemId)) {
+			return false;
+		}
+		return true;
+	}
+
+	public boolean isSaveDroppedItemsEnabled() {
+		return Config.SAVE_DROPPED_ITEM;
+	}
+
+	public int getSaveDroppedItemIntervalMinutes() {
+		return Math.max(0, Config.SAVE_DROPPED_ITEM_INTERVAL);
+	}
+
+	public boolean shouldEmptyDroppedItemTableAfterLoad() {
+		return Config.EMPTY_DROPPED_ITEM_TABLE_AFTER_LOAD;
+	}
+
+	public boolean shouldClearDroppedItemTable() {
+		return Config.CLEAR_DROPPED_ITEM_TABLE;
+	}
+
+	public void onServerStartupClearIfConfigured() {
+		if (Config.CLEAR_DROPPED_ITEM_TABLE) {
+			itemsByObjectId.clear();
+		}
+	}
+
+	/**
 	 * Recolhe o item do chao e notifica jogadores proximos com GetItem e DeleteObject.
 	 */
 	public Optional<GroundItem> pickupItem(PlayerCharacter player, int itemObjectId) {
@@ -204,7 +274,7 @@ public class GroundItemService {
 	}
 
 	/**
-	 * Remove itens expirados (Herbs apos 15s, itens normais apos tempo configurado).
+	 * Remove itens expirados (Herbs apos AUTO_DESTROY_HERB_TIME, itens normais apos tempo configurado).
 	 */
 	public int cleanupExpiredItems() {
 		long now = System.currentTimeMillis();

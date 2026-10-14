@@ -29,6 +29,9 @@ public class CharacterSkillSaveRepository {
 	 * Salva todos os buffs ativos do personagem para a classe atual.
 	 */
 	public void saveBuffs(int charId, int classIndex, List<ActiveBuff> buffs) {
+		if (!com.lopez.l2j.config.Config.STORE_SKILL_COOLTIME) {
+			return;
+		}
 		try {
 			// Remove os buffs salvos anteriormente deste personagem
 			jdbc.sql("DELETE FROM character_skills_save WHERE charId = :charId AND class_index = :classIndex")
@@ -88,6 +91,9 @@ public class CharacterSkillSaveRepository {
 	 * Carrega os buffs salvos do banco de dados para o personagem.
 	 */
 	public List<SavedBuff> restoreBuffs(int charId, int classIndex) {
+		if (!com.lopez.l2j.config.Config.STORE_SKILL_COOLTIME) {
+			return List.of();
+		}
 		try {
 			return jdbc.sql("""
 					SELECT skill_id, skill_level, effect_cur_time, systime, buff_index

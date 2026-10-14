@@ -35,15 +35,27 @@ public class MapRegionTable {
 	public record RestartPoint(int id, String name, int bbs, int locName,
 			List<Point3D> points, List<Point3D> chaosPoints) {
 		public Point3D getRandomPoint(boolean chaotic) {
+			boolean useRandom = com.lopez.l2j.config.Config.RESPAWN_RANDOM_IN_TOWN;
 			if (chaotic && !chaosPoints.isEmpty()) {
-				int idx = ThreadLocalRandom.current().nextInt(chaosPoints.size());
+				int idx = useRandom ? ThreadLocalRandom.current().nextInt(chaosPoints.size()) : 0;
 				return chaosPoints.get(idx);
 			}
 			if (!points.isEmpty()) {
-				int idx = ThreadLocalRandom.current().nextInt(points.size());
+				int idx = useRandom ? ThreadLocalRandom.current().nextInt(points.size()) : 0;
 				return points.get(idx);
 			}
 			return new Point3D(0, 0, 0);
+		}
+
+		public Point3D getRandomPointWithOffset(boolean chaotic) {
+			Point3D base = getRandomPoint(chaotic);
+			int maxOffset = com.lopez.l2j.config.Config.RESPAWN_RANDOM_MAX_OFFSET;
+			if (com.lopez.l2j.config.Config.RESPAWN_RANDOM_IN_TOWN && maxOffset > 0) {
+				int dx = ThreadLocalRandom.current().nextInt(-maxOffset, maxOffset + 1);
+				int dy = ThreadLocalRandom.current().nextInt(-maxOffset, maxOffset + 1);
+				return new Point3D(base.x() + dx, base.y() + dy, base.z());
+			}
+			return base;
 		}
 	}
 
@@ -114,6 +126,14 @@ public class MapRegionTable {
 	}
 
 	public Point3D getRestartPoint3D(int x, int y, int z, int raceId, boolean chaotic) {
+		int defaultTownId = com.lopez.l2j.config.Config.ALT_DEFAULT_RESTART_TOWN;
+		if (defaultTownId > 0) {
+			RestartPoint forcedTown = restartPoints.get(defaultTownId);
+			if (forcedTown != null) {
+				return forcedTown.getRandomPoint(chaotic);
+			}
+		}
+
 		for (RegionArea area : regions) {
 			if (area.contains(x, y, z)) {
 				Integer rId = area.restartByRace().get(raceId);
@@ -167,6 +187,18 @@ public class MapRegionTable {
 		}
 		// Ultimo caso: Giran
 		return new Point3D(83400, 147943, -3404);
+	}
+
+	public double getRespawnRestoreCpRatio() {
+		return Math.clamp(com.lopez.l2j.config.Config.RESPAWN_RESTORE_CP / 100.0, 0.0, 1.0);
+	}
+
+	public double getRespawnRestoreHpRatio() {
+		return Math.clamp(com.lopez.l2j.config.Config.RESPAWN_RESTORE_HP / 100.0, 0.01, 1.0);
+	}
+
+	public double getRespawnRestoreMpRatio() {
+		return Math.clamp(com.lopez.l2j.config.Config.RESPAWN_RESTORE_MP / 100.0, 0.0, 1.0);
 	}
 
 	private void load(Path file) {

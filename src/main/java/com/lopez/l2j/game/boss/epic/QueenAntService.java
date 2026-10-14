@@ -64,6 +64,9 @@ public class QueenAntService {
 
 	@PostConstruct
 	public void init() {
+		if (!Config.QUEEN_ANT_ENABLED) {
+			return;
+		}
 		if (grandBossManager != null) {
 			this.status = grandBossManager.getStatus(GrandBossManager.QUEEN_ANT);
 		}
@@ -79,7 +82,7 @@ public class QueenAntService {
 	}
 
 	public synchronized void spawnQueenAnt() {
-		if (templates == null || world == null || objectIds == null) return;
+		if (!Config.QUEEN_ANT_ENABLED || templates == null || world == null || objectIds == null) return;
 
 		NpcTemplate qaTpl = templates.get(QUEEN_ANT)
 				.orElseGet(() -> NpcTemplate.fallback(QUEEN_ANT, "Queen Ant", "L2GrandBoss"));

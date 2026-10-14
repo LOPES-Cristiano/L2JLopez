@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.castle.crown;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.castle.Castle;
 import com.lopez.l2j.game.castle.CastleManager;
 import com.lopez.l2j.game.clan.Clan;
@@ -83,6 +84,12 @@ public class CrownService {
 				if (item.itemId() == CrownTable.LORDS_CROWN) {
 					toRemove.add(item);
 					log.info("Removendo Coroa do Lorde de {}, pois nao e lorde de castelo", player.name());
+				} else if (Config.REMOVE_CASTLE_CIRCULAR) {
+					if (item.isEquipped()) {
+						inv.unequip(item);
+					}
+					toRemove.add(item);
+					log.info("Desequipando e removendo diadema invalido {} de {} (REMOVE_CASTLE_CIRCULAR)", item.itemId(), player.name());
 				} else if (item.isEquipped()) {
 					inv.unequip(item);
 					log.info("Desequipando diadema invalido {} de {}", item.itemId(), player.name());

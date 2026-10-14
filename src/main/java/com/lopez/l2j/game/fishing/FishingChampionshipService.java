@@ -1,11 +1,23 @@
 package com.lopez.l2j.game.fishing;
 
+import com.lopez.l2j.config.Config;
+import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.service.CharacterVariablesService;
+import com.lopez.l2j.game.service.InventoryService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -15,22 +27,230 @@ import org.springframework.stereotype.Service;
 @Service
 public class FishingChampionshipService {
 
-	public record FisherScore(String playerName, float fishLength, int rewarded) {
+	private static final Logger log = LoggerFactory.getLogger(FishingChampionshipService.class);
+
+	public static final int ADENA_ITEM_ID = 57;
+	public static final String CLAIM_VAR_PREFIX = "FISHING_CHAMP_CLAIMED_";
+
+	public record FisherScore(int playerId, String playerName, float fishLength, int rewarded) {
+		public FisherScore(String playerName, float fishLength, int rewarded) {
+			this(0, playerName, fishLength, rewarded);
+		}
 	}
 
+	public record FisherReward(int rank, String playerName, float length, int adenaReward) {}
+
+	private static final int[] REWARDS = { 800000, 500000, 300000, 200000, 100000 };
+
+	private InventoryService inventoryService;
+	private CharacterVariablesService characterVariablesService;
+	private ScheduledExecutorService scheduler;
+
 	private final List<FisherScore> rankings = new CopyOnWriteArrayList<>();
+	private final Set<String> claimedPeriodRewards = ConcurrentHashMap.newKeySet();
+	private int currentCycle = 1;
+
+	public FishingChampionshipService() {
+		if (Config.FISHERMAN_ENABLED) {
+			startChampionshipScheduler();
+		}
+	}
+
+	@Autowired
+	public FishingChampionshipService(
+			@Autowired(required = false) InventoryService inventoryService,
+			@Autowired(required = false) CharacterVariablesService characterVariablesService) {
+		this.inventoryService = inventoryService;
+		this.characterVariablesService = characterVariablesService;
+		if (Config.FISHERMAN_ENABLED) {
+			startChampionshipScheduler();
+		}
+	}
+
+	public synchronized void startChampionshipScheduler() {
+		if (scheduler != null && !scheduler.isShutdown()) {
+			return;
+		}
+		int intervalMinutes = getChampionshipIntervalMinutes();
+		scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+			Thread t = new Thread(r, "FishingChampionship-Scheduler");
+			t.setDaemon(true);
+			return t;
+		});
+		scheduler.scheduleAtFixedRate(this::finishCycle, intervalMinutes, intervalMinutes, TimeUnit.MINUTES);
+		log.info("FishingChampionshipService: agendador iniciado (interval={} min, rewardId={}, rewardCount={})",
+				intervalMinutes, getRewardItemId(), Config.FISHERMAN_REWARD_COUNT);
+	}
+
+	public synchronized void stopChampionshipScheduler() {
+		if (scheduler != null) {
+			scheduler.shutdownNow();
+			scheduler = null;
+		}
+	}
+
+	public boolean isFishermanEventEnabled() {
+		return Config.FISHERMAN_ENABLED;
+	}
+
+	public int getChampionshipIntervalMinutes() {
+		return Math.max(1, Config.FISHERMAN_INTERVAL);
+	}
+
+	public int getRewardItemId() {
+		return Config.FISHERMAN_REWARD_ID > 0 ? Config.FISHERMAN_REWARD_ID : ADENA_ITEM_ID;
+	}
+
+	public void setInventoryService(InventoryService inventoryService) {
+		this.inventoryService = inventoryService;
+	}
+
+	public void setCharacterVariablesService(CharacterVariablesService characterVariablesService) {
+		this.characterVariablesService = characterVariablesService;
+	}
 
 	/**
-	 * Registra um novo peixe pescado para o ranking do campeonato.
+	 * Registra um novo peixe pescado para o ranking do campeonato (compatibilidade com nível do peixe).
 	 */
-	public float registerCatch(String playerName, int fishLevel) {
+	public synchronized float registerCatch(String playerName, int fishLevel) {
 		float length = 40.0f + (fishLevel * 2.5f) + ThreadLocalRandom.current().nextFloat() * 20.0f;
-		// Arredonda para 2 casas decimais
 		length = Math.round(length * 100.0f) / 100.0f;
 
-		rankings.add(new FisherScore(playerName, length, 0));
+		rankings.add(new FisherScore(0, playerName, length, 0));
 		sortRankings();
 		return length;
+	}
+
+	/**
+	 * Submete um peixe capturado com comprimento específico para o campeonato de pesca.
+	 * Se o jogador já estiver no ranking com um peixe menor, atualiza para o maior comprimento.
+	 */
+	public synchronized void submitFish(int playerId, String playerName, double fishLength) {
+		if (fishLength <= 0) {
+			return;
+		}
+		float roundedLength = Math.round((float) fishLength * 100.0f) / 100.0f;
+
+		if (playerId > 0) {
+			for (int i = 0; i < rankings.size(); i++) {
+				FisherScore existing = rankings.get(i);
+				if (existing.playerId() == playerId) {
+					if (roundedLength > existing.fishLength()) {
+						rankings.set(i, new FisherScore(playerId, playerName, roundedLength, existing.rewarded()));
+						sortRankings();
+					}
+					return;
+				}
+			}
+		}
+
+		rankings.add(new FisherScore(playerId, playerName, roundedLength, 0));
+		sortRankings();
+	}
+
+	/**
+	 * Retorna a posição atual (1-based) do jogador no ranking do campeonato, ou 0 se não ranqueado.
+	 */
+	public synchronized int getRank(int playerId) {
+		if (playerId <= 0) {
+			return 0;
+		}
+		sortRankings();
+		for (int i = 0; i < rankings.size(); i++) {
+			if (rankings.get(i).playerId() == playerId) {
+				return i + 1;
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * Retorna a posição atual (1-based) pelo nome do jogador, ou 0 se não ranqueado.
+	 */
+	public synchronized int getRankByName(String playerName) {
+		if (playerName == null || playerName.isBlank()) {
+			return 0;
+		}
+		sortRankings();
+		for (int i = 0; i < rankings.size(); i++) {
+			if (playerName.equalsIgnoreCase(rankings.get(i).playerName())) {
+				return i + 1;
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * Retorna a recompensa em Adena correspondente à colocação (1º ao 5º lugar).
+	 */
+	public int getRewardForRank(int rank) {
+		if (rank < 1 || rank > REWARDS.length) {
+			return 0;
+		}
+		if (Config.FISHERMAN_REWARD_COUNT > 0) {
+			return Math.max(1, Config.FISHERMAN_REWARD_COUNT / rank);
+		}
+		return REWARDS[rank - 1];
+	}
+
+	/**
+	 * Resgata o prêmio do campeonato de pesca para o jogador conforme sua posição no ranking,
+	 * garantindo que não resgate mais de uma vez no ciclo atual e entregando Adena via InventoryService.
+	 */
+	public synchronized int claimReward(PlayerCharacter player) {
+		if (player == null) {
+			return 0;
+		}
+		int rank = getRank(player.objectId());
+		if (rank <= 0 && player.name() != null) {
+			rank = getRankByName(player.name());
+		}
+
+		int reward = getRewardForRank(rank);
+		if (reward <= 0) {
+			return 0;
+		}
+
+		String claimKey = currentCycle + ":" + player.objectId();
+		if (claimedPeriodRewards.contains(claimKey)) {
+			return 0;
+		}
+
+		String varName = CLAIM_VAR_PREFIX + currentCycle;
+		if (characterVariablesService != null && characterVariablesService.getBoolean(player.objectId(), varName, false)) {
+			return 0;
+		}
+
+		int index = rank - 1;
+		if (index >= 0 && index < rankings.size()) {
+			FisherScore current = rankings.get(index);
+			if (current.rewarded() == 1) {
+				return 0;
+			}
+			rankings.set(index, new FisherScore(player.objectId(), current.playerName(), current.fishLength(), 1));
+		}
+
+		claimedPeriodRewards.add(claimKey);
+		if (characterVariablesService != null) {
+			characterVariablesService.set(player.objectId(), varName, true);
+		}
+
+		int rewardItemId = getRewardItemId();
+		var inv = player.inventory();
+		if (inv != null) {
+			if (inventoryService != null) {
+				var added = inventoryService.addItem(inv, rewardItemId, reward, "FishingChampionship");
+				if (added == null && rewardItemId == ADENA_ITEM_ID) {
+					inv.addAdena(reward);
+				}
+			} else if (rewardItemId == ADENA_ITEM_ID) {
+				inv.addAdena(reward);
+			}
+		}
+
+		log.info("FishingChampionship: Jogador {} (Rank #{}) resgatou {} (item {}) no ciclo #{}",
+				player.name(), rank, reward, rewardItemId, currentCycle);
+		return reward;
 	}
 
 	public List<FisherScore> getTopFishers(int limit) {
@@ -42,33 +262,31 @@ public class FishingChampionshipService {
 		return Collections.unmodifiableList(top);
 	}
 
-	public record FisherReward(int rank, String playerName, float length, int adenaReward) {}
-
-	private static final int[] REWARDS = { 800000, 500000, 300000, 200000, 100000 };
-	private int currentCycle = 1;
-
 	public int getCurrentCycle() {
 		return currentCycle;
 	}
 
-	public List<FisherReward> finishCycle() {
+	public synchronized List<FisherReward> finishCycle() {
 		sortRankings();
 		List<FisherReward> payouts = new ArrayList<>();
 		int limit = Math.min(5, rankings.size());
 		for (int i = 0; i < limit; i++) {
 			FisherScore fs = rankings.get(i);
-			payouts.add(new FisherReward(i + 1, fs.playerName(), fs.fishLength(), REWARDS[i]));
+			payouts.add(new FisherReward(i + 1, fs.playerName(), fs.fishLength(), getRewardForRank(i + 1)));
 		}
 		currentCycle++;
 		rankings.clear();
+		claimedPeriodRewards.clear();
 		return payouts;
 	}
 
-	public void clear() {
+	public synchronized void clear() {
 		rankings.clear();
+		claimedPeriodRewards.clear();
 	}
 
 	private void sortRankings() {
 		rankings.sort(Comparator.comparingDouble(FisherScore::fishLength).reversed());
 	}
 }
+

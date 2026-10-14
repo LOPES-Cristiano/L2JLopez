@@ -217,6 +217,10 @@ public class TradeService {
 		if (item.isEquipped()) {
 			return false;
 		}
+		if (com.lopez.l2j.config.Config.STRICT_HERO_SYSTEM
+				&& com.lopez.l2j.game.item.EquipmentRestrictionService.isHeroItem(item.itemId())) {
+			return false;
+		}
 		if (!item.template().isTradeable()) {
 			return false;
 		}
@@ -434,5 +438,60 @@ public class TradeService {
 				cancelTrade(movingPlayer, p1Sender, p2Sender);
 			}
 		}
+	}
+
+	// ==================== Equipment Exchange, Private Store Zone & Warehouse / Freight Rules ====================
+
+	public boolean isEquipmentExchangeAllowed() {
+		return com.lopez.l2j.config.Config.ALLOW_EXCHANGE;
+	}
+
+	public boolean canOpenPrivateStore(PlayerCharacter player, boolean inNoStoreZone) {
+		if (player == null) {
+			return false;
+		}
+		if (com.lopez.l2j.config.Config.CHECK_ZONE_ON_PVT && inNoStoreZone) {
+			return false;
+		}
+		return true;
+	}
+
+	public int getMaxWarehouseSlots(PlayerCharacter player, boolean isClanWarehouse) {
+		if (isClanWarehouse) {
+			return Math.max(1, com.lopez.l2j.config.Config.MAX_WAREHOUSE_SLOTS_FOR_CLAN);
+		}
+		if (player != null && player.race() == 4) { // Dwarf
+			return Math.max(1, com.lopez.l2j.config.Config.MAX_WAREHOUSE_SLOTS_FOR_DWARF);
+		}
+		return Math.max(1, com.lopez.l2j.config.Config.MAX_WAREHOUSE_SLOTS_FOR_NO_DWARF);
+	}
+
+	public boolean isWarehouseSortingEnabled(boolean isClan, boolean isFreight) {
+		if (isFreight) {
+			return com.lopez.l2j.config.Config.ENABLE_WAREHOUSE_SORTING_FREIGHT;
+		}
+		if (isClan) {
+			return com.lopez.l2j.config.Config.ENABLE_WAREHOUSE_SORTING_CLAN;
+		}
+		return com.lopez.l2j.config.Config.ENABLE_WAREHOUSE_SORTING_PRIVATE;
+	}
+
+	public boolean isFreightEnabled() {
+		return com.lopez.l2j.config.Config.ALLOW_FREIGHT && com.lopez.l2j.config.Config.ALT_GAME_FREIGHTS;
+	}
+
+	public int calculateFreightFee(int itemCount) {
+		if (!isFreightEnabled() || itemCount <= 0) {
+			return 0;
+		}
+		return Math.max(0, com.lopez.l2j.config.Config.ALT_GAME_FREIGHT_PRICE) * itemCount;
+	}
+
+	public boolean isWarehouseCacheEnabled() {
+		return com.lopez.l2j.config.Config.WAREHOUSE_CACHE;
+	}
+
+	public long getWarehouseCacheExpirationMs() {
+		return Math.max(1L, com.lopez.l2j.config.Config.WAREHOUSE_CACHE_TIME) * 60_000L;
 	}
 }

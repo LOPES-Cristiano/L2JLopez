@@ -90,8 +90,22 @@ public class ZakenService {
 
 	@PostConstruct
 	public void init() {
+		if (!Config.ZAKEN_ENABLED) {
+			return;
+		}
 		if (grandBossManager != null) {
 			this.status = grandBossManager.getStatus(GrandBossManager.ZAKEN);
+		}
+		if (Config.ZAKEN_DOOR_CLOSED_DEFAULT) {
+			if (doorService != null) {
+				doorService.closeDoor(ZAKEN_DOOR_ID);
+			}
+			this.doorsOpen = false;
+		} else {
+			if (doorService != null) {
+				doorService.openDoor(ZAKEN_DOOR_ID);
+			}
+			this.doorsOpen = true;
 		}
 	}
 
@@ -103,13 +117,45 @@ public class ZakenService {
 		return player != null && player.level() > Config.ZAKEN_MAX_LEVEL_IN_ZONE;
 	}
 
+	public boolean isDoorOpenHour(int gameHour) {
+		String hoursConfig = Config.ZAKEN_DOOR_OPEN_HOUR;
+		if (hoursConfig == null || hoursConfig.isBlank()) {
+			return gameHour == 0;
+		}
+		for (String token : hoursConfig.split(";")) {
+			String trimmed = token.trim();
+			if (!trimmed.isEmpty()) {
+				try {
+					if (Integer.parseInt(trimmed) == gameHour) {
+						return true;
+					}
+				} catch (NumberFormatException ignored) {
+				}
+			}
+		}
+		return false;
+	}
+
+	public void onGameHourChanged(int gameHour) {
+		if (!Config.ZAKEN_ENABLED) {
+			return;
+		}
+		if (isDoorOpenHour(gameHour) && !doorsOpen) {
+			openDoorForMidnight();
+		}
+	}
+
 	public synchronized void openDoorForMidnight() {
+		if (!Config.ZAKEN_ENABLED) {
+			return;
+		}
 		if (doorService != null) {
 			doorService.openDoor(ZAKEN_DOOR_ID);
 		}
 		doorsOpen = true;
 		int openMinutes = Config.ZAKEN_DOOR_OPEN_TIME;
-		log.info("Zaken: Portas do navio pirata abertas por {} minutos!", openMinutes);
+		log.info("Zaken: Portas do navio pirata abertas por {} minutos (horarios configurados: {})!",
+				openMinutes, Config.ZAKEN_DOOR_OPEN_HOUR);
 
 		if (world != null) {
 			world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Devil's Isle",
@@ -129,7 +175,7 @@ public class ZakenService {
 	}
 
 	public synchronized void spawnZaken() {
-		if (templates == null || world == null || objectIds == null) return;
+		if (!Config.ZAKEN_ENABLED || templates == null || world == null || objectIds == null) return;
 
 		NpcTemplate tpl = templates.get(ZAKEN)
 				.orElseGet(() -> NpcTemplate.fallback(ZAKEN, "Zaken", "L2GrandBoss"));

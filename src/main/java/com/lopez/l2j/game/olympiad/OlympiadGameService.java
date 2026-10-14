@@ -2,13 +2,17 @@ package com.lopez.l2j.game.olympiad;
 
 import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.GameSession;
+import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
@@ -66,6 +70,84 @@ public class OlympiadGameService {
 		return damageManager;
 	}
 
+	public Set<Integer> getRestrictedItemIds() {
+		Set<Integer> ids = new HashSet<>();
+		String raw = Config.ALT_OLY_RESTRICTED_ITEMS;
+		if (raw != null && !raw.isBlank()) {
+			for (String token : raw.split(",")) {
+				String trimmed = token.trim();
+				if (!trimmed.isEmpty()) {
+					try {
+						int id = Integer.parseInt(trimmed);
+						if (id > 0) {
+							ids.add(id);
+						}
+					} catch (NumberFormatException ignored) {
+					}
+				}
+			}
+		}
+		return ids;
+	}
+
+	public Set<Integer> getRestrictedSkillIds() {
+		Set<Integer> ids = new HashSet<>();
+		String raw = Config.ALT_OLY_RESTRICTED_SKILLS;
+		if (raw != null && !raw.isBlank()) {
+			for (String token : raw.split(",")) {
+				String trimmed = token.trim();
+				if (!trimmed.isEmpty()) {
+					try {
+						int id = Integer.parseInt(trimmed);
+						if (id > 0) {
+							ids.add(id);
+						}
+					} catch (NumberFormatException ignored) {
+					}
+				}
+			}
+		}
+		return ids;
+	}
+
+	public boolean isItemRestrictedInOlympiad(int itemId) {
+		return itemId > 0 && getRestrictedItemIds().contains(itemId);
+	}
+
+	public boolean isSkillRestrictedInOlympiad(int skillId) {
+		return skillId > 0 && getRestrictedSkillIds().contains(skillId);
+	}
+
+	public int getConfiguredMinParticipants(OlympiadMode mode) {
+		if (mode == OlympiadMode.CLASS_BASED) {
+			return Config.ALT_OLY_CLASSED_PARTICIPANTS > 0 ? Config.ALT_OLY_CLASSED_PARTICIPANTS : mode.minQueueSize();
+		}
+		if (mode == OlympiadMode.CLASS_FREE) {
+			return Config.ALT_OLY_NON_CLASSED_PARTICIPANTS > 0 ? Config.ALT_OLY_NON_CLASSED_PARTICIPANTS : mode.minQueueSize();
+		}
+		return mode != null ? mode.minQueueSize() : 4;
+	}
+
+	public boolean hasConfiguredParticipantsForScheduledMatch(OlympiadMode mode) {
+		return getQueueCount(mode) >= getConfiguredMinParticipants(mode);
+	}
+
+	public long getBattleDurationMs() {
+		return Config.ALT_OLY_BATTLE > 0 ? Config.ALT_OLY_BATTLE : 360000L;
+	}
+
+	public long getBattleWaitMs() {
+		return Config.ALT_OLY_BWAIT > 0 ? Config.ALT_OLY_BWAIT : 600000L;
+	}
+
+	public long getInitialWaitMs() {
+		return Config.ALT_OLY_IWAIT > 0 ? Config.ALT_OLY_IWAIT : 300000L;
+	}
+
+	public int getBattleLoadWaitSeconds() {
+		return Config.OLYMPIAD_COUNT_BATTLE_LOAD_WAIT > 0 ? Config.OLYMPIAD_COUNT_BATTLE_LOAD_WAIT : 45;
+	}
+
 	public RegisterResult register(GameSession session, OlympiadMode mode) {
 		if (!Config.OLYMPIAD_ENABLED) {
 			return RegisterResult.DISABLED;
@@ -101,23 +183,31 @@ public class OlympiadGameService {
 			}
 		}
 
-		// Checa limite de enchant se configurado
-		if (Config.ALT_OLY_ENCHANT_LIMIT >= 0 && player.inventory() != null) {
+		// Checa limite de enchant e itens restritos se configurado
+		Set<Integer> restrictedItems = getRestrictedItemIds();
+		if (player.inventory() != null && player.inventory().items() != null) {
 			for (var item : player.inventory().items()) {
-				if (item != null && item.isEquipped() && item.enchant() > Config.ALT_OLY_ENCHANT_LIMIT) {
+				if (item == null || !item.isEquipped()) {
+					continue;
+				}
+				if (Config.ALT_OLY_ENCHANT_LIMIT >= 0 && item.enchant() > Config.ALT_OLY_ENCHANT_LIMIT) {
 					String itemName = item.template() != null ? item.template().name() : "Item";
 					log.warn("Olympiad: Jogador {} tentou registrar com item {} enchant +{} (limite: +{})",
 							player.name(), itemName, item.enchant(), Config.ALT_OLY_ENCHANT_LIMIT);
 					return RegisterResult.ENCHANT_LIMIT_EXCEEDED;
 				}
+				if (!restrictedItems.isEmpty() && restrictedItems.contains(item.itemId())) {
+					log.warn("Olympiad: Jogador {} possui item restrito equipado (ID {})", player.name(), item.itemId());
+				}
 			}
 		}
 
-		// Verificacao anti-feed por IP na mesma fila
-		if (Config.ALT_OLY_SAME_IP) {
-			String clientIp = session.clientIp() != null ? session.clientIp() : "127.0.0.1";
-			List<OlympiadParticipant> queue = queues.get(mode);
-			synchronized (queue) {
+		// Verificacao anti-feed por IP e HWID/Account na mesma fila
+		String clientIp = session.clientIp() != null ? session.clientIp() : "127.0.0.1";
+		String account = player.account() != null ? player.account() : "";
+		List<OlympiadParticipant> queue = queues.get(mode);
+		synchronized (queue) {
+			if (Config.ALT_OLY_SAME_IP) {
 				boolean sameIpFound = queue.stream()
 						.anyMatch(p -> clientIp.equals(p.ipAddress()) && !"127.0.0.1".equals(clientIp));
 				if (sameIpFound) {
@@ -125,16 +215,19 @@ public class OlympiadGameService {
 							player.name(), clientIp, mode);
 					return RegisterResult.SAME_IP_BLOCKED;
 				}
+			}
+			if (Config.OLYMPIAD_PROTECTION_HWID && !account.isBlank()) {
+				boolean sameHwidFound = queue.stream()
+						.anyMatch(p -> account.equalsIgnoreCase(p.account()));
+				if (sameHwidFound) {
+					log.warn("Olympiad HWID protection: Jogador {} bloqueado por mesma conta/HWID {} na fila {}",
+							player.name(), account, mode);
+					return RegisterResult.SAME_IP_BLOCKED;
+				}
+			}
 
-				OlympiadParticipant participant = new OlympiadParticipant(session, player.x(), player.y(), player.z());
-				queue.add(participant);
-			}
-		} else {
-			List<OlympiadParticipant> queue = queues.get(mode);
-			synchronized (queue) {
-				OlympiadParticipant participant = new OlympiadParticipant(session, player.x(), player.y(), player.z());
-				queue.add(participant);
-			}
+			OlympiadParticipant participant = new OlympiadParticipant(session, player.x(), player.y(), player.z());
+			queue.add(participant);
 		}
 
 		log.info("Jogador {} (Classe {}) registrado com sucesso na fila {}", player.name(), player.classId(), mode);
@@ -153,6 +246,7 @@ public class OlympiadGameService {
 			return RegisterResult.NOT_NOBLE;
 		}
 		List<String> teamIps = new ArrayList<>();
+		List<String> teamAccounts = new ArrayList<>();
 		for (GameSession s : teamSessions) {
 			if (s == null || s.activeChar() == null) {
 				return RegisterResult.NOT_NOBLE;
@@ -183,6 +277,13 @@ public class OlympiadGameService {
 				}
 				teamIps.add(ip);
 			}
+			String acc = p.account() != null ? p.account() : "";
+			if (Config.OLYMPIAD_PROTECTION_HWID && !acc.isBlank()) {
+				if (teamAccounts.contains(acc.toLowerCase())) {
+					return RegisterResult.SAME_IP_BLOCKED;
+				}
+				teamAccounts.add(acc.toLowerCase());
+			}
 		}
 
 		List<OlympiadParticipant> queue = queues.get(OlympiadMode.TEAM_BASED);
@@ -192,6 +293,15 @@ public class OlympiadGameService {
 					boolean sameIpInQueue = queue.stream()
 							.anyMatch(p -> ip.equals(p.ipAddress()) && !"127.0.0.1".equals(ip));
 					if (sameIpInQueue) {
+						return RegisterResult.SAME_IP_BLOCKED;
+					}
+				}
+			}
+			if (Config.OLYMPIAD_PROTECTION_HWID) {
+				for (String acc : teamAccounts) {
+					boolean sameAccInQueue = queue.stream()
+							.anyMatch(p -> acc.equalsIgnoreCase(p.account()));
+					if (sameAccInQueue) {
 						return RegisterResult.SAME_IP_BLOCKED;
 					}
 				}
@@ -358,6 +468,18 @@ public class OlympiadGameService {
 		all.addAll(match.teamA());
 		all.addAll(match.teamB());
 
+		if (Config.ALT_OLY_ANNOUNCE_GAMES) {
+			String msg = "Olympiad Stadium #" + match.stadiumId() + " (" + match.mode() + ") match is starting!";
+			log.info(msg);
+			GameWorld world = GameWorld.getInstance();
+			if (world != null) {
+				CreatureSay announce = new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Olympiad", msg);
+				for (var online : world.onlinePlayers()) {
+					online.send(announce);
+				}
+			}
+		}
+
 		for (OlympiadParticipant p : all) {
 			if (p.session() != null && p.session().activeChar() != null) {
 				PlayerCharacter ch = p.session().activeChar();
@@ -396,6 +518,9 @@ public class OlympiadGameService {
 			}
 		}
 
+		int rewardItemId = match.battleRewardItemId();
+		int rewardItemCount = match.battleRewardItemCount();
+
 		if (olympiadManager != null) {
 			if (match.mode() == OlympiadMode.CLASS_FREE || match.mode() == OlympiadMode.CLASS_BASED) {
 				if (!match.teamA().isEmpty() && !match.teamB().isEmpty()) {
@@ -426,7 +551,8 @@ public class OlympiadGameService {
 			}
 		}
 
-		log.info("Match {} ({}) concluida com resultado: {}", matchId, match.mode(), result);
+		log.info("Match {} ({}) concluida com resultado: {} (Recompensa configurada: {}x item {})",
+				matchId, match.mode(), result, rewardItemCount, rewardItemId);
 		return result;
 	}
 

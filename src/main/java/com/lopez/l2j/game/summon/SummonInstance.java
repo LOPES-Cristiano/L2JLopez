@@ -540,6 +540,18 @@ public final class SummonInstance implements Creature {
 		this.spiritshotCharged = value;
 	}
 
+	public double getEffectiveExpPenalty(double baseExpPenalty) {
+		return Math.clamp(baseExpPenalty * Math.max(0.0, com.lopez.l2j.config.Config.ALT_SUMMON_PENALTY_RATE), 0.0, 1.0);
+	}
+
+	public double getEffectiveHpRegen(double baseHpRegen) {
+		return baseHpRegen * (com.lopez.l2j.config.Config.PET_HP_REGEN_MULTIPLIER / 100.0);
+	}
+
+	public double getEffectiveMpRegen(double baseMpRegen) {
+		return baseMpRegen * (com.lopez.l2j.config.Config.PET_MP_REGEN_MULTIPLIER / 100.0);
+	}
+
 	@Override
 	public boolean isSummon() {
 		return true;

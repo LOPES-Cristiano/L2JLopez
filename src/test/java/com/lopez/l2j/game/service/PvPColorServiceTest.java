@@ -46,4 +46,17 @@ class PvPColorServiceTest {
         int defaultColor = 0xFFFFFF;
         assertEquals(defaultColor, colorService.getNameColor(1000, defaultColor));
     }
+
+    @Test
+    void testApplyColorsOnPlayerCharacter() {
+        com.lopez.l2j.game.model.PlayerCharacter player =
+                new com.lopez.l2j.game.model.PlayerCharacter(1, "PvPHero", 80, 0, 0, 0);
+        player.pvpKills(120);
+        player.pkKills(60);
+
+        colorService.applyColors(player);
+
+        assertEquals(colorService.getNameColor2(), player.nameColor());
+        assertEquals(colorService.getTitleColor1(), player.titleColor());
+    }
 }

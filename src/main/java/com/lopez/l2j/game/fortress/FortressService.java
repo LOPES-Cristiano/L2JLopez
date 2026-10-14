@@ -1,6 +1,13 @@
 package com.lopez.l2j.game.fortress;
 
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.castle.CastleManager;
+import com.lopez.l2j.game.item.Inventory;
+import com.lopez.l2j.game.item.ItemInstance;
+import com.lopez.l2j.game.item.ItemTemplate;
+import com.lopez.l2j.game.model.ObjectIdFactory;
+import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.service.InventoryService;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -29,6 +36,8 @@ public class FortressService {
 	public static final int FUNC_MP_REGEN = 3;
 	public static final int FUNC_EXP_RESTORE = 4;
 	public static final int FUNC_SUPPORT = 5;
+
+	public static final int BLOOD_OATH_ITEM_ID = 9910;
 
 	// Catalogo padrao das 21 fortalezas
 	private static final List<FortressRecord> DEFAULT_FORTS = List.of(
@@ -61,10 +70,18 @@ public class FortressService {
 	private final Map<Integer, Map<Integer, FortressFunctionRecord>> fortFunctions = new ConcurrentHashMap<>();
 
 	private final JdbcClient jdbc;
+	private InventoryService inventoryService;
+	private final ObjectIdFactory idFactory = ObjectIdFactory.sequential(0x57000000);
+
+	public FortressService(JdbcClient jdbc) {
+		this(jdbc, null);
+	}
 
 	@Autowired
-	public FortressService(@Autowired(required = false) JdbcClient jdbc) {
+	public FortressService(@Autowired(required = false) JdbcClient jdbc,
+						   @Autowired(required = false) InventoryService inventoryService) {
 		this.jdbc = jdbc;
+		this.inventoryService = inventoryService;
 		initDefaults();
 		loadFromDb();
 		loadFunctions();
@@ -122,11 +139,140 @@ public class FortressService {
 	}
 
 	/**
+	 * Retorna a taxa (fee) em Adena configurada para uma funcao de fortaleza no nivel informado.
+	 */
+	public static int getFunctionFee(int type, int level) {
+		return switch (type) {
+			case FUNC_TELEPORT -> switch (level) {
+				case 1 -> Config.FORT_TELEPORT_FUNCTION_FEE_LVL_1;
+				case 2 -> Config.FORT_TELEPORT_FUNCTION_FEE_LVL_2;
+				default -> 0;
+			};
+			case FUNC_SUPPORT -> switch (level) {
+				case 1 -> Config.FORT_SUPPORT_FEE_LVL_1;
+				case 2 -> Config.FORT_SUPPORT_FEE_LVL_2;
+				default -> 0;
+			};
+			case FUNC_MP_REGEN -> switch (level) {
+				case 1 -> Config.FORT_MP_REGENERATION_FEE_LVL_1;
+				case 2 -> Config.FORT_MP_REGENERATION_FEE_LVL_2;
+				default -> 0;
+			};
+			case FUNC_HP_REGEN -> switch (level) {
+				case 1 -> Config.FORT_HP_REGENERATION_FEE_LVL_1;
+				case 2 -> Config.FORT_HP_REGENERATION_FEE_LVL_2;
+				default -> 0;
+			};
+			case FUNC_EXP_RESTORE -> switch (level) {
+				case 1 -> Config.FORT_EXP_REGENERATION_FEE_LVL_1;
+				case 2 -> Config.FORT_EXP_REGENERATION_FEE_LVL_2;
+				default -> 0;
+			};
+			default -> 0;
+		};
+	}
+
+	/**
+	 * Retorna o intervalo de cobranca (fee ratio em ms) configurado para uma funcao de fortaleza.
+	 */
+	public static long getFunctionFeeRatio(int type) {
+		return switch (type) {
+			case FUNC_TELEPORT -> Config.FORT_TELEPORT_FUNCTION_FEE_RATIO;
+			case FUNC_SUPPORT -> Config.FORT_SUPPORT_FUNCTION_FEE_RATIO;
+			case FUNC_MP_REGEN -> Config.FORT_MP_REGENERATION_FUNCTION_FEE_RATIO;
+			case FUNC_HP_REGEN -> Config.FORT_HP_REGENERATION_FUNCTION_FEE_RATIO;
+			case FUNC_EXP_RESTORE -> Config.FORT_EXP_REGENERATION_FUNCTION_FEE_RATIO;
+			default -> 86_400_000L;
+		};
+	}
+
+	/**
+	 * Ativa ou aprimora uma funcao de fortaleza usando as taxas e ratios padrao do Config.
+	 */
+	public boolean activateFunction(PlayerCharacter player, int fortId, int type, int level) {
+		int lease = getFunctionFee(type, level);
+		long ratio = getFunctionFeeRatio(type);
+		return activateFunction(player, fortId, type, level, lease, (int) (ratio / 1000L), ratio);
+	}
+
+	/**
+	 * Ativa ou aprimora uma funcao de fortaleza cobrando a taxa em Adena do jogador via InventoryService.
+	 */
+	public boolean activateFunction(PlayerCharacter player, int fortId, int type, int level, int lease, int rate, long durationMillis) {
+		if (player == null || player.clanId() <= 0 || level <= 0) {
+			return false;
+		}
+		FortressRecord fort = byId.get(fortId);
+		if (fort == null || fort.ownerClanId() != player.clanId()) {
+			return false;
+		}
+		int effectiveLease = lease > 0 ? lease : getFunctionFee(type, level);
+		long effectiveDuration = durationMillis > 0 ? durationMillis : getFunctionFeeRatio(type);
+		if (effectiveLease > 0) {
+			Inventory inv = player.inventory();
+			if (inv == null || inv.getItemCount(ItemTemplate.ADENA_ID) < effectiveLease) {
+				return false;
+			}
+			if (inventoryService != null) {
+				if (inventoryService.consumeItem(inv, ItemTemplate.ADENA_ID, effectiveLease, "FortressFunction") == null) {
+					return false;
+				}
+			} else {
+				inv.destroyItemByItemId(ItemTemplate.ADENA_ID, effectiveLease);
+			}
+		}
+		setFunction(fortId, type, level, effectiveLease, rate, effectiveDuration);
+		return true;
+	}
+
+	/**
+	 * Recompensa o lorde da fortaleza com Blood Oath (ou item configurado em Config.FORT_REWARD_ID / Config.FORT_REWARD_COUNT).
+	 */
+	public boolean rewardBloodOath(PlayerCharacter leader, int fortId) {
+		int count = Config.FORT_REWARD_COUNT > 0 ? Config.FORT_REWARD_COUNT : 1;
+		return rewardBloodOath(leader, fortId, count);
+	}
+
+	/**
+	 * Recompensa o lorde da fortaleza com Blood Oath (9910), persistindo no banco via InventoryService.
+	 */
+	public boolean rewardBloodOath(PlayerCharacter leader, int fortId, int count) {
+		if (leader == null || leader.inventory() == null || count <= 0) {
+			return false;
+		}
+		FortressRecord fort = byId.get(fortId);
+		if (fort == null || fort.ownerClanId() <= 0 || fort.ownerClanId() != leader.clanId()) {
+			return false;
+		}
+		int rewardItemId = Config.FORT_REWARD_ID > 0 && count == Config.FORT_REWARD_COUNT
+				? Config.FORT_REWARD_ID
+				: BLOOD_OATH_ITEM_ID;
+		Inventory inv = leader.inventory();
+		boolean added = false;
+		if (inventoryService != null) {
+			var res = inventoryService.addItem(inv, rewardItemId, count, "FortressBloodOath");
+			added = (res != null);
+		}
+		if (!added) {
+			var existing = inv.byItemId(rewardItemId);
+			if (existing.isPresent()) {
+				existing.get().count(existing.get().count() + count);
+			} else {
+				ItemTemplate tmpl = ItemTemplate.etc(rewardItemId, rewardItemId, "Blood Oath", "none", "stackable", 1, "none", 0, true, true, true, true);
+				inv.add(new ItemInstance(idFactory.nextId(), tmpl, leader.objectId(), count));
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Configura ou aprimora uma funcao interna da fortaleza (teleporte, regen, buffs).
 	 */
 	public void setFunction(int fortId, int type, int level, int lease, int rate, long durationMillis) {
-		long endTime = System.currentTimeMillis() + durationMillis;
-		FortressFunctionRecord func = new FortressFunctionRecord(fortId, type, level, lease, rate, endTime);
+		int effectiveLease = lease > 0 ? lease : getFunctionFee(type, level);
+		long effectiveDuration = durationMillis > 0 ? durationMillis : getFunctionFeeRatio(type);
+		long endTime = System.currentTimeMillis() + effectiveDuration;
+		FortressFunctionRecord func = new FortressFunctionRecord(fortId, type, level, effectiveLease, rate, endTime);
 		fortFunctions.computeIfAbsent(fortId, k -> new ConcurrentHashMap<>()).put(type, func);
 		saveFunction(func);
 		log.info("Funcao {} nivel {} configurada na Fortaleza {}", type, level, fortId);

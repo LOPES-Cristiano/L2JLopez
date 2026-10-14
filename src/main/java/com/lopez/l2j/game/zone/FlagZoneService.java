@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
@@ -30,6 +32,7 @@ public class FlagZoneService {
 
 	private final ZoneTable zoneTable;
 	private final List<Zone> customFlagZones = new CopyOnWriteArrayList<>();
+	private final Set<Integer> playersInFlagZone = ConcurrentHashMap.newKeySet();
 
 	public FlagZoneService() {
 		this(null);
@@ -72,6 +75,21 @@ public class FlagZoneService {
 		return isInsideFlagZone(player.x(), player.y(), player.z());
 	}
 
+	public boolean isInFlagZone(int x, int y, int z) {
+		return isInsideFlagZone(x, y, z);
+	}
+
+	public boolean isInFlagZone(PlayerCharacter player) {
+		return isInsideFlagZone(player);
+	}
+
+	/**
+	 * Disparado quando o jogador entra nos limites de uma Flag Zone.
+	 */
+	public void onEnter(PlayerCharacter player) {
+		onEnter(player, null);
+	}
+
 	/**
 	 * Disparado quando o jogador entra nos limites de uma Flag Zone.
 	 */
@@ -79,6 +97,7 @@ public class FlagZoneService {
 		if (player == null) {
 			return;
 		}
+		playersInFlagZone.add(player.objectId());
 		player.pvpFlag(1);
 		// Enquanto estiver na zona, o flag nao expira por tempo
 		player.pvpFlagEndTime(Long.MAX_VALUE);
@@ -92,10 +111,18 @@ public class FlagZoneService {
 	/**
 	 * Disparado quando o jogador sai dos limites da Flag Zone.
 	 */
+	public void onExit(PlayerCharacter player) {
+		onExit(player, null);
+	}
+
+	/**
+	 * Disparado quando o jogador sai dos limites da Flag Zone.
+	 */
 	public void onExit(PlayerCharacter player, Consumer<GameServerPacket> packetSender) {
 		if (player == null) {
 			return;
 		}
+		playersInFlagZone.remove(player.objectId());
 		// Inicia contagem regressiva retail de 20s para decair o flag
 		player.pvpFlagEndTime(System.currentTimeMillis() + 20_000L);
 
@@ -103,6 +130,65 @@ public class FlagZoneService {
 			packetSender.accept(new CreatureSay(0, CreatureSay.ALL, "SYS",
 					"Voce saiu da Zona de Flag Automatica."));
 		}
+	}
+
+	/**
+	 * Disparado quando um jogador morre dentro da Flag Zone.
+	 */
+	public void onPlayerDeath(PlayerCharacter player) {
+		onPlayerDeath(player, null);
+	}
+
+	/**
+	 * Disparado quando um jogador morre dentro da Flag Zone:
+	 * limpa o estado de flag permanente para que o respawn fora da zona não retenha flag infinito.
+	 */
+	public void onPlayerDeath(PlayerCharacter player, Consumer<GameServerPacket> packetSender) {
+		if (player == null) {
+			return;
+		}
+		playersInFlagZone.remove(player.objectId());
+		player.pvpFlag(0);
+		player.pvpFlagEndTime(0L);
+		if (packetSender != null) {
+			packetSender.accept(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					"Voce foi abatido na Zona de Flag Automatica (sem perda de Karma)."));
+		}
+	}
+
+	/**
+	 * Atualiza dinamicamente o estado de pvpFlag do jogador conforme sua posicao em relacao as Flag Zones.
+	 * Retorna true se houve transicao (entrada ou saida da Flag Zone).
+	 */
+	public boolean updatePlayerZonePosition(PlayerCharacter player) {
+		return updatePlayerZonePosition(player, this.zoneTable, null);
+	}
+
+	public boolean updatePlayerZonePosition(PlayerCharacter player, ZoneTable zoneManager) {
+		return updatePlayerZonePosition(player, zoneManager, null);
+	}
+
+	public boolean updatePlayerZonePosition(PlayerCharacter player, ZoneTable zoneManager, Consumer<GameServerPacket> packetSender) {
+		if (player == null || player.isDead()) {
+			return false;
+		}
+		int x = player.x();
+		int y = player.y();
+		int z = player.z();
+
+		boolean currentlyInside = isInsideFlagZone(x, y, z)
+				|| (zoneManager != null && zoneManager != this.zoneTable && zoneManager.isInsideFlagZone(x, y, z));
+
+		boolean wasInside = playersInFlagZone.contains(player.objectId()) || player.pvpFlagEndTime() == Long.MAX_VALUE;
+
+		if (currentlyInside && (!wasInside || player.pvpFlag() == 0)) {
+			onEnter(player, packetSender);
+			return true;
+		} else if (!currentlyInside && wasInside) {
+			onExit(player, packetSender);
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -118,5 +204,6 @@ public class FlagZoneService {
 
 	public void clearCustomZones() {
 		customFlagZones.clear();
+		playersInFlagZone.clear();
 	}
 }

@@ -1,8 +1,10 @@
 package com.lopez.l2j.game.manor;
 
+import com.lopez.l2j.config.Config;
 import jakarta.annotation.PostConstruct;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -57,7 +59,71 @@ public class CastleManorManager {
 
 	@PostConstruct
 	public void init() {
+		if (!isManorEnabled()) {
+			log.info("CastleManorManager: sistema de Manor desabilitado via Config.ALLOW_MANOR");
+			return;
+		}
 		loadFromDb();
+	}
+
+	public static boolean isManorEnabled() {
+		return Config.ALLOW_MANOR;
+	}
+
+	public static int getManorDropRate() {
+		return Math.max(1, Config.RATE_DROP_MANOR);
+	}
+
+	/**
+	 * Calcula a quantidade de colheitas (crops) obtida ao usar o Harvester, multiplicada por Config.RATE_DROP_MANOR.
+	 */
+	public static int calculateManorCropDropCount(int baseCount) {
+		if (baseCount <= 0) {
+			return 0;
+		}
+		return baseCount * getManorDropRate();
+	}
+
+	public static long getMaintenancePeriodMillis() {
+		return Math.max(1, Config.ALT_MANOR_MAINTENANCE_PERIOD) * 60_000L;
+	}
+
+	public static boolean shouldSaveAllActions() {
+		return Config.ALT_MANOR_SAVE_ALL_ACTIONS;
+	}
+
+	public static int getSavePeriodRateHours() {
+		return Math.max(1, Config.ALT_MANOR_SAVE_PERIOD_RATE);
+	}
+
+	/**
+	 * Calcula o proximo horario de refresh do Manor (Config.ALT_MANOR_REFRESH_TIME : Config.ALT_MANOR_REFRESH_MIN).
+	 */
+	public static long getNextRefreshTimeMillis() {
+		Calendar cal = Calendar.getInstance();
+		cal.set(Calendar.HOUR_OF_DAY, Math.max(0, Math.min(23, Config.ALT_MANOR_REFRESH_TIME)));
+		cal.set(Calendar.MINUTE, Math.max(0, Math.min(59, Config.ALT_MANOR_REFRESH_MIN)));
+		cal.set(Calendar.SECOND, 0);
+		cal.set(Calendar.MILLISECOND, 0);
+		if (cal.getTimeInMillis() <= System.currentTimeMillis()) {
+			cal.add(Calendar.DAY_OF_YEAR, 1);
+		}
+		return cal.getTimeInMillis();
+	}
+
+	/**
+	 * Calcula o proximo horario de aprovacao do Manor (Config.ALT_MANOR_APPROVE_TIME : Config.ALT_MANOR_APPROVE_MIN).
+	 */
+	public static long getNextApproveTimeMillis() {
+		Calendar cal = Calendar.getInstance();
+		cal.set(Calendar.HOUR_OF_DAY, Math.max(0, Math.min(23, Config.ALT_MANOR_APPROVE_TIME)));
+		cal.set(Calendar.MINUTE, Math.max(0, Math.min(59, Config.ALT_MANOR_APPROVE_MIN)));
+		cal.set(Calendar.SECOND, 0);
+		cal.set(Calendar.MILLISECOND, 0);
+		if (cal.getTimeInMillis() <= System.currentTimeMillis()) {
+			cal.add(Calendar.DAY_OF_YEAR, 1);
+		}
+		return cal.getTimeInMillis();
 	}
 
 	public Optional<SeedTemplate> getSeed(int seedId) {
@@ -73,6 +139,9 @@ public class CastleManorManager {
 	}
 
 	public synchronized boolean setSeedProduction(int castleId, SeedProduction prod, int period) {
+		if (!isManorEnabled()) {
+			return false;
+		}
 		var map = period == PERIOD_CURRENT ? productionCurrent : productionNext;
 		map.computeIfAbsent(castleId, k -> new ConcurrentHashMap<>()).put(prod.seedId(), prod);
 		persistProduction(castleId, prod, period);
@@ -80,6 +149,9 @@ public class CastleManorManager {
 	}
 
 	public synchronized boolean setCropProcure(int castleId, CropProcure proc, int period) {
+		if (!isManorEnabled()) {
+			return false;
+		}
 		var map = period == PERIOD_CURRENT ? procureCurrent : procureNext;
 		map.computeIfAbsent(castleId, k -> new ConcurrentHashMap<>()).put(proc.cropId(), proc);
 		persistProcure(castleId, proc, period);
@@ -102,6 +174,9 @@ public class CastleManorManager {
 	 * @return preco total a pagar em adena, ou -1 se estoque insuficiente
 	 */
 	public synchronized long buySeed(int castleId, int seedId, int count) {
+		if (!isManorEnabled()) {
+			return -1;
+		}
 		var opt = getSeedProduction(castleId, seedId, PERIOD_CURRENT);
 		if (opt.isEmpty()) {
 			return -1;
@@ -111,7 +186,9 @@ public class CastleManorManager {
 			return -1;
 		}
 		prod.amount(prod.amount() - count);
-		persistProduction(castleId, prod, PERIOD_CURRENT);
+		if (shouldSaveAllActions() || jdbc != null) {
+			persistProduction(castleId, prod, PERIOD_CURRENT);
+		}
 		return (long) prod.price() * count;
 	}
 
@@ -121,6 +198,9 @@ public class CastleManorManager {
 	 * @return recompensa em adena paga ao jogador, ou -1 se demanda insuficiente
 	 */
 	public synchronized long sellCrop(int castleId, int cropId, int count) {
+		if (!isManorEnabled()) {
+			return -1;
+		}
 		var opt = getCropProcure(castleId, cropId, PERIOD_CURRENT);
 		if (opt.isEmpty()) {
 			return -1;
@@ -130,7 +210,9 @@ public class CastleManorManager {
 			return -1;
 		}
 		proc.amount(proc.amount() - count);
-		persistProcure(castleId, proc, PERIOD_CURRENT);
+		if (shouldSaveAllActions() || jdbc != null) {
+			persistProcure(castleId, proc, PERIOD_CURRENT);
+		}
 		return (long) proc.price() * count;
 	}
 

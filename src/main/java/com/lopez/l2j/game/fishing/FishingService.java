@@ -69,7 +69,7 @@ public class FishingService {
 	public static final int PROOF_OF_CATCHING_A_FISH = 7609;
 
 	private final FishTable fishTable;
-	private final FishingChampionshipService championship;
+	private FishingChampionshipService championship;
 	private final InventoryService inventoryService;
 	private final ScheduledExecutorService scheduler;
 
@@ -79,7 +79,7 @@ public class FishingService {
 
 	@Autowired
 	public FishingService(FishTable fishTable,
-						  FishingChampionshipService championship,
+						  @Autowired(required = false) FishingChampionshipService championship,
 						  @Autowired(required = false) InventoryService inventoryService) {
 		this(fishTable, championship, inventoryService, Executors.newSingleThreadScheduledExecutor());
 	}
@@ -92,6 +92,10 @@ public class FishingService {
 		this.championship = championship;
 		this.inventoryService = inventoryService;
 		this.scheduler = scheduler;
+	}
+
+	public void setFishingChampionshipService(FishingChampionshipService championship) {
+		this.championship = championship;
 	}
 
 	public void setPacketBroadcaster(Consumer<GameServerPacket> broadcaster) {
@@ -334,16 +338,84 @@ public class FishingService {
 
 	private void winFishing(PlayerCharacter player, FishingSession session, Consumer<GameServerPacket> clientSender) {
 		cleanPlayerState(player);
-		clientSender.accept(new ExFishingEnd(player.objectId(), true));
-		clientSender.accept(SystemMessage.id(SystemMessage.YOU_CAUGHT_SOMETHING));
-
-		// Adiciona o peixe pescado no inventario
-		if (inventoryService != null && player.inventory() != null) {
-			inventoryService.addItem(player.inventory(), session.fish().id(), 1, "Fishing");
+		if (clientSender != null) {
+			clientSender.accept(new ExFishingEnd(player.objectId(), true));
+			clientSender.accept(SystemMessage.id(SystemMessage.YOU_CAUGHT_SOMETHING));
 		}
 
-		// Registra no campeonato de pesca
-		championship.registerCatch(player.name(), session.fish().level());
+		// Adiciona o peixe pescado no inventario
+		if (player.inventory() != null) {
+			if (inventoryService != null) {
+				var added = inventoryService.addItem(player.inventory(), session.fish().id(), 1, "Fishing");
+				if (added == null) {
+					player.inventory().addItem(session.fish().id(), 1);
+				}
+			} else {
+				player.inventory().addItem(session.fish().id(), 1);
+			}
+		}
+
+		// Gera comprimento realista (60.0 a 180.0 cm) e registra automaticamente no campeonato de pesca
+		double fishLength = generateFishLength(session.fish().level(), session.lureType());
+		if (championship != null) {
+			championship.submitFish(player.objectId(), player.name(), fishLength);
+		}
+	}
+
+	/**
+	 * Finaliza com sucesso a pesca do jogador (reelIn), entregando o peixe e registrando
+	 * o comprimento realista (60.0 a 180.0 cm) no campeonato de pesca.
+	 */
+	public double reelIn(PlayerCharacter player) {
+		return reelIn(player, p -> {});
+	}
+
+	public double reelIn(PlayerCharacter player, Consumer<GameServerPacket> clientSender) {
+		if (player == null) {
+			return 0.0;
+		}
+		FishingSession session = sessions.get(player.objectId());
+		if (session != null) {
+			double length = generateFishLength(session.fish().level(), session.lureType());
+			cleanPlayerState(player);
+			if (clientSender != null) {
+				clientSender.accept(new ExFishingEnd(player.objectId(), true));
+				clientSender.accept(SystemMessage.id(SystemMessage.YOU_CAUGHT_SOMETHING));
+			}
+			if (player.inventory() != null) {
+				if (inventoryService != null) {
+					var added = inventoryService.addItem(player.inventory(), session.fish().id(), 1, "Fishing");
+					if (added == null) {
+						player.inventory().addItem(session.fish().id(), 1);
+					}
+				} else {
+					player.inventory().addItem(session.fish().id(), 1);
+				}
+			}
+			if (championship != null) {
+				championship.submitFish(player.objectId(), player.name(), length);
+			}
+			return length;
+		}
+
+		int fishLevel = Math.max(1, Math.min(27, player.level() / 3));
+		double length = generateFishLength(fishLevel, 1);
+		if (championship != null) {
+			championship.submitFish(player.objectId(), player.name(), length);
+		}
+		return length;
+	}
+
+	/**
+	 * Gera um comprimento realista para o peixe capturado (entre 60.0 e 180.0 cm)
+	 * baseado no nível do peixe e tipo de isca.
+	 */
+	public double generateFishLength(int fishLevel, int lureType) {
+		int clampedLevel = Math.max(1, Math.min(27, fishLevel));
+		int clampedLure = Math.max(0, Math.min(2, lureType));
+		double base = 60.0 + (clampedLevel * 3.5) + (clampedLure * 5.0) + ThreadLocalRandom.current().nextDouble(0.0, 15.0);
+		double clamped = Math.max(60.0, Math.min(180.0, base));
+		return Math.round(clamped * 100.0) / 100.0;
 	}
 
 	private void loseFishing(PlayerCharacter player, FishingSession session, Consumer<GameServerPacket> clientSender) {

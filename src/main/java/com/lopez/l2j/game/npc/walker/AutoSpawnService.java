@@ -77,6 +77,9 @@ public class AutoSpawnService {
 	// ==========================================
 
 	public Optional<NpcInstance> spawnAndRegisterWalker(int npcId, int routeId) {
+		if (!com.lopez.l2j.config.Config.ALLOW_NPC_WALKERS) {
+			return Optional.empty();
+		}
 		List<NpcWalkerNode> route = routesTable.getRoute(routeId);
 		if (route.isEmpty()) {
 			log.warn("Nenhuma rota encontrada para o routeId {}", routeId);
@@ -86,6 +89,9 @@ public class AutoSpawnService {
 		NpcWalkerNode firstNode = route.get(0);
 		NpcTemplate tpl = templates.get(npcId)
 				.orElseGet(() -> NpcTemplate.fallback(npcId, "Walker " + npcId, "L2Npc"));
+		if (!com.lopez.l2j.config.Config.ALLOW_PET_WALKER && "L2PetWalker".equalsIgnoreCase(tpl.type())) {
+			return Optional.empty();
+		}
 
 		int objectId = objectIds.nextId();
 		NpcInstance walkerNpc = new NpcInstance(objectId, tpl, firstNode.moveX(), firstNode.moveY(), firstNode.moveZ(), 0);
@@ -100,7 +106,7 @@ public class AutoSpawnService {
 	}
 
 	public void registerWalker(NpcInstance npc, int routeId) {
-		if (npc == null) {
+		if (npc == null || !com.lopez.l2j.config.Config.ALLOW_NPC_WALKERS) {
 			return;
 		}
 		List<NpcWalkerNode> route = routesTable.getRoute(routeId);
@@ -160,6 +166,9 @@ public class AutoSpawnService {
 	}
 
 	private void stepWalkers(long nowMillis) {
+		if (!com.lopez.l2j.config.Config.ALLOW_NPC_WALKERS) {
+			return;
+		}
 		for (NpcWalkerState state : activeWalkers.values()) {
 			try {
 				if (state.npc.isDead()) {
@@ -210,8 +219,16 @@ public class AutoSpawnService {
 				}
 
 				state.currentIndex = nextIdx;
-				// Proxima acao ocorre apos o delay configurado para o no
-				state.nextActionTime = nowMillis + Math.max(1, targetNode.delay()) * 1000L;
+				// Proxima acao ocorre apos o delay configurado para o no (ou intervalo de walk animation caso delay <= 0)
+				long delaySec = targetNode.delay();
+				if (delaySec <= 0) {
+					int minWalk = Math.max(1, com.lopez.l2j.config.Config.MIN_NPC_WALK_ANIMATION);
+					int maxWalk = Math.max(minWalk, com.lopez.l2j.config.Config.MAX_NPC_WALK_ANIMATION);
+					delaySec = maxWalk > minWalk
+							? java.util.concurrent.ThreadLocalRandom.current().nextInt(minWalk, maxWalk + 1)
+							: minWalk;
+				}
+				state.nextActionTime = nowMillis + Math.max(1L, delaySec) * 1000L;
 
 			} catch (Exception e) {
 				log.warn("Erro ao avancar NpcWalker {}: {}", state.npc.objectId(), e.getMessage());

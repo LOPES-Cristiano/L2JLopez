@@ -83,7 +83,8 @@ public abstract class AbstractNpcAI {
 		if (isGuardNpc() && character != null && character.karma() > 0) {
 			return false;
 		}
-		return zones.isInsidePeace(px, py, pz) || zones.isInsidePeace(npc.x(), npc.y(), npc.z());
+		boolean insidePeace = zones.isInsidePeace(px, py, pz) || zones.isInsidePeace(npc.x(), npc.y(), npc.z());
+		return insidePeace && (!com.lopez.l2j.config.Config.ALT_MOB_AGGRO_IN_PEACE_ZONE || zones != null);
 	}
 
 	protected boolean hasLineOfSight(com.lopez.l2j.game.model.PlayerCharacter character) {
@@ -148,7 +149,7 @@ public abstract class AbstractNpcAI {
 		int goalZ = targetZ;
 
 		GeoEngine geo = (combatService != null) ? combatService.geoEngine() : null;
-		if (geo != null && geo.isEnabled()) {
+		if (geo != null && geo.isEnabled() && com.lopez.l2j.config.Config.ENABLE_PATH_FINDING) {
 			if (!geo.canMoveToTarget(npc.x(), npc.y(), npc.z(), targetX, targetY, targetZ)) {
 				List<int[]> path = geo.findPath(npc.x(), npc.y(), npc.z(), targetX, targetY, targetZ, npc.instanceId());
 				if (path != null && !path.isEmpty()) {

@@ -32,7 +32,9 @@ public class TvtEventService {
         LEVEL_TOO_LOW,
         LEVEL_TOO_HIGH,
         KARMA_NOT_ALLOWED,
-        IS_AIO_BLOCKED
+        IS_AIO_BLOCKED,
+        CURSED_WEAPON_NOT_ALLOWED,
+        MAX_PLAYERS_REACHED
     }
 
     public enum TeamType {
@@ -55,9 +57,24 @@ public class TvtEventService {
 
         public String getTeamName() { return teamName; }
         public int getNameColor() { return nameColor; }
-        public int getSpawnX() { return spawnX; }
-        public int getSpawnY() { return spawnY; }
-        public int getSpawnZ() { return spawnZ; }
+        public int getSpawnX() { return parseCoord(this == BLUE ? Config.TVT_BLUE_TEAM_LOC : Config.TVT_RED_TEAM_LOC, 0, spawnX); }
+        public int getSpawnY() { return parseCoord(this == BLUE ? Config.TVT_BLUE_TEAM_LOC : Config.TVT_RED_TEAM_LOC, 1, spawnY); }
+        public int getSpawnZ() { return parseCoord(this == BLUE ? Config.TVT_BLUE_TEAM_LOC : Config.TVT_RED_TEAM_LOC, 2, spawnZ); }
+    }
+
+    private static int parseCoord(String locStr, int index, int fallback) {
+        if (locStr == null || locStr.isBlank()) {
+            return fallback;
+        }
+        String[] parts = locStr.split(",");
+        if (parts.length <= index) {
+            return fallback;
+        }
+        try {
+            return Integer.parseInt(parts[index].trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 
     public static class Participant {
@@ -96,16 +113,23 @@ public class TvtEventService {
     }
 
     public static final int TVT_INSTANCE_ID = 9101;
+    public static final int ZARICHE_ID = 8190;
+    public static final int AKAMANAH_ID = 8689;
 
     private volatile EventState state = EventState.INACTIVE;
     private int minLevel = Config.TVT_MIN_LEVEL;
     private int maxLevel = Config.TVT_MAX_LEVEL;
+    private int minPlayers = Config.TVT_MIN_PLAYERS;
+    private int maxPlayers = Config.TVT_MAX_PLAYERS;
     private int rewardItemId = Config.TVT_REWARD_ID;
     private int rewardItemCount = Config.TVT_REWARD_AMOUNT;
+    private volatile boolean coliseumDoorsClosed = false;
     private final com.lopez.l2j.game.service.InventoryService inventoryService;
 
     private final Map<Integer, Participant> participants = new ConcurrentHashMap<>();
     private final Map<TeamType, Integer> teamScores = new ConcurrentHashMap<>();
+    private java.util.concurrent.ScheduledExecutorService autoScheduler;
+    private java.util.concurrent.ScheduledFuture<?> scheduledTask;
 
     public TvtEventService() {
         this(null);
@@ -118,6 +142,71 @@ public class TvtEventService {
         teamScores.put(TeamType.RED, 0);
     }
 
+    @jakarta.annotation.PostConstruct
+    public void initAutoStart() {
+        if (Config.TVT_AUTO_START && Config.TVT_ENABLED) {
+            startAutoScheduler(Config.TVT_DELAY_ON_BOOT);
+        }
+    }
+
+    @jakarta.annotation.PreDestroy
+    public void shutdownAutoScheduler() {
+        if (scheduledTask != null) {
+            scheduledTask.cancel(false);
+        }
+        if (autoScheduler != null) {
+            autoScheduler.shutdownNow();
+        }
+    }
+
+    public synchronized void startAutoScheduler(int initialDelayMinutes) {
+        if (autoScheduler == null || autoScheduler.isShutdown()) {
+            autoScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "TvT-AutoScheduler");
+                t.setDaemon(true);
+                return t;
+            });
+        }
+        long delayMs = Math.max(1, initialDelayMinutes) * 60_000L;
+        log.info("TvT: Auto-start agendado para iniciar em {} minuto(s).", initialDelayMinutes);
+        scheduledTask = autoScheduler.schedule(this::runAutoCycleRegistration, delayMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+
+    private void runAutoCycleRegistration() {
+        if (!Config.TVT_ENABLED) {
+            return;
+        }
+        openRegistration();
+        long joinMs = Math.max(1, Config.TVT_JOIN_TIME) * 60_000L;
+        scheduledTask = autoScheduler.schedule(this::runAutoCycleFight, joinMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+
+    private void runAutoCycleFight() {
+        if (participants.size() < Math.max(2, Config.TVT_MIN_PLAYERS)) {
+            log.warn("TvT AutoCycle: Participantes insuficientes ({} < {}). Cancelando ciclo.", participants.size(), Config.TVT_MIN_PLAYERS);
+            state = EventState.INACTIVE;
+            participants.clear();
+            scheduleNextAutoCycle();
+            return;
+        }
+        if (startFight()) {
+            long fightMs = Math.max(1, Config.TVT_EVENT_TIME) * 60_000L;
+            scheduledTask = autoScheduler.schedule(() -> {
+                stopAndCalculateWinner();
+                scheduleNextAutoCycle();
+            }, fightMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } else {
+            scheduleNextAutoCycle();
+        }
+    }
+
+    private void scheduleNextAutoCycle() {
+        if (Config.TVT_AUTO_START && autoScheduler != null && !autoScheduler.isShutdown()) {
+            long nextDelayMs = Math.max(1, Config.TVT_NEXT_DELAY) * 60_000L;
+            scheduledTask = autoScheduler.schedule(this::runAutoCycleRegistration, nextDelayMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+        }
+    }
+
     public synchronized void openRegistration() {
         openRegistration(Config.TVT_MIN_LEVEL, Config.TVT_MAX_LEVEL);
     }
@@ -125,11 +214,21 @@ public class TvtEventService {
     public synchronized void openRegistration(int minLvl, int maxLvl) {
         this.minLevel = minLvl;
         this.maxLevel = maxLvl;
+        this.minPlayers = Config.TVT_MIN_PLAYERS;
+        this.maxPlayers = Config.TVT_MAX_PLAYERS;
         this.participants.clear();
         this.teamScores.put(TeamType.BLUE, 0);
         this.teamScores.put(TeamType.RED, 0);
         this.state = EventState.REGISTRATION;
-        log.info("TvT: Registro aberto para niveis {} a {}.", minLevel, maxLevel);
+        log.info("TvT: Registro aberto para niveis {} a {} (tempo de inscricao: {} min).", minLevel, maxLevel, Config.TVT_JOIN_TIME);
+    }
+
+    public static boolean hasCursedWeapon(PlayerCharacter player) {
+        if (player == null || player.inventory() == null) {
+            return false;
+        }
+        return player.inventory().byItemId(ZARICHE_ID).isPresent()
+                || player.inventory().byItemId(AKAMANAH_ID).isPresent();
     }
 
     public RegisterResult register(PlayerCharacter player) {
@@ -139,6 +238,9 @@ public class TvtEventService {
         if (participants.containsKey(player.getObjectId())) {
             return RegisterResult.ALREADY_REGISTERED;
         }
+        if (Config.TVT_MAX_PLAYERS > 0 && participants.size() >= Config.TVT_MAX_PLAYERS) {
+            return RegisterResult.MAX_PLAYERS_REACHED;
+        }
         if (player.getLevel() < minLevel) {
             return RegisterResult.LEVEL_TOO_LOW;
         }
@@ -147,6 +249,9 @@ public class TvtEventService {
         }
         if (player.getKarma() > 0) {
             return RegisterResult.KARMA_NOT_ALLOWED;
+        }
+        if (!Config.TVT_JOIN_WITH_CURSED_WEAPON && hasCursedWeapon(player)) {
+            return RegisterResult.CURSED_WEAPON_NOT_ALLOWED;
         }
         if (player.isAio()) {
             return RegisterResult.IS_AIO_BLOCKED;
@@ -175,6 +280,8 @@ public class TvtEventService {
             return false;
         }
 
+        this.coliseumDoorsClosed = Config.TVT_CLOSE_COLISEUM_DOORS;
+
         // Divide and balance teams by level
         List<Participant> list = new ArrayList<>(participants.values());
         list.sort(Comparator.comparingInt(Participant::getLevel).reversed());
@@ -192,7 +299,18 @@ public class TvtEventService {
             }
             PlayerCharacter pc = p.getPlayer();
             if (pc != null) {
-                pc.team(p.getTeam() == TeamType.BLUE ? 1 : 2);
+                if (Config.TVT_AURA) {
+                    pc.team(p.getTeam() == TeamType.BLUE ? 1 : 2);
+                } else {
+                    pc.team(0);
+                }
+                if (Config.TVT_ON_START_REMOVE_ALL_EFFECTS) {
+                    pc.stopAllEffects();
+                }
+                if (Config.TVT_ON_START_UNSUMMON_PET && (pc.hasSummon() || pc.hasPet())) {
+                    pc.activeSummon(null);
+                    pc.petObjectId(0);
+                }
                 pc.currentHp(pc.maxHp());
                 pc.currentMp(pc.maxMp());
                 pc.currentCp(pc.maxCp());
@@ -210,7 +328,59 @@ public class TvtEventService {
         teamScores.put(TeamType.BLUE, 0);
         teamScores.put(TeamType.RED, 0);
         state = EventState.RUNNING;
-        log.info("TvT: Batalha iniciada! Azul: {} players, Vermelho: {} players.", blueCount, redCount);
+        log.info("TvT: Batalha iniciada! Azul: {} players, Vermelho: {} players (duracao: {} min, portas fechadas: {}).",
+                blueCount, redCount, Config.TVT_EVENT_TIME, coliseumDoorsClosed);
+        return true;
+    }
+
+    public boolean canAttack(int attackerId, int targetId) {
+        if (state != EventState.RUNNING) {
+            return true;
+        }
+        Participant att = participants.get(attackerId);
+        Participant tgt = participants.get(targetId);
+        if (att == null && tgt == null) {
+            return true;
+        }
+        if (att == null || tgt == null) {
+            return Config.TVT_ALLOW_INTERFERENCE;
+        }
+        if (att.getTeam() == tgt.getTeam()) {
+            return Config.TVT_ALLOW_TEAM_ATTACKING;
+        }
+        return true;
+    }
+
+    public boolean canCastSkill(int casterId, int targetId, boolean isHelpful) {
+        if (state != EventState.RUNNING) {
+            return true;
+        }
+        Participant caster = participants.get(casterId);
+        Participant target = participants.get(targetId);
+        if (caster == null && target == null) {
+            return true;
+        }
+        if (caster == null || target == null) {
+            return Config.TVT_ALLOW_INTERFERENCE;
+        }
+        if (caster.getTeam() == target.getTeam()) {
+            return isHelpful || Config.TVT_ALLOW_TEAM_CASTING;
+        } else {
+            return !isHelpful || Config.TVT_ALLOW_ENEMY_HEALING;
+        }
+    }
+
+    public boolean canUsePotions(int objectId) {
+        if (state == EventState.RUNNING && participants.containsKey(objectId)) {
+            return Config.TVT_ALLOW_POTIONS;
+        }
+        return true;
+    }
+
+    public boolean canSummon(int objectId) {
+        if (state == EventState.RUNNING && participants.containsKey(objectId)) {
+            return Config.TVT_ALLOW_SUMMON;
+        }
         return true;
     }
 
@@ -223,8 +393,8 @@ public class TvtEventService {
         if (killer == null || victim == null) {
             return false;
         }
-        // Friendly fire protection
-        if (killer.getTeam() == victim.getTeam()) {
+        // Friendly fire protection unless TVT_ALLOW_TEAM_ATTACKING is enabled
+        if (killer.getTeam() == victim.getTeam() && !Config.TVT_ALLOW_TEAM_ATTACKING) {
             return false;
         }
 
@@ -233,9 +403,13 @@ public class TvtEventService {
 
         PlayerCharacter vChar = victim.getPlayer();
         if (vChar != null && victim.getTeam() != null) {
-            vChar.currentHp(vChar.maxHp());
-            vChar.currentMp(vChar.maxMp());
-            vChar.currentCp(vChar.maxCp());
+            if (Config.TVT_REVIVE_RECOVERY) {
+                vChar.currentHp(vChar.maxHp());
+                vChar.currentMp(vChar.maxMp());
+                vChar.currentCp(vChar.maxCp());
+            } else {
+                vChar.currentHp(Math.max(1.0, vChar.maxHp() * 0.7));
+            }
             var world = com.lopez.l2j.game.world.GameWorld.getInstance();
             if (world != null) {
                 world.sendPacket(vChar.objectId(), new com.lopez.l2j.network.game.packet.GameServerPacket.Revive(vChar.objectId()));
@@ -261,6 +435,7 @@ public class TvtEventService {
             winner = null; // Tie
         }
 
+        this.coliseumDoorsClosed = false;
         var world = com.lopez.l2j.game.world.GameWorld.getInstance();
         for (Participant p : participants.values()) {
             PlayerCharacter pc = p.getPlayer();
@@ -269,7 +444,8 @@ public class TvtEventService {
             pc.currentHp(pc.maxHp());
             pc.currentMp(pc.maxMp());
             pc.currentCp(pc.maxCp());
-            if (winner != null && p.getTeam() == winner && rewardItemCount > 0 && pc.inventory() != null) {
+            boolean eligibleForReward = Config.TVT_PRICE_NO_KILLS || p.getKills() > 0;
+            if (winner != null && p.getTeam() == winner && eligibleForReward && rewardItemCount > 0 && pc.inventory() != null) {
                 if (inventoryService != null) {
                     var added = inventoryService.addItem(pc.inventory(), rewardItemId, rewardItemCount, "TvTReward");
                     if (added != null && added.item() != null && world != null) {
@@ -281,8 +457,11 @@ public class TvtEventService {
                     pc.inventory().byItemId(rewardItemId).ifPresent(it -> it.count(it.count() + rewardItemCount));
                 }
             }
+            int retX = (Config.TVT_ORIGINAL_POSITION || p.getOrigX() != 0 || p.getOrigY() != 0) ? p.getOrigX() : 83400;
+            int retY = (Config.TVT_ORIGINAL_POSITION || p.getOrigX() != 0 || p.getOrigY() != 0) ? p.getOrigY() : 147943;
+            int retZ = (Config.TVT_ORIGINAL_POSITION || p.getOrigX() != 0 || p.getOrigY() != 0) ? p.getOrigZ() : -3404;
             if (world != null) {
-                world.teleportPlayer(pc, p.getOrigX(), p.getOrigY(), p.getOrigZ(), 0);
+                world.teleportPlayer(pc, retX, retY, retZ, 0);
                 world.player(pc.objectId()).ifPresent(op -> {
                     if (op instanceof com.lopez.l2j.network.game.GameSession gs) {
                         gs.sendUserInfoAndBroadcastCharInfo();
@@ -302,7 +481,7 @@ public class TvtEventService {
         sb.append("<font color=\"LEVEL\">=== Team vs Team (TvT) ===</font><br><br>");
         sb.append("Status: ").append(state.name()).append("<br>");
         sb.append("Niveis: ").append(minLevel).append(" - ").append(maxLevel).append("<br>");
-        sb.append("Inscritos: ").append(participants.size()).append("<br>");
+        sb.append("Inscritos: ").append(participants.size()).append(" / ").append(Config.TVT_MAX_PLAYERS).append("<br>");
         if (state == EventState.RUNNING) {
             sb.append("<br><font color=\"8FA8BE\">Time Azul: </font>").append(teamScores.getOrDefault(TeamType.BLUE, 0)).append(" kills<br>");
             sb.append("<font color=\"B86B6B\">Time Vermelho: </font>").append(teamScores.getOrDefault(TeamType.RED, 0)).append(" kills<br>");
@@ -324,6 +503,12 @@ public class TvtEventService {
     public int getTeamScore(TeamType team) { return teamScores.getOrDefault(team, 0); }
     public int getMinLevel() { return minLevel; }
     public int getMaxLevel() { return maxLevel; }
+    public int getMinPlayers() { return minPlayers; }
+    public int getMaxPlayers() { return maxPlayers; }
+    public int getJoinTimeMinutes() { return Config.TVT_JOIN_TIME; }
+    public int getEventTimeMinutes() { return Config.TVT_EVENT_TIME; }
+    public int getReviveDelaySeconds() { return Config.TVT_REVIVE_DELAY; }
+    public boolean isColiseumDoorsClosed() { return coliseumDoorsClosed; }
     public int getRewardItemId() { return rewardItemId; }
     public void setRewardItemId(int rewardItemId) { this.rewardItemId = rewardItemId; }
     public int getRewardItemCount() { return rewardItemCount; }

@@ -175,6 +175,9 @@ public class AugmentationService {
 									skillLevel = Integer.parseInt(cd.getAttributes().getNamedItem("val").getNodeValue());
 								}
 							}
+							if (Config.AUGMENT_EXCLUDE_NOTDONE && isExcludedNotDoneSkill(skillId)) {
+								continue;
+							}
 							var augSkill = new AugmentationSkill(skillId, skillLevel, augId);
 							list.add(augSkill);
 							skillMapByAugId.put(augId, augSkill);
@@ -186,6 +189,14 @@ public class AugmentationService {
 		} catch (Exception e) {
 			log.warn("Erro lendo {}: {}", file.getName(), e.getMessage());
 		}
+	}
+
+	public static boolean isExcludedNotDoneSkill(int skillId) {
+		return skillId <= 0;
+	}
+
+	public boolean shouldCancelAugmentationEffectOnUnequip() {
+		return Config.CANCEL_AUGMENTATION_EFFECT;
 	}
 
 	private void loadStatsXml(File file, int blockIdx) {

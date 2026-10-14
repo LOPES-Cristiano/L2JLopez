@@ -30,16 +30,24 @@ public class ChampionService {
 	private volatile int minLevel = 20;
 	private volatile int maxLevel = 80;
 	private volatile int hpMultiplier = 8;
+	private volatile double hpRegenMultiplier = 1.0;
 	private volatile double pAtkMultiplier = 1.25;
 	private volatile double mAtkMultiplier = 1.25;
+	private volatile double atkSpdMultiplier = 1.0;
 	private volatile double expSpMultiplier = 8.0;
 	private volatile double dropMultiplier = 8.0;
 	private volatile double adenaMultiplier = 8.0;
 	private volatile int specialItemId = DEFAULT_EVENT_MEDAL_ID;
 	private volatile int specialItemAmount = 1;
 	private volatile int specialItemChance = 50; // 50% de chance de medalha
+	private volatile int rewardLowerLvlItemChance = 0;
+	private volatile int rewardHigherLvlItemChance = 0;
 	private volatile int specialItemLevelDiff = 9;
 	private volatile String title = "Champion";
+	private volatile boolean enableVitality = false;
+	private volatile boolean enableInInstances = false;
+	private volatile int championFarm = 0;
+	private volatile int championAura = 0;
 
 	public ChampionService() {
 		loadFromConfig();
@@ -76,6 +84,9 @@ public class ChampionService {
 			if (Config.CHAMPION_ENABLE) {
 				this.enabled = true;
 			}
+			if (Config.CHAMPION_TITLE != null && !Config.CHAMPION_TITLE.isBlank()) {
+				this.title = Config.CHAMPION_TITLE;
+			}
 			if (Config.CHAMPION_FREQUENCY > 0) {
 				this.frequency = Config.CHAMPION_FREQUENCY;
 			}
@@ -88,11 +99,40 @@ public class ChampionService {
 			if (Config.CHAMPION_HP > 0) {
 				this.hpMultiplier = Config.CHAMPION_HP;
 			}
+			if (Config.CHAMPION_HP_REGEN > 0) {
+				this.hpRegenMultiplier = Config.CHAMPION_HP_REGEN;
+			}
 			if (Config.CHAMPION_REWARDS > 0) {
 				this.expSpMultiplier = Config.CHAMPION_REWARDS;
 				this.dropMultiplier = Config.CHAMPION_REWARDS;
 				this.adenaMultiplier = Config.CHAMPION_REWARDS;
 			}
+			if (Config.CHAMPION_ADENAS_REWARDS > 0) {
+				this.adenaMultiplier = Config.CHAMPION_ADENAS_REWARDS;
+			}
+			if (Config.CHAMPION_ATK > 0) {
+				this.pAtkMultiplier = Config.CHAMPION_ATK;
+				this.mAtkMultiplier = Config.CHAMPION_ATK;
+			}
+			if (Config.CHAMPION_SPD_ATK > 0) {
+				this.atkSpdMultiplier = Config.CHAMPION_SPD_ATK;
+			}
+			if (Config.CHAMPION_REWARD_LOWER_LVL_ITEM_CHANCE >= 0) {
+				this.rewardLowerLvlItemChance = Config.CHAMPION_REWARD_LOWER_LVL_ITEM_CHANCE;
+			}
+			if (Config.CHAMPION_REWARD_HIGHER_LVL_ITEM_CHANCE >= 0) {
+				this.rewardHigherLvlItemChance = Config.CHAMPION_REWARD_HIGHER_LVL_ITEM_CHANCE;
+			}
+			if (Config.CHAMPION_REWARD_ID > 0) {
+				this.specialItemId = Config.CHAMPION_REWARD_ID;
+			}
+			if (Config.CHAMPION_REWARD_QTY > 0) {
+				this.specialItemAmount = Config.CHAMPION_REWARD_QTY;
+			}
+			this.enableVitality = Config.CHAMPION_ENABLE_VITALITY;
+			this.enableInInstances = Config.CHAMPION_ENABLE_IN_INSTANCES;
+			this.championFarm = Config.CHAMPION_FARM;
+			this.championAura = Config.CHAMPION_AURAS;
 		} catch (Exception e) {
 			log.warn("Nao foi possivel carregar parametros de Champion de Config: {}", e.getMessage());
 		}
@@ -104,6 +144,12 @@ public class ChampionService {
 	public boolean canBeChampion(NpcInstance npc) {
 		if (!enabled || npc == null || npc.template() == null) {
 			return false;
+		}
+		if (npc.instanceId() > 0 && !enableInInstances) {
+			return false;
+		}
+		if (championFarm > 0 && npc.npcId() == championFarm) {
+			return true;
 		}
 		// Apenas monstros comuns atacaveis (nao pode ser Raid Boss, Minion ou NPC de cidade)
 		if (!npc.isMonster() || !npc.isAttackable() || npc.template().isRaidBoss() || npc.isMinion()) {
@@ -158,7 +204,8 @@ public class ChampionService {
 		npc.pDefMul(1.1);
 		npc.currentHp(npc.maxHp());
 		npc.currentMp(npc.template().maxMp());
-		log.debug("Monstro {} #{} transformado em Champion [HP: {}]", npc.name(), npc.objectId(), npc.maxHp());
+		log.debug("Monstro {} #{} transformado em Champion [HP: {}, Aura: {}, AtkSpdMul: {}]",
+				npc.name(), npc.objectId(), npc.maxHp(), championAura, atkSpdMultiplier);
 	}
 
 	/**
@@ -198,6 +245,20 @@ public class ChampionService {
 		return baseSp;
 	}
 
+	public double calculateHpRegen(NpcInstance npc, double baseRegen) {
+		if (npc != null && npc.isChampion()) {
+			return baseRegen * hpRegenMultiplier;
+		}
+		return baseRegen;
+	}
+
+	public int calculateAtkSpd(NpcInstance npc, int baseAtkSpd) {
+		if (npc != null && npc.isChampion()) {
+			return (int) Math.round(baseAtkSpd * atkSpdMultiplier);
+		}
+		return baseAtkSpd;
+	}
+
 	/**
 	 * Aplica os multiplicadores de drop e adiciona a recompensa especial de Medalhas de Evento.
 	 */
@@ -219,13 +280,16 @@ public class ChampionService {
 			multiplied.add(new DropReward(reward.itemId(), Math.max(1, count), reward.isAdena()));
 		}
 
-		// Drop especial de Medalha de Evento
-		if (specialItemChance > 0 && specialItemId > 0) {
-			int mobLevel = npc.template() != null ? npc.template().level() : 0;
+		// Drop especial de Medalha de Evento (suporta chances por nivel superior/inferior do mob)
+		int mobLevel = npc.template() != null ? npc.template().level() : 0;
+		int configuredLvlChance = (mobLevel >= playerLevel) ? rewardHigherLvlItemChance : rewardLowerLvlItemChance;
+		int effectiveChance = configuredLvlChance > 0 ? configuredLvlChance : specialItemChance;
+
+		if (effectiveChance > 0 && specialItemId > 0) {
 			int levelDiff = Math.abs(mobLevel - playerLevel);
 			if (playerLevel <= 0 || levelDiff <= specialItemLevelDiff) {
 				int roll = ThreadLocalRandom.current().nextInt(100);
-				if (roll < specialItemChance) {
+				if (roll < effectiveChance) {
 					multiplied.add(new DropReward(specialItemId, specialItemAmount, false));
 				}
 			}
@@ -251,11 +315,17 @@ public class ChampionService {
 	public int getHpMultiplier() { return hpMultiplier; }
 	public void setHpMultiplier(int hpMultiplier) { this.hpMultiplier = hpMultiplier; }
 
+	public double getHpRegenMultiplier() { return hpRegenMultiplier; }
+	public void setHpRegenMultiplier(double hpRegenMultiplier) { this.hpRegenMultiplier = hpRegenMultiplier; }
+
 	public double getPAtkMultiplier() { return pAtkMultiplier; }
 	public void setPAtkMultiplier(double pAtkMultiplier) { this.pAtkMultiplier = pAtkMultiplier; }
 
 	public double getMAtkMultiplier() { return mAtkMultiplier; }
 	public void setMAtkMultiplier(double mAtkMultiplier) { this.mAtkMultiplier = mAtkMultiplier; }
+
+	public double getAtkSpdMultiplier() { return atkSpdMultiplier; }
+	public void setAtkSpdMultiplier(double atkSpdMultiplier) { this.atkSpdMultiplier = atkSpdMultiplier; }
 
 	public double getExpSpMultiplier() { return expSpMultiplier; }
 	public void setExpSpMultiplier(double expSpMultiplier) { this.expSpMultiplier = expSpMultiplier; }
@@ -275,9 +345,27 @@ public class ChampionService {
 	public int getSpecialItemChance() { return specialItemChance; }
 	public void setSpecialItemChance(int specialItemChance) { this.specialItemChance = specialItemChance; }
 
+	public int getRewardLowerLvlItemChance() { return rewardLowerLvlItemChance; }
+	public void setRewardLowerLvlItemChance(int rewardLowerLvlItemChance) { this.rewardLowerLvlItemChance = rewardLowerLvlItemChance; }
+
+	public int getRewardHigherLvlItemChance() { return rewardHigherLvlItemChance; }
+	public void setRewardHigherLvlItemChance(int rewardHigherLvlItemChance) { this.rewardHigherLvlItemChance = rewardHigherLvlItemChance; }
+
 	public int getSpecialItemLevelDiff() { return specialItemLevelDiff; }
 	public void setSpecialItemLevelDiff(int specialItemLevelDiff) { this.specialItemLevelDiff = specialItemLevelDiff; }
 
 	public String getTitle() { return title; }
 	public void setTitle(String title) { this.title = title; }
+
+	public boolean isEnableVitality() { return enableVitality; }
+	public void setEnableVitality(boolean enableVitality) { this.enableVitality = enableVitality; }
+
+	public boolean isEnableInInstances() { return enableInInstances; }
+	public void setEnableInInstances(boolean enableInInstances) { this.enableInInstances = enableInInstances; }
+
+	public int getChampionFarm() { return championFarm; }
+	public void setChampionFarm(int championFarm) { this.championFarm = championFarm; }
+
+	public int getChampionAura() { return championAura; }
+	public void setChampionAura(int championAura) { this.championAura = championAura; }
 }

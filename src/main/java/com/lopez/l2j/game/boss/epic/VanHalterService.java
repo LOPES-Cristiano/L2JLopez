@@ -67,6 +67,7 @@ public class VanHalterService {
 
 	private ScheduledFuture<?> fightTimeoutTask;
 	private ScheduledFuture<?> lockDoorsTask;
+	private ScheduledFuture<?> doorIntervalTask;
 
 	@Autowired
 	public VanHalterService(
@@ -80,6 +81,12 @@ public class VanHalterService {
 		this.objectIds = objectIds;
 		this.grandBossManager = grandBossManager;
 		this.doorService = doorService;
+	}
+
+	public void triggerVanHalterAppearance() {
+		int appearanceDelaySec = Math.max(1, Config.VAN_HALTER_APPEARANCE_TIME);
+		log.info("Van Halter: Ritual iniciado; boss surgira em {} segundos.", appearanceDelaySec);
+		scheduler.schedule(this::spawnVanHalter, appearanceDelaySec, TimeUnit.SECONDS);
 	}
 
 	public synchronized void spawnVanHalter() {
@@ -112,23 +119,31 @@ public class VanHalterService {
 					"High Priestess van Halter has appeared at the Altar of the Pagan Temple!"), p -> true);
 		}
 
-		// Agenda fechamento das portas do altar apos o tempo de entrada
+		// Agenda fechamento das portas do altar apos o tempo de entrada e ciclo periodico
 		int lockTimeMinutes = Config.VAN_HALTER_TIME_OF_LOCK_UP_DOOR_OF_ALTAR;
+		int doorIntervalMinutes = Math.max(1, Config.VAN_HALTER_INTERVAL_OF_DOOR_OF_ALTER);
 		if (lockDoorsTask != null) lockDoorsTask.cancel(false);
+		if (doorIntervalTask != null) doorIntervalTask.cancel(false);
 		lockDoorsTask = scheduler.schedule(this::lockAltarDoors, lockTimeMinutes * 60L, TimeUnit.SECONDS);
+		doorIntervalTask = scheduler.scheduleAtFixedRate(this::lockAltarDoors,
+				doorIntervalMinutes * 60L, doorIntervalMinutes * 60L, TimeUnit.SECONDS);
 
-		// Tempo maximo de luta
-		int fightMinutes = Config.VAN_HALTER_FIGHT_TIME;
+		// Tempo maximo de luta / atividade
+		int fightMinutes = Math.min(
+				Math.max(1, Config.VAN_HALTER_FIGHT_TIME),
+				Math.max(1, Config.VAN_HALTER_ACTIVE_TIME));
 		if (fightTimeoutTask != null) fightTimeoutTask.cancel(false);
 		fightTimeoutTask = scheduler.schedule(this::onFightTimeout, fightMinutes * 60L, TimeUnit.SECONDS);
 
-		log.info("High Priestess van Halter gerada no Altar de Pagan Temple com {} ajudantes!", minions.size());
+		log.info("High Priestess van Halter gerada no Altar de Pagan Temple com {} ajudantes (activeTime={}m, doorInterval={}m)!",
+				minions.size(), Config.VAN_HALTER_ACTIVE_TIME, doorIntervalMinutes);
 	}
 
 	public synchronized void onVanHalterKilled(PlayerCharacter killer) {
 		status = BossStatus.INTERVAL;
 		if (fightTimeoutTask != null) fightTimeoutTask.cancel(false);
 		if (lockDoorsTask != null) lockDoorsTask.cancel(false);
+		if (doorIntervalTask != null) doorIntervalTask.cancel(false);
 
 		// Remove acolitos e guardas
 		clearMinions();

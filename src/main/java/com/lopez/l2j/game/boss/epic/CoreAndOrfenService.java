@@ -75,7 +75,9 @@ public class CoreAndOrfenService {
 	@PostConstruct
 	public void init() {
 		if (grandBossManager != null) {
-			this.coreStatus = grandBossManager.getStatus(GrandBossManager.CORE);
+			if (Config.CORE_ENABLED) {
+				this.coreStatus = grandBossManager.getStatus(GrandBossManager.CORE);
+			}
 			this.orfenStatus = grandBossManager.getStatus(GrandBossManager.ORFEN);
 		}
 	}
@@ -83,7 +85,7 @@ public class CoreAndOrfenService {
 	// ---- Core ----
 
 	public synchronized void spawnCore() {
-		if (templates == null || world == null || objectIds == null) return;
+		if (!Config.CORE_ENABLED || templates == null || world == null || objectIds == null) return;
 		NpcTemplate tpl = templates.get(CORE).orElseGet(() -> NpcTemplate.fallback(CORE, "Core", "L2GrandBoss"));
 		activeCore = new NpcInstance(objectIds.nextId(), tpl, CORE_X, CORE_Y, CORE_Z, 0);
 		world.addNpc(activeCore);

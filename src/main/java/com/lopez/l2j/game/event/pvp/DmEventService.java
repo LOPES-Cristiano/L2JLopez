@@ -32,7 +32,9 @@ public class DmEventService {
         LEVEL_TOO_LOW,
         LEVEL_TOO_HIGH,
         KARMA_NOT_ALLOWED,
-        IS_AIO_BLOCKED
+        IS_AIO_BLOCKED,
+        CURSED_WEAPON_NOT_ALLOWED,
+        MAX_PLAYERS_REACHED
     }
 
     public static class Participant {
@@ -68,13 +70,17 @@ public class DmEventService {
     }
 
     public static final int DM_INSTANCE_ID = 9103;
+    public static final int ZARICHE_ID = 8190;
+    public static final int AKAMANAH_ID = 8689;
 
     private volatile EventState state = EventState.INACTIVE;
     private int minLevel = Config.DM_MIN_LEVEL;
     private int maxLevel = Config.DM_MAX_LEVEL;
-    private int arenaX = 149457;
-    private int arenaY = 46700;
-    private int arenaZ = -3413;
+    private int minPlayers = Config.DM_MIN_PLAYERS;
+    private int maxPlayers = Config.DM_MAX_PLAYERS;
+    private int arenaX = parseCoord(Config.DM_EVENT_LOCATION, 0, 149457);
+    private int arenaY = parseCoord(Config.DM_EVENT_LOCATION, 1, 46700);
+    private int arenaZ = parseCoord(Config.DM_EVENT_LOCATION, 2, -3413);
 
     // Top 1, 2, 3 rewards
     private int reward1ItemId = Config.DM_REWARD_ID;
@@ -86,6 +92,23 @@ public class DmEventService {
     private final com.lopez.l2j.game.service.InventoryService inventoryService;
 
     private final Map<Integer, Participant> participants = new ConcurrentHashMap<>();
+    private java.util.concurrent.ScheduledExecutorService autoScheduler;
+    private java.util.concurrent.ScheduledFuture<?> scheduledTask;
+
+    private static int parseCoord(String locStr, int index, int fallback) {
+        if (locStr == null || locStr.isBlank()) {
+            return fallback;
+        }
+        String[] parts = locStr.split(",");
+        if (parts.length <= index) {
+            return fallback;
+        }
+        try {
+            return Integer.parseInt(parts[index].trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
 
     public DmEventService() {
         this(null);
@@ -96,6 +119,71 @@ public class DmEventService {
         this.inventoryService = inventoryService;
     }
 
+    @jakarta.annotation.PostConstruct
+    public void initAutoStart() {
+        if (Config.DM_AUTO_START && Config.DM_ENABLED) {
+            startAutoScheduler(Config.DM_DELAY_ON_BOOT);
+        }
+    }
+
+    @jakarta.annotation.PreDestroy
+    public void shutdownAutoScheduler() {
+        if (scheduledTask != null) {
+            scheduledTask.cancel(false);
+        }
+        if (autoScheduler != null) {
+            autoScheduler.shutdownNow();
+        }
+    }
+
+    public synchronized void startAutoScheduler(int initialDelayMinutes) {
+        if (autoScheduler == null || autoScheduler.isShutdown()) {
+            autoScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "DM-AutoScheduler");
+                t.setDaemon(true);
+                return t;
+            });
+        }
+        long delayMs = Math.max(1, initialDelayMinutes) * 60_000L;
+        log.info("DM: Auto-start agendado para iniciar em {} minuto(s).", initialDelayMinutes);
+        scheduledTask = autoScheduler.schedule(this::runAutoCycleRegistration, delayMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+
+    private void runAutoCycleRegistration() {
+        if (!Config.DM_ENABLED) {
+            return;
+        }
+        openRegistration();
+        long regMs = Math.max(1, Config.DM_REG_TIME) * 60_000L;
+        scheduledTask = autoScheduler.schedule(this::runAutoCycleFight, regMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+
+    private void runAutoCycleFight() {
+        if (participants.size() < Math.max(2, Config.DM_MIN_PLAYERS)) {
+            log.warn("DM AutoCycle: Participantes insuficientes ({} < {}). Cancelando ciclo.", participants.size(), Config.DM_MIN_PLAYERS);
+            state = EventState.INACTIVE;
+            participants.clear();
+            scheduleNextAutoCycle();
+            return;
+        }
+        if (startFight()) {
+            long fightMs = Math.max(1, Config.DM_EVENT_TIME) * 60_000L;
+            scheduledTask = autoScheduler.schedule(() -> {
+                stopAndReward();
+                scheduleNextAutoCycle();
+            }, fightMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } else {
+            scheduleNextAutoCycle();
+        }
+    }
+
+    private void scheduleNextAutoCycle() {
+        if (Config.DM_AUTO_START && autoScheduler != null && !autoScheduler.isShutdown()) {
+            long nextDelayMs = Math.max(1, Config.DM_NEXT_DELAY) * 60_000L;
+            scheduledTask = autoScheduler.schedule(this::runAutoCycleRegistration, nextDelayMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+        }
+    }
+
     public synchronized void openRegistration() {
         openRegistration(Config.DM_MIN_LEVEL, Config.DM_MAX_LEVEL);
     }
@@ -103,9 +191,22 @@ public class DmEventService {
     public synchronized void openRegistration(int minLvl, int maxLvl) {
         this.minLevel = minLvl;
         this.maxLevel = maxLvl;
+        this.minPlayers = Config.DM_MIN_PLAYERS;
+        this.maxPlayers = Config.DM_MAX_PLAYERS;
+        this.arenaX = parseCoord(Config.DM_EVENT_LOCATION, 0, 149457);
+        this.arenaY = parseCoord(Config.DM_EVENT_LOCATION, 1, 46700);
+        this.arenaZ = parseCoord(Config.DM_EVENT_LOCATION, 2, -3413);
         this.participants.clear();
         this.state = EventState.REGISTRATION;
-        log.info("DM: Registro aberto para niveis {} a {}.", minLevel, maxLevel);
+        log.info("DM: Registro aberto para niveis {} a {} (tempo de inscricao: {} min).", minLevel, maxLevel, Config.DM_REG_TIME);
+    }
+
+    public static boolean hasCursedWeapon(PlayerCharacter player) {
+        if (player == null || player.inventory() == null) {
+            return false;
+        }
+        return player.inventory().byItemId(ZARICHE_ID).isPresent()
+                || player.inventory().byItemId(AKAMANAH_ID).isPresent();
     }
 
     public RegisterResult register(PlayerCharacter player) {
@@ -115,6 +216,9 @@ public class DmEventService {
         if (participants.containsKey(player.getObjectId())) {
             return RegisterResult.ALREADY_REGISTERED;
         }
+        if (Config.DM_MAX_PLAYERS > 0 && participants.size() >= Config.DM_MAX_PLAYERS) {
+            return RegisterResult.MAX_PLAYERS_REACHED;
+        }
         if (player.getLevel() < minLevel) {
             return RegisterResult.LEVEL_TOO_LOW;
         }
@@ -123,6 +227,9 @@ public class DmEventService {
         }
         if (player.getKarma() > 0) {
             return RegisterResult.KARMA_NOT_ALLOWED;
+        }
+        if (!Config.DM_CURSED_WEAPON && hasCursedWeapon(player)) {
+            return RegisterResult.CURSED_WEAPON_NOT_ALLOWED;
         }
         if (player.isAio()) {
             return RegisterResult.IS_AIO_BLOCKED;
@@ -156,9 +263,24 @@ public class DmEventService {
         for (Participant p : participants.values()) {
             PlayerCharacter pc = p.getPlayer();
             if (pc != null) {
-                pc.currentHp(pc.maxHp());
-                pc.currentMp(pc.maxMp());
-                pc.currentCp(pc.maxCp());
+                if (Config.DM_AURA) {
+                    pc.team(1 + (idx % 2));
+                }
+                if (Config.DM_ON_START_REMOVE_ALL_EFFECTS) {
+                    pc.stopAllEffects();
+                }
+                if (Config.DM_ON_START_UNSUMMON_PET && (pc.hasSummon() || pc.hasPet())) {
+                    pc.activeSummon(null);
+                    pc.petObjectId(0);
+                }
+                if (Config.DM_RESET_ALL_SKILL) {
+                    pc.clearControls();
+                }
+                if (Config.DM_ON_START_RESTORE_HP_MP_CP) {
+                    pc.currentHp(pc.maxHp());
+                    pc.currentMp(pc.maxMp());
+                    pc.currentCp(pc.maxCp());
+                }
                 double angle = (idx++ % 8) * (Math.PI * 2.0 / 8.0);
                 int sx = arenaX + (int) (Math.cos(angle) * 200);
                 int sy = arenaY + (int) (Math.sin(angle) * 200);
@@ -169,7 +291,33 @@ public class DmEventService {
         }
 
         state = EventState.RUNNING;
-        log.info("DM: Batalha iniciada com {} gladiadores no DeathMatch!", participants.size());
+        log.info("DM: Batalha iniciada com {} gladiadores no DeathMatch (duracao: {} min)!", participants.size(), Config.DM_EVENT_TIME);
+        return true;
+    }
+
+    public boolean canInteract(int actorId, int targetId) {
+        if (state != EventState.RUNNING) {
+            return true;
+        }
+        boolean aIn = participants.containsKey(actorId);
+        boolean tIn = participants.containsKey(targetId);
+        if (aIn != tIn) {
+            return Config.DM_ALLOW_INTERFERENCE;
+        }
+        return true;
+    }
+
+    public boolean canUsePotions(int objectId) {
+        if (state == EventState.RUNNING && participants.containsKey(objectId)) {
+            return Config.DM_ALLOW_POTION;
+        }
+        return true;
+    }
+
+    public boolean canSummon(int objectId) {
+        if (state == EventState.RUNNING && participants.containsKey(objectId)) {
+            return Config.DM_ALLOW_SUMMON;
+        }
         return true;
     }
 
@@ -215,6 +363,10 @@ public class DmEventService {
             Participant p = ranking.get(i);
             PlayerCharacter pc = p.getPlayer();
             if (pc == null) continue;
+            pc.team(0);
+            if (Config.DM_RESET_ALL_SKILL) {
+                pc.clearControls();
+            }
             pc.currentHp(pc.maxHp());
             pc.currentMp(pc.maxMp());
             pc.currentCp(pc.maxCp());
@@ -234,8 +386,11 @@ public class DmEventService {
                     }
                 }
             }
+            int retX = (Config.DM_ORIGINAL_POSITION || p.getOrigX() != 0 || p.getOrigY() != 0) ? p.getOrigX() : 83400;
+            int retY = (Config.DM_ORIGINAL_POSITION || p.getOrigX() != 0 || p.getOrigY() != 0) ? p.getOrigY() : 147943;
+            int retZ = (Config.DM_ORIGINAL_POSITION || p.getOrigX() != 0 || p.getOrigY() != 0) ? p.getOrigZ() : -3404;
             if (world != null) {
-                world.teleportPlayer(pc, p.getOrigX(), p.getOrigY(), p.getOrigZ(), 0);
+                world.teleportPlayer(pc, retX, retY, retZ, 0);
             }
         }
         state = EventState.INACTIVE;
@@ -249,7 +404,7 @@ public class DmEventService {
         sb.append("<font color=\"LEVEL\">=== DeathMatch Arena (FFA) ===</font><br><br>");
         sb.append("Status: ").append(state.name()).append("<br>");
         sb.append("Niveis: ").append(minLevel).append(" - ").append(maxLevel).append("<br>");
-        sb.append("Participantes: ").append(participants.size()).append("<br><br>");
+        sb.append("Participantes: ").append(participants.size()).append(" / ").append(Config.DM_MAX_PLAYERS).append("<br><br>");
 
         if (state == EventState.RUNNING) {
             sb.append("<table width=240>");
@@ -287,4 +442,9 @@ public class DmEventService {
     public int getReward3Count() { return reward3Count; }
     public int getMinLevel() { return minLevel; }
     public int getMaxLevel() { return maxLevel; }
+    public int getMinPlayers() { return minPlayers; }
+    public int getMaxPlayers() { return maxPlayers; }
+    public int getRegTimeMinutes() { return Config.DM_REG_TIME; }
+    public int getEventTimeMinutes() { return Config.DM_EVENT_TIME; }
+    public int getReviveDelaySeconds() { return Config.DM_REVIVE_DELAY; }
 }

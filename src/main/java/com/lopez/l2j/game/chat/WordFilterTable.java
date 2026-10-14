@@ -97,4 +97,10 @@ public class WordFilterTable {
 		}
 		return result;
 	}
+
+	public void logChatMessage(String sender, int channel, String message) {
+		if (Config.LOG_CHAT_ON_FILE && message != null) {
+			log.info("[ChatLog][ch={}] {}: {}", channel, sender, message);
+		}
+	}
 }

@@ -67,6 +67,7 @@ public class AntharasService {
 	private NpcInstance exitCube;
 	private ScheduledFuture<?> arrivalTask;
 	private ScheduledFuture<?> minionTask;
+	private ScheduledFuture<?> activityTimeoutTask;
 
 	private final GrandBossManager grandBossManager;
 	private final NpcTemplateTable templates;
@@ -96,6 +97,9 @@ public class AntharasService {
 	@PostConstruct
 	public void init() {
 		if (grandBossManager != null) {
+			if (Config.ANTHARAS_RESPAWN_TIME_PATTERN != null && !Config.ANTHARAS_RESPAWN_TIME_PATTERN.isBlank()) {
+				grandBossManager.setBossCron(GrandBossManager.ANTHARAS, Config.ANTHARAS_RESPAWN_TIME_PATTERN);
+			}
 			this.status = grandBossManager.getStatus(GrandBossManager.ANTHARAS);
 		}
 	}
@@ -109,7 +113,7 @@ public class AntharasService {
 	}
 
 	public boolean canEnter(PlayerCharacter player) {
-		if (player == null || player.isDead()) {
+		if (!Config.ANTHARAS_ENABLED || player == null || player.isDead()) {
 			return false;
 		}
 		if (status == BossStatus.INTERVAL || status == BossStatus.DEAD) {
@@ -163,7 +167,7 @@ public class AntharasService {
 	}
 
 	public synchronized void spawnAntharas() {
-		if (templates == null || world == null || objectIds == null) {
+		if (!Config.ANTHARAS_ENABLED || templates == null || world == null || objectIds == null) {
 			return;
 		}
 
@@ -212,6 +216,39 @@ public class AntharasService {
 		int behemothInterval = Config.ANTHARAS_INTERVAL_OF_BEHEMOTH;
 		minionTask = scheduler.scheduleAtFixedRate(this::spawnMinions,
 				behemothInterval * 60L, behemothInterval * 60L, TimeUnit.SECONDS);
+
+		if (Config.ANTHARAS_ACTIVE_TIME > 0) {
+			if (activityTimeoutTask != null) {
+				activityTimeoutTask.cancel(false);
+			}
+			activityTimeoutTask = scheduler.schedule(this::putAntharasToSleep,
+					Config.ANTHARAS_ACTIVE_TIME * 60L, TimeUnit.SECONDS);
+		}
+	}
+
+	public int calculateSleepDurationMinutes() {
+		int minSleep = Math.max(1, Config.ANTHARAS_MIN_SLEEP_TIME);
+		int maxSleep = Math.max(minSleep, Config.ANTHARAS_MAX_SLEEP_TIME);
+		return maxSleep > minSleep
+				? java.util.concurrent.ThreadLocalRandom.current().nextInt(minSleep, maxSleep + 1)
+				: minSleep;
+	}
+
+	public synchronized void putAntharasToSleep() {
+		if (status != BossStatus.ALIVE) {
+			return;
+		}
+		if (minionTask != null) {
+			minionTask.cancel(false);
+		}
+		clearLair();
+		int sleepMinutes = calculateSleepDurationMinutes();
+		status = BossStatus.NOTSPAWN;
+		if (grandBossManager != null) {
+			grandBossManager.setStatus(GrandBossManager.ANTHARAS, BossStatus.NOTSPAWN);
+		}
+		log.info("Antharas voltou a adormecer por inatividade ({} min; proximo ciclo de sono {} min).",
+				Config.ANTHARAS_ACTIVE_TIME, sleepMinutes);
 	}
 
 	private void spawnMinions() {
@@ -233,6 +270,7 @@ public class AntharasService {
 		status = BossStatus.INTERVAL;
 		if (arrivalTask != null) arrivalTask.cancel(false);
 		if (minionTask != null) minionTask.cancel(false);
+		if (activityTimeoutTask != null) activityTimeoutTask.cancel(false);
 
 		if (grandBossManager != null) {
 			grandBossManager.onBossKilled(GrandBossManager.ANTHARAS);

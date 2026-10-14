@@ -5,6 +5,8 @@ import com.lopez.l2j.game.clan.ClanTable;
 import com.lopez.l2j.game.clan.clanhall.ClanHallService;
 import com.lopez.l2j.game.clan.clanhall.siege.ClanHallSiegeRecord.SiegeState;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -46,13 +48,20 @@ public class ClanHallSiegeService {
 	private final ClanHallService clanHallService;
 	private final ClanTable clanTable;
 	private final JdbcClient jdbc;
+	private GameWorld world;
+
+	public ClanHallSiegeService(ClanHallService clanHallService, ClanTable clanTable, JdbcClient jdbc) {
+		this(clanHallService, clanTable, jdbc, null);
+	}
 
 	@Autowired
 	public ClanHallSiegeService(ClanHallService clanHallService, ClanTable clanTable,
-			@Autowired(required = false) JdbcClient jdbc) {
+			@Autowired(required = false) JdbcClient jdbc,
+			@Autowired(required = false) GameWorld world) {
 		this.clanHallService = clanHallService;
 		this.clanTable = clanTable;
 		this.jdbc = jdbc;
+		this.world = world;
 		loadSieges();
 	}
 
@@ -139,6 +148,10 @@ public class ClanHallSiegeService {
 		}
 
 		siege.state(SiegeState.IN_PROGRESS);
+		if (world != null) {
+			world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Clan Hall Siege",
+					"A batalha pelo Clan Hall " + siege.name() + " comecou!"));
+		}
 		log.info("Siege do ClanHall ID {} '{}' iniciada com {} clas inscritos",
 				hallId, siege.name(), siege.registeredClanIds().size());
 		return true;
@@ -156,9 +169,22 @@ public class ClanHallSiegeService {
 		siege.state(SiegeState.FINISHED);
 
 		if (winnerClanId != null && winnerClanId > 0) {
-			clanHallService.setOwner(hallId, winnerClanId);
-			log.info("Siege do ClanHall ID {} encerrada. Vencedor: Cla ID {}", hallId, winnerClanId);
+			if (clanHallService != null) {
+				clanHallService.setOwner(hallId, winnerClanId);
+			}
+			String winnerName = clanTable != null
+					? clanTable.byClanId(winnerClanId).map(Clan::name).orElse("Cla #" + winnerClanId)
+					: ("Cla #" + winnerClanId);
+			if (world != null) {
+				world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Clan Hall Siege",
+						"A siege do Clan Hall " + siege.name() + " terminou! O cla " + winnerName + " conquistou a posse!"));
+			}
+			log.info("Siege do ClanHall ID {} encerrada. Vencedor: Cla ID {} ({})", hallId, winnerClanId, winnerName);
 		} else {
+			if (world != null) {
+				world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Clan Hall Siege",
+						"A siege do Clan Hall " + siege.name() + " terminou sem vencedor."));
+			}
 			log.info("Siege do ClanHall ID {} encerrada sem vencedor", hallId);
 		}
 

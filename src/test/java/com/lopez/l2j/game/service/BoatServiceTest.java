@@ -39,4 +39,19 @@ class BoatServiceTest {
         assertTrue(boatService.disembarkBoat(passenger, 1));
         assertFalse(boat.getOnboardPlayers().contains(1));
     }
+
+    @Test
+    void testBoardAndTravel() {
+        PlayerCharacter passenger = createPlayer(2, "Traveler");
+        com.lopez.l2j.game.item.Inventory inv = new com.lopez.l2j.game.item.Inventory(2);
+        inv.addAdena(5000);
+        passenger.inventory(inv);
+
+        assertTrue(boatService.boardAndTravel(passenger, 1, 1074, 1000));
+        assertEquals(4000L, passenger.inventory().adena());
+        assertEquals(-95500, passenger.x());
+        assertEquals(250000, passenger.y());
+        assertEquals(-3600, passenger.z());
+    }
 }
+
