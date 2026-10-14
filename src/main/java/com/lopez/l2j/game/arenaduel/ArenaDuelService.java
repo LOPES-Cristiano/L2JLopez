@@ -146,15 +146,34 @@ public class ArenaDuelService {
 			playerToMatch.put(qp2.player().objectId(), matchId);
 
 			// Heal and teleport to arena spawn points
+			int duelInstanceId = 9200 + (matchId % 100);
+			var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+
+			qp1.player().team(1);
 			qp1.player().currentHp(qp1.player().maxHp());
 			qp1.player().currentMp(qp1.player().maxMp());
 			qp1.player().currentCp(qp1.player().maxCp());
-			qp1.player().teleport(freeArena.spawn1().x(), freeArena.spawn1().y(), freeArena.spawn1().z());
+			if (world != null) {
+				world.teleportPlayer(qp1.player(), freeArena.spawn1().x(), freeArena.spawn1().y(), freeArena.spawn1().z(), duelInstanceId);
+				world.player(qp1.player().objectId()).ifPresent(op -> {
+					if (op instanceof com.lopez.l2j.network.game.GameSession gs) gs.sendUserInfoAndBroadcastCharInfo();
+				});
+			} else {
+				qp1.player().teleport(freeArena.spawn1().x(), freeArena.spawn1().y(), freeArena.spawn1().z());
+			}
 
+			qp2.player().team(2);
 			qp2.player().currentHp(qp2.player().maxHp());
 			qp2.player().currentMp(qp2.player().maxMp());
 			qp2.player().currentCp(qp2.player().maxCp());
-			qp2.player().teleport(freeArena.spawn2().x(), freeArena.spawn2().y(), freeArena.spawn2().z());
+			if (world != null) {
+				world.teleportPlayer(qp2.player(), freeArena.spawn2().x(), freeArena.spawn2().y(), freeArena.spawn2().z(), duelInstanceId);
+				world.player(qp2.player().objectId()).ifPresent(op -> {
+					if (op instanceof com.lopez.l2j.network.game.GameSession gs) gs.sendUserInfoAndBroadcastCharInfo();
+				});
+			} else {
+				qp2.player().teleport(freeArena.spawn2().x(), freeArena.spawn2().y(), freeArena.spawn2().z());
+			}
 
 			log.info("Match #{} started in {}: {} vs {}", matchId, freeArena.name(), qp1.player().name(), qp2.player().name());
 		}
@@ -188,16 +207,35 @@ public class ArenaDuelService {
 		// Restore and return players
 		PlayerCharacter p1 = match.getPlayer1();
 		PlayerCharacter p2 = match.getPlayer2();
+		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
 
+		p1.team(0);
 		p1.currentHp(p1.maxHp());
 		p1.currentMp(p1.maxMp());
 		p1.currentCp(p1.maxCp());
-		p1.teleport(match.getOriginalLoc1().x(), match.getOriginalLoc1().y(), match.getOriginalLoc1().z());
+		if (world != null) {
+			world.sendPacket(p1.objectId(), new com.lopez.l2j.network.game.packet.GameServerPacket.Revive(p1.objectId()));
+			world.teleportPlayer(p1, match.getOriginalLoc1().x(), match.getOriginalLoc1().y(), match.getOriginalLoc1().z(), 0);
+			world.player(p1.objectId()).ifPresent(op -> {
+				if (op instanceof com.lopez.l2j.network.game.GameSession gs) gs.sendUserInfoAndBroadcastCharInfo();
+			});
+		} else {
+			p1.teleport(match.getOriginalLoc1().x(), match.getOriginalLoc1().y(), match.getOriginalLoc1().z());
+		}
 
+		p2.team(0);
 		p2.currentHp(p2.maxHp());
 		p2.currentMp(p2.maxMp());
 		p2.currentCp(p2.maxCp());
-		p2.teleport(match.getOriginalLoc2().x(), match.getOriginalLoc2().y(), match.getOriginalLoc2().z());
+		if (world != null) {
+			world.sendPacket(p2.objectId(), new com.lopez.l2j.network.game.packet.GameServerPacket.Revive(p2.objectId()));
+			world.teleportPlayer(p2, match.getOriginalLoc2().x(), match.getOriginalLoc2().y(), match.getOriginalLoc2().z(), 0);
+			world.player(p2.objectId()).ifPresent(op -> {
+				if (op instanceof com.lopez.l2j.network.game.GameSession gs) gs.sendUserInfoAndBroadcastCharInfo();
+			});
+		} else {
+			p2.teleport(match.getOriginalLoc2().x(), match.getOriginalLoc2().y(), match.getOriginalLoc2().z());
+		}
 
 		// Return spectators
 		for (int specId : match.getSpectators()) {
@@ -239,7 +277,13 @@ public class ArenaDuelService {
 		if (match == null) return false;
 
 		match.addSpectator(spectator.objectId());
-		spectator.teleport(arena.spectatorLoc().x(), arena.spectatorLoc().y(), arena.spectatorLoc().z());
+		int duelInstanceId = 9200 + (match.getMatchId() % 100);
+		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (world != null) {
+			world.teleportPlayer(spectator, arena.spectatorLoc().x(), arena.spectatorLoc().y(), arena.spectatorLoc().z(), duelInstanceId);
+		} else {
+			spectator.teleport(arena.spectatorLoc().x(), arena.spectatorLoc().y(), arena.spectatorLoc().z());
+		}
 		return true;
 	}
 
@@ -249,7 +293,12 @@ public class ArenaDuelService {
 			match.removeSpectator(spectator.objectId());
 		}
 		if (returnLoc != null) {
-			spectator.teleport(returnLoc.x(), returnLoc.y(), returnLoc.z());
+			var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+			if (world != null) {
+				world.teleportPlayer(spectator, returnLoc.x(), returnLoc.y(), returnLoc.z(), 0);
+			} else {
+				spectator.teleport(returnLoc.x(), returnLoc.y(), returnLoc.z());
+			}
 		}
 	}
 
@@ -286,10 +335,16 @@ public class ArenaDuelService {
 			itemTable.get(57).ifPresent(tmpl -> {
 				ItemInstance item = new ItemInstance(idFactory.nextId(), tmpl, winner.objectId(), 1_000_000);
 				itemRepository.insert(item, "ArenaDuelReward");
+				if (winner.inventory() != null) {
+					winner.inventory().add(item);
+				}
 			});
 			itemTable.get(6673).ifPresent(tmpl -> {
 				ItemInstance item = new ItemInstance(idFactory.nextId(), tmpl, winner.objectId(), 5);
 				itemRepository.insert(item, "ArenaDuelReward");
+				if (winner.inventory() != null) {
+					winner.inventory().add(item);
+				}
 			});
 		}
 	}
