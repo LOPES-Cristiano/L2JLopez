@@ -5,8 +5,15 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,9 +28,19 @@ public class HtmCache {
 
 	private static final Logger log = LoggerFactory.getLogger(HtmCache.class);
 
+	private static final Pattern QUEST_ID_PREFIX_PATTERN = Pattern.compile("^[_qQ]*(\\d+)");
+	private static final Pattern FILE_ZERO_PAD_PATTERN = Pattern.compile("^(.*)-0(\\d)\\.(htm|html)$", Pattern.CASE_INSENSITIVE);
+	private static final Pattern FILE_NO_PAD_PATTERN = Pattern.compile("^(.*)-(\\d)\\.(htm|html)$", Pattern.CASE_INSENSITIVE);
+	private static final Pattern NPC_FILE_PREFIX_PATTERN = Pattern.compile("^(\\d{4,5})(?:[-_].*)?\\.(htm|html)$", Pattern.CASE_INSENSITIVE);
+	private static final String[] NPC_FALLBACK_FOLDERS = {
+		"default", "trainer", "villagemaster", "merchant", "guard", "teleporter", "warehouse"
+	};
+
 	private final Path datapackHtmlDir;
 	private final Map<String, String> cache = new ConcurrentHashMap<>();
 	private final Map<String, String> indexedFiles = new ConcurrentHashMap<>();
+	private final Map<Integer, List<String>> questDirsById = new ConcurrentHashMap<>();
+	private final Map<String, List<String>> scriptsDirsByCategory = new ConcurrentHashMap<>();
 
 	public HtmCache(@Value("${l2.datapack.html-dir:data/html}") String htmlDirPath) {
 		Path p = Path.of(htmlDirPath);
@@ -37,8 +54,9 @@ public class HtmCache {
 		if (Files.isDirectory(scriptsDir)) {
 			indexHtmlFiles(scriptsDir, scriptsDir);
 		}
-		log.info("HtmCache inicializado com diretorio: {} ({} arquivos indexados)",
-				datapackHtmlDir.toAbsolutePath(), indexedFiles.size());
+		indexQuestAndScriptDirectories(scriptsDir);
+		log.info("HtmCache inicializado com diretorio: {} ({} arquivos indexados, {} quests mapeadas)",
+				datapackHtmlDir.toAbsolutePath(), indexedFiles.size(), questDirsById.size());
 	}
 
 	private void indexHtmlFiles(Path dir, Path baseDir) {
@@ -50,7 +68,17 @@ public class HtmCache {
 				String name = file.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
 				if (name.endsWith(".htm") || name.endsWith(".html")) {
 					String rel = normalize(baseDir.relativize(file).toString());
-					indexedFiles.putIfAbsent(name, rel);
+					indexedFiles.compute(name, (k, existing) -> {
+						if (existing == null) {
+							return rel;
+						}
+						boolean existingIsQuest = existing.toLowerCase(java.util.Locale.ROOT).startsWith("quests/");
+						boolean newIsQuest = rel.toLowerCase(java.util.Locale.ROOT).startsWith("quests/");
+						if (existingIsQuest && !newIsQuest) {
+							return rel;
+						}
+						return existing;
+					});
 				}
 			});
 		} catch (IOException e) {
@@ -58,7 +86,230 @@ public class HtmCache {
 		}
 	}
 
+	private void indexQuestAndScriptDirectories(Path scriptsDir) {
+		scanQuestSubdirs(datapackHtmlDir.resolve("quests"), "quests/");
+		scanQuestSubdirs(datapackHtmlDir.resolve("scripts/quests"), "scripts/quests/");
+		if (scriptsDir != null && Files.isDirectory(scriptsDir)) {
+			scanQuestSubdirs(scriptsDir.resolve("quests"), "quests/");
+			scanQuestSubdirs(scriptsDir.resolve("quests"), "scripts/quests/");
+			try (var categories = Files.list(scriptsDir)) {
+				categories.filter(Files::isDirectory).forEach(catDir -> {
+					String category = catDir.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+					List<String> list = scriptsDirsByCategory.computeIfAbsent(category, k -> new CopyOnWriteArrayList<>());
+					try (var subDirs = Files.list(catDir)) {
+						subDirs.filter(Files::isDirectory).forEach(sub -> {
+							String rel = normalize(scriptsDir.relativize(sub).toString());
+							if (!list.contains(rel)) {
+								list.add(rel);
+							}
+						});
+					} catch (IOException ignored) {
+					}
+				});
+			} catch (IOException ignored) {
+			}
+		}
+	}
+
+	private void scanQuestSubdirs(Path questsRoot, String prefix) {
+		if (questsRoot == null || !Files.isDirectory(questsRoot)) {
+			return;
+		}
+		try (var stream = Files.list(questsRoot)) {
+			stream.filter(Files::isDirectory).forEach(subDir -> {
+				String folderName = subDir.getFileName().toString();
+				Matcher m = QUEST_ID_PREFIX_PATTERN.matcher(folderName);
+				if (m.find()) {
+					try {
+						int qId = Integer.parseInt(m.group(1));
+						if (qId > 0) {
+							String relDir = prefix + folderName;
+							List<String> dirs = questDirsById.computeIfAbsent(qId, k -> new CopyOnWriteArrayList<>());
+							if (!dirs.contains(relDir)) {
+								dirs.add(relDir);
+							}
+						}
+					} catch (NumberFormatException ignored) {
+					}
+				}
+			});
+		} catch (IOException e) {
+			log.warn("Erro ao escanear pastas de quests em {}: {}", questsRoot, e.getMessage());
+		}
+	}
+
+	public Map<Integer, List<String>> getQuestDirsById() {
+		return java.util.Collections.unmodifiableMap(questDirsById);
+	}
+
+	public Map<String, List<String>> getScriptsDirsByCategory() {
+		return java.util.Collections.unmodifiableMap(scriptsDirsByCategory);
+	}
+
+	public String getQuestHtml(int questId, String questName, String fileName) {
+		if (fileName == null || fileName.isBlank()) {
+			return null;
+		}
+		String trimmed = fileName.trim();
+		if (trimmed.contains("<html") || trimmed.contains("<HTML")
+				|| trimmed.contains("<body") || trimmed.contains("<BODY")) {
+			return fileName;
+		}
+
+		int effectiveQuestId = questId;
+		if (effectiveQuestId <= 0 && questName != null && !questName.isBlank()) {
+			Matcher m = QUEST_ID_PREFIX_PATTERN.matcher(questName.trim());
+			if (m.find()) {
+				try {
+					effectiveQuestId = Integer.parseInt(m.group(1));
+				} catch (NumberFormatException ignored) {
+				}
+			}
+		}
+
+		String normalizedInput = normalize(trimmed);
+		int lastSlash = normalizedInput.lastIndexOf('/');
+		String baseName = lastSlash >= 0 ? normalizedInput.substring(lastSlash + 1) : normalizedInput;
+		List<String> fileVariants = buildFileNameVariants(baseName);
+
+		// Passo 1: Se questId > 0, procura em todos os diretórios registrados em questDirsById.get(questId)
+		if (effectiveQuestId > 0) {
+			List<String> registeredDirs = questDirsById.get(effectiveQuestId);
+			if (registeredDirs != null) {
+				for (String dir : registeredDirs) {
+					for (String variant : fileVariants) {
+						String h = getHtml(dir + "/" + variant);
+						if (h != null && !h.isBlank()) {
+							return h;
+						}
+					}
+				}
+			}
+		}
+
+		// Passo 2: Procura por variações de pasta com questName
+		Set<String> folderCandidates = buildQuestFolderCandidates(effectiveQuestId, questName);
+		for (String folder : folderCandidates) {
+			for (String variant : fileVariants) {
+				String h = getHtml(folder + "/" + variant);
+				if (h != null && !h.isBlank()) {
+					return h;
+				}
+			}
+		}
+
+		// Passo 3: Se fileName começar com um npcId (ex: 30048-01.htm), tenta nas pastas de tipos de NPC
+		for (String variant : fileVariants) {
+			if (NPC_FILE_PREFIX_PATTERN.matcher(variant).matches()) {
+				for (String npcFolder : NPC_FALLBACK_FOLDERS) {
+					String h = getHtml(npcFolder + "/" + variant);
+					if (h != null && !h.isBlank()) {
+						return h;
+					}
+				}
+			}
+		}
+
+		// Passo 4: Consulta getIndexedHtml e getHtml
+		if (lastSlash >= 0) {
+			String direct = getHtml(normalizedInput);
+			if (direct != null && !direct.isBlank()) {
+				return direct;
+			}
+		}
+		for (String variant : fileVariants) {
+			String indexed = getIndexedHtml(variant);
+			if (indexed != null && !indexed.isBlank()) {
+				return indexed;
+			}
+			String direct = getHtml(variant);
+			if (direct != null && !direct.isBlank()) {
+				return direct;
+			}
+		}
+
+		return getIndexedHtml(normalizedInput);
+	}
+
+	private static List<String> buildFileNameVariants(String fileName) {
+		Set<String> variants = new LinkedHashSet<>();
+		String clean = fileName.trim();
+		variants.add(clean);
+		String lower = clean.toLowerCase(java.util.Locale.ROOT);
+		variants.add(lower);
+
+		if (!lower.endsWith(".htm") && !lower.endsWith(".html")) {
+			variants.add(clean + ".htm");
+			variants.add(lower + ".htm");
+			variants.add(clean + ".html");
+			variants.add(lower + ".html");
+		}
+
+		List<String> snapshot = new ArrayList<>(variants);
+		for (String cand : snapshot) {
+			Matcher zeroPad = FILE_ZERO_PAD_PATTERN.matcher(cand);
+			if (zeroPad.matches()) {
+				String unpadded = zeroPad.group(1) + "-" + zeroPad.group(2) + "." + zeroPad.group(3);
+				variants.add(unpadded);
+				variants.add(unpadded.toLowerCase(java.util.Locale.ROOT));
+			} else {
+				Matcher noPad = FILE_NO_PAD_PATTERN.matcher(cand);
+				if (noPad.matches()) {
+					String padded = noPad.group(1) + "-0" + noPad.group(2) + "." + noPad.group(3);
+					variants.add(padded);
+					variants.add(padded.toLowerCase(java.util.Locale.ROOT));
+				}
+			}
+		}
+		return new ArrayList<>(variants);
+	}
+
+	private static Set<String> buildQuestFolderCandidates(int questId, String questName) {
+		Set<String> folders = new LinkedHashSet<>();
+		if (questName != null && !questName.isBlank()) {
+			String qn = questName.trim();
+			String noUnder = qn.startsWith("_") ? qn.substring(1) : qn;
+			String withUnder = qn.startsWith("_") ? qn : "_" + qn;
+
+			folders.add("quests/" + qn);
+			folders.add("scripts/quests/" + qn);
+			folders.add("quests/" + noUnder);
+			folders.add("scripts/quests/" + noUnder);
+			folders.add("quests/" + withUnder);
+			folders.add("scripts/quests/" + withUnder);
+
+			int underscoreIdx = noUnder.indexOf('_');
+			if (questId > 0 && underscoreIdx > 0) {
+				String suffix = noUnder.substring(underscoreIdx);
+				folders.add(String.format("quests/Q%03d%s", questId, suffix));
+				folders.add(String.format("quests/q%03d%s", questId, suffix));
+				folders.add(String.format("quests/%03d%s", questId, suffix));
+				folders.add(String.format("quests/%d%s", questId, suffix));
+				folders.add(String.format("scripts/quests/%d%s", questId, suffix));
+				folders.add(String.format("scripts/quests/%03d%s", questId, suffix));
+				folders.add(String.format("scripts/quests/Q%03d%s", questId, suffix));
+			}
+
+			folders.add("village_master/" + qn);
+			folders.add("village_master/" + noUnder);
+			folders.add("teleports/" + qn);
+			folders.add("teleports/" + noUnder);
+			folders.add("custom/" + qn);
+			folders.add("custom/" + noUnder);
+		}
+		if (questId > 0) {
+			folders.add("quests/" + questId);
+			folders.add(String.format("quests/%03d", questId));
+			folders.add(String.format("quests/Q%03d", questId));
+			folders.add(String.format("quests/q%03d", questId));
+		}
+		return folders;
+	}
+
 	public String getHtml(String relativePath) {
+		if (relativePath == null || relativePath.isBlank()) {
+			return null;
+		}
 		return cache.computeIfAbsent(normalize(relativePath), this::loadFile);
 	}
 
@@ -353,10 +604,14 @@ public class HtmCache {
 	}
 
 	public String render(String rawHtml, int npcObjectId, String npcName, String playerName) {
-		return render(rawHtml, npcObjectId, npcName, playerName, 1, 0);
+		return render(rawHtml, npcObjectId, npcName, playerName, 1, 0, "");
 	}
 
 	public String render(String rawHtml, int npcObjectId, String npcName, String playerName, int castleId, int npcId) {
+		return render(rawHtml, npcObjectId, npcName, playerName, castleId, npcId, "");
+	}
+
+	public String render(String rawHtml, int npcObjectId, String npcName, String playerName, int castleId, int npcId, String questName) {
 		if (rawHtml == null) {
 			return "";
 		}
@@ -376,6 +631,11 @@ public class HtmCache {
 		if (npcId > 0) {
 			s = s.replace("%npcId%", String.valueOf(npcId))
 				 .replace("%npc_id%", String.valueOf(npcId));
+		}
+		if (questName != null && !questName.isEmpty()) {
+			s = s.replace("%QuestName%", questName)
+				 .replace("%quest_name%", questName)
+				 .replace("%questname%", questName);
 		}
 		s = convertBracketLinks(s);
 		return s;
