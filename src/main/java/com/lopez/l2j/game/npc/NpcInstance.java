@@ -1,9 +1,11 @@
 package com.lopez.l2j.game.npc;
 
+import com.lopez.l2j.game.model.Creature;
+
 /**
  * Instancia ativa de NPC no mundo do jogo (Monstro, NPC de cidade, Guard...).
  */
-public final class NpcInstance {
+public final class NpcInstance implements Creature {
 
 	private final int objectId;
 	private final NpcTemplate template;
@@ -11,6 +13,7 @@ public final class NpcInstance {
 	private int y;
 	private int z;
 	private int heading;
+	private int instanceId = 0;
 	private double currentHp;
 	private double currentMp;
 	private boolean dead;
@@ -44,7 +47,9 @@ public final class NpcInstance {
 	public NpcTemplate getTemplate() { return template; }
 	public int npcId() { return template.id(); }
 	public int getNpcId() { return template.id(); }
-	public int getLevel() { return template != null ? template.level() : 1; }
+	@Override
+	public int level() { return template != null ? template.level() : 1; }
+	public int getLevel() { return level(); }
 	public String name() { return template.name(); }
 	public int x() { return x; }
 	public void x(int value) { this.x = value; }
@@ -54,6 +59,10 @@ public final class NpcInstance {
 	public void z(int value) { this.z = value; }
 	public int heading() { return heading; }
 	public void heading(int value) { this.heading = value; }
+	@Override
+	public int instanceId() { return instanceId; }
+	@Override
+	public void instanceId(int value) { this.instanceId = value; }
 	public int spawnX() { return spawnX; }
 	public int spawnY() { return spawnY; }
 	public int spawnZ() { return spawnZ; }
@@ -71,6 +80,15 @@ public final class NpcInstance {
 		if (this.currentHp <= 0.0) {
 			this.dead = true;
 		}
+	}
+
+	public boolean applyDamage(int damage) {
+		if (invul || dead || damage <= 0) {
+			return dead;
+		}
+		onDamaged();
+		currentHp(this.currentHp - damage);
+		return dead;
 	}
 
 	public double currentMp() { return currentMp; }
@@ -191,6 +209,12 @@ public final class NpcInstance {
 	private volatile boolean invul;
 
 	public double maxHp() { return template.maxHp() * maxHpMul; }
+	@Override
+	public double maxHpValue() { return maxHp(); }
+	@Override
+	public double maxMpValue() { return template != null ? template.maxMp() : 100.0; }
+	@Override
+	public boolean isNpc() { return true; }
 	public double maxHpMul() { return maxHpMul; }
 	public void maxHpMul(double value) { this.maxHpMul = value; }
 	public boolean isChampion() { return champion; }
