@@ -152,19 +152,19 @@ public class CharacterResetService {
 		StringBuilder sb = new StringBuilder();
 		sb.append("<html><title>Character Rebirth System</title><body><center>");
 		sb.append("<font color=\"LEVEL\">=== Character Reset / Rebirth ===</font><br>");
-		sb.append("Current Resets: <font color=\"00FF00\">").append(getTotalResets(player.objectId())).append("</font><br><br>");
+		sb.append("Current Resets: <font color=\"8FA888\">").append(getTotalResets(player.objectId())).append("</font><br><br>");
 
 		sb.append("<table width=280 bgcolor=000000>");
 		sb.append("<tr><td><font color=\"LEVEL\">Requirements:</font></td></tr>");
-		sb.append("<tr><td>Level: <font color=\"").append(player.level() >= requirement.minLevel() ? "00FF00" : "FF0000")
+		sb.append("<tr><td>Level: <font color=\"").append(player.level() >= requirement.minLevel() ? "8FA888" : "B86B6B")
 				.append("\">").append(player.level()).append(" / ").append(requirement.minLevel()).append("</font></td></tr>");
-		sb.append("<tr><td>PvP Kills: <font color=\"").append(player.pvpKills() >= requirement.minPvP() ? "00FF00" : "FF0000")
+		sb.append("<tr><td>PvP Kills: <font color=\"").append(player.pvpKills() >= requirement.minPvP() ? "8FA888" : "B86B6B")
 				.append("\">").append(player.pvpKills()).append(" / ").append(requirement.minPvP()).append("</font></td></tr>");
 
 		for (Map.Entry<Integer, Long> req : requirement.requiredItems().entrySet()) {
 			long owned = inventoryCounts.getOrDefault(req.getKey(), 0L);
 			sb.append("<tr><td>Cost (Item ").append(req.getKey()).append("): <font color=\"")
-					.append(owned >= req.getValue() ? "00FF00" : "FF0000").append("\">")
+					.append(owned >= req.getValue() ? "8FA888" : "B86B6B").append("\">")
 					.append(String.format("%,d", owned)).append(" / ").append(String.format("%,d", req.getValue())).append("</font></td></tr>");
 		}
 		sb.append("</table><br>");
