@@ -100,6 +100,17 @@ public class ActionPacketHandler {
 		if (ctx != null && ctx.world() != null) {
 			ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, move, false);
 		}
+		var summon = active.activeSummon();
+		if (summon != null && !summon.isDead() && summon.following()) {
+			int sx = summon.x(), sy = summon.y(), sz = summon.z();
+			int tx = p.targetX() - 40, ty = p.targetY() - 40, tz = p.targetZ();
+			summon.moveTo(tx, ty, tz);
+			var sMove = new MoveToLocation(summon.objectId(), tx, ty, tz, sx, sy, sz);
+			session.send(sMove);
+			if (ctx != null && ctx.world() != null) {
+				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, sMove, false);
+			}
+		}
 		session.updateKnownObjects();
 	}
 
@@ -262,6 +273,31 @@ public class ActionPacketHandler {
 				if (dx * dx + dy * dy <= 250.0 * 250.0) {
 					var skillTable = ctx.skillService() != null ? ctx.skillService().table() : null;
 					session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(0, ctx.buffShop().renderBuyerShopHtml(active, other.objectId(), skillTable, 1)));
+				} else {
+					var movePawn = new MoveToPawn(active.objectId(), other.objectId(), 200, active.x(), active.y(), active.z());
+					session.send(movePawn);
+					if (ctx.world() != null) {
+						ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, movePawn, false);
+					}
+				}
+				return;
+			}
+			if (other.character() != null && (other.character().privateStoreType() == PlayerCharacter.STORE_TYPE_SELL
+					|| other.character().privateStoreType() == 8
+					|| other.character().privateStoreType() == PlayerCharacter.STORE_TYPE_BUY)) {
+				session.targetObjectId(other.objectId());
+				session.send(new MyTargetSelected(other.objectId(), 0));
+				session.send(StatusUpdate.hp(other.objectId(), (int) other.character().currentHp(), other.character().maxHp()));
+				session.send(new ValidateLocation(other.objectId(), other.x(), other.y(), other.z(), 0));
+
+				double dx = active.x() - other.x();
+				double dy = active.y() - other.y();
+				if (dx * dx + dy * dy <= 250.0 * 250.0) {
+					if (other.character().privateStoreType() == PlayerCharacter.STORE_TYPE_BUY) {
+						session.tradeStoreHandler().showPrivateStoreBuyWindow(other.character());
+					} else {
+						session.tradeStoreHandler().showPrivateStoreSellWindow(other.character());
+					}
 				} else {
 					var movePawn = new MoveToPawn(active.objectId(), other.objectId(), 200, active.x(), active.y(), active.z());
 					session.send(movePawn);
@@ -539,7 +575,7 @@ public class ActionPacketHandler {
 				}
 				session.send(new ActionFailed());
 			}
-			case 7 -> session.tradeStoreHandler().handlePrivateStoreManageSell(); // Private Store Buy
+			case 7 -> session.tradeStoreHandler().handlePrivateStoreManageBuy(); // Private Store Buy
 			case 8 -> session.tradeStoreHandler().handlePrivateStoreManageSell(); // Private Store Sell
 			case 9 -> session.tradeStoreHandler().handlePrivateStoreManageSell(); // Private Store Package Sell
 			case 10 -> session.onRecipeBookOpen(new GameClientPacket.RequestRecipeBookOpen(false)); // Common Craft (Recipe Book)
@@ -547,7 +583,7 @@ public class ActionPacketHandler {
 			case 12 -> session.sendSocialAction(2); // Greeting
 			case 13 -> session.sendSocialAction(3); // Victory
 			case 14 -> session.sendSocialAction(4); // Advance
-			case 15 -> { // Party Invite via icone
+			case 15 -> { // Party Invite via icone (ou Pet Follow se não houver jogador alvo)
 				if (session.targetObjectId() != 0 && ctx != null && ctx.world() != null) {
 					var targetPlayerOpt = ctx.world().player(session.targetObjectId());
 					if (targetPlayerOpt.isPresent() && targetPlayerOpt.get() instanceof GameSession targetSession
@@ -556,10 +592,20 @@ public class ActionPacketHandler {
 						return;
 					}
 				}
+				if (active.activeSummon() != null) {
+					toggleSummonFollow(active, ctx);
+					return;
+				}
 				session.send(new ActionFailed());
 			}
-			case 16 -> session.partyClanHandler().handleLeaveParty(); // Party Leave
-			case 17 -> { // Party Dismiss / Expel
+			case 16 -> { // Party Leave ou Pet Attack
+				if (session.party() == null && active.activeSummon() != null) {
+					orderSummonAttack(active, ctx);
+					return;
+				}
+				session.partyClanHandler().handleLeaveParty();
+			}
+			case 17 -> { // Party Dismiss / Expel ou Pet Stop
 				var party = session.party();
 				if (party != null && party.isLeader(active.objectId()) && session.targetObjectId() != 0 && ctx != null && ctx.world() != null) {
 					var targetPlayerOpt = ctx.world().player(session.targetObjectId());
@@ -568,12 +614,56 @@ public class ActionPacketHandler {
 						return;
 					}
 				}
+				if (active.activeSummon() != null) {
+					stopSummon(active, ctx);
+					return;
+				}
 				session.send(new ActionFailed());
 			}
 			case 18 -> { // Change Party Leader
 				var party = session.party();
 				if (party != null && party.isLeader(active.objectId()) && session.targetObjectId() != 0) {
 					party.changeLeader(session.targetObjectId());
+					return;
+				}
+				session.send(new ActionFailed());
+			}
+			case 19, 52 -> { // Unsummon Pet / Unsummon Servitor
+				if (ctx != null && ctx.summonItems() != null && (active.hasPet() || active.hasSummon())) {
+					ctx.summonItems().unsummonPet(active, session::send);
+					return;
+				}
+				var sum = active.activeSummon();
+				if (sum != null) {
+					active.activeSummon(null);
+					active.petObjectId(0);
+					if (ctx != null && ctx.world() != null) {
+						ctx.world().removeSummon(sum.objectId());
+						ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
+								new com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject(sum.objectId()), true);
+					}
+					session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.PetDelete(sum.summonType(), sum.objectId()));
+					return;
+				}
+				session.send(new ActionFailed());
+			}
+			case 21 -> { // Summon Follow / Stay
+				if (active.activeSummon() != null) {
+					toggleSummonFollow(active, ctx);
+					return;
+				}
+				session.send(new ActionFailed());
+			}
+			case 22 -> { // Summon Attack
+				if (active.activeSummon() != null) {
+					orderSummonAttack(active, ctx);
+					return;
+				}
+				session.send(new ActionFailed());
+			}
+			case 23 -> { // Summon Stop
+				if (active.activeSummon() != null) {
+					stopSummon(active, ctx);
 					return;
 				}
 				session.send(new ActionFailed());
@@ -607,6 +697,70 @@ public class ActionPacketHandler {
 				session.send(new ActionFailed());
 			}
 			default -> session.send(new ActionFailed());
+		}
+	}
+
+	private void toggleSummonFollow(PlayerCharacter active, GameSession.Context ctx) {
+		var sum = active.activeSummon();
+		if (sum == null || sum.isDead()) return;
+		sum.following(!sum.following());
+		if (sum.following()) {
+			int ox = sum.x(), oy = sum.y(), oz = sum.z();
+			sum.moveTo(active.x() + 40, active.y() + 40, active.z());
+			var mv = new MoveToLocation(sum.objectId(), sum.x(), sum.y(), sum.z(), ox, oy, oz);
+			session.send(mv);
+			if (ctx != null && ctx.world() != null) {
+				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, mv, false);
+			}
+		}
+		session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.PetStatusUpdate(sum));
+	}
+
+	private void orderSummonAttack(PlayerCharacter active, GameSession.Context ctx) {
+		var sum = active.activeSummon();
+		if (sum == null || sum.isDead() || session.targetObjectId() == 0 || ctx == null || ctx.world() == null || ctx.combat() == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		var npcOpt = ctx.world().npc(session.targetObjectId());
+		if (npcOpt.isPresent()) {
+			var npc = npcOpt.get();
+			if (!npc.isDead() && npc.template().isAttackable()) {
+				sum.targetObjectId(npc.objectId());
+				sum.moveTo(npc.x() - 35, npc.y() - 35, npc.z());
+				var hit = ctx.combat().summonAttackNpc(sum, npc);
+				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
+						new com.lopez.l2j.network.game.packet.GameServerPacket.Attack(sum.objectId(), npc.objectId(), hit.damage(), hit.flags(), sum.x(), sum.y(), sum.z()), true);
+				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
+						StatusUpdate.hp(npc.objectId(), (int) npc.currentHp(), (int) npc.maxHp()), true);
+				if (hit.isDead()) {
+					var tpl = ctx.characters() != null ? ctx.characters().template(active.classId()).orElse(null) : null;
+					PlayerCombatHandler.handleMonsterDeath(session, ctx, active, tpl, npc, session.party(), hit.expReward(), hit.spReward());
+				}
+				return;
+			}
+		}
+		var playerOpt = ctx.world().player(session.targetObjectId());
+		if (playerOpt.isPresent() && playerOpt.get() instanceof GameSession targetSession && targetSession.activeChar() != null && !targetSession.activeChar().isDead()) {
+			var targetChar = targetSession.activeChar();
+			var charTpl = ctx.characters() != null ? ctx.characters().template(targetChar.classId()).orElse(null) : null;
+			sum.targetObjectId(targetChar.objectId());
+			sum.moveTo(targetChar.x() - 35, targetChar.y() - 35, targetChar.z());
+			var hit = ctx.combat().summonAttackPlayer(sum, targetChar, charTpl);
+			ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
+					new com.lopez.l2j.network.game.packet.GameServerPacket.Attack(sum.objectId(), targetChar.objectId(), hit.damage(), 0, sum.x(), sum.y(), sum.z()), true);
+			targetSession.send(StatusUpdate.forPlayer(targetChar));
+		}
+	}
+
+	private void stopSummon(PlayerCharacter active, GameSession.Context ctx) {
+		var sum = active.activeSummon();
+		if (sum == null || sum.isDead()) return;
+		sum.targetObjectId(0);
+		var stop = new StopMove(sum.objectId(), sum.x(), sum.y(), sum.z(), sum.heading());
+		session.send(stop);
+		if (ctx != null && ctx.world() != null) {
+			ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, stop, false);
 		}
 	}
 

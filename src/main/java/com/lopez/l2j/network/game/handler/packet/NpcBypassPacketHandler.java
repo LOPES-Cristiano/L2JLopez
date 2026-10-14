@@ -42,6 +42,7 @@ public class NpcBypassPacketHandler {
 	private static final Logger log = LoggerFactory.getLogger(NpcBypassPacketHandler.class);
 
 	private final GameSession session;
+	private int lastInteractedNpcObjId;
 
 	public NpcBypassPacketHandler(GameSession session) {
 		this.session = session;
@@ -60,6 +61,12 @@ public class NpcBypassPacketHandler {
 	}
 
 	public void showNpcHtml(NpcInstance npc, int val) {
+		if (npc != null) {
+			this.lastInteractedNpcObjId = npc.objectId();
+		}
+		if (npc != null && showGrandBossEntryNpcHtml(npc)) {
+			return;
+		}
 		if (com.lopez.l2j.game.boss.BossManager.getInstance() != null
 				&& com.lopez.l2j.game.boss.BossManager.getInstance().showBossNpcHtml(active(), npc, p -> { if (p instanceof GameServerPacket gsp) send(gsp); })) {
 			return;
@@ -111,14 +118,18 @@ public class NpcBypassPacketHandler {
 
 		// 1. Quests com first talk prioritário (Tutorial, Newbie Helper e diálogos dinâmicos)
 		if (val == 0 && ctx().questManager() != null) {
-			for (var q : ctx().questManager().getAllQuests()) {
+			Collection<com.lopez.l2j.game.quest.Quest> firstTalkQuests = ctx().questManager().getQuestsForFirstTalkNpc(npc.npcId());
+			if (firstTalkQuests == null || firstTalkQuests.isEmpty()) {
+				firstTalkQuests = ctx().questManager().getAllQuests();
+			}
+			for (var q : firstTalkQuests) {
 				if (q.hasFirstTalkNpc(npc.npcId())) {
 					String qHtm = q.notifyFirstTalk(npc, session);
 					if (qHtm != null && !qHtm.isBlank() && !"noquest".equalsIgnoreCase(qHtm) && !"no-quest".equalsIgnoreCase(qHtm)) {
 						String resolved = resolveQuestHtml(q, qHtm, npc);
 						if (resolved != null && !resolved.isBlank()) {
 							String rendered = ctx().htmls() != null
-									? ctx().htmls().render(resolved, npc.objectId(), npc.name(), active() != null ? active().name() : "Player", castleId, npc.npcId())
+									? ctx().htmls().render(resolved, npc.objectId(), npc.name(), active() != null ? active().name() : "Player", castleId, npc.npcId(), q.getName())
 									: resolved;
 							send(new NpcHtmlMessage(npc.objectId(), rendered));
 							return;
@@ -145,6 +156,151 @@ public class NpcBypassPacketHandler {
 				? ctx().htmls().render(defHtml, npc.objectId(), npc.name(), active() != null ? active().name() : "Player", castleId, npc.npcId())
 				: defHtml;
 		send(new NpcHtmlMessage(npc.objectId(), rendered));
+	}
+
+	private boolean showGrandBossEntryNpcHtml(NpcInstance npc) {
+		var bm = com.lopez.l2j.game.boss.BossManager.getInstance();
+		int npcId = npc.npcId();
+		switch (npcId) {
+			case 13001 -> {
+				var antharas = bm != null ? bm.antharasService() : null;
+				String statusStr = antharas != null ? antharas.getStatus().name() : "NOTSPAWN";
+				String html = "<html><body>Heart of Warding:<br>"
+						+ "Status de Antharas: <font color=\"LEVEL\">" + statusStr + "</font><br>"
+						+ "Apenas guerreiros portando a <font color=\"LEVEL\">Portal Stone</font> podem atravessar.<br><br>"
+						+ "<a action=\"bypass -h epic_antharas_enter\">Entrar no Covil de Antharas</a><br>"
+						+ "<a action=\"bypass -h boss_antharas_enter\">Enter Antharas' Lair</a>"
+						+ "</body></html>";
+				send(new NpcHtmlMessage(npc.objectId(), html));
+				return true;
+			}
+			case 31385, 31540 -> {
+				var valakas = bm != null ? bm.valakasService() : null;
+				String statusStr = valakas != null ? valakas.getStatus().name() : "NOTSPAWN";
+				String title = npcId == 31385 ? "Heart of Volcano" : "Watcher of Valakas Klein";
+				String html = "<html><body>" + title + ":<br>"
+						+ "Status de Valakas: <font color=\"LEVEL\">" + statusStr + "</font><br>"
+						+ "Apenas campeoes portando a <font color=\"LEVEL\">Floating Stone</font> podem atravessar.<br><br>"
+						+ "<a action=\"bypass -h epic_valakas_enter\">Entrar no Covil de Valakas</a><br>"
+						+ "<a action=\"bypass -h boss_valakas_enter\">Enter Valakas' Lair</a>"
+						+ "</body></html>";
+				send(new NpcHtmlMessage(npc.objectId(), html));
+				return true;
+			}
+			case 31862 -> {
+				var baium = bm != null ? bm.baiumService() : null;
+				String statusStr = baium != null ? baium.getStatus().name() : "NOTSPAWN";
+				String html = "<html><body>Angelic Vortex:<br>"
+						+ "Status de Baium: <font color=\"LEVEL\">" + statusStr + "</font><br>"
+						+ "Requisito: <font color=\"LEVEL\">Blooded Fabric</font>.<br><br>"
+						+ "<a action=\"bypass -h epic_baium_enter\">Subir ao 14o Andar (Baium)</a><br>"
+						+ "<a action=\"bypass -h boss_baium_enter\">Ascend to the 14th Floor</a>"
+						+ "</body></html>";
+				send(new NpcHtmlMessage(npc.objectId(), html));
+				return true;
+			}
+			case 29025 -> {
+				var baium = bm != null ? bm.baiumService() : null;
+				String statusStr = baium != null ? baium.getStatus().name() : "NOTSPAWN";
+				String html = "<html><body>Stone Statue of Baium:<br>"
+						+ "Status de Baium: <font color=\"LEVEL\">" + statusStr + "</font><br>"
+						+ "O antigo imperador permanece petrificado em sono profundo.<br><br>"
+						+ "<a action=\"bypass -h epic_baium_wake\">Despertar Baium</a><br>"
+						+ "<a action=\"bypass -h boss_baium_awaken\">Touch the statue and awaken Baium</a>"
+						+ "</body></html>";
+				send(new NpcHtmlMessage(npc.objectId(), html));
+				return true;
+			}
+			case 32011 -> {
+				var frintezza = ctx() != null && ctx().frintezza() != null
+						? ctx().frintezza()
+						: (bm != null ? bm.frintezzaService() : null);
+				String statusStr = frintezza != null ? frintezza.getStatus().name() : "ALIVE";
+				String html = "<html><body>Imperial Tomb Guide:<br>"
+						+ "Status do Tumulo Imperial (Frintezza): <font color=\"LEVEL\">" + statusStr + "</font><br>"
+						+ "Requisito: Nivel 74+ e <font color=\"LEVEL\">Frintezza's Magic Force Field Removal Scroll</font>.<br><br>"
+						+ "<a action=\"bypass -h epic_frintezza_enter\">Entrar no Salao Imperial (Frintezza)</a>"
+						+ "</body></html>";
+				send(new NpcHtmlMessage(npc.objectId(), html));
+				return true;
+			}
+			default -> {
+				return false;
+			}
+		}
+	}
+
+	private boolean handleGrandBossEpicBypass(String cmd) {
+		if (cmd == null || active() == null) {
+			return false;
+		}
+		var bm = com.lopez.l2j.game.boss.BossManager.getInstance();
+		switch (cmd) {
+			case "epic_antharas_enter" -> {
+				var antharas = bm != null ? bm.antharasService() : null;
+				boolean ok = antharas != null && antharas.enterLair(active());
+				if (ok) {
+					teleportToCoordinates(active().x(), active().y(), active().z());
+					send(new CreatureSay(0, CreatureSay.ALL, "Antharas", "Voce entrou no Covil de Antharas!"));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "Antharas", "Requisitos nao cumpridos (Portal Stone) ou covil inacessivel."));
+				}
+				return true;
+			}
+			case "epic_valakas_enter" -> {
+				var valakas = bm != null ? bm.valakasService() : null;
+				boolean ok = valakas != null && valakas.enterLair(active());
+				if (ok) {
+					teleportToCoordinates(active().x(), active().y(), active().z());
+					send(new CreatureSay(0, CreatureSay.ALL, "Valakas", "Voce entrou no Covil de Valakas!"));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "Valakas", "Requisitos nao cumpridos (Floating Stone) ou covil inacessivel."));
+				}
+				return true;
+			}
+			case "epic_baium_enter" -> {
+				var baium = bm != null ? bm.baiumService() : null;
+				boolean ok = baium != null && baium.enterFloor(active());
+				if (ok) {
+					teleportToCoordinates(active().x(), active().y(), active().z());
+					send(new CreatureSay(0, CreatureSay.ALL, "Baium", "Voce ascendeu ao 14o Andar da Torre da Insolencia!"));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "Baium", "Requisitos nao cumpridos (Blooded Fabric) ou Baium ja em combate."));
+				}
+				return true;
+			}
+			case "epic_baium_wake" -> {
+				var baium = bm != null ? bm.baiumService() : null;
+				boolean ok = baium != null && baium.awakenBaium(active());
+				send(new CreatureSay(0, CreatureSay.ALL, "Baium",
+						ok ? "Baium foi despertado!" : "Nao foi possivel despertar Baium."));
+				return true;
+			}
+			case "epic_frintezza_enter" -> {
+				var frintezza = ctx() != null && ctx().frintezza() != null
+						? ctx().frintezza()
+						: (bm != null ? bm.frintezzaService() : null);
+				List<PlayerCharacter> partyMembers = new ArrayList<>();
+				if (session.party() != null) {
+					for (var m : session.party().members()) {
+						if (m.character() != null) {
+							partyMembers.add(m.character());
+						}
+					}
+				}
+				boolean ok = frintezza != null && frintezza.enterTomb(active(), partyMembers.isEmpty() ? null : partyMembers);
+				if (ok) {
+					teleportToCoordinates(active().x(), active().y(), active().z());
+					send(new CreatureSay(0, CreatureSay.ALL, "Frintezza", "Voce entrou no Ultimo Tumulo Imperial!"));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "Frintezza", "Requisitos nao cumpridos (Nivel 74+ e Force Field Removal Scroll) ou tumulo inacessivel."));
+				}
+				return true;
+			}
+			default -> {
+				return false;
+			}
+		}
 	}
 
 	private boolean isSevenSignsPriest(int npcId, String name) {
@@ -1223,6 +1379,9 @@ public class NpcBypassPacketHandler {
 		} else if (cmd.startsWith("-h")) {
 			cmd = cmd.substring(2).trim();
 		}
+		if (handleGrandBossEpicBypass(cmd)) {
+			return;
+		}
 		if (ctx().bypassHandlers() != null && ctx().bypassHandlers().execute(cmd, session)) {
 			return;
 		}
@@ -1439,7 +1598,8 @@ public class NpcBypassPacketHandler {
 		}
 		if (cmd.startsWith("Quest ") || cmd.equals("Quest")) {
 			String questArg = cmd.length() > 5 ? cmd.substring(5).trim() : "";
-			handleQuestBypass(session.targetObjectId(), questArg);
+			int targetObjId = session.targetObjectId() > 0 ? session.targetObjectId() : this.lastInteractedNpcObjId;
+			handleQuestBypass(targetObjId, questArg);
 			return;
 		}
 		if (cmd.startsWith("Subclass ") || cmd.equals("Subclass")) {
@@ -1502,6 +1662,11 @@ public class NpcBypassPacketHandler {
 				String subArg = action.length() > 8 ? action.substring(8).trim() : "";
 				handleSubclassBypass(0, subArg);
 				return;
+			} else if (action.startsWith("Quest")) {
+				String questArg = action.length() > 5 ? action.substring(5).trim() : "";
+				int targetObjId = session.targetObjectId() > 0 ? session.targetObjectId() : this.lastInteractedNpcObjId;
+				handleQuestBypass(targetObjId, questArg);
+				return;
 			} else if (action.equals("Draw") || action.startsWith("Draw")) {
 				session.onHennaList();
 				return;
@@ -1523,6 +1688,9 @@ public class NpcBypassPacketHandler {
 			if (parts.length >= 3) {
 				try {
 					int npcObjId = Integer.parseInt(parts[1]);
+					if (npcObjId > 0) {
+						this.lastInteractedNpcObjId = npcObjId;
+					}
 					var npcOpt = ctx().world().npc(npcObjId);
 					if (npcOpt.isPresent()) {
 						var npc = npcOpt.get();
@@ -2247,7 +2415,7 @@ public class NpcBypassPacketHandler {
 						.append("<td width=20 align=center>").append(rank++).append("</td>")
 						.append("<td width=140 align=left>").append(p.name()).append("</td>")
 						.append("<td width=60 align=center>").append(p.pvpKills()).append("</td>")
-						.append("<td width=70 align=center><font color=\"00FF00\">ONLINE</font></td>")
+						.append("<td width=70 align=center><font color=\"8FA888\">ONLINE</font></td>")
 						.append("</tr>");
 			}
 			sb.append("</table>");
@@ -2344,71 +2512,149 @@ public class NpcBypassPacketHandler {
 		return 1;
 	}
 
+	private static final java.util.regex.Pattern QUEST_ACTION_LINK_PATTERN =
+			java.util.regex.Pattern.compile("action=\"bypass(?:\\s+-h)?\\s+([^\"]+)\"", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+	private static boolean isGlobalOrNpcBypass(String cmd) {
+		if (cmd == null || cmd.isBlank()) {
+			return true;
+		}
+		String lower = cmd.trim().toLowerCase(java.util.Locale.ROOT);
+		return lower.startsWith("npc_")
+				|| lower.startsWith("_bbs")
+				|| lower.startsWith("bbs_")
+				|| lower.startsWith("admin_")
+				|| lower.startsWith("voiced_")
+				|| lower.startsWith("scripts_")
+				|| lower.startsWith("link ")
+				|| lower.startsWith("player_help")
+				|| lower.startsWith("manor_")
+				|| lower.startsWith("menu_select")
+				|| lower.startsWith("create_clan")
+				|| lower.startsWith("create_pledge")
+				|| lower.startsWith("increase_clan_level")
+				|| lower.startsWith("dissolve_clan")
+				|| lower.startsWith("1stclass")
+				|| lower.startsWith("2ndclass")
+				|| lower.startsWith("3rdclass")
+				|| lower.startsWith("change_class")
+				|| lower.startsWith("subclass")
+				|| lower.startsWith("epic_")
+				|| lower.startsWith("boss_")
+				|| lower.startsWith("olympiad")
+				|| lower.startsWith("sevensigns")
+				|| lower.startsWith("festival")
+				|| lower.startsWith("goto ")
+				|| lower.startsWith("buy")
+				|| lower.startsWith("sell")
+				|| lower.startsWith("wear")
+				|| lower.startsWith("multisell")
+				|| lower.startsWith("exc_multisell")
+				|| lower.startsWith("chat")
+				|| lower.startsWith("skilllist")
+				|| lower.startsWith("enchantskilllist")
+				|| lower.startsWith("fishskilllist")
+				|| lower.startsWith("deposit")
+				|| lower.startsWith("withdraw")
+				|| lower.startsWith("augment")
+				|| lower.startsWith("territorystatus")
+				|| lower.startsWith("cprecovery")
+				|| lower.startsWith("supportmagic")
+				|| lower.startsWith("open_")
+				|| lower.startsWith("close_")
+				|| lower.startsWith("operate_door")
+				|| lower.startsWith("observe")
+				|| lower.startsWith("loto")
+				|| lower.startsWith("give_crown")
+				|| lower.startsWith("receive_report")
+				|| lower.startsWith("banish_foreigner")
+				|| lower.startsWith("pvplist")
+				|| lower.startsWith("pklist")
+				|| lower.startsWith("onlinelist")
+				|| lower.startsWith("arenalist")
+				|| lower.startsWith("auction")
+				|| lower.startsWith("bid")
+				|| lower.startsWith("restore")
+				|| lower.startsWith("cancel")
+				|| lower.startsWith("getbuff")
+				|| lower.startsWith("support ")
+				|| lower.startsWith("support_back")
+				|| lower.startsWith("return")
+				|| lower.startsWith("exitrift")
+				|| lower.startsWith("changeriftroom")
+				|| lower.startsWith("draw")
+				|| lower.startsWith("remove")
+				|| lower.startsWith("questlist")
+				|| lower.startsWith("event_exchange")
+				|| lower.startsWith("achieve_claim")
+				|| lower.startsWith("antibot_");
+	}
+
+	private String normalizeQuestHtmlLinks(String html, com.lopez.l2j.game.quest.Quest q, NpcInstance npc) {
+		if (html == null || html.isBlank()) {
+			return html;
+		}
+		String converted = HtmCache.convertBracketLinks(html);
+		if (!converted.contains("bypass")) {
+			return converted;
+		}
+		String objToken = npc != null ? String.valueOf(npc.objectId()) : "%objectId%";
+		String qName = (q != null && q.getName() != null && !q.getName().isBlank()) ? q.getName() : null;
+
+		var matcher = QUEST_ACTION_LINK_PATTERN.matcher(converted);
+		var sb = new StringBuilder(converted.length() + 64);
+		while (matcher.find()) {
+			String rawCmd = matcher.group(1).trim();
+			String rewritten = null;
+			if (rawCmd.regionMatches(true, 0, "Quest ", 0, 6)) {
+				String rest = rawCmd.substring(6).trim();
+				if (!rest.isEmpty()) {
+					int sp = rest.indexOf(' ');
+					if (sp > 0) {
+						String folderOrName = rest.substring(0, sp).trim();
+						String eventPart = rest.substring(sp + 1).trim();
+						String targetQuest = qName != null ? qName : folderOrName;
+						rewritten = "action=\"bypass -h npc_" + objToken + "_Quest " + targetQuest + " " + eventPart + "\"";
+					} else {
+						String targetQuest = qName != null ? qName : rest;
+						rewritten = "action=\"bypass -h npc_" + objToken + "_Quest " + targetQuest + "\"";
+					}
+				}
+			} else if (rawCmd.equalsIgnoreCase("Quest")) {
+				rewritten = "action=\"bypass -h npc_" + objToken + "_Quest\"";
+			} else if (qName != null && !isGlobalOrNpcBypass(rawCmd)) {
+				rewritten = "action=\"bypass -h npc_" + objToken + "_Quest " + qName + " " + rawCmd + "\"";
+			}
+			if (rewritten != null) {
+				matcher.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(rewritten));
+			} else {
+				matcher.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(matcher.group(0)));
+			}
+		}
+		matcher.appendTail(sb);
+		return sb.toString();
+	}
+
 	private String resolveQuestHtml(com.lopez.l2j.game.quest.Quest q, String rawResult, NpcInstance npc) {
 		if (rawResult == null || rawResult.isBlank()) {
 			return null;
 		}
 		if (rawResult.contains("<html") || rawResult.contains("<HTML") || rawResult.contains("<body") || rawResult.contains("<BODY")) {
-			return rawResult;
+			return normalizeQuestHtmlLinks(rawResult, q, npc);
 		}
 		if ("noquest".equalsIgnoreCase(rawResult) || "no-quest".equalsIgnoreCase(rawResult)) {
-			return ctx().htmls() != null ? ctx().htmls().getHtml("npcdefault.htm") : null;
+			return "<html><body>You are either not on a quest that involves this NPC, or you don't meet this NPC's minimum quest requirements.</body></html>";
 		}
 		if (ctx().htmls() == null) {
 			return rawResult;
 		}
 
+		int qId = q != null ? q.getQuestId() : 0;
 		String qName = q != null ? q.getName() : "";
-		// 1. Tenta dentro da pasta da quest especifica e suas variacoes de alias
-		if (!qName.isEmpty()) {
-			String h = ctx().htmls().getHtml("quests/" + qName + "/" + rawResult);
-			if (h != null) return h;
-			h = ctx().htmls().getHtml("scripts/quests/" + qName + "/" + rawResult);
-			if (h != null) return h;
 
-			if (qName.startsWith("_")) {
-				String noUnderscore = qName.substring(1);
-				h = ctx().htmls().getHtml("quests/" + noUnderscore + "/" + rawResult);
-				if (h != null) return h;
-				h = ctx().htmls().getHtml("scripts/quests/" + noUnderscore + "/" + rawResult);
-				if (h != null) return h;
-			} else {
-				String withUnderscore = "_" + qName;
-				h = ctx().htmls().getHtml("quests/" + withUnderscore + "/" + rawResult);
-				if (h != null) return h;
-				h = ctx().htmls().getHtml("scripts/quests/" + withUnderscore + "/" + rawResult);
-				if (h != null) return h;
-			}
-		}
-
-		if (q != null && q.getQuestId() > 0) {
-			int qId = q.getQuestId();
-			String h = ctx().htmls().getHtml("quests/" + qId + "/" + rawResult);
-			if (h != null) return h;
-			h = ctx().htmls().getHtml(String.format("quests/%03d/%s", qId, rawResult));
-			if (h != null) return h;
-			h = ctx().htmls().getHtml(String.format("quests/q%03d/%s", qId, rawResult));
-			if (h != null) return h;
-			h = ctx().htmls().getHtml(String.format("quests/Q%03d/%s", qId, rawResult));
-			if (h != null) return h;
-		}
-
-		// 2. Tenta pelo nome indexado (ex: 31554-01.htm, merc_kahmun_q0628_01.htm)
-		String h = ctx().htmls().getIndexedHtml(rawResult);
-		if (h != null) return h;
-
-		// 3. Tenta caminhos diretos e alternativos
-		h = ctx().htmls().getHtml(rawResult);
-		if (h != null) return h;
-		h = ctx().htmls().getHtml("default/" + rawResult);
-		if (h != null) return h;
-
-		// 4. Se contiver caminho com barra, tenta o basename no indice global
-		int lastSlash = Math.max(rawResult.lastIndexOf('/'), rawResult.lastIndexOf('\\'));
-		if (lastSlash >= 0 && lastSlash < rawResult.length() - 1) {
-			String baseName = rawResult.substring(lastSlash + 1);
-			h = ctx().htmls().getIndexedHtml(baseName);
-			if (h != null) return h;
+		String h = ctx().htmls().getQuestHtml(qId, qName, rawResult);
+		if (h != null && !h.isBlank()) {
+			return normalizeQuestHtmlLinks(h, q, npc);
 		}
 
 		// Fallback seguro para evitar exibir texto cru do nome do arquivo para o jogador
@@ -2420,7 +2666,13 @@ public class NpcBypassPacketHandler {
 	}
 
 	public void handleQuestBypass(int npcObjId, String questArg) {
+		if (npcObjId > 0) {
+			this.lastInteractedNpcObjId = npcObjId;
+		}
 		var npcOpt = ctx().world().npc(npcObjId);
+		if (npcOpt.isEmpty() && this.lastInteractedNpcObjId > 0 && this.lastInteractedNpcObjId != npcObjId) {
+			npcOpt = ctx().world().npc(this.lastInteractedNpcObjId);
+		}
 		if (npcOpt.isEmpty()) {
 			send(new ActionFailed());
 			return;
@@ -2444,14 +2696,14 @@ public class NpcBypassPacketHandler {
 				}
 			}
 
-			// 2. Quests que este NPC pode iniciar
+			// 2. Quests que este NPC pode iniciar (usando índice rápido por NPC + fallback)
 			if (ctx().questManager() != null) {
-				for (var q : ctx().questManager().getAllQuests()) {
+				Collection<com.lopez.l2j.game.quest.Quest> startQuests = ctx().questManager().getQuestsForStartNpc(npcId);
+				if (startQuests == null || startQuests.isEmpty()) {
+					startQuests = ctx().questManager().getAllQuests();
+				}
+				for (var q : startQuests) {
 					if (q.hasStartNpc(npcId)) {
-						QuestState qs = session.getQuestState(q.getName());
-						if (qs != null && qs.isCompleted()) {
-							continue;
-						}
 						if (!options.contains(q)) {
 							options.add(q);
 						}
@@ -2467,7 +2719,7 @@ public class NpcBypassPacketHandler {
 					  .append(q.getDescr());
 					QuestState qs = session.getQuestState(q.getName());
 					if (qs != null) {
-						if (qs.isStarted() && qs.getCond() > 0) {
+						if (qs.isStarted()) {
 							sb.append(" (In progress)");
 						} else if (qs.isCompleted()) {
 							sb.append(" (Completed)");
@@ -2481,15 +2733,20 @@ public class NpcBypassPacketHandler {
 			} else if (options.size() == 1) {
 				var q = options.get(0);
 				QuestState qs = session.getQuestState(q.getName());
+				boolean wasAlreadyCompleted = qs != null && qs.isCompleted();
 				if (qs == null && q.hasStartNpc(npc.npcId())) {
 					qs = q.newQuestState(session);
 				}
 				String html = q.notifyTalk(npc, session);
+				if (wasAlreadyCompleted && (html == null || html.isBlank() || "noquest".equalsIgnoreCase(html) || "no-quest".equalsIgnoreCase(html))) {
+					send(new NpcHtmlMessage(npc.objectId(), "<html><body>This quest has already been completed.</body></html>"));
+					return;
+				}
 				if (html != null && !html.isBlank() && !"noquest".equalsIgnoreCase(html) && !"no-quest".equalsIgnoreCase(html)) {
 					String resolved = resolveQuestHtml(q, html, npc);
 					if (resolved != null && !resolved.isBlank()) {
 						String rendered = ctx().htmls() != null
-								? ctx().htmls().render(resolved, npc.objectId(), npc.name(), active() != null ? active().name() : "Player", castleId, npc.npcId())
+								? ctx().htmls().render(resolved, npc.objectId(), npc.name(), active() != null ? active().name() : "Player", castleId, npc.npcId(), q.getName())
 								: resolved;
 						send(new NpcHtmlMessage(npc.objectId(), rendered));
 						return;
@@ -2574,6 +2831,7 @@ public class NpcBypassPacketHandler {
 		var q = ctx().questManager() != null ? ctx().questManager().getQuest(qName) : null;
 		if (q != null) {
 			QuestState qs = session.getQuestState(q.getName());
+			boolean wasAlreadyCompleted = qs != null && qs.isCompleted();
 			if (qs == null && q.hasStartNpc(npc.npcId())) {
 				qs = q.newQuestState(session);
 			}
@@ -2583,16 +2841,21 @@ public class NpcBypassPacketHandler {
 			} else {
 				html = q.notifyTalk(npc, session);
 			}
+			if (wasAlreadyCompleted && (event == null || event.isEmpty())
+					&& (html == null || html.isBlank() || "noquest".equalsIgnoreCase(html) || "no-quest".equalsIgnoreCase(html))) {
+				send(new NpcHtmlMessage(npc.objectId(), "<html><body>This quest has already been completed.</body></html>"));
+				return;
+			}
 			if (html != null && !html.isBlank()) {
 				if ("noquest".equalsIgnoreCase(html) || "no-quest".equalsIgnoreCase(html)) {
-					String noQuestHtm = "<html><body>You are either not on a quest that involves session NPC, or you don't meet session NPC's minimum quest requirements.</body></html>";
+					String noQuestHtm = "<html><body>You are either not on a quest that involves this NPC, or you don't meet this NPC's minimum quest requirements.</body></html>";
 					send(new NpcHtmlMessage(npc.objectId(), noQuestHtm));
 					return;
 				}
 				String resolved = resolveQuestHtml(q, html, npc);
 				if (resolved != null && !resolved.isBlank()) {
 					String rendered = ctx().htmls() != null
-							? ctx().htmls().render(resolved, npc.objectId(), npc.name(), active() != null ? active().name() : "Player", castleId, npc.npcId())
+							? ctx().htmls().render(resolved, npc.objectId(), npc.name(), active() != null ? active().name() : "Player", castleId, npc.npcId(), q.getName())
 							: resolved;
 					send(new NpcHtmlMessage(npc.objectId(), rendered));
 					return;
@@ -2606,12 +2869,15 @@ public class NpcBypassPacketHandler {
 			String qHtml = null;
 			if (parts.length >= 2) {
 				String filename = parts[parts.length - 1];
-				qHtml = ctx().htmls().getIndexedHtml(filename);
+				qHtml = ctx().htmls().getQuestHtml(0, parts[0], filename);
 				if (qHtml == null) {
 					qHtml = ctx().htmls().getHtml("village_master/" + parts[0] + "/" + filename);
 				}
 				if (qHtml == null) {
 					qHtml = ctx().htmls().getHtml("quests/" + parts[0] + "/" + filename);
+				}
+				if (qHtml == null) {
+					qHtml = ctx().htmls().getIndexedHtml(filename);
 				}
 			} else {
 				qHtml = ctx().htmls().getHtml("teleporter/" + questArg + ".htm");
@@ -2619,14 +2885,14 @@ public class NpcBypassPacketHandler {
 					qHtml = ctx().htmls().getHtml("default/" + questArg + ".htm");
 				}
 				if (qHtml == null) {
-					qHtml = ctx().htmls().getIndexedHtml(questArg);
+					qHtml = ctx().htmls().getQuestHtml(0, "", questArg);
 				}
 				if (qHtml == null) {
 					qHtml = ctx().htmls().getIndexedHtml(npc.npcId() + "-01.htm");
 				}
 			}
 			if (qHtml != null) {
-				String rendered = ctx().htmls().render(qHtml, npc.objectId(), npc.name(), active() != null ? active().name() : "Player", castleId, npc.npcId());
+				String rendered = ctx().htmls().render(qHtml, npc.objectId(), npc.name(), active() != null ? active().name() : "Player", castleId, npc.npcId(), parts[0]);
 				send(new NpcHtmlMessage(npc.objectId(), rendered));
 				return;
 			}
@@ -2639,7 +2905,7 @@ public class NpcBypassPacketHandler {
 		String defaultHtm = ctx().htmls() != null ? ctx().htmls().getHtml("noquest.htm") : null;
 		if (defaultHtm == null) {
 			defaultHtm = "<html><body>" + (npc != null && npc.name() != null ? npc.name() : "NPC")
-					+ ":<br><br>You are either not on a quest that involves session NPC, or you don't meet session NPC's minimum quest requirements.</body></html>";
+					+ ":<br><br>You are either not on a quest that involves this NPC, or you don't meet this NPC's minimum quest requirements.</body></html>";
 		}
 		send(new NpcHtmlMessage(npc != null ? npc.objectId() : 0, ctx().htmls() != null
 				? ctx().htmls().render(defaultHtm, npc != null ? npc.objectId() : 0, npc != null ? npc.name() : "NPC", active() != null ? active().name() : "Player")
@@ -2694,7 +2960,7 @@ public class NpcBypassPacketHandler {
 			}
 			var subs = ctx().subClasses() != null ? ctx().subClasses().getAvailableSubClasses(active()) : java.util.List.<Integer>of();
 			if (subs.isEmpty()) {
-				send(new NpcHtmlMessage(npcObjId, "<html><body>There are no available subclasses for your character at session time.</body></html>"));
+				send(new NpcHtmlMessage(npcObjId, "<html><body>There are no available subclasses for your character at this time.</body></html>"));
 				return;
 			}
 			StringBuilder sb = new StringBuilder("<html><title>Add Subclass</title><body>Select the subclass you wish to acquire:<br><br><table width=260>");

@@ -23,6 +23,7 @@ import com.lopez.l2j.game.subclass.SubClass;
 import com.lopez.l2j.game.template.CharTemplate;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.GameSession;
+import com.lopez.l2j.network.game.handler.admin.AdminSecurityService;
 import com.lopez.l2j.network.game.packet.GameClientPacket;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestGMCommand;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
@@ -90,9 +91,19 @@ public class AdminPacketHandler {
 		if (ctx == null || ctx.htmls() == null || requested == null || requested.isBlank()) {
 			return null;
 		}
+		if (requested.contains("..") || requested.contains("\\") || requested.contains(":")
+				|| requested.indexOf('\0') >= 0 || requested.trim().startsWith("/")) {
+			log.warn("[GM-SECURITY] Path traversal bloqueado em resolveAdminHtml: '{}'", requested);
+			return null;
+		}
 		String clean = requested.trim();
 		if (clean.startsWith("admin_")) {
 			clean = clean.substring(6).trim();
+		}
+		if (clean.contains("..") || clean.contains("\\") || clean.contains(":")
+				|| clean.indexOf('\0') >= 0 || clean.startsWith("/")) {
+			log.warn("[GM-SECURITY] Path traversal bloqueado em resolveAdminHtml (clean): '{}'", clean);
+			return null;
 		}
 		if (clean.isEmpty() || "admin".equalsIgnoreCase(clean) || "main".equalsIgnoreCase(clean) || "main_menu".equalsIgnoreCase(clean)) {
 			clean = "menus/main.htm";
@@ -198,22 +209,12 @@ public class AdminPacketHandler {
 		}
 
 		for (String cand : candidates) {
+			if (!cand.startsWith("admin/") || cand.contains("..")) {
+				continue;
+			}
 			String html = ctx.htmls().getHtml(cand);
 			if (html != null && !html.isBlank()) {
 				return html;
-			}
-		}
-
-		// Fallback inteligente usando o indice global do HtmCache
-		String indexed = ctx.htmls().getIndexedHtml(clean);
-		if (indexed != null && !indexed.isBlank()) {
-			return indexed;
-		}
-		if (clean.contains("/")) {
-			String lastPart = clean.substring(clean.lastIndexOf('/') + 1);
-			indexed = ctx.htmls().getIndexedHtml(lastPart);
-			if (indexed != null && !indexed.isBlank()) {
-				return indexed;
 			}
 		}
 
@@ -221,6 +222,10 @@ public class AdminPacketHandler {
 	}
 
 	public void showAdminHtml(String requested) {
+		if (active() == null || !active().isGm()) {
+			send(new ActionFailed());
+			return;
+		}
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
 		String cleanReq = requested != null ? requested.trim().toLowerCase(java.util.Locale.ROOT) : "";
@@ -337,7 +342,7 @@ public class AdminPacketHandler {
 			rendered = rendered.replace("%clanhalls%", "<td><font color=\"LEVEL\">Nenhum Clan Hall ocupado.</font></td>");
 		}
 		if (rendered.contains("%freeclanhalls%")) {
-			rendered = rendered.replace("%freeclanhalls%", "<td><font color=\"00FF00\">Todos os Clan Halls disponiveis.</font></td>");
+			rendered = rendered.replace("%freeclanhalls%", "<td><font color=\"8FA888\">Todos os Clan Halls disponiveis.</font></td>");
 		}
 		if (rendered.contains("%forts%")) {
 			StringBuilder fSb = new StringBuilder();
@@ -349,9 +354,9 @@ public class AdminPacketHandler {
 			StringBuilder cwSb = new StringBuilder("<table width=270 bgcolor=\"000000\">");
 			if (ctx.cursedWeapons() != null) {
 				for (var cw : ctx.cursedWeapons().allWeapons()) {
-					String status = cw.isActive() ? "<font color=\"FF0000\">Equipada por " + (!cw.playerName().isEmpty() ? cw.playerName() : "Desconhecido") + "</font>"
-							: (cw.isDropped() ? "<font color=\"FFFF00\">Dropada no Chao (" + cw.x() + ", " + cw.y() + ")</font>"
-							: "<font color=\"00FF00\">Inativa / No Void</font>");
+					String status = cw.isActive() ? "<font color=\"B86B6B\">Equipada por " + (!cw.playerName().isEmpty() ? cw.playerName() : "Desconhecido") + "</font>"
+							: (cw.isDropped() ? "<font color=\"D4C49A\">Dropada no Chao (" + cw.x() + ", " + cw.y() + ")</font>"
+							: "<font color=\"8FA888\">Inativa / No Void</font>");
 					cwSb.append("<tr><td><font color=\"LEVEL\">").append(cw.name()).append(":</font></td></tr>");
 					cwSb.append("<tr><td>Status: ").append(status).append("</td></tr>");
 					cwSb.append("<tr><td>");
@@ -381,11 +386,12 @@ public class AdminPacketHandler {
 	}
 
 	public void handleGMCommand(String targetName, int command) {
-		PlayerCharacter active = session.activeChar();
-		var ctx = session.context();
-		if (active == null || !active.isGm()) {
+		if (active() == null || !active().isGm()) {
+			send(new ActionFailed());
 			return;
 		}
+		PlayerCharacter active = session.activeChar();
+		var ctx = session.context();
 		PlayerCharacter targetChar = null;
 		if (targetName != null && !targetName.isBlank()) {
 			var online = ctx.world().byName(targetName.trim()).orElse(null);
@@ -432,6 +438,10 @@ public class AdminPacketHandler {
 	}
 
 	public void showAdminCharList(String query, int page) {
+		if (active() == null || !active().isGm()) {
+			send(new ActionFailed());
+			return;
+		}
 		var ctx = session.context();
 		String html = resolveAdminHtml("menus/submenus/charlist_menu.htm");
 		if (html == null) {
@@ -494,7 +504,7 @@ public class AdminPacketHandler {
 					}
 				}
 				boolean isOnline = ctx.world().byName(pc.name()).isPresent();
-				String nameDisplay = isOnline ? "<font color=\"00FF00\">" + pc.name() + "</font>" : pc.name();
+				String nameDisplay = isOnline ? "<font color=\"8FA888\">" + pc.name() + "</font>" : pc.name();
 				rows.append("<tr>")
 						.append("<td width=80><a action=\"bypass -h admin_character_info ").append(pc.name())
 						.append("\">").append(nameDisplay).append("</a></td>")
@@ -533,6 +543,10 @@ public class AdminPacketHandler {
 	}
 
 	public void showAdminCastlesHtml(String args) {
+		if (active() == null || !active().isGm()) {
+			send(new ActionFailed());
+			return;
+		}
 		var ctx = session.context();
 		StringBuilder sb = new StringBuilder("<html><title>Castles Management</title><body><center>");
 		sb.append("<table width=270><tr>");
@@ -542,7 +556,7 @@ public class AdminPacketHandler {
 		sb.append("<td align=center><button value=\"Server\" action=\"bypass -h admin_server\" width=52 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
 		sb.append("<td align=center><button value=\"Tele\" action=\"bypass -h admin_show_moves\" width=52 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
 		sb.append("</tr></table><img src=\"L2UI.SquareGray\" width=270 height=1>");
-		sb.append("<table width=270><tr><td><font color=\"00FFBB\">Gerenciamento de Castelos (Sieges)</font></td></tr></table>");
+		sb.append("<table width=270><tr><td><font color=\"8FA8BE\">Gerenciamento de Castelos (Sieges)</font></td></tr></table>");
 		sb.append("<table width=270 bgcolor=\"000000\">");
 		sb.append("<tr><td width=90><font color=\"LEVEL\">Castelo</font></td><td width=90><font color=\"LEVEL\">Cla Dono</font></td><td width=90><font color=\"LEVEL\">Acao</font></td></tr>");
 
@@ -554,7 +568,7 @@ public class AdminPacketHandler {
 					ownerName = cl != null ? cl.name() : ("Clan " + c.ownerClanId());
 				}
 				sb.append("<tr>")
-						.append("<td width=90><font color=\"FFFF77\">").append(c.name()).append("</font></td>")
+						.append("<td width=90><font color=\"D4C49A\">").append(c.name()).append("</font></td>")
 						.append("<td width=90>").append(ownerName).append("</td>")
 						.append("<td width=90><button value=\"Dar Alvo\" action=\"bypass -h admin_setcastle ").append(c.name()).append("\" width=60 height=18 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>")
 						.append("</tr>");
@@ -570,6 +584,10 @@ public class AdminPacketHandler {
 	}
 
 	public void showAdminCharInfo(String charName) {
+		if (active() == null || !active().isGm()) {
+			send(new ActionFailed());
+			return;
+		}
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
 		PlayerCharacter targetChar = null;
@@ -656,9 +674,11 @@ public class AdminPacketHandler {
 	}
 
 	public void showAdminSpawnIndex(int level, int page) {
-		PlayerCharacter active = session.activeChar();
+		if (active() == null || !active().isGm()) {
+			send(new ActionFailed());
+			return;
+		}
 		var ctx = session.context();
-		if (active == null || !active.isGm()) return;
 		var allTemplates = ctx.npcTemplates() != null ? ctx.npcTemplates().all() : java.util.List.<com.lopez.l2j.game.npc.NpcTemplate>of();
 		var list = allTemplates.stream().filter(t -> t.level() == level).sorted((a, b) -> a.name().compareToIgnoreCase(b.name())).toList();
 		int pageSize = 12;
@@ -672,7 +692,7 @@ public class AdminPacketHandler {
 		StringBuilder sb = new StringBuilder("<html><title>Spawn Index Lv " + level + "</title><body><center>");
 		sb.append("<table width=260><tr>");
 		sb.append("<td width=40><button value=\"Main\" action=\"bypass -h admin_admin\" width=40 height=15 back=\"l2ui.MatchingListIndex_click\" fore=\"l2ui.Macro_Icon_Indicator\"></td>");
-		sb.append("<td width=180><center><font color=\"FF9900\">Spawn Index: Level ").append(level).append("</font></center></td>");
+		sb.append("<td width=180><center><font color=\"C8B588\">Spawn Index: Level ").append(level).append("</font></center></td>");
 		sb.append("<td width=40><button value=\"Back\" action=\"bypass -h admin_show_npcs\" width=40 height=15 back=\"l2ui.MatchingListIndex_click\" fore=\"l2ui.Macro_Icon_Indicator\"></td>");
 		sb.append("</tr></table><br>");
 
@@ -682,7 +702,7 @@ public class AdminPacketHandler {
 		} else {
 			for (var t : sub) {
 				sb.append("<tr>");
-				sb.append("<td width=160><font color=\"FFFF77\">").append(t.name()).append("</font> <font color=\"AAAAAA\">[").append(t.id()).append("]</font></td>");
+				sb.append("<td width=160><font color=\"D4C49A\">").append(t.name()).append("</font> <font color=\"AAAAAA\">[").append(t.id()).append("]</font></td>");
 				sb.append("<td width=55><button value=\"Spawn\" action=\"bypass -h admin_spawn ").append(t.id()).append("\" width=50 height=17 back=\"L2UI_ch3.smallbutton2_over\" fore=\"L2UI_ch3.smallbutton2\"></td>");
 				sb.append("<td width=55><button value=\"1x\" action=\"bypass -h admin_spawn_once ").append(t.id()).append("\" width=45 height=17 back=\"L2UI_ch3.smallbutton2_over\" fore=\"L2UI_ch3.smallbutton2\"></td>");
 				sb.append("</tr>");
@@ -709,8 +729,11 @@ public class AdminPacketHandler {
 	}
 
 	public void showAdminNpcInfo(NpcInstance npc) {
-		PlayerCharacter active = session.activeChar();
-		if (npc == null || active == null || !active.isGm()) {
+		if (active() == null || !active().isGm()) {
+			send(new ActionFailed());
+			return;
+		}
+		if (npc == null) {
 			return;
 		}
 		var t = npc.template();
@@ -733,10 +756,10 @@ public class AdminPacketHandler {
 				+ "</table>"
 				+ "<center><img src=\"L2UI.SquareGray\" width=270 height=1></center><br>"
 				+ "<table width=270>"
-				+ "<tr><td>Type: <font color=\"00FF00\">" + type + "</font></td><td>Level: <font color=\"LEVEL\">" + lvl
+				+ "<tr><td>Type: <font color=\"8FA888\">" + type + "</font></td><td>Level: <font color=\"LEVEL\">" + lvl
 				+ "</font></td></tr>"
-				+ "<tr><td>HP: <font color=\"FF5555\">" + curHp + " / " + maxHp
-				+ "</font></td><td>MP: <font color=\"5555FF\">" + curMp + " / " + maxMp + "</font></td></tr>"
+				+ "<tr><td>HP: <font color=\"B86B6B\">" + curHp + " / " + maxHp
+				+ "</font></td><td>MP: <font color=\"8FA8BE\">" + curMp + " / " + maxMp + "</font></td></tr>"
 				+ "<tr><td>P.Atk: " + pAtk + " | P.Def: " + pDef + "</td><td>M.Atk: " + mAtk + " | M.Def: " + mDef
 				+ "</td></tr>"
 				+ "<tr><td colspan=2>Loc: " + npc.x() + ", " + npc.y() + ", " + npc.z() + " (" + npc.heading()
@@ -765,11 +788,11 @@ public class AdminPacketHandler {
 	}
 
 	public void showAdminDropList(int npcId) {
-		PlayerCharacter active = session.activeChar();
-		var ctx = session.context();
-		if (active == null || !active.isGm()) {
+		if (active() == null || !active().isGm()) {
+			send(new ActionFailed());
 			return;
 		}
+		var ctx = session.context();
 		List<com.lopez.l2j.game.drop.DropData> drops = (ctx.drops() != null) ? ctx.drops().getDrops(npcId) : List.of();
 		String npcName = ctx.world().npcs().stream().filter(n -> n.npcId() == npcId).findFirst().map(NpcInstance::name)
 				.orElse("NPC " + npcId);
@@ -778,7 +801,7 @@ public class AdminPacketHandler {
 		sb.append("<html><title>DropList: ").append(npcName).append("</title><body><center>");
 		sb.append("<font color=\"LEVEL\">").append(npcName).append("</font> (ID: ").append(npcId).append(")<br><br>");
 		if (drops.isEmpty()) {
-			sb.append("<font color=\"FF5555\">Nenhum drop configurado para este NPC.</font><br><br>");
+			sb.append("<font color=\"B86B6B\">Nenhum drop configurado para este NPC.</font><br><br>");
 		} else {
 			sb.append("<table width=280>");
 			sb.append("<tr><td><b>Item</b></td><td><b>Qtd</b></td><td><b>Chance</b></td><td><b>Tipo</b></td></tr>");
@@ -794,7 +817,7 @@ public class AdminPacketHandler {
 					itemName = itemName.substring(0, 16) + "..";
 				}
 				double pct = (double) d.chance() / 10000.0;
-				String typeStr = d.isSpoil() ? "<font color=\"00FF00\">Spoil</font>"
+				String typeStr = d.isSpoil() ? "<font color=\"8FA888\">Spoil</font>"
 						: "<font color=\"LEVEL\">Drop</font>";
 				sb.append("<tr>");
 				sb.append("<td>").append(itemName).append("</td>");
@@ -813,11 +836,11 @@ public class AdminPacketHandler {
 	private record RaidBossEntry(int id, String name, int level, int x, int y, int z, boolean alive) {}
 
 	public void showAdminRaidBossList(String args) {
-		PlayerCharacter active = session.activeChar();
-		var ctx = session.context();
-		if (active == null || !active.isGm()) {
+		if (active() == null || !active().isGm()) {
+			send(new ActionFailed());
 			return;
 		}
+		var ctx = session.context();
 		if (args == null || args.isBlank()) {
 			showAdminHtml("tele/raid/raid.htm");
 			return;
@@ -935,10 +958,10 @@ public class AdminPacketHandler {
 		sb.append("<table width=270>");
 
 		if (pageList.isEmpty()) {
-			sb.append("<tr><td colspan=3 align=center><br><font color=\"FF5555\">Nenhum Raid Boss encontrado nesta faixa de nivel.</font><br></td></tr>");
+			sb.append("<tr><td colspan=3 align=center><br><font color=\"B86B6B\">Nenhum Raid Boss encontrado nesta faixa de nivel.</font><br></td></tr>");
 		} else {
 			for (RaidBossEntry b : pageList) {
-				String status = b.alive() ? "<font color=\"00FF00\">Alive</font>" : "<font color=\"FF0000\">Dead</font>";
+				String status = b.alive() ? "<font color=\"8FA888\">Alive</font>" : "<font color=\"B86B6B\">Dead</font>";
 				String shortName = b.name().length() > 18 ? b.name().substring(0, 16) + ".." : b.name();
 				sb.append("<tr>");
 				sb.append("<td width=150>").append(shortName).append(" <font color=\"LEVEL\">(Lv ").append(b.level()).append(")</font></td>");
@@ -974,9 +997,17 @@ public class AdminPacketHandler {
 	}
 
 	public void adminChangeClass(PlayerCharacter targetChar, int targetClassId) {
+		if (active() == null || !active().isGm()) {
+			send(new ActionFailed());
+			return;
+		}
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
-		if (targetChar == null || active == null || !active.isGm()) {
+		if (targetChar == null) {
+			return;
+		}
+		if (!AdminSecurityService.getInstance().canTargetPlayer(active, targetChar)) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Acao negada: voce nao pode alterar a classe de um GM de nivel superior."));
 			return;
 		}
 		var tplOpt = ctx.characters() != null ? ctx.characters().template(targetClassId) : java.util.Optional.<CharTemplate>empty();
@@ -1005,16 +1036,19 @@ public class AdminPacketHandler {
 	}
 
 	public void showAdminSubClassMenu(PlayerCharacter targetChar) {
-		PlayerCharacter active = session.activeChar();
+		if (active() == null || !active().isGm()) {
+			send(new ActionFailed());
+			return;
+		}
 		var ctx = session.context();
-		if (targetChar == null || active == null || !active.isGm()) {
+		if (targetChar == null) {
 			return;
 		}
 		StringBuilder sb = new StringBuilder("<html><title>Admin - SubClasses: " + targetChar.name() + "</title><body><center>");
 		sb.append("<table bgcolor=\"000000\" width=270><tr>");
-		sb.append("<td width=45><a action=\"bypass -h admin_admin\" width=54 height=19><font color=\"FFD306\">Main</font></a></td>");
+		sb.append("<td width=45><a action=\"bypass -h admin_admin\" width=54 height=19><font color=\"D4C49A\">Main</font></a></td>");
 		sb.append("<td width=180><center><font color=\"LEVEL\">Subclasses: ").append(targetChar.name()).append("</font></center></td>");
-		sb.append("<td width=45><a action=\"bypass -h admin_character_info ").append(targetChar.name()).append("\" width=54 height=19><font color=\"FFD306\">Back</font></a></td>");
+		sb.append("<td width=45><a action=\"bypass -h admin_character_info ").append(targetChar.name()).append("\" width=54 height=19><font color=\"D4C49A\">Back</font></a></td>");
 		sb.append("</tr></table><br>");
 
 		var baseTpl = ctx.characters() != null ? ctx.characters().template(targetChar.baseClassId()) : java.util.Optional.<CharTemplate>empty();
@@ -1039,7 +1073,7 @@ public class AdminPacketHandler {
 				if (targetChar.classIndex() != i) {
 					sb.append("<a action=\"bypass -h admin_switchsubclass ").append(i).append("\">Switch</a> | ");
 				}
-				sb.append("<a action=\"bypass -h admin_delsubclass ").append(i).append(" ").append(targetChar.name()).append("\"><font color=\"FF0000\">Del</font></a></td>");
+				sb.append("<a action=\"bypass -h admin_delsubclass ").append(i).append(" ").append(targetChar.name()).append("\"><font color=\"B86B6B\">Del</font></a></td>");
 			} else {
 				sb.append("<td><font color=\"GRAY\">Empty</font></td><td align=center>-</td><td align=center>-</td>");
 			}
@@ -1075,9 +1109,17 @@ public class AdminPacketHandler {
 	}
 
 	public void adminAddSubClass(PlayerCharacter targetChar, int targetClassId) {
+		if (active() == null || !active().isGm()) {
+			send(new ActionFailed());
+			return;
+		}
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
-		if (targetChar == null || active == null || !active.isGm()) {
+		if (targetChar == null) {
+			return;
+		}
+		if (!AdminSecurityService.getInstance().canTargetPlayer(active, targetChar)) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Acao negada: voce nao pode alterar subclasses de um GM de nivel superior."));
 			return;
 		}
 		if (targetChar.subClasses().size() >= 3) {
@@ -1116,9 +1158,17 @@ public class AdminPacketHandler {
 	}
 
 	public void adminRemoveSubClass(PlayerCharacter targetChar, int subIndex) {
+		if (active() == null || !active().isGm()) {
+			send(new ActionFailed());
+			return;
+		}
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
-		if (targetChar == null || active == null || !active.isGm()) {
+		if (targetChar == null) {
+			return;
+		}
+		if (!AdminSecurityService.getInstance().canTargetPlayer(active, targetChar)) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Acao negada: voce nao pode remover subclasses de um GM de nivel superior."));
 			return;
 		}
 		if (!targetChar.subClasses().containsKey(subIndex)) {
@@ -1153,9 +1203,17 @@ public class AdminPacketHandler {
 	}
 
 	public void adminSwitchSubClass(PlayerCharacter targetChar, int targetIndex) {
+		if (active() == null || !active().isGm()) {
+			send(new ActionFailed());
+			return;
+		}
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
-		if (targetChar == null || active == null || !active.isGm()) {
+		if (targetChar == null) {
+			return;
+		}
+		if (!AdminSecurityService.getInstance().canTargetPlayer(active, targetChar)) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Acao negada: voce nao pode alternar subclasses de um GM de nivel superior."));
 			return;
 		}
 		var onlineTarget = ctx.world().byName(targetChar.name()).orElse(null);
@@ -1189,35 +1247,12 @@ public class AdminPacketHandler {
 	public void handleAdminCommand(String fullCmd) {
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
-		String account = session.account();
 		int targetObjectId = session.targetObjectId();
 		if (active == null) {
 			return;
 		}
-		if (!active.isGm()) {
-			boolean allowElevate = Config.getBoolean("EveryoneHasAdminRights", false)
-					|| Config.getBoolean("EveryoneIsGM", false)
-					|| (account != null && (account.equalsIgnoreCase("admin") || account.equalsIgnoreCase("gm")
-							|| account.equalsIgnoreCase("root") || account.equalsIgnoreCase("cristiano")
-							|| account.toLowerCase().startsWith("admin")))
-					|| (active.name() != null && (active.name().equalsIgnoreCase("Cristiano")
-							|| active.name().startsWith("Admin") || active.name().startsWith("GM")));
-			if (allowElevate) {
-				active.accessLevel(100);
-				send(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "SYS",
-						"Privilegios de Administrador (GM Level 100) concedidos automaticamente."));
-			} else {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
-						"Voce nao tem permissao de Administrador. (Defina EveryoneHasAdminRights = True em access.properties ou adicione seu login em admin.superusers)"));
-				send(new ActionFailed());
-				return;
-			}
-		}
-		if (fullCmd == null || fullCmd.isBlank()) {
-			showAdminHtml("menus/main.htm");
-			return;
-		}
-		String trimmed = fullCmd.trim();
+
+		String trimmed = fullCmd != null ? fullCmd.trim() : "";
 		while (trimmed.startsWith("/")) {
 			trimmed = trimmed.substring(1).trim();
 		}
@@ -1226,14 +1261,31 @@ public class AdminPacketHandler {
 		} else if (trimmed.startsWith("admin ")) {
 			trimmed = trimmed.substring(6).trim();
 		}
-		if (trimmed.isEmpty() || trimmed.equalsIgnoreCase("admin") || trimmed.equalsIgnoreCase("main")) {
+		int spaceIdx = trimmed.indexOf(' ');
+		String cmd = (trimmed.isEmpty() ? "admin"
+				: (spaceIdx > 0 ? trimmed.substring(0, spaceIdx) : trimmed)).toLowerCase(java.util.Locale.ROOT);
+		String args = spaceIdx > 0 ? trimmed.substring(spaceIdx + 1).trim() : "";
+
+		AdminSecurityService security = AdminSecurityService.getInstance();
+		if (!security.canExecute(session, cmd)) {
+			if (!active.isGm()) {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Voce nao tem permissao de Administrador. (Defina EveryoneHasAdminRights = True em access.properties ou adicione seu login em admin.superusers)"));
+			} else {
+				int req = security.requiredLevelForCommand(cmd);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Nivel de acesso insuficiente para //" + cmd + " (Necessario: " + req + ", Atual: " + active.accessLevel() + ")."));
+			}
+			send(new ActionFailed());
+			return;
+		}
+
+		security.recordAudit(session, cmd, args);
+
+		if (cmd.equals("admin") || cmd.equals("main")) {
 			showAdminHtml("menus/main.htm");
 			return;
 		}
-		int spaceIdx = trimmed.indexOf(' ');
-		String cmd = spaceIdx > 0 ? trimmed.substring(0, spaceIdx).toLowerCase(java.util.Locale.ROOT)
-				: trimmed.toLowerCase(java.util.Locale.ROOT);
-		String args = spaceIdx > 0 ? trimmed.substring(spaceIdx + 1).trim() : "";
 
 		if (ctx.adminCommands() != null && ctx.adminCommands().hasCommand(cmd)) {
 			if (ctx.adminCommands().execute(cmd, session, args)) {
@@ -1243,6 +1295,27 @@ public class AdminPacketHandler {
 
 		switch (cmd) {
 			case "admin", "main" -> showAdminHtml("menus/main.htm");
+			case "gmaudit", "admin_gmaudit", "audit" -> {
+				int page = 1;
+				String filter = "";
+				if (!args.isBlank() && !args.startsWith("$")) {
+					String[] parts = args.trim().split("\\s+");
+					if (parts.length == 1) {
+						try {
+							page = Math.max(1, Integer.parseInt(parts[0]));
+						} catch (NumberFormatException e) {
+							filter = parts[0];
+						}
+					} else if (parts.length >= 2) {
+						filter = parts[0].startsWith("$") ? "" : parts[0];
+						page = Math.max(1, GameSession.parseIntSafe(parts[1], 1));
+					}
+				}
+				String auditHtml = filter.isEmpty()
+						? security.renderAuditHtml(page)
+						: security.renderAuditHtml(filter, page);
+				send(new NpcHtmlMessage(0, auditHtml));
+			}
 			case "admin2", "gamemenu", "game", "game_menu" -> showAdminHtml("menus/game.htm");
 			case "admin4", "server", "servermenu", "server_menu" -> showAdminHtml("menus/server.htm");
 			case "admin3", "effects", "effectsmenu", "effects_menu" -> showAdminHtml("menus/effects.htm");
@@ -1304,6 +1377,10 @@ public class AdminPacketHandler {
 				String targetName = !args.isBlank() && !args.startsWith("$") ? args.trim().split("\\s+")[0] : null;
 				var target = targetName != null ? ctx.world().byName(targetName).orElse(null) : getTargetOnlinePlayerOrSelf();
 				if (target != null && target.character() != null) {
+					if (!security.canTargetPlayer(active, target.character())) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Acao negada: voce nao pode aplicar chat ban em um GM de nivel superior."));
+						return;
+					}
 					target.character().silence(true);
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Chat ban aplicado a " + target.character().name()));
 					target.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Seu chat foi bloqueado por um Administrador."));
@@ -1326,6 +1403,10 @@ public class AdminPacketHandler {
 				String targetName = !args.isBlank() && !args.startsWith("$") ? args.trim().split("\\s+")[0] : null;
 				var target = targetName != null ? ctx.world().byName(targetName).orElse(null) : getTargetOnlinePlayerOrSelf();
 				if (target != null && target.character() != null) {
+					if (!security.canTargetPlayer(active, target.character())) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Acao negada: voce nao pode prender um GM de nivel superior."));
+						return;
+					}
 					target.character().setInJail(true);
 					if (target instanceof GameSession gs) {
 						gs.teleportToLocation(-114595, -249397, -2994);
@@ -1399,7 +1480,7 @@ public class AdminPacketHandler {
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhuma peticao pendente no momento."));
 					} else {
 						StringBuilder sb = new StringBuilder("<html><title>Petitions</title><body><center>");
-						sb.append("<font color=\"FF9900\">Peticoes Pendentes</font><br>");
+						sb.append("<font color=\"C8B588\">Peticoes Pendentes</font><br>");
 						sb.append("<table width=240>");
 						for (var t : pending) {
 							sb.append("<tr><td>#").append(t.getId()).append(" ").append(t.getPetitionerName())
@@ -2188,6 +2269,10 @@ public class AdminPacketHandler {
 				if (targetName != null) {
 					var target = ctx.world().byName(targetName).orElse(null);
 					if (target != null) {
+						if (target.character() != null && !security.canTargetPlayer(active, target.character())) {
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Acao negada: voce nao pode desconectar um GM de nivel superior."));
+							return;
+						}
 						target.send(SystemMessage.of(SystemMessage.DISCONNECTED_FROM_SERVER));
 						target.close(new ServerClose());
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Jogador " + targetName + " desconectado."));
@@ -2212,11 +2297,21 @@ public class AdminPacketHandler {
 					}
 				}
 				if (targetName != null) {
+					var target = ctx.world().byName(targetName).orElse(null);
+					PlayerCharacter targetChar = (target != null && target.character() != null)
+							? target.character()
+							: (ctx.characters() != null ? ctx.characters().findByName(targetName).orElse(null) : null);
+					if (targetChar != null && !security.canTargetPlayer(active, targetChar)) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Acao negada: voce nao pode banir um GM de nivel superior."));
+						return;
+					}
 					if (ctx.characters() != null) {
 						ctx.characters().setAccessLevelByName(targetName, -100);
 					}
-					var target = ctx.world().byName(targetName).orElse(null);
 					if (target != null) {
+						if (target.character() != null) {
+							target.character().accessLevel(-100);
+						}
 						target.send(SystemMessage.of(SystemMessage.DISCONNECTED_FROM_SERVER));
 						target.close(new ServerClose());
 					}
@@ -2267,8 +2362,9 @@ public class AdminPacketHandler {
 			case "seteh", "seteg", "seteb", "setel", "setes", "seten", "setre", "setle", "setrf", "setlf", "setun",
 					"setba", "setec", "setew" -> {
 				try {
-					int val = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
+					int rawVal = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
 							: Integer.parseInt(args.trim().split("\\s+")[0]);
+					int val = Math.max(0, Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, rawVal));
 					int slot = switch (cmd) {
 						case "seteh" -> ItemSlots.HEAD;
 						case "seteg" -> ItemSlots.GLOVES;
@@ -2288,6 +2384,10 @@ public class AdminPacketHandler {
 					};
 					if (slot != -1) {
 						var targetChar = getTargetPlayerOrActive();
+						if (!security.canTargetPlayer(active, targetChar)) {
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Acao negada: voce nao pode alterar itens de um GM de nivel superior."));
+							return;
+						}
 						var targetPlayer = getTargetOnlinePlayerOrSelf();
 						var piece = targetChar.inventory().paperdoll(slot);
 						if (piece != null) {
@@ -2306,7 +2406,7 @@ public class AdminPacketHandler {
 						}
 					}
 				} catch (Exception e) {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //" + cmd + " <enchantLevel>"));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //" + cmd + " <enchantLevel 0-65535>"));
 				}
 			}
 			case "move_to", "teleportto", "teleport", "tele", "to", "loc", "moveto", "goto_loc" -> {
@@ -2391,12 +2491,20 @@ public class AdminPacketHandler {
 				if (parts.length >= 1 && !parts[0].isEmpty() && !parts[0].startsWith("$")) {
 					try {
 						int itemId = Integer.parseInt(parts[0]);
-						int count = 1;
+						long rawCount = 1L;
 						if (parts.length >= 2 && !parts[1].isEmpty() && !parts[1].startsWith("$")) {
-							count = (int) Math.min(Integer.MAX_VALUE, Math.max(1, Long.parseLong(parts[1])));
+							rawCount = Math.max(1L, Long.parseLong(parts[1]));
 						} else if (itemId == 57 || itemId == 5575) {
-							count = 10000000;
+							rawCount = 10_000_000L;
 						}
+						var tplOpt = ctx.inventories() != null && ctx.inventories().templates() != null
+								? ctx.inventories().templates().get(itemId)
+								: java.util.Optional.<ItemTemplate>empty();
+						boolean stackable = tplOpt.map(ItemTemplate::stackable).orElse(itemId == 57 || itemId == 5575);
+						int maxAllowed = stackable ? AdminSecurityService.MAX_STACKABLE_ITEM_COUNT
+								: AdminSecurityService.MAX_NON_STACKABLE_ITEM_COUNT;
+						int count = (int) Math.min((long) maxAllowed, rawCount);
+
 						if (cmd.equals("give_item_to_all") || cmd.equals("mass_create")) {
 							for (var p : ctx.world().players()) {
 								if (p.character() != null) {
@@ -2542,6 +2650,10 @@ public class AdminPacketHandler {
 				showAdminHtml("charedit.htm");
 			}
 			case "changelvl" -> {
+				if (active.accessLevel() < AdminSecurityService.LEVEL_MASTER) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas Master GMs (Level 100+) podem alterar AccessLevel."));
+					return;
+				}
 				String[] parts = args.trim().split("\\s+");
 				PlayerCharacter targetChar = getTargetPlayerOrActive();
 				int level = 0;
@@ -2555,7 +2667,15 @@ public class AdminPacketHandler {
 				} else if (parts.length >= 1 && !parts[0].isEmpty() && !parts[0].startsWith("$")) {
 					level = GameSession.parseIntSafe(parts[0], 0);
 				}
+				if (level > active.accessLevel()) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pode conceder um AccessLevel superior ao seu proprio (" + active.accessLevel() + ")."));
+					return;
+				}
 				if (targetChar != null) {
+					if (!security.canTargetPlayer(active, targetChar)) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Acao negada: voce nao pode alterar o AccessLevel de um GM de nivel superior."));
+						return;
+					}
 					targetChar.accessLevel(level);
 					if (ctx.characters() != null) {
 						ctx.characters().setAccessLevelByName(targetChar.name(), level);
@@ -2583,7 +2703,7 @@ public class AdminPacketHandler {
 						String cName = c.name();
 						boolean isOnline = ctx.world().byName(cName).isPresent();
 						rows.append("<tr><td width=100><a action=\"bypass -h admin_character_info ").append(cName).append("\">")
-								.append(isOnline ? "<font color=\"00FF00\">" + cName + "</font>" : cName).append("</a></td>")
+								.append(isOnline ? "<font color=\"8FA888\">" + cName + "</font>" : cName).append("</a></td>")
 								.append("<td width=110>Class ").append(c.classId()).append("</td>")
 								.append("<td width=60>Lv ").append(c.level()).append("</td></tr>");
 					}
@@ -2795,6 +2915,10 @@ public class AdminPacketHandler {
 					if (playerOpt.isPresent()) {
 						var pOnline = playerOpt.get();
 						if (pOnline.character() != null) {
+							if (!security.canTargetPlayer(active, pOnline.character())) {
+								send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Acao negada: voce nao pode matar um GM de nivel superior."));
+								return;
+							}
 							if (pOnline instanceof GameSession pSess) {
 								pSess.handlePlayerDeath(active);
 							} else {
@@ -2826,6 +2950,10 @@ public class AdminPacketHandler {
 							targetChar = other.character();
 							targetPlayer = other;
 						}
+					}
+					if (!security.canTargetPlayer(active, targetChar)) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Acao negada: voce nao pode alterar o nivel de um GM de nivel superior."));
+						return;
 					}
 					targetChar.level(newLevel);
 					targetChar.exp(ExperienceTable.expForLevel(newLevel));
@@ -2869,8 +2997,9 @@ public class AdminPacketHandler {
 			}
 			case "enchant_weapon" -> {
 				try {
-					int val = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
+					int rawVal = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
 							: Integer.parseInt(args.trim().split("\\s+")[0]);
+					int val = Math.max(0, Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, rawVal));
 					var weapon = active.inventory().paperdoll(ItemSlots.RHAND);
 					if (weapon == null) {
 						weapon = active.inventory().paperdoll(ItemSlots.LRHAND);
@@ -2886,13 +3015,14 @@ public class AdminPacketHandler {
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhuma arma equipada na mao direita."));
 					}
 				} catch (Exception e) {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setew <enchantLevel>"));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setew <enchantLevel 0-65535>"));
 				}
 			}
 			case "enchant_armor" -> {
 				try {
-					int val = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
+					int rawVal = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
 							: Integer.parseInt(args.trim().split("\\s+")[0]);
+					int val = Math.max(0, Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, rawVal));
 					int[] armorSlots = { ItemSlots.CHEST, ItemSlots.LEGS, ItemSlots.HEAD, ItemSlots.GLOVES,
 							ItemSlots.FEET };
 					List<ItemInfo> modified = new ArrayList<>();
@@ -2913,13 +3043,14 @@ public class AdminPacketHandler {
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhuma armadura equipada."));
 					}
 				} catch (Exception e) {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setec <enchantLevel>"));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setec <enchantLevel 0-65535>"));
 				}
 			}
 			case "setej", "enchant_jewel" -> {
 				try {
-					int val = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
+					int rawVal = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 16
 							: Integer.parseInt(args.trim().split("\\s+")[0]);
+					int val = Math.max(0, Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, rawVal));
 					int[] jewelSlots = { ItemSlots.NECK, ItemSlots.REAR, ItemSlots.LEAR, ItemSlots.RFINGER,
 							ItemSlots.LFINGER };
 					List<ItemInfo> modified = new ArrayList<>();
@@ -2940,13 +3071,14 @@ public class AdminPacketHandler {
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhuma joia equipada."));
 					}
 				} catch (Exception e) {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setej <enchantLevel>"));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setej <enchantLevel 0-65535>"));
 				}
 			}
 			case "enchant_all", "setall" -> {
 				try {
-					int val = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 20
+					int rawVal = args.isEmpty() || args.equalsIgnoreCase("$qbox") ? 20
 							: Integer.parseInt(args.trim().split("\\s+")[0]);
+					int val = Math.max(0, Math.min(AdminSecurityService.MAX_ENCHANT_LEVEL, rawVal));
 					List<ItemInfo> modified = new ArrayList<>();
 					for (var item : active.inventory().equipped()) {
 						if (item != null) {
@@ -2965,7 +3097,7 @@ public class AdminPacketHandler {
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhum item equipado para encantar."));
 					}
 				} catch (Exception e) {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //enchant_all <nivel>"));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //enchant_all <nivel 0-65535>"));
 				}
 			}
 			case "show_droplist", "droplist" -> {
@@ -3204,6 +3336,11 @@ public class AdminPacketHandler {
 					try {
 						int val = Integer.parseInt(parts[1]);
 						var destChar = getTargetPlayerOrActive();
+						if (destChar != active && !security.canTargetPlayer(active, destChar)) {
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									"Voce nao pode alterar parametros de um GM com nivel de acesso superior ao seu."));
+							return;
+						}
 						switch (param) {
 							case "hp", "maxhp" -> destChar.maxHp(val);
 							case "mp", "maxmp" -> destChar.maxMp(val);
@@ -3370,12 +3507,27 @@ public class AdminPacketHandler {
 				}
 			}
 			case "setadmin" -> {
+				if (active.accessLevel() < AdminSecurityService.LEVEL_MASTER) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Apenas Master GM (AccessLevel >= 100) pode executar //setadmin."));
+					return;
+				}
 				String[] parts = args.split("\\s+");
 				if (parts.length >= 1 && !parts[0].isEmpty()) {
 					String targetName = parts[0];
-					int level = parts.length >= 2 ? Integer.parseInt(parts[1]) : 100;
-					ctx.characters().setAccessLevelByName(targetName, level);
+					int level = parts.length >= 2 ? GameSession.parseIntSafe(parts[1], 100) : 100;
+					if (level > active.accessLevel()) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Voce nao pode atribuir um AccessLevel maior que o seu proprio (" + active.accessLevel() + ")."));
+						return;
+					}
 					var target = ctx.world().byName(targetName).orElse(null);
+					if (target != null && target.character() != null && !security.canTargetPlayer(active, target.character())) {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Voce nao pode alterar o AccessLevel de um GM superior ao seu."));
+						return;
+					}
+					ctx.characters().setAccessLevelByName(targetName, level);
 					if (target != null && target.character() != null) {
 						target.character().accessLevel(level);
 						target.send(new UserInfo(target.character(), ctx.characters().template(target.character())));

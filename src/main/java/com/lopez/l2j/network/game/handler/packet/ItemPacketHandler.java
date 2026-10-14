@@ -196,6 +196,28 @@ public class ItemPacketHandler {
 				session.send(new ActionFailed());
 				return;
 			}
+			var recipeOpt = com.lopez.l2j.game.recipe.RecipeService.getInstance().getRecipeByItemId(item.itemId());
+			if (recipeOpt.isPresent()) {
+				var recipe = recipeOpt.get();
+				if (com.lopez.l2j.game.recipe.RecipeService.getInstance().hasRecipe(active.objectId(), recipe.id())) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Esta receita ja esta registrada no seu Recipe Book."));
+					session.send(new ActionFailed());
+					return;
+				}
+				if (ctx != null && ctx.inventories() != null) {
+					var consumed = ctx.inventories().consumeItem(active.inventory(), item.itemId(), 1, "RegisterRecipe");
+					if (consumed != null) {
+						session.send(new InventoryUpdate(List.of(ItemInfo.of(consumed.item(), consumed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+						session.refreshWeightAndPenalties();
+					}
+				}
+				com.lopez.l2j.game.recipe.RecipeService.getInstance().registerRecipe(active.objectId(), recipe.id());
+				var book = com.lopez.l2j.game.recipe.RecipeService.getInstance().getRecipeBook(active.objectId(), recipe.isDwarven());
+				session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeBookItemList(recipe.isDwarven(), active.maxMp(), book));
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Receita '" + recipe.recipeName() + "' adicionada ao seu Recipe Book."));
+				session.send(new ActionFailed());
+				return;
+			}
 			var consumable = ConsumableTable.get(item.itemId());
 			if (consumable.isPresent()) {
 				useConsumable(consumable.get());
@@ -893,6 +915,35 @@ public class ItemPacketHandler {
 				return;
 			}
 		}
+		if (c.type() == ConsumableTable.Type.ELIXIR_HP
+				|| c.type() == ConsumableTable.Type.ELIXIR_MP
+				|| c.type() == ConsumableTable.Type.ELIXIR_CP) {
+			if (active.isOlympiadMode() || active.level() < elixirMinLevel(c.grade())) {
+				session.send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(c.itemId())));
+				return;
+			}
+		}
+		GameSession resTarget = null;
+		if (c.type() == ConsumableTable.Type.RESURRECT_SCROLL) {
+			var ctx = session.context();
+			if (session.targetObjectId() == 0 || session.targetObjectId() == active.objectId()
+					|| ctx == null || ctx.world() == null) {
+				session.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+				return;
+			}
+			var other = ctx.world().player(session.targetObjectId()).orElse(null);
+			if (!(other instanceof GameSession gs) || gs.active() == null || !gs.active().isDead()
+					|| active.isOlympiadMode() || gs.active().isOlympiadMode()) {
+				session.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+				return;
+			}
+			double dist = Math.hypot(active.x() - gs.active().x(), active.y() - gs.active().y());
+			if (dist > 400.0) {
+				session.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+				return;
+			}
+			resTarget = gs;
+		}
 		if (!consumeItem(c.itemId(), 1)) {
 			return;
 		}
@@ -900,10 +951,20 @@ public class ItemPacketHandler {
 			session.consumableReuse().put(c.skillId(), now + c.reuseMs());
 		}
 		session.send(SystemMessage.of(SystemMessage.USE_S1, new SystemMessage.ItemName(c.itemId())));
-		session.broadcastSelfSkill(c.skillId(), c.level());
+		if (c.type() == ConsumableTable.Type.RESURRECT_SCROLL && resTarget != null && resTarget.active() != null) {
+			var tgt = resTarget.active();
+			var msu = new MagicSkillUse(active.objectId(), tgt.objectId(), c.skillId(), c.level(), 2000, c.reuseMs(),
+					active.x(), active.y(), active.z(), tgt.x(), tgt.y(), tgt.z());
+			session.send(msu);
+			if (session.context() != null && session.context().world() != null) {
+				session.context().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msu, false);
+			}
+		} else {
+			session.broadcastSelfSkill(c.skillId(), c.level());
+		}
 
 		switch (c.type()) {
-			case HEAL_HP -> {
+			case HEAL_HP, ELIXIR_HP -> {
 				double before = active.currentHp();
 				active.currentHp(before + c.amount());
 				session.send(SystemMessage.of(SystemMessage.S1_HP_RESTORED,
@@ -918,7 +979,14 @@ public class ItemPacketHandler {
 						new SystemMessage.Number((int) (active.currentMp() - before))));
 				session.sendVitals();
 			}
-			case HEAL_CP -> {
+			case ELIXIR_MP -> {
+				double before = active.currentMp();
+				active.currentMp(before + c.amount());
+				session.send(SystemMessage.of(SystemMessage.S1_MP_RESTORED,
+						new SystemMessage.Number((int) (active.currentMp() - before))));
+				session.sendVitals();
+			}
+			case HEAL_CP, ELIXIR_CP -> {
 				double before = active.currentCp();
 				active.currentCp(before + c.amount());
 				session.send(SystemMessage.of(SystemMessage.S1_CP_WILL_BE_RESTORED,
@@ -927,13 +995,180 @@ public class ItemPacketHandler {
 			}
 			case HOT_HP, HOT_MP -> startHealOverTime(c);
 			case BUFF -> applyBuff(c);
+			case SKILL_SCROLL -> applySkillScroll(c);
 			case FACE, HAIR_COLOR, HAIR_STYLE -> changeAppearance(c);
 			case MYSTERY -> startBigHead(c);
 			case ENERGY_STONE -> session.increaseCharges(1, 2);
-			case REMEDY -> {
-			}
+			case REMEDY -> applyRemedy(c);
+			case RESURRECT_SCROLL -> applyResurrectScroll(c, resTarget);
 			default -> {
 			}
+		}
+	}
+
+	private static int elixirMinLevel(String grade) {
+		if (grade == null) {
+			return 1;
+		}
+		return switch (grade.toLowerCase(java.util.Locale.ROOT)) {
+			case "d" -> 20;
+			case "c" -> 40;
+			case "b" -> 52;
+			case "a" -> 61;
+			case "s", "s80", "s84" -> 76;
+			default -> 1;
+		};
+	}
+
+	private void applyRemedy(Consumable c) {
+		PlayerCharacter active = session.activeChar();
+		if (active == null) {
+			return;
+		}
+		boolean curePoison = c.itemId() == 1831 || c.itemId() == 1832 || c.itemId() == 3889;
+		boolean cureBleed = c.itemId() == 1833 || c.itemId() == 1834 || c.itemId() == 3889;
+		if (curePoison) {
+			active.effects().removeDebuffsByStackOrName("poison");
+			active.stopAbnormalEffect(0x0001);
+			cancelDotTasks("poison");
+		}
+		if (cureBleed) {
+			active.effects().removeDebuffsByStackOrName("bleed");
+			active.stopAbnormalEffect(0x0002);
+			cancelDotTasks("bleed");
+		}
+		session.sendMagicEffectIcons();
+		session.broadcastAppearance();
+	}
+
+	private void cancelDotTasks(String keyword) {
+		var exact = session.hotTasks().remove("skilldot_" + keyword);
+		if (exact != null) {
+			exact.cancel(false);
+		}
+		String kw = keyword.toLowerCase(java.util.Locale.ROOT);
+		var it = session.hotTasks().entrySet().iterator();
+		while (it.hasNext()) {
+			var entry = it.next();
+			String key = entry.getKey().toLowerCase(java.util.Locale.ROOT);
+			if (key.startsWith("skilldot_") && key.contains(kw)) {
+				if (entry.getValue() != null) {
+					entry.getValue().cancel(false);
+				}
+				it.remove();
+			}
+		}
+	}
+
+	private void applySkillScroll(Consumable c) {
+		PlayerCharacter owner = session.activeChar();
+		if (owner == null) {
+			return;
+		}
+		var ctx = session.context();
+		SkillTemplate sk = (ctx != null && ctx.skillService() != null && ctx.skillService().table() != null)
+				? ctx.skillService().table().get(c.skillId(), c.level()).orElse(null)
+				: null;
+		boolean hasEffectFuncs = sk != null && sk.effects() != null
+				&& sk.effects().stream().anyMatch(e -> e.funcs() != null && !e.funcs().isEmpty());
+		if (hasEffectFuncs) {
+			session.applySkillEffects(sk, false);
+			session.sendVitals();
+			return;
+		}
+
+		long durationMs = 3_600_000L;
+		String stackType;
+		StatFunc func;
+		switch (c.itemId()) {
+			case 3926 -> { // Scroll of Guidance (Skill 2050)
+				stackType = "hit_up";
+				func = new StatFunc("accCombat", StatFunc.Op.ADD, 0x40, 4.0);
+			}
+			case 3927 -> { // Scroll of Death Whisper (Skill 2051)
+				stackType = "critical_dmg_up";
+				func = new StatFunc("cAtk", StatFunc.Op.MUL, 0x30, 1.35);
+			}
+			case 3928 -> { // Scroll of Focus (Skill 2052)
+				stackType = "critical_prob_up";
+				func = new StatFunc("rCrit", StatFunc.Op.MUL, 0x30, 1.30);
+			}
+			case 3929 -> { // Scroll of Greater Acumen (Skill 2053)
+				stackType = "casting_time_down";
+				func = new StatFunc("mAtkSpd", StatFunc.Op.MUL, 0x30, 1.30);
+			}
+			case 3930 -> { // Scroll of Haste (Skill 2054)
+				stackType = "attack_time_down";
+				func = new StatFunc("pAtkSpd", StatFunc.Op.MUL, 0x30, 1.33);
+			}
+			case 3931 -> { // Scroll of Agility (Skill 2055)
+				stackType = "rEvas";
+				func = new StatFunc("rEvas", StatFunc.Op.ADD, 0x40, 4.0);
+			}
+			case 3932 -> { // Scroll of Mystic Empower (Skill 2056)
+				stackType = "ma_up";
+				func = new StatFunc("mAtk", StatFunc.Op.MUL, 0x30, 1.75);
+			}
+			case 3933 -> { // Scroll of Might (Skill 2057)
+				stackType = "pa_up";
+				func = new StatFunc("pAtk", StatFunc.Op.MUL, 0x30, 1.15);
+			}
+			case 3934 -> { // Scroll of Wind Walk (Skill 2058)
+				stackType = "speed_up";
+				func = new StatFunc("runSpd", StatFunc.Op.ADD, 0x40, 33.0);
+			}
+			case 3935 -> { // Scroll of Shield (Skill 2059)
+				stackType = "pd_up";
+				func = new StatFunc("pDef", StatFunc.Op.MUL, 0x30, 1.15);
+			}
+			default -> {
+				return;
+			}
+		}
+		var buff = ActiveBuff.ofSkill(c.skillId(), c.level(), stackType, System.currentTimeMillis() + durationMs,
+				List.of(func));
+		owner.effects().put(buff);
+		session.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT, new SystemMessage.SkillName(c.skillId(), c.level())));
+		session.refreshBuffs();
+		session.sendVitals();
+		session.saveBuffs();
+		session.autoAttackScheduler().schedule(() -> {
+			if (owner.effects().remove(buff) && session.activeChar() == owner && session.inWorld()) {
+				session.send(SystemMessage.of(SystemMessage.EFFECT_S1_DISAPPEARED,
+						new SystemMessage.SkillName(c.skillId(), c.level())));
+				session.refreshBuffs();
+				session.saveBuffs();
+			}
+		}, durationMs, TimeUnit.MILLISECONDS);
+	}
+
+	private void applyResurrectScroll(Consumable c, GameSession target) {
+		PlayerCharacter active = session.activeChar();
+		if (active == null || target == null || target.active() == null || !target.active().isDead()) {
+			return;
+		}
+		var resSkill = new SkillTemplate(c.skillId(), c.level(),
+				c.itemId() == 3936 ? "Blessed Scroll of Resurrection" : "Scroll of Resurrection",
+				SkillTemplate.OperateType.ACTIVE, "RESURRECT", "TARGET_CORPSE_PLAYER",
+				false, 0, 0, 0, c.amount(), 400, 0, 2000, 0, c.reuseMs(), 0,
+				0.0, false, List.of(), List.of(), null, null);
+		if (target.context() != null && target.context().characters() != null && target.context().world() != null) {
+			target.magicSkillHandler().handleResurrect(resSkill, active.name());
+		}
+		if (target.active().isDead()) {
+			PlayerCharacter tgt = target.active();
+			tgt.sitting(false);
+			double hpPercent = c.amount() > 0 ? Math.min(100.0, c.amount()) : 20.0;
+			int revivedHp = Math.max(1, (int) Math.round(tgt.maxHp() * (hpPercent / 100.0)));
+			tgt.currentHp(revivedHp);
+			tgt.currentCp(0.0);
+			var revive = new com.lopez.l2j.network.game.packet.GameServerPacket.Revive(tgt.objectId());
+			target.send(revive);
+			if (target.context() != null && target.context().world() != null) {
+				target.context().world().broadcastAround(target, GameWorld.VISIBILITY_RADIUS, revive, false);
+			}
+			target.sendVitals();
+			target.send(SystemMessage.of(SystemMessage.S1_HP_RESTORED, new SystemMessage.Number(revivedHp)));
 		}
 	}
 
