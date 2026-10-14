@@ -3,12 +3,23 @@ package com.lopez.l2j.game.phantom;
 import com.lopez.l2j.game.autofarm.AutoFarmService;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.npc.NpcInstance;
+import com.lopez.l2j.game.template.CharTemplate;
+import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.network.game.packet.GameServerPacket.Attack;
+import com.lopez.l2j.network.game.packet.GameServerPacket.CharInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
+import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
+import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse;
+import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToLocation;
+import com.lopez.l2j.network.game.packet.GameServerPacket.PrivateStoreMsgSell;
+import com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -76,7 +87,7 @@ public class PhantomService {
 	}
 
 	/**
-	 * Instancia e registra um novo Phantom no mundo.
+	 * Instancia e registra um novo Phantom no mundo 3D (GameWorld), transmitindo CharInfo aos jogadores próximos.
 	 */
 	public PlayerCharacter spawnPhantom(PhantomProfile profile) {
 		if (profile == null) {
@@ -120,12 +131,24 @@ public class PhantomService {
 
 		// Marcador estrito de isolamento de seguranca
 		player.setPhantom(true);
+		if (profile.storeTitle() != null && !profile.storeTitle().isBlank()) {
+			player.storeTitle(profile.storeTitle());
+		}
 
 		// Concede as skills do kit
 		if (profile.kit() != null) {
 			for (int skillId : profile.kit().skills()) {
 				player.skills().put(skillId, 1);
 			}
+		}
+
+		GameWorld world = GameWorld.getInstance();
+		if (world != null) {
+			world.add(new GameWorld.PhantomOnlinePlayer(player));
+			world.broadcast(new CharInfo(player), op ->
+					op.character() != null && op.objectId() != player.objectId()
+							&& op.instanceId() == player.instanceId()
+							&& Math.hypot(op.x() - player.x(), op.y() - player.y()) <= GameWorld.VISIBILITY_RADIUS);
 		}
 
 		PhantomRunner runner = new PhantomRunner(player, profile.kit(), profile.mode(), profile.spawnX(), profile.spawnY(), profile.spawnZ(), profile.storeTitle());
@@ -141,12 +164,17 @@ public class PhantomService {
 	}
 
 	/**
-	 * Remove um Phantom ativo e encerra sua Virtual Thread.
+	 * Remove um Phantom ativo, encerra sua Virtual Thread e remove seu avatar do GameWorld.
 	 */
 	public boolean despawnPhantom(int objectId) {
 		PhantomRunner runner = activePhantoms.remove(objectId);
 		if (runner != null) {
 			runner.stop();
+			GameWorld world = GameWorld.getInstance();
+			if (world != null) {
+				world.removeById(objectId);
+				world.broadcast(new DeleteObject(objectId), op -> true);
+			}
 			log.info("Phantom {} (ID: {}) removido do mundo.", runner.player.name(), objectId);
 			return true;
 		}
@@ -157,8 +185,14 @@ public class PhantomService {
 	 * Desconecta e limpa todos os Phantoms ativos.
 	 */
 	public void despawnAll() {
+		GameWorld world = GameWorld.getInstance();
 		for (PhantomRunner runner : activePhantoms.values()) {
 			runner.stop();
+			if (world != null) {
+				int oid = runner.player.objectId();
+				world.removeById(oid);
+				world.broadcast(new DeleteObject(oid), op -> true);
+			}
 		}
 		activePhantoms.clear();
 		log.info("Todos os Phantoms foram desativados e removidos.");
@@ -297,7 +331,22 @@ public class PhantomService {
 		private void runLoop() {
 			while (running && !player.isDead()) {
 				try {
-					processTick(player, kit, mode, List.of(), List.of());
+					GameWorld world = GameWorld.getInstance();
+					Collection<NpcInstance> npcs = List.of();
+					List<PlayerCharacter> players = new ArrayList<>();
+					if (world != null) {
+						npcs = world.findNpcsAround(player.x(), player.y(), (int) PhantomTargetSelector.DEFAULT_HUNT_RADIUS, player.instanceId());
+						for (GameWorld.OnlinePlayer op : world.players()) {
+							if (op.character() != null && op.character().objectId() != player.objectId()
+									&& op.character().instanceId() == player.instanceId()
+									&& Math.hypot(op.character().x() - player.x(), op.character().y() - player.y()) <= PhantomTargetSelector.DEFAULT_HUNT_RADIUS) {
+								players.add(op.character());
+							}
+						}
+					}
+
+					PhantomAction action = processTick(player, kit, mode, npcs, players);
+					executeWorldAction(action, world);
 					Thread.sleep(1000);
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
@@ -305,6 +354,71 @@ public class PhantomService {
 				} catch (Exception e) {
 					log.warn("Erro no ciclo de execucao do Phantom {}: {}", player.name(), e.getMessage());
 				}
+			}
+		}
+
+		private void executeWorldAction(PhantomAction action, GameWorld world) {
+			if (action == null || world == null) {
+				return;
+			}
+			switch (action.type()) {
+				case MOVE_TO, KITE_RETREAT -> {
+					int ox = player.x();
+					int oy = player.y();
+					int oz = player.z();
+					player.x(action.x());
+					player.y(action.y());
+					player.z(action.z());
+					MoveToLocation mv = new MoveToLocation(player.objectId(), action.x(), action.y(), action.z(), ox, oy, oz);
+					world.broadcast(mv, op -> op.character() != null
+							&& op.character().instanceId() == player.instanceId()
+							&& Math.hypot(op.character().x() - player.x(), op.character().y() - player.y()) <= GameWorld.VISIBILITY_RADIUS);
+				}
+				case ATTACK -> {
+					world.npc(action.targetId()).ifPresent(npc -> {
+						if (!npc.isDead()) {
+							int dmg = Math.max(25, player.level() * 5);
+							npc.applyDamage(dmg);
+							Attack atk = new Attack(player.objectId(), npc.objectId(), dmg, Attack.HITFLAG_USESS,
+									player.x(), player.y(), player.z());
+							StatusUpdate su = StatusUpdate.hp(npc.objectId(), Math.max(0, (int) npc.currentHp()), (int) npc.maxHp());
+							world.broadcast(atk, op -> op.character() != null
+									&& Math.hypot(op.character().x() - player.x(), op.character().y() - player.y()) <= GameWorld.VISIBILITY_RADIUS);
+							world.broadcast(su, op -> op.character() != null
+									&& Math.hypot(op.character().x() - player.x(), op.character().y() - player.y()) <= GameWorld.VISIBILITY_RADIUS);
+							if (npc.isDead()) {
+								world.broadcast(new Die(npc.objectId(), false), op -> op.character() != null
+										&& Math.hypot(op.character().x() - player.x(), op.character().y() - player.y()) <= GameWorld.VISIBILITY_RADIUS);
+							}
+						}
+					});
+				}
+				case CAST_SKILL -> {
+					player.currentMp(Math.max(0, player.currentMp() - 20));
+					MagicSkillUse msu = new MagicSkillUse(player.objectId(), action.targetId(), action.skillId(), 1, 1000, 1500);
+					world.broadcast(msu, op -> op.character() != null
+							&& Math.hypot(op.character().x() - player.x(), op.character().y() - player.y()) <= GameWorld.VISIBILITY_RADIUS);
+					world.npc(action.targetId()).ifPresent(npc -> {
+						if (!npc.isDead()) {
+							int dmg = Math.max(40, player.level() * 8);
+							npc.applyDamage(dmg);
+							if (npc.isDead()) {
+								world.broadcast(new Die(npc.objectId(), false), op -> op.character() != null
+										&& Math.hypot(op.character().x() - player.x(), op.character().y() - player.y()) <= GameWorld.VISIBILITY_RADIUS);
+							}
+						}
+					});
+				}
+				case SIT_STORE -> {
+					if (player.privateStoreType() != PlayerCharacter.STORE_SELL) {
+						player.privateStoreType(PlayerCharacter.STORE_SELL);
+						String msg = action.message() != null ? action.message() : "Phantom Store";
+						player.storeTitle(msg);
+						world.broadcast(new PrivateStoreMsgSell(player.objectId(), msg), op -> op.character() != null
+								&& Math.hypot(op.character().x() - player.x(), op.character().y() - player.y()) <= GameWorld.VISIBILITY_RADIUS);
+					}
+				}
+				default -> {}
 			}
 		}
 
