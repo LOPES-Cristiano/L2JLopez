@@ -103,7 +103,7 @@ public class RepairBBSManager {
             }
             count++;
             sb.append("<tr>");
-            sb.append("<td><font color=\"00FFFF\">").append(c.getName()).append("</font></td>");
+            sb.append("<td><font color=\"8FA8BE\">").append(c.getName()).append("</font></td>");
             sb.append("<td align=center>").append(c.getLevel()).append("</td>");
             sb.append("<td align=center><button value=\"Reparar Char\" action=\"bypass _bbsrepair_char ")
               .append(c.getName()).append("\" width=120 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
