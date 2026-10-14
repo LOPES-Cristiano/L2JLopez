@@ -95,19 +95,23 @@ public class AutoFarmService {
         sb.append("<table width=270 bgcolor=222222 border=1 cellpadding=4 cellspacing=0>");
         sb.append("<tr><td><b>Status:</b></td><td align=center>");
         if (state.isEnabled()) {
-            sb.append("<font color=\"00FF00\"><b>ATIVO</b></font></td><td align=center>");
+            sb.append("<font color=\"8FA888\"><b>ATIVO</b></font></td><td align=center>");
             sb.append("<button value=\"Desativar\" action=\"bypass -h voiced_autofarm toggle\" width=70 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
         } else {
-            sb.append("<font color=\"FF0000\"><b>DESLIGADO</b></font></td><td align=center>");
+            sb.append("<font color=\"B86B6B\"><b>DESLIGADO</b></font></td><td align=center>");
             sb.append("<button value=\"Ativar\" action=\"bypass -h voiced_autofarm toggle\" width=70 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
         }
         sb.append("</td></tr>");
 
-        // Modo de combate
+        // Modo de combate (Arquetipos)
         sb.append("<tr><td><b>Modo:</b></td><td colspan=2 align=center>");
-        sb.append(state.getMode() == AutoFarmMode.FIGHTER ? "<font color=\"00FF00\">[Fighter]</font> " : "<a action=\"bypass -h voiced_autofarm mode FIGHTER\">[Fighter]</a> ");
-        sb.append(state.getMode() == AutoFarmMode.MAGE ? "<font color=\"00FF00\">[Mage]</font> " : "<a action=\"bypass -h voiced_autofarm mode MAGE\">[Mage]</a> ");
-        sb.append(state.getMode() == AutoFarmMode.BALANCED ? "<font color=\"00FF00\">[Balanced]</font>" : "<a action=\"bypass -h voiced_autofarm mode BALANCED\">[Balanced]</a>");
+        sb.append(state.getMode() == AutoFarmMode.FIGHTER ? "<font color=\"8FA888\">[Fighter]</font> " : "<a action=\"bypass -h voiced_autofarm mode FIGHTER\">[Fighter]</a> ");
+        sb.append(state.getMode() == AutoFarmMode.ARCHER ? "<font color=\"8FA888\">[Archer]</font> " : "<a action=\"bypass -h voiced_autofarm mode ARCHER\">[Archer]</a> ");
+        sb.append(state.getMode() == AutoFarmMode.MAGE ? "<font color=\"8FA888\">[Mage]</font> " : "<a action=\"bypass -h voiced_autofarm mode MAGE\">[Mage]</a> ");
+        sb.append("<br>");
+        sb.append(state.getMode() == AutoFarmMode.HEALER ? "<font color=\"8FA888\">[Healer]</font> " : "<a action=\"bypass -h voiced_autofarm mode HEALER\">[Healer]</a> ");
+        sb.append(state.getMode() == AutoFarmMode.SUMMON ? "<font color=\"8FA888\">[Summon]</font> " : "<a action=\"bypass -h voiced_autofarm mode SUMMON\">[Summon]</a> ");
+        sb.append(state.getMode() == AutoFarmMode.BALANCED ? "<font color=\"8FA888\">[Balanced]</font>" : "<a action=\"bypass -h voiced_autofarm mode BALANCED\">[Balanced]</a>");
         sb.append("</td></tr>");
 
         // Raio
@@ -120,14 +124,14 @@ public class AutoFarmService {
 
         // Auto Potion HP
         int hpPct = (int) Math.round(state.getAutoPotionHpThreshold() * 100);
-        sb.append("<tr><td><b>Pocao HP:</b> <font color=\"FF5555\">").append(hpPct).append("%</font></td><td colspan=2 align=center>");
+        sb.append("<tr><td><b>Pocao HP:</b> <font color=\"B86B6B\">").append(hpPct).append("%</font></td><td colspan=2 align=center>");
         sb.append("<a action=\"bypass -h voiced_autofarm hp 40\">[40%]</a> ");
         sb.append("<a action=\"bypass -h voiced_autofarm hp 60\">[60%]</a> ");
         sb.append("<a action=\"bypass -h voiced_autofarm hp 80\">[80%]</a>");
         sb.append("</td></tr>");
 
-        // Skill selecionada para Mage/Balanced
-        if (state.getMode() != AutoFarmMode.FIGHTER) {
+        // Skill selecionada para Mage/Healer/Summon/Balanced
+        if (state.getMode() != AutoFarmMode.FIGHTER && state.getMode() != AutoFarmMode.ARCHER) {
             String skillName = "Nenhuma";
             if (state.getSelectedSkillId() > 0 && skillService != null) {
                 var sk = skillService.known(player, state.getSelectedSkillId()).orElse(null);
@@ -137,7 +141,7 @@ public class AutoFarmService {
                     skillName = "Skill #" + state.getSelectedSkillId();
                 }
             }
-            sb.append("<tr><td colspan=3><b>Magia Ativa:</b> <font color=\"00CCFF\">").append(skillName).append("</font></td></tr>");
+            sb.append("<tr><td colspan=3><b>Magia Ativa:</b> <font color=\"8FA8BE\">").append(skillName).append("</font></td></tr>");
             if (skillService != null && player.skills() != null && !player.skills().isEmpty()) {
                 sb.append("<tr><td colspan=3><font color=\"AAAAAA\">Selecione uma habilidade:</font><br>");
                 int count = 0;
@@ -164,7 +168,8 @@ public class AutoFarmService {
     }
 
     /**
-     * Ciclo de IA que decide a próxima ação do personagem em modo Auto-Farm.
+     * Ciclo de IA que decide a próxima ação do personagem em modo Auto-Farm
+     * considerando o arquetipo: FIGHTER, ARCHER, MAGE, HEALER, SUMMON, BALANCED.
      */
     public AutoFarmAction processTick(PlayerCharacter player, List<NpcInstance> nearbyNpcs) {
         if (player == null) {
@@ -184,19 +189,29 @@ public class AutoFarmService {
             return AutoFarmAction.stop("Jogador morto");
         }
 
-        // 2. Verificacao de pocao automatica de cura (se HP < threshold)
+        // 2. Arquetipo HEALER: Prioriza cura se o proprio jogador estiver com HP < 60%
+        if (state.getMode() == AutoFarmMode.HEALER && player.currentMp() >= 20) {
+            int healSkill = state.getSelectedSkillId() > 0 ? state.getSelectedSkillId() : state.getHealSkillId();
+            if (player.currentHp() < (player.maxHp() * 0.60)) {
+                return AutoFarmAction.cast(player.objectId(), healSkill);
+            }
+        }
+
+        // 3. Verificacao de pocao automatica de cura (se HP < threshold)
         if (player.currentHp() < (player.maxHp() * state.getAutoPotionHpThreshold())) {
             return AutoFarmAction.usePotion(GREATER_HEALING_POTION_ID);
         }
 
-        // 3. Procura ou valida o alvo atual
+        // 4. Procura ou valida o alvo atual
         NpcInstance target = null;
+        double targetDist = Double.MAX_VALUE;
         if (state.getCurrentTargetId() != 0 && nearbyNpcs != null) {
             for (NpcInstance npc : nearbyNpcs) {
                 if (npc.objectId() == state.getCurrentTargetId() && !npc.isDead()) {
                     double dist = calculateDistance(player.x(), player.y(), npc.x(), npc.y());
                     if (dist <= state.getFarmRadius()) {
                         target = npc;
+                        targetDist = dist;
                         break;
                     }
                 }
@@ -214,6 +229,7 @@ public class AutoFarmService {
                 if (dist <= state.getFarmRadius() && dist < closestDist) {
                     closestDist = dist;
                     target = npc;
+                    targetDist = dist;
                 }
             }
         }
@@ -225,14 +241,48 @@ public class AutoFarmService {
 
         state.setCurrentTargetId(target.objectId());
 
-        // 4. Decisao de ataque ou skill baseado no modo
+        // 5. Integracao com Summon / Pet: se o jogador possui Summon ativo, ordena ataque ao alvo
+        if (player.activeSummon() != null && !player.activeSummon().isDead()) {
+            player.activeSummon().targetObjectId(target.objectId());
+            player.activeSummon().markCombat();
+        }
+
+        // 6. Arquetipo ARCHER: Mantem distancia segura (kite se o monstro chegar a menos de 120 unidades)
+        if (state.getMode() == AutoFarmMode.ARCHER) {
+            if (targetDist < state.getKiteDistance()) {
+                kiteAwayFromTarget(player, target, 260);
+            }
+            if (state.getSelectedSkillId() > 0 && player.currentMp() >= 40) {
+                return AutoFarmAction.cast(target.objectId(), state.getSelectedSkillId());
+            }
+            return AutoFarmAction.attack(target.objectId());
+        }
+
+        // 7. Decisao de ataque ou skill baseado no modo (MAGE, SUMMON, BALANCED, FIGHTER, HEALER)
         if (state.getMode() == AutoFarmMode.MAGE && state.getSelectedSkillId() > 0 && player.currentMp() >= 20) {
+            return AutoFarmAction.cast(target.objectId(), state.getSelectedSkillId());
+        } else if (state.getMode() == AutoFarmMode.SUMMON && state.getSelectedSkillId() > 0 && player.currentMp() >= 30) {
             return AutoFarmAction.cast(target.objectId(), state.getSelectedSkillId());
         } else if (state.getMode() == AutoFarmMode.BALANCED && state.getSelectedSkillId() > 0 && player.currentMp() >= 50) {
             return AutoFarmAction.cast(target.objectId(), state.getSelectedSkillId());
         } else {
             return AutoFarmAction.attack(target.objectId());
         }
+    }
+
+    private void kiteAwayFromTarget(PlayerCharacter player, NpcInstance target, int desiredDistance) {
+        double dx = player.x() - target.x();
+        double dy = player.y() - target.y();
+        double dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 1.0) {
+            dx = 1.0;
+            dy = 0.0;
+            dist = 1.0;
+        }
+        int newX = target.x() + (int) Math.round((dx / dist) * desiredDistance);
+        int newY = target.y() + (int) Math.round((dy / dist) * desiredDistance);
+        player.x(newX);
+        player.y(newY);
     }
 
     private double calculateDistance(int x1, int y1, int x2, int y2) {

@@ -10,6 +10,8 @@ public class AutoFarmState {
     private volatile int farmRadius = 1200;
     private volatile double autoPotionHpThreshold = 0.60; // 60%
     private volatile int selectedSkillId = 0;
+    private volatile int healSkillId = 1015; // Battle Heal default
+    private volatile int kiteDistance = 120;
     private volatile int currentTargetId = 0;
 
     public AutoFarmState(int playerId, boolean enabled) {
@@ -59,6 +61,22 @@ public class AutoFarmState {
 
     public void setSelectedSkillId(int selectedSkillId) {
         this.selectedSkillId = selectedSkillId;
+    }
+
+    public int getHealSkillId() {
+        return healSkillId;
+    }
+
+    public void setHealSkillId(int healSkillId) {
+        this.healSkillId = healSkillId;
+    }
+
+    public int getKiteDistance() {
+        return kiteDistance;
+    }
+
+    public void setKiteDistance(int kiteDistance) {
+        this.kiteDistance = kiteDistance;
     }
 
     public int getCurrentTargetId() {
