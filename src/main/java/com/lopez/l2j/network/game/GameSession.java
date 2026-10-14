@@ -1251,16 +1251,35 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 		private static volatile com.lopez.l2j.game.npc.NpcTemplateTable globalNpcTemplateTable;
+		private static volatile org.springframework.context.ApplicationContext globalApplicationContext;
 
 		public static void setGlobalNpcTemplateTable(com.lopez.l2j.game.npc.NpcTemplateTable table) {
 			globalNpcTemplateTable = table;
+		}
+
+		public static void setApplicationContext(org.springframework.context.ApplicationContext ctx) {
+			globalApplicationContext = ctx;
+		}
+
+		public <T> T getBean(Class<T> type) {
+			if (globalApplicationContext == null || type == null) {
+				return null;
+			}
+			try {
+				return globalApplicationContext.getBean(type);
+			} catch (Exception e) {
+				return null;
+			}
 		}
 
 		public com.lopez.l2j.game.npc.NpcTemplateTable npcTemplates() {
 			if (spawns != null && spawns.templates() != null) {
 				return spawns.templates();
 			}
-			return globalNpcTemplateTable;
+			if (globalNpcTemplateTable != null) {
+				return globalNpcTemplateTable;
+			}
+			return getBean(com.lopez.l2j.game.npc.NpcTemplateTable.class);
 		}
 	}
 
@@ -1817,6 +1836,26 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			case GameClientPacket.RequestPrivateStoreQuitSell p -> onPrivateStoreQuitSell();
 			case GameClientPacket.SetPrivateStoreMsgSell p -> onSetPrivateStoreMsgSell(p);
 			case GameClientPacket.RequestPrivateStoreBuy p -> onPrivateStoreBuy(p);
+			case GameClientPacket.TradeRequest p -> tradeStoreHandler.handleTradeRequest(p);
+			case GameClientPacket.AnswerTradeRequest p -> tradeStoreHandler.handleAnswerTradeRequest(p);
+			case GameClientPacket.AddTradeItem p -> tradeStoreHandler.handleAddTradeItem(p);
+			case GameClientPacket.TradeDone p -> tradeStoreHandler.handleTradeDone(p);
+			case GameClientPacket.RequestPrivateStoreManageBuy p -> tradeStoreHandler.handlePrivateStoreManageBuy();
+			case GameClientPacket.SetPrivateStoreListBuy p -> tradeStoreHandler.handleSetPrivateStoreListBuy(p);
+			case GameClientPacket.RequestPrivateStoreQuitBuy p -> tradeStoreHandler.handlePrivateStoreQuitBuy();
+			case GameClientPacket.SetPrivateStoreMsgBuy p -> tradeStoreHandler.handleSetPrivateStoreMsgBuy(p);
+			case GameClientPacket.RequestPrivateStoreSell p -> tradeStoreHandler.handlePrivateStoreSell(p);
+			case GameClientPacket.RequestRecipeItemMakeInfo p -> tradeStoreHandler.handleRecipeItemMakeInfo(p);
+			case GameClientPacket.RequestRecipeItemMakeSelf p -> tradeStoreHandler.handleRecipeItemMakeSelf(p);
+			case GameClientPacket.RequestStartPledgeWar p -> partyClanHandler.handleStartPledgeWar(p);
+			case GameClientPacket.RequestStopPledgeWar p -> partyClanHandler.handleStopPledgeWar(p);
+			case GameClientPacket.RequestJoinAlly p -> partyClanHandler.handleJoinAlly(p);
+			case GameClientPacket.RequestAnswerJoinAlly p -> partyClanHandler.handleAnswerJoinAlly(p);
+			case GameClientPacket.RequestSiegeAttackerList p -> partyClanHandler.handleSiegeAttackerList(p);
+			case GameClientPacket.RequestSiegeDefenderList p -> partyClanHandler.handleSiegeDefenderList(p);
+			case GameClientPacket.RequestJoinSiege p -> partyClanHandler.handleJoinSiege(p);
+			case GameClientPacket.RequestConfirmSiegeWaitingList p -> partyClanHandler.handleConfirmSiegeWaitingList(p);
+			case GameClientPacket.RequestPledgePower p -> partyClanHandler.handlePledgePower(p);
 			case GameClientPacket.RequestConfirmTargetItem p -> onConfirmTargetItem(p);
 			case GameClientPacket.RequestConfirmRefinerItem p -> onConfirmRefinerItem(p);
 			case GameClientPacket.RequestConfirmGemStone p -> onConfirmGemStone(p);
@@ -1950,12 +1989,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 		boolean hasGmRight = Config.getBoolean("EveryoneHasAdminRights", false)
-				|| Config.getBoolean("EveryoneIsGM", false)
-				|| (account != null && (account.equalsIgnoreCase("admin") || account.equalsIgnoreCase("gm")
-						|| account.equalsIgnoreCase("root") || account.equalsIgnoreCase("cristiano")
-						|| account.toLowerCase().startsWith("admin")))
-				|| (c.name() != null && (c.name().equalsIgnoreCase("Cristiano") || c.name().startsWith("Admin")
-						|| c.name().startsWith("GM")));
+				|| Config.getBoolean("EveryoneIsGM", false);
 
 		if (!hasGmRight && ctx.adminSuperusers() != null && !ctx.adminSuperusers().isEmpty()) {
 			for (String su : ctx.adminSuperusers()) {
@@ -2214,19 +2248,60 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		updateKnownObjects();
 	}
 
+	@Override
+	public void teleportToLocation(int x, int y, int z, int instanceId) {
+		if (active == null) {
+			return;
+		}
+		stopAutoAttack();
+		stopFollow();
+		clearTarget();
+		if (ctx != null && ctx.world() != null) {
+			for (int knownId : new ArrayList<>(knownObjects)) {
+				send(new DeleteObject(knownId));
+				var other = ctx.world().player(knownId).orElse(null);
+				if (other instanceof GameSession gs) {
+					if (gs.knownObjects.remove(active.objectId())) {
+						gs.send(new DeleteObject(active.objectId()));
+					}
+				}
+			}
+		}
+		knownObjects.clear();
+		active.instanceId(instanceId);
+		active.x(x);
+		active.y(y);
+		active.z(z);
+		var summon = active.activeSummon();
+		if (summon != null && !summon.isDead()) {
+			summon.instanceId(instanceId);
+			summon.x(x + 40);
+			summon.y(y + 40);
+			summon.z(z);
+		}
+		var tp = new TeleportToLocation(active.objectId(), x, y, z, active.heading());
+		send(tp);
+		if (ctx != null && ctx.world() != null) {
+			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, tp, false);
+		}
+		teleporting = false;
+		updateKnownObjects();
+	}
+
 	public void updateKnownObjects() {
 		if (!inWorld || active == null || teleporting) {
 			return;
 		}
 		int myX = x();
 		int myY = y();
+		int myInst = active.instanceId();
 		int range = GameWorld.VISIBILITY_RADIUS;
 		long r2 = (long) range * range;
 
 		Set<Integer> currentAround = new HashSet<>();
 
-		// 1. NPCs ao redor
-		for (NpcInstance npc : ctx.world().findNpcsAround(myX, myY, range)) {
+		// 1. NPCs ao redor (filtrados pela mesma instancia)
+		for (NpcInstance npc : ctx.world().findNpcsAround(myX, myY, range, myInst)) {
 			int id = npc.objectId();
 			currentAround.add(id);
 			if (knownObjects.add(id)) {
@@ -2238,9 +2313,18 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 		}
 
-		// 2. Outros jogadores ao redor
+		// 1b. Summons / Pets ao redor (filtrados pela mesma instancia)
+		for (var summon : ctx.world().findSummonsAround(myX, myY, range, myInst)) {
+			int id = summon.objectId();
+			currentAround.add(id);
+			if (knownObjects.add(id)) {
+				send(NpcInfo.forSummon(summon));
+			}
+		}
+
+		// 2. Outros jogadores ao redor (filtrados pela mesma instancia)
 		for (GameWorld.OnlinePlayer other : ctx.world().players()) {
-			if (other.objectId() == active.objectId()) {
+			if (other.objectId() == active.objectId() || other.instanceId() != myInst) {
 				continue;
 			}
 			long dx = other.x() - myX;
@@ -2810,72 +2894,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, su, false);
 
 			if (hit.isDead()) {
-				stopAutoAttack();
-
-				if (ctx.npcAi() != null) {
-					ctx.npcAi().stopCombat(npc);
-					ctx.npcAi().scheduleDecayAndRespawn(npc);
-				}
-
-				if (com.lopez.l2j.game.boss.BossManager.getInstance() != null) {
-					com.lopez.l2j.game.boss.BossManager.getInstance().onBossKilled(npc, active, party);
-				}
-
-				var die = new Die(npc.objectId(), false);
-				send(die);
-				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, die, false);
-
-				if (party != null) {
-					double ratePartyXp = ctx.rates() != null ? ctx.rates().partyXp() : 1.0;
-					double ratePartySp = ctx.rates() != null ? ctx.rates().partySp() : 1.0;
-					party.distributeExpAndSp(hit.expReward(), hit.spReward(), active, ratePartyXp, ratePartySp);
-				} else {
-					applyExpAndSp(hit.expReward(), hit.spReward(), t);
-				}
-
-				if (npc.isSpoiled() && ctx.drops() != null) {
-					var spoilDrops = ctx.drops().rollSpoil(npc.npcId(), active.level(),
-							npc.template() != null ? npc.template().level() : 0);
-					npc.spoilRewards(spoilDrops);
-				}
-
-				if (ctx.drops() != null) {
-					ctx.drops().rewardMonsterDeath(active, npc, ctx.inventories(), this::send);
-				}
-
-				if (ctx.questManager() != null) {
-					ctx.questManager().onNpcKill(npc, this, false);
-				}
-
-				if (ctx.raidPoints() != null && npc.template() != null && npc.template().isRaidBoss()) {
-					int lvl = npc.template().level();
-					int points = Math.max(1, lvl / 2 + java.util.concurrent.ThreadLocalRandom.current().nextInt(-5, 6));
-					if (party != null) {
-						for (GameSession member : party.members()) {
-							if (member != null && member.active != null) {
-								double dist = Math.hypot(member.active.x() - active.x(), member.active.y() - active.y());
-								if (dist <= com.lopez.l2j.game.party.Party.getPartyRange()) {
-									ctx.raidPoints().addPoints(member.active.objectId(), npc.npcId(), points);
-									member.send(SystemMessage.of(SystemMessage.EARNED_S1_RAID_POINTS, new SystemMessage.Number(points)));
-								}
-							}
-						}
-					} else {
-						ctx.raidPoints().addPoints(active.objectId(), npc.npcId(), points);
-						send(SystemMessage.of(SystemMessage.EARNED_S1_RAID_POINTS, new SystemMessage.Number(points)));
-					}
-				}
-
-				if (npc.npcId() == 25325 && Config.KILL_BARAKIEL_SET_NOBLESS) {
-					rewardBarakielNoblesse(party, active);
-				}
-
-				ctx.characters().save(active, true);
-				saveBuffs();
+				com.lopez.l2j.network.game.handler.packet.PlayerCombatHandler.handleMonsterDeath(
+						this, ctx, active, t, npc, party, hit.expReward(), hit.spReward());
 			} else {
 				if (ctx.npcAi() != null) {
 					ctx.npcAi().startCombat(npc, active.objectId());
 				}
+				com.lopez.l2j.network.game.handler.packet.PlayerCombatHandler.triggerSummonAssistAttack(this, ctx, npc);
 				schedulePlayerAutoAttack(npc, Math.max(50, (timeAtk - timeToHit) + 50));
 			}
 		}, timeToHit, TimeUnit.MILLISECONDS);
@@ -3325,7 +3350,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			send(new ActionFailed());
 			return;
 		}
-		send(new RecipeBookItemList(p.isDwarvenCraft(), 0, java.util.List.of()));
+		var recipeService = com.lopez.l2j.game.recipe.RecipeService.getInstance();
+		List<Integer> recipes = recipeService != null
+				? recipeService.getRecipeBook(active.objectId(), p.isDwarvenCraft())
+				: List.of();
+		send(new RecipeBookItemList(p.isDwarvenCraft(), active.maxMp(), recipes));
 	}
 
 	public void onLeaveParty() {
@@ -4513,6 +4542,43 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				|| TOWN_SCROLL_COORDINATES.containsKey(itemId);
 	}
 
+	private static final Map<Integer, int[]> CASTLE_INNER_COORDINATES = Map.of(
+			1, new int[] { -18112, 109413, -2496 }, // Gludio
+			2, new int[] { 22074, 160352, -2690 },  // Dion
+			3, new int[] { 116535, 145095, -2565 }, // Giran
+			4, new int[] { 82625, 37186, -2294 },   // Oren
+			5, new int[] { 147451, 4652, -340 },    // Aden
+			6, new int[] { 116028, 249125, -788 },  // Innadril
+			7, new int[] { 147470, -48226, -2276 }, // Goddard
+			8, new int[] { 14380, -49154, -538 },   // Rune
+			9, new int[] { 77548, -152398, -545 }   // Schuttgart
+	);
+
+	private int[] resolveClanHallCoordinates(int clanHallId) {
+		if (clanHallId == 21) {
+			return new int[] { 15670, 142983, -2705 }; // Dion (Fortress of Resistance)
+		} else if (clanHallId >= 22 && clanHallId <= 25) {
+			return new int[] { -12678, 122776, -3116 }; // Gludio / Gludin
+		} else if (clanHallId >= 26 && clanHallId <= 30) {
+			return new int[] { 83400, 147943, -3404 }; // Giran
+		} else if (clanHallId >= 31 && clanHallId <= 33) {
+			return new int[] { 82956, 53162, -1495 }; // Oren / Hunters
+		} else if (clanHallId >= 34 && clanHallId <= 41) {
+			return new int[] { 146331, 25762, -2018 }; // Aden
+		} else if (clanHallId >= 42 && clanHallId <= 46) {
+			return new int[] { 147928, -55273, -2734 }; // Goddard
+		} else if (clanHallId >= 47 && clanHallId <= 57) {
+			return new int[] { 43799, -47727, -798 }; // Rune
+		} else if (clanHallId >= 58 && clanHallId <= 61) {
+			return new int[] { 87331, -142842, -1317 }; // Schuttgart
+		} else if (clanHallId == 62) {
+			return new int[] { 147928, -55273, -2734 }; // Rainbow Springs (Goddard)
+		} else if (clanHallId == 63 || clanHallId == 64) {
+			return new int[] { 43799, -47727, -798 }; // Beast Farm / Fortress of the Dead (Rune)
+		}
+		return findNearestTown(active.x(), active.y());
+	}
+
 	public void useScrollOfEscape(com.lopez.l2j.game.item.ItemInstance item) {
 		if (active == null || active.isDead() || casting) {
 			send(new ActionFailed());
@@ -4523,12 +4589,52 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		int itemId = item.itemId();
-		int[] dest = TOWN_SCROLL_COORDINATES.get(itemId);
-		if (dest == null) {
-			dest = findNearestTown(active.x(), active.y());
+		int[] dest = null;
+
+		if (itemId == 5858) {
+			var clan = (active.clanId() > 0 && ctx.clans() != null)
+					? ctx.clans().byClanId(active.clanId()).orElse(null)
+					: null;
+			int clanHallId = (clan != null) ? clan.clanHallId() : 0;
+			if (clanHallId <= 0 && active.clanId() > 0 && ctx.clanHalls() != null) {
+				var hallOpt = ctx.clanHalls().getClanHallByOwner(active.clanId());
+				if (hallOpt.isPresent()) {
+					clanHallId = hallOpt.get().id();
+				}
+			}
+			if (clanHallId <= 0) {
+				send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(itemId)));
+				send(new ActionFailed());
+				return;
+			}
+			dest = resolveClanHallCoordinates(clanHallId);
+		} else if (itemId == 5859) {
+			var clan = (active.clanId() > 0 && ctx.clans() != null)
+					? ctx.clans().byClanId(active.clanId()).orElse(null)
+					: null;
+			int castleId = (clan != null) ? clan.castleId() : 0;
+			if (castleId <= 0 && active.clanId() > 0 && ctx.castles() != null) {
+				for (var c : ctx.castles().allCastles()) {
+					if (c.ownerClanId() == active.clanId()) {
+						castleId = c.id();
+						break;
+					}
+				}
+			}
+			if (castleId <= 0) {
+				send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(itemId)));
+				send(new ActionFailed());
+				return;
+			}
+			dest = CASTLE_INNER_COORDINATES.getOrDefault(castleId, findNearestTown(active.x(), active.y()));
+		} else {
+			dest = TOWN_SCROLL_COORDINATES.get(itemId);
+			if (dest == null) {
+				dest = findNearestTown(active.x(), active.y());
+			}
 		}
 
-		int hitTime = (itemId == 1538 || itemId == 3958) ? 200 : 20000;
+		int hitTime = (itemId == 1538 || itemId == 3958 || itemId == 5858 || itemId == 5859) ? 200 : 20000;
 		if (!consumeItem(itemId, 1)) {
 			send(new ActionFailed());
 			return;
