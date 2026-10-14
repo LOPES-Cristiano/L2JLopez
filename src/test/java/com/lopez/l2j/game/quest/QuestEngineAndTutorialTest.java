@@ -219,32 +219,32 @@ public class QuestEngineAndTutorialTest {
 	}
 
 	@Test
-	@DisplayName("CP 2.2: Opcodes de rede retail de Tutorial e Radar (0xa6, 0xa7, 0xa8, 0xa9, 0xf1)")
+	@DisplayName("CP 2.2: Opcodes de rede retail de Tutorial e Radar (0xa0, 0xa1, 0xa2, 0xa3, 0xeb)")
 	void testTutorialAndRadarPacketOpcodeEncodings() {
-		// 0xa6 TutorialShowHtml
+		// 0xa0 TutorialShowHtml (0xa6 e MyTargetSelected no Interlude!)
 		byte[] htmlBytes = new GameServerPacket.TutorialShowHtml("<html></html>").encode();
 		assertNotNull(htmlBytes);
-		assertEquals(0xa6, htmlBytes[0] & 0xFF, "Opcode de TutorialShowHtml deve ser 0xa6");
+		assertEquals(0xa0, htmlBytes[0] & 0xFF, "Opcode de TutorialShowHtml deve ser 0xa0");
 
-		// 0xa7 TutorialShowQuestionMark
+		// 0xa1 TutorialShowQuestionMark
 		byte[] qmBytes = new GameServerPacket.TutorialShowQuestionMark(1).encode();
 		assertNotNull(qmBytes);
-		assertEquals(0xa7, qmBytes[0] & 0xFF, "Opcode de TutorialShowQuestionMark deve ser 0xa7");
+		assertEquals(0xa1, qmBytes[0] & 0xFF, "Opcode de TutorialShowQuestionMark deve ser 0xa1");
 
-		// 0xa8 TutorialEnableClientEvent
+		// 0xa2 TutorialEnableClientEvent
 		byte[] ceBytes = new GameServerPacket.TutorialEnableClientEvent(2).encode();
 		assertNotNull(ceBytes);
-		assertEquals(0xa8, ceBytes[0] & 0xFF, "Opcode de TutorialEnableClientEvent deve ser 0xa8");
+		assertEquals(0xa2, ceBytes[0] & 0xFF, "Opcode de TutorialEnableClientEvent deve ser 0xa2");
 
-		// 0xa9 TutorialCloseHtml
+		// 0xa3 TutorialCloseHtml
 		byte[] closeBytes = new GameServerPacket.TutorialCloseHtml().encode();
 		assertNotNull(closeBytes);
-		assertEquals(0xa9, closeBytes[0] & 0xFF, "Opcode de TutorialCloseHtml deve ser 0xa9");
+		assertEquals(0xa3, closeBytes[0] & 0xFF, "Opcode de TutorialCloseHtml deve ser 0xa3");
 
-		// 0xf1 RadarControl
+		// 0xeb RadarControl
 		byte[] radarBytes = new GameServerPacket.RadarControl(0, 1, 100, 200, 300).encode();
 		assertNotNull(radarBytes);
-		assertEquals(0xf1, radarBytes[0] & 0xFF, "Opcode de RadarControl deve ser 0xf1");
+		assertEquals(0xeb, radarBytes[0] & 0xFF, "Opcode de RadarControl deve ser 0xeb");
 	}
 
 	@Test
