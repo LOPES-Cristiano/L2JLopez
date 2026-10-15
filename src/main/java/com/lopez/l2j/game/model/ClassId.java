@@ -162,6 +162,11 @@ public enum ClassId {
 		return cid != null && cid._isMage;
 	}
 
+	public static int getClassLevel(int id) {
+		ClassId cid = BY_ID.get(id);
+		return cid != null ? cid.level() : 0;
+	}
+
 	private final int _id;
 	private final boolean _isMage;
 	private final boolean _isSummoner;

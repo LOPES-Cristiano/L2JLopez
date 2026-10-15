@@ -9,6 +9,7 @@ import com.lopez.l2j.game.item.Inventory;
 import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.item.ItemSlots;
 import com.lopez.l2j.game.item.ItemTemplate;
+import com.lopez.l2j.game.model.ClassId;
 import com.lopez.l2j.game.model.ExperienceTable;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.model.PlayerStats;
@@ -4230,7 +4231,7 @@ public class NpcBypassPacketHandler {
 			};
 			int lvl = active().level();
 			boolean isMage = npcId != 30601 && npcId != 30528 && active().isMage();
-			int classLevel = com.lopez.l2j.game.model.ClassId.getClassLevel(active().classId());
+			int classLevel = ClassId.getClassLevel(active().classId());
 			String file;
 			if (expectedRace >= 0 && active().race() != expectedRace) {
 				file = folder + "003.htm";
@@ -4487,7 +4488,7 @@ public class NpcBypassPacketHandler {
 			send(new ActionFailed());
 			return;
 		}
-		int classLevel = com.lopez.l2j.game.model.ClassId.getClassLevel(active().classId());
+		int classLevel = ClassId.getClassLevel(active().classId());
 		if (active().level() >= 39 || classLevel >= 2) {
 			String msg = "<html><body>Newbie Guide:<br>The Blessing of Protection is only available to characters under level 39 who have not completed their second class transfer.</body></html>";
 			send(new NpcHtmlMessage(npc != null ? npc.objectId() : 0, msg));
