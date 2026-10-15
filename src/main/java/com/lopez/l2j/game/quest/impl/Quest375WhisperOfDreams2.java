@@ -53,7 +53,7 @@ public class Quest375WhisperOfDreams2 extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		if (("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event))) {
+		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "30515-03.htm".equalsIgnoreCase(event)) {
 			qs.setCond(1);
 			qs.setState(State.STARTED);
 			qs.playSound(QuestState.SOUND_ACCEPT);
@@ -71,6 +71,12 @@ public class Quest375WhisperOfDreams2 extends Quest {
 				qs.playSound(QuestState.SOUND_FINISH);
 				return "seer_manakia_q0375_05.htm";
 			}
+		} else if ("menu_select?ask=375&reply=1".equalsIgnoreCase(event) || "30515-08.htm".equalsIgnoreCase(event)) {
+			return "30515-08.htm";
+		} else if ("menu_select?ask=375&reply=2".equalsIgnoreCase(event) || "30515-07.htm".equalsIgnoreCase(event)) {
+			qs.playSound(QuestState.SOUND_FINISH);
+			qs.exitQuest(true);
+			return "30515-07.htm";
 		}
 		return event;
 	}
