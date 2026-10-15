@@ -561,7 +561,17 @@ public class PartyClanPacketHandler {
 		if (ctx == null || ctx.clans() == null || ctx.clanPrivileges() == null || active == null || active.clanId() <= 0) {
 			return false;
 		}
-		boolean ok = ctx.clanPrivileges().createSubPledge(active, pledgeType, subPledgeName, leaderName);
+		int subLeaderId = 0;
+		if (leaderName != null && !leaderName.isBlank()) {
+			subLeaderId = ctx.clans().byClanId(active.clanId())
+					.flatMap(c -> c.members().stream()
+							.filter(m -> m.name() != null && m.name().equalsIgnoreCase(leaderName.trim()))
+							.findFirst())
+					.map(com.lopez.l2j.game.clan.ClanMember::objectId)
+					.orElse(0);
+		}
+		boolean ok = ctx.clanPrivileges().createSubPledge(active, pledgeType, subPledgeName, subLeaderId)
+				== com.lopez.l2j.game.clan.privilege.ClanPrivilegeService.SubPledgeResult.SUCCESS;
 		if (ok) {
 			ctx.clans().byClanId(active.clanId()).ifPresent(clan -> {
 				session.send(new PledgeShowInfoUpdate(clan));
@@ -578,7 +588,7 @@ public class PartyClanPacketHandler {
 			session.send(new ActionFailed());
 			return;
 		}
-		var res = ctx.clanSkills().learnSkill(active, skillId, skillLevel);
+		var res = ctx.clanSkills().learnSkill(active, skillId);
 		if (res == com.lopez.l2j.game.clan.skill.ClanSkillService.LearnResult.SUCCESS) {
 			ctx.clans().byClanId(active.clanId()).ifPresent(clan -> {
 				clan.broadcastToOnlineMembers(ctx.world(), new PledgeShowInfoUpdate(clan));

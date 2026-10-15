@@ -116,6 +116,15 @@ public class NpcBypassPacketHandler {
 			}
 		}
 
+		// 0. Village Newbie Guides (30598-30602): conclui etapa final do Tutorial (tutorial_quest_ex -> 5, 200 SS/100 SpS + 12 Newbie Travel Tokens, limpa seta do radar)
+		if (val == 0 && ctx().questManager() != null
+				&& com.lopez.l2j.game.quest.impl.Quest255Tutorial.VILLAGE_NEWBIE_GUIDES.contains(npc.npcId())) {
+			var q255 = ctx().questManager().getQuest(com.lopez.l2j.game.quest.impl.Quest255Tutorial.QUEST_NAME);
+			if (q255 instanceof com.lopez.l2j.game.quest.impl.Quest255Tutorial tutQuest) {
+				tutQuest.onVillageNewbieGuideTalk(npc, session);
+			}
+		}
+
 		// 1. Quests com first talk prioritário (Tutorial, Newbie Helper e diálogos dinâmicos)
 		if (val == 0 && ctx().questManager() != null) {
 			Collection<com.lopez.l2j.game.quest.Quest> firstTalkQuests = ctx().questManager().getQuestsForFirstTalkNpc(npc.npcId());
@@ -135,6 +144,21 @@ public class NpcBypassPacketHandler {
 							return;
 						}
 					}
+				}
+			}
+		}
+
+		if (npc.npcId() == 50005 || (npc.template() != null && npc.template().type() != null
+				&& npc.template().type().toLowerCase(java.util.Locale.ROOT).contains("buffervip"))) {
+			boolean isVip = active() != null && (active().isVip() || active().isGm()
+					|| (ctx().vip() != null && ctx().vip().isVip(active())));
+			if (!isVip && ctx().htmls() != null) {
+				String noVip = ctx().htmls().getHtml("mods/buffervip/no-vip.htm");
+				if (noVip != null && !noVip.isBlank()) {
+					String rendered = ctx().htmls().render(noVip, npc.objectId(), npc.name(),
+							active() != null ? active().name() : "Player", castleId, npc.npcId());
+					send(new NpcHtmlMessage(npc.objectId(), rendered));
+					return;
 				}
 			}
 		}
@@ -1586,7 +1610,7 @@ public class NpcBypassPacketHandler {
 		if (cmd.startsWith("ch_siege_register ")) {
 			if (ctx().clanHallSieges() != null && active() != null && active().clanId() > 0) {
 				int hallId = Integer.parseInt(cmd.substring("ch_siege_register ".length()).trim());
-				boolean ok = ctx().clanHallSieges().registerAttacker(hallId, active().clanId(), active().isClanLeader());
+				boolean ok = ctx().clanHallSieges().registerClan(active(), hallId) == com.lopez.l2j.game.clan.clanhall.siege.ClanHallSiegeService.RegisterResult.SUCCESS;
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", ok ? "Cla registrado na Siege do Clan Hall!" : "Nao foi possivel registrar na Siege."));
 			}
 			return;
@@ -1618,7 +1642,7 @@ public class NpcBypassPacketHandler {
 				int type = Integer.parseInt(parts[1]);
 				int level = Integer.parseInt(parts[2]);
 				int lease = parts.length > 3 ? Integer.parseInt(parts[3]) : 50_000;
-				if (ctx().fortresses().activateFunction(active(), fortId, type, level, lease, 1L, 7L * 86_400_000L)) {
+				if (ctx().fortresses().activateFunction(active(), fortId, type, level, lease, 1, 7L * 86_400_000L)) {
 					send(ItemList.of(active().inventory().items(), false));
 				}
 			}
@@ -1649,13 +1673,11 @@ public class NpcBypassPacketHandler {
 				var tier = com.lopez.l2j.game.instance.dimensionalrift.RiftTier.fromId(tierId);
 				if (tier != null) {
 					List<PlayerCharacter> members = new ArrayList<>();
-					if (session.party() != null && ctx().world() != null) {
-						for (int mId : session.party().members()) {
-							ctx().world().player(mId).ifPresent(op -> {
-								if (op instanceof GameSession gs && gs.active() != null) {
-									members.add(gs.active());
-								}
-							});
+					if (session.party() != null) {
+						for (GameSession gs : session.party().members()) {
+							if (gs != null && gs.active() != null) {
+								members.add(gs.active());
+							}
 						}
 					}
 					if (members.isEmpty()) {
@@ -1680,13 +1702,11 @@ public class NpcBypassPacketHandler {
 			if (ctx().fourSepulchers() != null && active() != null) {
 				int sepId = Integer.parseInt(cmd.substring("sepulcher_enter ".length()).trim());
 				List<PlayerCharacter> members = new ArrayList<>();
-				if (session.party() != null && ctx().world() != null) {
-					for (int mId : session.party().members()) {
-						ctx().world().player(mId).ifPresent(op -> {
-							if (op instanceof GameSession gs && gs.active() != null) {
-								members.add(gs.active());
-							}
-						});
+				if (session.party() != null) {
+					for (GameSession gs : session.party().members()) {
+						if (gs != null && gs.active() != null) {
+							members.add(gs.active());
+						}
 					}
 				}
 				if (members.isEmpty()) {
@@ -1720,8 +1740,8 @@ public class NpcBypassPacketHandler {
 			if (ctx().lottery() != null && active() != null) {
 				String[] parts = cmd.substring("lottery_buy ".length()).trim().split("\\s+");
 				Set<Integer> nums = new java.util.HashSet<>();
-				for (String p : parts) {
-					nums.add(Integer.parseInt(p));
+				for (String partStr : parts) {
+					nums.add(Integer.parseInt(partStr));
 				}
 				if (ctx().lottery().buyTicket(active(), nums)) {
 					send(ItemList.of(active().inventory().items(), false));
@@ -1830,17 +1850,33 @@ public class NpcBypassPacketHandler {
 			handleDoorControl(true);
 			return;
 		}
+		if (cmd.startsWith("scripts_services.Buffer:actBBS") || cmd.startsWith("scripts_services.Buffer:act")) {
+			boolean isBbs = cmd.startsWith("scripts_services.Buffer:actBBS");
+			String bArgs = isBbs
+					? (cmd.length() > 30 ? cmd.substring(30).trim() : "")
+					: (cmd.length() > 27 ? cmd.substring(27).trim() : "");
+			int targetNpcId = session.targetObjectId() > 0 ? session.targetObjectId() : this.lastInteractedNpcObjId;
+			var npc = targetNpcId > 0 && ctx().world() != null ? ctx().world().npc(targetNpcId).orElse(null) : null;
+			if (ctx().schemeBuffer() != null) {
+				ctx().schemeBuffer().handleLuceraBufferAct(active(), session, npc, bArgs, isBbs);
+			}
+			return;
+		}
 		if (cmd.startsWith("scripts_services.SupportMagic") || cmd.startsWith("SupportMagic")) {
 			var npc = session.targetObjectId() > 0 && ctx().world() != null ? ctx().world().npc(session.targetObjectId()).orElse(null) : null;
-			handleNewbieSupportMagic(npc);
+			if (cmd.toLowerCase(java.util.Locale.ROOT).contains("protectionblessing")) {
+				handleNewbieProtectionBlessing(npc);
+			} else {
+				handleNewbieSupportMagic(npc);
+			}
 			return;
 		}
 		if (cmd.startsWith("manor_menu_select") || cmd.startsWith("menu_select")) {
+			var npc = session.targetObjectId() > 0 && ctx().world() != null ? ctx().world().npc(session.targetObjectId()).orElse(null) : null;
 			if (cmd.contains("ask=-7") || cmd.contains("ask=255")) {
-				var npc = session.targetObjectId() > 0 && ctx().world() != null ? ctx().world().npc(session.targetObjectId()).orElse(null) : null;
 				handleNewbieGuideMenu(npc, cmd);
-			} else {
-				handleManorMenu(null, cmd);
+			} else if (!tryHandleQuestMenuSelect(npc, cmd)) {
+				handleManorMenu(npc, cmd);
 			}
 			return;
 		}
@@ -1896,45 +1932,96 @@ public class NpcBypassPacketHandler {
 			} catch (NumberFormatException ignored) {
 			}
 		}
+		if (tryHandleMultiSellAction(null, cmd)) {
+			return;
+		}
+		if (cmd.startsWith("npc") && !cmd.startsWith("npc_") && cmd.length() > 3 && Character.isDigit(cmd.charAt(3))) {
+			cmd = "npc_" + cmd.substring(3);
+		}
 		if (cmd.startsWith("npc_0_") || cmd.startsWith("npc__")) {
-			String action = cmd.startsWith("npc_0_") ? cmd.substring(6) : cmd.substring(5);
-			if (action.startsWith("change_class")) {
+			String action = cmd.startsWith("npc_0_") ? cmd.substring(6).trim() : cmd.substring(5).trim();
+			String actionLower = action.toLowerCase(java.util.Locale.ROOT);
+			if (tryHandleMultiSellAction(null, action)) {
+				return;
+			} else if (actionLower.startsWith("change_class")) {
 				try {
-					int targetClassId = Integer.parseInt(action.replace("change_class", "").trim());
+					int targetClassId = Integer.parseInt(action.substring(12).trim());
 					handleChangeClass(0, targetClassId);
 					return;
 				} catch (NumberFormatException ignored) {
 				}
-			} else if (action.startsWith("1stClass")) {
+			} else if (actionLower.startsWith("1stclass")) {
 				showClassMasterMenu(0, 1);
 				return;
-			} else if (action.startsWith("2ndClass")) {
+			} else if (actionLower.startsWith("2ndclass")) {
 				showClassMasterMenu(0, 2);
 				return;
-			} else if (action.startsWith("3rdClass")) {
+			} else if (actionLower.startsWith("3rdclass")) {
 				showClassMasterMenu(0, 3);
 				return;
-			} else if (action.startsWith("Subclass")) {
+			} else if (actionLower.startsWith("subclass")) {
 				String subArg = action.length() > 8 ? action.substring(8).trim() : "";
 				handleSubclassBypass(0, subArg);
 				return;
-			} else if (action.startsWith("Quest")) {
+			} else if (actionLower.startsWith("quest")) {
 				String questArg = action.length() > 5 ? action.substring(5).trim() : "";
 				int targetObjId = session.targetObjectId() > 0 ? session.targetObjectId() : this.lastInteractedNpcObjId;
 				handleQuestBypass(targetObjId, questArg);
 				return;
-			} else if (action.equals("Draw") || action.startsWith("Draw")) {
+			} else if (actionLower.equals("draw") || actionLower.startsWith("draw")) {
 				session.onHennaList();
 				return;
-			} else if (action.equals("RemoveList") || action.startsWith("RemoveList")) {
+			} else if (actionLower.equals("removelist") || actionLower.startsWith("removelist")) {
 				session.onHennaUnequipList();
 				return;
-			} else if (action.startsWith("Remove ")) {
+			} else if (actionLower.startsWith("remove ")) {
 				try {
 					int slot = Integer.parseInt(action.substring(7).trim());
 					session.onHennaRemoveBySlot(slot);
 					return;
 				} catch (NumberFormatException ignored) {
+				}
+			} else if (actionLower.startsWith("buy")) {
+				int listId = 1;
+				if (action.length() > 3) {
+					try {
+						listId = Integer.parseInt(action.substring(3).trim());
+					} catch (NumberFormatException ignored) {
+					}
+				}
+				session.showBuyList(null, listId);
+				return;
+			} else if (actionLower.startsWith("sell")) {
+				session.showSellList(null);
+				return;
+			} else if (actionLower.startsWith("wear")) {
+				int listId = 1;
+				if (action.length() > 4) {
+					try {
+						listId = Integer.parseInt(action.substring(4).trim());
+					} catch (NumberFormatException ignored) {
+					}
+				}
+				session.showBuyList(null, listId);
+				return;
+			} else if (actionLower.startsWith("link")) {
+				String path = action.length() > 4 ? action.substring(4).trim() : "";
+				if (path.startsWith("/")) {
+					path = path.substring(1);
+				}
+				if (ctx().htmls() != null && !path.isEmpty()) {
+					String htm = ctx().htmls().getHtml(path);
+					if (htm == null) {
+						htm = ctx().htmls().getIndexedHtml(path);
+					}
+					if (htm == null) {
+						htm = ctx().htmls().getHtml("default/" + path);
+					}
+					if (htm != null) {
+						send(new NpcHtmlMessage(0, ctx().htmls().render(htm, 0, "NPC",
+								active() != null ? active().name() : "Player")));
+						return;
+					}
 				}
 			}
 		}
@@ -1956,8 +2043,9 @@ public class NpcBypassPacketHandler {
 								return;
 							}
 						}
-						String action = parts[2];
-						if (action.startsWith("Chat")) {
+						String action = parts[2].trim();
+						String actionLower = action.toLowerCase(java.util.Locale.ROOT);
+						if (actionLower.startsWith("chat")) {
 							int val = 0;
 							if (action.length() > 4) {
 								try {
@@ -1967,7 +2055,7 @@ public class NpcBypassPacketHandler {
 							}
 							showNpcHtml(npc, val);
 							return;
-						} else if (action.startsWith("Link")) {
+						} else if (actionLower.startsWith("link")) {
 							String path = action.length() > 4 ? action.substring(4).trim() : "";
 							if (path.startsWith("/")) {
 								path = path.substring(1);
@@ -1981,53 +2069,40 @@ public class NpcBypassPacketHandler {
 									htm = ctx().htmls().getHtml("default/" + path);
 								}
 								if (htm != null) {
+									int castleId = getNpcCastleId(npc);
 									String rendered = ctx().htmls().render(htm, npc.objectId(), npc.name(),
-											active().name());
+											active() != null ? active().name() : "Player", castleId, npc.npcId());
 									send(new NpcHtmlMessage(npc.objectId(), rendered));
 									return;
 								}
 							}
 							showNpcHtml(npc, 0);
 							return;
-						} else if (action.startsWith("1stClass")) {
+						} else if (actionLower.startsWith("1stclass")) {
 							showClassMasterMenu(npc.objectId(), 1);
 							return;
-						} else if (action.startsWith("2ndClass")) {
+						} else if (actionLower.startsWith("2ndclass")) {
 							showClassMasterMenu(npc.objectId(), 2);
 							return;
-						} else if (action.startsWith("3rdClass")) {
+						} else if (actionLower.startsWith("3rdclass")) {
 							showClassMasterMenu(npc.objectId(), 3);
 							return;
-						} else if (action.startsWith("change_class")) {
+						} else if (actionLower.startsWith("change_class")) {
 							try {
-								int targetClassId = Integer.parseInt(action.replace("change_class", "").trim());
+								int targetClassId = Integer.parseInt(action.substring(12).trim());
 								handleChangeClass(npc.objectId(), targetClassId);
 								return;
 							} catch (NumberFormatException ignored) {
 							}
-						} else if (action.startsWith("SevenSignsDesc")) {
+						} else if (actionLower.startsWith("sevensignsdesc")) {
 							String descArg = action.length() > 14 ? action.substring(14).trim() : "";
 							handleSevenSignsDescBypass(npc, descArg);
 							return;
-						} else if (action.startsWith("SevenSigns")) {
+						} else if (actionLower.startsWith("sevensigns")) {
 							String signArg = action.length() > 10 ? action.substring(10).trim() : "";
 							handleSevenSignsBypass(npc, signArg);
 							return;
-						} else if (action.startsWith("Quest")) {
-							String questArg = action.length() > 5 ? action.substring(5).trim() : "";
-							handleQuestBypass(npc.objectId(), questArg);
-							return;
-						} else if (action.startsWith("Subclass")) {
-							String subArg = action.length() > 8 ? action.substring(8).trim() : "";
-							handleSubclassBypass(npc.objectId(), subArg);
-							return;
-						} else if (action.startsWith("EnchantSkillList")) {
-							session.showEnchantSkillList(npc);
-							return;
-						} else if (action.startsWith("SkillList") || action.startsWith("FishSkillList")) {
-							session.showSkillList(npc);
-							return;
-						} else if (action.startsWith("questlist")) {
+						} else if (actionLower.startsWith("questlist")) {
 							if (ctx().htmls() != null) {
 								String qHtm = ctx().htmls().getHtml("adventurer_guildsman/questlist.htm");
 								if (qHtm != null) {
@@ -2037,7 +2112,22 @@ public class NpcBypassPacketHandler {
 							}
 							showNpcHtml(npc, 0);
 							return;
-						} else if (action.startsWith("CPRecovery")) {
+						} else if (actionLower.startsWith("quest")) {
+							String questArg = action.length() > 5 ? action.substring(5).trim() : "";
+							handleQuestBypass(npc.objectId(), questArg);
+							return;
+						} else if (actionLower.startsWith("subclass")) {
+							String subArg = action.length() > 8 ? action.substring(8).trim() : "";
+							handleSubclassBypass(npc.objectId(), subArg);
+							return;
+						} else if (actionLower.startsWith("enchantskilllist") || actionLower.startsWith("skillenchantlist")) {
+							session.showEnchantSkillList(npc);
+							return;
+						} else if (actionLower.startsWith("skilllist") || actionLower.startsWith("fishskilllist")
+								|| actionLower.startsWith("fishingskilllist")) {
+							session.showSkillList(npc);
+							return;
+						} else if (actionLower.startsWith("cprecovery")) {
 							if (active() != null) {
 								if (session.consumeItem(57, 100)) {
 									active().currentCp(active().maxCp());
@@ -2048,53 +2138,80 @@ public class NpcBypassPacketHandler {
 								}
 							}
 							return;
-						} else if (action.startsWith("SupportMagic")) {
-							handleNewbieSupportMagic(npc);
+						} else if (actionLower.startsWith("supportmagic") || actionLower.startsWith("scripts_services.supportmagic")) {
+							if (actionLower.contains("protectionblessing")) {
+								handleNewbieProtectionBlessing(npc);
+							} else {
+								handleNewbieSupportMagic(npc);
+							}
 							return;
-						} else if (action.startsWith("FestivalDesc")) {
+						} else if (actionLower.startsWith("giveblessing")) {
+							handleNewbieProtectionBlessing(npc);
+							return;
+						} else if (actionLower.startsWith("teleport")) {
+							if (com.lopez.l2j.game.quest.impl.Quest255Tutorial.VILLAGE_NEWBIE_GUIDES.contains(npc.npcId())) {
+								if (active() != null && active().level() >= 20 && ctx().htmls() != null) {
+									String overHtm = ctx().htmls().getHtml("newbiehelper/guide_teleport_over001.htm");
+									if (overHtm != null) {
+										send(new NpcHtmlMessage(npc.objectId(), ctx().htmls().render(overHtm, npc.objectId(), npc.name(), active().name())));
+										return;
+									}
+								}
+								handleQuestBypass(npc.objectId(), "1104_NewbieTravelToken");
+								return;
+							}
+							showNpcHtml(npc, 1);
+							return;
+						} else if (actionLower.startsWith("npclocationinfo") || actionLower.startsWith("8001_npclocationinfo")) {
+							String locArg = actionLower.startsWith("8001_npclocationinfo")
+									? action.substring("8001_npclocationinfo".length()).trim()
+									: action.substring("npclocationinfo".length()).trim();
+							handleQuestBypass(npc.objectId(), locArg.isEmpty() ? "8001_NpcLocationInfo" : ("8001_NpcLocationInfo " + locArg));
+							return;
+						} else if (actionLower.startsWith("festivaldesc")) {
 							String num = action.length() > 12 ? action.substring(12).trim() : "1";
 							handleFestivalDescBypass(npc, num);
 							return;
-						} else if (action.startsWith("Festival ")) {
+						} else if (actionLower.startsWith("festival ")) {
 							String fArg = action.substring(9).trim();
 							handleFestivalBypass(npc, fArg);
 							return;
-						} else if (action.equals("Festival")) {
+						} else if (actionLower.equals("festival")) {
 							handleFestivalBypass(npc, "1");
 							return;
-						} else if (action.equals("Return") || action.startsWith("Return")) {
+						} else if (actionLower.equals("return") || actionLower.startsWith("return")) {
 							teleportToCoordinates(83400, 147943, -3404);
 							return;
-						} else if (action.startsWith("ExitRift")) {
+						} else if (actionLower.startsWith("exitrift")) {
 							if (active() != null) {
 								teleportToCoordinates(-114790, -180576, -6781);
 							}
 							return;
-						} else if (action.startsWith("ChangeRiftRoom")) {
+						} else if (actionLower.startsWith("changeriftroom")) {
 							if (active() != null) {
 								send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "The Dimensional Rift space is shifting..."));
 							}
 							return;
-						} else if (action.startsWith("open_doors")) {
+						} else if (actionLower.startsWith("open_doors")) {
 							handleDoorControl(true);
 							return;
-						} else if (action.startsWith("close_doors")) {
+						} else if (actionLower.startsWith("close_doors")) {
 							handleDoorControl(false);
 							return;
-						} else if (action.equals("Draw") || action.startsWith("Draw")) {
+						} else if (actionLower.equals("draw") || actionLower.startsWith("draw")) {
 							session.onHennaList();
 							return;
-						} else if (action.equals("RemoveList") || action.startsWith("RemoveList")) {
+						} else if (actionLower.equals("removelist") || actionLower.startsWith("removelist")) {
 							session.onHennaUnequipList();
 							return;
-						} else if (action.startsWith("Remove ")) {
+						} else if (actionLower.startsWith("remove ")) {
 							try {
 								int slot = Integer.parseInt(action.substring(7).trim());
 								session.onHennaRemoveBySlot(slot);
 								return;
 							} catch (NumberFormatException ignored) {
 							}
-						} else if (action.startsWith("goto")) {
+						} else if (actionLower.startsWith("goto")) {
 							try {
 								int teleId = Integer.parseInt(action.substring(4).trim());
 								if (teleId == 450 || npc.npcId() == 31111) {
@@ -2108,7 +2225,9 @@ public class NpcBypassPacketHandler {
 								return;
 							} catch (NumberFormatException ignored) {
 							}
-						} else if (action.startsWith("Buy")) {
+						} else if (tryHandleMultiSellAction(npc, action)) {
+							return;
+						} else if (actionLower.startsWith("buy")) {
 							int listId = 1;
 							if (action.length() > 3) {
 								try {
@@ -2118,10 +2237,10 @@ public class NpcBypassPacketHandler {
 							}
 							session.showBuyList(npc, listId);
 							return;
-						} else if (action.startsWith("Sell")) {
+						} else if (actionLower.startsWith("sell")) {
 							session.showSellList(npc);
 							return;
-						} else if (action.startsWith("Wear")) {
+						} else if (actionLower.startsWith("wear")) {
 							int listId = 1;
 							if (action.length() > 4) {
 								try {
@@ -2131,45 +2250,7 @@ public class NpcBypassPacketHandler {
 							}
 							session.showBuyList(npc, listId);
 							return;
-						} else if (action.startsWith("exc_multisell") || action.startsWith("multisell")) {
-							try {
-								String listIdStr = action.startsWith("exc_multisell")
-										? action.substring(13).trim()
-										: action.substring(9).trim();
-								int listId;
-								try {
-									listId = Integer.parseInt(listIdStr);
-								} catch (NumberFormatException e) {
-									if ("tournament".equalsIgnoreCase(listIdStr)) {
-										listId = 70000;
-									} else {
-										return;
-									}
-								}
-								session.showMultiSell(npc, listId);
-								return;
-							} catch (Exception ignored) {
-								return;
-							}
-						} else if (action.startsWith("DepositP") || action.startsWith("Deposit")) {
-							if (ctx().warehouse() == null) {
-								send(new ActionFailed());
-								return;
-							}
-							var depositable = active().inventory().items().stream()
-									.filter(it -> !it.isEquipped() && it.template().type2() != ItemTemplate.TYPE2_QUEST)
-									.toList();
-							send(new WareHouseDepositList(1, (int) active().inventory().adena(), depositable));
-							return;
-						} else if (action.startsWith("WithdrawP") || action.startsWith("Withdraw")) {
-							if (ctx().warehouse() == null) {
-								send(new ActionFailed());
-								return;
-							}
-							var stored = ctx().warehouse().getWarehouseItems(active().objectId());
-							send(new WareHouseWithdrawalList(1, (int) active().inventory().adena(), stored));
-							return;
-						} else if (action.startsWith("DepositC")) {
+						} else if (actionLower.startsWith("depositc")) {
 							if (ctx().warehouse() == null) {
 								send(new ActionFailed());
 								return;
@@ -2179,7 +2260,7 @@ public class NpcBypassPacketHandler {
 									.toList();
 							send(new WareHouseDepositList(2, (int) active().inventory().adena(), depositable));
 							return;
-						} else if (action.startsWith("WithdrawC")) {
+						} else if (actionLower.startsWith("withdrawc")) {
 							if (ctx().warehouse() == null) {
 								send(new ActionFailed());
 								return;
@@ -2187,22 +2268,40 @@ public class NpcBypassPacketHandler {
 							var stored = ctx().warehouse().getWarehouseItems(active().objectId());
 							send(new WareHouseWithdrawalList(2, (int) active().inventory().adena(), stored));
 							return;
-						} else if (action.startsWith("DepositF") || action.startsWith("WithdrawF")) {
+						} else if (actionLower.startsWith("depositf") || actionLower.startsWith("withdrawf")) {
 							if (ctx().warehouse() == null) {
 								send(new ActionFailed());
 								return;
 							}
-							var items = action.startsWith("DepositF")
+							var items = actionLower.startsWith("depositf")
 									? active().inventory().items().stream()
 											.filter(it -> !it.isEquipped()
 													&& it.template().type2() != ItemTemplate.TYPE2_QUEST)
 											.toList()
 									: ctx().warehouse().getWarehouseItems(active().objectId());
-							send(action.startsWith("DepositF")
+							send(actionLower.startsWith("depositf")
 									? new WareHouseDepositList(1, (int) active().inventory().adena(), items)
 									: new WareHouseWithdrawalList(1, (int) active().inventory().adena(), items));
 							return;
-						} else if (action.startsWith("TerritoryStatus")) {
+						} else if (actionLower.startsWith("depositp") || actionLower.startsWith("deposit")) {
+							if (ctx().warehouse() == null) {
+								send(new ActionFailed());
+								return;
+							}
+							var depositable = active().inventory().items().stream()
+									.filter(it -> !it.isEquipped() && it.template().type2() != ItemTemplate.TYPE2_QUEST)
+									.toList();
+							send(new WareHouseDepositList(1, (int) active().inventory().adena(), depositable));
+							return;
+						} else if (actionLower.startsWith("withdrawp") || actionLower.startsWith("withdraw")) {
+							if (ctx().warehouse() == null) {
+								send(new ActionFailed());
+								return;
+							}
+							var stored = ctx().warehouse().getWarehouseItems(active().objectId());
+							send(new WareHouseWithdrawalList(1, (int) active().inventory().adena(), stored));
+							return;
+						} else if (actionLower.startsWith("territorystatus")) {
 							if (ctx().htmls() != null) {
 								String tHtml = ctx().htmls().getHtml("territorystatus.htm");
 								if (tHtml != null) {
@@ -2219,142 +2318,165 @@ public class NpcBypassPacketHandler {
 							}
 							showNpcHtml(npc, 0);
 							return;
-						} else if (action.startsWith("Augment")) {
+						} else if (actionLower.startsWith("augment")) {
 							if (action.contains("2")) {
 								send(new ExShowVariationCancelWindow());
 							} else {
 								send(new ExShowVariationMakeWindow());
 							}
 							return;
-						} else if (action.startsWith("create_clan")) {
+						} else if (actionLower.startsWith("create_clan")) {
 							String cName = action.length() > 11 ? action.substring(11).trim() : "";
 							if (!cName.isEmpty()) {
 								session.createClan(cName);
 							}
 							return;
-						} else if (action.startsWith("increase_clan_level")) {
+						} else if (actionLower.startsWith("increase_clan_level")) {
 							session.increaseClanLevel();
 							return;
-						} else if (action.startsWith("dissolve_clan")) {
+						} else if (actionLower.startsWith("dissolve_clan")) {
 							session.dissolveClan();
 							return;
-						} else if (action.startsWith("getbuff")) {
+						} else if (actionLower.startsWith("getbuff")) {
 							handleBufferGetBuff(npc, action.substring(7).trim());
 							return;
-						} else if (action.equals("restore") || action.startsWith("restore")) {
+						} else if (actionLower.equals("restore") || actionLower.startsWith("restore")
+								|| actionLower.equals("heal") || actionLower.startsWith("heal")) {
 							handleBufferRestore(npc);
 							return;
-						} else if (action.equals("cancel") || action.startsWith("cancel")) {
+						} else if (actionLower.equals("cancel") || actionLower.startsWith("cancel")
+								|| actionLower.equals("cleanup") || actionLower.startsWith("cleanup")) {
 							handleBufferCancel(npc);
 							return;
-						} else if (action.startsWith("support_back")) {
+						} else if (actionLower.equals("fighter") || actionLower.startsWith("fighter ")) {
+							handleBufferSchemeApply(npc, 1, false);
+							return;
+						} else if (actionLower.equals("mage") || actionLower.startsWith("mage ")) {
+							handleBufferSchemeApply(npc, 2, false);
+							return;
+						} else if (actionLower.startsWith("givebuffs")) {
+							handleBufferGiveBuffs(npc, action.substring(9).trim());
+							return;
+						} else if (actionLower.startsWith("editschemes") || actionLower.startsWith("skillselect")
+								|| actionLower.startsWith("skillunselect") || actionLower.startsWith("createscheme")
+								|| actionLower.startsWith("deletescheme")) {
+							handleBufferSchemeEdit(npc, action);
+							return;
+						} else if (actionLower.startsWith("support_back")) {
 							showNpcHtml(npc, 0);
 							return;
-						} else if (action.startsWith("support ")) {
+						} else if (actionLower.equals("support")) {
+							handleBufferSchemeApply(npc, 2, false);
+							return;
+						} else if (actionLower.startsWith("support ")) {
 							handleSupportMagic(npc, action.substring(8).trim());
 							return;
-						} else if (action.startsWith("operate_door")) {
+						} else if (actionLower.startsWith("operate_door")) {
 							handleOperateDoor(action.length() > 12 ? action.substring(12).trim() : "");
 							return;
-						} else if (action.startsWith("open_gate")) {
+						} else if (actionLower.startsWith("open_gate")) {
 							handleDoorControl(true);
 							return;
-						} else if (action.startsWith("observeSiege") || action.startsWith("observeOracle") || action.startsWith("observe")) {
-							String obsArgs = action.startsWith("observeSiege")
+						} else if (actionLower.startsWith("observesiege") || actionLower.startsWith("observeoracle") || actionLower.startsWith("observe")) {
+							String obsArgs = actionLower.startsWith("observesiege")
 									? action.substring(12).trim()
-									: (action.startsWith("observeOracle") ? action.substring(13).trim() : action.substring(7).trim());
+									: (actionLower.startsWith("observeoracle") ? action.substring(13).trim() : action.substring(7).trim());
 							handleObservation(obsArgs);
 							return;
-						} else if (action.startsWith("OlympiadDesc")) {
+						} else if (actionLower.startsWith("olympiaddesc")) {
 							String num = action.length() > 12 ? action.substring(12).trim() : "0";
 							handleOlympiadDesc(npc, num);
 							return;
-						} else if (action.startsWith("OlympiadNoble")) {
+						} else if (actionLower.startsWith("olympiadnoble")) {
 							String val = action.length() > 13 ? action.substring(13).trim() : "1";
 							handleOlympiadNoble(npc, val);
 							return;
-						} else if (action.startsWith("Olympiad")) {
+						} else if (actionLower.startsWith("olympiad")) {
 							handleOlympiadDesc(npc, "0");
 							return;
-						} else if (action.startsWith("Loto")) {
+						} else if (actionLower.startsWith("loto")) {
 							String val = action.length() > 4 ? action.substring(4).trim() : "0";
 							handleLoto(npc, val);
 							return;
-						} else if (action.startsWith("give_crown")) {
+						} else if (actionLower.startsWith("give_crown")) {
 							handleGiveCrown();
 							return;
-						} else if (action.startsWith("receive_report")) {
+						} else if (actionLower.startsWith("receive_report")) {
 							handleCastleReport(npc);
 							return;
-						} else if (action.startsWith("banish_foreigner")) {
+						} else if (actionLower.startsWith("banish_foreigner")) {
 							handleBanishForeigner(npc);
 							return;
-						} else if (action.startsWith("pvplist") || action.startsWith("pklist") || action.startsWith("onlinelist") || action.startsWith("arenalist")) {
+						} else if (actionLower.startsWith("pvplist") || actionLower.startsWith("pklist") || actionLower.startsWith("onlinelist") || actionLower.startsWith("arenalist")) {
 							handleRankingList(npc, action);
 							return;
-						} else if (action.startsWith("manor_menu_select") || action.startsWith("menu_select")) {
+						} else if (actionLower.startsWith("manor_menu_select") || actionLower.startsWith("menu_select")) {
 							if (action.contains("ask=-7") || action.contains("ask=255") || (npc != null && npc.template() != null && npc.template().type().toLowerCase().contains("newbie"))) {
 								handleNewbieGuideMenu(npc, action);
-							} else {
+							} else if (!tryHandleQuestMenuSelect(npc, action)) {
 								handleManorMenu(npc, action);
 							}
 							return;
-						} else if (action.startsWith("SupportMagic") || action.startsWith("scripts_services.SupportMagic")) {
-							handleNewbieSupportMagic(npc);
-							return;
-						} else if (action.startsWith("auction") || action.startsWith("bid") || action.startsWith("selectedItems") || action.startsWith("location") || action.startsWith("list")) {
+						} else if (actionLower.startsWith("auction") || actionLower.startsWith("bid") || actionLower.startsWith("selecteditems") || actionLower.startsWith("location") || actionLower.startsWith("list")) {
 							handleAuctionAction(npc, action);
 							return;
 						}
 					} else {
-						String action = parts[2];
-						if (action.startsWith("change_class")) {
+						String action = parts[2].trim();
+						String actionLower = action.toLowerCase(java.util.Locale.ROOT);
+						if (tryHandleMultiSellAction(null, action)) {
+							return;
+						} else if (actionLower.startsWith("change_class")) {
 							try {
-								int targetClassId = Integer.parseInt(action.replace("change_class", "").trim());
+								int targetClassId = Integer.parseInt(action.substring(12).trim());
 								handleChangeClass(npcObjId, targetClassId);
 								return;
 							} catch (NumberFormatException ignored) {
 							}
-						} else if (action.startsWith("1stClass")) {
+						} else if (actionLower.startsWith("1stclass")) {
 							showClassMasterMenu(npcObjId, 1);
 							return;
-						} else if (action.startsWith("2ndClass")) {
+						} else if (actionLower.startsWith("2ndclass")) {
 							showClassMasterMenu(npcObjId, 2);
 							return;
-						} else if (action.startsWith("3rdClass")) {
+						} else if (actionLower.startsWith("3rdclass")) {
 							showClassMasterMenu(npcObjId, 3);
 							return;
-						} else if (action.startsWith("Subclass")) {
+						} else if (actionLower.startsWith("subclass")) {
 							String subArg = action.length() > 8 ? action.substring(8).trim() : "";
 							handleSubclassBypass(npcObjId, subArg);
 							return;
-						} else if (action.startsWith("goto")) {
+						} else if (actionLower.startsWith("goto")) {
 							try {
 								int teleId = Integer.parseInt(action.substring(4).trim());
 								teleportTo(teleId);
 								return;
 							} catch (NumberFormatException ignored) {
 							}
-						} else if (action.startsWith("exc_multisell") || action.startsWith("multisell")) {
-							try {
-								String listIdStr = action.startsWith("exc_multisell")
-										? action.substring(13).trim()
-										: action.substring(9).trim();
-								int listId;
+						} else if (actionLower.startsWith("buy")) {
+							int listId = 1;
+							if (action.length() > 3) {
 								try {
-									listId = Integer.parseInt(listIdStr);
-								} catch (NumberFormatException e) {
-									if ("tournament".equalsIgnoreCase(listIdStr)) {
-										listId = 70000;
-									} else {
-										return;
-									}
+									listId = Integer.parseInt(action.substring(3).trim());
+								} catch (NumberFormatException ignored) {
 								}
-								session.showMultiSell(null, listId);
-								return;
-							} catch (Exception ignored) {
 							}
-						} else if (action.startsWith("Link")) {
+							session.showBuyList(null, listId);
+							return;
+						} else if (actionLower.startsWith("sell")) {
+							session.showSellList(null);
+							return;
+						} else if (actionLower.startsWith("wear")) {
+							int listId = 1;
+							if (action.length() > 4) {
+								try {
+									listId = Integer.parseInt(action.substring(4).trim());
+								} catch (NumberFormatException ignored) {
+								}
+							}
+							session.showBuyList(null, listId);
+							return;
+						} else if (actionLower.startsWith("link")) {
 							String path = action.length() > 4 ? action.substring(4).trim() : "";
 							if (path.startsWith("/")) {
 								path = path.substring(1);
@@ -2382,10 +2504,67 @@ public class NpcBypassPacketHandler {
 		send(new ActionFailed());
 	}
 
+	private boolean tryHandleMultiSellAction(NpcInstance npc, String rawAction) {
+		if (rawAction == null || rawAction.isBlank()) {
+			return false;
+		}
+		String action = rawAction.trim();
+		String lower = action.toLowerCase(java.util.Locale.ROOT);
+		String listIdStr;
+		if (lower.startsWith("newbie_exc_multisell")) {
+			listIdStr = action.length() > 20 ? action.substring(20).trim() : "003";
+			if (listIdStr.isEmpty()) {
+				listIdStr = "003";
+			}
+		} else if (lower.startsWith("exc_multisell")) {
+			listIdStr = action.length() > 13 ? action.substring(13).trim() : "";
+		} else if (lower.startsWith("multisell_shadow") || lower.startsWith("buyshadow")) {
+			session.showMultiSell(npc, 200);
+			return true;
+		} else if (lower.equals("exchange") || lower.startsWith("exchange ")) {
+			session.showMultiSell(npc, 3);
+			return true;
+		} else if (lower.startsWith("multisell")) {
+			listIdStr = action.length() > 9 ? action.substring(9).trim() : "";
+		} else {
+			return false;
+		}
+
+		if (listIdStr.isEmpty()) {
+			return false;
+		}
+		String firstToken = listIdStr.split("\\s+")[0].trim();
+		int listId;
+		try {
+			listId = Integer.parseInt(firstToken);
+		} catch (NumberFormatException e) {
+			if ("tournament".equalsIgnoreCase(firstToken)) {
+				listId = 70000;
+			} else {
+				return false;
+			}
+		}
+		session.showMultiSell(npc, listId);
+		return true;
+	}
+
 	private void handleBufferGetBuff(NpcInstance npc, String args) {
 		if (active() == null) {
 			send(new ActionFailed());
 			return;
+		}
+		if (npc != null && (npc.npcId() == 50005 || (npc.template() != null && "L2BufferVip".equalsIgnoreCase(npc.template().type())))) {
+			if (!active().isVip() && active().accessLevel() <= 0) {
+				if (ctx().htmls() != null) {
+					String noVip = ctx().htmls().getHtml("mods/buffervip/no-vip.htm");
+					if (noVip != null) {
+						send(new NpcHtmlMessage(npc.objectId(), ctx().htmls().render(noVip, npc.objectId(), npc.name(), active().name())));
+						return;
+					}
+				}
+				send(new ActionFailed());
+				return;
+			}
 		}
 		String[] parts = args.trim().split("\\s+");
 		if (parts.length == 0 || parts[0].isEmpty()) {
@@ -2397,29 +2576,37 @@ public class NpcBypassPacketHandler {
 			int skillLvl = parts.length > 1 ? Integer.parseInt(parts[1]) : 1;
 			String returnHtml = parts.length > 2 ? parts[2] : null;
 
-			var skillTable = ctx().skillService() != null ? ctx().skillService().table() : null;
-			var skOpt = skillTable != null ? skillTable.get(skillId, skillLvl) : java.util.Optional.<com.lopez.l2j.game.skill.SkillTemplate>empty();
-			if (skOpt.isPresent()) {
-				var sk = skOpt.get();
-				session.applySkillEffects(sk, false);
-				int npcObjId = npc != null ? npc.objectId() : active().objectId();
-				int cx = npc != null ? npc.x() : active().x();
-				int cy = npc != null ? npc.y() : active().y();
-				int cz = npc != null ? npc.z() : active().z();
-				var anim = new MagicSkillUse(npcObjId, active().objectId(), sk.id(), sk.level(), 500, 0,
-						cx, cy, cz, active().x(), active().y(), active().z());
-				send(anim);
-				if (ctx().world() != null) {
-					ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, anim, false);
+			if (ctx().schemeBuffer() != null) {
+				ctx().schemeBuffer().applySingleBuff(active(), session, skillId, skillLvl, false);
+			} else {
+				var skillTable = ctx().skillService() != null ? ctx().skillService().table() : null;
+				var skOpt = skillTable != null ? skillTable.get(skillId, skillLvl) : java.util.Optional.<com.lopez.l2j.game.skill.SkillTemplate>empty();
+				if (skOpt.isPresent()) {
+					session.applySkillEffects(skOpt.get(), false);
+				} else {
+					active().effects().addBuff(skillId, skillLvl, 7200_000L);
 				}
+			}
+			int npcObjId = npc != null ? npc.objectId() : active().objectId();
+			int cx = npc != null ? npc.x() : active().x();
+			int cy = npc != null ? npc.y() : active().y();
+			int cz = npc != null ? npc.z() : active().z();
+			var anim = new MagicSkillUse(npcObjId, active().objectId(), skillId, skillLvl, 500, 0,
+					cx, cy, cz, active().x(), active().y(), active().z());
+			send(anim);
+			if (ctx().world() != null) {
+				ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, anim, false);
 			}
 
 			if (returnHtml != null && !returnHtml.isBlank() && ctx().htmls() != null) {
 				String path = returnHtml.startsWith("data/html/") ? returnHtml.substring(10) : returnHtml;
 				String htm = ctx().htmls().getHtml(path);
 				if (htm == null) htm = ctx().htmls().getIndexedHtml(path);
+				if (htm == null && !path.contains("/")) {
+					String folder = (npc != null && npc.npcId() == 50005) ? "mods/buffervip/" : "mods/buffer/";
+					htm = ctx().htmls().getHtml(folder + path);
+				}
 				if (htm != null) {
-					int npcObjId = npc != null ? npc.objectId() : 0;
 					String rendered = ctx().htmls().render(htm, npcObjId, npc != null ? npc.name() : "Buffer", active().name());
 					send(new NpcHtmlMessage(npcObjId, rendered));
 					return;
@@ -2434,26 +2621,118 @@ public class NpcBypassPacketHandler {
 		}
 	}
 
+	private void handleBufferSchemeApply(NpcInstance npc, int schemeId, boolean targetPet) {
+		if (active() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		if (ctx().schemeBuffer() != null) {
+			ctx().schemeBuffer().applyScheme(active(), session, schemeId, targetPet);
+		}
+		if (npc != null) {
+			int cx = npc.x();
+			int cy = npc.y();
+			int cz = npc.z();
+			var anim = new MagicSkillUse(npc.objectId(), active().objectId(), 1068, 3, 500, 0,
+					cx, cy, cz, active().x(), active().y(), active().z());
+			send(anim);
+			showNpcHtml(npc, 0);
+		}
+	}
+
+	private void handleBufferGiveBuffs(NpcInstance npc, String args) {
+		if (active() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		int schemeId = 1;
+		boolean targetPet = false;
+		if (!args.isEmpty()) {
+			String[] tokens = args.split("\\s+");
+			for (String tok : tokens) {
+				if ("pet".equalsIgnoreCase(tok) || "summon".equalsIgnoreCase(tok)) {
+					targetPet = true;
+				} else if ("mage".equalsIgnoreCase(tok)) {
+					schemeId = 2;
+				} else if ("fighter".equalsIgnoreCase(tok)) {
+					schemeId = 1;
+				} else {
+					try {
+						int val = Integer.parseInt(tok);
+						if (val >= 1 && val <= 4) {
+							schemeId = val;
+						}
+					} catch (NumberFormatException ignored) {
+					}
+				}
+			}
+		}
+		handleBufferSchemeApply(npc, schemeId, targetPet);
+	}
+
+	private void handleBufferSchemeEdit(NpcInstance npc, String action) {
+		if (active() == null || ctx().schemeBuffer() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var bufferService = ctx().schemeBuffer();
+		String[] tokens = action.trim().split("\\s+");
+		String cmd = tokens[0].toLowerCase();
+		int schemeId = 3;
+		if ( cmd.equals("skillselect") && tokens.length >= 3) {
+			try {
+				schemeId = Integer.parseInt(tokens[1]);
+				int skillId = Integer.parseInt(tokens[2]);
+				bufferService.addSkillToScheme(active().objectId(), schemeId, skillId);
+			} catch (NumberFormatException ignored) {
+			}
+		} else if (cmd.equals("skillunselect") && tokens.length >= 3) {
+			try {
+				schemeId = Integer.parseInt(tokens[1]);
+				int skillId = Integer.parseInt(tokens[2]);
+				bufferService.removeSkillFromScheme(active().objectId(), schemeId, skillId);
+			} catch (NumberFormatException ignored) {
+			}
+		} else if (cmd.equals("deletescheme") && tokens.length >= 2) {
+			try {
+				schemeId = Integer.parseInt(tokens[1]);
+				bufferService.clearScheme(active().objectId(), schemeId);
+			} catch (NumberFormatException ignored) {
+			}
+		} else if (tokens.length >= 2) {
+			try {
+				schemeId = Integer.parseInt(tokens[1]);
+			} catch (NumberFormatException ignored) {
+			}
+		}
+		int npcObjId = npc != null ? npc.objectId() : 0;
+		send(new NpcHtmlMessage(npcObjId, bufferService.renderSchemeEditHtml(active(), schemeId)));
+	}
+
 	private void handleBufferRestore(NpcInstance npc) {
 		if (active() == null) {
 			send(new ActionFailed());
 			return;
 		}
-		active().currentHp(active().maxHp());
-		active().currentMp(active().maxMp());
-		active().currentCp(active().maxCp());
-		send(new StatusUpdate(active().objectId(), List.of(
-				new StatusUpdate.Attribute(StatusUpdate.CUR_HP, (int) active().currentHp()),
-				new StatusUpdate.Attribute(StatusUpdate.CUR_MP, (int) active().currentMp()),
-				new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) active().currentCp())
-		)));
+		if (ctx().schemeBuffer() != null) {
+			ctx().schemeBuffer().heal(active(), session);
+		} else {
+			active().currentHp(active().maxHp());
+			active().currentMp(active().maxMp());
+			active().currentCp(active().maxCp());
+			send(new StatusUpdate(active().objectId(), List.of(
+					new StatusUpdate.Attribute(StatusUpdate.CUR_HP, (int) active().currentHp()),
+					new StatusUpdate.Attribute(StatusUpdate.CUR_MP, (int) active().currentMp()),
+					new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) active().currentCp())
+			)));
+			send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Buffer", "HP, MP e CP totalmente restaurados."));
+		}
 		int npcObjId = npc != null ? npc.objectId() : active().objectId();
 		int cx = npc != null ? npc.x() : active().x();
 		int cy = npc != null ? npc.y() : active().y();
 		int cz = npc != null ? npc.z() : active().z();
 		send(new MagicSkillUse(npcObjId, active().objectId(), 1012, 1, 0, 0,
 				cx, cy, cz, active().x(), active().y(), active().z()));
-		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Buffer", "HP, MP e CP totalmente restaurados."));
 		if (npc != null) {
 			showNpcHtml(npc, 0);
 		}
@@ -2464,14 +2743,18 @@ public class NpcBypassPacketHandler {
 			send(new ActionFailed());
 			return;
 		}
-		active().effects().clear();
+		if (ctx().schemeBuffer() != null) {
+			ctx().schemeBuffer().cancelBuffs(active(), session);
+		} else {
+			active().effects().clear();
+			send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Buffer", "Todos os buffs foram removidos."));
+		}
 		int npcObjId = npc != null ? npc.objectId() : active().objectId();
 		int cx = npc != null ? npc.x() : active().x();
 		int cy = npc != null ? npc.y() : active().y();
 		int cz = npc != null ? npc.z() : active().z();
 		send(new MagicSkillUse(npcObjId, active().objectId(), 1056, 1, 0, 0,
 				cx, cy, cz, active().x(), active().y(), active().z()));
-		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Buffer", "Todos os buffs foram removidos."));
 		if (npc != null) {
 			showNpcHtml(npc, 0);
 		}
@@ -2787,6 +3070,46 @@ public class NpcBypassPacketHandler {
 	private static final java.util.regex.Pattern QUEST_ACTION_LINK_PATTERN =
 			java.util.regex.Pattern.compile("action=\"bypass(?:\\s+-h)?\\s+([^\"]+)\"", java.util.regex.Pattern.CASE_INSENSITIVE);
 
+	private boolean tryHandleQuestMenuSelect(NpcInstance npc, String cmd) {
+		if (cmd == null || !cmd.startsWith("menu_select") || ctx().questManager() == null) {
+			return false;
+		}
+		int askIdx = cmd.indexOf("ask=");
+		if (askIdx < 0) {
+			return false;
+		}
+		int start = askIdx + 4;
+		int end = start;
+		if (end < cmd.length() && (cmd.charAt(end) == '-' || cmd.charAt(end) == '+')) {
+			end++;
+		}
+		while (end < cmd.length() && Character.isDigit(cmd.charAt(end))) {
+			end++;
+		}
+		if (end == start) {
+			return false;
+		}
+		try {
+			int askId = Integer.parseInt(cmd.substring(start, end));
+			if (askId <= 0 || askId == 255) {
+				return false;
+			}
+			if (askId == 6 && npc != null && npc.template() != null
+					&& npc.template().type().toLowerCase(java.util.Locale.ROOT).contains("manor")) {
+				return false;
+			}
+			var q = ctx().questManager().getQuest(askId);
+			if (q != null) {
+				int targetObjId = npc != null ? npc.objectId()
+						: (session.targetObjectId() > 0 ? session.targetObjectId() : this.lastInteractedNpcObjId);
+				handleQuestBypass(targetObjId, q.getName() + " " + cmd.trim());
+				return true;
+			}
+		} catch (NumberFormatException ignored) {
+		}
+		return false;
+	}
+
 	private static boolean isGlobalOrNpcBypass(String cmd) {
 		if (cmd == null || cmd.isBlank()) {
 			return true;
@@ -2801,7 +3124,7 @@ public class NpcBypassPacketHandler {
 				|| lower.startsWith("link ")
 				|| lower.startsWith("player_help")
 				|| lower.startsWith("manor_")
-				|| lower.startsWith("menu_select")
+				|| (lower.startsWith("menu_select") && (lower.contains("ask=-") || lower.contains("ask=255")))
 				|| lower.startsWith("create_clan")
 				|| lower.startsWith("create_pledge")
 				|| lower.startsWith("increase_clan_level")
@@ -3886,27 +4209,41 @@ public class NpcBypassPacketHandler {
 
 		String folder = switch (npcId) {
 			case 30598 -> "guide_human_cnacelot";
-			case 30599 -> "guide_gludin_nina";
-			case 30600 -> "guide_gludio_euria";
+			case 30599, 30370 -> "guide_elf_roios";
+			case 30600, 30129 -> "guide_delf_frankia";
 			case 30601, 30528 -> "guide_dwarf_gullin";
-			case 30602, 30370 -> "guide_elf_roios";
-			case 30129 -> "guide_delf_frankia";
-			case 30573 -> "guide_orc_tanai";
+			case 30602, 30573 -> "guide_orc_tanai";
+			case 31076 -> "guide_gludin_nina";
+			case 31077 -> "guide_gludio_euria";
+			case 32327 -> "blessing_benefector";
 			default -> "guide_human_cnacelot";
 		};
 
 		if (ask == -7) {
+			int expectedRace = switch (npcId) {
+				case 30598 -> 0; // Human
+				case 30599, 30370 -> 1; // Elf
+				case 30600, 30129 -> 2; // Dark Elf
+				case 30602, 30573 -> 3; // Orc
+				case 30601, 30528 -> 4; // Dwarf
+				default -> -1;
+			};
 			int lvl = active().level();
-			boolean isMage = active().isMage();
+			boolean isMage = npcId != 30601 && npcId != 30528 && active().isMage();
+			int classLevel = com.lopez.l2j.game.model.ClassId.getClassLevel(active().classId());
 			String file;
-			if (isMage) {
-				if (lvl < 14) file = folder + "_m07.htm";
-				else if (lvl < 20) file = folder + "_m14.htm";
+			if (expectedRace >= 0 && active().race() != expectedRace) {
+				file = folder + "003.htm";
+			} else if (lvl > 20 || classLevel > 0) {
+				file = folder + "002.htm";
+			} else if (isMage) {
+				if (lvl <= 7) file = folder + "_m07.htm";
+				else if (lvl <= 14) file = folder + "_m14.htm";
 				else file = folder + "_m20.htm";
 			} else {
-				if (lvl < 10) file = folder + "_f05.htm";
-				else if (lvl < 15) file = folder + "_f10.htm";
-				else if (lvl < 20) file = folder + "_f15.htm";
+				if (lvl <= 5) file = folder + "_f05.htm";
+				else if (lvl <= 10) file = folder + "_f10.htm";
+				else if (lvl <= 15) file = folder + "_f15.htm";
 				else file = folder + "_f20.htm";
 			}
 			String htm = ctx().htmls() != null ? ctx().htmls().getHtml("newbiehelper/" + folder + "/" + file) : null;
@@ -3918,6 +4255,21 @@ public class NpcBypassPacketHandler {
 				return;
 			}
 		} else if (ask == 255) {
+			if (reply >= 31 && reply <= 66) {
+				int[] radar = getNewbieGuideRadar(npcId, reply);
+				if (radar != null) {
+					send(new RadarControl(0, 1, radar[0], radar[1], radar[2]));
+				}
+				String file = folder + "_q0255_05.htm";
+				String htm = ctx().htmls() != null ? ctx().htmls().getHtml("newbiehelper/" + folder + "/" + file) : null;
+				if (htm == null && ctx().htmls() != null) {
+					htm = ctx().htmls().getIndexedHtml(file);
+				}
+				if (htm != null) {
+					send(new NpcHtmlMessage(npcObjId, ctx().htmls().render(htm, npcObjId, npcName, active().name())));
+					return;
+				}
+			}
 			String file = switch (reply) {
 				case 10 -> folder + "_q0255_04.htm";
 				case 11 -> folder + "_q0255_04a.htm";
@@ -3944,6 +4296,213 @@ public class NpcBypassPacketHandler {
 		if (npc != null) {
 			showNpcHtml(npc, 0);
 		}
+	}
+
+	private int[] getNewbieGuideRadar(int npcId, int reply) {
+		return switch (npcId) {
+			case 30598 -> switch (reply) {
+				case 31 -> new int[]{-84108, 244604, -3729};
+				case 32 -> new int[]{-82236, 241573, -3728};
+				case 33 -> new int[]{-82515, 241221, -3728};
+				case 34 -> new int[]{-82319, 244709, -3727};
+				case 35 -> new int[]{-82659, 244992, -3717};
+				case 36 -> new int[]{-86114, 244682, -3727};
+				case 37 -> new int[]{-86328, 244448, -3724};
+				case 38 -> new int[]{-86322, 241215, -3727};
+				case 39 -> new int[]{-85964, 240947, -3727};
+				case 40 -> new int[]{-85026, 242689, -3729};
+				case 41 -> new int[]{-83789, 240799, -3717};
+				case 42 -> new int[]{-84204, 240403, -3717};
+				case 43 -> new int[]{-86385, 243267, -3717};
+				case 44 -> new int[]{-86733, 242918, -3717};
+				case 45 -> new int[]{-84516, 245449, -3714};
+				case 46 -> new int[]{-84729, 245001, -3726};
+				case 47 -> new int[]{-84965, 245222, -3726};
+				case 48 -> new int[]{-84981, 244764, -3726};
+				case 49 -> new int[]{-85186, 245001, -3726};
+				case 50 -> new int[]{-83326, 242964, -3718};
+				case 51 -> new int[]{-83020, 242553, -3718};
+				case 52 -> new int[]{-83175, 243065, -3718};
+				case 53 -> new int[]{-82809, 242751, -3718};
+				case 54 -> new int[]{-81895, 243917, -3721};
+				case 55 -> new int[]{-81840, 243534, -3721};
+				case 56 -> new int[]{-81512, 243424, -3720};
+				case 57 -> new int[]{-84436, 242793, -3729};
+				case 58 -> new int[]{-78939, 240305, -3443};
+				case 59 -> new int[]{-85301, 244587, -3725};
+				case 60 -> new int[]{-83163, 243560, -3728};
+				case 61 -> new int[]{-97131, 258946, -3622};
+				case 62 -> new int[]{-114685, 222291, -2925};
+				case 63 -> new int[]{-84057, 242832, -3729};
+				case 64 -> new int[]{-100332, 238019, -3573};
+				case 65 -> new int[]{-82041, 242718, -3725};
+				default -> null;
+			};
+			case 30599, 30370 -> switch (reply) {
+				case 31 -> new int[]{46926, 51511, -2977};
+				case 32 -> new int[]{44995, 51706, -2803};
+				case 33 -> new int[]{45727, 51721, -2803};
+				case 34 -> new int[]{42812, 51138, -2996};
+				case 35 -> new int[]{45487, 46511, -2996};
+				case 36 -> new int[]{47401, 51764, -2996};
+				case 37 -> new int[]{42971, 51372, -2996};
+				case 38 -> new int[]{47595, 51569, -2996};
+				case 39 -> new int[]{45778, 46534, -2996};
+				case 40 -> new int[]{44476, 47153, -2984};
+				case 41 -> new int[]{42700, 50057, -2984};
+				case 42 -> new int[]{42766, 50037, -2984};
+				case 43 -> new int[]{44683, 46952, -2981};
+				case 44 -> new int[]{44667, 46896, -2982};
+				case 45 -> new int[]{45725, 52105, -2795};
+				case 46 -> new int[]{44823, 52414, -2795};
+				case 47 -> new int[]{45000, 52101, -2795};
+				case 48 -> new int[]{45919, 52414, -2795};
+				case 49 -> new int[]{44692, 52261, -2795};
+				case 50 -> new int[]{47780, 49568, -2983};
+				case 51 -> new int[]{47912, 50170, -2983};
+				case 52 -> new int[]{47868, 50167, -2983};
+				case 53 -> new int[]{28928, 74248, -3773};
+				case 54 -> new int[]{43673, 49683, -3046};
+				case 55 -> new int[]{45610, 49008, -3059};
+				case 56 -> new int[]{50592, 54986, -3376};
+				case 57 -> new int[]{42978, 49115, -2994};
+				case 58 -> new int[]{46475, 50495, -3058};
+				case 59 -> new int[]{45859, 50827, -3058};
+				case 60 -> new int[]{51210, 82474, -3283};
+				case 61 -> new int[]{49262, 53607, -3216};
+				default -> null;
+			};
+			case 30600, 30129 -> switch (reply) {
+				case 31 -> new int[]{9670, 15537, -4574};
+				case 32 -> new int[]{15120, 15656, -4376};
+				case 33 -> new int[]{17306, 13592, -3724};
+				case 34 -> new int[]{15272, 16310, -4377};
+				case 35 -> new int[]{6449, 19619, -3694};
+				case 36 -> new int[]{-15404, 71131, -3445};
+				case 37 -> new int[]{7496, 17388, -4377};
+				case 38 -> new int[]{17102, 13002, -3743};
+				case 39 -> new int[]{6532, 19903, -3693};
+				case 40 -> new int[]{-15648, 71405, -3451};
+				case 41 -> new int[]{7644, 18048, -4377};
+				case 42 -> new int[]{-1301, 75883, -3566};
+				case 43 -> new int[]{-1152, 76125, -3566};
+				case 44 -> new int[]{10580, 17574, -4554};
+				case 45 -> new int[]{12009, 15704, -4554};
+				case 46 -> new int[]{11951, 15661, -4554};
+				case 47 -> new int[]{10761, 17970, -4554};
+				case 48 -> new int[]{10823, 18013, -4554};
+				case 49 -> new int[]{11283, 14226, -4242};
+				case 50 -> new int[]{10447, 14620, -4242};
+				case 51 -> new int[]{11258, 14431, -4242};
+				case 52 -> new int[]{10344, 14445, -4242};
+				case 53 -> new int[]{10315, 14293, -4242};
+				case 54 -> new int[]{10775, 14190, -4242};
+				case 55 -> new int[]{11235, 14078, -4242};
+				case 56 -> new int[]{11012, 14128, -4242};
+				case 57 -> new int[]{13380, 17430, -4542};
+				case 58 -> new int[]{13464, 17751, -4541};
+				case 59 -> new int[]{13763, 17501, -4542};
+				case 60 -> new int[]{-44225, 79721, -3652};
+				case 61 -> new int[]{-44015, 79683, -3652};
+				case 62 -> new int[]{25856, 10832, -3724};
+				case 63 -> new int[]{12328, 14947, -4574};
+				case 64 -> new int[]{13081, 18444, -4573};
+				case 65 -> new int[]{12311, 17470, -4574};
+				default -> null;
+			};
+			case 30601, 30528 -> switch (reply) {
+				case 31 -> new int[]{115072, -178176, -906};
+				case 32 -> new int[]{117847, -182339, -1537};
+				case 33 -> new int[]{116617, -184308, -1569};
+				case 34 -> new int[]{117826, -182576, -1537};
+				case 35 -> new int[]{116378, -184308, -1571};
+				case 36 -> new int[]{115183, -176728, -791};
+				case 37 -> new int[]{114969, -176752, -790};
+				case 38 -> new int[]{117366, -178725, -1118};
+				case 39 -> new int[]{117378, -178914, -1120};
+				case 40 -> new int[]{116226, -178529, -948};
+				case 41 -> new int[]{116190, -178441, -948};
+				case 42 -> new int[]{116016, -178615, -948};
+				case 43 -> new int[]{116190, -178615, -948};
+				case 44 -> new int[]{116103, -178407, -948};
+				case 45 -> new int[]{116103, -178653, -948};
+				case 46 -> new int[]{115468, -182446, -1434};
+				case 47 -> new int[]{115315, -182155, -1444};
+				case 48 -> new int[]{115271, -182692, -1445};
+				case 49 -> new int[]{115900, -177316, -915};
+				case 50 -> new int[]{116268, -177524, -914};
+				case 51 -> new int[]{115741, -181645, -1344};
+				case 52 -> new int[]{116192, -181072, -1344};
+				case 53 -> new int[]{115205, -180024, -870};
+				case 54 -> new int[]{114716, -180018, -871};
+				case 55 -> new int[]{114832, -179520, -871};
+				case 56 -> new int[]{115717, -183488, -1483};
+				case 57 -> new int[]{115618, -183265, -1483};
+				case 58 -> new int[]{114348, -178537, -813};
+				case 59 -> new int[]{114990, -177294, -854};
+				case 60 -> new int[]{114426, -178672, -812};
+				case 61 -> new int[]{114409, -178415, -812};
+				case 62 -> new int[]{117061, -181867, -1413};
+				case 63 -> new int[]{116164, -184029, -1507};
+				case 64 -> new int[]{115563, -182923, -1448};
+				case 65 -> new int[]{112656, -174864, -611};
+				case 66 -> new int[]{116852, -183595, -1566};
+				default -> null;
+			};
+			case 30602, 30573 -> switch (reply) {
+				case 31 -> new int[]{-45264, -112512, -235};
+				case 32 -> new int[]{-46576, -117311, -242};
+				case 33 -> new int[]{-47360, -113791, -237};
+				case 34 -> new int[]{-47360, -113424, -235};
+				case 35 -> new int[]{-45744, -117165, -236};
+				case 36 -> new int[]{-46528, -109968, -250};
+				case 37 -> new int[]{-45808, -110055, -255};
+				case 38 -> new int[]{-45731, -113844, -237};
+				case 39 -> new int[]{-45728, -113360, -237};
+				case 40 -> new int[]{-45952, -114784, -199};
+				case 41 -> new int[]{-45952, -114496, -199};
+				case 42 -> new int[]{-45863, -112621, -200};
+				case 43 -> new int[]{-45864, -112540, -199};
+				case 44 -> new int[]{-43264, -112532, -220};
+				case 45 -> new int[]{-43910, -115518, -194};
+				case 46 -> new int[]{-43950, -115457, -194};
+				case 47 -> new int[]{-44416, -111486, -222};
+				case 48 -> new int[]{-43926, -111794, -222};
+				case 49 -> new int[]{-43109, -113770, -221};
+				case 50 -> new int[]{-43114, -113404, -221};
+				case 51 -> new int[]{-46768, -113610, -3};
+				case 52 -> new int[]{-46802, -114011, -112};
+				case 53 -> new int[]{-46247, -113866, -21};
+				case 54 -> new int[]{-46808, -113184, -112};
+				case 55 -> new int[]{-45328, -114736, -237};
+				case 56 -> new int[]{-44624, -111873, -238};
+				default -> null;
+			};
+			default -> null;
+		};
+	}
+
+	private void handleNewbieProtectionBlessing(NpcInstance npc) {
+		if (active() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		int classLevel = com.lopez.l2j.game.model.ClassId.getClassLevel(active().classId());
+		if (active().level() >= 39 || classLevel >= 2) {
+			String msg = "<html><body>Newbie Guide:<br>The Blessing of Protection is only available to characters under level 39 who have not completed their second class transfer.</body></html>";
+			send(new NpcHtmlMessage(npc != null ? npc.objectId() : 0, msg));
+			return;
+		}
+		var skillTable = ctx().skillService() != null ? ctx().skillService().table() : null;
+		if (skillTable != null) {
+			skillTable.get(5182, 1).ifPresent(sk -> session.applySkillEffects(sk, false));
+		}
+		int npcObjId = npc != null ? npc.objectId() : active().objectId();
+		int cx = npc != null ? npc.x() : active().x();
+		int cy = npc != null ? npc.y() : active().y();
+		int cz = npc != null ? npc.z() : active().z();
+		send(new MagicSkillUse(npcObjId, active().objectId(), 5182, 1, 1000, 0,
+				cx, cy, cz, active().x(), active().y(), active().z()));
 	}
 
 	private void handleNewbieSupportMagic(NpcInstance npc) {

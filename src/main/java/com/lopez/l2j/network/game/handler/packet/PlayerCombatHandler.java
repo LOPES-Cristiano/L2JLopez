@@ -117,17 +117,24 @@ public final class PlayerCombatHandler {
 
 		// Gatilhos de Grand Bosses Épicos (Antharas, Valakas, Baium, Frintezza / Scarlet Van Halisha)
 		int killedNpcId = npc.npcId();
+		BossManager bm = BossManager.getInstance();
 		if (killedNpcId == AntharasService.ANTHARAS_WEAK
 				|| killedNpcId == AntharasService.ANTHARAS_NORMAL
 				|| killedNpcId == AntharasService.ANTHARAS_STRONG) {
-			AntharasService antharasSvc = ctx.getBean(AntharasService.class);
-			if (antharasSvc != null) antharasSvc.onAntharasKilled(active);
+			if (bm == null || bm.antharasService() == null) {
+				AntharasService antharasSvc = ctx.getBean(AntharasService.class);
+				if (antharasSvc != null) antharasSvc.onAntharasKilled(active);
+			}
 		} else if (killedNpcId == ValakasService.VALAKAS) {
-			ValakasService valakasSvc = ctx.getBean(ValakasService.class);
-			if (valakasSvc != null) valakasSvc.onValakasKilled(active);
+			if (bm == null || bm.valakasService() == null) {
+				ValakasService valakasSvc = ctx.getBean(ValakasService.class);
+				if (valakasSvc != null) valakasSvc.onValakasKilled(active);
+			}
 		} else if (killedNpcId == BaiumService.BAIUM_NPC_ID) {
-			BaiumService baiumSvc = ctx.getBean(BaiumService.class);
-			if (baiumSvc != null) baiumSvc.onBaiumKilled(active);
+			if (bm == null || bm.baiumService() == null) {
+				BaiumService baiumSvc = ctx.getBean(BaiumService.class);
+				if (baiumSvc != null) baiumSvc.onBaiumKilled(active);
+			}
 		} else if (killedNpcId == FrintezzaService.SCARLET_WEAK_ID) {
 			FrintezzaService frintSvc = ctx.getBean(FrintezzaService.class);
 			if (frintSvc != null) frintSvc.transitionToPhase2();
