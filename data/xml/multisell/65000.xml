@@ -1,0 +1,63 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+
+<list>
+  <item id="1">
+    <ingredient id="57" count="150"/>
+    <production id="2" count="1"/>
+  </item>
+  <!-- Elven Long Sword -->
+  <item id="11">
+    <ingredient id="57" count="150"/>
+    <production id="68" count="1"/>
+  </item>
+  <!-- Elven Long Sword -->
+  <item id="2">
+    <ingredient id="57" count="150"/>
+    <production id="5284" count="1"/>
+  </item>
+  <!-- Elven Sword -->
+  <item id="3">
+    <ingredient id="57" count="150"/>
+    <production id="217" count="1"/>
+  </item>
+  <!-- Elven Long Sword -->
+  <item id="13">
+    <ingredient id="57" count="150"/>
+    <production id="219" count="1"/>
+  </item>
+  <!-- Glaive -->
+  <item id="4">
+    <ingredient id="57" count="150"/>
+    <production id="273" count="1"/>
+  </item>
+  <!-- War Pick -->
+  <item id="5">
+    <ingredient id="57" count="150"/>
+    <production id="257" count="1"/>
+  </item>
+  <!-- Elven Long Sword -->
+  <item id="14">
+    <ingredient id="57" count="150"/>
+    <production id="2371" count="1"/>
+  </item>
+  <!-- Dwarven Trident -->
+  <item id="6">
+    <ingredient id="57" count="150"/>
+    <production id="16" count="1"/>
+  </item>
+  <!-- Scallop Jamadhr -->
+  <item id="7">
+    <ingredient id="57" count="150"/>
+    <production id="4221" count="1"/>
+  </item>
+  <!-- Traveler's Jamadhr -->
+  <item id="8">
+    <ingredient id="57" count="150"/>
+    <production id="177" count="1"/>
+  </item>
+  <!-- Elven Long Sword -->
+  <item id="12">
+    <ingredient id="57" count="150"/>
+    <production id="100" count="1"/>
+  </item>
+</list>

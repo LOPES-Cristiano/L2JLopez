@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='utf-8'?>
+<list>
+  <!-- Elven Long Sword -->
+  <item id="1">
+    <ingredient id="57" count="1500000"/>
+    <production id="2499" count="1"/>
+  </item>
+  <!-- Elven Long Sword2 -->
+  <item id="10">
+    <ingredient id="57" count="1500000"/>
+    <production id="144" count="1"/>
+  </item>
+  <!-- Claymore -->
+  <item id="2">
+    <ingredient id="57" count="1500000"/>
+    <production id="70" count="1"/>
+  </item>
+  <!-- Dagger of Mana -->
+  <item id="3">
+    <ingredient id="57" count="1500000"/>
+    <production id="238" count="1"/>
+  </item>
+  <!-- Light Crossbow -->
+  <item id="4">
+    <ingredient id="57" count="1500000"/>
+    <production id="280" count="1"/>
+  </item>
+  <!-- Scallop Jamadhr -->
+  <item id="5">
+    <ingredient id="57" count="1500000"/>
+    <production id="262" count="1"/>
+  </item>
+  <!-- Glaive -->
+  <item id="6">
+    <ingredient id="57" count="1500000"/>
+    <production id="297" count="1"/>
+  </item>
+  <!-- Skull Breaker -->
+  <item id="7">
+    <ingredient id="57" count="1500000"/>
+    <production id="169" count="1"/>
+  </item>
+  <!-- Staff of Life -->
+  <item id="8">
+    <ingredient id="57" count="1500000"/>
+    <production id="189" count="1"/>
+  </item>
+  <!-- Staff of Life -->
+  <item id="11">
+    <ingredient id="57" count="1500000"/>
+    <production id="323" count="1"/>
+  </item>
+  <!-- Elven Sword -->
+  <item id="9">
+    <ingredient id="57" count="1500000"/>
+    <production id="2528" count="1"/>
+  </item>
+  <!-- Staff of Life -->
+  <item id="12">
+    <ingredient id="57" count="1500000"/>
+    <production id="2522" count="1"/>
+  </item>
+</list>
