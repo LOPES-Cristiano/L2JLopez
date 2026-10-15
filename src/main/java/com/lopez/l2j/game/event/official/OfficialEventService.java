@@ -81,7 +81,7 @@ public class OfficialEventService {
 
 	private void initializeDefaultEvents() {
 		// 1. Big Squash Event
-		double squashSeedChance = Config.BIG_SQUASH_CHANCE > 0 ? Config.BIG_SQUASH_CHANCE : 5.0;
+		double squashSeedChance = Config.BIG_SQUASH_DROP_CHANCE > 0 ? Config.BIG_SQUASH_DROP_CHANCE : 5.0;
 		double nectarChance = Math.max(15.0, squashSeedChance * 3.0);
 		List<EventDropEntry> squashDrops = new ArrayList<>();
 		squashDrops.add(new EventDropEntry(6391, 1, 3, nectarChance, 20)); // Nectar
@@ -97,7 +97,7 @@ public class OfficialEventService {
 				OfficialEventState.ACTIVE, squashDrops, squashExchanges));
 
 		// 2. Christmas Event
-		double xmasChance = Config.CRISTMAS_CHANCE > 0 ? Config.CRISTMAS_CHANCE : 10.0;
+		double xmasChance = Config.CRISTMAS_DROP_CHANCE > 0 ? Config.CRISTMAS_DROP_CHANCE : 10.0;
 		List<EventDropEntry> christmasDrops = List.of(
 				new EventDropEntry(5556, 1, 1, xmasChance, 20), // Star Ornament
 				new EventDropEntry(5557, 1, 1, xmasChance, 20), // Bead Ornament
@@ -114,12 +114,12 @@ public class OfficialEventService {
 		);
 		events.put(OfficialEventType.CHRISTMAS, new OfficialEventDef(
 				OfficialEventType.CHRISTMAS, "Christmas Festival", "Gather holiday ornaments and grow festive trees",
-				Config.CRISTMAS_DROP ? OfficialEventState.ACTIVE : OfficialEventState.INACTIVE,
+				Config.CRISTMAS_ADD_DROP ? OfficialEventState.ACTIVE : OfficialEventState.INACTIVE,
 				christmasDrops, christmasExchanges));
 
 		// 3. Event Medals
-		double medalChance1 = Config.MEDAL_CHANCE1 > 0 ? Math.max(20.0, Config.MEDAL_CHANCE1) : 20.0;
-		double medalChance2 = Config.MEDAL_CHANCE2 > 0 ? Config.MEDAL_CHANCE2 : 5.0;
+		double medalChance1 = Config.MEDAL_1_DROP_CHANCE > 0 ? Math.max(20.0, Config.MEDAL_1_DROP_CHANCE) : 20.0;
+		double medalChance2 = Config.MEDAL_2_DROP_CHANCE > 0 ? Config.MEDAL_2_DROP_CHANCE : 5.0;
 		List<EventDropEntry> medalDrops = List.of(
 				new EventDropEntry(6392, 1, 2, medalChance1, 20), // Medal
 				new EventDropEntry(6393, 1, 1, medalChance2, 30)  // Glittering Medal
@@ -134,9 +134,9 @@ public class OfficialEventService {
 				OfficialEventState.ACTIVE, medalDrops, medalExchanges));
 
 		// 4. Starlight Festival
-		double starChance1 = Config.STAR_CHANCE1 > 0 ? Config.STAR_CHANCE1 : 10.0;
-		double starChance2 = Config.STAR_CHANCE2 > 0 ? Config.STAR_CHANCE2 : 5.0;
-		double starChance3 = Config.STAR_CHANCE3 > 0 ? Config.STAR_CHANCE3 : 2.0;
+		double starChance1 = Config.STAR_1_DROP_CHANCE > 0 ? Config.STAR_1_DROP_CHANCE : 10.0;
+		double starChance2 = Config.STAR_2_DROP_CHANCE > 0 ? Config.STAR_2_DROP_CHANCE : 5.0;
+		double starChance3 = Config.STAR_3_DROP_CHANCE > 0 ? Config.STAR_3_DROP_CHANCE : 2.0;
 		List<EventDropEntry> starDrops = List.of(
 				new EventDropEntry(6403, 1, 1, starChance1, 20), // Star Shard
 				new EventDropEntry(6404, 1, 1, starChance2, 20), // Bead Shard
@@ -148,11 +148,11 @@ public class OfficialEventService {
 		);
 		events.put(OfficialEventType.STARLIGHT_FESTIVAL, new OfficialEventDef(
 				OfficialEventType.STARLIGHT_FESTIVAL, "Starlight Festival", "Collect star shards and craft fireworks",
-				Config.STAR_DROP ? OfficialEventState.ACTIVE : OfficialEventState.INACTIVE,
+				Config.STAR_ADD_DROP ? OfficialEventState.ACTIVE : OfficialEventState.INACTIVE,
 				starDrops, starExchanges));
 
 		// 5. L2 Day Event
-		double l2dayChance = Config.L2DAY_CHANCE > 0 ? Config.L2DAY_CHANCE : 5.0;
+		double l2dayChance = Config.L2_DAY_DROP_CHANCE > 0 ? Config.L2_DAY_DROP_CHANCE : 5.0;
 		List<EventDropEntry> l2dayDrops = List.of(
 				new EventDropEntry(3875, 1, 1, l2dayChance, 20), // A
 				new EventDropEntry(3877, 1, 1, l2dayChance, 20), // E
@@ -164,36 +164,45 @@ public class OfficialEventService {
 		);
 		events.put(OfficialEventType.L2_DAY, new OfficialEventDef(
 				OfficialEventType.L2_DAY, "L2 Day", "Collect letters from monsters to form LINEAGEII and NCSOFT",
-				Config.L2DAY_DROP ? OfficialEventState.ACTIVE : OfficialEventState.INACTIVE,
+				Config.L2_DAY_ADD_DROP ? OfficialEventState.ACTIVE : OfficialEventState.INACTIVE,
 				l2dayDrops, List.of()));
 	}
 
 	public boolean isEventMessagesEnabled() {
-		return Config.ENABLE_ALL_EVENT_MESSAGES;
+		return Config.ENABLE_EVENT_MESSAGE;
 	}
 
 	public boolean shouldSpawnEventManagers(OfficialEventType type) {
 		return switch (type) {
-			case BIG_SQUASH -> Config.BIG_SQUASH_SPAWN;
-			case CHRISTMAS -> Config.CRISTMAS_SPAWN;
-			case EVENT_MEDALS -> Config.MEDAL_SPAWN;
-			case STARLIGHT_FESTIVAL -> Config.STAR_SPAWN;
-			case L2_DAY -> Config.L2DAY_SPAWN;
+			case BIG_SQUASH -> Config.BIG_SQUASH_SPAWN_MANAGER;
+			case CHRISTMAS -> Config.CRISTMAS_SPAWN_SANTA;
+			case EVENT_MEDALS -> Config.MEDAL_SPAWN_MENEGER;
+			case STARLIGHT_FESTIVAL -> Config.STAR_SPAWN_MANAGER;
+			case L2_DAY -> Config.L2_DAY_SPAWN_MANAGER;
 		};
 	}
 
 	public boolean isEventDropConfigEnabled(OfficialEventType type) {
 		return switch (type) {
-			case BIG_SQUASH -> Config.BIG_SQUASH_DROP;
-			case CHRISTMAS -> Config.CRISTMAS_DROP;
-			case EVENT_MEDALS -> Config.MEDAL_DROP;
-			case STARLIGHT_FESTIVAL -> Config.STAR_DROP;
-			case L2_DAY -> Config.L2DAY_DROP;
+			case BIG_SQUASH -> Config.BIG_SQUASH_ADD_DROP;
+			case CHRISTMAS -> Config.CRISTMAS_ADD_DROP;
+			case EVENT_MEDALS -> Config.MEDAL_ADD_DROP;
+			case STARLIGHT_FESTIVAL -> Config.STAR_ADD_DROP;
+			case L2_DAY -> Config.L2_DAY_ADD_DROP;
 		};
 	}
 
+	public boolean isL2DropDayEnabled() {
+		return Config.L2_DROP_DAY_ADD_DROP;
+	}
+
+	public String getL2DayConfiguredRewardsSummary() {
+		return Config.L2_DAY_REWARDS + "|" + Config.L2_DAY_REWARDS_ACCESSORIE + "|" + Config.L2_DAY_REWARDS_SCROLL
+				+ "|" + Config.L2_DAY_SCROLL_CHS + "|" + Config.L2_DAY_ENCH_SCROLL_CHS + "|" + Config.L2_DAY_ACC_SCROLL_CHS;
+	}
+
 	public int getChristmasTreeLifetimeMinutes() {
-		return Math.max(1, Config.CRISTMAS_TREE_TIME);
+		return Math.max(1, Config.CRISTMAS_TREE_LIFE_TIME);
 	}
 
 	public List<EventDropEntry> getConfiguredL2DropDayEntries() {
@@ -277,7 +286,7 @@ public class OfficialEventService {
 				}
 			}
 		}
-		if (Config.L2_DROP_DAY_ENABLE) {
+		if (Config.L2_DROP_DAY_ADD_DROP) {
 			for (EventDropEntry entry : getConfiguredL2DropDayEntries()) {
 				if (monsterLevel < entry.minMonsterLevel()) {
 					continue;

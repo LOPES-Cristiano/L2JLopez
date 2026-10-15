@@ -57,7 +57,7 @@ public class L2DayEventService {
     }
 
     private boolean active = true;
-    private double letterDropChance = Config.L2DAY_CHANCE > 0 ? (Config.L2DAY_CHANCE / 100.0) : DEFAULT_LETTER_DROP_CHANCE;
+    private double letterDropChance = Config.L2_DAY_DROP_CHANCE > 0 ? (Config.L2_DAY_DROP_CHANCE / 100.0) : DEFAULT_LETTER_DROP_CHANCE;
     private final Map<String, WordRecipe> recipes = new HashMap<>();
 
     private final InventoryService inventoryService;
@@ -83,8 +83,8 @@ public class L2DayEventService {
         this.itemRepository = itemRepository;
         this.itemTable = itemTable != null ? itemTable : (inventoryService != null ? inventoryService.templates() : null);
         this.idFactory = idFactory != null ? idFactory : ObjectIdFactory.sequential(0x5B000000);
-        if (Config.L2DAY_CHANCE > 0) {
-            this.letterDropChance = Config.L2DAY_CHANCE / 100.0;
+        if (Config.L2_DAY_DROP_CHANCE > 0) {
+            this.letterDropChance = Config.L2_DAY_DROP_CHANCE / 100.0;
         }
         initRecipes();
     }
@@ -127,35 +127,35 @@ public class L2DayEventService {
     }
 
     public boolean isConfigDropEnabled() {
-        return Config.L2DAY_DROP;
+        return Config.L2_DAY_ADD_DROP;
     }
 
     public boolean isSpawnManagersEnabled() {
-        return Config.L2DAY_SPAWN;
+        return Config.L2_DAY_SPAWN_MANAGER;
     }
 
     public int getScrollChance() {
-        return Math.max(0, Config.L2DAY_SCROLL_CHANCE);
+        return Math.max(0, Config.L2_DAY_SCROLL_CHS);
     }
 
     public int getEnchantScrollChance() {
-        return Math.max(0, Config.L2DAY_ENCH_SCROLL_CHANCE);
+        return Math.max(0, Config.L2_DAY_ENCH_SCROLL_CHS);
     }
 
     public int getAccessoryChance() {
-        return Math.max(0, Config.L2DAY_ACC_CHANCE);
+        return Math.max(0, Config.L2_DAY_ACC_SCROLL_CHS);
     }
 
     public List<Integer> getConfiguredRewardIds() {
-        return parseIdList(Config.L2DAY_REWARD);
+        return parseIdList(Config.L2_DAY_REWARDS);
     }
 
     public List<Integer> getConfiguredAccessoryIds() {
-        return parseIdList(Config.L2DAY_ACCESSORIS);
+        return parseIdList(Config.L2_DAY_REWARDS_ACCESSORIE);
     }
 
     public List<Integer> getConfiguredScrollIds() {
-        return parseIdList(Config.L2DAY_SCROLLS);
+        return parseIdList(Config.L2_DAY_REWARDS_SCROLL);
     }
 
     private List<Integer> parseIdList(String raw) {

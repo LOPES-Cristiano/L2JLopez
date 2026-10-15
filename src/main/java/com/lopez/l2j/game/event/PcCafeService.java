@@ -29,7 +29,7 @@ public class PcCafeService {
 	private ScheduledExecutorService scheduler;
 
 	public PcCafeService() {
-		if (Config.PCB_ENABLE) {
+		if (Config.PC_CAFFE_ENABLED) {
 			startScheduler();
 		}
 	}
@@ -57,31 +57,36 @@ public class PcCafeService {
 	}
 
 	public boolean isEnabled() {
-		return Config.PCB_ENABLE;
+		return Config.PC_CAFFE_ENABLED;
 	}
 
 	public int getMinLevel() {
-		return Math.max(1, Config.PCB_MIN_LEVEL);
+		return Math.max(1, Config.PC_CAFE_MIN_LEVEL);
+	}
+
+	public int getMaxLevel() {
+		return Math.max(getMinLevel(), Config.PC_CAFE_MAX_LEVEL);
 	}
 
 	public int getMinPoints() {
-		return Math.max(1, Config.PCB_POINT_MIN);
+		return Math.max(1, Config.PC_CAFE_MIN_SCORE);
 	}
 
 	public int getMaxPoints() {
-		return Math.max(getMinPoints(), Config.PCB_POINT_MAX);
+		return Math.max(getMinPoints(), Config.PC_CAFE_MAX_SCORE);
 	}
 
 	public int getDualPointChancePercent() {
-		return Math.max(0, Math.min(100, Config.PCB_CHANCE_DUAL_POINT));
+		return 10;
 	}
 
 	public int getIntervalSeconds() {
-		return Math.max(1, Config.PCB_INTERVAL);
+		return Math.max(1, Config.PC_CAFE_INTERVAL);
 	}
 
 	public boolean isEligible(PlayerCharacter player) {
-		return isEnabled() && player != null && !player.isDead() && player.level() >= getMinLevel();
+		return isEnabled() && player != null && !player.isDead()
+				&& player.level() >= getMinLevel() && player.level() <= getMaxLevel();
 	}
 
 	public PcBangAward awardPoints(PlayerCharacter player) {
