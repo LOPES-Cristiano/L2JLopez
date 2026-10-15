@@ -6,8 +6,6 @@ import com.lopez.l2j.game.quest.Quest;
 import com.lopez.l2j.game.quest.QuestManager;
 import com.lopez.l2j.game.quest.QuestState;
 import com.lopez.l2j.game.quest.State;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.stereotype.Component;
 
@@ -32,10 +30,8 @@ public class Quest298LizardmensConspiracy extends Quest {
 	public Quest298LizardmensConspiracy(QuestManager questManager) {
 		super(298, "298_LizardmensConspiracy", "298_LizardmensConspiracy");
 		addStartNpc(30333);
-		addTalkNpc(30344);
-		for (int[] mob : MobsTable) {
-			addKillId(mob[0]);
-		}
+		addTalkId(30333, 30344);
+		addKillId(20922, 20923, 20924, 20926, 20927);
 		registerQuestItems(7182, 7183, 7184);
 		if (questManager != null) {
 			questManager.registerQuest(this);
@@ -44,33 +40,34 @@ public class Quest298LizardmensConspiracy extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		PlayerCharacter pc = qs.playerChar();
 		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "1".equalsIgnoreCase(event)) {
 			qs.setCond(1);
 			qs.setState(State.STARTED);
 			qs.playSound(QuestState.SOUND_ACCEPT);
+			if (qs.getQuestItemsCount(REPORT) == 0) {
+				qs.giveItems(REPORT, 1L);
+			}
 		}
-		String html = event;
 
-        String string2 = event;
-        if (event.equalsIgnoreCase("guard_praga_q0298_0104.htm")) {
-            qs.setState(State.STARTED);
-            qs.setCond(1);
-            qs.giveItems(7182, 1L);
-            qs.playSound("QuestState.SOUND_ACCEPT");
-        } else if (event.equalsIgnoreCase("magister_rohmer_q0298_0201.htm")) {
-            qs.takeItems(7182, -1L);
-            qs.setCond(2);
-            qs.playSound("QuestState.SOUND_MIDDLE");
-        } else if (event.equalsIgnoreCase("magister_rohmer_q0298_0301.htm") && qs.getQuestItemsCount(7183) + qs.getQuestItemsCount(7184) > 99L) {
-            qs.takeItems(7183, -1L);
-            qs.takeItems(7184, -1L);
-            qs.addExpAndSp(0L, 42000L);
-            qs.exitQuest(true);
-            qs.playSound("QuestState.SOUND_FINISH");
-        }
-        return string2;
-    
+		String string2 = event;
+		if (event.equalsIgnoreCase("guard_praga_q0298_0104.htm") || event.equalsIgnoreCase("30333-1.htm")) {
+			qs.setState(State.STARTED);
+			qs.setCond(1);
+			qs.giveItems(REPORT, 1L);
+			qs.playSound(QuestState.SOUND_ACCEPT);
+		} else if (event.equalsIgnoreCase("magister_rohmer_q0298_0201.htm") || event.equalsIgnoreCase("30344-1.htm")) {
+			qs.takeItems(REPORT, -1L);
+			qs.setCond(2);
+			qs.playSound(QuestState.SOUND_MIDDLE);
+		} else if ((event.equalsIgnoreCase("magister_rohmer_q0298_0301.htm") || event.equalsIgnoreCase("30344-4.htm"))
+				&& (qs.getCond() == 3 || qs.getQuestItemsCount(SHINING_GEM) + qs.getQuestItemsCount(SHINING_RED_GEM) > 99L)) {
+			qs.takeItems(SHINING_GEM, -1L);
+			qs.takeItems(SHINING_RED_GEM, -1L);
+			qs.addExpAndSp(0L, 42000L);
+			qs.exitQuest(true);
+			qs.playSound(QuestState.SOUND_FINISH);
+		}
+		return string2;
 	}
 
 	@Override
@@ -78,35 +75,34 @@ public class Quest298LizardmensConspiracy extends Quest {
 		PlayerCharacter pc = qs.playerChar();
 		if (pc == null) return "noquest";
 
-        String html = "noquest";
-        int n = npc != null ? npc.getNpcId() : 0;
-        int n2 = qs.getCond();
-        if (n == 30333) {
-            if (n2 < 1) {
-                if (pc.getLevel() < 25) {
-                    html = "guard_praga_q0298_0102.htm";
-                    qs.exitQuest(true);
-                } else {
-                    html = "guard_praga_q0298_0101.htm";
-                }
-            }
-            if (n2 == 1) {
-                html = "guard_praga_q0298_0105.htm";
-            }
-        } else if (n == 30344) {
-            if (n2 < 1) {
-                html = "magister_rohmer_q0298_0202.htm";
-            } else if (n2 == 1) {
-                html = "magister_rohmer_q0298_0101.htm";
-            } else if (n2 == 2 | qs.getQuestItemsCount(7183) + qs.getQuestItemsCount(7184) < 100L) {
-                html = "magister_rohmer_q0298_0204.htm";
-                qs.setCond(2);
-            } else if (n2 == 3 && qs.getQuestItemsCount(7183) + qs.getQuestItemsCount(7184) > 99L) {
-                html = "magister_rohmer_q0298_0203.htm";
-            }
-        }
-        return html;
-    
+		String html = "noquest";
+		int n = npc != null ? npc.getNpcId() : 0;
+		int n2 = qs.getCond();
+		if (n == PRAGA) {
+			if (n2 < 1) {
+				if (pc.getLevel() < 25) {
+					html = "guard_praga_q0298_0102.htm";
+					qs.exitQuest(true);
+				} else {
+					html = "guard_praga_q0298_0101.htm";
+				}
+			}
+			if (n2 == 1) {
+				html = "guard_praga_q0298_0105.htm";
+			}
+		} else if (n == ROHMER) {
+			if (n2 < 1) {
+				html = "magister_rohmer_q0298_0202.htm";
+			} else if (n2 == 1) {
+				html = "magister_rohmer_q0298_0101.htm";
+			} else if (n2 == 2 || qs.getQuestItemsCount(SHINING_GEM) + qs.getQuestItemsCount(SHINING_RED_GEM) < 100L) {
+				html = "magister_rohmer_q0298_0204.htm";
+				qs.setCond(2);
+			} else if (n2 == 3 && qs.getQuestItemsCount(SHINING_GEM) + qs.getQuestItemsCount(SHINING_RED_GEM) > 99L) {
+				html = "magister_rohmer_q0298_0203.htm";
+			}
+		}
+		return html;
 	}
 
 	@Override
@@ -114,26 +110,24 @@ public class Quest298LizardmensConspiracy extends Quest {
 		PlayerCharacter pc = qs.playerChar();
 		if (pc == null) return null;
 
-        int n = npc != null ? npc.getNpcId() : 0;
-        int n2 = ThreadLocalRandom.current().nextInt(10);
-        if (qs.getCond() == 2) {
-            for (int[] nArray : this.MobsTable) {
-                if (n != nArray[0] || n2 >= 6 || qs.getQuestItemsCount(nArray[1]) >= 50L) continue;
-                if (n2 < 2 && nArray[1] == 7183) {
-                    qs.giveItems(nArray[1], 2L);
-                } else {
-                    qs.giveItems(nArray[1], 1L);
-                }
-                if (qs.getQuestItemsCount(7183) + qs.getQuestItemsCount(7184) > 99L) {
-                    qs.setCond(3);
-                    qs.playSound("QuestState.SOUND_MIDDLE");
-                    continue;
-                }
-                qs.playSound("QuestState.SOUND_ITEMGET");
-            }
-        }
-        return null;
-    
+		int n = npc != null ? npc.getNpcId() : 0;
+		int n2 = ThreadLocalRandom.current().nextInt(10);
+		if (qs.getCond() == 2) {
+			for (int[] nArray : MobsTable) {
+				if (n != nArray[0] || n2 >= 6 || qs.getQuestItemsCount(nArray[1]) >= 50L) continue;
+				if (n2 < 2 && nArray[1] == SHINING_GEM) {
+					qs.giveItems(nArray[1], 2L);
+				} else {
+					qs.giveItems(nArray[1], 1L);
+				}
+				if (qs.getQuestItemsCount(SHINING_GEM) + qs.getQuestItemsCount(SHINING_RED_GEM) > 99L) {
+					qs.setCond(3);
+					qs.playSound(QuestState.SOUND_MIDDLE);
+					continue;
+				}
+				qs.playSound(QuestState.SOUND_ITEMGET);
+			}
+		}
+		return null;
 	}
-
 }
