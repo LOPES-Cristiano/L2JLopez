@@ -189,6 +189,18 @@ public final class EnchantTableService {
 		return Math.min(100, Math.max(0, chance));
 	}
 
+	public static int getEnchantChance(ScrollInfo scroll, ItemInstance item, com.lopez.l2j.game.model.PlayerCharacter player) {
+		if (item == null || scroll == null) {
+			return 0;
+		}
+		int race = (player != null) ? player.race() : 0;
+		int chance = getEnchantChance(scroll, item, race);
+		if (player != null && com.lopez.l2j.game.craft.DwarfCraftBonus.isDwarf(player)) {
+			chance += com.lopez.l2j.game.craft.DwarfCraftBonus.getEnchantBonusPercent();
+		}
+		return Math.min(100, Math.max(0, chance));
+	}
+
 	/**
 	 * Determina o nivel resultante em caso de falha.
 	 * Retorna -1 para indicar que o item deve evaporar (destruir).

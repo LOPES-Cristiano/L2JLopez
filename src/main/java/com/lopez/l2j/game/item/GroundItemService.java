@@ -44,13 +44,23 @@ public class GroundItemService {
 	private final GameWorld world;
 	private final ObjectIdFactory idFactory;
 	private final ItemTemplateTable templates;
+	private final org.springframework.jdbc.core.simple.JdbcClient jdbc;
+
+	public GroundItemService(GameWorld world, ObjectIdFactory idFactory, ItemTemplateTable templates) {
+		this(world, idFactory, templates, null);
+	}
 
 	@Autowired
 	public GroundItemService(GameWorld world, @Autowired(required = false) ObjectIdFactory idFactory,
-			@Autowired(required = false) ItemTemplateTable templates) {
+			@Autowired(required = false) ItemTemplateTable templates,
+			@Autowired(required = false) org.springframework.jdbc.core.simple.JdbcClient jdbc) {
 		this.world = world;
 		this.idFactory = idFactory != null ? idFactory : ObjectIdFactory.sequential(0x80000000);
 		this.templates = templates;
+		this.jdbc = jdbc;
+		if (Config.SAVE_DROPPED_ITEM) {
+			loadFromDb();
+		}
 	}
 
 	public int size() {
@@ -247,6 +257,79 @@ public class GroundItemService {
 	public void onServerStartupClearIfConfigured() {
 		if (Config.CLEAR_DROPPED_ITEM_TABLE) {
 			itemsByObjectId.clear();
+			if (jdbc != null) {
+				try {
+					jdbc.sql("DELETE FROM items_on_ground").update();
+				} catch (Exception ex) {
+					log.warn("Erro ao limpar tabela items_on_ground: {}", ex.getMessage());
+				}
+			}
+		}
+	}
+
+	public synchronized void loadFromDb() {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			var rows = jdbc.sql("""
+					SELECT object_id, item_id, count, enchant_level, x, y, z, drop_time, equipable
+					FROM items_on_ground
+					""").query().listOfRows();
+			for (var row : rows) {
+				int objectId = ((Number) row.get("object_id")).intValue();
+				int itemId = ((Number) row.get("item_id")).intValue();
+				int count = ((Number) row.get("count")).intValue();
+				int x = ((Number) row.get("x")).intValue();
+				int y = ((Number) row.get("y")).intValue();
+				int z = ((Number) row.get("z")).intValue();
+				long dropTime = row.get("drop_time") != null ? ((Number) row.get("drop_time")).longValue() : System.currentTimeMillis();
+
+				var tpl = templates != null ? templates.get(itemId).orElse(null) : null;
+				boolean isHerb = tpl != null && tpl.name() != null && tpl.name().toLowerCase(java.util.Locale.ROOT).contains("herb");
+				long expireMs = resolveExpireTimeMs(dropTime, 0, itemId, tpl, isHerb);
+				ItemInstance inst = tpl != null ? new ItemInstance(objectId, tpl, 0, count) : null;
+
+				itemsByObjectId.put(objectId, new GroundItem(objectId, itemId, count, x, y, z, 0, dropTime, expireMs, isHerb, inst));
+			}
+			log.info("GroundItemService: {} itens no chao carregados de items_on_ground", itemsByObjectId.size());
+
+			if (Config.EMPTY_DROPPED_ITEM_TABLE_AFTER_LOAD) {
+				jdbc.sql("DELETE FROM items_on_ground").update();
+			}
+		} catch (Exception ex) {
+			log.warn("Nao foi possivel carregar items_on_ground do banco: {}", ex.getMessage());
+		}
+	}
+
+	public synchronized void saveToDb() {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("DELETE FROM items_on_ground").update();
+			for (GroundItem gi : itemsByObjectId.values()) {
+				int equipable = (gi.itemInstance() != null && gi.itemInstance().template() != null
+						&& (gi.itemInstance().template().isWeapon() || gi.itemInstance().template().isArmor())) ? 1 : 0;
+				int enchant = gi.itemInstance() != null ? gi.itemInstance().enchant() : 0;
+				jdbc.sql("""
+						INSERT INTO items_on_ground (object_id, item_id, count, enchant_level, x, y, z, drop_time, equipable)
+						VALUES (:obj, :item, :cnt, :ench, :x, :y, :z, :drop, :eq)
+						""")
+						.param("obj", gi.objectId())
+						.param("item", gi.itemId())
+						.param("cnt", gi.count())
+						.param("ench", enchant)
+						.param("x", gi.x())
+						.param("y", gi.y())
+						.param("z", gi.z())
+						.param("drop", gi.dropTimeMs())
+						.param("eq", equipable)
+						.update();
+			}
+			log.info("GroundItemService: {} itens no chao persistidos em items_on_ground", itemsByObjectId.size());
+		} catch (Exception ex) {
+			log.warn("Erro ao salvar items_on_ground no banco: {}", ex.getMessage());
 		}
 	}
 

@@ -170,6 +170,10 @@ public class FrintezzaService {
 		return true;
 	}
 
+	public boolean enterTomb(PlayerCharacter leader) {
+		return enterTomb(leader, leader != null ? List.of(leader) : List.of());
+	}
+
 	/**
 	 * Consome o pergaminho de remocao do campo de forca e teleporta o grupo para dentro da camara.
 	 */
