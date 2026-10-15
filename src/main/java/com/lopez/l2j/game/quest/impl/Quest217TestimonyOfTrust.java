@@ -77,39 +77,12 @@ public class Quest217TestimonyOfTrust extends Quest {
 		super(QUEST_ID, QUEST_NAME, "Testimony of Trust");
 
 		addStartNpc(HOLLIN);
-		addTalkId(HOLLIN);
-		addTalkId(QUILT);
-		addTalkId(OZZY);
-		addTalkId(THIFIELL);
-		addTalkId(CLAYTON);
-		addTalkId(SERESIN);
-		addTalkId(KAKAI);
-		addTalkId(MANAKIA);
-		addTalkId(LOCKIRIN);
-		addTalkId(NIKOLA);
+		addTalkId(HOLLIN, QUILT, OZZY, THIFIELL, CLAYTON, SERESIN, KAKAI, MANAKIA, LOCKIRIN, NIKOLA);
 
-		addKillId(DRYAD);
-		addKillId(DRYAD_ELDER);
-		addKillId(LIREIN);
-		addKillId(LIREIN_ELDER);
-		addKillId(ACTEON);
-		addKillId(LUCIEN);
-		addKillId(GUARDIAN_BASILISK);
-		addKillId(WINDSUS);
-		addKillId(PORTA);
+		addKillId(DRYAD, DRYAD_ELDER, LIREIN, LIREIN_ELDER, ACTEON, LUCIEN, GUARDIAN_BASILISK, WINDSUS, PORTA,
+				20157, 20230, 20232, 20234, 20082, 20083, 20084, 20085, 20086, 20087, 20088);
 
-		// Marsh stakato
-		addKillId(20157);
-		addKillId(20230);
-		addKillId(20232);
-		addKillId(20234);
-
-		// Ants
-		for (int mob = 20082; mob <= 20088; mob++) {
-			addKillId(mob);
-		}
-
-		registerQuestItems(LETTER_TO_ELF, LETTER_TO_DARKELF, LETTER_TO_SERESIN, LETTER_TO_ORC,
+		registerQuestItems(LETTER_TO_ELF, LETTER_TO_DARKELF, 2735, 2736, LETTER_TO_SERESIN, LETTER_TO_ORC,
 				LETTER_TO_DWARF, SCROLL_OF_DARKELF_TRUST, SCROLL_OF_ELF_TRUST, SCROLL_OF_DWARF_TRUST,
 				SCROLL_OF_ORC_TRUST, RECOMMENDATION_OF_HOLLIN, ORDER_OF_OZZY, BREATH_OF_WINDS,
 				SEED_OF_VERDURE, LETTER_OF_THIFIELL, ORDER_OF_CLAYTON, BASILISK_PLASMA,
@@ -128,28 +101,28 @@ public class Quest217TestimonyOfTrust extends Quest {
 			return null;
 		}
 
-		if ("1".equalsIgnoreCase(event)) {
+		if ("1".equalsIgnoreCase(event) || "30191-04.htm".equalsIgnoreCase(event)) {
 			qs.setCond(1);
 			qs.setState(State.STARTED);
 			qs.playSound("ItemSound.quest_accept");
 			qs.giveItems(LETTER_TO_ELF, 1);
 			qs.giveItems(LETTER_TO_DARKELF, 1);
 			return "30191-04.htm";
-		} else if ("30154_1".equalsIgnoreCase(event)) {
+		} else if ("30154_1".equalsIgnoreCase(event) || "30154-02.htm".equalsIgnoreCase(event)) {
 			return "30154-02.htm";
-		} else if ("30154_2".equalsIgnoreCase(event)) {
+		} else if ("30154_2".equalsIgnoreCase(event) || "30154-03.htm".equalsIgnoreCase(event)) {
 			qs.takeItems(LETTER_TO_ELF, -1);
 			qs.giveItems(ORDER_OF_OZZY, 1);
 			qs.setCond(2);
 			qs.playSound("ItemSound.quest_middle");
 			return "30154-03.htm";
-		} else if ("30358_1".equalsIgnoreCase(event)) {
+		} else if ("30358_1".equalsIgnoreCase(event) || "30358-02.htm".equalsIgnoreCase(event)) {
 			qs.takeItems(LETTER_TO_DARKELF, -1);
 			qs.giveItems(LETTER_OF_THIFIELL, 1);
 			qs.setCond(5);
 			qs.playSound("ItemSound.quest_middle");
 			return "30358-02.htm";
-		} else if ("30657_1".equalsIgnoreCase(event)) {
+		} else if ("30657_1".equalsIgnoreCase(event) || "30657-03.htm".equalsIgnoreCase(event)) {
 			PlayerCharacter player = qs.getPlayerCharacter();
 			if (player != null && player.getLevel() >= 38) {
 				qs.takeItems(LETTER_TO_SERESIN, -1);
@@ -159,25 +132,29 @@ public class Quest217TestimonyOfTrust extends Quest {
 				qs.playSound("ItemSound.quest_middle");
 				return "30657-03.htm";
 			}
+			if (qs.getCond() == 10) {
+				qs.setCond(11);
+				qs.playSound("ItemSound.quest_middle");
+			}
 			return "30657-02.htm";
-		} else if ("30565_1".equalsIgnoreCase(event)) {
+		} else if ("30565_1".equalsIgnoreCase(event) || "30565-02.htm".equalsIgnoreCase(event)) {
 			qs.takeItems(LETTER_TO_ORC, -1);
 			qs.giveItems(LETTER_OF_MANAKIA, 1);
 			qs.setCond(13);
 			qs.playSound("ItemSound.quest_middle");
 			return "30565-02.htm";
-		} else if ("30515_1".equalsIgnoreCase(event)) {
+		} else if ("30515_1".equalsIgnoreCase(event) || "30515-02.htm".equalsIgnoreCase(event)) {
 			qs.takeItems(LETTER_OF_MANAKIA, -1);
 			qs.setCond(14);
 			qs.playSound("ItemSound.quest_middle");
 			return "30515-02.htm";
-		} else if ("30531_1".equalsIgnoreCase(event)) {
+		} else if ("30531_1".equalsIgnoreCase(event) || "30531-02.htm".equalsIgnoreCase(event)) {
 			qs.takeItems(LETTER_TO_DWARF, -1);
 			qs.giveItems(LETTER_OF_LOCKIRIN, 1);
 			qs.setCond(18);
 			qs.playSound("ItemSound.quest_middle");
 			return "30531-02.htm";
-		} else if ("30621_1".equalsIgnoreCase(event)) {
+		} else if ("30621_1".equalsIgnoreCase(event) || "30621-02.htm".equalsIgnoreCase(event)) {
 			qs.takeItems(LETTER_OF_LOCKIRIN, -1);
 			qs.giveItems(ORDER_OF_NIKOLA, 1);
 			qs.setCond(19);
