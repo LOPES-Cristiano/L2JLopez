@@ -147,4 +147,55 @@ class SchemeBufferServiceTest {
 		assertEquals(1, player.effects().activeBuffs().size());
 		assertFalse(player.effects().funcs().isEmpty(), "Buff deve conter as funcoes de status (funcs)");
 	}
+
+	@Test
+	@DisplayName("Lucera Buffer: aplica conjunto de buffs por menuId (ask=201) e grava/aplica perfil (BuffProf)")
+	void testLuceraBufferTemplateAndProfileRecording() {
+		when(inventory.destroyItemByItemId(eq(SchemeBufferService.ADENA_ID), anyInt())).thenReturn(true);
+
+		// Aplicar template 201 (Fighter)
+		bufferService.handleLuceraBufferAct(player, session, null, "ask=201&reply=1", false);
+		assertFalse(player.effects().activeBuffs().isEmpty(), "Template 201 deve aplicar buffs ao jogador");
+
+		// Limpar buffs via ask=-2
+		bufferService.handleLuceraBufferAct(player, session, null, "ask=-2&reply=1", false);
+		assertTrue(player.effects().activeBuffs().isEmpty(), "ask=-2 deve cancelar todos os buffs");
+
+		// Iniciar gravacao de perfil (ask=-100)
+		bufferService.handleLuceraBufferAct(player, session, null, "ask=-100&reply=999", false);
+		assertTrue(bufferService.isRecordingProfile(player.objectId()), "Jogador deve estar gravando perfil");
+
+		// Selecionar Wind Walk (menuId=1 -> skill 1204 lv 2) e Shield (menuId=3 -> skill 1040 lv 3)
+		bufferService.handleLuceraBufferAct(player, session, null, "ask=1&reply=999", false);
+		bufferService.handleLuceraBufferAct(player, session, null, "ask=3&reply=999", false);
+
+		// Salvar no perfil One (ask=-2000 -> BuffProf-0)
+		bufferService.handleLuceraBufferAct(player, session, null, "ask=-2000&reply=1", false);
+		assertFalse(bufferService.isRecordingProfile(player.objectId()), "Gravacao deve encerrar ao salvar");
+		verify(variablesService).setVariable(eq(player.objectId()), eq("BuffProf-0"), eq("1;3;"));
+		verify(variablesService).setVariable(eq(player.objectId()), eq("buff_scheme_1"), eq("1204,1040"));
+
+		// Simular perfil salvo e aplicar via ask=-1000
+		player.effects().clear();
+		when(variablesService.getVariable(eq(player.objectId()), eq("BuffProf-0"), any())).thenReturn("1;3;");
+		bufferService.handleLuceraBufferAct(player, session, null, "ask=-1000&reply=1", false);
+		assertEquals(2, player.effects().activeBuffs().size(), "Perfil gravado deve reaplicar os 2 buffs salvos");
+	}
+
+	@Test
+	@DisplayName("Edicao de esquemas (adicionar, remover, limpar e renderizar HTML)")
+	void testSchemeEditing() {
+		when(variablesService.getVariable(eq(player.objectId()), eq("buff_scheme_3"), any())).thenReturn("1068,1040");
+
+		assertTrue(bufferService.addSkillToScheme(player.objectId(), 3, 1204));
+		verify(variablesService).setVariable(eq(player.objectId()), eq("buff_scheme_3"), eq("1068,1040,1204"));
+
+		when(variablesService.getVariable(eq(player.objectId()), eq("buff_scheme_3"), any())).thenReturn("1068,1040,1204");
+		assertTrue(bufferService.removeSkillFromScheme(player.objectId(), 3, 1040));
+		verify(variablesService).setVariable(eq(player.objectId()), eq("buff_scheme_3"), eq("1068,1204"));
+
+		String html = bufferService.renderSchemeEditHtml(player, 3);
+		assertNotNull(html);
+		assertTrue(html.contains("Editor de Esquema"), "HTML deve conter o titulo do Editor de Esquema");
+	}
 }

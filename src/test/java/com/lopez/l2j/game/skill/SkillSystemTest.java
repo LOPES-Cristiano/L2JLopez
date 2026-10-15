@@ -23,6 +23,7 @@ class SkillSystemTest {
 
 	@BeforeAll
 	static void load() {
+		com.lopez.l2j.config.Config.ALT_BUFFER_TIME = 1;
 		table = new SkillTable(Path.of("data", "xml", "stats", "skills"));
 		trees = new SkillTreeTable(Path.of("data", "xml", "player", "skills"));
 	}
