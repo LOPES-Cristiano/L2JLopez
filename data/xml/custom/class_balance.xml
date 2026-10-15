@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list>
+	<!-- Duelist (88), Titan (113), Archmage (94) -->
+	<class id="88" pAtk="1.05" mAtk="1.0" pDef="1.02" mDef="1.0"/>
+	<class id="113" pAtk="1.08" mAtk="1.0" pDef="1.0" mDef="1.0"/>
+	<class id="94" pAtk="1.0" mAtk="1.05" pDef="1.0" mDef="1.02"/>
+</list>

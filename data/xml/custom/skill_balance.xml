@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list>
+	<!-- Sonic Buster (261) e Triple Sonic Slash (262) -->
+	<skill id="261" multiplier="1.05"/>
+	<skill id="262" multiplier="1.08"/>
+</list>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list>
+	<!-- Duelist (88) vs Archmage (94) -->
+	<matchup attacker="88" target="94" multiplier="1.10"/>
+	<matchup attacker="94" target="88" multiplier="0.95"/>
+</list>
