@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list>
+	<!-- Zonas de Farm Temporizadas (NEXORA IL Time Farm Zones) -->
+	<zone id="1" name="Forbidden Cemetery" intervalMinutes="60" costAdena="500000" enterX="17144" enterY="20847" enterZ="-3400" exitX="83400" exitY="147943" exitZ="-3404"/>
+	<zone id="2" name="Ivory Tower" intervalMinutes="30" costAdena="250000" enterX="85337" enterY="16167" enterZ="-3696" exitX="83400" exitY="147943" exitZ="-3404"/>
+</list>

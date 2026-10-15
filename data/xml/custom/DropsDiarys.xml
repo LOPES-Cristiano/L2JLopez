@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list>
+	<!-- Limites Diários de Drops Raros (NEXORA IL Drops Diary) -->
+	<drop itemId="6392" dailyLimit="5" name="Event Medal"/>
+	<drop itemId="6393" dailyLimit="5" name="Glittering Medal"/>
+	<drop itemId="3470" dailyLimit="10" name="Gold Bar"/>
+</list>
