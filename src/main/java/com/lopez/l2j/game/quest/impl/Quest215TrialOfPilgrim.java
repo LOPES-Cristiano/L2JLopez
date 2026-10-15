@@ -33,7 +33,9 @@ public class Quest215TrialOfPilgrim extends Quest {
 	public static final int ATUBA = 30280;
 	public static final int MOODUS = 30551;
 	public static final int URUHA = 30652;
-	public static final int PETRON = 30362;
+	public static final int PRIMOS = 30117;
+	public static final int PETRON = 30036;
+	public static final int ANDELLIA = 30362;
 
 	// Monstros
 	public static final int LAVA_SALAMANDER = 27116;
@@ -62,7 +64,7 @@ public class Quest215TrialOfPilgrim extends Quest {
 		super(QUEST_ID, QUEST_NAME, "Trial of the Pilgrim");
 
 		addStartNpc(SANTIAGO);
-		addTalkId(SANTIAGO, MARTANKUS, GERALD, DORF, CASIAN, TANAPI, PRAGA, VDINIA, GAURI, ATUBA, MOODUS, URUHA, PETRON);
+		addTalkId(SANTIAGO, MARTANKUS, GERALD, DORF, CASIAN, TANAPI, PRAGA, VDINIA, GAURI, ATUBA, MOODUS, URUHA, PRIMOS, PETRON, ANDELLIA);
 
 		addKillId(LAVA_SALAMANDER, NAHIR, BLACK_WILLOW);
 
@@ -87,28 +89,33 @@ public class Quest215TrialOfPilgrim extends Quest {
 			qs.giveItems(VOUCHER_OF_TRIAL, 1);
 			qs.playSound(QuestState.SOUND_ACCEPT);
 			return "30648-04.htm";
-		} else if ("30649_1".equalsIgnoreCase(event)) {
+		} else if ("30649_1".equalsIgnoreCase(event) || "30649-04.htm".equalsIgnoreCase(event)) {
 			qs.giveItems(SPIRIT_OF_FLAME, 1);
 			qs.takeItems(ESSENSE_OF_FLAME, -1);
 			qs.setCond(5);
 			qs.playSound(QuestState.SOUND_MIDDLE);
 			return "30649-04.htm";
-		} else if ("30650_1".equalsIgnoreCase(event)) {
+		} else if ("30650_1".equalsIgnoreCase(event) || "30650-02.htm".equalsIgnoreCase(event)) {
 			if (qs.getQuestItemsCount(57) >= 100000) {
 				qs.giveItems(BOOK_OF_GERALD, 1);
 				qs.takeItems(57, 100000);
-				qs.setCond(8);
-				qs.playSound(QuestState.SOUND_MIDDLE);
+				if ("30650_1".equalsIgnoreCase(event)) {
+					qs.setCond(8);
+				}
+				qs.playSound(QuestState.SOUND_ITEMGET);
 				return "30650-02.htm";
-			} else {
-				return "30650-03.htm";
 			}
-		} else if ("30362_1".equalsIgnoreCase(event) || "30362_2".equalsIgnoreCase(event)) {
+			return "30650-03.htm";
+		} else if ("30362-04.htm".equalsIgnoreCase(event)) {
+			qs.setCond(16);
+			qs.playSound(QuestState.SOUND_MIDDLE);
+			return "30362-04.htm";
+		} else if ("30362_1".equalsIgnoreCase(event) || "30362_2".equalsIgnoreCase(event) || "30362-05.htm".equalsIgnoreCase(event)) {
 			qs.takeItems(BOOK_OF_DARKNESS, -1);
 			qs.setCond(16);
 			qs.playSound(QuestState.SOUND_MIDDLE);
 			return "30362-05.htm";
-		} else if ("30652_1".equalsIgnoreCase(event)) {
+		} else if ("30652_1".equalsIgnoreCase(event) || "30652-02.htm".equalsIgnoreCase(event)) {
 			qs.giveItems(BOOK_OF_DARKNESS, 1);
 			qs.takeItems(DEBRIS_OF_WILLOW, -1);
 			qs.setCond(15);
@@ -140,10 +147,12 @@ public class Quest215TrialOfPilgrim extends Quest {
 				}
 			} else if (cond == 1) {
 				return "30648-05.htm";
+			} else if (cond < 17) {
+				return "30648-09.htm";
 			} else if (cond == 17 && qs.hasQuestItems(BOOK_OF_SAGE)) {
 				qs.takeItems(BOOK_OF_SAGE, -1);
 				qs.giveItems(MARK_OF_PILGRIM, 1);
-				qs.addExpAndSp(77107, 11000);
+				qs.addExpAndSp(77382, 16000);
 				qs.setCond(0);
 				qs.playSound(QuestState.SOUND_FINISH);
 				qs.exitCurrentQuest(false);
@@ -155,40 +164,123 @@ public class Quest215TrialOfPilgrim extends Quest {
 				qs.setCond(2);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 				return "30571-01.htm";
-			} else if (cond == 5 && qs.hasQuestItems(SPIRIT_OF_FLAME)) {
-				qs.takeItems(SPIRIT_OF_FLAME, -1);
+			} else if (cond < 5) {
+				return "30571-02.htm";
+			} else if (cond == 5) {
 				qs.setCond(6);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 				return "30571-04.htm";
+			} else if (cond > 5) {
+				return "30571-03.htm";
 			}
 		} else if (npcId == MARTANKUS) {
 			if (cond == 2) {
 				qs.setCond(3);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 				return "30649-01.htm";
+			} else if (cond == 3) {
+				return "30649-02.htm";
 			} else if (cond == 4 && qs.hasQuestItems(ESSENSE_OF_FLAME)) {
 				return "30649-03.htm";
 			}
-		} else if (npcId == GERALD) {
+		} else if (npcId == GAURI) {
 			if (cond == 6) {
+				qs.giveItems(TAG_OF_RUMOR, 1);
+				qs.setCond(7);
+				qs.playSound(QuestState.SOUND_MIDDLE);
+				return "30550-01.htm";
+			} else if (cond > 6) {
+				return "30550-02.htm";
+			}
+		} else if (npcId == GERALD) {
+			if ((cond == 6 || cond == 7) && !qs.hasQuestItems(BOOK_OF_GERALD)) {
 				return "30650-01.htm";
+			} else if (cond == 8 && qs.hasQuestItems(BOOK_OF_GERALD)) {
+				qs.takeItems(BOOK_OF_GERALD, -1);
+				qs.giveItems(57, 100000);
+				qs.playSound(QuestState.SOUND_ITEMGET);
+				return "30650-04.htm";
 			} else if (cond == 8) {
 				return "30650-04.htm";
 			}
 		} else if (npcId == DORF) {
-			if (cond == 8 && qs.hasQuestItems(BOOK_OF_GERALD)) {
+			if (cond == 7) {
+				String html = !qs.hasQuestItems(BOOK_OF_GERALD) ? "30651-01.htm" : "30651-02.htm";
+				qs.takeItems(TAG_OF_RUMOR, -1);
+				qs.giveItems(GREY_BADGE, 1);
+				qs.setCond(8);
+				qs.playSound(QuestState.SOUND_MIDDLE);
+				return html;
+			} else if (cond == 8 && qs.hasQuestItems(BOOK_OF_GERALD)) {
 				qs.takeItems(BOOK_OF_GERALD, -1);
 				qs.giveItems(GREY_BADGE, 1);
 				qs.setCond(9);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 				return "30651-01.htm";
+			} else if (cond > 7) {
+				return "30651-03.htm";
+			}
+		} else if (npcId == PRIMOS) {
+			if (cond == 8) {
+				qs.setCond(9);
+				qs.playSound(QuestState.SOUND_MIDDLE);
+				return "30117-01.htm";
+			} else if (cond > 8) {
+				return "30117-02.htm";
+			}
+		} else if (npcId == PETRON) {
+			if (cond == 9) {
+				qs.giveItems(PICTURE_OF_NAHIR, 1);
+				qs.setCond(10);
+				qs.playSound(QuestState.SOUND_MIDDLE);
+				return "30036-01.htm";
+			} else if (cond == 10) {
+				return "30036-02.htm";
+			} else if (cond == 11) {
+				qs.takeItems(HAIR_OF_NAHIR, -1);
+				qs.takeItems(PICTURE_OF_NAHIR, -1);
+				qs.giveItems(STATUE_OF_EINHASAD, 1);
+				qs.setCond(12);
+				qs.playSound(QuestState.SOUND_MIDDLE);
+				return "30036-03.htm";
+			} else if (cond > 11) {
+				return "30036-04.htm";
+			}
+		} else if (npcId == ANDELLIA) {
+			if (cond == 12) {
+				if (player != null && player.level() < 36) {
+					return "30362-01a.htm";
+				}
+				qs.setCond(13);
+				qs.playSound(QuestState.SOUND_MIDDLE);
+				return "30362-01.htm";
+			} else if (cond == 13) {
+				return "30362-02.htm";
+			} else if (cond == 14) {
+				return "30362-07.htm";
+			} else if (cond == 15) {
+				return "30362-03.htm";
+			} else if (cond == 16) {
+				return "30362-06.htm";
+			}
+		} else if (npcId == URUHA) {
+			if (cond == 14) {
+				return "30652-01.htm";
+			} else if (cond == 15) {
+				return "30652-03.htm";
 			}
 		} else if (npcId == CASIAN) {
 			if (cond == 16) {
+				qs.takeItems(BOOK_OF_DARKNESS, -1);
+				qs.takeItems(GREY_BADGE, -1);
+				qs.takeItems(SPIRIT_OF_FLAME, -1);
+				qs.takeItems(STATUE_OF_EINHASAD, -1);
 				qs.giveItems(BOOK_OF_SAGE, 1);
 				qs.setCond(17);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 				return "30612-01.htm";
+			} else if (cond == 17) {
+				return "30612-02.htm";
 			}
 		}
 
@@ -212,8 +304,9 @@ public class Quest215TrialOfPilgrim extends Quest {
 			qs.giveItems(HAIR_OF_NAHIR, 1);
 			qs.setCond(11);
 			qs.playSound(QuestState.SOUND_MIDDLE);
-		} else if (cond == 14 && npcId == BLACK_WILLOW && !qs.hasQuestItems(DEBRIS_OF_WILLOW)) {
+		} else if ((cond == 13 || cond == 14) && npcId == BLACK_WILLOW && !qs.hasQuestItems(DEBRIS_OF_WILLOW)) {
 			qs.giveItems(DEBRIS_OF_WILLOW, 1);
+			qs.setCond(14);
 			qs.playSound(QuestState.SOUND_MIDDLE);
 		}
 
