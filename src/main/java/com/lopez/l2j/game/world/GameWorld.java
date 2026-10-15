@@ -183,6 +183,10 @@ public class GameWorld {
 		return players();
 	}
 
+	public Collection<OnlinePlayer> onlinePlayers() {
+		return players();
+	}
+
 	public Optional<OnlinePlayer> byName(String name) {
 		return name == null ? Optional.empty() : Optional.ofNullable(playersByName.get(key(name)));
 	}
@@ -194,6 +198,10 @@ public class GameWorld {
 	public PlayerCharacter getPlayer(int objectId) {
 		OnlinePlayer p = playersById.get(objectId);
 		return p != null ? p.character() : null;
+	}
+
+	public OnlinePlayer findPlayer(int objectId) {
+		return playersById.get(objectId);
 	}
 
 	public PlayerCharacter getPlayer(String name) {

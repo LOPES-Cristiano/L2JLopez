@@ -260,6 +260,37 @@ public class TownWarService {
 		return Collections.unmodifiableMap(supportedTowns);
 	}
 
+	public boolean isTownWarActiveAt(int x, int y) {
+		return isInsideWarZone(x, y);
+	}
+
+	public boolean isTownWarActiveAt(int x, int y, int z) {
+		return isInsideWarZone(x, y, z);
+	}
+
+	public boolean startTownWar(int townId) {
+		return startTownWar(townId, 60);
+	}
+
+	public String getStatusHtml() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("<html><body><title>Town War</title><center>");
+		sb.append("<font color=\"LEVEL\">== Guerra Urbana (Town War) ==</font><br><br>");
+		if (activeWars.isEmpty()) {
+			sb.append("<font color=\"00FF00\">PAZ</font><br>");
+			sb.append("Nenhuma guerra urbana em andamento.<br><br>");
+		} else {
+			sb.append("<font color=\"FF0000\">EM GUERRA!</font><br><br>");
+			for (ActiveTownWar war : activeWars.values()) {
+				sb.append("Cidade: <font color=\"AAAAAA\">").append(war.config().name()).append("</font><br>");
+				sb.append("Baixas Totais: <font color=\"LEVEL\">").append(war.killCounters().values().stream().mapToInt(Integer::intValue).sum()).append("</font><br><br>");
+			}
+			sb.append("<font color=\"FFAA00\">Atencao: A zona de paz das capitais em guerra esta DESATIVADA!</font>");
+		}
+		sb.append("</center></body></html>");
+		return sb.toString();
+	}
+
 	public void setZoneTable(ZoneTable zoneTable) {
 		this.zoneTable = zoneTable;
 	}

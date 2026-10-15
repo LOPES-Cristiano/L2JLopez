@@ -241,6 +241,33 @@ public class GvEService {
 		this.inventoryService = inventoryService;
 	}
 
+	public void startEvent() {
+		this.active = true;
+		this.goodScore.set(0);
+		this.evilScore.set(0);
+		log.info("GvEService: Evento Good vs Evil INICIADO!");
+	}
+
+	public void stopEvent() {
+		this.active = false;
+		log.info("GvEService: Evento Good vs Evil ENCERRADO! Placar final: Good {} x Evil {}",
+				goodScore.get(), evilScore.get());
+	}
+
+	public String getStatusHtml(PlayerCharacter player) {
+		FactionType myFac = (player != null && player.faction() != null) ? player.faction() : FactionType.NONE;
+		return "<html><body><title>Good vs Evil</title><center>"
+				+ "<font color=\"LEVEL\">== Good vs Evil Faction ==</font><br><br>"
+				+ "Status: " + (active ? "<font color=\"00FF00\">ATIVO</font>" : "<font color=\"FF0000\">INATIVO</font>") + "<br>"
+				+ "Sua Faccao: <font color=\"AAAAAA\">" + myFac.displayName() + "</font><br><br>"
+				+ "Placar Geral:<br>"
+				+ "<font color=\"3366FF\">Good: " + goodScore.get() + "</font> | "
+				+ "<font color=\"FF3300\">Evil: " + evilScore.get() + "</font><br><br>"
+				+ "<button value=\"Entrar GOOD\" action=\"bypass voiced_gve_join good\" width=95 height=22 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>"
+				+ "<button value=\"Entrar EVIL\" action=\"bypass voiced_gve_join evil\" width=95 height=22 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">"
+				+ "</center></body></html>";
+	}
+
 	public void setCharacterVariablesService(CharacterVariablesService characterVariables) {
 		this.characterVariables = characterVariables;
 	}
