@@ -56,6 +56,10 @@ public abstract class Quest {
 		return descr != null && !descr.isBlank() ? descr : name;
 	}
 
+	public static String getAlreadyCompletedMsg() {
+		return "<html><body>This quest has already been completed.</body></html>";
+	}
+
 	private volatile QuestManager registeredManager;
 
 	void setRegisteredManager(QuestManager manager) {
@@ -260,6 +264,10 @@ public abstract class Quest {
 
 	public String onAttack(NpcInstance npc, QuestState qs) {
 		return null;
+	}
+
+	public String onAttack(NpcInstance npc, QuestState qs, boolean isPet) {
+		return onAttack(npc, qs);
 	}
 
 	public void onEnterWorld(GameSession player) {

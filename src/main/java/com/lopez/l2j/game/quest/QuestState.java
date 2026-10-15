@@ -32,6 +32,7 @@ public class QuestState {
 	public static final String SOUND_FINISH = "ItemSound.quest_finish";
 	public static final String SOUND_ITEMGET = "ItemSound.quest_itemget";
 	public static final String SOUND_FANFARE = "ItemSound.quest_fanfare_2";
+	public static final String SOUND_FANFARE_MIDDLE = "ItemSound.quest_fanfare_middle";
 	public static final String SOUND_JACKPOT = "ItemSound.quest_jackpot";
 	public static final String SOUND_HORROR2 = "SkillSound5.horror_02";
 	public static final String SOUND_BEFORE_BATTLE = "Itemsound.quest_before_battle";
@@ -241,14 +242,24 @@ public class QuestState {
 	public void setCond(int value) {
 		set("cond", value);
 		playSound(SOUND_MIDDLE);
+		if (player != null && player.context() != null && player.context().questManager() != null) {
+			player.context().questManager().sendQuestList(player);
+		}
 	}
 
 	public QuestState exitQuest(boolean repeatable) {
 		if (repeatable) {
 			state = State.CREATED;
 			variables.clear();
+			if (player != null && player.context() != null && player.context().questManager() != null) {
+				player.context().questManager().deleteQuestState(this);
+				player.context().questManager().sendQuestList(player);
+			}
 		} else {
-			state = State.COMPLETED;
+			setState(State.COMPLETED);
+			if (player != null && player.context() != null && player.context().questManager() != null) {
+				player.context().questManager().sendQuestList(player);
+			}
 		}
 		cancelQuestTimers();
 		return this;
@@ -613,5 +624,12 @@ public class QuestState {
 
 	public NpcInstance addSpawn(int npcId, int x, int y, int z, int heading, int randomOffset, int despawnDelay) {
 		return addSpawn(npcId, x, y, z, despawnDelay);
+	}
+
+	public NpcInstance addSpawn(int npcId, NpcInstance npc, boolean isSummonSpawn, int despawnDelay) {
+		if (npc != null) {
+			return addSpawn(npcId, npc.x(), npc.y(), npc.z(), despawnDelay);
+		}
+		return addSpawn(npcId);
 	}
 }
