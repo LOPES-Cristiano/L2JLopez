@@ -1,0 +1,303 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- Exchange Adena y Medal -->
+<list maintainEnchantment="true" applyTaxes="true">
+  <item id="1"><!-- Mana Potion -->
+    <ingredient id="6392" count="10"/>
+	<production id="728" count="5"/>
+  </item>
+  <item id="2"><!-- Event Medal - Adena -->
+    <ingredient id="57" count="10000"/> <!-- Adena -->
+    <production id="6392" count="1"/> <!-- Event Medal -->
+  </item>
+  <item id="3"><!-- Event - Glittering Medal - Festival Adena -->
+    <ingredient id="6392" count="200"/> <!-- Event - Glittering Medal -->
+    <production id="6673" count="1"/> <!-- Festival Adena -->
+  </item>
+  <item id="4"> <!-- Festival Adena - Apiga 1 horas de VIP -->
+    <ingredient id="6673" count="50"/> <!-- Festival Adena -->
+    <production id="9143" count="1"/> <!-- Apiga 1 horas de VIP -->
+  </item>
+  <item id="5"> <!-- Festival Adena - Scheme potion Buff -->
+    <ingredient id="6673" count="10"/> <!-- Festival Adena -->
+    <production id="9984" count="1"/> <!-- Scheme potion Buffer -->
+  </item>
+  <item id="6"> <!-- Dimensional Diamond -->
+    <ingredient id="6673" count="1"/> <!-- Festival Adena -->
+    <production id="7562" count="15"/> <!-- Dimensional Diamond -->
+  </item>
+  <item id="7"><!-- Elysian -->
+    <production id="164" count="1" enchant="0"/>
+    <ingredient id="6673" count="150"/> <!-- Festival Adena -->
+  </item>
+  <item id="8"><!-- Branch Of The Mother Tree -->
+    <production id="213" count="1" enchant="0"/>
+    <ingredient id="6673" count="150"/> <!-- Festival Adena -->
+  </item>
+  <item id="9"> <!-- Soul Bow -->
+    <production id="289" count="1" enchant="0"/>
+    <ingredient id="6673" count="150"/> <!-- Festival Adena -->
+  </item>
+  <item id="10"> <!-- Soul Separator -->
+    <production id="236" count="1" enchant="0"/>
+    <ingredient id="6673" count="150"/> <!-- Festival Adena -->
+  </item>
+  <item id="11"> <!-- Dragon Grinder -->
+    <production id="270" count="1" enchant="0"/>
+    <ingredient id="6673" count="150"/> <!-- Festival Adena -->
+  </item>
+  <item id="12"> <!-- Tallum Glaive -->
+    <production id="305" count="1" enchant="0"/>
+    <ingredient id="6673" count="150"/> <!-- Festival Adena -->
+  </item>
+  <item id="13"> <!-- Tallum Blade -->
+    <production id="80" count="1" enchant="0"/>
+    <ingredient id="6673" count="150"/> <!-- Festival Adena -->
+  </item>
+  <item id="14"> <!-- Sword Of Miracles -->
+    <production id="151" count="1" enchant="0"/>
+    <ingredient id="6673" count="150"/> <!-- Festival Adena -->
+  </item>
+  <item id="15"> <!-- Dragon Slayer -->
+    <production id="81" count="1" enchant="0"/>
+    <ingredient id="6673" count="150"/> <!-- Festival Adena -->
+  </item>
+  <item id="16"> <!-- Dark Legion's Edge -->
+    <production id="2500" count="1" enchant="0"/>
+    <ingredient id="6673" count="150"/> <!-- Festival Adena -->
+  </item>
+  <item id="17"> <!-- Elemental Sword -->
+    <production id="150" count="1" enchant="0"/>
+    <ingredient id="6673" count="150"/> <!-- Festival Adena -->
+  </item>
+  <item id="18"> <!-- Infernal Master -->
+    <production id="7884" count="1" enchant="0"/>
+    <ingredient id="6673" count="150"/> <!-- Festival Adena -->
+  </item>
+  <item id="19"><!-- Sealed Majestic Plate Armor -->
+    <production id="5316" count="1" enchant="0"/>
+    <production id="6324" count="2" enchant="0"/>
+    <production id="6325" count="2" enchant="0"/>
+    <production id="6323" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="20"><!-- Sealed Majestic Leather Armor -->
+    <production id="5323" count="1" enchant="0"/>
+    <production id="6324" count="2" enchant="0"/>
+    <production id="6325" count="2" enchant="0"/>
+    <production id="6323" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="21"><!-- Sealed Majestic Robe -->
+    <production id="5329" count="1" enchant="0"/>
+    <production id="6324" count="2" enchant="0"/>
+    <production id="6325" count="2" enchant="0"/>
+    <production id="6323" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="22"><!-- Sealed Majestic Circlet -->
+    <production id="5317" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="23"><!-- Sealed Majestic Gauntlets -->
+    <production id="5318" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="24"><!-- Sealed Majestic Boots -->
+    <production id="5319" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="25"><!-- Sealed Armor of Nightmare -->
+    <production id="5311" count="1" enchant="0"/>
+    <production id="6324" count="2" enchant="0"/>
+    <production id="6325" count="2" enchant="0"/>
+    <production id="6323" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="26"><!-- Sealed Leather Armor of Nightmare -->
+    <production id="5320" count="1" enchant="0"/>
+    <production id="6324" count="2" enchant="0"/>
+    <production id="6325" count="2" enchant="0"/>
+    <production id="6323" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="27"><!-- Sealed Nightmare Robe -->
+    <production id="5326" count="1" enchant="0"/>
+    <production id="6324" count="2" enchant="0"/>
+    <production id="6325" count="2" enchant="0"/>
+    <production id="6323" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="28"><!-- Sealed Helm Of Nightmare -->
+    <production id="5312" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="29"><!-- Sealed Gauntlets Of Nightmare -->
+    <production id="5313" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="30"><!-- Sealed Boots Of Nightmare -->
+    <production id="5314" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="31"><!-- Sealed Tallum Plate Armor -->
+    <production id="5293" count="1" enchant="0"/>
+    <production id="6324" count="2" enchant="0"/>
+    <production id="6325" count="2" enchant="0"/>
+    <production id="6323" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="32"><!-- Sealed Tallum Leather Armor -->
+    <production id="5301" count="1" enchant="0"/>
+    <production id="6324" count="2" enchant="0"/>
+    <production id="6325" count="2" enchant="0"/>
+    <production id="6323" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="33"><!-- Sealed Tallum Tunic + Sealed Tallum Stockings -->
+    <production id="5304" count="1" enchant="0"/>
+    <production id="5305" count="1" enchant="0"/>
+    <production id="6324" count="2" enchant="0"/>
+    <production id="6325" count="2" enchant="0"/>
+    <production id="6323" count="1" enchant="0"/>
+    <ingredient id="6673" count="150"/> <!-- Festival Adena -->
+  </item>
+  <item id="34"><!-- Sealed Tallum Helm -->
+    <production id="5294" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="35"><!-- Sealed Tallum Gloves -->
+    <production id="5295" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="36"><!-- Sealed Tallum Boots -->
+    <production id="5296" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="37"><!-- Sealed Dark Crystal Breastplate + Sealed Dark Crystal Gaiters -->
+    <production id="5287" count="1" enchant="0"/>
+    <production id="5288" count="1" enchant="0"/>
+    <production id="6324" count="2" enchant="0"/>
+    <production id="6325" count="2" enchant="0"/>
+    <production id="6323" count="1" enchant="0"/>
+    <ingredient id="6673" count="150"/> <!-- Festival Adena -->
+  </item>
+  <item id="38"><!-- Sealed Dark Crystal Leather Armor + Sealed Dark Crystal Leggings-->
+    <production id="5297" count="1" enchant="0"/>
+    <production id="5298" count="1" enchant="0"/>
+    <production id="6324" count="2" enchant="0"/>
+    <production id="6325" count="2" enchant="0"/>
+    <production id="6323" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="39"><!-- Sealed Dark Crystal Robe -->
+    <production id="5308" count="1" enchant="0"/>
+    <production id="6324" count="2" enchant="0"/>
+    <production id="6325" count="2" enchant="0"/>
+    <production id="6323" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="40"><!-- Sealed Dark Crystal Helmet -->
+    <production id="5289" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="41"><!-- Sealed Dark Crystal Gloves -->
+    <production id="5290" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="42"><!-- Sealed Dark Crystal Boots -->
+    <production id="5291" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+  <item id="43"><!-- Sealed Dark Crystal Shield -->
+    <production id="5292" count="1" enchant="0"/>
+    <ingredient id="6673" count="75"/> <!-- Festival Adena -->
+  </item>
+
+  <item id="44"><!-- Red Soul Crystal - Stage 11 -->
+    <production id="5577" count="1"/>
+    <ingredient id="6673" count="25"/> <!-- Festival Adena -->
+  </item>
+  <item id="45"><!-- Green Soul Crystal - Stage 11 -->
+    <production id="5578" count="1"/>
+    <ingredient id="6673" count="25"/> <!-- Festival Adena -->
+  </item>
+  <item id="46"><!-- Blue Soul Crystal - Stage 11 -->
+    <production id="5579" count="1"/>
+    <ingredient id="6673" count="25"/> <!-- Festival Adena -->
+  </item>
+
+  <item id="47"><!-- Red Soul Crystal - Stage 12 -->
+    <production id="5580" count="1"/>
+    <ingredient id="6673" count="50"/> <!-- Festival Adena -->
+  </item>
+  <item id="48"><!-- Green Soul Crystal - Stage 12 -->
+    <production id="5581" count="1"/>
+    <ingredient id="6673" count="50"/> <!-- Festival Adena -->
+  </item>
+  <item id="49"><!-- Blue Soul Crystal - Stage 12 -->
+    <production id="5582" count="1"/>
+    <ingredient id="6673" count="50"/> <!-- Festival Adena -->
+  </item>
+
+  <item id="50"><!-- Red Soul Crystal - Stage 13 -->
+    <production id="5908" count="1"/>
+    <ingredient id="6673" count="100"/> <!-- Festival Adena -->
+  </item>
+  <item id="51"><!-- Green Soul Crystal - Stage 13 -->
+    <production id="5911" count="1"/>
+    <ingredient id="6673" count="100"/> <!-- Festival Adena -->
+  </item>
+  <item id="52"><!-- Blue Soul Crystal - Stage 13 -->
+    <production id="5914" count="1"/>
+    <ingredient id="6673" count="100"/> <!-- Festival Adena -->
+  </item>
+  
+  <item id="53">
+      <production id="485" count="1" enchant="0"/>
+    <ingredient id="6673" count="20"/> <!-- Festival Adena -->
+   </item>
+  <item id="54">
+    <production id="486" count="1" enchant="0"/>
+    <ingredient id="6673" count="20"/> <!-- Festival Adena -->
+   </item>
+  <item id="55">
+    <production id="487" count="1" enchant="0"/>
+    <ingredient id="6673" count="20"/> <!-- Festival Adena -->
+   </item>
+  <item id="56">
+    <production id="488" count="1" enchant="0"/>
+    <ingredient id="6673" count="20"/> <!-- Festival Adena -->
+   </item>
+  <item id="57">
+    <production id="489" count="1" enchant="0"/>
+    <ingredient id="6673" count="20"/> <!-- Festival Adena -->
+   </item>
+  <item id="58">
+    <production id="490" count="1" enchant="0"/>
+    <ingredient id="6673" count="20"/> <!-- Festival Adena -->
+   </item>
+  <item id="59">
+    <production id="491" count="1" enchant="0"/>
+    <ingredient id="6673" count="20"/> <!-- Festival Adena -->
+   </item>
+  <item id="60">
+    <production id="492" count="1" enchant="0"/>
+    <ingredient id="6673" count="20"/> <!-- Festival Adena -->
+   </item>
+  <item id="61">
+    <production id="493" count="1" enchant="0"/>
+    <ingredient id="6673" count="20"/> <!-- Festival Adena -->
+   </item>
+  <item id="62">
+    <production id="494" count="1" enchant="0"/>
+    <ingredient id="6673" count="20"/> <!-- Festival Adena -->
+   </item>
+  <item id="63">
+    <production id="495" count="1" enchant="0"/>
+    <ingredient id="6673" count="20"/> <!-- Festival Adena -->
+   </item>
+  <item id="64">
+    <production id="496" count="1" enchant="0"/>
+    <ingredient id="6673" count="20"/> <!-- Festival Adena -->
+   </item>
+</list>
