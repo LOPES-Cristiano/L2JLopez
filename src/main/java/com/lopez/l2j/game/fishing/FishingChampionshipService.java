@@ -45,23 +45,25 @@ public class FishingChampionshipService {
 	private InventoryService inventoryService;
 	private CharacterVariablesService characterVariablesService;
 	private ScheduledExecutorService scheduler;
+	private org.springframework.jdbc.core.simple.JdbcClient jdbc;
 
 	private final List<FisherScore> rankings = new CopyOnWriteArrayList<>();
 	private final Set<String> claimedPeriodRewards = ConcurrentHashMap.newKeySet();
 	private int currentCycle = 1;
 
 	public FishingChampionshipService() {
-		if (Config.FISHERMAN_ENABLED) {
-			startChampionshipScheduler();
-		}
+		this(null, null, null);
 	}
 
 	@Autowired
 	public FishingChampionshipService(
 			@Autowired(required = false) InventoryService inventoryService,
-			@Autowired(required = false) CharacterVariablesService characterVariablesService) {
+			@Autowired(required = false) CharacterVariablesService characterVariablesService,
+			@Autowired(required = false) org.springframework.jdbc.core.simple.JdbcClient jdbc) {
 		this.inventoryService = inventoryService;
 		this.characterVariablesService = characterVariablesService;
+		this.jdbc = jdbc;
+		loadFromDb();
 		if (Config.FISHERMAN_ENABLED) {
 			startChampionshipScheduler();
 		}
@@ -277,12 +279,55 @@ public class FishingChampionshipService {
 		currentCycle++;
 		rankings.clear();
 		claimedPeriodRewards.clear();
+		saveToDb();
 		return payouts;
 	}
 
 	public synchronized void clear() {
 		rankings.clear();
 		claimedPeriodRewards.clear();
+		saveToDb();
+	}
+
+	public synchronized void loadFromDb() {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			var rows = jdbc.sql("SELECT PlayerName, fishLength, rewarded FROM fishing_championship").query().listOfRows();
+			for (var r : rows) {
+				String name = (String) r.get("PlayerName");
+				float len = ((Number) r.get("fishLength")).floatValue();
+				int rewarded = ((Number) r.get("rewarded")).intValue();
+				rankings.add(new FisherScore(0, name, len, rewarded));
+			}
+			sortRankings();
+			log.info("FishingChampionshipService: {} registros carregados de fishing_championship", rankings.size());
+		} catch (Exception ex) {
+			log.warn("Nao foi possivel carregar fishing_championship do banco: {}", ex.getMessage());
+		}
+	}
+
+	public synchronized void saveToDb() {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("DELETE FROM fishing_championship").update();
+			for (FisherScore fs : rankings) {
+				jdbc.sql("INSERT INTO fishing_championship (PlayerName, fishLength, rewarded) VALUES (:name, :len, :rew)")
+						.param("name", fs.playerName())
+						.param("len", fs.fishLength())
+						.param("rew", fs.rewarded())
+						.update();
+			}
+			jdbc.sql("DELETE FROM fishing_championship_date").update();
+			jdbc.sql("INSERT INTO fishing_championship_date (finish_date) VALUES (:d)")
+					.param("d", System.currentTimeMillis())
+					.update();
+		} catch (Exception ex) {
+			log.warn("Erro ao salvar fishing_championship no banco: {}", ex.getMessage());
+		}
 	}
 
 	private void sortRankings() {

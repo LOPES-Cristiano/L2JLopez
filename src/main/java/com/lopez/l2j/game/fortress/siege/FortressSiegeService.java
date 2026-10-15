@@ -84,6 +84,9 @@ public class FortressSiegeService {
 	}
 
 	private void initSieges() {
+		if (fortressService == null) {
+			return;
+		}
 		for (FortressRecord fort : fortressService.allFortresses()) {
 			long sDate = fort.siegeDate() > 0 ? fort.siegeDate() : System.currentTimeMillis() + SIEGE_CYCLE_MILLIS;
 			sieges.put(fort.id(), new FortressSiegeRecord(fort.id(), sDate));
@@ -592,6 +595,35 @@ public class FortressSiegeService {
 			log.info("FortressSiegeService: participantes de cerco de fortaleza carregados");
 		} catch (Exception ex) {
 			log.warn("Nao foi possivel carregar fortsiege_clans: {}", ex.getMessage());
+		}
+	}
+
+	/**
+	 * Carrega guardas de cerco de fortalezas a partir da tabela fort_siege_guards (V77 / V1077).
+	 */
+	public int loadSiegeGuardsFromDb() {
+		if (jdbc == null) {
+			return 0;
+		}
+		try {
+			List<Map<String, Object>> rows = jdbc.sql("SELECT fortId, npcId, x, y, z, heading FROM fort_siege_guards")
+					.query().listOfRows();
+			int count = 0;
+			for (var r : rows) {
+				int fortId = ((Number) r.get("fortId")).intValue();
+				int npcId = ((Number) r.get("npcId")).intValue();
+				int x = ((Number) r.get("x")).intValue();
+				int y = ((Number) r.get("y")).intValue();
+				int z = ((Number) r.get("z")).intValue();
+				int heading = ((Number) r.get("heading")).intValue();
+				addSiegeSpawnConfig(fortId, npcId, x, y, z, heading);
+				count++;
+			}
+			log.info("FortressSiegeService: {} guardas de cerco carregados da tabela fort_siege_guards", count);
+			return count;
+		} catch (Exception ex) {
+			log.debug("FortressSiegeService: fort_siege_guards indisponivel: {}", ex.getMessage());
+			return 0;
 		}
 	}
 }

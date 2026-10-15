@@ -398,14 +398,28 @@ public class HtmCache {
 			return friendHtm;
 		}
 
+		// 1c. NPCs Buffer estilo Lucera (npc-40010.htm, npc-40011.htm)
+		if (val == 0) {
+			String luceraBufferHtm = getHtml("mods/buffer/npc-" + npcId + ".htm");
+			if (luceraBufferHtm != null && !luceraBufferHtm.isBlank()) {
+				return luceraBufferHtm;
+			}
+		}
+
 		String folder = folderForType(npcType);
 		String suffix = val > 0 ? "-" + val : "";
 
-		// 2. Tenta na pasta do tipo especifico (ex: teleporter/30006.htm, teleporter/30006-1.htm)
+		// 2. Tenta na pasta do tipo especifico (ex: teleporter/30006.htm, mods/buffer/50016-1.htm)
 		String pathType = folder + "/" + npcId + suffix + ".htm";
 		String html = getHtml(pathType);
 		if (html != null && !html.isBlank()) {
 			return html;
+		}
+		if ("mods/buffer".equals(folder) && val > 0) {
+			String luceraPage = getHtml("mods/buffer/" + val + ".htm");
+			if (luceraPage != null && !luceraPage.isBlank()) {
+				return luceraPage;
+			}
 		}
 
 		// 2b. Formato com padding zero (ex: 30006-01.htm)
@@ -414,6 +428,14 @@ public class HtmCache {
 			html = getHtml(altType);
 			if (html != null && !html.isBlank()) {
 				return html;
+			}
+		}
+
+		// 2c. Para Newbie Guides (30598-30602, 31076, 31077, 32327), prioriza o dialogo oficial em newbiehelper/ antes de default/
+		if ("newbiehelper".equals(folder) && val == 0) {
+			String newbieShared = resolveSharedTypeHtml(folder, npcId, val);
+			if (newbieShared != null && !newbieShared.isBlank()) {
+				return newbieShared;
 			}
 		}
 
@@ -562,12 +584,13 @@ public class HtmCache {
 			case "newbiehelper" -> {
 				String h = switch (npcId) {
 					case 30598 -> getHtml("newbiehelper/guide_human_cnacelot/guide_human_cnacelot001.htm");
-					case 30599 -> getHtml("newbiehelper/guide_gludin_nina/guide_gludin_nina001.htm");
-					case 30600 -> getHtml("newbiehelper/guide_gludio_euria/guide_gludio_euria001.htm");
+					case 30599, 30370 -> getHtml("newbiehelper/guide_elf_roios/guide_elf_roios001.htm");
+					case 30600, 30129 -> getHtml("newbiehelper/guide_delf_frankia/guide_delf_frankia001.htm");
 					case 30601, 30528 -> getHtml("newbiehelper/guide_dwarf_gullin/guide_dwarf_gullin001.htm");
-					case 30602, 30370 -> getHtml("newbiehelper/guide_elf_roios/guide_elf_roios001.htm");
-					case 30129 -> getHtml("newbiehelper/guide_delf_frankia/guide_delf_frankia001.htm");
-					case 30573 -> getHtml("newbiehelper/guide_orc_tanai/guide_orc_tanai001.htm");
+					case 30602, 30573 -> getHtml("newbiehelper/guide_orc_tanai/guide_orc_tanai001.htm");
+					case 31076 -> getHtml("newbiehelper/guide_gludin_nina/guide_gludin_nina001.htm");
+					case 31077 -> getHtml("newbiehelper/guide_gludio_euria/guide_gludio_euria001.htm");
+					case 32327 -> getHtml("newbiehelper/blessing_benefector/blessing_benefector001.htm");
 					default -> null;
 				};
 				if (h == null) {
@@ -575,32 +598,67 @@ public class HtmCache {
 				}
 				yield h;
 			}
+			case "mods/buffer" -> {
+				String h = val > 0 ? getHtml("mods/buffer/50016" + suffix + ".htm") : getHtml("mods/buffer/50016.htm");
+				if (h == null) {
+					h = val > 0 ? getHtml("mods/buffer/" + val + ".htm") : getHtml("mods/buffer/npc-40010.htm");
+				}
+				yield h;
+			}
+			case "mods/buffervip" -> val > 0 ? getHtml("mods/buffervip/50005" + suffix + ".htm") : getHtml("mods/buffervip/50005.htm");
 			default -> null;
 		};
 	}
 
 	private static final java.util.regex.Pattern BRACKET_LINK_PATTERN =
-			java.util.regex.Pattern.compile("\\[([^\n\\]|]+)\\|([^\n\\]]+)\\]");
+			java.util.regex.Pattern.compile("\\[([^\\]\\|]*?)\\|([^\\]]*?)\\]", java.util.regex.Pattern.DOTALL);
+	private static final java.util.regex.Pattern PTS_STAR_PATTERN =
+			java.util.regex.Pattern.compile("(\\s|\"|'|\\(|^|\n)\\*(.*?)\\*(\\s|\"|'|\\)|\\?|\\.|!|:|;|,|$|\n)");
+	private static final java.util.regex.Pattern PTS_DOLLAR_PATTERN =
+			java.util.regex.Pattern.compile("(\\s|\"|'|\\(|^|\n)\\$(.*?)\\$(\\s|\"|'|\\)|\\?|\\.|!|:|;|,|$|\n)");
+	private static final java.util.regex.Pattern PTS_TITLE_PATTERN =
+			java.util.regex.Pattern.compile("^!(.*?)$", java.util.regex.Pattern.MULTILINE);
+	private static final java.util.regex.Pattern PTS_BR1_PATTERN =
+			java.util.regex.Pattern.compile("%%\\s*\n");
+	private static final java.util.regex.Pattern PTS_BR_PATTERN =
+			java.util.regex.Pattern.compile("\n\n+");
 
 	public static String convertBracketLinks(String html) {
-		if (html == null || !html.contains("[") || !html.contains("|")) {
+		if (html == null || html.isEmpty()) {
 			return html;
 		}
-		var matcher = BRACKET_LINK_PATTERN.matcher(html);
-		var sb = new StringBuilder(html.length() + 64);
-		while (matcher.find()) {
-			String action = matcher.group(1).trim();
-			String text = matcher.group(2).trim();
-			String replacement;
-			if (action.startsWith("bypass ") || action.startsWith("link ")) {
-				replacement = "<a action=\"" + action + "\">" + text + "</a>";
-			} else {
-				replacement = "<a action=\"bypass -h " + action + "\">" + text + "</a>";
-			}
-			matcher.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(replacement));
+		String s = html;
+		boolean hasHtmlTags = s.contains("<html") || s.contains("<HTML") || s.contains("<body") || s.contains("<BODY");
+		boolean isPtsFormat = !hasHtmlTags && (s.startsWith("!") || s.contains("\n!") || s.contains("%%") || s.contains("\n\n"));
+		if (isPtsFormat) {
+			s = s.replace("\r", "");
+			s = PTS_STAR_PATTERN.matcher(s).replaceAll("$1<font color=\"LEVEL\">$2</font>$3");
+			s = PTS_DOLLAR_PATTERN.matcher(s).replaceAll("$1<font color=\"00FFFF\">$2</font>$3");
+			s = PTS_TITLE_PATTERN.matcher(s).replaceAll("<font color=\"FFFFFF\">$1</font>\n\n");
+			s = PTS_BR1_PATTERN.matcher(s).replaceAll("<br1>");
+			s = PTS_BR_PATTERN.matcher(s).replaceAll("<br>");
 		}
-		matcher.appendTail(sb);
-		return sb.toString();
+		if (s.contains("[") && s.contains("|")) {
+			var matcher = BRACKET_LINK_PATTERN.matcher(s);
+			var sb = new StringBuilder(s.length() + 64);
+			while (matcher.find()) {
+				String action = matcher.group(1).trim().replace(" @", "\" msg=\"");
+				String text = matcher.group(2).trim();
+				String replacement;
+				if (action.startsWith("bypass ") || action.startsWith("link ")) {
+					replacement = "<a action=\"" + action + "\">" + text + "</a>";
+				} else {
+					replacement = "<a action=\"bypass -h " + action + "\">" + text + "</a>";
+				}
+				matcher.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(replacement));
+			}
+			matcher.appendTail(sb);
+			s = sb.toString();
+		}
+		if (isPtsFormat) {
+			s = "<html><body>" + s + "</body></html>";
+		}
+		return s;
 	}
 
 	public String render(String rawHtml, int npcObjectId, String npcName, String playerName) {
@@ -623,11 +681,11 @@ public class HtmCache {
 				.replace("%name%", playerName != null ? playerName : "")
 				.replace("%name", playerName != null ? playerName : "")
 				.replace("%player_name%", playerName != null ? playerName : "")
-				.replace("%playername%", playerName != null ? playerName : "");
-		if (castleId > 0) {
-			s = s.replace("%castleid%", String.valueOf(castleId))
-				 .replace("%castle_id%", String.valueOf(castleId));
-		}
+				.replace("%playername%", playerName != null ? playerName : "")
+				.replace("%player%", playerName != null ? playerName : "");
+		int effectiveCastleId = castleId > 0 ? castleId : 1;
+		s = s.replace("%castleid%", String.valueOf(effectiveCastleId))
+			 .replace("%castle_id%", String.valueOf(effectiveCastleId));
 		if (npcId > 0) {
 			s = s.replace("%npcId%", String.valueOf(npcId))
 				 .replace("%npc_id%", String.valueOf(npcId));
@@ -653,9 +711,13 @@ public class HtmCache {
 			clean = clean.substring(0, clean.length() - "instance".length());
 		}
 		return switch (clean) {
+			case "buffer", "npcbuffer", "custombuffer", "bufferevent" -> "mods/buffer";
+			case "buffervip" -> "mods/buffervip";
+			case "gmshop" -> "mods/gmshop";
 			case "teleporter" -> "teleporter";
 			case "castleteleporter" -> "castleteleporter";
 			case "merchant" -> "merchant";
+			case "petmanager" -> "petmanager";
 			case "guard", "guardnohtml", "fortguard", "siegeguard", "warden" -> "guard";
 			case "warehouse" -> "warehouse";
 			case "castlewarehouse" -> "castlewarehouse";
