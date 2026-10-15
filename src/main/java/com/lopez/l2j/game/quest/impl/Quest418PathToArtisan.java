@@ -123,8 +123,8 @@ public class Quest418PathToArtisan extends Quest {
 				return "30527-04.htm";
 			}
 			if (cond == 0) {
-				if (player.getClassId() != 53) {
-					return player.getClassId() == 56 ? "30527-02a.htm" : "30527-02.htm";
+				if (player.classId() != 53) {
+					return player.classId() == 56 ? "30527-02a.htm" : "30527-02.htm";
 				}
 				if (player.getLevel() < 18) {
 					return "30527-03.htm";
