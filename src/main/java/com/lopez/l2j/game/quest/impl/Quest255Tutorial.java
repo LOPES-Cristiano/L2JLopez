@@ -1,5 +1,6 @@
 package com.lopez.l2j.game.quest.impl;
 
+import com.lopez.l2j.game.model.ClassId;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.quest.Quest;
@@ -37,6 +38,7 @@ public class Quest255Tutorial extends Quest {
 	public static final int BLOOD_OF_JUNDIN = 1070;
 	public static final int LICENSE_OF_MINER = 1498;
 	public static final int VOUCHER_OF_FLAME = 1496;
+	public static final int NEWBIE_TRAVEL_TOKEN = 8542;
 
 	// Monstros Iniciais de Caça
 	private static final Set<Integer> TUTORIAL_MOBS = Set.of(
@@ -47,7 +49,7 @@ public class Quest255Tutorial extends Quest {
 			20420                // Dwarven Village (Keltir)
 	);
 
-	// Newbie Guides / Helpers
+	// Grand Masters / Temple Newbie Guides
 	private static final Set<Integer> NEWBIE_GUIDES = Set.of(
 			30008, 30017, // Human
 			30370,        // Elf
@@ -55,6 +57,24 @@ public class Quest255Tutorial extends Quest {
 			30573,        // Orc
 			30528         // Dwarf
 	);
+
+	// Village Newbie Guides (Talking Island, Elven, Dark Elven, Dwarven, Orc Villages)
+	public static final Set<Integer> VILLAGE_NEWBIE_GUIDES = Set.of(
+			30598, // Human (Talking Island Village)
+			30599, // Elf (Elven Village)
+			30600, // Dark Elf (Dark Elven Village)
+			30601, // Dwarf (Dwarven Village)
+			30602  // Orc (Orc Village)
+	);
+
+	private static final String[] RACE_TUTORIAL_QUESTS = {
+			"201_HfighterTutorial",
+			"202_HmageTutorial",
+			"203_ElfTutorial",
+			"204_DelfTutorial",
+			"205_OrcTutorial",
+			"206_DwarfTutorial"
+	};
 
 	private static final Set<Integer> NEWBIE_HELPERS = Set.of(
 			30009, 30011, 30012, 30018, 30019, 30020, 30021, 30056, // Human
@@ -69,9 +89,69 @@ public class Quest255Tutorial extends Quest {
 		super(QUEST_ID, QUEST_NAME, "Tutorial");
 
 		registerQuestItems(TUTORIAL_GUIDE);
+		addKillId(18342, 20001, 20130, 20417, 20418, 20419, 20420);
 
 		if (questManager != null) {
 			questManager.registerQuest(this);
+		}
+	}
+
+	/**
+	 * Processa a chegada do jogador ao Newbie Guide da vila inicial (NPCs 30598-30602),
+	 * concluindo a etapa final do tutorial (tutorial_quest_ex -> 5), limpando a seta do radar
+	 * e entregando as recompensas oficiais (Soulshots/Spiritshots for Beginners + 12 Newbie Travel Tokens).
+	 */
+	public void onVillageNewbieGuideTalk(NpcInstance npc, GameSession player) {
+		if (npc == null || player == null || player.activeChar() == null) {
+			return;
+		}
+		if (!VILLAGE_NEWBIE_GUIDES.contains(npc.npcId())) {
+			return;
+		}
+		PlayerCharacter c = player.activeChar();
+		QuestState qs = player.getQuestState(QUEST_NAME);
+		if (qs == null) {
+			qs = newQuestState(player);
+		}
+		if (qs == null) {
+			return;
+		}
+		int ex = qs.get("tutorial_quest_ex") == null ? -1 : qs.getInt("tutorial_quest_ex");
+		for (String qName : RACE_TUTORIAL_QUESTS) {
+			QuestState rqs = player.getQuestState(qName);
+			if (rqs != null && rqs.get("tutorial_quest_ex") != null) {
+				ex = Math.max(ex, rqs.getInt("tutorial_quest_ex"));
+			}
+		}
+		if (ex < 5) {
+			qs.set("tutorial_quest_ex", "5", true);
+			// Limpa seta do radar acima da cabeca do jogador
+			player.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RadarControl(2, 2, 0, 0, 0));
+
+			boolean isMage = c.race() != 3 && isMageClass(c.classId());
+			if (qs.getQuestItemsCount(SOULSHOT_NOVICE) <= 400 && qs.getQuestItemsCount(SPIRITSHOT_NOVICE) <= 200) {
+				if (!isMage) {
+					qs.playTutorialVoice("tutorial_voice_026");
+					qs.giveItems(SOULSHOT_NOVICE, 200);
+				} else {
+					qs.playTutorialVoice("tutorial_voice_027");
+					qs.giveItems(SPIRITSHOT_NOVICE, 100);
+				}
+			}
+			if (qs.getQuestItemsCount(NEWBIE_TRAVEL_TOKEN) < 12) {
+				qs.giveItems(NEWBIE_TRAVEL_TOKEN, 12);
+			}
+			for (String qName : RACE_TUTORIAL_QUESTS) {
+				QuestState rqs = player.getQuestState(qName);
+				if (rqs != null) {
+					rqs.set("tutorial_quest_ex", "5", true);
+					if (rqs.isStarted()) {
+						rqs.exitQuest(false);
+					}
+				}
+			}
+			qs.showQuestionMark(26);
+			qs.playSound("ItemSound.quest_tutorial");
 		}
 	}
 
@@ -85,6 +165,9 @@ public class Quest255Tutorial extends Quest {
 			return;
 		}
 		QuestState qs = newQuestState(player);
+		if (qs.get("tutorial_quest_ex") == null) {
+			qs.set("tutorial_quest_ex", "-2");
+		}
 		if (qs.getInt("onlyone") == 0) {
 			qs.setState(State.STARTED);
 			qs.setCond(1);
@@ -147,6 +230,9 @@ public class Quest255Tutorial extends Quest {
 	public String onTalk(NpcInstance npc, GameSession player) {
 		if (npc == null || player == null || player.activeChar() == null) {
 			return null;
+		}
+		if (VILLAGE_NEWBIE_GUIDES.contains(npc.npcId())) {
+			onVillageNewbieGuideTalk(npc, player);
 		}
 		PlayerCharacter c = player.activeChar();
 		QuestState qs = player.getQuestState(QUEST_NAME);
@@ -238,12 +324,22 @@ public class Quest255Tutorial extends Quest {
 			int classId = player.activeChar() != null ? player.activeChar().classId() : 0;
 			if (markId == 1 || markId == 5) {
 				switch (classId) {
-					case 0, 10 -> qs.addRadar(-71424, 258336, -3104);
+					case 0 -> qs.addRadar(-71424, 258336, -3104);
+					case 10 -> qs.addRadar(-91036, 248044, -3568);
 					case 18, 25 -> qs.addRadar(46112, 41200, -3504);
 					case 31, 38 -> qs.addRadar(28384, 11056, -4224);
-					case 44, 49 -> qs.addRadar(-45032, -113598, -192);
-					case 53 -> qs.addRadar(108516, -174026, -400);
+					case 44, 49 -> qs.addRadar(-56736, -113680, -672);
+					case 53 -> qs.addRadar(108567, -173994, -406);
 					default -> qs.addRadar(-71424, 258336, -3104);
+				}
+			} else if (markId == 7 || markId == 12) {
+				switch (classId) {
+					case 0, 10 -> qs.addRadar(-84081, 243277, -3723);
+					case 18, 25 -> qs.addRadar(45475, 48359, -3060);
+					case 31, 38 -> qs.addRadar(12111, 16686, -4582);
+					case 44, 49 -> qs.addRadar(-45032, -113598, -192);
+					case 53 -> qs.addRadar(115632, -177996, -905);
+					default -> qs.addRadar(-84081, 243277, -3723);
 				}
 			}
 
@@ -268,14 +364,14 @@ public class Quest255Tutorial extends Quest {
 				case 17 -> "tutorial_27.htm";
 				case 23 -> "tutorial_24.htm";
 				case 24 -> switch (classId) {
-					case 0, 10 -> "tutorial_human009.htm";
-					case 18, 25 -> "tutorial_elf009.htm";
-					case 31, 38 -> "tutorial_delf009.htm";
-					case 44, 49 -> "tutorial_orc009.htm";
-					case 53 -> "tutorial_dwarven009.htm";
-					default -> "tutorial_human009.htm";
+					case 0, 10 -> "tutorial_newbie003a.htm";
+					case 18, 25 -> "tutorial_newbie003b.htm";
+					case 31, 38 -> "tutorial_newbie003c.htm";
+					case 44, 49 -> "tutorial_newbie003d.htm";
+					case 53 -> "tutorial_newbie003e.htm";
+					default -> "tutorial_newbie003a.htm";
 				};
-				case 26 -> isMageClass(classId) ? "tutorial_newbie004b.htm" : "tutorial_newbie004a.htm";
+				case 26 -> (classId == 49 || !isMageClass(classId)) ? "tutorial_newbie004a.htm" : "tutorial_newbie004b.htm";
 				case 27 -> "tutorial_20.htm";
 				case 34 -> "tutorial_28.htm";
 				case 35 -> switch (classId) {
@@ -436,6 +532,6 @@ public class Quest255Tutorial extends Quest {
 	}
 
 	private boolean isMageClass(int classId) {
-		return classId == 10 || classId == 25 || classId == 38 || classId == 49;
+		return ClassId.isMage(classId);
 	}
 }
