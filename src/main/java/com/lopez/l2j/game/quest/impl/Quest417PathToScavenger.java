@@ -138,8 +138,8 @@ public class Quest417PathToScavenger extends Quest {
 				return "30524-04.htm";
 			}
 			if (cond == 0) {
-				if (player.getClassId() != 53) {
-					return player.getClassId() == 54 ? "30524-02a.htm" : "30524-08.htm";
+				if (player.classId() != 53) {
+					return player.classId() == 54 ? "30524-02a.htm" : "30524-08.htm";
 				}
 				if (player.getLevel() < 18) {
 					return "30524-02.htm";

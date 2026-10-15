@@ -125,8 +125,8 @@ public class Quest415PathToOrcMonk extends Quest {
 				return "30587-04.htm";
 			}
 			if (cond == 0) {
-				if (player.getClassId() != 44) {
-					return player.getClassId() == 47 ? "30587-02a.htm" : "30587-02.htm";
+				if (player.classId() != 44) {
+					return player.classId() == 47 ? "30587-02a.htm" : "30587-02.htm";
 				}
 				if (player.getLevel() < 18) {
 					return "30587-03.htm";

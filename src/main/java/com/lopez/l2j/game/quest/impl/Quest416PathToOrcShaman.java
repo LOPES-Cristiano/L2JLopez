@@ -138,8 +138,8 @@ public class Quest416PathToOrcShaman extends Quest {
 				return "30585-04.htm";
 			}
 			if (cond == 0) {
-				if (player.getClassId() != 49) {
-					return player.getClassId() == 50 ? "30585-02a.htm" : "30585-02.htm";
+				if (player.classId() != 49) {
+					return player.classId() == 50 ? "30585-02a.htm" : "30585-02.htm";
 				}
 				if (player.getLevel() < 18) {
 					return "30585-03.htm";
