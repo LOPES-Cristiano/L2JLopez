@@ -64,7 +64,7 @@ public class Quest411PathToAssassin extends Quest {
 
 		PlayerCharacter player = qs.getPlayerCharacter();
 		int level = player != null ? player.getLevel() : 0;
-		int classId = player != null ? player.getClassId() : -1;
+		int classId = player != null ? player.classId() : -1;
 
 		if ("1".equalsIgnoreCase(event)) {
 			if (level >= 18 && classId == 0x1f && qs.getQuestItemsCount(IRON_HEART) == 0) {
