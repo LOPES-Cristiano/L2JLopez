@@ -1,0 +1,113 @@
+<?xml version='1.0' encoding='utf-8'?>
+
+
+<list>
+
+  <item id="1">
+    <ingredient id="57" count="3600" enchant="0"/>
+    <production id="6036" count="1" enchant="0"/>
+  </item>
+  
+  <item id="2">
+    <ingredient id="57" count="4800" enchant="0"/>
+    <production id="1375" count="1" enchant="0"/>
+  </item>
+  
+  <!-- Greater Haste Potion -->
+  <item id="3">
+    <ingredient id="57" count="4800" enchant="0"/>
+    <production id="1374" count="1" enchant="0"/>
+  </item>
+  
+  <item id="4">
+    <ingredient id="57" count="100" enchant="0"/>
+    <production id="1539" count="1" enchant="0"/>
+  </item>
+
+  <!-- Mana Potion -->
+  <item id="5">
+    <ingredient id="57" count="350" enchant="0"/>
+    <production id="728" count="1" enchant="0"/>
+  </item>
+  
+
+  <item id="6">
+    <ingredient id="57" count="500" enchant="0"/>
+    <production id="5591" count="1" enchant="0"/>
+  </item>
+
+  
+  <item id="19">
+    <ingredient id="57" count="600" enchant="0"/>
+    <production id="8622" count="1" enchant="0"/>
+  </item> 
+  <item id="20">
+    <ingredient id="57" count="1400" enchant="0"/>
+    <production id="8623" count="1" enchant="0"/>
+  </item> 
+  <item id="21">
+    <ingredient id="57" count="3000" enchant="0"/>
+    <production id="8624" count="1" enchant="0"/>
+  </item> 
+  <item id="22">
+    <ingredient id="57" count="4000" enchant="0"/>
+    <production id="8625" count="1" enchant="0"/>
+  </item> 
+  <item id="23">
+    <ingredient id="57" count="5000" enchant="0"/>
+    <production id="8626" count="1" enchant="0"/>
+  </item> 
+  <item id="24">
+    <ingredient id="57" count="6000" enchant="0"/>
+    <production id="8627" count="1" enchant="0"/>
+  </item> 
+  <item id="25">
+    <ingredient id="57" count="600" enchant="0"/>
+    <production id="8628" count="1" enchant="0"/>
+  </item> 
+  <item id="26">
+    <ingredient id="57" count="1400" enchant="0"/>
+    <production id="8629" count="1" enchant="0"/>
+  </item> 
+  <item id="27">
+    <ingredient id="57" count="3000" enchant="0"/>
+    <production id="8630" count="1" enchant="0"/>
+  </item> 
+  <item id="28">
+    <ingredient id="57" count="4000" enchant="0"/>
+    <production id="8631" count="1" enchant="0"/>
+  </item> 
+  <item id="29">
+    <ingredient id="57" count="5000" enchant="0"/>
+    <production id="8632" count="1" enchant="0"/>
+  </item> 
+  <item id="30">
+    <ingredient id="57" count="6000" enchant="0"/>
+    <production id="8633" count="1" enchant="0"/>
+  </item> 
+  <item id="31">
+    <ingredient id="57" count="600" enchant="0"/>
+    <production id="8634" count="1" enchant="0"/>
+  </item> 
+  <item id="32">
+    <ingredient id="57" count="1400" enchant="0"/>
+    <production id="8635" count="1" enchant="0"/>
+  </item> 
+  <item id="33">
+    <ingredient id="57" count="3000" enchant="0"/>
+    <production id="8636" count="1" enchant="0"/>
+  </item> 
+  <item id="34">
+    <ingredient id="57" count="4000" enchant="0"/>
+    <production id="8637" count="1" enchant="0"/>
+  </item> 
+  <item id="35">
+    <ingredient id="57" count="5000" enchant="0"/>
+    <production id="8638" count="1" enchant="0"/>
+  </item> 
+  <item id="36">
+    <ingredient id="57" count="6000" enchant="0"/>
+    <production id="8639" count="1" enchant="0"/>
+  </item> 
+
+</list>
