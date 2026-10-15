@@ -70,16 +70,16 @@ public class StarterKitService {
         commonBonus.add(new KitItem(735, 10, "Potion of Wind Walk"));
 
         // Kit Fighter (No-Grade Wooden Set + Short Sword + Soulshots)
-        fighterKit.add(new KitItem(2, 1, "Short Sword"));
+        fighterKit.add(new KitItem(1, 1, "Short Sword"));
         fighterKit.add(new KitItem(23, 1, "Wooden Breastplate"));
         fighterKit.add(new KitItem(2386, 1, "Wooden Gaiters"));
         fighterKit.add(new KitItem(43, 1, "Wooden Helmet"));
         fighterKit.add(new KitItem(1835, 3000, "Soulshot: No-Grade"));
 
-        // Kit Mage (No-Grade Apprentice Robe + Apprentice Staff + Spiritshots)
-        mageKit.add(new KitItem(3, 1, "Apprentice's Staff"));
-        mageKit.add(new KitItem(425, 1, "Apprentice's Robe"));
-        mageKit.add(new KitItem(463, 1, "Apprentice's Stockings"));
+        // Kit Mage (No-Grade Apprentice Robe + Apprentice's Rod + Spiritshots)
+        mageKit.add(new KitItem(7, 1, "Apprentice's Rod"));
+        mageKit.add(new KitItem(425, 1, "Apprentice's Tunic"));
+        mageKit.add(new KitItem(461, 1, "Apprentice's Stockings"));
         mageKit.add(new KitItem(2509, 2000, "Spiritshot: No-Grade"));
     }
 
