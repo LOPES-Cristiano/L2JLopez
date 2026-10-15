@@ -139,7 +139,9 @@ public class SkillService {
 		List<Skill> out = new ArrayList<>();
 		for (var e : p.skills().entrySet()) {
 			var t = table.get(e.getKey(), e.getValue());
-			if (!Config.SEND_NOT_DONE_SKILLS && t.isPresent() && "NOTDONE".equalsIgnoreCase(t.get().skillType())) {
+			boolean hideNotDone = Config.SEND_NOT_DONE_SKILLS <= 0
+					|| (Config.SEND_NOT_DONE_SKILLS == 1 && p.accessLevel() <= 0);
+			if (hideNotDone && t.isPresent() && "NOTDONE".equalsIgnoreCase(t.get().skillType())) {
 				continue;
 			}
 			out.add(new Skill(e.getKey(), e.getValue(), t.map(SkillTemplate::name).orElse(""),

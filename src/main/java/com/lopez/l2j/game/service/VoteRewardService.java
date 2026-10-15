@@ -24,6 +24,7 @@ public class VoteRewardService {
 
 	private InventoryService inventoryService;
 	private CharacterVariablesService characterVariablesService;
+	private org.springframework.jdbc.core.simple.JdbcClient jdbc;
 
 	private final Map<Integer, Long> lastVoteTimes = new ConcurrentHashMap<>();
 	private final Map<String, Long> siteVoteTimes = new ConcurrentHashMap<>();
@@ -34,9 +35,11 @@ public class VoteRewardService {
 	@Autowired
 	public VoteRewardService(
 			@Autowired(required = false) InventoryService inventoryService,
-			@Autowired(required = false) CharacterVariablesService characterVariablesService) {
+			@Autowired(required = false) CharacterVariablesService characterVariablesService,
+			@Autowired(required = false) org.springframework.jdbc.core.simple.JdbcClient jdbc) {
 		this.inventoryService = inventoryService;
 		this.characterVariablesService = characterVariablesService;
+		this.jdbc = jdbc;
 	}
 
 	public void setInventoryService(InventoryService inventoryService) {
@@ -83,6 +86,17 @@ public class VoteRewardService {
 		lastVoteTimes.put(player.objectId(), now);
 		if (characterVariablesService != null) {
 			characterVariablesService.set(player.objectId(), varName, String.valueOf(now));
+		}
+		if (jdbc != null) {
+			try {
+				jdbc.sql("INSERT INTO mods_voting_reward (data, scope, time) VALUES (:data, :scope, :time)")
+						.param("data", player.name() + " (" + player.objectId() + ")")
+						.param("scope", resolvedSite)
+						.param("time", now)
+						.update();
+			} catch (Exception ex) {
+				log.debug("mods_voting_reward insert: {}", ex.getMessage());
+			}
 		}
 
 		var inv = player.inventory();
