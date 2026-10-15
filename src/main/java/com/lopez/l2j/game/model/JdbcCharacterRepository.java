@@ -20,7 +20,10 @@ class JdbcCharacterRepository implements CharacterRepository {
 			account_name, charId, char_name, level, exp, sp, race, classid, base_class, sex, face, hairStyle,
 			hairColor, maxHp, maxMp, maxCp, curHp, curMp, curCp, karma, pvpkills, pkkills, clanid, title,
 			accesslevel, lastAccess, deletetime, x, y, z, heading, rec_have, rec_left, last_recom_date,
-			vip, vip_end, aio, aio_end""";
+			vip, vip_end, aio, aio_end, nobless, in_jail, jail_timer, pccaffe_points, varka_ketra_ally,
+			death_penalty_level, pledge_rank, subpledge, clan_privs, apprentice, sponsor,
+			clan_join_expiry_time, clan_create_expiry_time, arena_wins, arena_defeats, buffshop_slots,
+			cancraft, newbie, onlinetime, isin7sdungeon, wantspeace, lvl_joined_academy, isCensor, isBanned""";
 
 	private final JdbcClient jdbc;
 	private final ObjectIdFactory ids;
@@ -100,9 +103,18 @@ class JdbcCharacterRepository implements CharacterRepository {
 				UPDATE characters SET sex = :sex, classid = :classId, base_class = :baseClass, x = :x, y = :y, z = :z, heading = :heading, level = :level,
 				  exp = :exp, sp = :sp, maxHp = :maxHp, maxMp = :maxMp, maxCp = :maxCp, curHp = :hp,
 				  curMp = :mp, curCp = :cp, face = :face, hairStyle = :hairStyle, hairColor = :hairColor,
+				  karma = :karma, pvpkills = :pvpkills, pkkills = :pkkills, clanid = :clanid, title = :title,
 				  online = :online, lastAccess = :now, accesslevel = :accesslevel,
 				  rec_have = :recHave, rec_left = :recLeft, last_recom_date = :lastRecomDate,
-				  vip = :vip, vip_end = :vipEnd, aio = :aio, aio_end = :aioEnd WHERE charId = :id
+				  vip = :vip, vip_end = :vipEnd, aio = :aio, aio_end = :aioEnd,
+				  nobless = :nobless, in_jail = :inJail, jail_timer = :jailTimer, pccaffe_points = :pcCaffe,
+				  varka_ketra_ally = :varkaKetra, death_penalty_level = :deathPenalty, pledge_rank = :pledgeRank,
+				  subpledge = :subpledge, clan_privs = :clanPrivs, apprentice = :apprentice, sponsor = :sponsor,
+				  clan_join_expiry_time = :clanJoinExp, clan_create_expiry_time = :clanCreateExp,
+				  arena_wins = :arenaWins, arena_defeats = :arenaDefeats, buffshop_slots = :buffSlots,
+				  cancraft = :canCraft, newbie = :newbie, onlinetime = :onlineTime,
+				  isin7sdungeon = :in7s, wantspeace = :wantsPeace, lvl_joined_academy = :lvlAcademy,
+				  isCensor = :censor, isBanned = :banned WHERE charId = :id
 				""")
 				.param("sex", c.female() ? 1 : 0)
 				.param("classId", c.classId())
@@ -112,8 +124,8 @@ class JdbcCharacterRepository implements CharacterRepository {
 				.param("z", c.z())
 				.param("heading", c.heading())
 				.param("level", c.level())
-				.param("exp", c.exp())
-				.param("sp", c.sp())
+				.param("exp", Math.max(0L, c.exp()))
+				.param("sp", Math.max(0, c.sp()))
 				.param("maxHp", c.maxHp())
 				.param("maxMp", c.maxMp())
 				.param("maxCp", c.maxCp())
@@ -123,6 +135,11 @@ class JdbcCharacterRepository implements CharacterRepository {
 				.param("face", c.face())
 				.param("hairStyle", c.hairStyle())
 				.param("hairColor", c.hairColor())
+				.param("karma", c.karma())
+				.param("pvpkills", c.pvpKills())
+				.param("pkkills", c.pkKills())
+				.param("clanid", c.clanId())
+				.param("title", c.title())
 				.param("online", online ? 1 : 0)
 				.param("now", System.currentTimeMillis())
 				.param("accesslevel", c.accessLevel())
@@ -133,6 +150,30 @@ class JdbcCharacterRepository implements CharacterRepository {
 				.param("vipEnd", c.vipExpiration())
 				.param("aio", c.isAio() ? 1 : 0)
 				.param("aioEnd", c.aioExpiration())
+				.param("nobless", c.isNoble() ? 1 : 0)
+				.param("inJail", c.isInJail() ? 1 : 0)
+				.param("jailTimer", c.jailTimer())
+				.param("pcCaffe", c.pcCaffePoints())
+				.param("varkaKetra", c.varkaKetraAlly())
+				.param("deathPenalty", c.deathPenaltyLevel())
+				.param("pledgeRank", c.pledgeRank())
+				.param("subpledge", c.subPledge())
+				.param("clanPrivs", c.clanPrivs())
+				.param("apprentice", c.apprentice())
+				.param("sponsor", c.sponsor())
+				.param("clanJoinExp", c.clanJoinExpiryTime())
+				.param("clanCreateExp", c.clanCreateExpiryTime())
+				.param("arenaWins", c.arenaWins())
+				.param("arenaDefeats", c.arenaDefeats())
+				.param("buffSlots", c.buffShopSlots())
+				.param("canCraft", c.canCraft() ? 1 : 0)
+				.param("newbie", c.newbie())
+				.param("onlineTime", c.onlineTime())
+				.param("in7s", c.isIn7sDungeon() ? 1 : 0)
+				.param("wantsPeace", c.wantsPeace() ? 1 : 0)
+				.param("lvlAcademy", c.lvlJoinedAcademy())
+				.param("censor", c.isCensor() ? 1 : 0)
+				.param("banned", c.isBanned() ? 1 : 0)
 				.param("id", c.objectId())
 				.update();
 	}
@@ -206,6 +247,33 @@ class JdbcCharacterRepository implements CharacterRepository {
 		try {
 			c.setAio(rs.getInt("aio") == 1);
 			c.aioExpiration(rs.getLong("aio_end"));
+		} catch (SQLException ignored) {
+		}
+		try {
+			c.setNoble(rs.getInt("nobless") == 1);
+			c.setInJail(rs.getInt("in_jail") == 1);
+			c.jailTimer(rs.getInt("jail_timer"));
+			c.pcCaffePoints(rs.getInt("pccaffe_points"));
+			c.varkaKetraAlly(rs.getInt("varka_ketra_ally"));
+			c.deathPenaltyLevel(rs.getInt("death_penalty_level"));
+			c.pledgeRank(rs.getInt("pledge_rank"));
+			c.subPledge(rs.getInt("subpledge"));
+			c.clanPrivs(rs.getInt("clan_privs"));
+			c.apprentice(rs.getInt("apprentice"));
+			c.sponsor(rs.getInt("sponsor"));
+			c.clanJoinExpiryTime(rs.getLong("clan_join_expiry_time"));
+			c.clanCreateExpiryTime(rs.getLong("clan_create_expiry_time"));
+			c.arenaWins(rs.getInt("arena_wins"));
+			c.arenaDefeats(rs.getInt("arena_defeats"));
+			c.buffShopSlots(rs.getInt("buffshop_slots"));
+			c.canCraft(rs.getInt("cancraft") == 1);
+			c.newbie(rs.getInt("newbie"));
+			c.onlineTime(rs.getInt("onlinetime"));
+			c.isIn7sDungeon(rs.getInt("isin7sdungeon") == 1);
+			c.wantsPeace(rs.getInt("wantspeace") == 1);
+			c.lvlJoinedAcademy(rs.getInt("lvl_joined_academy"));
+			c.isCensor(rs.getInt("isCensor") == 1);
+			c.isBanned(rs.getInt("isBanned") == 1);
 		} catch (SQLException ignored) {
 		}
 		return c;

@@ -88,8 +88,12 @@ public final class ExperienceTable {
 		1151275834L,   // Level 77
 		1511275834L,   // Level 78
 		2099275834L,   // Level 79
-		4200000000L    // Level 80
+		4200000000L,   // Level 80 (0.00%)
+		6299994999L    // Level 80 (100.00% / Limite maximo Interlude)
 	};
+
+	/** Experiencia maxima no nivel 80 (100.00% na barra do cliente Interlude). */
+	public static final long MAX_EXP = LEVEL_EXP[MAX_LEVEL + 1];
 
 	private ExperienceTable() {
 	}
@@ -98,10 +102,19 @@ public final class ExperienceTable {
 		if (level <= 1) {
 			return 0L;
 		}
-		if (level > MAX_LEVEL) {
-			return LEVEL_EXP[MAX_LEVEL];
+		if (level >= LEVEL_EXP.length) {
+			return LEVEL_EXP[LEVEL_EXP.length - 1];
 		}
 		return LEVEL_EXP[level];
+	}
+
+	/**
+	 * Retorna o teto de EXP permitido para um determinado nível máximo configurado
+	 * (correspondente a 100.00% da barra daquele nível).
+	 */
+	public static long maxExpForLevel(int maxLevel) {
+		int clampedLvl = Math.max(1, Math.min(MAX_LEVEL, maxLevel));
+		return LEVEL_EXP[clampedLvl + 1];
 	}
 
 	public static int calculateLevel(long exp) {

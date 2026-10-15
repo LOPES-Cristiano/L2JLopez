@@ -71,7 +71,7 @@ public class CastleManorManager {
 	}
 
 	public static int getManorDropRate() {
-		return Math.max(1, Config.RATE_DROP_MANOR);
+		return Math.max(1, Math.round(Config.RATE_DROP_MANOR));
 	}
 
 	/**
