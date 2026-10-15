@@ -11,8 +11,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Quest 632: Necromancer's Request
- * Shadow Hardin na Floresta dos Mortos (Forest of the Dead).
- * Cacada de mortos-vivos para obter Vampire Hearts e Pagan Hearts por adena e pontos de reputacao.
+ * Mysterious Wizard (31522) na Floresta dos Mortos (Forest of the Dead).
+ * Cacada de mortos-vivos e vampiros para obter Vampire Hearts e Zombie Brains.
  */
 @Component
 public class Quest632NecromancersRequest extends Quest {
@@ -29,12 +29,17 @@ public class Quest632NecromancersRequest extends Quest {
 			21568, 21573, 21582, 21585, 21586, 21587, 21588, 21589, 21590, 21591, 21592, 21593, 21594, 21595
 	};
 
+	public static final int[] UNDEAD_MOBS = {
+			21547, 21548, 21549, 21550, 21551, 21552, 21555, 21556, 21562, 21571, 21576, 21577, 21579
+	};
+
 	@Autowired
 	public Quest632NecromancersRequest(QuestManager questManager) {
 		super(QUEST_ID, QUEST_NAME, "Necromancer's Request");
 		addStartNpc(SHADOW_HARDIN);
 		addTalkId(SHADOW_HARDIN);
 		addKillId(VAMPIRE_MOBS);
+		addKillId(UNDEAD_MOBS);
 		registerQuestItems(VAMPIRE_HEART, ZOMBIE_BRAIN);
 		if (questManager != null) {
 			questManager.registerQuest(this);
@@ -43,18 +48,30 @@ public class Quest632NecromancersRequest extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event)) {
+		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "31522-03.htm".equalsIgnoreCase(event)) {
 			qs.setState(State.STARTED);
 			qs.setCond(1);
 			qs.playSound(QuestState.SOUND_ACCEPT);
-			return "shadow_hardin_q0632_0104.htm";
-		} else if ("632_3".equalsIgnoreCase(event) || "reward_exchange".equalsIgnoreCase(event)) {
+			return "31522-03.htm".equalsIgnoreCase(event) ? "31522-03.htm" : "shadow_hardin_q0632_0104.htm";
+		} else if ("31522-02.htm".equalsIgnoreCase(event)) {
+			return "31522-02.htm";
+		} else if ("632_1".equalsIgnoreCase(event)) {
+			return "31522-05.htm";
+		} else if ("632_3".equalsIgnoreCase(event) || "reward_exchange".equalsIgnoreCase(event) || "31522-06.htm".equalsIgnoreCase(event)) {
 			if (qs.getQuestItemsCount(VAMPIRE_HEART) >= 200) {
 				qs.takeItems(VAMPIRE_HEART, 200);
 				qs.giveItems(57, 120000); // 120k adena
+				qs.setCond(1);
 				qs.playSound(QuestState.SOUND_FINISH);
-				return "shadow_hardin_q0632_0202.htm";
+				return "31522-06.htm".equalsIgnoreCase(event) ? "31522-06.htm" : "shadow_hardin_q0632_0202.htm";
 			}
+			return "31522-05.htm";
+		} else if ("632_4".equalsIgnoreCase(event) || "31522-08.htm".equalsIgnoreCase(event)) {
+			qs.takeItems(VAMPIRE_HEART, -1);
+			qs.takeItems(ZOMBIE_BRAIN, -1);
+			qs.playSound(QuestState.SOUND_FINISH);
+			qs.exitQuest(true);
+			return "31522-08.htm".equalsIgnoreCase(event) ? "31522-08.htm" : "shadow_hardin_q0632_0204.htm";
 		}
 		return event;
 	}
@@ -76,11 +93,32 @@ public class Quest632NecromancersRequest extends Quest {
 		}
 	}
 
+	private boolean isUndeadMob(int npcId) {
+		for (int id : UNDEAD_MOBS) {
+			if (id == npcId) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	@Override
 	public String onKill(NpcInstance npc, QuestState qs, boolean isPet) {
 		if (qs.getCond() >= 1) {
-			qs.giveItems(VAMPIRE_HEART, 1);
-			qs.playSound(QuestState.SOUND_ITEMGET);
+			if (npc != null && isUndeadMob(npc.getNpcId())) {
+				qs.giveItems(ZOMBIE_BRAIN, 1);
+				qs.playSound(QuestState.SOUND_ITEMGET);
+			} else {
+				if (qs.getQuestItemsCount(VAMPIRE_HEART) < 200) {
+					qs.giveItems(VAMPIRE_HEART, 1);
+					if (qs.getQuestItemsCount(VAMPIRE_HEART) >= 200) {
+						qs.setCond(2);
+						qs.playSound(QuestState.SOUND_MIDDLE);
+					} else {
+						qs.playSound(QuestState.SOUND_ITEMGET);
+					}
+				}
+			}
 		}
 		return null;
 	}

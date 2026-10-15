@@ -30,7 +30,7 @@ public class Quest643RiseAndFallOfTheElrokiTribe extends Quest {
 	public static final int BONES = DINOSAUR_BONES;
 
 	public static final int[] MOBS = {
-			22209, 22208, 22226, 22221, 22210, 22212, 22211, 22227, 22222, 22213
+			22208, 22209, 22210, 22211, 22212, 22213, 22221, 22222, 22226, 22227
 	};
 
 	@Autowired
@@ -47,28 +47,44 @@ public class Quest643RiseAndFallOfTheElrokiTribe extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		if (("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event))) {
+		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "32106-03.htm".equalsIgnoreCase(event)) {
 			qs.setState(State.STARTED);
 			qs.setCond(1);
 			qs.playSound(QuestState.SOUND_ACCEPT);
-			return "singsing_q0643_05.htm";
-		} else if ("reply_2".equalsIgnoreCase(event)) {
+			return "32106-03.htm".equalsIgnoreCase(event) ? "32106-03.htm" : "singsing_q0643_05.htm";
+		} else if ("reply_1".equalsIgnoreCase(event)) {
+			return "singsing_q0643_03.htm";
+		} else if ("reply_2".equalsIgnoreCase(event) || "32106-07.htm".equalsIgnoreCase(event)) {
 			long bones = qs.getQuestItemsCount(DINOSAUR_BONES);
 			if (bones > 0) {
 				qs.takeItems(DINOSAUR_BONES, -1);
 				qs.giveItems(57, (int) (bones * 1374));
 				qs.playSound(QuestState.SOUND_ITEMGET);
-				return "singsing_q0643_08.htm";
+				return "32106-07.htm".equalsIgnoreCase(event) ? "32106-07.htm" : "singsing_q0643_08.htm";
 			}
-		} else if ("reward_parts".equalsIgnoreCase(event) || "reply_7".equalsIgnoreCase(event) || "reward_exchange".equalsIgnoreCase(event)) {
+			return "32106-08.htm";
+		} else if ("reply_3".equalsIgnoreCase(event) || "32106-09.htm".equalsIgnoreCase(event)) {
+			qs.takeItems(DINOSAUR_BONES, -1);
+			qs.playSound(QuestState.SOUND_FINISH);
+			qs.exitQuest(true);
+			return "32106-09.htm".equalsIgnoreCase(event) ? "32106-09.htm" : "singsing_q0643_10.htm";
+		} else if ("reply_4".equalsIgnoreCase(event)) {
+			return "singsing_q0643_09.htm";
+		} else if ("reply_5".equalsIgnoreCase(event)) {
+			return "shaman_caracawe_q0643_02.htm";
+		} else if ("reply_6".equalsIgnoreCase(event)) {
+			return "shaman_caracawe_q0643_03.htm";
+		} else if ("reward_parts".equalsIgnoreCase(event) || "reply_7".equalsIgnoreCase(event) || "reward_exchange".equalsIgnoreCase(event) || "32117-03.htm".equalsIgnoreCase(event)) {
 			if (qs.getQuestItemsCount(DINOSAUR_BONES) >= 300) {
 				qs.takeItems(DINOSAUR_BONES, 300);
 				int partId = 8712 + ThreadLocalRandom.current().nextInt(11);
 				qs.giveItems(partId, 5); // 5 partes de arma Top A
 				qs.playSound(QuestState.SOUND_FINISH);
-				return "shaman_caracawe_q0643_06.htm";
+				return "32117-03.htm".equalsIgnoreCase(event) ? "32117-03.htm" : "shaman_caracawe_q0643_06.htm";
 			}
 			return "shaman_caracawe_q0643_05.htm";
+		} else if ("reply_8".equalsIgnoreCase(event)) {
+			return "shaman_caracawe_q0643_04.htm";
 		}
 		return event;
 	}
