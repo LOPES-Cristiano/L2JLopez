@@ -1,0 +1,25 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+
+<list>
+
+  <!-- Elven Ring -->
+  <item id="1">
+    <ingredient id="57" count="65000"/>
+    <production id="881" count="1"/>
+  </item>
+
+  <!-- Elven Earring -->
+  <item id="2">
+    <ingredient id="57" count="95000"/>
+    <production id="850" count="1"/>
+  </item>
+
+  <!-- Elven Necklace -->
+  <item id="3">
+    <ingredient id="57" count="130000"/>
+    <production id="913" count="1"/>
+  </item>
+
+	
+
+</list>
