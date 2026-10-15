@@ -60,6 +60,7 @@ public class Quest213TrialOfSeeker extends Quest {
 	public static final int MARINAS_LETTER = 2663;
 	public static final int EXPERIMENT_TOOLS = 2664;
 	public static final int ANALYSIS_RESULT = 2665;
+	public static final int TERYS_ORDER3 = 2666;
 	public static final int LIST_OF_HOST = 2667;
 	public static final int ABYSS_RUNESTONE1 = 2668;
 	public static final int ABYSS_RUNESTONE2 = 2669;
@@ -83,7 +84,7 @@ public class Quest213TrialOfSeeker extends Quest {
 		registerQuestItems(DUFNERS_LETTER, TERYS_ORDER1, TERYS_ORDER2, TERYS_LETTER, VIKTORS_LETTER,
 				HAWKEYES_LETTER, MYSTERIOUS_RUNESTONE, OL_MAHUM_RUNESTONE, TUREK_RUNESTONE, ANT_RUNESTONE,
 				TURAK_BUGBEAR_RUNESTONE, TERYS_BOX, VIKTORS_REQUEST, MEDUSAS_SCALES, SILENS_RUNESTONE,
-				ANALYSIS_REQUEST, MARINAS_LETTER, EXPERIMENT_TOOLS, ANALYSIS_RESULT, LIST_OF_HOST,
+				ANALYSIS_REQUEST, MARINAS_LETTER, EXPERIMENT_TOOLS, ANALYSIS_RESULT, TERYS_ORDER3, LIST_OF_HOST,
 				ABYSS_RUNESTONE1, ABYSS_RUNESTONE2, ABYSS_RUNESTONE3, ABYSS_RUNESTONE4, TERYS_REPORT);
 
 		if (questManager != null) {
@@ -97,14 +98,12 @@ public class Quest213TrialOfSeeker extends Quest {
 			return null;
 		}
 
-		int cond = qs.getCond();
-
-		if ("30106-05.htm".equalsIgnoreCase(event)) {
+		if ("1".equalsIgnoreCase(event) || "30106-05.htm".equalsIgnoreCase(event)) {
 			qs.setCond(1);
 			qs.setState(State.STARTED);
 			qs.giveItems(DUFNERS_LETTER, 1);
 			qs.playSound(QuestState.SOUND_ACCEPT);
-			return event;
+			return "30106-05.htm";
 		} else if ("30064-03.htm".equalsIgnoreCase(event)) {
 			qs.takeItems(DUFNERS_LETTER, 1);
 			qs.giveItems(TERYS_ORDER1, 1);
@@ -130,7 +129,14 @@ public class Quest213TrialOfSeeker extends Quest {
 			qs.playSound(QuestState.SOUND_MIDDLE);
 			return event;
 		} else if ("30064-18.htm".equalsIgnoreCase(event)) {
+			PlayerCharacter player = qs.getPlayerCharacter();
 			qs.takeItems(ANALYSIS_RESULT, -1);
+			if (player != null && player.level() < 36) {
+				qs.giveItems(TERYS_ORDER3, 1);
+				qs.setCond(14);
+				qs.playSound(QuestState.SOUND_ITEMGET);
+				return "30064-17.htm";
+			}
 			qs.giveItems(LIST_OF_HOST, 1);
 			qs.setCond(16);
 			qs.playSound(QuestState.SOUND_MIDDLE);
@@ -142,6 +148,7 @@ public class Quest213TrialOfSeeker extends Quest {
 			qs.playSound(QuestState.SOUND_MIDDLE);
 			return event;
 		} else if ("30684-11.htm".equalsIgnoreCase(event)) {
+			qs.takeItems(TERYS_LETTER, -1);
 			qs.takeItems(TERYS_BOX, -1);
 			qs.takeItems(HAWKEYES_LETTER, -1);
 			qs.takeItems(VIKTORS_LETTER, -1);
@@ -202,13 +209,15 @@ public class Quest213TrialOfSeeker extends Quest {
 				}
 			} else if (cond == 1) {
 				return "30106-06.htm";
-			} else if (cond == 18 && qs.hasQuestItems(TERYS_REPORT)) {
+			} else if ((cond == 17 || cond == 18) && qs.hasQuestItems(TERYS_REPORT)) {
 				qs.takeItems(TERYS_REPORT, -1);
 				qs.giveItems(MARK_OF_SEEKER, 1);
 				qs.addExpAndSp(72110, 11000);
 				qs.setCond(0);
 				qs.playSound(QuestState.SOUND_FINISH);
 				qs.exitCurrentQuest(false);
+				return "30106-07.htm";
+			} else if (cond > 1) {
 				return "30106-07.htm";
 			}
 		} else if (npcId == TERRY) {
@@ -224,6 +233,28 @@ public class Quest213TrialOfSeeker extends Quest {
 				return "30064-09.htm";
 			} else if (cond == 6) {
 				return "30064-11.htm";
+			} else if (cond == 7) {
+				qs.takeItems(VIKTORS_LETTER, -1);
+				qs.giveItems(HAWKEYES_LETTER, 1);
+				qs.setCond(8);
+				qs.playSound(QuestState.SOUND_MIDDLE);
+				return "30064-12.htm";
+			} else if (cond == 8) {
+				return "30064-13.htm";
+			} else if (cond > 8 && cond < 14) {
+				return "30064-14.htm";
+			} else if (cond == 14) {
+				if (!qs.hasQuestItems(TERYS_ORDER3)) {
+					return "30064-15.htm";
+				} else if (player != null && player.level() < 36) {
+					return "30064-20.htm";
+				} else {
+					qs.takeItems(TERYS_ORDER3, -1);
+					qs.giveItems(LIST_OF_HOST, 1);
+					qs.setCond(16);
+					qs.playSound(QuestState.SOUND_MIDDLE);
+					return "30064-21.htm";
+				}
 			} else if (cond == 15) {
 				return "30064-16.htm";
 			} else if (cond == 16) {
@@ -254,6 +285,8 @@ public class Quest213TrialOfSeeker extends Quest {
 				return "30684-14.htm";
 			} else if (cond == 11) {
 				return "30684-16.htm";
+			} else if (cond > 11) {
+				return "30684-17.htm";
 			}
 		} else if (npcId == MARINA) {
 			if (cond == 11) {
@@ -262,11 +295,15 @@ public class Quest213TrialOfSeeker extends Quest {
 				return "30715-03.htm";
 			} else if (cond == 13) {
 				return "30715-04.htm";
-			} else if (cond == 15) {
+			} else if (cond == 14 || cond == 15) {
 				return "30715-06.htm";
 			}
 		} else if (npcId == BRUNON) {
 			if (cond == 12) {
+				qs.takeItems(MARINAS_LETTER, -1);
+				qs.giveItems(EXPERIMENT_TOOLS, 1);
+				qs.setCond(13);
+				qs.playSound(QuestState.SOUND_MIDDLE);
 				return "30526-01.htm";
 			} else if (cond == 13) {
 				return "30526-03.htm";

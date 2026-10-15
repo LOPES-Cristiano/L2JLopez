@@ -59,24 +59,10 @@ public class Quest212TrialOfDuty extends Quest {
 		super(QUEST_ID, QUEST_NAME, "Trial of Duty");
 
 		addStartNpc(HANNAVALT);
-		addTalkId(HANNAVALT);
-		addTalkId(DUSTIN);
-		addTalkId(SIR_COLLIN_WINDAWOOD);
-		addTalkId(SIR_ARON_TANFORD);
-		addTalkId(SIR_KIEL_NIGHTHAWK);
-		addTalkId(ISAEL_SILVERSHADOW);
-		addTalkId(SPIRIT_OF_SIR_TALIANUS);
+		addTalkId(HANNAVALT, DUSTIN, SIR_COLLIN_WINDAWOOD, SIR_ARON_TANFORD, SIR_KIEL_NIGHTHAWK, ISAEL_SILVERSHADOW, SPIRIT_OF_SIR_TALIANUS);
 
-		addKillId(SKELETON_MARAUDER);
-		addKillId(SKELETON_RAIDER);
-		addKillId(SPIRIT_OF_SIR_HEROD);
-		addKillId(STRAIN);
-		addKillId(GHOUL);
-		addKillId(MEDUSA);
-		addKillId(ANT_RECRUIT);
-		for (int mob = 20577; mob <= 20582; mob++) {
-			addKillId(mob);
-		}
+		addKillId(SKELETON_MARAUDER, SKELETON_RAIDER, SPIRIT_OF_SIR_HEROD, STRAIN, GHOUL, MEDUSA, ANT_RECRUIT,
+				20577, 20578, 20579, 20580, 20581, 20582);
 
 		registerQuestItems(LETTER_OF_DUSTIN, KNIGHTS_TEAR, OLD_KNIGHT_SWORD, MIRROR_OF_ORPIC,
 				TEAR_OF_CONFESSION, REPORT_PIECE, TALIANUSS_REPORT, TEAR_OF_LOYALTY,
@@ -94,7 +80,7 @@ public class Quest212TrialOfDuty extends Quest {
 			return null;
 		}
 
-		if ("1".equalsIgnoreCase(event)) {
+		if ("1".equalsIgnoreCase(event) || "30109-04.htm".equalsIgnoreCase(event)) {
 			qs.setState(State.STARTED);
 			qs.playSound("ItemSound.quest_accept");
 			qs.setCond(1);
@@ -105,9 +91,10 @@ public class Quest212TrialOfDuty extends Quest {
 			return "30116-03.htm";
 		} else if ("30116_3".equalsIgnoreCase(event)) {
 			return "30116-04.htm";
-		} else if ("30116_4".equalsIgnoreCase(event)) {
+		} else if ("30116_4".equalsIgnoreCase(event) || "30116-05.htm".equalsIgnoreCase(event)) {
 			qs.takeItems(TEAR_OF_LOYALTY, -1);
 			qs.setCond(14);
+			qs.playSound("ItemSound.quest_middle");
 			return "30116-05.htm";
 		}
 		return event;
@@ -129,7 +116,7 @@ public class Quest212TrialOfDuty extends Quest {
 
 		if (npcId == HANNAVALT) {
 			if (cond == 0) {
-				int cId = player.getClassId();
+				int cId = player.classId();
 				if (cId == 4 || cId == 19 || cId == 32) {
 					if (player.getLevel() >= 35) {
 						return "30109-03.htm";
@@ -145,7 +132,7 @@ public class Quest212TrialOfDuty extends Quest {
 				qs.playSound("ItemSound.quest_finish");
 				qs.exitCurrentQuest(false);
 				return "30109-05.htm";
-			} else if (cond == 1) {
+			} else if (cond >= 1) {
 				return "30109-04.htm";
 			}
 		} else if (npcId == SIR_ARON_TANFORD) {
@@ -164,7 +151,7 @@ public class Quest212TrialOfDuty extends Quest {
 				qs.setCond(4);
 				qs.playSound("ItemSound.quest_middle");
 				return "30653-03.htm";
-			} else if (cond == 4) {
+			} else if (cond >= 4) {
 				return "30653-04.htm";
 			}
 		} else if (npcId == SIR_KIEL_NIGHTHAWK) {
@@ -181,12 +168,12 @@ public class Quest212TrialOfDuty extends Quest {
 				return "30654-03.htm";
 			} else if (cond == 7 && qs.getQuestItemsCount(MIRROR_OF_ORPIC) > 0) {
 				return "30654-04.htm";
-			} else if (qs.getQuestItemsCount(TEAR_OF_CONFESSION) > 0) {
+			} else if (cond == 9 || qs.getQuestItemsCount(TEAR_OF_CONFESSION) > 0) {
 				qs.takeItems(TEAR_OF_CONFESSION, -1);
 				qs.setCond(10);
 				qs.playSound("ItemSound.quest_middle");
 				return "30654-05.htm";
-			} else if (cond == 10) {
+			} else if (cond >= 10) {
 				return "30654-06.htm";
 			}
 		} else if (npcId == SPIRIT_OF_SIR_TALIANUS) {
@@ -200,7 +187,7 @@ public class Quest212TrialOfDuty extends Quest {
 			}
 		} else if (npcId == ISAEL_SILVERSHADOW) {
 			if (cond == 10) {
-				if (player.getLevel() >= 36) {
+				if (player.getLevel() >= 35) {
 					qs.setCond(11);
 					qs.playSound("ItemSound.quest_middle");
 					return "30655-02.htm";
@@ -249,7 +236,7 @@ public class Quest212TrialOfDuty extends Quest {
 				qs.setCond(17);
 				qs.playSound("ItemSound.quest_middle");
 				return "30311-01.htm";
-			} else if (cond == 17) {
+			} else if (cond >= 17) {
 				return "30311-02.htm";
 			}
 		}
@@ -271,7 +258,13 @@ public class Quest212TrialOfDuty extends Quest {
 				qs.giveItems(KNIGHTS_TEAR, 1);
 				qs.setCond(3);
 				qs.playSound("ItemSound.quest_middle");
+			} else {
+				qs.addSpawn(SPIRIT_OF_SIR_HEROD, npc, false, 120000);
 			}
+		} else if (cond == 2 && npcId == SPIRIT_OF_SIR_HEROD) {
+			qs.giveItems(KNIGHTS_TEAR, 1);
+			qs.setCond(3);
+			qs.playSound("ItemSound.quest_middle");
 		} else if (cond == 5 && (npcId == STRAIN || npcId == GHOUL)) {
 			if (qs.getQuestItemsCount(REPORT_PIECE) < 10) {
 				qs.giveItems(REPORT_PIECE, 1);
@@ -287,7 +280,8 @@ public class Quest212TrialOfDuty extends Quest {
 		} else if (cond == 7 && npcId == MEDUSA) {
 			qs.setCond(8);
 			qs.playSound("ItemSound.quest_middle");
-		} else if (cond == 11 && npcId >= 20577 && npcId <= 20582) {
+			qs.addSpawn(SPIRIT_OF_SIR_TALIANUS, npc, false, 300000);
+		} else if (cond == 11 && (npcId == 20577 || npcId == 20578 || npcId == 20579 || npcId == 20580 || npcId == 20581 || npcId == 20582)) {
 			if (qs.getQuestItemsCount(MILITIA_WEAPON_PIECE) < 20) {
 				qs.giveItems(MILITIA_WEAPON_PIECE, 1);
 				if (qs.getQuestItemsCount(MILITIA_WEAPON_PIECE) >= 20) {
