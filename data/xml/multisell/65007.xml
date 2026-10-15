@@ -1,0 +1,42 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+
+<!-- Created with Lineage II - Multisell Manager -->
+<!-- © 2007 by tReXpert -->
+<list>
+  <item id="1">
+    <ingredient id="57" count="100"/>   
+    <production id="1101" count="1"/>
+    <production id="41" count="1"/>
+    <production id="1104" count="1"/>
+    <production id="1122" count="1"/>
+    <production id="49" count="1"/>
+  </item>
+  <item id="2">
+    <ingredient id="57" count="100"/>
+    <production id="23" count="1"/>
+    <production id="42" count="1"/>
+    <production id="2386" count="1"/>
+    <production id="36" count="1"/>
+    <production id="48" count="1"/>
+  </item>
+  <item id="3">
+    <ingredient id="57" count="100"/>
+    <production id="26" count="1"/>
+    <production id="43" count="1"/>
+    <production id="34" count="1"/>
+    <production id="38" count="1"/>
+    <production id="50" count="1"/>
+  </item>
+  <item id="16">
+    <ingredient id="57" count="20"/>
+    <production id="19" count="1"/>
+  </item>
+  <item id="17">
+    <ingredient id="57" count="20"/>
+    <production id="4223" count="1"/>
+  </item>
+  <item id="18">
+    <ingredient id="57" count="20"/>
+    <production id="7015" count="1"/>
+  </item>
+</list>

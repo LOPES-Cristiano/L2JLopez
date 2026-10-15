@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<list>
+  <!-- Mithril Tunic -->
+  <item id="6">
+    <ingredient id="57" count="1000000"/>
+    <production id="437" count="1"/>
+    <production id="45" count="1"/>
+    <production id="470" count="1"/>
+    <production id="2450" count="1"/>
+    <production id="2426" count="1"/>
+  </item>
+  <!-- Manticore Skin Shirt -->
+  <item id="4">
+    <ingredient id="57" count="1000000"/>
+    <production id="395" count="1"/>
+    <production id="2412" count="1"/>
+    <production id="417" count="1"/>
+    <production id="2448" count="1"/>
+    <production id="2424" count="1"/>
+  </item>
+  <!-- Brigandine Tunic -->
+  <item id="2">
+    <ingredient id="57" count="1000000"/>
+    <production id="352" count="1"/>
+    <production id="2411" count="1"/>
+    <production id="2378" count="1"/>
+    <production id="2449" count="1"/>
+    <production id="2425" count="1"/>
+  </item>
+  <item id="16">
+    <ingredient id="57" count="200000"/>
+    <production id="629" count="1"/>
+  </item>
+  <item id="17">
+    <ingredient id="57" count="200000"/>
+    <production id="630" count="1"/>
+  </item>
+  <item id="18">
+    <ingredient id="57" count="200000"/>
+    <production id="2493" count="1"/>
+  </item>
+</list>
