@@ -1,0 +1,107 @@
+<?xml version='1.0' encoding='utf-8'?>
+<list>
+
+	<item id="1">
+		<ingredient id="57" count="25"/>
+		<production id="908" count="1"/>
+	</item>
+	<item id="2">
+		<ingredient id="57" count="25"/>
+		<production id="115" count="1"/>
+	</item>
+	<item id="3">
+		<ingredient id="57" count="25"/>
+		<production id="877" count="1"/>
+	</item>
+	<!-- c Blessed Neckle -->
+	<item id="4">
+		<ingredient id="57" count="240000"/>
+		<production id="913" count="1"/>
+	</item>
+	<!-- c Blessed Neckle -->
+	<item id="5">
+		<ingredient id="57" count="240000"/>
+		<production id="850" count="1"/>
+	</item>
+
+	<!-- c Blessed Neckle -->
+	<item id="6">
+		<ingredient id="57" count="240000"/>
+		<production id="881" count="1"/>
+	</item>
+	<!-- c Blessed Neckle -->
+	<item id="7">
+		<ingredient id="57" count="600000"/>
+		<production id="919" count="1"/>
+	</item>
+	<!-- c Blessed Neckle -->
+	<item id="8">
+		<ingredient id="57" count="600000"/>
+		<production id="857" count="1"/>
+	</item>
+	<!-- c Blessed Neckle -->
+	<item id="9">
+		<ingredient id="57" count="600000"/>
+		<production id="888" count="1"/>
+	</item>
+	<!-- b Neckle of Black Ore -->
+	<item id="10">
+		<ingredient id="57" count="1300000"/>
+		<production id="926" count="1"/>
+	</item>
+	<!-- b Neckle of Black Ore -->
+	<item id="11">
+		<ingredient id="57" count="1300000"/>
+		<production id="864" count="1"/>
+	</item>
+	<!-- b Neckle of Black Ore -->
+	<item id="12">
+		<ingredient id="57" count="1300000"/>
+		<production id="895" count="1"/>
+	</item>
+
+	<!-- a Magestic Neckle -->
+	<item id="13">
+	           <ingredient id="57" count="5000000"/>
+		<production id="924" count="1"/>
+	</item>
+
+	<!-- a Magestic Neckle -->
+	<item id="14">
+	           <ingredient id="57" count="5000000"/>
+		<production id="862" count="1"/>
+	</item>
+
+	<!-- a Magestic Neckle -->
+	<item id="15">
+	           <ingredient id="57" count="5000000"/>
+		<production id="893" count="1"/>
+	</item>
+
+	<!-- s Tateossian Neckle -->
+	<item id="16">
+		      <ingredient id="57" count="12000000"/>     		      
+		<production id="920" count="1"/>
+	</item>
+	<!-- s Tateossian Neckle -->
+	<item id="17">
+		      <ingredient id="57" count="12000000"/> 
+		<production id="858" count="1"/>
+	</item>
+	<!-- s Tateossian Neckle -->
+	<item id="18">
+		      <ingredient id="57" count="12000000"/>   
+		<production id="889" count="1"/>
+	</item>
+	<!-- c Blessed Neckle -->
+	<item id="19">
+		<ingredient id="57" count="125"/>
+		<production id="6658" count="1"/>
+		<production id="6656" count="1"/>
+		<production id="6657" count="1"/>
+		<production id="6659" count="1"/>
+	    <production id="6660" count="1"/>
+	   <production id="6661" count="1"/>
+	</item>
+
+</list>
