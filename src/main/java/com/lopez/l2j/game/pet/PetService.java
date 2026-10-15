@@ -157,7 +157,7 @@ public class PetService {
 		PetDataRecord pet = createOrGetDefault(itemObjectId, npcId, "Pet");
 		PetStatTemplate stat = petDataTable.getStat(npcId, pet.level()).orElse(null);
 		int maxFed = stat != null ? stat.feedMax() : 100;
-		int foodRate = Math.max(1, com.lopez.l2j.config.Config.PET_FOOD_RATE);
+		int foodRate = Math.max(1, Math.round(com.lopez.l2j.config.Config.PET_FOOD_RATE));
 		int fedGain = Math.max(10, (maxFed * 20 / 100) * foodRate); // Recupera 20% * PET_FOOD_RATE
 		int newFed = Math.min(maxFed, pet.fed() + fedGain);
 
@@ -280,5 +280,30 @@ public class PetService {
 		savePet(evolved);
 		log.info("Pet {} evoluiu com sucesso de NPC {} para NPC {}", pet.name(), oldNpcId, newNpcId);
 		return Optional.of(evolved);
+	}
+
+	public record PetSkillLearn(int templateId, int minLvl, int skillId, int skillLvl) {}
+
+	/**
+	 * Retorna as habilidades disponíveis para a mascote a partir da tabela pets_skills (V105 / V1105).
+	 */
+	public java.util.List<PetSkillLearn> getPetSkills(int templateId, int petLevel) {
+		if (jdbc == null) {
+			return java.util.List.of();
+		}
+		try {
+			return jdbc.sql("SELECT templateId, minLvl, skillId, skillLvl FROM pets_skills WHERE templateId = ? AND minLvl <= ?")
+					.param(templateId)
+					.param(petLevel)
+					.query((rs, i) -> new PetSkillLearn(
+							rs.getInt("templateId"),
+							rs.getInt("minLvl"),
+							rs.getInt("skillId"),
+							rs.getInt("skillLvl")
+					)).list();
+		} catch (Exception e) {
+			log.debug("pets_skills indisponivel: {}", e.getMessage());
+			return java.util.List.of();
+		}
 	}
 }

@@ -270,8 +270,8 @@ public final class Party {
 
 		int count = eligible.size();
 		double bonusMultiplier = BONUS_EXP_SP[Math.min(count - 1, BONUS_EXP_SP.length - 1)];
-		long partyExp = Math.round(totalExp * bonusMultiplier * ratePartyXp);
-		int partySp = (int) Math.round(totalSp * bonusMultiplier * ratePartySp);
+		long partyExp = Math.max(0L, Math.round(Math.max(0L, totalExp) * bonusMultiplier * ratePartyXp));
+		long partySp = Math.max(0L, Math.round((double) Math.max(0, totalSp) * bonusMultiplier * ratePartySp));
 
 		long sumLevels = eligible.stream().mapToLong(s -> s.character().level()).sum();
 		if (sumLevels <= 0) {
@@ -286,8 +286,8 @@ public final class Party {
 			if (minSharePercent > 0.0 && share < minSharePercent) {
 				continue;
 			}
-			long memberExp = Math.max(1, Math.round(partyExp * share));
-			int memberSp = Math.max(1, (int) Math.round(partySp * share));
+			long memberExp = partyExp > 0 ? Math.max(1L, Math.round(partyExp * share)) : 0L;
+			int memberSp = partySp > 0 ? (int) Math.min(Integer.MAX_VALUE, Math.max(1L, Math.round(partySp * share))) : 0;
 			s.applyExpAndSp(memberExp, memberSp);
 		}
 	}
