@@ -40,12 +40,29 @@ public class Quest611AllianceWithVarkaSilenos extends Quest {
 	public static final int VALOR_FEATHER = 7229;
 	public static final int WISDOM_FEATHER = 7230;
 
+	// Marcas rivais Ketra
+	public static final int MARK_KETRA_1 = 7211;
+	public static final int MARK_KETRA_2 = 7212;
+	public static final int MARK_KETRA_3 = 7213;
+	public static final int MARK_KETRA_4 = 7214;
+	public static final int MARK_KETRA_5 = 7215;
+
 	// Inimigos Ketra Nível 1
-	private static final Set<Integer> KETRA_SOLDIERS = Set.of(21324, 21325, 21327, 21328, 21329);
+	private static final Set<Integer> KETRA_SOLDIERS = Set.of(
+			21324, 21325, 21326, 21327, 21328, 21329
+	);
 	// Inimigos Ketra Nível 2
-	private static final Set<Integer> KETRA_OFFICERS = Set.of(21331, 21332, 21334, 21335, 21336, 21338, 21343, 21344);
+	private static final Set<Integer> KETRA_OFFICERS = Set.of(
+			21330, 21331, 21332, 21333, 21334, 21335, 21336, 21337, 21338, 21343, 21344
+	);
 	// Inimigos Ketra Nível 3+
-	private static final Set<Integer> KETRA_CAPTAINS = Set.of(21339, 21340, 21342, 21345, 21346, 21347, 21348, 21349);
+	private static final Set<Integer> KETRA_CAPTAINS = Set.of(
+			21339, 21340, 21341, 21342, 21345, 21346, 21347, 21348, 21349
+	);
+
+	public Quest611AllianceWithVarkaSilenos() {
+		this(null);
+	}
 
 	@Autowired
 	public Quest611AllianceWithVarkaSilenos(QuestManager questManager) {
@@ -64,8 +81,7 @@ public class Quest611AllianceWithVarkaSilenos extends Quest {
 			addKillId(mobId);
 		}
 
-		registerQuestItems(KETRA_BADGE_SOLDIER, KETRA_BADGE_OFFICER, KETRA_BADGE_CAPTAIN,
-				VALOR_FEATHER, WISDOM_FEATHER);
+		registerQuestItems(KETRA_BADGE_SOLDIER, KETRA_BADGE_OFFICER, KETRA_BADGE_CAPTAIN);
 
 		if (questManager != null) {
 			questManager.registerQuest(this);
@@ -78,11 +94,90 @@ public class Quest611AllianceWithVarkaSilenos extends Quest {
 			return null;
 		}
 
-		if ("31378-04.htm".equalsIgnoreCase(event)) {
+		if ("31378-04.htm".equalsIgnoreCase(event)
+				|| "31378-03a.htm".equalsIgnoreCase(event)
+				|| "quest_accept".equalsIgnoreCase(event)
+				|| "accept".equalsIgnoreCase(event)) {
+			if (qs.hasQuestItems(MARK_KETRA_1) || qs.hasQuestItems(MARK_KETRA_2)
+					|| qs.hasQuestItems(MARK_KETRA_3) || qs.hasQuestItems(MARK_KETRA_4)
+					|| qs.hasQuestItems(MARK_KETRA_5)) {
+				return "31378-02a.htm";
+			}
 			qs.setState(State.STARTED);
+			qs.playSound(QuestState.SOUND_ACCEPT);
+			for (int i = MARK_VARKA_1; i <= MARK_VARKA_5; i++) {
+				if (qs.hasQuestItems(i)) {
+					qs.setCond(i - 7219);
+					return "31378-0" + (i - 7217) + ".htm";
+				}
+			}
 			qs.setCond(1);
-			qs.playSound("ItemSound.quest_accept");
-			return event;
+			return "31378-04.htm";
+		} else if ("31378-10-1.htm".equalsIgnoreCase(event) || "reply_1".equalsIgnoreCase(event)) {
+			if (qs.getQuestItemsCount(KETRA_BADGE_SOLDIER) >= 100) {
+				qs.takeItems(KETRA_BADGE_SOLDIER, -1);
+				qs.giveItems(MARK_VARKA_1, 1);
+				qs.setCond(2);
+				qs.playSound(QuestState.SOUND_MIDDLE);
+				return "31378-10-1.htm";
+			}
+			return "31378-03b.htm";
+		} else if ("31378-10-2.htm".equalsIgnoreCase(event) || "reply_2".equalsIgnoreCase(event)) {
+			if (qs.getQuestItemsCount(KETRA_BADGE_SOLDIER) >= 200
+					&& qs.getQuestItemsCount(KETRA_BADGE_OFFICER) >= 100) {
+				qs.takeItems(KETRA_BADGE_SOLDIER, -1);
+				qs.takeItems(KETRA_BADGE_OFFICER, -1);
+				qs.takeItems(MARK_VARKA_1, -1);
+				qs.giveItems(MARK_VARKA_2, 1);
+				qs.setCond(3);
+				qs.playSound(QuestState.SOUND_MIDDLE);
+				return "31378-10-2.htm";
+			}
+			return "31378-12.htm";
+		} else if ("31378-10-3.htm".equalsIgnoreCase(event) || "reply_3".equalsIgnoreCase(event)) {
+			if (qs.getQuestItemsCount(KETRA_BADGE_SOLDIER) >= 300
+					&& qs.getQuestItemsCount(KETRA_BADGE_OFFICER) >= 200
+					&& qs.getQuestItemsCount(KETRA_BADGE_CAPTAIN) >= 100) {
+				qs.takeItems(KETRA_BADGE_SOLDIER, -1);
+				qs.takeItems(KETRA_BADGE_OFFICER, -1);
+				qs.takeItems(KETRA_BADGE_CAPTAIN, -1);
+				qs.takeItems(MARK_VARKA_2, -1);
+				qs.giveItems(MARK_VARKA_3, 1);
+				qs.setCond(4);
+				qs.playSound(QuestState.SOUND_MIDDLE);
+				return "31378-10-3.htm";
+			}
+			return "31378-15.htm";
+		} else if ("31378-10-4.htm".equalsIgnoreCase(event) || "reply_4".equalsIgnoreCase(event)) {
+			if (qs.getQuestItemsCount(KETRA_BADGE_SOLDIER) >= 300
+					&& qs.getQuestItemsCount(KETRA_BADGE_OFFICER) >= 300
+					&& qs.getQuestItemsCount(KETRA_BADGE_CAPTAIN) >= 200
+					&& qs.hasQuestItems(VALOR_FEATHER)) {
+				qs.takeItems(KETRA_BADGE_SOLDIER, -1);
+				qs.takeItems(KETRA_BADGE_OFFICER, -1);
+				qs.takeItems(KETRA_BADGE_CAPTAIN, -1);
+				qs.takeItems(VALOR_FEATHER, -1);
+				qs.takeItems(MARK_VARKA_3, -1);
+				qs.giveItems(MARK_VARKA_4, 1);
+				qs.setCond(5);
+				qs.playSound(QuestState.SOUND_MIDDLE);
+				return "31378-10-4.htm";
+			}
+			return "31378-21.htm";
+		} else if ("31378-20.htm".equalsIgnoreCase(event) || "reply_6".equalsIgnoreCase(event)) {
+			qs.takeItems(MARK_VARKA_1, -1);
+			qs.takeItems(MARK_VARKA_2, -1);
+			qs.takeItems(MARK_VARKA_3, -1);
+			qs.takeItems(MARK_VARKA_4, -1);
+			qs.takeItems(MARK_VARKA_5, -1);
+			qs.takeItems(KETRA_BADGE_SOLDIER, -1);
+			qs.takeItems(KETRA_BADGE_OFFICER, -1);
+			qs.takeItems(KETRA_BADGE_CAPTAIN, -1);
+			qs.takeItems(VALOR_FEATHER, -1);
+			qs.takeItems(WISDOM_FEATHER, -1);
+			qs.playSound(QuestState.SOUND_FINISH);
+			qs.exitQuest(true);
+			return "31378-20.htm";
 		}
 
 		return event;
@@ -95,7 +190,6 @@ public class Quest611AllianceWithVarkaSilenos extends Quest {
 		}
 
 		PlayerCharacter player = qs.getPlayerCharacter();
-		int npcId = npc.getNpcId();
 		int cond = qs.getCond();
 
 		if (qs.getState() == State.CREATED) {

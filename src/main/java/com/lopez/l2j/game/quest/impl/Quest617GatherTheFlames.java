@@ -3,18 +3,20 @@ package com.lopez.l2j.game.quest.impl;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.quest.Quest;
+import com.lopez.l2j.game.quest.QuestManager;
 import com.lopez.l2j.game.quest.QuestState;
 import com.lopez.l2j.game.quest.State;
 import com.lopez.l2j.network.game.GameSession;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
  * Quest 617: Gather the Flames
  *
  * Coleta de Torches (Item 7264) em Forge of the Gods para troca por receitas de armas S-Grade
- * com o ferreiro Vulcan (31539) e Warsmith Rooney (32049).
+ * com o ferreiro Vulcan (31539), Hilda (31271) e Warsmith Rooney (32049).
  */
 @Component
 public class Quest617GatherTheFlames extends Quest {
@@ -41,38 +43,60 @@ public class Quest617GatherTheFlames extends Quest {
 	};
 
 	public Quest617GatherTheFlames() {
+		this(null);
+	}
+
+	@Autowired
+	public Quest617GatherTheFlames(QuestManager questManager) {
 		super(QUEST_ID, QUEST_NAME, "Gather the Flames");
 		addStartNpc(VULCAN, HILDA);
 		addTalkId(VULCAN, ROONEY, HILDA);
 		for (int mobId : FOTG_MOBS) {
 			addKillId(mobId);
 		}
+		registerQuestItems(TORCH);
+		if (questManager != null) {
+			questManager.registerQuest(this);
+		}
 	}
 
 	@Override
 	public String onAdvEvent(String event, NpcInstance npc, GameSession player) {
 		QuestState st = checkQuestState(player);
-		if (st == null) {
+		if (st == null && player != null) {
 			st = newQuestState(player);
 		}
 		if (st == null) {
 			return null;
 		}
+		return onEvent(event, st);
+	}
 
-		PlayerCharacter c = player.activeChar();
+	@Override
+	public String onEvent(String event, QuestState st) {
+		if (st == null) {
+			return null;
+		}
 
-		if ("31539-03.htm".equalsIgnoreCase(event)) {
-			if (c != null && c.level() >= 74) {
+		PlayerCharacter c = st.playerChar();
+
+		if ("31539-03.htm".equalsIgnoreCase(event)
+				|| "31271-03.htm".equalsIgnoreCase(event)
+				|| "quest_accept".equalsIgnoreCase(event)
+				|| "accept".equalsIgnoreCase(event)) {
+			if (c == null || c.level() >= 74) {
 				st.setState(State.STARTED);
-				st.set("cond", 1);
+				st.setCond(1);
 				st.playSound(QuestState.SOUND_ACCEPT);
-				return "31539-03.htm";
+				return "31271-03.htm".equalsIgnoreCase(event) ? "31271-03.htm" : "31539-03.htm";
 			} else {
 				st.exitQuest(true);
-				return "31539-02.htm";
+				return "31271-03.htm".equalsIgnoreCase(event) ? "31271-02.htm" : "31539-02.htm";
 			}
-		} else if ("31539-05.htm".equalsIgnoreCase(event)) {
-			// Troca de 1.000 Torches por receita S-Grade
+		} else if ("31539-05.htm".equalsIgnoreCase(event)
+				|| "31539-07.htm".equalsIgnoreCase(event)
+				|| "31271-05.htm".equalsIgnoreCase(event)) {
+			// Troca de 1.000 Torches por receita S-Grade aleatória
 			if (st.count(TORCH) >= 1000) {
 				st.takeItems(TORCH, 1000);
 				int randomRecipe = S_GRADE_WEAPON_RECIPES.get(
@@ -82,6 +106,30 @@ public class Quest617GatherTheFlames extends Quest {
 				return "31539-07.htm";
 			}
 			return "31539-06.htm"; // Torches insuficientes
+		} else if ("31539-08.htm".equalsIgnoreCase(event)) {
+			st.takeItems(TORCH, -1);
+			st.playSound(QuestState.SOUND_FINISH);
+			st.exitQuest(true);
+			return "31539-08.htm";
+		} else if ("32049-02.htm".equalsIgnoreCase(event)) {
+			return "32049-02.htm";
+		} else if ("6881".equalsIgnoreCase(event)
+				|| "6883".equalsIgnoreCase(event)
+				|| "6885".equalsIgnoreCase(event)
+				|| "6887".equalsIgnoreCase(event)
+				|| "6891".equalsIgnoreCase(event)
+				|| "6893".equalsIgnoreCase(event)
+				|| "6895".equalsIgnoreCase(event)
+				|| "6897".equalsIgnoreCase(event)
+				|| "6899".equalsIgnoreCase(event)
+				|| "7580".equalsIgnoreCase(event)) {
+			if (st.count(TORCH) >= 1200) {
+				st.takeItems(TORCH, 1200);
+				st.giveItems(Integer.parseInt(event), 1);
+				st.playSound(QuestState.SOUND_FINISH);
+				return "32049-03.htm";
+			}
+			return "32049-02.htm";
 		}
 
 		return event;
@@ -89,12 +137,20 @@ public class Quest617GatherTheFlames extends Quest {
 
 	@Override
 	public String onTalk(NpcInstance npc, GameSession player) {
-		QuestState st = player.getQuestState(QUEST_NAME);
-		if (st == null) {
+		QuestState st = player != null ? player.getQuestState(QUEST_NAME) : null;
+		if (st == null && player != null) {
 			st = newQuestState(player);
 		}
+		return onTalk(npc, st);
+	}
 
-		PlayerCharacter c = player.activeChar();
+	@Override
+	public String onTalk(NpcInstance npc, QuestState st) {
+		if (st == null) {
+			return "noquest";
+		}
+
+		PlayerCharacter c = st.playerChar();
 		if (c == null) {
 			return "noquest";
 		}
@@ -114,9 +170,22 @@ public class Quest617GatherTheFlames extends Quest {
 				}
 				return "31539-05a.htm"; // Menos de 1000 torches
 			}
+		} else if (npcId == HILDA) {
+			if (st.isCreated()) {
+				if (c.level() < 74) {
+					return "31271-02.htm";
+				}
+				return "31271-01.htm";
+			}
+			if (st.isStarted()) {
+				return "31271-04.htm";
+			}
 		} else if (npcId == ROONEY) {
-			if (st.isStarted() && st.count(TORCH) >= 1000) {
-				return "32049-01.htm"; // Rooney oferece troca se tiver 1000 torches
+			if (st.isStarted()) {
+				if (st.count(TORCH) >= 1000) {
+					return "32049-01.htm"; // Rooney oferece troca
+				}
+				return "32049-02.htm";
 			}
 		}
 
@@ -126,6 +195,14 @@ public class Quest617GatherTheFlames extends Quest {
 	@Override
 	public String onKill(NpcInstance npc, GameSession player, boolean isPet) {
 		QuestState st = checkQuestState(player);
+		if (st == null) {
+			return null;
+		}
+		return onKill(npc, st, isPet);
+	}
+
+	@Override
+	public String onKill(NpcInstance npc, QuestState st, boolean isPet) {
 		if (st == null || !st.isStarted()) {
 			return null;
 		}
