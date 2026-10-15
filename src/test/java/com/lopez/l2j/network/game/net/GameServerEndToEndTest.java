@@ -380,16 +380,16 @@ class GameServerEndToEndTest {
 
 			// RequestUnEquipItem(SLOT_R_HAND)
 			c.send(new PacketWriter().writeC(0x11).writeD(0x0080).toByteArray());
-			msg = new PacketReader(c.read());
+			msg = new PacketReader(c.readUntil(0x64));
 			msg.readC();
 			assertEquals(417, msg.readD(), "S1_DISARMED");
-			assertEquals(0x27, c.read()[0]);
-			assertEquals(0x04, c.read()[0]);
+			assertEquals(0x27, c.readUntil(0x27)[0]);
+			assertEquals(0x04, c.readUntil(0x04)[0]);
 			assertEquals("INVENTORY", items.rows.get(daggerObject).loc());
 
 			// RequestItemList abre a janela
 			c.send(new byte[] { 0x0f });
-			PacketReader open = new PacketReader(c.read());
+			PacketReader open = new PacketReader(c.readUntil(0x1b));
 			assertEquals(0x1b, open.readC());
 			assertEquals(1, open.readH());
 		}
@@ -818,7 +818,7 @@ class GameServerEndToEndTest {
 			assertEquals(0x60, mpr.readC());
 			assertEquals(0x10000000, mpr.readD(), "charObjId do player");
 			assertEquals(farMonster.objectId(), mpr.readD(), "targetObjId do monstro");
-			assertEquals(40, mpr.readD(), "distance offset de ataque");
+			assertEquals(50, mpr.readD(), "distance offset de ataque (attackRange + collisionRadius)");
 		}
 	}
 }
