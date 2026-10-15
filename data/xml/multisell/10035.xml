@@ -1,0 +1,25 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+
+<list>
+
+   <!-- Black Ore Ring -->
+  <item id="1">
+    <ingredient id="57" count="616000"/>
+    <production id="895" count="1"/>
+  </item>
+
+  <!-- Black Ore Earring -->
+  <item id="2">
+    <ingredient id="57" count="924000"/>
+    <production id="864" count="1"/>
+  </item>
+
+  <!-- Black Ore Neck -->
+  <item id="3">
+    <ingredient id="57" count="1230000"/>
+    <production id="926" count="1"/>
+  </item>
+
+	
+
+</list>
