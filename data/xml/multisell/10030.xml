@@ -1,0 +1,25 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+
+<list>
+
+   <!-- Blue Stone -->
+  <item id="1">
+    <ingredient id="6360" count="1"/>
+    <production id="5575" count="1"/>
+  </item>
+
+  <!-- Green Stone -->
+  <item id="2">
+    <ingredient id="6361" count="1"/>
+    <production id="5575" count="5"/>
+  </item>
+
+  <!-- Red Stone -->
+  <item id="3">
+    <ingredient id="6362" count="1"/>
+    <production id="5575" count="10"/>
+  </item>
+
+	
+
+</list>
