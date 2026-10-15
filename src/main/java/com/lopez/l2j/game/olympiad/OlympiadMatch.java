@@ -99,7 +99,7 @@ public class OlympiadMatch {
 	}
 
 	public int battleLoadWaitSeconds() {
-		return Config.OLYMPIAD_COUNT_BATTLE_LOAD_WAIT > 0 ? Config.OLYMPIAD_COUNT_BATTLE_LOAD_WAIT : 45;
+		return 45;
 	}
 
 	public boolean isBattleTimeExpired(long nowMs) {
@@ -107,7 +107,7 @@ public class OlympiadMatch {
 	}
 
 	public int battleRewardItemId() {
-		return Config.ALT_OLY_BATTLE_REW_ITEM > 0 ? Config.ALT_OLY_BATTLE_REW_ITEM : 6651;
+		return Config.ALT_OLY_REWARD_ITEM > 0 ? Config.ALT_OLY_REWARD_ITEM : 6651;
 	}
 
 	public int battleRewardItemCount() {

@@ -72,18 +72,11 @@ public class OlympiadGameService {
 
 	public Set<Integer> getRestrictedItemIds() {
 		Set<Integer> ids = new HashSet<>();
-		String raw = Config.ALT_OLY_RESTRICTED_ITEMS;
-		if (raw != null && !raw.isBlank()) {
-			for (String token : raw.split(",")) {
-				String trimmed = token.trim();
-				if (!trimmed.isEmpty()) {
-					try {
-						int id = Integer.parseInt(trimmed);
-						if (id > 0) {
-							ids.add(id);
-						}
-					} catch (NumberFormatException ignored) {
-					}
+		List<Integer> raw = Config.ALT_OLY_RESTRICTED_ITEMS;
+		if (raw != null) {
+			for (Integer id : raw) {
+				if (id != null && id > 0) {
+					ids.add(id);
 				}
 			}
 		}
@@ -92,18 +85,11 @@ public class OlympiadGameService {
 
 	public Set<Integer> getRestrictedSkillIds() {
 		Set<Integer> ids = new HashSet<>();
-		String raw = Config.ALT_OLY_RESTRICTED_SKILLS;
-		if (raw != null && !raw.isBlank()) {
-			for (String token : raw.split(",")) {
-				String trimmed = token.trim();
-				if (!trimmed.isEmpty()) {
-					try {
-						int id = Integer.parseInt(trimmed);
-						if (id > 0) {
-							ids.add(id);
-						}
-					} catch (NumberFormatException ignored) {
-					}
+		List<Integer> raw = Config.ALT_OLY_RESTRICTED_SKILLS;
+		if (raw != null) {
+			for (Integer id : raw) {
+				if (id != null && id > 0) {
+					ids.add(id);
 				}
 			}
 		}
@@ -137,15 +123,15 @@ public class OlympiadGameService {
 	}
 
 	public long getBattleWaitMs() {
-		return Config.ALT_OLY_BWAIT > 0 ? Config.ALT_OLY_BWAIT : 600000L;
+		return 600_000L;
 	}
 
 	public long getInitialWaitMs() {
-		return Config.ALT_OLY_IWAIT > 0 ? Config.ALT_OLY_IWAIT : 300000L;
+		return 300_000L;
 	}
 
 	public int getBattleLoadWaitSeconds() {
-		return Config.OLYMPIAD_COUNT_BATTLE_LOAD_WAIT > 0 ? Config.OLYMPIAD_COUNT_BATTLE_LOAD_WAIT : 45;
+		return 45;
 	}
 
 	public RegisterResult register(GameSession session, OlympiadMode mode) {
@@ -216,7 +202,7 @@ public class OlympiadGameService {
 					return RegisterResult.SAME_IP_BLOCKED;
 				}
 			}
-			if (Config.OLYMPIAD_PROTECTION_HWID && !account.isBlank()) {
+			if (Config.ALT_OLY_SAME_IP && !account.isBlank()) {
 				boolean sameHwidFound = queue.stream()
 						.anyMatch(p -> account.equalsIgnoreCase(p.account()));
 				if (sameHwidFound) {
@@ -278,7 +264,7 @@ public class OlympiadGameService {
 				teamIps.add(ip);
 			}
 			String acc = p.account() != null ? p.account() : "";
-			if (Config.OLYMPIAD_PROTECTION_HWID && !acc.isBlank()) {
+			if (Config.ALT_OLY_SAME_IP && !acc.isBlank()) {
 				if (teamAccounts.contains(acc.toLowerCase())) {
 					return RegisterResult.SAME_IP_BLOCKED;
 				}
@@ -297,7 +283,7 @@ public class OlympiadGameService {
 					}
 				}
 			}
-			if (Config.OLYMPIAD_PROTECTION_HWID) {
+			if (Config.ALT_OLY_SAME_IP) {
 				for (String acc : teamAccounts) {
 					boolean sameAccInQueue = queue.stream()
 							.anyMatch(p -> acc.equalsIgnoreCase(p.account()));
@@ -468,7 +454,7 @@ public class OlympiadGameService {
 		all.addAll(match.teamA());
 		all.addAll(match.teamB());
 
-		if (Config.ALT_OLY_ANNOUNCE_GAMES) {
+		if (Config.ALY_OLY_LOG_FIGHTS) {
 			String msg = "Olympiad Stadium #" + match.stadiumId() + " (" + match.mode() + ") match is starting!";
 			log.info(msg);
 			GameWorld world = GameWorld.getInstance();
@@ -518,7 +504,7 @@ public class OlympiadGameService {
 			}
 		}
 
-		int rewardItemId = match.battleRewardItemId();
+		int rewardItemId = match.battleRewardItemId() > 0 ? match.battleRewardItemId() : Config.ALT_OLY_REWARD_ITEM;
 		int rewardItemCount = match.battleRewardItemCount();
 
 		if (olympiadManager != null) {
@@ -551,12 +537,38 @@ public class OlympiadGameService {
 			}
 		}
 
-		log.info("Match {} ({}) concluida com resultado: {} (Recompensa configurada: {}x item {})",
-				matchId, match.mode(), result, rewardItemCount, rewardItemId);
+		if (Config.ALY_OLY_LOG_FIGHTS) {
+			log.info("Match {} ({}) concluida com resultado: {} (Recompensa configurada: {}x item {})",
+					matchId, match.mode(), result, rewardItemCount, rewardItemId);
+		}
 		return result;
 	}
 
 	public OlympiadMatch getActiveMatch(int matchId) {
 		return activeMatches.get(matchId);
+	}
+
+	public boolean shouldResetSkillTimeOnOlympiad() {
+		return Config.ALT_OLY_RESET_SKILL_TIME;
+	}
+
+	public boolean shouldRemoveCubicsOnOlympiad() {
+		return Config.ALT_OLY_REMOVE_CUBICS;
+	}
+
+	public boolean doesOlympiadAllowBss() {
+		return Config.OLYMPIAD_ALLOW_BSS;
+	}
+
+	public boolean shouldIncludeSummonDamageInOlympiad() {
+		return Config.ALT_OLY_SUMMON_DAMAGE_COUNTS || Config.INCLUDE_SUMMON_DAMAGE;
+	}
+
+	public boolean shouldMatchHealCountInOlympiad() {
+		return Config.ALT_OLY_MATCH_HEAL_COUNTS;
+	}
+
+	public String getOlympiadDurationInfo() {
+		return Config.OLYMPIAD_DURATION_TYPE + ":" + Config.OLYMPIAD_DURATION;
 	}
 }

@@ -111,11 +111,11 @@ public class OlympiadManager {
 	}
 
 	public long getBattleWaitMs() {
-		return Config.ALT_OLY_BWAIT > 0 ? Config.ALT_OLY_BWAIT : 600000L;
+		return 600_000L;
 	}
 
 	public long getInitialWaitMs() {
-		return Config.ALT_OLY_IWAIT > 0 ? Config.ALT_OLY_IWAIT : 300000L;
+		return 300_000L;
 	}
 
 	public long getWeeklyPeriodMs() {
@@ -127,8 +127,8 @@ public class OlympiadManager {
 	}
 
 	public long getCycleDurationMs() {
-		String type = Config.ALT_OLY_PERIOD_TYPE != null ? Config.ALT_OLY_PERIOD_TYPE.trim().toUpperCase() : "MONTH";
-		int mult = Math.max(1, Config.ALT_OLY_PERIOD_MULTIPLIER);
+		String type = Config.OLYMPIAD_DURATION_TYPE != null ? Config.OLYMPIAD_DURATION_TYPE.trim().toUpperCase() : "MONTH";
+		int mult = Math.max(1, Config.OLYMPIAD_DURATION);
 		long baseMs = switch (type) {
 			case "DAY" -> 86_400_000L;
 			case "WEEK" -> 604_800_000L;
@@ -155,7 +155,7 @@ public class OlympiadManager {
 	}
 
 	public int getBattleRewardItemId() {
-		return Config.ALT_OLY_BATTLE_REW_ITEM > 0 ? Config.ALT_OLY_BATTLE_REW_ITEM : 6651;
+		return Config.ALT_OLY_REWARD_ITEM > 0 ? Config.ALT_OLY_REWARD_ITEM : 6651;
 	}
 
 	public int getBattleRewardCount(OlympiadMode mode) {
@@ -165,29 +165,22 @@ public class OlympiadManager {
 	}
 
 	public int getCompetitionExchangeRewardItemId() {
-		return Config.ALT_OLY_COMP_REW_ITEM > 0 ? Config.ALT_OLY_COMP_REW_ITEM : 6651;
+		return Config.ALT_OLY_REWARD_ITEM > 0 ? Config.ALT_OLY_REWARD_ITEM : 6651;
 	}
 
 	public int getBattleLoadWaitSeconds() {
-		return Config.OLYMPIAD_COUNT_BATTLE_LOAD_WAIT > 0 ? Config.OLYMPIAD_COUNT_BATTLE_LOAD_WAIT : 45;
+		return 45;
 	}
 
 	public boolean isHwidProtectionEnabled() {
-		return Config.OLYMPIAD_PROTECTION_HWID;
+		return Config.ALT_OLY_SAME_IP;
 	}
 
 	public Set<Integer> getRestrictedItems() {
 		Set<Integer> ids = new HashSet<>();
-		if (Config.ALT_OLY_RESTRICTED_ITEMS != null && !Config.ALT_OLY_RESTRICTED_ITEMS.isBlank()) {
-			for (String s : Config.ALT_OLY_RESTRICTED_ITEMS.split(",")) {
-				String trimmed = s.trim();
-				if (!trimmed.isEmpty()) {
-					try {
-						int id = Integer.parseInt(trimmed);
-						if (id > 0) ids.add(id);
-					} catch (NumberFormatException ignored) {
-					}
-				}
+		if (Config.ALT_OLY_RESTRICTED_ITEMS != null) {
+			for (Integer id : Config.ALT_OLY_RESTRICTED_ITEMS) {
+				if (id != null && id > 0) ids.add(id);
 			}
 		}
 		return ids;
@@ -195,25 +188,18 @@ public class OlympiadManager {
 
 	public Set<Integer> getRestrictedSkills() {
 		Set<Integer> ids = new HashSet<>();
-		if (Config.ALT_OLY_RESTRICTED_SKILLS != null && !Config.ALT_OLY_RESTRICTED_SKILLS.isBlank()) {
-			for (String s : Config.ALT_OLY_RESTRICTED_SKILLS.split(",")) {
-				String trimmed = s.trim();
-				if (!trimmed.isEmpty()) {
-					try {
-						int id = Integer.parseInt(trimmed);
-						if (id > 0) ids.add(id);
-					} catch (NumberFormatException ignored) {
-					}
-				}
+		if (Config.ALT_OLY_RESTRICTED_SKILLS != null) {
+			for (Integer id : Config.ALT_OLY_RESTRICTED_SKILLS) {
+				if (id != null && id > 0) ids.add(id);
 			}
 		}
 		return ids;
 	}
 
 	public List<OlympiadNoble> getTopNoblesStatistic() {
-		int limit = Config.OLYMPIAD_STATISTIC_COUNT > 0 ? Config.OLYMPIAD_STATISTIC_COUNT : 100;
+		int limit = 100;
 		return nobles.values().stream()
-				.sorted(Comparator.comparingInt(OlympiadNoble::points).reversed())
+				.sorted(Comparator.<OlympiadNoble>comparingInt(OlympiadNoble::points).reversed())
 				.limit(limit)
 				.toList();
 	}
@@ -287,7 +273,7 @@ public class OlympiadManager {
 				}
 			}
 		}
-		if (Config.OLYMPIAD_PROTECTION_HWID && !account.isBlank()) {
+		if (Config.ALT_OLY_SAME_IP && !account.isBlank()) {
 			for (PlayerCharacter existing : queue) {
 				if (account.equalsIgnoreCase(existing.account())) {
 					log.warn("OlympiadManager HWID Anti-Feed: Jogador {} bloqueado por mesma conta/HWID {} no modo {}", player.name(), account, mode);
@@ -342,7 +328,7 @@ public class OlympiadManager {
 				if (Config.ALT_OLY_SAME_IP && !"127.0.0.1".equals(ip1) && ip1.equals(ip2)) {
 					continue;
 				}
-				if (Config.OLYMPIAD_PROTECTION_HWID && p1.account() != null && !p1.account().isBlank()
+				if (Config.ALT_OLY_SAME_IP && p1.account() != null && !p1.account().isBlank()
 						&& p1.account().equalsIgnoreCase(p2.account())) {
 					continue;
 				}
@@ -411,7 +397,7 @@ public class OlympiadManager {
 				op.send(new CreatureSay(0, CreatureSay.HERO_VOICE, "Olympiad",
 						"Welcome to the Grand Olympiad Stadium! The match against " + p1.name() + " begins!"));
 			});
-			if (Config.ALT_OLY_ANNOUNCE_GAMES) {
+			if (Config.ALY_OLY_LOG_FIGHTS) {
 				CreatureSay announce = new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Olympiad",
 						"Olympiad Arena #" + instId + ": " + p1.name() + " vs " + p2.name() + " is starting!");
 				for (var online : world.onlinePlayers()) {
