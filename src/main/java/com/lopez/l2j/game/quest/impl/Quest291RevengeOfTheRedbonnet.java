@@ -6,8 +6,6 @@ import com.lopez.l2j.game.quest.Quest;
 import com.lopez.l2j.game.quest.QuestManager;
 import com.lopez.l2j.game.quest.QuestState;
 import com.lopez.l2j.game.quest.State;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.stereotype.Component;
 
@@ -28,9 +26,10 @@ public class Quest291RevengeOfTheRedbonnet extends Quest {
 
 	public Quest291RevengeOfTheRedbonnet(QuestManager questManager) {
 		super(291, "291_RevengeOfTheRedbonnet", "291_RevengeOfTheRedbonnet");
-		addStartNpc(this.MaryseRedbonnet);
-		addKillId(this.BlackWolf);
-		registerQuestItems(this.BlackWolfPelt);
+		addStartNpc(30553);
+		addTalkId(30553);
+		addKillId(20317);
+		registerQuestItems(1482);
 		if (questManager != null) {
 			questManager.registerQuest(this);
 		}
@@ -38,22 +37,19 @@ public class Quest291RevengeOfTheRedbonnet extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		PlayerCharacter pc = qs.playerChar();
 		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "1".equalsIgnoreCase(event)) {
 			qs.setCond(1);
 			qs.setState(State.STARTED);
 			qs.playSound(QuestState.SOUND_ACCEPT);
 		}
-		String html = event;
 
-        String string2 = event;
-        if (event.equalsIgnoreCase("marife_redbonnet_q0291_03.htm")) {
-            qs.setCond(1);
-            qs.setState(State.STARTED);
-            qs.playSound("QuestState.SOUND_ACCEPT");
-        }
-        return string2;
-    
+		String string2 = event;
+		if (event.equalsIgnoreCase("marife_redbonnet_q0291_03.htm") || event.equalsIgnoreCase("30553-03.htm")) {
+			qs.setCond(1);
+			qs.setState(State.STARTED);
+			qs.playSound(QuestState.SOUND_ACCEPT);
+		}
+		return string2;
 	}
 
 	@Override
@@ -61,39 +57,38 @@ public class Quest291RevengeOfTheRedbonnet extends Quest {
 		PlayerCharacter pc = qs.playerChar();
 		if (pc == null) return "noquest";
 
-        String html = "noquest";
-        int n = qs.getCond();
-        if (n == 0) {
-            if (pc.getLevel() < 4) {
-                html = "marife_redbonnet_q0291_01.htm";
-                qs.exitQuest(true);
-            } else {
-                html = "marife_redbonnet_q0291_02.htm";
-            }
-        } else if (n == 1) {
-            html = "marife_redbonnet_q0291_04.htm";
-        } else if (n == 2 && qs.getQuestItemsCount(this.BlackWolfPelt) < 40L) {
-            html = "marife_redbonnet_q0291_04.htm";
-            qs.setCond(1);
-        } else if (n == 2 && qs.getQuestItemsCount(this.BlackWolfPelt) >= 40L) {
-            int n2 = ThreadLocalRandom.current().nextInt(100);
-            qs.takeItems(this.BlackWolfPelt, -1L);
-            if (n2 < 3) {
-                qs.giveItems(this.GrandmasPearl, 1L);
-            } else if (n2 < 21) {
-                qs.giveItems(this.GrandmasMirror, 1L);
-            } else if (n2 < 46) {
-                qs.giveItems(this.GrandmasNecklace, 1L);
-            } else {
-                qs.giveItems(this.ScrollOfEscape, 1L);
-                qs.giveItems(this.GrandmasHairpin, 1L);
-            }
-            html = "marife_redbonnet_q0291_05.htm";
-            qs.playSound("QuestState.SOUND_FINISH");
-            qs.exitQuest(true);
-        }
-        return html;
-    
+		String html = "noquest";
+		int n = qs.getCond();
+		if (n == 0) {
+			if (pc.getLevel() < 4) {
+				html = "marife_redbonnet_q0291_01.htm";
+				qs.exitQuest(true);
+			} else {
+				html = "marife_redbonnet_q0291_02.htm";
+			}
+		} else if (n == 1) {
+			html = "marife_redbonnet_q0291_04.htm";
+		} else if (n == 2 && qs.getQuestItemsCount(BlackWolfPelt) < 40L) {
+			html = "marife_redbonnet_q0291_04.htm";
+			qs.setCond(1);
+		} else if (n == 2 && qs.getQuestItemsCount(BlackWolfPelt) >= 40L) {
+			int n2 = ThreadLocalRandom.current().nextInt(100);
+			qs.takeItems(BlackWolfPelt, -1L);
+			if (n2 < 3) {
+				qs.giveItems(GrandmasPearl, 1L);
+			} else if (n2 < 21) {
+				qs.giveItems(GrandmasMirror, 1L);
+			} else if (n2 < 46) {
+				qs.giveItems(GrandmasNecklace, 1L);
+			} else {
+				qs.giveItems(ScrollOfEscape, 1L);
+				qs.giveItems(GrandmasHairpin, 1L);
+			}
+			html = "marife_redbonnet_q0291_05.htm";
+			qs.playSound(QuestState.SOUND_FINISH);
+			qs.exitQuest(true);
+		}
+		return html;
 	}
 
 	@Override
@@ -101,18 +96,16 @@ public class Quest291RevengeOfTheRedbonnet extends Quest {
 		PlayerCharacter pc = qs.playerChar();
 		if (pc == null) return null;
 
-        if (qs.getCond() == 1 && qs.getQuestItemsCount(this.BlackWolfPelt) < 40L) {
-            qs.giveItems(this.BlackWolfPelt, 1L);
-            if (qs.getQuestItemsCount(this.BlackWolfPelt) < 40L) {
-                qs.playSound("QuestState.SOUND_ITEMGET");
-            } else {
-                qs.playSound("QuestState.SOUND_MIDDLE");
-                qs.setCond(2);
-                qs.setState(State.STARTED);
-            }
-        }
-        return null;
-    
+		if (qs.getCond() == 1 && qs.getQuestItemsCount(BlackWolfPelt) < 40L) {
+			qs.giveItems(BlackWolfPelt, 1L);
+			if (qs.getQuestItemsCount(BlackWolfPelt) < 40L) {
+				qs.playSound(QuestState.SOUND_ITEMGET);
+			} else {
+				qs.playSound(QuestState.SOUND_MIDDLE);
+				qs.setCond(2);
+				qs.setState(State.STARTED);
+			}
+		}
+		return null;
 	}
-
 }
