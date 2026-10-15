@@ -1,0 +1,19 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<list>
+	<item><!-- Enchant Weapon S - Pagan Token  -->
+		<production id="959" count="1"/>
+		<ingredient id="8068" count="4000"/>
+	</item>
+	<item><!-- Enchant Armor S - Pagan Token  -->
+		<production id="960" count="1"/>
+		<ingredient id="8068" count="400"/>
+	</item>
+	<item><!-- Enchant Weapon S - Monk Scripture  -->
+		<production id="959" count="1"/>
+		<ingredient id="8069" count="4000"/>
+	</item>
+	<item><!-- Enchant Armor S - Monk Scripture  -->
+		<production id="960" count="1"/>
+		<ingredient id="8069" count="400"/>
+	</item>
+</list>
