@@ -1557,12 +1557,11 @@ public class MagicSkillPacketHandler {
 				ctx().buffRepository().deleteBuffs(active().objectId());
 			}
 		}
-		long now = System.currentTimeMillis();
-		send(new MagicEffectIcons((preserveBuffs || hasNoblesse)
-				? active().effects().active().stream()
-						.map(b -> new MagicEffectIcons.Icon(b.skillId(), b.level(), b.remainingSeconds(now)))
-						.toList()
-				: List.of()));
+		if (preserveBuffs || hasNoblesse) {
+			session.sendMagicEffectIcons();
+		} else {
+			send(new MagicEffectIcons(List.of()));
+		}
 		var tTemplate = ctx().characters().template(active());
 		if (ctx().skillService() != null) {
 			recalcMaxVitals(tTemplate);

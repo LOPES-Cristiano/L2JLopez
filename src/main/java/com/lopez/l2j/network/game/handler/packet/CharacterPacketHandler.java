@@ -1,7 +1,6 @@
 package com.lopez.l2j.network.game.handler.packet;
 
 import com.lopez.l2j.config.Config;
-import com.lopez.l2j.features.StartupSystemService;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -12,8 +11,10 @@ import org.springframework.stereotype.Component;
 
 /**
  * Handler modular para pacotes e rotinas de ciclo de vida do personagem:
- * sincronizacao de coordenadas, persistencia periodica, log de itens, recomendacoes,
- * queda de adena, instancias, cristas em NPCs e inicializacao de titulo/anuncios
+ * sincronizacao de coordenadas, persistencia periodica, log de itens,
+ * recomendacoes,
+ * queda de adena, instancias, cristas em NPCs e inicializacao de
+ * titulo/anuncios
  * (options.properties, custom.properties, mods.properties, add-on.properties).
  */
 @Component
@@ -76,9 +77,12 @@ public class CharacterPacketHandler {
 			player.title(Config.CUSTOM_TITLE_TEXT.trim());
 		}
 		if (Config.TITLE_COLOR != null && !Config.TITLE_COLOR.isBlank()) {
-			int color = StartupSystemService.parseHexColor(Config.TITLE_COLOR);
-			if (color >= 0) {
-				player.titleColor(color);
+			try {
+				int color = Integer.decode("0x" + Config.TITLE_COLOR.trim().replace("0x", "").replace("#", ""));
+				if (color >= 0) {
+					player.titleColor(color);
+				}
+			} catch (NumberFormatException ignored) {
 			}
 		}
 	}
@@ -111,14 +115,16 @@ public class CharacterPacketHandler {
 			if (!trimmed.isEmpty()) {
 				try {
 					ids.add(Integer.parseInt(trimmed));
-				} catch (NumberFormatException ignored) {}
+				} catch (NumberFormatException ignored) {
+				}
 			}
 		}
 		return ids;
 	}
 
 	/**
-	 * Processa recomendacao entre jogadores respeitando ALT_RECOMMEND (custom.properties).
+	 * Processa recomendacao entre jogadores respeitando ALT_RECOMMEND
+	 * (custom.properties).
 	 */
 	public boolean evaluateRecommendation(PlayerCharacter giver, PlayerCharacter target) {
 		if (giver == null || target == null || giver.objectId() == target.objectId()) {
@@ -137,7 +143,8 @@ public class CharacterPacketHandler {
 	}
 
 	/**
-	 * Verifica se o jogador pode descartar um item no chao e calcula a taxa de drop de Adena
+	 * Verifica se o jogador pode descartar um item no chao e calcula a taxa de drop
+	 * de Adena
 	 * (custom.properties: PLAYER_CAN_DROP_ADENA, PLAYER_RATE_DROP_ADENA).
 	 */
 	public boolean canPlayerDropItem(PlayerCharacter player, int itemId) {
@@ -156,18 +163,24 @@ public class CharacterPacketHandler {
 	}
 
 	/**
-	 * Verifica se anuncios de login estao habilitados para o personagem e se Hero skills
+	 * Verifica se anuncios de login estao habilitados para o personagem e se Hero
+	 * skills
 	 * permanecem ativas em subclass (add-on.properties).
 	 */
 	public boolean shouldAnnounceOnLogin(PlayerCharacter player, boolean isNewbie) {
 		if (player == null) {
 			return false;
 		}
-		if (Config.ANNOUNCE_HERO_LOGIN && player.isHero()) return true;
-		if (Config.ANNOUNCE_AIOX_LOGIN && player.isAio()) return true;
-		if (Config.ANNOUNCE_VIP_LOGIN && player.isVip()) return true;
-		if (Config.ANNOUNCE_LORD_LOGIN && player.isClanLeader() && player.clanId() > 0) return true;
-		if (Config.ANNOUNCE_NEWBIE_LOGIN && (isNewbie || player.level() == 1)) return true;
+		if (Config.ANNOUNCE_HERO_LOGIN && player.isHero())
+			return true;
+		if (Config.ANNOUNCE_AIOX_LOGIN && player.isAio())
+			return true;
+		if (Config.ANNOUNCE_VIP_LOGIN && player.isVip())
+			return true;
+		if (Config.ANNOUNCE_LORD_LOGIN && player.isClanLeader() && player.clanId() > 0)
+			return true;
+		if (Config.ANNOUNCE_NEWBIE_LOGIN && (isNewbie || player.level() == 1))
+			return true;
 		return false;
 	}
 

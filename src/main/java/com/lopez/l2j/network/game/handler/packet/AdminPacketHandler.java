@@ -3063,6 +3063,7 @@ public class AdminPacketHandler {
 					} else {
 						var npc = ctx.world().npc(targetObjectId).orElse(null);
 						if (npc != null) {
+							npc.dead(false);
 							npc.currentHp(npc.template().maxHp());
 							npc.currentMp(npc.template().maxMp());
 							send(StatusUpdate.hp(npc.objectId(), (int) npc.currentHp(), npc.template().maxHp()));
