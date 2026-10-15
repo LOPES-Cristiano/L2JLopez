@@ -721,9 +721,49 @@ public class ClanTable {
 				log.debug("Aviso ao carregar clan_privs: {}", ex.getMessage());
 			}
 
+			// Carrega avisos de clã a partir de clan_notices (V52)
+			try {
+				var noticeRows = jdbc.sql("SELECT clanID, notice, enabled FROM clan_notices").query().listOfRows();
+				for (var row : noticeRows) {
+					int cid = ((Number) row.get("clanID")).intValue();
+					String notice = (String) row.get("notice");
+					String enabled = (String) row.get("enabled");
+					Clan clan = byClanId.get(cid);
+					if (clan != null) {
+						clan.notice(notice);
+						clan.setNoticeEnabled("true".equalsIgnoreCase(enabled) || "1".equals(enabled));
+					}
+				}
+			} catch (Exception ex) {
+				log.debug("Aviso ao carregar clan_notices: {}", ex.getMessage());
+			}
+
 			log.info("ClanTable: {} clas carregados da base de dados", byClanId.size());
 		} catch (Exception ex) {
 			log.warn("Nao foi possivel carregar clas de clan_data (pode ser ambiente inicial ou de testes): {}", ex.getMessage());
+		}
+	}
+
+	public void saveNotice(int clanId, String notice, boolean enabled) {
+		Clan clan = byClanId.get(clanId);
+		if (clan != null) {
+			clan.notice(notice);
+			clan.setNoticeEnabled(enabled);
+		}
+		if (jdbc != null) {
+			try {
+				jdbc.sql("""
+						INSERT INTO clan_notices (clanID, notice, enabled)
+						VALUES (:cId, :n, :e)
+						ON DUPLICATE KEY UPDATE notice = VALUES(notice), enabled = VALUES(enabled)
+						""")
+						.param("cId", clanId)
+						.param("n", notice != null ? notice : "")
+						.param("e", enabled ? "true" : "false")
+						.update();
+			} catch (Exception ex) {
+				log.debug("clan_notices save: {}", ex.getMessage());
+			}
 		}
 	}
 }

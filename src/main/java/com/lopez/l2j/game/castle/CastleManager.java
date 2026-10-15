@@ -183,6 +183,24 @@ public class CastleManager {
 		long endTime = System.currentTimeMillis() + ratio;
 		CastleFunctionRecord rec = new CastleFunctionRecord(castleId, type, level, fee, ratio, endTime);
 		castleFunctions.computeIfAbsent(castleId, k -> new ConcurrentHashMap<>()).put(type, rec);
+		if (jdbc != null) {
+			try {
+				jdbc.sql("""
+						INSERT INTO castle_functions (castle_id, `type`, lvl, lease, rate, endTime)
+						VALUES (:cid, :type, :lvl, :lease, :rate, :end)
+						ON DUPLICATE KEY UPDATE lvl = VALUES(lvl), lease = VALUES(lease), rate = VALUES(rate), endTime = VALUES(endTime)
+						""")
+						.param("cid", castleId)
+						.param("type", type)
+						.param("lvl", level)
+						.param("lease", fee)
+						.param("rate", ratio)
+						.param("end", endTime)
+						.update();
+			} catch (Exception ex) {
+				log.warn("Erro ao salvar castle_function: {}", ex.getMessage());
+			}
+		}
 		return rec;
 	}
 
@@ -288,6 +306,24 @@ public class CastleManager {
 				if (c != null) {
 					c.ownerClanId(clanId);
 				}
+			}
+
+			// Carrega castle_functions
+			try {
+				List<Map<String, Object>> funcs = jdbc.sql("SELECT castle_id, `type`, lvl, lease, rate, endTime FROM castle_functions")
+						.query().listOfRows();
+				for (var f : funcs) {
+					int cid = ((Number) f.get("castle_id")).intValue();
+					int type = ((Number) f.get("type")).intValue();
+					int lvl = ((Number) f.get("lvl")).intValue();
+					int lease = ((Number) f.get("lease")).intValue();
+					long rate = ((Number) f.get("rate")).longValue();
+					long endTime = ((Number) f.get("endTime")).longValue();
+					castleFunctions.computeIfAbsent(cid, k -> new ConcurrentHashMap<>())
+							.put(type, new CastleFunctionRecord(cid, type, lvl, lease, rate, endTime));
+				}
+			} catch (Exception ex) {
+				log.debug("Erro ao carregar castle_functions: {}", ex.getMessage());
 			}
 
 			log.info("CastleManager: {} castelos carregados e sincronizados com o banco de dados", byId.size());

@@ -107,6 +107,9 @@ public class ChampionService {
 				this.dropMultiplier = Config.CHAMPION_REWARDS;
 				this.adenaMultiplier = Config.CHAMPION_REWARDS;
 			}
+			if (Config.CHAMPION_EXP_SP > 0) {
+				this.expSpMultiplier = Config.CHAMPION_EXP_SP;
+			}
 			if (Config.CHAMPION_ADENAS_REWARDS > 0) {
 				this.adenaMultiplier = Config.CHAMPION_ADENAS_REWARDS;
 			}
@@ -117,25 +120,25 @@ public class ChampionService {
 			if (Config.CHAMPION_SPD_ATK > 0) {
 				this.atkSpdMultiplier = Config.CHAMPION_SPD_ATK;
 			}
-			if (Config.CHAMPION_REWARD_LOWER_LVL_ITEM_CHANCE >= 0) {
-				this.rewardLowerLvlItemChance = Config.CHAMPION_REWARD_LOWER_LVL_ITEM_CHANCE;
+			if (Config.CHAMPION_SPECIAL_ITEM_CHANCE > 0) {
+				this.specialItemChance = Config.CHAMPION_SPECIAL_ITEM_CHANCE;
 			}
-			if (Config.CHAMPION_REWARD_HIGHER_LVL_ITEM_CHANCE >= 0) {
-				this.rewardHigherLvlItemChance = Config.CHAMPION_REWARD_HIGHER_LVL_ITEM_CHANCE;
+			if (Config.CHAMPION_SPECIAL_ITEM_LEVEL_DIFF > 0) {
+				this.specialItemLevelDiff = Config.CHAMPION_SPECIAL_ITEM_LEVEL_DIFF;
 			}
-			if (Config.CHAMPION_REWARD_ID > 0) {
-				this.specialItemId = Config.CHAMPION_REWARD_ID;
+			if (Config.CHAMPION_SPECIAL_ITEM_ID > 0) {
+				this.specialItemId = Config.CHAMPION_SPECIAL_ITEM_ID;
 			}
-			if (Config.CHAMPION_REWARD_QTY > 0) {
-				this.specialItemAmount = Config.CHAMPION_REWARD_QTY;
+			if (Config.CHAMPION_SPECIAL_ITEM_AMOUNT > 0) {
+				this.specialItemAmount = Config.CHAMPION_SPECIAL_ITEM_AMOUNT;
 			}
-			this.enableVitality = Config.CHAMPION_ENABLE_VITALITY;
-			this.enableInInstances = Config.CHAMPION_ENABLE_IN_INSTANCES;
-			this.championFarm = Config.CHAMPION_FARM;
-			this.championAura = Config.CHAMPION_AURAS;
 		} catch (Exception e) {
 			log.warn("Nao foi possivel carregar parametros de Champion de Config: {}", e.getMessage());
 		}
+	}
+
+	public boolean isChampionPassive() {
+		return Config.CHAMPION_PASSIVE;
 	}
 
 	/**
@@ -151,8 +154,10 @@ public class ChampionService {
 		if (championFarm > 0 && npc.npcId() == championFarm) {
 			return true;
 		}
-		// Apenas monstros comuns atacaveis (nao pode ser Raid Boss, Minion ou NPC de cidade)
-		if (!npc.isMonster() || !npc.isAttackable() || npc.template().isRaidBoss() || npc.isMinion()) {
+		// Apenas monstros comuns atacaveis (respeitando CHAMPION_BOSS e CHAMPION_MINIONS)
+		if (!npc.isMonster() || !npc.isAttackable()
+				|| (npc.template().isRaidBoss() && !Config.CHAMPION_BOSS)
+				|| (npc.isMinion() && !Config.CHAMPION_MINIONS)) {
 			return false;
 		}
 		// Validacao por faixa de nivel
@@ -230,9 +235,9 @@ public class ChampionService {
 	 */
 	public long calculateExp(NpcInstance npc, long baseExp) {
 		if (npc != null && npc.isChampion()) {
-			return (long) Math.round(baseExp * expSpMultiplier);
+			return Math.max(0L, Math.round(baseExp * expSpMultiplier));
 		}
-		return baseExp;
+		return Math.max(0L, baseExp);
 	}
 
 	/**
@@ -240,9 +245,9 @@ public class ChampionService {
 	 */
 	public int calculateSp(NpcInstance npc, int baseSp) {
 		if (npc != null && npc.isChampion()) {
-			return (int) Math.round(baseSp * expSpMultiplier);
+			return (int) Math.min(Integer.MAX_VALUE, Math.max(0L, Math.round(baseSp * expSpMultiplier)));
 		}
-		return baseSp;
+		return Math.max(0, baseSp);
 	}
 
 	public double calculateHpRegen(NpcInstance npc, double baseRegen) {
