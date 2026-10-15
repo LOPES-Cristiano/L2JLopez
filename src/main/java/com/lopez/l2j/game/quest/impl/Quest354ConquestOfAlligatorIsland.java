@@ -33,7 +33,7 @@ public class Quest354ConquestOfAlligatorIsland extends Quest {
 		addStartNpc(KLUCK);
 		addTalkId(KLUCK);
 		addKillId(MOBS);
-		registerQuestItems(ALLIGATOR_TOOTH, TORN_MAP_FRAGMENT, PIRATES_TREASURE_MAP);
+		registerQuestItems(ALLIGATOR_TOOTH, TORN_MAP_FRAGMENT);
 		if (questManager != null) {
 			questManager.registerQuest(this);
 		}
@@ -41,12 +41,12 @@ public class Quest354ConquestOfAlligatorIsland extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event)) {
+		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "30895-02.htm".equalsIgnoreCase(event)) {
 			qs.setCond(1);
 			qs.setState(State.STARTED);
 			qs.playSound(QuestState.SOUND_ACCEPT);
-			return "warehouse_keeper_kluck_q0354_03.htm";
-		} else if ("reply_1".equalsIgnoreCase(event) || "exchange_teeth".equalsIgnoreCase(event)) {
+			return "30895-02.htm".equalsIgnoreCase(event) ? "30895-02.htm" : "warehouse_keeper_kluck_q0354_03.htm";
+		} else if ("reply_1".equalsIgnoreCase(event) || "exchange_teeth".equalsIgnoreCase(event) || "30895-04.htm".equalsIgnoreCase(event)) {
 			long count = qs.getQuestItemsCount(ALLIGATOR_TOOTH);
 			if (count >= 100) {
 				qs.giveItems(57, (int) (count * 220 + 10700));
@@ -58,7 +58,9 @@ public class Quest354ConquestOfAlligatorIsland extends Quest {
 				return "warehouse_keeper_kluck_q0354_06a.htm";
 			}
 			return "warehouse_keeper_kluck_q0354_06.htm";
-		} else if ("reply_4".equalsIgnoreCase(event)) {
+		} else if ("reply_2".equalsIgnoreCase(event)) {
+			return "warehouse_keeper_kluck_q0354_07.htm";
+		} else if ("reply_4".equalsIgnoreCase(event) || "30895-08.htm".equalsIgnoreCase(event)) {
 			if (qs.getQuestItemsCount(TORN_MAP_FRAGMENT) >= 10) {
 				qs.takeItems(TORN_MAP_FRAGMENT, 10);
 				qs.giveItems(PIRATES_TREASURE_MAP, 1);
@@ -66,7 +68,7 @@ public class Quest354ConquestOfAlligatorIsland extends Quest {
 				return "warehouse_keeper_kluck_q0354_10.htm";
 			}
 			return "warehouse_keeper_kluck_q0354_09.htm";
-		} else if ("reply_3".equalsIgnoreCase(event)) {
+		} else if ("reply_3".equalsIgnoreCase(event) || "30895-09.htm".equalsIgnoreCase(event)) {
 			qs.playSound(QuestState.SOUND_FINISH);
 			qs.exitQuest(true);
 			return "warehouse_keeper_kluck_q0354_08.htm";
