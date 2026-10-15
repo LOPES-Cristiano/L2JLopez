@@ -57,7 +57,15 @@ public class AdminGeneralHandler implements IAdminCommandHandler {
 			"admin_epic",
 			"epic",
 			"admin_oly",
-			"oly"
+			"oly",
+			"admin_gve",
+			"gve",
+			"admin_townwar",
+			"townwar",
+			"admin_reload",
+			"reload",
+			"admin_movie",
+			"movie"
 	);
 
 	private final AtomicInteger phantomSeq = new AtomicInteger(1);
@@ -67,9 +75,13 @@ public class AdminGeneralHandler implements IAdminCommandHandler {
 	private ValakasService valakasService;
 	private BaiumService baiumService;
 	private FrintezzaService frintezzaService;
+	private com.lopez.l2j.game.war.GvEService gveService;
+	private com.lopez.l2j.game.war.TownWarService townWarService;
+	private com.lopez.l2j.game.combat.BalanceProfileService balanceProfileService;
+	private com.lopez.l2j.game.movie.MovieMakerService movieMakerService;
 
 	public AdminGeneralHandler() {
-		this(null, null, null, null, null);
+		this(null, null, null, null, null, null, null, null, null);
 	}
 
 	@Autowired(required = false)
@@ -78,12 +90,20 @@ public class AdminGeneralHandler implements IAdminCommandHandler {
 			@Autowired(required = false) AntharasService antharasService,
 			@Autowired(required = false) ValakasService valakasService,
 			@Autowired(required = false) BaiumService baiumService,
-			@Autowired(required = false) FrintezzaService frintezzaService) {
+			@Autowired(required = false) FrintezzaService frintezzaService,
+			@Autowired(required = false) com.lopez.l2j.game.war.GvEService gveService,
+			@Autowired(required = false) com.lopez.l2j.game.war.TownWarService townWarService,
+			@Autowired(required = false) com.lopez.l2j.game.combat.BalanceProfileService balanceProfileService,
+			@Autowired(required = false) com.lopez.l2j.game.movie.MovieMakerService movieMakerService) {
 		this.phantomService = phantomService;
 		this.antharasService = antharasService;
 		this.valakasService = valakasService;
 		this.baiumService = baiumService;
 		this.frintezzaService = frintezzaService;
+		this.gveService = gveService != null ? gveService : new com.lopez.l2j.game.war.GvEService();
+		this.townWarService = townWarService != null ? townWarService : new com.lopez.l2j.game.war.TownWarService();
+		this.balanceProfileService = balanceProfileService != null ? balanceProfileService : new com.lopez.l2j.game.combat.BalanceProfileService();
+		this.movieMakerService = movieMakerService != null ? movieMakerService : new com.lopez.l2j.game.movie.MovieMakerService();
 	}
 
 	private PhantomService resolvePhantom(GameSession.Context ctx) {
@@ -151,6 +171,7 @@ public class AdminGeneralHandler implements IAdminCommandHandler {
 					} else {
 						var npc = ctx.world().npc(targetObjectId).orElse(null);
 						if (npc != null) {
+							npc.dead(false);
 							npc.currentHp(npc.template().maxHp());
 							npc.currentMp(npc.template().maxMp());
 							session.send(StatusUpdate.hp(npc.objectId(), (int) npc.currentHp(), npc.template().maxHp()));
@@ -516,6 +537,52 @@ public class AdminGeneralHandler implements IAdminCommandHandler {
 					}
 				} else {
 					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //oly start"));
+				}
+				return true;
+			}
+			case "gve" -> {
+				if ("start".equalsIgnoreCase(safeParams)) {
+					gveService.startEvent();
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "GvE iniciado com sucesso."));
+				} else if ("stop".equalsIgnoreCase(safeParams)) {
+					gveService.stopEvent();
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "GvE encerrado."));
+				} else {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //gve start|stop"));
+				}
+				return true;
+			}
+			case "townwar" -> {
+				String[] p = safeParams.split(" ");
+				if (p.length > 0 && "start".equalsIgnoreCase(p[0])) {
+					int tId = p.length > 1 ? Integer.parseInt(p[1]) : 9;
+					townWarService.startTownWar(tId);
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Town War iniciada na cidade ID " + tId));
+				} else if (p.length > 0 && "stop".equalsIgnoreCase(p[0])) {
+					int tId = p.length > 1 ? Integer.parseInt(p[1]) : 9;
+					townWarService.stopTownWar(tId);
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Town War finalizada na cidade ID " + tId));
+				} else {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //townwar start <townId> | //townwar stop <townId>"));
+				}
+				return true;
+			}
+			case "reload" -> {
+				if ("balance".equalsIgnoreCase(safeParams)) {
+					balanceProfileService.reload();
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "XMLs de balance recarregados com sucesso!"));
+					return true;
+				}
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //reload balance"));
+				return true;
+			}
+			case "movie" -> {
+				String[] p = safeParams.split(" ");
+				if (p.length > 1 && "play".equalsIgnoreCase(p[0])) {
+					movieMakerService.playSequence(active, p[1]);
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Reproduzindo cinematica: " + p[1]));
+				} else {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //movie play <sequencia>"));
 				}
 				return true;
 			}

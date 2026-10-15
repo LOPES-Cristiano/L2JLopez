@@ -11,6 +11,7 @@ import com.lopez.l2j.game.event.pvp.TvtEventService;
 import com.lopez.l2j.game.instance.frintezza.FrintezzaService;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.pve.DungeonService;
+import com.lopez.l2j.game.pve.FusionItemService;
 import com.lopez.l2j.game.pve.SoloFarmService;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
@@ -36,8 +37,10 @@ public class BypassEventsAndPveHandler implements IBypassHandler {
 	private BaiumService baiumService;
 	private FrintezzaService frintezzaService;
 
+	private FusionItemService fusionItemService;
+
 	public BypassEventsAndPveHandler() {
-		this(null, null, null, null, null, null);
+		this(null, null, null, null, null, null, null);
 	}
 
 	@Autowired(required = false)
@@ -47,13 +50,15 @@ public class BypassEventsAndPveHandler implements IBypassHandler {
 			@Autowired(required = false) AntharasService antharasService,
 			@Autowired(required = false) ValakasService valakasService,
 			@Autowired(required = false) BaiumService baiumService,
-			@Autowired(required = false) FrintezzaService frintezzaService) {
+			@Autowired(required = false) FrintezzaService frintezzaService,
+			@Autowired(required = false) FusionItemService fusionItemService) {
 		this.dungeonService = dungeonService != null ? dungeonService : new DungeonService();
 		this.soloFarmService = soloFarmService != null ? soloFarmService : new SoloFarmService();
 		this.antharasService = antharasService;
 		this.valakasService = valakasService;
 		this.baiumService = baiumService;
 		this.frintezzaService = frintezzaService;
+		this.fusionItemService = fusionItemService != null ? fusionItemService : new FusionItemService();
 	}
 
 	@Override
@@ -68,7 +73,8 @@ public class BypassEventsAndPveHandler implements IBypassHandler {
 				|| lower.startsWith("evt_arena_")
 				|| lower.startsWith("pve_dungeon_")
 				|| lower.startsWith("pve_solofarm_")
-				|| lower.startsWith("epic_");
+				|| lower.startsWith("epic_")
+				|| lower.startsWith("custom_fusion_");
 	}
 
 	@Override
@@ -188,6 +194,21 @@ public class BypassEventsAndPveHandler implements IBypassHandler {
 			}
 			case "epic_frintezza_enter" -> {
 				return handleEpicEnter("frintezza", session, active);
+			}
+			case "custom_fusion_list" -> {
+				session.send(new NpcHtmlMessage(0, fusionItemService.buildFusionListHtml(active)));
+				return true;
+			}
+			case "custom_fusion_exec" -> {
+				int idx = 0;
+				try {
+					if (!arg.isBlank()) {
+						idx = Integer.parseInt(arg);
+					}
+				} catch (NumberFormatException ignored) {}
+				var res = fusionItemService.executeFusion(active, idx);
+				session.send(new NpcHtmlMessage(0, fusionItemService.buildFusionFeedbackHtml(active, res)));
+				return true;
 			}
 			default -> {
 				return false;
