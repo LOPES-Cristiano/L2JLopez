@@ -71,10 +71,21 @@ public class ZoneTable {
 				&& zone.name().toLowerCase(Locale.ROOT).contains("jail");
 	}
 
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	@org.springframework.context.annotation.Lazy
+	private com.lopez.l2j.game.war.TownWarService townWarService;
+
+	public void setTownWarService(com.lopez.l2j.game.war.TownWarService townWarService) {
+		this.townWarService = townWarService;
+	}
+
 	/**
 	 * Verifica se as coordenadas informadas estao dentro de uma Zona de Paz.
 	 */
 	public boolean isInsidePeace(int x, int y, int z) {
+		if (townWarService != null && townWarService.isTownWarActiveAt(x, y)) {
+			return false;
+		}
 		for (Zone zone : allZones) {
 			if (zone.type() == ZoneType.TOWN && com.lopez.l2j.config.Config.ZONE_TOWN == 2) {
 				continue;

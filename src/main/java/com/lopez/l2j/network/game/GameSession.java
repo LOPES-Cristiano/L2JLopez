@@ -1245,6 +1245,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return globalCharacterHennaRepository;
 		}
 
+		public com.lopez.l2j.game.service.SchemeBufferService schemeBufferService() {
+			return schemeBuffer;
+		}
+
 		public com.lopez.l2j.game.skill.SkillEnchantService skillEnchant() {
 			return new com.lopez.l2j.game.skill.SkillEnchantService(
 					skillService != null ? skillService.trees() : null, skillService, inventories);
@@ -2074,14 +2078,19 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		inWorld = true;
 		var t = ctx.characters().template(active);
+		boolean wasNewCharacter = active != null && active.skills().isEmpty();
 		rewardSkills(t, false);
-		if (ctx.starterKit() != null && active != null) {
+		if (Config.ENABLE_STARTUP_SYSTEM && ctx.starterKit() != null && active != null) {
 			ctx.starterKit().grantStarterKit(active);
 		}
 		send(ItemList.of(active.inventory().items(), false));
-		send(new ShortCutInit(
-				ctx.shortcuts() != null ? ctx.shortcuts().findByCharId(active.objectId(), active.classIndex())
-						: List.of()));
+		List<ShortCut> charShortcuts = ctx.shortcuts() != null
+				? ctx.shortcuts().findByCharId(active.objectId(), active.classIndex())
+				: List.of();
+		if (charShortcuts.isEmpty() && wasNewCharacter && ctx.shortcuts() != null && active != null) {
+			charShortcuts = initDefaultNewbieShortCuts(active);
+		}
+		send(new ShortCutInit(charShortcuts));
 		loadMacros();
 		loadHennasForCurrentSubclass();
 		send(new HennaInfo(active, getClassLevel(active), ctx.hennaTrees()));
@@ -3144,27 +3153,37 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	public void applyExpAndSp(long expReward, int spReward, CharTemplate t) {
-		if (active == null || (expReward <= 0 && spReward <= 0)) {
+		long safeExp = Math.max(0L, expReward);
+		int safeSp = Math.max(0, spReward);
+		if (active == null || (safeExp <= 0 && safeSp <= 0)) {
 			return;
 		}
-		active.exp(active.exp() + expReward);
-		active.sp((int) Math.min(Integer.MAX_VALUE, (long) active.sp() + spReward));
+		int maxLevel = active.isSubClassActive()
+				? (Config.SUBCLASS_MAX_LEVEL > 0 ? Math.min(ExperienceTable.MAX_LEVEL, Config.SUBCLASS_MAX_LEVEL) : ExperienceTable.MAX_LEVEL)
+				: (Config.PLAYER_MAX_LEVEL > 0 ? Math.min(ExperienceTable.MAX_LEVEL, Config.PLAYER_MAX_LEVEL) : ExperienceTable.MAX_LEVEL);
+		long maxAllowedExp = ExperienceTable.maxExpForLevel(maxLevel);
+
+		long currentExp = Math.min(maxAllowedExp, active.exp());
+		long addedExp = Math.max(0L, Math.min(safeExp, maxAllowedExp - currentExp));
+		active.exp(currentExp + addedExp);
+		active.sp((int) Math.min(Integer.MAX_VALUE, Math.max(0L, (long) active.sp() + safeSp)));
 
 		// Notificacao de EXP e SP recebidos (sempre enviada no L2)
-		if (expReward > 0 && spReward > 0) {
+		int displayExp = (int) Math.min(Integer.MAX_VALUE, addedExp);
+		if (addedExp > 0 && safeSp > 0) {
 			send(SystemMessage.of(SystemMessage.YOU_EARNED_S1_EXP_AND_S2_SP,
-					new SystemMessage.Number((int) expReward),
-					new SystemMessage.Number(spReward)));
-		} else if (expReward > 0) {
+					new SystemMessage.Number(displayExp),
+					new SystemMessage.Number(safeSp)));
+		} else if (addedExp > 0) {
 			send(SystemMessage.of(SystemMessage.EARNED_S1_EXPERIENCE,
-					new SystemMessage.Number((int) expReward)));
-		} else if (spReward > 0) {
+					new SystemMessage.Number(displayExp)));
+		} else if (safeSp > 0) {
 			send(SystemMessage.of(SystemMessage.ACQUIRED_S1_SP,
-					new SystemMessage.Number(spReward)));
+					new SystemMessage.Number(safeSp)));
 		}
 
 		int oldLevel = active.level();
-		int newLevel = ExperienceTable.calculateLevel(active.exp());
+		int newLevel = Math.min(maxLevel, ExperienceTable.calculateLevel(active.exp()));
 
 		if (newLevel > oldLevel) {
 			active.level(newLevel);
@@ -4042,6 +4061,55 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (ctx.shortcuts() != null) {
 			ctx.shortcuts().delete(active.objectId(), active.classIndex(), slot, page);
 		}
+	}
+
+	/**
+	 * Registra os atalhos padrao na barra rapida (F1-F12) de um personagem recem-criado,
+	 * espelhando o CharacterCreate do L2JDream/Interlude:
+	 * - F1 (slot 0): Action Attack (2)
+	 * - F2 (slot 1): Skill Wind Strike (1177) ou Soul Cry (1001), se aprendida
+	 * - F4 (slot 3): Action Next Target / Pickup (5)
+	 * - F11 (slot 10): Skill Self Heal (1216) para magos ou Action Sit/Stand (0) para fighters
+	 * - F12 (slot 11): Item Tutorial Guide (5588), se presente no inventario
+	 */
+	private List<ShortCut> initDefaultNewbieShortCuts(PlayerCharacter player) {
+		List<ShortCut> defaults = new ArrayList<>();
+		// F1 (slot 0): Attack (Action ID 2)
+		defaults.add(new ShortCut(0, 0, ShortCut.TYPE_ACTION, 2, -1, 1));
+		// F4 (slot 3): Pickup (Action ID 5)
+		defaults.add(new ShortCut(3, 0, ShortCut.TYPE_ACTION, 5, -1, 1));
+		// F11 (slot 10): Sit/Stand (Action ID 0) - pode ser sobrescrito por Self Heal (1216) abaixo
+		ShortCut slot10 = new ShortCut(10, 0, ShortCut.TYPE_ACTION, 0, -1, 1);
+
+		// Skills iniciais na barra
+		if (player.skillLevel(1177) > 0) {
+			// Wind Strike no F2 (slot 1)
+			defaults.add(new ShortCut(1, 0, ShortCut.TYPE_SKILL, 1177, player.skillLevel(1177), 1));
+		} else if (player.skillLevel(1001) > 0) {
+			// Soul Cry no F2 (slot 1)
+			defaults.add(new ShortCut(1, 0, ShortCut.TYPE_SKILL, 1001, player.skillLevel(1001), 1));
+		}
+
+		if (player.skillLevel(1216) > 0) {
+			// Self Heal no F11 (slot 10)
+			slot10 = new ShortCut(10, 0, ShortCut.TYPE_SKILL, 1216, player.skillLevel(1216), 1);
+		}
+		defaults.add(slot10);
+
+		// F12 (slot 11): Tutorial Guide (itemId 5588)
+		if (player.inventory() != null) {
+			var guideOpt = player.inventory().byItemId(5588);
+			if (guideOpt.isPresent()) {
+				defaults.add(new ShortCut(11, 0, ShortCut.TYPE_ITEM, guideOpt.get().objectId(), -1, 1));
+			}
+		}
+
+		if (ctx.shortcuts() != null) {
+			for (ShortCut sc : defaults) {
+				ctx.shortcuts().save(player.objectId(), player.classIndex(), sc);
+			}
+		}
+		return defaults;
 	}
 
 	private void loadMacros() {

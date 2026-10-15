@@ -210,14 +210,8 @@ public class VoicedCommandHandler {
 	}
 
 	private void addOrStackItem(PlayerCharacter player, int itemId, int count) {
-		var existing = player.inventory().byItemId(itemId).orElse(null);
-		if (existing != null && existing.stackable()) {
-			existing.count(existing.count() + count);
-		} else {
-			int nextObjId = (player.objectId() * 1000) + player.inventory().items().size() + 1;
-			player.inventory().add(new ItemInstance(
-					nextObjId, player.objectId(), itemId, count, 0,
-					ItemInstance.Location.INVENTORY, 0, true));
+		if (player != null && player.inventory() != null && itemId > 0 && count > 0) {
+			player.inventory().addItem(itemId, count);
 		}
 	}
 }
