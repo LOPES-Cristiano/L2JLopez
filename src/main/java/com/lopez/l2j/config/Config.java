@@ -2714,6 +2714,9 @@ public final class Config {
 		CTF_ALLOW_POTIONS = ConfigLoader.getBoolean("CTFAllowPotions", false);
 		CTF_ALLOW_SUMMON = ConfigLoader.getBoolean("CTFAllowSummon", true);
 		CTF_REVIVE_RECOVERY = ConfigLoader.getBoolean("CTFReviveRecovery", true);
+		CTF_ON_START_REMOVE_ALL_EFFECTS = ConfigLoader.getBoolean("CTFOnStartRemoveAllEffects", true);
+		CTF_ON_START_UNSUMMON_PET = ConfigLoader.getBoolean("CTFOnStartUnsummonPet", true);
+		CTF_REVIVE_DELAY = ConfigLoader.getInt("CTFReviveDelay", 10);
 		CTF_BLUE_TEAM_LOC = ConfigLoader.getProperty("BlueTeamLoc", "150545,46734,-3415");
 		CTF_RED_TEAM_LOC = ConfigLoader.getProperty("RedTeamLoc", "148386,46747,-3415");
 		CTF_BLUE_FLAG_LOC = ConfigLoader.getProperty("BlueFlagLoc", "150545,46734,-3415");
