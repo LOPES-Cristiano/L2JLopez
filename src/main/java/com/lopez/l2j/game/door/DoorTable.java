@@ -179,4 +179,42 @@ public class DoorTable {
 			log.error("Erro ao carregar portas de {}: {}", file, ex.getMessage(), ex);
 		}
 	}
+
+	/**
+	 * Carrega portas de castelos a partir da tabela castle_door (V19 / V1019).
+	 */
+	public void loadFromDb(org.springframework.jdbc.core.simple.JdbcClient jdbc) {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("SELECT castleId, id, name, x, y, z, range_xmin, range_ymin, range_zmin, range_xmax, range_ymax, range_zmax, hp, pDef, mDef FROM castle_door")
+					.query((rs, i) -> {
+						int doorId = rs.getInt("id");
+						String name = rs.getString("name");
+						int x = rs.getInt("x");
+						int y = rs.getInt("y");
+						int z = rs.getInt("z");
+						int xMin = rs.getInt("range_xmin");
+						int yMin = rs.getInt("range_ymin");
+						int zMin = rs.getInt("range_zmin");
+						int xMax = rs.getInt("range_xmax");
+						int yMax = rs.getInt("range_ymax");
+						int zMax = rs.getInt("range_zmax");
+						int hp = rs.getInt("hp");
+						int pDef = rs.getInt("pDef");
+						int mDef = rs.getInt("mDef");
+
+						int objId = objectIdFactory != null ? objectIdFactory.nextId() : doorId;
+						DoorInstance door = new DoorInstance(objId, doorId, name, x, y, z,
+								xMin, xMax, yMin, yMax, zMin, zMax, hp, pDef, mDef, false, false);
+						byDoorId.put(doorId, door);
+						byObjectId.put(objId, door);
+						return null;
+					}).list();
+			log.info("DoorTable: {} portas de castelos registradas de castle_door", byDoorId.size());
+		} catch (Exception e) {
+			log.debug("DoorTable: castle_door indisponivel: {}", e.getMessage());
+		}
+	}
 }
