@@ -81,37 +81,37 @@ public class Quest241PossessorOfAPreciousSoul1 extends Quest {
 
 		int cond = qs.getCond();
 
-		if ("31739-4.htm".equalsIgnoreCase(event)) {
+		if ("31739-4.htm".equalsIgnoreCase(event) || "31739-03.htm".equalsIgnoreCase(event) || "31739-04.htm".equalsIgnoreCase(event)) {
 			qs.setState(State.STARTED);
 			qs.setCond(1);
 			qs.playSound(QuestState.SOUND_ACCEPT);
 			return event;
-		} else if ("30753-2.htm".equalsIgnoreCase(event)) {
+		} else if ("30753-2.htm".equalsIgnoreCase(event) || "30753-02.htm".equalsIgnoreCase(event)) {
 			if (cond == 1) {
 				qs.setCond(2);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("30754-2.htm".equalsIgnoreCase(event)) {
+		} else if ("30754-2.htm".equalsIgnoreCase(event) || "30754-02.htm".equalsIgnoreCase(event)) {
 			if (cond == 2) {
 				qs.setCond(3);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31739-8.htm".equalsIgnoreCase(event)) {
+		} else if ("31739-8.htm".equalsIgnoreCase(event) || "31739-07.htm".equalsIgnoreCase(event) || "31739-08.htm".equalsIgnoreCase(event)) {
 			if (cond == 4 && qs.hasQuestItems(LEGEND_OF_SEVENTEEN)) {
 				qs.setCond(5);
 				qs.takeItems(LEGEND_OF_SEVENTEEN, 1);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31042-2.htm".equalsIgnoreCase(event)) {
+		} else if ("31042-2.htm".equalsIgnoreCase(event) || "31042-02.htm".equalsIgnoreCase(event)) {
 			if (cond == 5) {
 				qs.setCond(6);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31042-5.htm".equalsIgnoreCase(event)) {
+		} else if ("31042-5.htm".equalsIgnoreCase(event) || "31042-05.htm".equalsIgnoreCase(event)) {
 			if (cond == 7 && qs.getQuestItemsCount(MALRUK_SUCCUBUS_CLAW) >= 10) {
 				qs.setCond(8);
 				qs.takeItems(MALRUK_SUCCUBUS_CLAW, 10);
@@ -119,46 +119,46 @@ public class Quest241PossessorOfAPreciousSoul1 extends Quest {
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31739-12.htm".equalsIgnoreCase(event)) {
+		} else if ("31739-12.htm".equalsIgnoreCase(event) || "31739-10.htm".equalsIgnoreCase(event)) {
 			if (cond == 8 && qs.hasQuestItems(ECHO_CRYSTAL)) {
 				qs.setCond(9);
 				qs.takeItems(ECHO_CRYSTAL, 1);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("30692-2.htm".equalsIgnoreCase(event)) {
+		} else if ("30692-2.htm".equalsIgnoreCase(event) || "30692-02.htm".equalsIgnoreCase(event)) {
 			if (cond == 9 && !qs.hasQuestItems(POETRY_BOOK)) {
 				qs.setCond(10);
 				qs.giveItems(POETRY_BOOK, 1);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31739-15.htm".equalsIgnoreCase(event)) {
+		} else if ("31739-15.htm".equalsIgnoreCase(event) || "31739-13.htm".equalsIgnoreCase(event)) {
 			if (cond == 10 && qs.hasQuestItems(POETRY_BOOK)) {
 				qs.setCond(11);
 				qs.takeItems(POETRY_BOOK, 1);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31742-2.htm".equalsIgnoreCase(event)) {
+		} else if ("31742-2.htm".equalsIgnoreCase(event) || "31742-02.htm".equalsIgnoreCase(event)) {
 			if (cond == 11) {
 				qs.setCond(12);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31744-2.htm".equalsIgnoreCase(event)) {
+		} else if ("31744-2.htm".equalsIgnoreCase(event) || "31744-02.htm".equalsIgnoreCase(event)) {
 			if (cond == 12) {
 				qs.setCond(13);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31336-2.htm".equalsIgnoreCase(event)) {
+		} else if ("31336-2.htm".equalsIgnoreCase(event) || "31336-02.htm".equalsIgnoreCase(event)) {
 			if (cond == 13) {
 				qs.setCond(14);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31336-5.htm".equalsIgnoreCase(event)) {
+		} else if ("31336-5.htm".equalsIgnoreCase(event) || "31336-05.htm".equalsIgnoreCase(event)) {
 			if (cond == 15 && qs.getQuestItemsCount(CRIMSON_MOSS) >= 5) {
 				qs.setCond(16);
 				qs.takeItems(CRIMSON_MOSS, 5);
@@ -166,32 +166,32 @@ public class Quest241PossessorOfAPreciousSoul1 extends Quest {
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31743-2.htm".equalsIgnoreCase(event)) {
+		} else if ("31743-2.htm".equalsIgnoreCase(event) || "31743-02.htm".equalsIgnoreCase(event)) {
 			if (cond == 16 && qs.hasQuestItems(RAHORAKTIS_MEDICINE)) {
 				qs.setCond(17);
 				qs.takeItems(RAHORAKTIS_MEDICINE, 1);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31742-5.htm".equalsIgnoreCase(event)) {
+		} else if ("31742-5.htm".equalsIgnoreCase(event) || "31742-05.htm".equalsIgnoreCase(event)) {
 			if (cond == 17) {
 				qs.setCond(18);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31740-2.htm".equalsIgnoreCase(event)) {
+		} else if ("31740-2.htm".equalsIgnoreCase(event) || "31740-02.htm".equalsIgnoreCase(event)) {
 			if (cond == 18) {
 				qs.setCond(19);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31272-2.htm".equalsIgnoreCase(event)) {
+		} else if ("31272-2.htm".equalsIgnoreCase(event) || "31272-02.htm".equalsIgnoreCase(event)) {
 			if (cond == 19) {
 				qs.setCond(20);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31272-5.htm".equalsIgnoreCase(event)) {
+		} else if ("31272-5.htm".equalsIgnoreCase(event) || "31272-05.htm".equalsIgnoreCase(event)) {
 			if (cond == 20 && qs.getQuestItemsCount(LUNARGENT) >= 5 && qs.hasQuestItems(HELLFIRE_OIL)) {
 				qs.setCond(21);
 				qs.takeItems(LUNARGENT, 5);
@@ -201,7 +201,7 @@ public class Quest241PossessorOfAPreciousSoul1 extends Quest {
 			} else {
 				return "31272-4.htm";
 			}
-		} else if ("31740-5.htm".equalsIgnoreCase(event)) {
+		} else if ("31740-5.htm".equalsIgnoreCase(event) || "31740-05.htm".equalsIgnoreCase(event)) {
 			if (cond == 21) {
 				qs.giveItems(VIRGILS_LETTER, 1);
 				qs.addExpAndSp(263043, 13206);
@@ -234,7 +234,7 @@ public class Quest241PossessorOfAPreciousSoul1 extends Quest {
 				} else {
 					return "31739-2.htm";
 				}
-			} else if (cond == 1) {
+			} else if (cond == 1 || cond == 2 || cond == 3) {
 				return "31739-5.htm";
 			} else if (cond == 4 && qs.hasQuestItems(LEGEND_OF_SEVENTEEN)) {
 				return "31739-6.htm";
@@ -362,7 +362,7 @@ public class Quest241PossessorOfAPreciousSoul1 extends Quest {
 					}
 				}
 			}
-		} else if (cond == 14 && (npcId >= SPLENDOR_1 && npcId <= SPLENDOR_5)) {
+		} else if (cond == 14 && (npcId == SPLENDOR_1 || npcId == SPLENDOR_2 || npcId == SPLENDOR_3 || npcId == SPLENDOR_4 || npcId == SPLENDOR_5)) {
 			if (qs.getQuestItemsCount(CRIMSON_MOSS) < 5) {
 				if (ThreadLocalRandom.current().nextInt(100) < 50) {
 					qs.giveItems(CRIMSON_MOSS, 1);

@@ -67,7 +67,7 @@ public class Quest242PossessorOfAPreciousSoul2 extends Quest {
 
 		int cond = qs.getCond();
 
-		if ("31742-3.htm".equalsIgnoreCase(event)) {
+		if ("31742-3.htm".equalsIgnoreCase(event) || "31742-03.htm".equalsIgnoreCase(event)) {
 			if (cond == 0) {
 				qs.setState(State.STARTED);
 				qs.takeItems(VIRGILS_LETTER, 1);
@@ -75,43 +75,55 @@ public class Quest242PossessorOfAPreciousSoul2 extends Quest {
 				qs.playSound(QuestState.SOUND_ACCEPT);
 			}
 			return event;
-		} else if ("31743-5.htm".equalsIgnoreCase(event)) {
+		} else if ("31743-5.htm".equalsIgnoreCase(event) || "31743-05.htm".equalsIgnoreCase(event)) {
 			if (cond == 1) {
 				qs.setCond(2);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31744-2.htm".equalsIgnoreCase(event)) {
+		} else if ("31744-2.htm".equalsIgnoreCase(event) || "31744-02.htm".equalsIgnoreCase(event)) {
 			if (cond == 2) {
 				qs.setCond(3);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("31751-2.htm".equalsIgnoreCase(event)) {
+		} else if ("31751-2.htm".equalsIgnoreCase(event) || "31751-02.htm".equalsIgnoreCase(event)) {
 			if (cond == 3) {
 				qs.setCond(4);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("30759-2.htm".equalsIgnoreCase(event)) {
+		} else if ("30759-2.htm".equalsIgnoreCase(event) || "30759-02.htm".equalsIgnoreCase(event)) {
 			if (cond == 6) {
 				qs.setCond(7);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("30738-2.htm".equalsIgnoreCase(event)) {
+		} else if ("30738-2.htm".equalsIgnoreCase(event) || "30738-02.htm".equalsIgnoreCase(event)) {
 			if (cond == 7) {
 				qs.setCond(8);
 				qs.giveItems(SORCERY_INGREDIENT, 1);
 				qs.playSound(QuestState.SOUND_MIDDLE);
 			}
 			return event;
-		} else if ("30759-5.htm".equalsIgnoreCase(event)) {
+		} else if ("30759-5.htm".equalsIgnoreCase(event) || "30759-05.htm".equalsIgnoreCase(event)) {
 			if (cond == 8) {
 				qs.setCond(9);
 				qs.takeItems(GOLDEN_HAIR, -1);
 				qs.takeItems(SORCERY_INGREDIENT, -1);
 				qs.playSound(QuestState.SOUND_MIDDLE);
+			}
+			return event;
+		} else if ("31748-03.htm".equalsIgnoreCase(event) || "31748-3.htm".equalsIgnoreCase(event)) {
+			if (cond == 9 && qs.hasQuestItems(ORB_OF_BINDING)) {
+				qs.takeItems(ORB_OF_BINDING, 1);
+				int cornerstones = qs.getInt("cornerstones") + 1;
+				qs.set("cornerstones", cornerstones);
+				qs.playSound(QuestState.SOUND_MIDDLE);
+				if (cornerstones >= 4) {
+					qs.setCond(10);
+					qs.playSound(QuestState.SOUND_MIDDLE);
+				}
 			}
 			return event;
 		}
@@ -142,6 +154,8 @@ public class Quest242PossessorOfAPreciousSoul2 extends Quest {
 				}
 			} else if (cond == 1) {
 				return "31742-4.htm";
+			} else if (cond == 2) {
+				return "31742-5.htm";
 			} else if (cond == 11) {
 				qs.setCond(0);
 				qs.giveItems(CARADINE_LETTER, 1);
