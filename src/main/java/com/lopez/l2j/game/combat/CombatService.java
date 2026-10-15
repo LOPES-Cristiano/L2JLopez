@@ -597,15 +597,17 @@ public class CombatService {
 		}
 		boolean isDead = newHp <= 0 || target.isDead();
 		long baseExp = target.template().exp() > 0 ? target.template().exp() : (long) target.template().level() * 150L + 50L;
-		int baseSp = target.template().sp() > 0 ? target.template().sp() : (int) (baseExp / 10);
+		int baseSp = target.template().sp() > 0
+				? target.template().sp()
+				: (int) Math.min(Integer.MAX_VALUE, Math.max(0L, baseExp / 10));
 		if (target.isChampion() && championService != null) {
 			baseExp = championService.calculateExp(target, baseExp);
 			baseSp = championService.calculateSp(target, baseSp);
 		}
 		double activeRateXp = Config.RATE_XP > 0 ? Config.RATE_XP : (rateXp > 0 ? rateXp : 1.0);
 		double activeRateSp = Config.RATE_SP > 0 ? Config.RATE_SP : (rateSp > 0 ? rateSp : 1.0);
-		long exp = isDead ? (long) Math.round(baseExp * activeRateXp) : 0;
-		int sp = isDead ? (int) Math.round(baseSp * activeRateSp) : 0;
+		long exp = isDead ? Math.max(0L, Math.round(baseExp * activeRateXp)) : 0L;
+		int sp = isDead ? (int) Math.min(Integer.MAX_VALUE, Math.max(0L, Math.round(baseSp * activeRateSp))) : 0;
 		if (isDead && attackerLevel > 0 && target.template() != null) {
 			exp = applyExponentXpPenalty(exp, attackerLevel, target.template().level());
 			sp = applyExponentSpPenalty(sp, attackerLevel, target.template().level());
@@ -621,18 +623,19 @@ public class CombatService {
 				return Math.max(0L, Math.round(exp * factor));
 			}
 		}
-		return exp;
+		return Math.max(0L, exp);
 	}
 
 	public static int applyExponentSpPenalty(int sp, int attackerLevel, int mobLevel) {
+		long safeSp = Math.max(0, sp);
 		if (Config.ALT_GAME_EXPONENT_SP != 0 && attackerLevel > 0 && mobLevel > 0) {
 			int diff = Math.abs(attackerLevel - mobLevel);
 			if (diff > Config.ALT_GAME_EXPONENT_SP) {
 				double factor = Math.pow(2.0, -((diff - Config.ALT_GAME_EXPONENT_SP) / (double) Config.ALT_GAME_EXPONENT_SP));
-				return (int) Math.max(0L, Math.round(sp * factor));
+				return (int) Math.min(Integer.MAX_VALUE, Math.max(0L, Math.round(safeSp * factor)));
 			}
 		}
-		return sp;
+		return (int) Math.min(Integer.MAX_VALUE, safeSp);
 	}
 
 	public HitPlan planAttackPlayerByNpc(NpcInstance attacker, PlayerCharacter target, CharTemplate targetTemplate) {
@@ -1135,8 +1138,10 @@ public class CombatService {
 		long expReward = 0L;
 		int spReward = 0;
 		if (died && target.template() != null) {
-			expReward = Math.round(target.template().exp() * rateXp);
-			spReward = (int) Math.round(target.template().sp() * rateSp);
+			double activeRateXp = Config.RATE_XP > 0 ? Config.RATE_XP : (rateXp > 0 ? rateXp : 1.0);
+			double activeRateSp = Config.RATE_SP > 0 ? Config.RATE_SP : (rateSp > 0 ? rateSp : 1.0);
+			expReward = Math.max(0L, Math.round(target.template().exp() * activeRateXp));
+			spReward = (int) Math.min(Integer.MAX_VALUE, Math.max(0L, Math.round(target.template().sp() * activeRateSp)));
 			expReward = applyExponentXpPenalty(expReward, summon.level(), target.template().level());
 			spReward = applyExponentSpPenalty(spReward, summon.level(), target.template().level());
 		}

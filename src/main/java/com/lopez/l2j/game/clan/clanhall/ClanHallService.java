@@ -262,9 +262,43 @@ public class ClanHallService {
 		inv.destroyItemByItemId(57, (int) Math.min(Integer.MAX_VALUE, bidAmount));
 		setOwner(hallId, clan.clanId());
 
+		if (jdbc != null) {
+			try {
+				jdbc.sql("""
+						INSERT INTO auction_bid (id, auctionId, bidderId, bidderName, clan_name, maxBid, time_bid)
+						VALUES (:id, :auc, :bidder, :bname, :cname, :max, :time)
+						ON DUPLICATE KEY UPDATE maxBid = VALUES(maxBid), time_bid = VALUES(time_bid)
+						""")
+						.param("id", hallId)
+						.param("auc", hallId)
+						.param("bidder", leader.objectId())
+						.param("bname", leader.name())
+						.param("cname", clan.name())
+						.param("max", (int) Math.min(Integer.MAX_VALUE, bidAmount))
+						.param("time", System.currentTimeMillis())
+						.update();
+			} catch (Exception ex) {
+				log.warn("Erro ao salvar auction_bid: {}", ex.getMessage());
+			}
+		}
+
 		log.info("Cla '{}' adquiriu com sucesso o ClanHall ID {} '{}' por {} adena",
 				clan.name(), hallId, hall.name(), bidAmount);
 		return BidResult.SUCCESS;
+	}
+
+	public List<Map<String, Object>> getBidsForAuction(int auctionId) {
+		if (jdbc == null) {
+			return List.of();
+		}
+		try {
+			return jdbc.sql("SELECT id, auctionId, bidderId, bidderName, clan_name, maxBid, time_bid FROM auction_bid WHERE auctionId = :auc ORDER BY maxBid DESC")
+					.param("auc", auctionId)
+					.query().listOfRows();
+		} catch (Exception ex) {
+			log.warn("Erro ao buscar lances de auction {}: {}", auctionId, ex.getMessage());
+			return List.of();
+		}
 	}
 
 	private void loadClanHalls() {

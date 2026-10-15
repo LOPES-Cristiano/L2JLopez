@@ -61,6 +61,12 @@ public class CommunityBoardService {
     @Autowired(required = false)
     private com.lopez.l2j.game.service.SchemeBufferService schemeBufferService;
 
+    @Autowired(required = false)
+    private org.springframework.jdbc.core.simple.JdbcClient jdbc;
+
+    @Autowired(required = false)
+    private CommunityAuctionService communityAuctionService;
+
     public CommunityBoardService() {
         this(null, null, null);
     }
@@ -155,6 +161,11 @@ public class CommunityBoardService {
             return handleRepairChar(player, cmd.substring(16).trim());
         } else if (cmd.equals("_bbsrepair")) {
             return getRepairHtml(player);
+        } else if (cmd.startsWith("_bbsauction")) {
+            if (communityAuctionService != null) {
+                return communityAuctionService.handleAuctionCommand(player, cmd);
+            }
+            return "<html><body><br><center>Casa de Leiloes temporariamente indisponivel.</center></body></html>";
         } else {
             return getHomeHtml(player);
         }
@@ -403,28 +414,85 @@ public class CommunityBoardService {
     public String getFavorite(PlayerCharacter player, int slot) {
         if (player == null || slot < 1 || slot > MAX_FAVORITE_SLOTS) return null;
         if (variablesService != null) {
-            return variablesService.getVariable(player.objectId(), "fav_tele_" + slot, null);
+            String v = variablesService.getVariable(player.objectId(), "fav_tele_" + slot, null);
+            if (v != null) return v;
         }
         Map<Integer, String> map = localFavorites.get(player.objectId());
+        if ((map == null || !map.containsKey(slot)) && jdbc != null) {
+            loadFavoritesFromDb(player.objectId());
+            map = localFavorites.get(player.objectId());
+        }
         return map != null ? map.get(slot) : null;
     }
 
     private void putFavorite(PlayerCharacter player, int slot, String val) {
         if (variablesService != null) {
             variablesService.setVariable(player.objectId(), "fav_tele_" + slot, val);
-        } else {
-            localFavorites.computeIfAbsent(player.objectId(), k -> new ConcurrentHashMap<>()).put(slot, val);
+        }
+        localFavorites.computeIfAbsent(player.objectId(), k -> new ConcurrentHashMap<>()).put(slot, val);
+        if (jdbc != null && val != null) {
+            try {
+                String[] parts = val.split(";");
+                String name = parts.length > 0 ? parts[0] : ("Teleport " + slot);
+                int x = parts.length > 1 ? Integer.parseInt(parts[1]) : player.x();
+                int y = parts.length > 2 ? Integer.parseInt(parts[2]) : player.y();
+                int z = parts.length > 3 ? Integer.parseInt(parts[3]) : player.z();
+                jdbc.sql("""
+                        INSERT INTO character_teleports (charId, locId, locName, acronym, iconId, xCoord, yCoord, zCoord)
+                        VALUES (:cId, :lId, :name, :acr, 1, :x, :y, :z)
+                        ON DUPLICATE KEY UPDATE locName = VALUES(locName), xCoord = VALUES(xCoord), yCoord = VALUES(yCoord), zCoord = VALUES(zCoord)
+                        """)
+                        .param("cId", player.objectId())
+                        .param("lId", slot)
+                        .param("name", name)
+                        .param("acr", name.length() > 4 ? name.substring(0, 4) : name)
+                        .param("x", x)
+                        .param("y", y)
+                        .param("z", z)
+                        .update();
+            } catch (Exception ex) {
+                log.debug("character_teleports insert: {}", ex.getMessage());
+            }
         }
     }
 
     private void removeFavorite(PlayerCharacter player, int slot) {
         if (variablesService != null) {
             variablesService.deleteVariable(player.objectId(), "fav_tele_" + slot);
-        } else {
-            Map<Integer, String> map = localFavorites.get(player.objectId());
-            if (map != null) {
-                map.remove(slot);
+        }
+        Map<Integer, String> map = localFavorites.get(player.objectId());
+        if (map != null) {
+            map.remove(slot);
+        }
+        if (jdbc != null) {
+            try {
+                jdbc.sql("DELETE FROM character_teleports WHERE charId = :cId AND locId = :lId")
+                        .param("cId", player.objectId())
+                        .param("lId", slot)
+                        .update();
+            } catch (Exception ex) {
+                log.debug("character_teleports delete: {}", ex.getMessage());
             }
+        }
+    }
+
+    public void loadFavoritesFromDb(int charId) {
+        if (jdbc == null) return;
+        try {
+            var rows = jdbc.sql("SELECT locId, locName, xCoord, yCoord, zCoord FROM character_teleports WHERE charId = :cId")
+                    .param("cId", charId)
+                    .query().listOfRows();
+            Map<Integer, String> map = localFavorites.computeIfAbsent(charId, k -> new ConcurrentHashMap<>());
+            for (var r : rows) {
+                int slot = ((Number) r.get("locId")).intValue();
+                String name = (String) r.get("locName");
+                int x = ((Number) r.get("xCoord")).intValue();
+                int y = ((Number) r.get("yCoord")).intValue();
+                int z = ((Number) r.get("zCoord")).intValue();
+                map.put(slot, name + ";" + x + ";" + y + ";" + z);
+            }
+        } catch (Exception ex) {
+            log.debug("character_teleports load: {}", ex.getMessage());
         }
     }
 
@@ -870,11 +938,8 @@ public class CommunityBoardService {
         }
 
         String defaultColor = "FFFFFF";
-        if (Config.COLOR_COMMUNITY_BOARD != null && !Config.COLOR_COMMUNITY_BOARD.isBlank()) {
-            String[] colors = Config.COLOR_COMMUNITY_BOARD.split(",");
-            if (colors.length > 0 && !colors[0].isBlank()) {
-                defaultColor = colors[0].trim();
-            }
+        if (Config.COLOR_COMMUNITY_BOARD) {
+            defaultColor = "00FF00";
         }
 
         sb.append("<table width=750 bgcolor=151515 border=1 cellpadding=4 cellspacing=0><tr>");
@@ -962,5 +1027,133 @@ public class CommunityBoardService {
             }
         }
         return false;
+    }
+
+    public record ForumRecord(int forumId, String forumName, int forumParent, int forumPost, int forumType, int forumPerm, int forumOwnerId) {}
+    public record TopicRecord(int topicId, int forumId, String topicName, long date, String ownerName, int ownerId, int type, int reply) {}
+    public record PostRecord(int postId, String ownerName, int ownerId, long date, int topicId, int forumId, String text) {}
+
+    public List<ForumRecord> getForums() {
+        if (jdbc == null) {
+            return List.of();
+        }
+        try {
+            return jdbc.sql("SELECT forum_id, forum_name, forum_parent, forum_post, forum_type, forum_perm, forum_owner_id FROM forums")
+                    .query((rs, rowNum) -> new ForumRecord(
+                            rs.getInt("forum_id"),
+                            rs.getString("forum_name"),
+                            rs.getInt("forum_parent"),
+                            rs.getInt("forum_post"),
+                            rs.getInt("forum_type"),
+                            rs.getInt("forum_perm"),
+                            rs.getInt("forum_owner_id")
+                    )).list();
+        } catch (Exception ex) {
+            log.warn("Erro ao carregar forums: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    public void createForum(int forumId, String name, int parentId, int type, int perm, int ownerId) {
+        if (jdbc == null) return;
+        try {
+            jdbc.sql("""
+                    INSERT INTO forums (forum_id, forum_name, forum_parent, forum_post, forum_type, forum_perm, forum_owner_id)
+                    VALUES (:id, :name, :parent, 0, :type, :perm, :owner)
+                    ON DUPLICATE KEY UPDATE forum_name = VALUES(forum_name)
+                    """)
+                    .param("id", forumId)
+                    .param("name", name)
+                    .param("parent", parentId)
+                    .param("type", type)
+                    .param("perm", perm)
+                    .param("owner", ownerId)
+                    .update();
+        } catch (Exception ex) {
+            log.warn("Erro ao criar forum: {}", ex.getMessage());
+        }
+    }
+
+    public List<TopicRecord> getTopics(int forumId) {
+        if (jdbc == null) return List.of();
+        try {
+            return jdbc.sql("SELECT topic_id, topic_forum_id, topic_name, topic_date, topic_ownername, topic_ownerid, topic_type, topic_reply FROM topic WHERE topic_forum_id = :fid")
+                    .param("fid", forumId)
+                    .query((rs, rowNum) -> new TopicRecord(
+                            rs.getInt("topic_id"),
+                            rs.getInt("topic_forum_id"),
+                            rs.getString("topic_name"),
+                            rs.getLong("topic_date"),
+                            rs.getString("topic_ownername"),
+                            rs.getInt("topic_ownerid"),
+                            rs.getInt("topic_type"),
+                            rs.getInt("topic_reply")
+                    )).list();
+        } catch (Exception ex) {
+            log.warn("Erro ao carregar topics: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    public void createTopic(int topicId, int forumId, String name, PlayerCharacter author) {
+        if (jdbc == null) return;
+        try {
+            jdbc.sql("""
+                    INSERT INTO topic (topic_id, topic_forum_id, topic_name, topic_date, topic_ownername, topic_ownerid, topic_type, topic_reply)
+                    VALUES (:tid, :fid, :name, :d, :oname, :oid, 0, 0)
+                    """)
+                    .param("tid", topicId)
+                    .param("fid", forumId)
+                    .param("name", name)
+                    .param("d", System.currentTimeMillis())
+                    .param("oname", author != null ? author.name() : "System")
+                    .param("oid", author != null ? author.objectId() : 0)
+                    .update();
+        } catch (Exception ex) {
+            log.warn("Erro ao criar topic: {}", ex.getMessage());
+        }
+    }
+
+    public List<PostRecord> getPosts(int topicId) {
+        if (jdbc == null) return List.of();
+        try {
+            return jdbc.sql("SELECT post_id, post_owner_name, post_ownerid, post_date, post_topic_id, post_forum_id, post_txt FROM posts WHERE post_topic_id = :tid")
+                    .param("tid", topicId)
+                    .query((rs, rowNum) -> new PostRecord(
+                            rs.getInt("post_id"),
+                            rs.getString("post_owner_name"),
+                            rs.getInt("post_ownerid"),
+                            rs.getLong("post_date"),
+                            rs.getInt("post_topic_id"),
+                            rs.getInt("post_forum_id"),
+                            rs.getString("post_txt")
+                    )).list();
+        } catch (Exception ex) {
+            log.warn("Erro ao carregar posts: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    public void addPost(int postId, int topicId, int forumId, String text, PlayerCharacter author) {
+        if (jdbc == null) return;
+        try {
+            jdbc.sql("""
+                    INSERT INTO posts (post_id, post_owner_name, post_ownerid, post_date, post_topic_id, post_forum_id, post_txt)
+                    VALUES (:pid, :oname, :oid, :d, :tid, :fid, :txt)
+                    """)
+                    .param("pid", postId)
+                    .param("oname", author != null ? author.name() : "System")
+                    .param("oid", author != null ? author.objectId() : 0)
+                    .param("d", System.currentTimeMillis())
+                    .param("tid", topicId)
+                    .param("fid", forumId)
+                    .param("txt", text)
+                    .update();
+            jdbc.sql("UPDATE topic SET topic_reply = topic_reply + 1 WHERE topic_id = :tid")
+                    .param("tid", topicId)
+                    .update();
+        } catch (Exception ex) {
+            log.warn("Erro ao adicionar post: {}", ex.getMessage());
+        }
     }
 }
