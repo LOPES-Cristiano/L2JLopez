@@ -374,7 +374,7 @@ public class SubClassService {
 					REPLACE INTO character_subclasses (charId, class_id, exp, sp, level, class_index)
 					VALUES (?, ?, ?, ?, ?, ?)
 					""")
-					.params(charId, sc.classId(), sc.exp(), sc.sp(), sc.level(), sc.classIndex())
+					.params(charId, sc.classId(), Math.max(0L, sc.exp()), Math.max(0, sc.sp()), sc.level(), sc.classIndex())
 					.update();
 		} catch (Exception e) {
 			log.error("Erro ao salvar subclasse index {} para charId {}: {}", sc.classIndex(), charId, e.getMessage(), e);

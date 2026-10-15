@@ -131,4 +131,33 @@ public class StaticObjectTable {
 			log.error("StaticObjectTable: falha ao carregar {}", file, e);
 		}
 	}
+
+	/**
+	 * Carrega objetos estaticos de fortalezas a partir de fort_staticobjects (V79 / V1079).
+	 */
+	public void loadFromDb(org.springframework.jdbc.core.simple.JdbcClient jdbc) {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("SELECT fortId, id, name, x, y, z, objectType FROM fort_staticobjects")
+					.query((rs, i) -> {
+						int staticId = rs.getInt("id");
+						int x = rs.getInt("x");
+						int y = rs.getInt("y");
+						int z = rs.getInt("z");
+						int type = rs.getInt("objectType");
+						String name = rs.getString("name");
+
+						int objId = idFactory != null ? idFactory.nextId() : staticId;
+						var instance = new StaticObjectInstance(objId, staticId, type, name, x, y, z, 0, 0);
+						byStaticId.put(staticId, instance);
+						byObjectId.put(objId, instance);
+						return null;
+					}).list();
+			log.info("StaticObjectTable: {} objetos estaticos de fortaleza carregados de fort_staticobjects", byStaticId.size());
+		} catch (Exception e) {
+			log.debug("StaticObjectTable: fort_staticobjects indisponivel: {}", e.getMessage());
+		}
+	}
 }

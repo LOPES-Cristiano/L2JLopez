@@ -83,7 +83,19 @@ public class WeddingService {
 	}
 
 	public int getWeddingTeleportDurationSeconds() {
-		return Math.max(1, Config.WEDDING_TELEPORT_DURATION);
+		return Math.max(1, Config.WEDDING_TELEPORT_INTERVAL);
+	}
+
+	public boolean isSpawnWeddingNpcEnabled() {
+		return Config.SPAWN_WEDDING_NPC;
+	}
+
+	public boolean isHoneyMoonEnabled() {
+		return Config.WEDDING_HONEYMOON;
+	}
+
+	public int[] getHoneyMoonTeleportLoc() {
+		return new int[] { Config.WEDDING_TELEPORT_X, Config.WEDDING_TELEPORT_Y, Config.WEDDING_TELEPORT_Z };
 	}
 
 	public boolean isSameSexAllowed() {
@@ -136,29 +148,34 @@ public class WeddingService {
 		return true;
 	}
 
+	private static int parseColorHex(String hex, int fallback) {
+		if (hex == null || hex.isBlank()) {
+			return fallback;
+		}
+		try {
+			return Integer.decode("0x" + hex.trim().replace("0x", "").replace("#", ""));
+		} catch (NumberFormatException e) {
+			return fallback;
+		}
+	}
+
 	public int getMarriedNickColor(PlayerCharacter player1, PlayerCharacter player2) {
-		if (!Config.WEDDING_CHANGE_NICK_COLOR || player1 == null || player2 == null) {
-			return Config.WEDDING_NORMAL_NICK_COLOR;
+		if (!Config.WEDDING_USE_NICK_COLOR || player1 == null || player2 == null) {
+			return parseColorHex(Config.WEDDING_NORMAL_PAIR_NICK_COLOR, 0xBF0000);
 		}
 		if (player1.female() && player2.female()) {
-			return Config.WEDDING_LESBI_NICK_COLOR;
+			return parseColorHex(Config.WEDDING_LESBI_PAIR_NICK_COLOR, 0xBF00BF);
 		}
 		if (!player1.female() && !player2.female()) {
-			return Config.WEDDING_GAY_NICK_COLOR;
+			return parseColorHex(Config.WEDDING_GAY_PAIR_NICK_COLOR, 0x0000BF);
 		}
-		return Config.WEDDING_NORMAL_NICK_COLOR;
+		return parseColorHex(Config.WEDDING_NORMAL_PAIR_NICK_COLOR, 0xBF0000);
 	}
 
 	public List<WeddingGift> getCeremonyGiftsForPlayer(PlayerCharacter player) {
 		List<WeddingGift> gifts = new ArrayList<>();
-		if (Config.WEDDING_GIVE_SALVATION_BOW && Config.WEDDING_BOW_ITEM_ID > 0) {
-			gifts.add(new WeddingGift(Config.WEDDING_BOW_ITEM_ID, 1));
-		}
-		if (Config.WEDDING_GIVE_RING && player != null) {
-			int ringId = player.female() ? Config.WEDDING_FEMALE_RING_ID : Config.WEDDING_MALE_RING_ID;
-			if (ringId > 0) {
-				gifts.add(new WeddingGift(ringId, 1));
-			}
+		if (Config.WEDDING_GIVE_BOW) {
+			gifts.add(new WeddingGift(9140, 1));
 		}
 		return gifts;
 	}
@@ -252,7 +269,7 @@ public class WeddingService {
 
 		couplesById.put(coupleId, updated);
 
-		if (Config.WEDDING_ANNOUNCE) {
+		if (Config.ALLOW_WEDDING) {
 			String msg = "Wedding Ceremony #" + coupleId + " has been celebrated!";
 			log.info(msg);
 			GameWorld world = GameWorld.getInstance();
