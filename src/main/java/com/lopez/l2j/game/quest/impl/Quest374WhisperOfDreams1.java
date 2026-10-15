@@ -52,30 +52,73 @@ public class Quest374WhisperOfDreams1 extends Quest {
 
 	@Override
 	public String onEvent(String event, QuestState qs) {
-		if (("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event))) {
+		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "30515-03.htm".equalsIgnoreCase(event)) {
 			qs.setCond(1);
 			qs.setState(State.STARTED);
 			qs.playSound(QuestState.SOUND_ACCEPT);
 			return "seer_manakia_q0374_03.htm";
-		} else if ("reply_1".equalsIgnoreCase(event)) {
-			return "seer_manakia_q0374_06.htm";
-		} else if ("reply_2".equalsIgnoreCase(event)) {
-			qs.exitQuest(true);
-			qs.playSound(QuestState.SOUND_FINISH);
-			return "seer_manakia_q0374_07.htm";
-		} else if (("reply_3".equalsIgnoreCase(event) || "reward_exchange".equalsIgnoreCase(event)) && qs.getQuestItemsCount(CAVE_BEAST_TOOTH) >= 65 && qs.getQuestItemsCount(DEATH_BLADER_LIGHT) >= 65) {
-			qs.takeItems(CAVE_BEAST_TOOTH, -1);
-			qs.takeItems(DEATH_BLADER_LIGHT, -1);
-			qs.giveItems(5486, 3); // Tallum Tunic Textures
-			qs.giveItems(57, 15886);
-			qs.playSound(QuestState.SOUND_FINISH);
-			return "seer_manakia_q0374_10.htm";
-		} else if ("torai_stone".equalsIgnoreCase(event) || ("reply_1".equalsIgnoreCase(event) && qs.hasQuestItems(SEALED_MYSTERIOUS_STONE))) {
+		} else if ("torai_stone".equalsIgnoreCase(event) || "30557-02.htm".equalsIgnoreCase(event) || ("reply_1".equalsIgnoreCase(event) && qs.hasQuestItems(SEALED_MYSTERIOUS_STONE))) {
 			qs.takeItems(SEALED_MYSTERIOUS_STONE, -1);
 			qs.giveItems(MYSTERIOUS_STONE, 1);
 			qs.setCond(2);
 			qs.playSound(QuestState.SOUND_MIDDLE);
 			return "torai_q0374_02.htm";
+		} else if ("reply_1".equalsIgnoreCase(event)) {
+			return "seer_manakia_q0374_06.htm";
+		} else if ("reply_2".equalsIgnoreCase(event) || "30515-08.htm".equalsIgnoreCase(event)) {
+			qs.exitQuest(true);
+			qs.playSound(QuestState.SOUND_FINISH);
+			return "seer_manakia_q0374_07.htm";
+		} else if ("reply_3".equalsIgnoreCase(event) || "reward_exchange".equalsIgnoreCase(event) || event.startsWith("30515-06-")) {
+			if (qs.getQuestItemsCount(CAVE_BEAST_TOOTH) >= 65 && qs.getQuestItemsCount(DEATH_BLADER_LIGHT) >= 65) {
+				qs.takeItems(CAVE_BEAST_TOOTH, -1);
+				qs.takeItems(DEATH_BLADER_LIGHT, -1);
+				qs.giveItems(5486, 3); // Tallum Tunic Textures
+				qs.giveItems(57, 15886);
+				qs.playSound(QuestState.SOUND_FINISH);
+				return "seer_manakia_q0374_10.htm";
+			}
+			return "seer_manakia_q0374_08.htm";
+		} else if ("reply_4".equalsIgnoreCase(event)) {
+			if (qs.getQuestItemsCount(CAVE_BEAST_TOOTH) >= 65 && qs.getQuestItemsCount(DEATH_BLADER_LIGHT) >= 65) {
+				qs.takeItems(CAVE_BEAST_TOOTH, 65);
+				qs.takeItems(DEATH_BLADER_LIGHT, 65);
+				qs.giveItems(5487, 2); // Dark Crystal Robe Fabrics
+				qs.giveItems(57, 2860);
+				qs.playSound(QuestState.SOUND_ITEMGET);
+				return "seer_manakia_q0374_10.htm";
+			}
+			return "seer_manakia_q0374_08.htm";
+		} else if ("reply_5".equalsIgnoreCase(event)) {
+			if (qs.getQuestItemsCount(CAVE_BEAST_TOOTH) >= 65 && qs.getQuestItemsCount(DEATH_BLADER_LIGHT) >= 65) {
+				qs.takeItems(CAVE_BEAST_TOOTH, 65);
+				qs.takeItems(DEATH_BLADER_LIGHT, 65);
+				qs.giveItems(5488, 2); // Nightmare Robe Fabric
+				qs.giveItems(57, 2860);
+				qs.playSound(QuestState.SOUND_ITEMGET);
+				return "seer_manakia_q0374_10.htm";
+			}
+			return "seer_manakia_q0374_08.htm";
+		} else if ("reply_6".equalsIgnoreCase(event)) {
+			if (qs.getQuestItemsCount(CAVE_BEAST_TOOTH) >= 65 && qs.getQuestItemsCount(DEATH_BLADER_LIGHT) >= 65) {
+				qs.takeItems(CAVE_BEAST_TOOTH, 65);
+				qs.takeItems(DEATH_BLADER_LIGHT, 65);
+				qs.giveItems(5485, 4); // Sealed Tallum Leather Armor Pattern
+				qs.giveItems(57, 18800);
+				qs.playSound(QuestState.SOUND_ITEMGET);
+				return "seer_manakia_q0374_10.htm";
+			}
+			return "seer_manakia_q0374_08.htm";
+		} else if ("reply_7".equalsIgnoreCase(event)) {
+			if (qs.getQuestItemsCount(CAVE_BEAST_TOOTH) >= 65 && qs.getQuestItemsCount(DEATH_BLADER_LIGHT) >= 65) {
+				qs.takeItems(CAVE_BEAST_TOOTH, 65);
+				qs.takeItems(DEATH_BLADER_LIGHT, 65);
+				qs.giveItems(5489, 6); // Sealed Dark Crystal Leather Armor Pattern
+				qs.giveItems(57, 4350);
+				qs.playSound(QuestState.SOUND_ITEMGET);
+				return "seer_manakia_q0374_10.htm";
+			}
+			return "seer_manakia_q0374_08.htm";
 		}
 		return event;
 	}
