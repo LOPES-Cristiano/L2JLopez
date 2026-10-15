@@ -1,0 +1,67 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<list>
+	<item><!-- Event - Glittering Medal -->
+		<production id="9302" count="1"/>
+		<ingredient id="9303" count="25"/>
+	</item>
+	<item><!-- Red Soul Crystal - Stage 11 -->
+	<production id="5577" count="1"/>
+		<ingredient id="9302" count="5"/>
+	</item>
+	<item><!-- Green Soul Crystal - Stage 11 -->
+		<production id="5578" count="1"/>
+		<ingredient id="9302" count="5"/>
+	</item>
+	<item><!-- 	Blue Soul Crystal - Stage 11 -->
+		<production id="5579" count="1"/>
+		<ingredient id="9302" count="5"/>
+	</item>
+	<item><!-- Red Soul Crystal - Stage 12 -->
+		<production id="5580" count="1"/>
+		<ingredient id="9302" count="15"/>
+	</item>
+	<item><!-- Green Soul Crystal - Stage 12-->
+		<production id="5581" count="1"/>
+		<ingredient id="9302" count="15"/>
+	</item>
+	<item><!-- 	Blue Soul Crystal - Stage 12-->
+		<production id="5582" count="1"/>
+		<ingredient id="9302" count="15"/>
+	</item>
+	<item><!-- Red Soul Crystal - Stage 13-->
+		<production id="5908" count="1"/>
+		<ingredient id="9302" count="30"/>
+	</item>
+	<item><!-- Green Soul Crystal - Stage 13-->
+		<production id="5911" count="1"/>
+		<ingredient id="9302" count="30"/>
+	</item>
+	<item><!-- Blue Soul Crystal - Stage 13-->
+		<production id="5914" count="1"/>
+		<ingredient id="9302" count="30"/>
+	</item>
+		<item><!-- Blessed Scroll: Enchant Armor (Grade B)-->
+		<production id="6572" count="1"/>
+		<ingredient id="9302" count="5"/>
+	</item>
+		<item><!-- Blessed Scroll: Enchant Weapon (Grade B)-->
+		<production id="6571" count="1"/>
+		<ingredient id="9302" count="10"/>
+	</item>
+		<item><!-- Blessed Scroll: Enchant Armor (Grade A)-->
+		<production id="6570" count="1"/>
+		<ingredient id="9302" count="10"/>
+	</item>
+		<item><!-- Blessed Scroll: Enchant Weapon(Grade A)-->
+		<production id="6569" count="1"/>
+		<ingredient id="9302" count="20"/>
+	</item>
+		<item><!-- Blessed Scroll: Armor (Grade S)-->
+		<production id="6578" count="1"/>
+		<ingredient id="9302" count="15"/>
+	</item>
+		<item><!-- Blessed Scroll: Weapon (Grade S)-->
+		<production id="6577" count="1"/>
+		<ingredient id="9302" count="30"/>
+	</item>
+</list>

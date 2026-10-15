@@ -1,0 +1,87 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<list>
+	<item><!-- Gold Bar -->
+		<production id="9301" count="1"/>
+		<ingredient id="57" count="250000000"/>
+	</item>
+	<item><!-- Adena -->
+		<production id="57" count="250000000"/>
+		<ingredient id="9301" count="1"/>
+	</item>
+	<item><!-- Blooded fabric -->
+		<production id="4295" count="1"/>
+		<ingredient id="57" count="12000000"/>
+	</item>
+	<item><!-- Portal Stone -->
+		<production id="3865" count="1"/>
+		<ingredient id="57" count="12000000"/>
+	</item>
+		<item><!-- Floating  Stone -->
+		<production id="7267" count="1"/>
+		<ingredient id="57" count="12000000"/>
+	</item>
+	<item><!-- Frintezza's Magic Force Field -->
+		<production id="8073" count="1"/>
+		<ingredient id="57" count="23000000"/>
+	</item>
+	<item><!-- Dragon Bugle of Wind -->
+		<production id="4422" count="1"/>
+		<ingredient id="57" count="250000000"/>
+	</item>
+	<item><!-- Dragon Bugle of Star	 -->
+		<production id="4423" count="1"/>
+		<ingredient id="57" count="250000000"/>
+	</item>
+	<item><!-- Dragon Bugle of Dusk -->
+		<production id="4424" count="1"/>
+		<ingredient id="57" count="250000000"/>
+	</item>
+	<item><!-- Ancient Book - Divine Inspiration (Modern Language Version) -->
+		<production id="8618" count="1"/>
+		<ingredient id="57" count="500000"/>
+	</item>
+	<item><!-- Ancient Book - Divine Inspiration (Original Language Version) -->
+		<production id="8619" count="1"/>
+		<ingredient id="57" count="200000000"/>
+	</item>
+		<item><!-- Ancient Book - Divine Inspiration (Manuscript) -->
+		<production id="8620" count="1"/>
+		<ingredient id="57" count="300000000"/>
+	</item>
+		<item><!-- Ancient Book - Divine Inspiration (Original Version) -->
+		<production id="8621" count="1"/>
+		<ingredient id="57" count="600000000"/>
+	</item>
+		<item><!-- Life Stone: level 76 -->
+		<production id="8732" count="1"/>
+		<ingredient id="57" count="12000000"/>
+	</item>
+	<item><!-- Mid-Grade Life Stone: level 76 -->
+		<production id="8742" count="1"/>
+		<ingredient id="57" count="14000000"/>
+	</item>
+		<item><!-- High-Grade Life Stone: level 76 -->
+		<production id="8752" count="1"/>
+		<ingredient id="57" count="16000000"/>
+	</item>
+	<item><!-- Top-Grade Life Stone: level 76 -->
+		<production id="8762" count="1"/>
+		<ingredient id="57" count="24000000"/>
+	</item>
+	<item><!-- Secret Book of Giants -->
+		<production id="6622" count="1"/>
+		<ingredient id="57" count="100000000"/>
+	</item>
+		<item><!-- Red Soul Crystal - Stage 10 -->
+		<production id="4639" count="1"/>
+		<ingredient id="57" count="5000000"/>
+	</item>
+		<item><!-- Green Soul Crystal - Stage 10 -->
+		<production id="4650" count="1"/>
+		<ingredient id="57" count="5000000"/>
+	</item>
+		<item><!-- Blue Soul Crystal - Stage 10 -->
+		<production id="4661" count="1"/>
+		<ingredient id="57" count="5000000"/>
+	</item>
+</list>
