@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list>
+	<!-- Tabela de Presença Diária (30 Dias) - ZERO DONATE: Adena (57), Medalhas (6392/6393) e Gold Bar (3470) -->
+	<reward day="1" itemId="57" count="1000000" name="1kk Adena"/>
+	<reward day="2" itemId="6392" count="5" name="5 Event Medals"/>
+	<reward day="3" itemId="57" count="2000000" name="2kk Adena"/>
+	<reward day="4" itemId="6393" count="3" name="3 Glittering Medals"/>
+	<reward day="5" itemId="3470" count="1" name="1 Gold Bar"/>
+	<reward day="6" itemId="57" count="3000000" name="3kk Adena"/>
+	<reward day="7" itemId="3470" count="2" name="2 Gold Bars"/>
+	<reward day="8" itemId="57" count="4000000" name="4kk Adena"/>
+	<reward day="9" itemId="6392" count="10" name="10 Event Medals"/>
+	<reward day="10" itemId="3470" count="3" name="3 Gold Bars"/>
+	<reward day="11" itemId="57" count="5000000" name="5kk Adena"/>
+	<reward day="12" itemId="6393" count="5" name="5 Glittering Medals"/>
+	<reward day="13" itemId="57" count="6000000" name="6kk Adena"/>
+	<reward day="14" itemId="3470" count="5" name="5 Gold Bars"/>
+	<reward day="15" itemId="57" count="7000000" name="7kk Adena"/>
+	<reward day="16" itemId="6392" count="15" name="15 Event Medals"/>
+	<reward day="17" itemId="57" count="8000000" name="8kk Adena"/>
+	<reward day="18" itemId="6393" count="8" name="8 Glittering Medals"/>
+	<reward day="19" itemId="57" count="9000000" name="9kk Adena"/>
+	<reward day="20" itemId="3470" count="10" name="10 Gold Bars"/>
+	<reward day="21" itemId="57" count="10000000" name="10kk Adena"/>
+	<reward day="22" itemId="6392" count="20" name="20 Event Medals"/>
+	<reward day="23" itemId="57" count="11000000" name="11kk Adena"/>
+	<reward day="24" itemId="6393" count="10" name="10 Glittering Medals"/>
+	<reward day="25" itemId="3470" count="15" name="15 Gold Bars"/>
+	<reward day="26" itemId="57" count="12000000" name="12kk Adena"/>
+	<reward day="27" itemId="6392" count="25" name="25 Event Medals"/>
+	<reward day="28" itemId="57" count="15000000" name="15kk Adena"/>
+	<reward day="29" itemId="6393" count="15" name="15 Glittering Medals"/>
+	<reward day="30" itemId="3470" count="25" name="25 Gold Bars"/>
+</list>
