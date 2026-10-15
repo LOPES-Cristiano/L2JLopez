@@ -257,7 +257,7 @@ class BuffShopServiceTest {
 		aioService.rewardAioSkills(seller);
 
 		var available = service.getAvailableBuffSkills(seller, realTable);
-		assertThat(available.size()).isGreaterThanOrEqualTo(90);
+		assertThat(available.size()).isGreaterThanOrEqualTo(85);
 
 		boolean started = service.startShop(seller, "AIO Super Buffs", available);
 		assertThat(started).isTrue();

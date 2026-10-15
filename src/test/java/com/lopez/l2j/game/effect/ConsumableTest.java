@@ -7,6 +7,7 @@ import com.lopez.l2j.game.effect.PlayerEffects.ActiveBuff;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.model.PlayerStats;
 import com.lopez.l2j.game.template.CharTemplateTable;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ConsumableTest {
@@ -92,5 +93,54 @@ class ConsumableTest {
 		assertTrue(effects.hasSkill(1002));
 		assertTrue(effects.hasSkill(1003));
 		org.junit.jupiter.api.Assertions.assertFalse(effects.hasSkill(1001));
+	}
+
+	@Test
+	void testBuffAndDebuffOrderPreservation() {
+		PlayerEffects effects = new PlayerEffects();
+		long now = System.currentTimeMillis();
+
+		// Buffs pegos 1 a 1 sequencialmente
+		effects.put(new ActiveBuff(1086, 1, "haste", now + 60_000, 0, 1.0, 1.0, 0));
+		effects.put(new ActiveBuff(1204, 1, "wind_walk", now + 60_000, 0, 1.0, 1.0, 0));
+		effects.put(new ActiveBuff(1068, 1, "might", now + 60_000, 0, 1.0, 1.0, 0));
+
+		// Debuff aplicado
+		effects.put(ActiveBuff.ofSkill(1164, 1, "curse_weakness", now + 15_000, List.of(), true));
+
+		// Toggle ativo
+		effects.put(new ActiveBuff(111, 1, "toggle_skill", PlayerEffects.PERMANENT, 0, 1.0, 1.0, 0));
+
+		// Novo buff pego posteriormente (deve ir para o fim dos buffs normais, antes de toggles e debuffs)
+		effects.put(new ActiveBuff(1040, 1, "shield", now + 60_000, 0, 1.0, 1.0, 0));
+
+		// Novo debuff aplicado posteriormente (deve ir para o fim dos debuffs)
+		effects.put(ActiveBuff.ofSkill(122, 1, "hex", now + 15_000, List.of(), true));
+
+		var activeList = effects.active();
+		assertEquals(7, activeList.size());
+
+		// Ordem esperada:
+		// 1. haste (1086)
+		// 2. wind_walk (1204)
+		// 3. might (1068)
+		// 4. shield (1040) -> pego depois, fica no final dos buffs normais
+		// 5. toggle_skill (111) -> toggles após buffs
+		// 6. curse_weakness (1164) -> debuff 1
+		// 7. hex (122) -> debuff 2, no fim
+		assertEquals(1086, activeList.get(0).skillId());
+		assertEquals(1204, activeList.get(1).skillId());
+		assertEquals(1068, activeList.get(2).skillId());
+		assertEquals(1040, activeList.get(3).skillId());
+		assertEquals(111, activeList.get(4).skillId());
+		assertEquals(1164, activeList.get(5).skillId());
+		assertEquals(122, activeList.get(6).skillId());
+
+		// Renovação de buff existente (haste): mantém sua posição original
+		effects.put(new ActiveBuff(1086, 2, "haste", now + 120_000, 0, 1.0, 1.0, 0));
+		var refreshedList = effects.active();
+		assertEquals(1086, refreshedList.get(0).skillId());
+		assertEquals(2, refreshedList.get(0).level());
+		assertEquals(1204, refreshedList.get(1).skillId());
 	}
 }

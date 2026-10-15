@@ -88,4 +88,32 @@ public class BossManagerIntegrationTest {
 		assertDoesNotThrow(() -> bossManager.onBossKilled(antBoss, killer, null));
 		assertEquals(BossStatus.INTERVAL, antharas.getStatus());
 	}
+
+	@Test
+	public void testHighRateBossSpDoesNotOverflowToNegative() {
+		com.lopez.l2j.config.Config.RATE_XP = 100.0f;
+		com.lopez.l2j.config.Config.RATE_SP = 100.0f;
+		try {
+			var combat = new com.lopez.l2j.game.combat.CombatService(100.0, 100.0);
+			// Antharas-like SP (30,000,000 base SP * 100 = 3,000,000,000 > Integer.MAX_VALUE)
+			NpcTemplate bossTpl = new NpcTemplate(29019, 29019, "Antharas", false, "", false,
+					10.0, 15.0, 79, "male", "L2GrandBoss", 40, 100, 1000,
+					100, 100, 100, 100, 200, 200, 0, 0, 0,
+					50, 100, 0, false, 500_000_000L, 30_000_000);
+			NpcInstance boss = new NpcInstance(6001, bossTpl, 0, 0, 0, 0);
+
+			var hit = combat.applyDamage(boss, 500, 0, false, 79);
+			assertTrue(hit.isDead());
+			assertTrue(hit.spReward() > 0, "SP reward must be positive and not overflow to negative");
+			assertEquals(Integer.MAX_VALUE, hit.spReward());
+
+			PlayerCharacter player = createPlayer(20, "bot4", 80);
+			player.sp(1_500_000_000);
+			player.addExpAndSp(hit.expReward(), hit.spReward());
+			assertEquals(Integer.MAX_VALUE, player.sp(), "Player SP must cap at Integer.MAX_VALUE and never become negative");
+		} finally {
+			com.lopez.l2j.config.Config.RATE_XP = 1.0f;
+			com.lopez.l2j.config.Config.RATE_SP = 1.0f;
+		}
+	}
 }
