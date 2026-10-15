@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- Dagna Quest's -->
+<list maintainEnchantment="true" applyTaxes="true">
+  <item id="3"><!-- Blooded Fabric -->
+	<production id="4295" count="1"/>
+    <ingredient id="5575" count="3000000"/>
+  </item>
+  <item id="4"><!-- Portal Stone -->
+	<production id="3865" count="1"/>
+    <ingredient id="5575" count="3000000"/>
+  </item>
+  <item id="5"><!-- Frintezza's Magic Force Field Removal Scroll -->
+	<production id="8073" count="1"/>
+    <ingredient id="5575" count="3500000"/>
+  </item>
+  <item id="6"><!-- Floating Stone -->
+	<production id="7267" count="1"/>
+    <ingredient id="5575" count="3000000"/>
+  </item>
+  <item id="7"><!-- Proof of Blood -->
+	<production id="1419" count="1"/>
+    <ingredient id="5575" count="10000000"/>
+  </item>
+  <item id="8"><!-- Proof of Clan Alliance -->
+	<production id="3874" count="1"/>
+    <ingredient id="5575" count="15000000"/>
+  </item>
+  <item id="9"><!-- Seal of Aspiration -->
+	<production id="3870" count="1"/>
+    <ingredient id="5575" count="20000000"/>
+  </item>
+  <item id="10"><!-- Caradine's Letter Level 75 -->
+	<production id="7679" count="1"/>
+    <ingredient id="5575" count="40000000"/>
+  </item>
+  <item id="11"><!-- Destruction Tombstone -->
+	<production id="8176" count="1"/>
+    <ingredient id="5575" count="2500000"/>
+  </item>
+  <item id="12"><!-- Earth Egg: A-Grade -->
+	<production id="8166" count="1"/>
+    <ingredient id="5575" count="1800000"/>
+  </item>
+  <item id="13"><!-- Angelic Essence: A-Grade -->
+	<production id="8172" count="1"/>
+    <ingredient id="5575" count="1800000"/>
+  </item>
+  <item id="14"><!-- Dragon Heart: A-Grade -->
+	<production id="8163" count="1"/>
+    <ingredient id="5575" count="1800000"/>
+  </item>
+  <item id="15"><!-- Nonliving Nucleus: A-Grade -->
+	<production id="8169" count="1"/>
+    <ingredient id="5575" count="1800000"/>
+  </item>
+  <item id="16"><!-- Memento Mori: A-Grade -->
+	<production id="8160" count="1"/>
+    <ingredient id="5575" count="1800000"/>
+  </item>
+  <item id="17"><!-- Cradle of Creation -->
+	<production id="8175" count="1"/>
+    <ingredient id="5575" count="3000000"/>
+  </item>
+</list>
