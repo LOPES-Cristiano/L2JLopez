@@ -77,7 +77,7 @@ public class Quest412PathToDarkWizard extends Quest {
 
 		PlayerCharacter player = qs.getPlayerCharacter();
 		int level = player != null ? player.getLevel() : 0;
-		int classId = player != null ? player.getClassId() : -1;
+		int classId = player != null ? player.classId() : -1;
 
 		if ("1".equalsIgnoreCase(event)) {
 			if (level >= 18 && classId == 0x26 && qs.getQuestItemsCount(JEWEL_OF_DARKNESS) == 0) {

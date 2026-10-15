@@ -105,7 +105,7 @@ public class Quest414PathToOrcRaider extends Quest {
 		int npcId = npc.getNpcId();
 		int cond = qs.getCond();
 		PlayerCharacter player = qs.getPlayerCharacter();
-		int classId = player != null ? player.getClassId() : -1;
+		int classId = player != null ? player.classId() : -1;
 		int level = player != null ? player.getLevel() : 0;
 
 		if (npcId == KARUKIA) {
