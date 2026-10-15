@@ -75,7 +75,7 @@ public class Quest405PathToCleric extends Quest {
 
 		PlayerCharacter player = qs.getPlayerCharacter();
 		int level = player != null ? player.getLevel() : 0;
-		int classId = player != null ? player.getClassId() : -1;
+		int classId = player != null ? player.classId() : -1;
 
 		if ("1".equalsIgnoreCase(event)) {
 			if (level >= 18 && classId == 0x0a && qs.getQuestItemsCount(MARK_OF_FAITH) == 0) {
