@@ -1,0 +1,208 @@
+<?xml version='1.0' encoding='utf-8'?>
+  <!-- La2Lion -->
+<list>
+
+  	<!-- Blessed Scroll: Enchant Weapon (Grade D) -->
+  	<item id="1">
+    		<ingredient id="57" count="150000"/>
+    		<production id="6575" count="1"/>
+  	</item>
+	<!-- Blessed Scroll: Enchant Armor (Grade D) -->
+  	<item id="2">
+    		<ingredient id="57" count="100000"/>
+      		<production id="6576" count="1"/>
+  	</item>
+
+
+  	<!-- Scroll: Enchant Weapon (Grade C) -->
+  	<item id="3">
+    		<ingredient id="57" count="300000"/>
+    		<production id="951" count="1"/>
+  	</item>
+  	<!-- Scroll: Enchant Armor (Grade C) -->
+  	<item id="4">
+    		<ingredient id="57" count="100000"/>
+    		<production id="952" count="1"/>
+  	</item>
+
+  	<!-- Blessed Scroll: Enchant Weapon (Grade C) -->
+  	<item id="5">
+    		<ingredient id="57" count="350000"/>
+    		<production id="6573" count="1"/>
+  	</item>
+
+    	<!-- Blessed Scroll: Enchant Armor (Grade C) -->
+   	<item id="6">
+      		<ingredient id="57" count="150000"/>
+      		<production id="6574" count="1"/>
+    	</item>
+  	<!-- Scroll: Enchant Weapon (Grade B) -->
+  	<item id="7">
+    		<ingredient id="57" count="700000"/>
+    		<production id="947" count="1"/>
+  	</item>
+
+  	<!-- Scroll: Enchant Armor (Grade B) -->
+  	<item id="8">
+    		<ingredient id="57" count="400000"/>
+    		<production id="948" count="1"/>
+  	</item>
+
+  	<!-- Blessed Scroll: Enchant Weapon (Grade B) -->
+  	<item id="9">
+    		<ingredient id="57" count="1000000"/>
+    		<production id="6571" count="1"/>
+  	</item>
+  	<!-- Blessed Scroll: Enchant Armor (Grade B) -->
+  	<item id="10">
+    		<ingredient id="57" count="700000"/>
+    		<production id="6572" count="1"/>
+  	</item>
+
+  	<!-- Scroll: Enchant Weapon (Grade A) -->
+  	<item id="11">
+    		<ingredient id="57" count="2500000"/>
+    		<production id="729" count="1"/>
+ 	</item>
+  	<!-- Scroll: Enchant Armor (Grade A) -->
+  	<item id="12">
+    		<ingredient id="57" count="800000"/>
+    		<production id="730" count="1"/>
+  	</item>
+
+
+  	<!-- Blessed Scroll: Enchant Weapon (Grade A) -->
+  	<item id="13">
+    		<ingredient id="57" count="5000000"/>
+   		<production id="6569" count="1"/>
+  	</item>
+ 	<!-- Blessed Scroll: Enchant Armor (Grade A) -->
+  	<item id="14">
+    		<ingredient id="57" count="1500000"/>
+    		<production id="6570" count="1"/>
+  	</item>
+
+  	<!-- Scroll: Enchant Weapon (Grade S) -->
+  	<item id="15">
+    		<ingredient id="57" count="10000000"/>
+    		<production id="959" count="1"/>
+  	</item>
+  	<!-- Scroll: Enchant Armor (Grade S) -->
+  	<item id="16">
+    		<ingredient id="57" count="5000000"/>
+    		<production id="960" count="1"/>
+  	</item>
+
+
+
+
+  	<!-- Blessed Scroll: Enchant Weapon (Grade S) -->
+  	<item id="17">
+    		<ingredient id="57" count="20000000"/>
+    		<production id="6577" count="1"/>
+  	</item>
+
+  	<!-- Blessed Scroll: Enchant Armor (Grade S) -->
+  	<item id="18">
+    		<ingredient id="57" count="10000000"/>
+    		<production id="6578" count="1"/>
+  	</item>
+
+
+
+
+ 
+
+  	<!-- Scroll of Resurrection -->
+  	<item id="19">
+    		<ingredient id="57" count="2000"/>
+    		<production id="737" count="1"/>
+  	</item>
+
+  	<!-- Scroll of Escape -->
+  	<item id="20">
+    		<ingredient id="57" count="400"/>
+   		<production id="736" count="1"/>
+  	</item>
+
+  	<!-- Scroll of Escape: Castle -->
+  	<item id="21">
+    		<ingredient id="57" count="500"/>
+    		<production id="1830" count="1"/>
+  	</item>
+
+  	<!-- Blessed Scroll of Resurrection -->
+  	<item id="22">
+    		<ingredient id="57" count="500"/>
+    		<production id="1829" count="1"/>
+  	</item>
+  	<!-- Blessed Scroll of Escape -->
+  	<item id="23">
+    		<ingredient id="57" count="15000"/>
+    		<production id="7126" count="1"/>
+  	</item>
+  	<!-- SP Scroll: Medium Grade -->
+  	<item id="24">
+    		<ingredient id="57" count="48000"/>
+    		<production id="5594" count="1"/>
+  	</item>
+
+
+
+
+  <!-- Energy Stone -->
+  <item id="25">
+    <ingredient id="57" count="3600" enchant="0"/>
+    <production id="8515" count="1" enchant="0"/>
+  </item>
+  <!-- Energy Stone -->
+  <item id="26">
+    <ingredient id="57" count="8500" enchant="0"/>
+    <production id="8516" count="1" enchant="0"/>
+  </item>
+  <!-- Energy Stone -->
+  <item id="27">
+    <ingredient id="57" count="17160" enchant="0"/>
+    <production id="8517" count="1" enchant="0"/>
+  </item>
+  <!-- Energy Stone -->
+  <item id="28">
+    <ingredient id="57" count="33800" enchant="0"/>
+    <production id="8518" count="1" enchant="0"/>
+  </item>
+  <!-- Energy Stone -->
+  <item id="29">
+    <ingredient id="57" count="70200" enchant="0"/>
+    <production id="8519" count="1" enchant="0"/>
+  </item>
+  <!-- Energy Stone -->
+  <item id="30">
+    <ingredient id="57" count="130000" enchant="0"/>
+    <production id="8520" count="1" enchant="0"/>
+  </item>
+
+  <item id="31">
+    <ingredient id="57" count="2000" enchant="0"/>
+    <production id="8594" count="1" enchant="0"/>
+  </item>
+  <item id="32">
+    <ingredient id="57" count="4800" enchant="0"/>
+    <production id="8595" count="1" enchant="0"/>
+  </item>
+  <item id="33">
+    <ingredient id="57" count="14000" enchant="0"/>
+    <production id="8596" count="1" enchant="0"/>
+  </item>
+  <item id="34">
+    <ingredient id="57" count="28000" enchant="0"/>
+    <production id="8597" count="1" enchant="0"/>
+  </item>
+  <item id="35">
+    <ingredient id="57" count="48000" enchant="0"/>
+    <production id="8598" count="1" enchant="0"/>
+  </item>
+  <item id="36">
+    <ingredient id="57" count="97000" enchant="0"/>
+    <production id="8599" count="1" enchant="0"/>
+  </item>
+</list>

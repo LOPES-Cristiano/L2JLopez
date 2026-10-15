@@ -1,0 +1,151 @@
+<?xml version='1.0' encoding='utf-8'?>
+  <!-- La2Lion -->
+<list>
+
+  <!-- arrows d -->
+  <item id="19">
+    <ingredient id="57" count="2" enchant="0"/>
+    <production id="17" count="1" enchant="0"/>
+  </item>
+  <!-- arrows d -->
+  <item id="20">
+    <ingredient id="57" count="7" enchant="0"/>
+    <production id="1341" count="1" enchant="0"/>
+  </item>
+
+  <!-- arrows c -->
+  <item id="54">
+    <ingredient id="57" count="15" enchant="0"/>
+    <production id="1342" count="1" enchant="0"/>
+  </item>
+  <!-- arrows b -->
+  <item id="21">
+    <ingredient id="57" count="32" enchant="0"/>
+    <production id="1343" count="1" enchant="0"/>
+  </item>
+  <!-- arrows a -->
+  <item id="22">
+    <ingredient id="57" count="67" enchant="0"/>
+    <production id="1344" count="1" enchant="0"/>
+  </item>
+  <!-- arrows S -->
+  <item id="23">
+    <ingredient id="57" count="100" enchant="0"/>
+    <production id="1345" count="1" enchant="0"/>
+  </item>
+  <!-- Soul Ore -->
+  <item id="24">
+    <ingredient id="57" count="250" enchant="0"/>
+    <production id="1785" count="1" enchant="0"/>
+  </item>
+  <!-- Crystal: D Grade -->
+  <item id="25">
+    <ingredient id="57" count="500" enchant="0"/>
+    <production id="1458" count="1" enchant="0"/>
+  </item>
+  <!-- Crystal: C Grade -->
+  <item id="26">
+    <ingredient id="57" count="2750" enchant="0"/>
+    <production id="1459" count="1" enchant="0"/>
+  </item>
+  <!-- Crystal: B-Grade -->
+  <item id="27">
+    <ingredient id="57" count="12500" enchant="0"/>
+    <production id="1460" count="1" enchant="0"/>
+  </item>
+  <!-- Crystal: A-Grade -->
+  <item id="28">
+    <ingredient id="57" count="17200" enchant="0"/>
+    <production id="1461" count="1" enchant="0"/>
+  </item>
+  <!-- Crystal: S Grade -->
+  <item id="29">
+    <ingredient id="57" count="27250" enchant="0"/>
+    <production id="1462" count="1" enchant="0"/>
+  </item>
+  <!-- S-G -->
+  <item id="30">
+   <ingredient id="57" count="725" enchant="0"/>
+    <production id="2130" count="1" enchant="0"/>
+  </item>
+  <!-- S-G -->
+  <item id="31">
+   <ingredient id="57" count="950" enchant="0"/>
+    <production id="2130" count="1" enchant="0"/>
+  </item>
+  <!-- S-G -->
+  <item id="32">
+   <ingredient id="57" count="7350" enchant="0"/>
+    <production id="2131" count="1" enchant="0"/>
+  </item>
+  <!-- S-G -->
+  <item id="33">
+   <ingredient id="57" count="27500" enchant="0"/>
+    <production id="2132" count="1" enchant="0"/>
+  </item>
+  <!-- A-G -->
+  <item id="34">
+    <ingredient id="57" count="35000" enchant="0"/>
+    <production id="2133" count="1" enchant="0"/>
+  </item>
+  <!-- S-G -->
+  <item id="35">
+   <ingredient id="57" count="137500" enchant="0"/>
+    <production id="2134" count="1" enchant="0"/>
+  </item>
+  <!-- Cursed Bone -->
+  <item id="36">
+    <ingredient id="57" count="500" enchant="0"/>
+    <production id="2508" count="1" enchant="0"/>
+  </item>
+ <!-- Cursed Bone -->
+  <item id="37">
+    <ingredient id="57" count="26000" enchant="0"/>
+    <production id="8873" count="1" enchant="0"/>
+  </item>
+ <!-- Cursed Bone -->
+  <item id="38">
+    <ingredient id="57" count="26000" enchant="0"/>
+    <production id="8874" count="1" enchant="0"/>
+  </item>
+ <!-- Cursed Bone -->
+  <item id="39">
+    <ingredient id="57" count="26000" enchant="0"/>
+    <production id="8875" count="1" enchant="0"/>
+  </item>
+ <!-- Cursed Bone -->
+  <item id="40">
+    <ingredient id="57" count="26000" enchant="0"/>
+    <production id="8876" count="1" enchant="0"/>
+  </item>
+  <!-- Spirit Ore  -->
+  <item id="41">
+    <ingredient id="57" count="400" enchant="0"/>
+    <production id="3031" count="1" enchant="0"/>
+  </item>
+  <!-- Energy Stone -->
+  <item id="42">
+    <ingredient id="57" count="100" enchant="0"/>
+    <production id="5589" count="1" enchant="0"/>
+  </item>
+  <item id="43">
+    <ingredient id="57" count="15000" enchant="0"/>
+    <production id="5703" count="1" enchant="0"/>
+  </item>
+  <item id="44">
+    <ingredient id="57" count="35000" enchant="0"/>
+    <production id="5803" count="1" enchant="0"/>
+  </item>
+  <item id="45">
+    <ingredient id="57" count="95000" enchant="0"/>
+    <production id="5804" count="1" enchant="0"/>
+  </item>
+  <item id="46">
+    <ingredient id="57" count="180000" enchant="0"/>
+    <production id="5805" count="1" enchant="0"/>
+  </item>
+  <item id="47">
+    <ingredient id="57" count="275000" enchant="0"/>
+    <production id="5806" count="1" enchant="0"/>
+  </item>
+</list>
