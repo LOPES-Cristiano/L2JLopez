@@ -11,6 +11,7 @@ import com.lopez.l2j.game.item.ItemRepository.StoredItem;
 import com.lopez.l2j.game.item.ItemTemplate;
 import com.lopez.l2j.game.item.ItemTemplateTable;
 import com.lopez.l2j.game.item.Paperdoll;
+import com.lopez.l2j.game.model.ClassId;
 import com.lopez.l2j.game.model.ObjectIdFactory;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -150,8 +151,7 @@ public class InventoryService {
 			addItem(inv, 5575, Config.STARTING_AA, "Init");
 		}
 		if (Config.CUSTOM_STARTER_ITEMS_ENABLED) {
-			boolean isMage = (classId >= 10 && classId <= 17) || (classId >= 25 && classId <= 30)
-					|| (classId >= 38 && classId <= 43) || (classId >= 49 && classId <= 52);
+			boolean isMage = ClassId.isMage(classId);
 			String customItems = isMage ? Config.STARTING_CUSTOM_ITEMS_MAGE : Config.STARTING_CUSTOM_ITEMS_FIGHTER;
 			if (customItems != null && !customItems.isBlank()) {
 				for (String entry : customItems.split(";")) {

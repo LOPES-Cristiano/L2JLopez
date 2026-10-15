@@ -175,4 +175,60 @@ public class CharacterVariablesService {
 			return 0;
 		}
 	}
+
+	// Suporte a variaveis globais do servidor (server_data - V113)
+	public String getServerVariable(String name, String defaultValue) {
+		if (name == null) return defaultValue;
+		try {
+			var list = jdbcTemplate.query("SELECT valueData FROM server_data WHERE valueName = ?",
+					(rs, rowNum) -> rs.getString("valueData"), name);
+			return list.isEmpty() ? defaultValue : list.get(0);
+		} catch (Exception ex) {
+			log.warn("Erro ao consultar server_data: {}", ex.getMessage());
+			return defaultValue;
+		}
+	}
+
+	public void setServerVariable(String name, String value) {
+		if (name == null || value == null) return;
+		try {
+			jdbcTemplate.update("""
+					INSERT INTO server_data (valueName, valueData) VALUES (?, ?)
+					ON DUPLICATE KEY UPDATE valueData = VALUES(valueData)
+					""", name, value);
+		} catch (Exception ex) {
+			try {
+				jdbcTemplate.update("DELETE FROM server_data WHERE valueName = ?", name);
+				jdbcTemplate.update("INSERT INTO server_data (valueName, valueData) VALUES (?, ?)", name, value);
+			} catch (Exception ignored) {}
+		}
+	}
+
+	// Suporte a variaveis globais de quests (quest_global_data - V107)
+	public String getQuestGlobalVariable(String questName, String var, String defaultValue) {
+		if (questName == null || var == null) return defaultValue;
+		try {
+			var list = jdbcTemplate.query("SELECT `value` FROM quest_global_data WHERE quest_name = ? AND var = ?",
+					(rs, rowNum) -> rs.getString("value"), questName, var);
+			return list.isEmpty() ? defaultValue : list.get(0);
+		} catch (Exception ex) {
+			log.warn("Erro ao consultar quest_global_data: {}", ex.getMessage());
+			return defaultValue;
+		}
+	}
+
+	public void setQuestGlobalVariable(String questName, String var, String value) {
+		if (questName == null || var == null || value == null) return;
+		try {
+			jdbcTemplate.update("""
+					INSERT INTO quest_global_data (quest_name, var, `value`) VALUES (?, ?, ?)
+					ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)
+					""", questName, var, value);
+		} catch (Exception ex) {
+			try {
+				jdbcTemplate.update("DELETE FROM quest_global_data WHERE quest_name = ? AND var = ?", questName, var);
+				jdbcTemplate.update("INSERT INTO quest_global_data (quest_name, var, `value`) VALUES (?, ?, ?)", questName, var, value);
+			} catch (Exception ignored) {}
+		}
+	}
 }
