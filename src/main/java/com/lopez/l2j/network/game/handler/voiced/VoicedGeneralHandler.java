@@ -78,7 +78,11 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 			"achieve",
 			"aiomenu",
 			"getaiogoods",
-			"offline"
+			"offline",
+			"fusion",
+			"gve",
+			"townwar",
+			"daily"
 	);
 
 	private final BankingService bankingService;
@@ -87,19 +91,31 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 	private final com.lopez.l2j.game.offlinefarm.OfflineFarmService offlineFarmService;
 	private DungeonService dungeonService;
 	private SoloFarmService soloFarmService;
+	private com.lopez.l2j.game.pve.FusionItemService fusionItemService;
+	private com.lopez.l2j.game.war.GvEService gveService;
+	private com.lopez.l2j.game.war.TownWarService townWarService;
+	private com.lopez.l2j.game.daily.DailyRewardService dailyRewardService;
 
 	public VoicedGeneralHandler() {
-		this(null, null, null, null);
+		this(null, null, null, null, null, null, null, null);
 	}
 
 	@Autowired(required = false)
 	public VoicedGeneralHandler(BankingService bankingService, AwayStatusService awayStatusService,
 								TournamentService tournamentService,
-								com.lopez.l2j.game.offlinefarm.OfflineFarmService offlineFarmService) {
+								com.lopez.l2j.game.offlinefarm.OfflineFarmService offlineFarmService,
+								@Autowired(required = false) com.lopez.l2j.game.pve.FusionItemService fusionItemService,
+								@Autowired(required = false) com.lopez.l2j.game.war.GvEService gveService,
+								@Autowired(required = false) com.lopez.l2j.game.war.TownWarService townWarService,
+								@Autowired(required = false) com.lopez.l2j.game.daily.DailyRewardService dailyRewardService) {
 		this.bankingService = bankingService != null ? bankingService : new BankingService();
 		this.awayStatusService = awayStatusService != null ? awayStatusService : new AwayStatusService();
 		this.tournamentService = tournamentService != null ? tournamentService : new TournamentService();
 		this.offlineFarmService = offlineFarmService != null ? offlineFarmService : new com.lopez.l2j.game.offlinefarm.OfflineFarmService();
+		this.fusionItemService = fusionItemService != null ? fusionItemService : new com.lopez.l2j.game.pve.FusionItemService();
+		this.gveService = gveService != null ? gveService : new com.lopez.l2j.game.war.GvEService();
+		this.townWarService = townWarService != null ? townWarService : new com.lopez.l2j.game.war.TownWarService();
+		this.dailyRewardService = dailyRewardService != null ? dailyRewardService : new com.lopez.l2j.game.daily.DailyRewardService();
 		this.dungeonService = new DungeonService();
 		this.soloFarmService = new SoloFarmService();
 	}
@@ -420,6 +436,27 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 				} else {
 					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel ativar o modo offline."));
 				}
+				return true;
+			}
+			case "fusion" -> {
+				session.send(new NpcHtmlMessage(0, fusionItemService.buildFusionListHtml(active)));
+				return true;
+			}
+			case "gve" -> {
+				session.send(new NpcHtmlMessage(0, gveService.getStatusHtml(active)));
+				return true;
+			}
+			case "townwar" -> {
+				session.send(new NpcHtmlMessage(0, townWarService.getStatusHtml()));
+				return true;
+			}
+			case "daily" -> {
+				if ("claim".equalsIgnoreCase(cleanParams)) {
+					var res = dailyRewardService.claimReward(active);
+					session.send(new CreatureSay(0, CreatureSay.ALL, "DailyReward", res.message()));
+					return true;
+				}
+				session.send(new NpcHtmlMessage(0, dailyRewardService.getStatusHtml(active)));
 				return true;
 			}
 			default -> {

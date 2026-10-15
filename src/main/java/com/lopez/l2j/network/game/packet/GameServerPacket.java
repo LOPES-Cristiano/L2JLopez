@@ -2112,7 +2112,10 @@ public sealed interface GameServerPacket {
 	record MultiSellList(int listId, int page, int finished, int pageSize, List<MultiSellEntryView> entries)
 			implements GameServerPacket {
 
-		public record MultiSellEntryView(int entryId, List<ItemView> ingredients, List<ItemView> products) {
+		public record MultiSellEntryView(int entryId, boolean stackable, List<ItemView> ingredients, List<ItemView> products) {
+			public MultiSellEntryView(int entryId, List<ItemView> ingredients, List<ItemView> products) {
+				this(entryId, true, ingredients, products);
+			}
 		}
 
 		public record ItemView(int itemId, int bodyPart, int type2, long count, int enchant) {
@@ -2126,7 +2129,7 @@ public sealed interface GameServerPacket {
 				w.writeD(ent.entryId());
 				w.writeD(0);
 				w.writeD(0);
-				w.writeC(1);
+				w.writeC(ent.stackable() ? 1 : 0);
 				w.writeH(ent.products().size());
 				w.writeH(ent.ingredients().size());
 				for (var p : ent.products()) {
@@ -3115,7 +3118,7 @@ public sealed interface GameServerPacket {
 	record SendMacroList(int revision, int count, com.lopez.l2j.game.macro.Macro macro) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
-			PacketWriter w = new PacketWriter().writeC(0xe8);
+			PacketWriter w = new PacketWriter().writeC(0xe7);
 			w.writeD(revision);
 			w.writeC(0);
 			w.writeC(count);
@@ -3463,6 +3466,22 @@ public sealed interface GameServerPacket {
 					.writeD(classId)
 					.writeD(curHp).writeD(maxHp)
 					.writeD(curCp).writeD(maxCp)
+					.toByteArray();
+		}
+	}
+
+	/** 0xfe:0x38 ExShowScreenMessage: exibe mensagem grande na tela do cliente. */
+	record ExShowScreenMessage(int type, int sysMessageId, int position, int unk1, int size, int unk2, int unk3, boolean showEffect, int time, boolean fade, String text) implements GameServerPacket {
+		public ExShowScreenMessage(String text, int time) {
+			this(1, -1, 2, 0, 0, 0, 0, false, time, false, text);
+		}
+
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x38)
+					.writeD(type).writeD(sysMessageId).writeD(position).writeD(unk1).writeD(size)
+					.writeD(unk2).writeD(unk3).writeD(showEffect ? 1 : 0).writeD(time).writeD(fade ? 1 : 0)
+					.writeS(text != null ? text : "")
 					.toByteArray();
 		}
 	}

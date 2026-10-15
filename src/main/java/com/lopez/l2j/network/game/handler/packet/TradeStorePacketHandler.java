@@ -525,7 +525,8 @@ public class TradeStorePacketHandler {
 			session.send(new ActionFailed());
 			return;
 		}
-		var entryOpt = containerOpt.get().entries().stream().filter(e -> e.entryId() == p.entryId()).findFirst();
+		var container = containerOpt.get();
+		var entryOpt = container.entries().stream().filter(e -> e.entryId() == p.entryId()).findFirst();
 		if (entryOpt.isEmpty()) {
 			session.send(new ActionFailed());
 			return;
@@ -535,22 +536,97 @@ public class TradeStorePacketHandler {
 
 		// 1. Agrega ingredientes por itemId e valida quantidades totais necessarias
 		Map<Integer, Long> aggregatedIngredients = new HashMap<>();
+		Map<Integer, Long> maintainedIngredients = new HashMap<>();
+		long clanRepNeeded = 0L;
 		for (var ing : entry.ingredients()) {
+			if (ing.isTaxIngredient()) {
+				continue;
+			}
+			if (ing.maintainIngredient()) {
+				if (!Config.ALT_BLACKSMITH_USE_RECIPES) {
+					var tmpl = ctx.inventories() != null && ctx.inventories().templates() != null
+							? ctx.inventories().templates().get(ing.itemId()).orElse(null)
+							: null;
+					if (tmpl == null || tmpl.type2() == ItemTemplate.TYPE2_OTHER) {
+						continue;
+					}
+				}
+				maintainedIngredients.merge(ing.itemId(), Math.max(1L, ing.count()), Long::max);
+				continue;
+			}
 			long needed = (long) ing.count() * amount;
 			if (needed <= 0 || needed > Integer.MAX_VALUE) {
 				session.send(new ActionFailed());
 				return;
 			}
-			aggregatedIngredients.merge(ing.itemId(), needed, Long::sum);
+			if (ing.itemId() == -200 || ing.itemId() == 65336) {
+				clanRepNeeded += needed;
+			} else if (ing.itemId() == -100 || ing.itemId() == 65436 || ing.itemId() == -300) {
+				// PC Bang Points / Fame especiais
+				continue;
+			} else {
+				aggregatedIngredients.merge(ing.itemId(), needed, Long::sum);
+			}
 		}
 
+		// Valida Clan Reputation (-200) se exigido
+		com.lopez.l2j.game.clan.Clan playerClan = null;
+		if (clanRepNeeded > 0) {
+			if (active.clanId() <= 0 || ctx.clans() == null) {
+				session.send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
+				session.send(new ActionFailed());
+				return;
+			}
+			playerClan = ctx.clans().byClanId(active.clanId()).orElse(null);
+			if (playerClan == null || playerClan.reputationScore() < clanRepNeeded) {
+				session.send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
+				session.send(new ActionFailed());
+				return;
+			}
+		}
+
+		// Valida ingredientes mantidos (ex: recipes em maintainIngredient)
+		for (var maintEntry : maintainedIngredients.entrySet()) {
+			long needed = maintEntry.getValue();
+			long count = active.inventory().items().stream()
+					.filter(i -> !i.isEquipped() && i.itemId() == maintEntry.getKey())
+					.mapToLong(ItemInstance::count)
+					.sum();
+			if (count < needed) {
+				session.send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
+				session.send(new ActionFailed());
+				return;
+			}
+		}
+
+		// Valida ingredientes consumiveis e rastreia enchantLevel se maintainEnchantment=true
+		int preservedEnchant = 0;
+		com.lopez.l2j.game.augmentation.Augmentation preservedAugmentation = null;
 		for (var ingEntry : aggregatedIngredients.entrySet()) {
+			int itemId = ingEntry.getKey();
 			long needed = ingEntry.getValue();
-			long count = active.inventory().byItemId(ingEntry.getKey()).map(i -> (long) i.count()).orElse(0L);
+			long count = active.inventory().items().stream()
+					.filter(i -> !i.isEquipped() && i.itemId() == itemId)
+					.mapToLong(ItemInstance::count)
+					.sum();
 			if (count < needed || needed > Integer.MAX_VALUE) {
 				session.send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
 				session.send(new ActionFailed());
 				return;
+			}
+			if (container.maintainEnchantment()) {
+				for (var invItem : active.inventory().items()) {
+					if (!invItem.isEquipped() && invItem.itemId() == itemId
+							&& invItem.template() != null && !invItem.template().stackable()) {
+						if (invItem.enchant() > preservedEnchant) {
+							preservedEnchant = invItem.enchant();
+						}
+						if (invItem.augmentation() != null && preservedAugmentation == null) {
+							preservedAugmentation = invItem.augmentation();
+						}
+						break;
+					}
+				}
 			}
 		}
 
@@ -579,6 +655,11 @@ public class TradeStorePacketHandler {
 			return;
 		}
 
+		if (clanRepNeeded > 0 && playerClan != null) {
+			playerClan.reputationScore(playerClan.reputationScore() - (int) clanRepNeeded);
+			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.PledgeShowInfoUpdate(playerClan));
+		}
+
 		List<ItemInfo> updates = new ArrayList<>();
 		// 3. Consome os ingredientes agregados
 		for (var ingEntry : aggregatedIngredients.entrySet()) {
@@ -590,17 +671,32 @@ public class TradeStorePacketHandler {
 			}
 		}
 
-		// 4. Adiciona os produtos
+		// 4. Adiciona os produtos (preservando encantamento/augment quando aplicavel)
 		for (var prod : entry.products()) {
 			long totalAdd = (long) prod.count() * amount;
+			int targetEnchant = prod.enchantLevel() > 0 ? prod.enchantLevel()
+					: (container.maintainEnchantment() ? preservedEnchant : 0);
 			var added = ctx.inventories().addItem(active.inventory(), prod.itemId(), (int) totalAdd, "MultiSell");
 			if (added != null) {
-				if (added.allItems() != null && !added.allItems().isEmpty()) {
-					for (var item : added.allItems()) {
-						updates.add(ItemInfo.of(item, added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+				List<ItemInstance> createdItems = (added.allItems() != null && !added.allItems().isEmpty())
+						? added.allItems()
+						: (added.item() != null ? List.of(added.item()) : List.of());
+				for (var item : createdItems) {
+					if (item.template() != null && !item.template().stackable()) {
+						boolean changed = false;
+						if (targetEnchant > 0) {
+							item.enchant(targetEnchant);
+							changed = true;
+						}
+						if (container.maintainEnchantment() && preservedAugmentation != null && item.augmentation() == null) {
+							item.augmentation(preservedAugmentation);
+							changed = true;
+						}
+						if (changed) {
+							ctx.inventories().saveItem(item);
+						}
 					}
-				} else {
-					updates.add(ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+					updates.add(ItemInfo.of(item, added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
 				}
 			}
 			session.send(SystemMessage.of(SystemMessage.YOU_PICKED_UP_S1_S2,
@@ -737,25 +833,92 @@ public class TradeStorePacketHandler {
 			return;
 		}
 		var container = containerOpt.get();
+		PlayerCharacter active = session.activeChar();
 		List<MultiSellList.MultiSellEntryView> views = new ArrayList<>();
 		for (var entry : container.entries()) {
 			List<MultiSellList.ItemView> ingredients = new ArrayList<>();
+			int preservedEnchant = 0;
+			long mergedAdena = 0L;
+			int adenaViewIndex = -1;
+
 			for (var ing : entry.ingredients()) {
-				var t = ctx.inventories().templates().get(ing.itemId()).orElse(null);
-				int type2 = t != null ? t.type2() : 0;
-				ingredients.add(new MultiSellList.ItemView(ing.itemId(), 0, type2, ing.count(), ing.enchantLevel()));
+				if (ing.isTaxIngredient()) {
+					continue;
+				}
+				var t = (ctx.inventories() != null && ctx.inventories().templates() != null && ing.itemId() > 0)
+						? ctx.inventories().templates().get(ing.itemId()).orElse(null)
+						: null;
+				if (ing.maintainIngredient() && !Config.ALT_BLACKSMITH_USE_RECIPES) {
+					if (t == null || t.type2() == ItemTemplate.TYPE2_OTHER) {
+						continue;
+					}
+				}
+				int type2;
+				if (ing.itemId() < 0 || ing.itemId() == 65336 || ing.itemId() == 65436) {
+					type2 = 65535;
+				} else {
+					type2 = t != null ? t.type2() : 0;
+				}
+				int ingEnchant = ing.enchantLevel();
+				if (container.maintainEnchantment() && active != null && active.inventory() != null
+						&& t != null && !t.stackable()) {
+					for (var invItem : active.inventory().items()) {
+						if (!invItem.isEquipped() && invItem.itemId() == ing.itemId() && invItem.enchant() > ingEnchant) {
+							ingEnchant = invItem.enchant();
+							break;
+						}
+					}
+					if (ingEnchant > preservedEnchant) {
+						preservedEnchant = ingEnchant;
+					}
+				}
+				if (ing.itemId() == 57 && !ing.maintainIngredient()) {
+					if (adenaViewIndex < 0) {
+						adenaViewIndex = ingredients.size();
+						ingredients.add(new MultiSellList.ItemView(57, 0, type2, ing.count(), ingEnchant));
+					}
+					mergedAdena += ing.count();
+				} else {
+					ingredients.add(new MultiSellList.ItemView(ing.itemId(), 0, type2, ing.count(), ingEnchant));
+				}
 			}
+			if (adenaViewIndex >= 0) {
+				var prevAdena = ingredients.get(adenaViewIndex);
+				ingredients.set(adenaViewIndex, new MultiSellList.ItemView(
+						57, 0, prevAdena.type2(), mergedAdena, prevAdena.enchant()));
+			}
+
 			List<MultiSellList.ItemView> products = new ArrayList<>();
+			boolean stackable = true;
 			for (var prod : entry.products()) {
-				var t = ctx.inventories().templates().get(prod.itemId()).orElse(null);
+				var t = (ctx.inventories() != null && ctx.inventories().templates() != null && prod.itemId() > 0)
+						? ctx.inventories().templates().get(prod.itemId()).orElse(null)
+						: null;
 				int bodyPart = t != null ? t.bodyPart() : 0;
 				int type2 = t != null ? t.type2() : 0;
+				if (t != null && !t.stackable()) {
+					stackable = false;
+				}
+				int prodEnchant = prod.enchantLevel() > 0 ? prod.enchantLevel()
+						: (container.maintainEnchantment() && t != null && !t.stackable() ? preservedEnchant : 0);
 				products.add(
-						new MultiSellList.ItemView(prod.itemId(), bodyPart, type2, prod.count(), prod.enchantLevel()));
+						new MultiSellList.ItemView(prod.itemId(), bodyPart, type2, prod.count(), prodEnchant));
 			}
-			views.add(new MultiSellList.MultiSellEntryView(entry.entryId(), ingredients, products));
+			views.add(new MultiSellList.MultiSellEntryView(entry.entryId(), stackable, ingredients, products));
 		}
-		session.send(new MultiSellList(listId, 1, 1, 40, views));
+
+		final int pageSize = 40;
+		if (views.isEmpty()) {
+			session.send(new MultiSellList(listId, 1, 1, pageSize, List.of()));
+			return;
+		}
+		int total = views.size();
+		int page = 1;
+		for (int i = 0; i < total; i += pageSize) {
+			int end = Math.min(i + pageSize, total);
+			int finished = (end >= total) ? 1 : 0;
+			session.send(new MultiSellList(listId, page++, finished, pageSize, views.subList(i, end)));
+		}
 	}
 
 	public void showSellList(NpcInstance npc) {
