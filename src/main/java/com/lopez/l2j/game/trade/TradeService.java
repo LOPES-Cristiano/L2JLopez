@@ -463,7 +463,7 @@ public class TradeService {
 		if (player != null && player.race() == 4) { // Dwarf
 			return Math.max(1, com.lopez.l2j.config.Config.MAX_WAREHOUSE_SLOTS_FOR_DWARF);
 		}
-		return Math.max(1, com.lopez.l2j.config.Config.MAX_WAREHOUSE_SLOTS_FOR_NO_DWARF);
+		return Math.max(1, com.lopez.l2j.config.Config.MAX_WAREHOUSE_SLOTS_FOR_OTHER);
 	}
 
 	public boolean isWarehouseSortingEnabled(boolean isClan, boolean isFreight) {

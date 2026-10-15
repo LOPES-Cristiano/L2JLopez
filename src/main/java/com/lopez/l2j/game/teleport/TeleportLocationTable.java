@@ -10,7 +10,9 @@ import java.util.Optional;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -25,10 +27,42 @@ public class TeleportLocationTable {
 	private static final Logger log = LoggerFactory.getLogger(TeleportLocationTable.class);
 
 	private final Map<Integer, TeleportLocation> teleports = new HashMap<>();
+	private final JdbcClient jdbc;
 
 	public TeleportLocationTable(
 			@Value("${l2.datapack.teleports-file:data/xml/world/teleports.xml}") String filePath) {
+		this(filePath, null);
+	}
+
+	@Autowired
+	public TeleportLocationTable(
+			@Value("${l2.datapack.teleports-file:data/xml/world/teleports.xml}") String filePath,
+			@Autowired(required = false) JdbcClient jdbc) {
+		this.jdbc = jdbc;
 		load(filePath);
+		loadFromDb();
+	}
+
+	public void loadFromDb() {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("SELECT id, loc_x, loc_y, loc_z, price, fornoble FROM custom_teleports")
+					.query((rs, i) -> {
+						int id = rs.getInt("id");
+						int x = rs.getInt("loc_x");
+						int y = rs.getInt("loc_y");
+						int z = rs.getInt("loc_z");
+						int price = rs.getInt("price");
+						boolean noble = rs.getInt("fornoble") == 1;
+						teleports.put(id, new TeleportLocation(id, x, y, z, price, noble));
+						return null;
+					}).list();
+			log.info("TeleportLocationTable: carregados pontos customizados de custom_teleports (total: {})", teleports.size());
+		} catch (Exception e) {
+			log.debug("TeleportLocationTable: custom_teleports indisponivel: {}", e.getMessage());
+		}
 	}
 
 	public void load(String filePath) {
