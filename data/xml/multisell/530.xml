@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+
+<!-- Coupon exchange for newbie traveler Shadow Items -->
+
+<list>
+    <config showall="false" notax="true" ignoreprice="true" keepenchanted="false" />
+    <!-- Shadow Item: Apprentice's Staff -->
+    <item>
+        <production id="7832" count="1"/>
+        <ingredient id="7816" count="1"/>
+    </item>
+    <!-- Shadow Item: Bone Club -->
+    <item>
+        <production id="7832" count="1"/>
+        <ingredient id="7817" count="1"/>
+    </item>
+    <!-- Shadow Item: Shining Knife -->
+    <item>
+        <production id="7832" count="1"/>
+        <ingredient id="7818" count="1"/>
+    </item>
+    <!-- Shadow Item: Cestus -->
+    <item>
+        <production id="7832" count="1"/>
+        <ingredient id="7819" count="1"/>
+    </item>
+    <!-- Shadow Item: Forest Bow -->
+    <item>
+        <production id="7832" count="1"/>
+        <ingredient id="7820" count="1"/>
+    </item>
+    <!-- Shadow Item: Long Sword -->
+    <item>
+        <production id="7832" count="1"/>
+        <ingredient id="7821" count="1"/>
+    </item>
+</list>
