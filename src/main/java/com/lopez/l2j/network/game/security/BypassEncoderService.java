@@ -213,9 +213,12 @@ public class BypassEncoderService {
 	}
 
 	private boolean isCommonNpcChatBypass(String command) {
-		return command.startsWith("npc_") || command.startsWith("Chat ") || command.startsWith("Quest ")
-				|| command.startsWith("menu_select?") || command.startsWith("link ")
-				|| command.startsWith("admin_") || command.startsWith("voiced_")
-				|| command.startsWith("multisell") || command.startsWith("exc_multisell");
+		String lower = command.toLowerCase(java.util.Locale.ROOT);
+		return lower.startsWith("npc_") || lower.startsWith("chat ") || lower.startsWith("quest ")
+				|| lower.startsWith("menu_select?") || lower.startsWith("link ")
+				|| lower.startsWith("admin_") || lower.startsWith("voiced_")
+				|| lower.startsWith("multisell") || lower.startsWith("exc_multisell")
+				|| lower.startsWith("newbie_exc_multisell") || lower.startsWith("multisell_shadow")
+				|| lower.startsWith("buyshadow") || lower.startsWith("exchange");
 	}
 }

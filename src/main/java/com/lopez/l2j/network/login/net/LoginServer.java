@@ -70,6 +70,14 @@ public class LoginServer implements SmartLifecycle {
 		return s == null ? port : s.getLocalPort();
 	}
 
+	public String databasePoolConfigSummary() {
+		int maxConns = Config.LOGIN_MAX_DB_CONNECTIONS > 0
+				? Config.LOGIN_MAX_DB_CONNECTIONS
+				: Config.MAXIMUM_DB_CONNECTIONS;
+		boolean hasPass = Config.DB_PASSWORD != null && !Config.DB_PASSWORD.isEmpty();
+		return Config.DB_DRIVER + "|" + Config.DB_URL + "|" + Config.DB_LOGIN + "|pass=" + hasPass + "|max=" + maxConns;
+	}
+
 	@Override
 	public synchronized void start() {
 		if (running) {

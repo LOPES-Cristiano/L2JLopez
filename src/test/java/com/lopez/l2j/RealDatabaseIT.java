@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.lopez.l2j.features.achievements.AchievementProgressStore;
+import com.lopez.l2j.game.achievements.AchievementsService;
 import com.lopez.l2j.network.login.crypt.LegacyPasswordHasher;
 import com.lopez.l2j.network.login.service.AccountStore;
 import com.lopez.l2j.network.login.service.AuthResult;
@@ -19,9 +19,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 /**
- * Integracao contra o MySQL/MariaDB REAL (perfil padrao: Flyway ligado, variaveis L2_DB_URL/USER/PASSWORD).
- * Desligado por padrao para o build nao depender de banco; rode com {@code L2_IT=true ./mvnw test -Dtest=RealDatabaseIT} (o surefire nao pega *IT por padrao).
- * Usa o schema configurado: cria somente linhas com prefixo "it_" / ids altos e remove no fim.
+ * Integracao contra o MySQL/MariaDB REAL (perfil padrao: Flyway ligado,
+ * variaveis L2_DB_URL/USER/PASSWORD).
+ * Desligado por padrao para o build nao depender de banco; rode com
+ * {@code L2_IT=true ./mvnw test -Dtest=RealDatabaseIT} (o surefire nao pega *IT
+ * por padrao).
+ * Usa o schema configurado: cria somente linhas com prefixo "it_" / ids altos e
+ * remove no fim.
  */
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "L2_IT", matches = "true")
@@ -34,7 +38,7 @@ class RealDatabaseIT {
 	@Autowired
 	AccountStore accounts;
 	@Autowired
-	AchievementProgressStore achievements;
+	AchievementsService achievements;
 	@Autowired
 	LoginAccountService login;
 
