@@ -1,68 +1,69 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 
-<!-- Created with Lineage II - Multisell Manager -->
-<!-- © 2007 by tReXpert -->
+<!-- Apella Clan Armors -->
 
 <list>
 
-  <!-- Recipe: Angel Slayer (60%) -->    
-  <item id="1">
-    <ingredient id="57" count="1"/>
-    <production id="6887" count="1"/>
-  </item>
+<config showall="true" notax="false" ignoreprice="true" keepenchanted="false" />
 
-  <!-- Recipe: Arcana Mace (60%) -->
-  <item id="2">
-    <ingredient id="57" count="1"/>
-    <production id="6899" count="1"/>
-  </item>
+	<!-- Sealed Apella Helmet -->
+	<item id="1">
+		<production id="7870" count="1"/>
+		<ingredient id="-200" count="3480"/>
+	</item>
 
-  <!-- Recipe: Basalt Battlehammer (60%) -->
-  <item id="3">
-    <ingredient id="57" count="1"/>
-    <production id="6883" count="1"/>
-  </item>
+	<!-- Sealed Apella Plate Armor -->
+	<item id="2">
+		<production id="7871" count="1"/>
+		<ingredient id="-200" count="13540"/>
+	</item>
 
-  <!-- Recipe: Demon Splinter (60%) -->
-  <item id="4">
-    <ingredient id="57" count="1"/>
-    <production id="6895" count="1"/>
-  </item>
+	<!-- Sealed Apella Gauntlet -->
+	<item id="3">
+		<production id="7872" count="1"/>
+		<ingredient id="-200" count="2320"/>
+	</item>
 
-  <!-- Recipe: Draconic Bow (60%) -->
-  <item id="5">
-    <ingredient id="57" count="1"/>
-    <production id="7580" count="1"/>
-  </item>
+	<!-- Sealed Apella Solleret -->
+	<item id="4">
+		<production id="7873" count="1"/>
+		<ingredient id="-200" count="2320"/>
+	</item>
 
-  <!-- Recipe: Dragon Hunter Axe (60%) -->
-  <item id="6">
-    <ingredient id="57" count="1"/>
-    <production id="6891" count="1"/>
-  </item>
+	<!-- Sealed Apella Brigandine -->
+	<item id="5">
+		<production id="7874" count="1"/>
+		<ingredient id="-200" count="10160"/>
+	</item>
 
-  <!-- Recipe: Forgotten Blade (60%) -->
-  <item id="7">
-    <ingredient id="57" count="1"/>
-    <production id="6881" count="1"/>
-  </item>
+	<!-- Sealed Apella Leather Gloves -->
+	<item id="6">
+		<production id="7875" count="1"/>
+		<ingredient id="-200" count="2320"/>
+	</item>
 
-  <!-- Recipe: Heavens Divider (60%) -->
-  <item id="8">
-    <ingredient id="57" count="1"/>
-    <production id="6897" count="1"/>
-  </item>
+	<!-- Sealed Apella Boots -->
+	<item id="7">
+		<production id="7876" count="1"/>
+		<ingredient id="-200" count="2320"/>
+	</item>
 
-  <!-- Recipe: Imperial Staff (60%) -->
-  <item id="9">
-    <ingredient id="57" count="1"/>
-    <production id="6885" count="1"/>
-  </item>
+	<!-- Sealed Apella Doublet -->
+	<item id="8">
+		<production id="7877" count="1"/>
+		<ingredient id="-200" count="10160"/>
+	</item>
 
-  <!-- Recipe: Saint Spear (60%) -->
-  <item id="10">
-    <ingredient id="57" count="1"/>
-    <production id="6893" count="1"/>
-  </item>
+	<!-- Sealed Apella Silk Gloves -->
+	<item id="9">
+		<production id="7878" count="1"/>
+		<ingredient id="-200" count="2320"/>
+	</item>
+
+	<!-- Sealed Apella Sandals Robe -->
+	<item id="10">
+		<production id="7879" count="1"/>
+		<ingredient id="-200" count="2320"/>
+	</item>
 
 </list>
