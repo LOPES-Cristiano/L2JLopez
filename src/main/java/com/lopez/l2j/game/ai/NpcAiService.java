@@ -212,10 +212,12 @@ public class NpcAiService {
 		}
 		String factionId = npc.template().factionId();
 		boolean hasFaction = factionId != null && !factionId.isBlank() && !"null".equalsIgnoreCase(factionId);
-		int factionRange = (hasFaction && npc.template().factionRange() > 0) ? npc.template().factionRange() : 400;
-		int searchRadius = Math.max(400, factionRange);
+		int factionRange = npc.template().factionRange();
+		if (!hasFaction || factionRange <= 0) {
+			return;
+		}
 
-		var nearby = world.findNpcsAround(npc.x(), npc.y(), searchRadius);
+		var nearby = world.findNpcsAround(npc.x(), npc.y(), factionRange);
 		for (NpcInstance ally : nearby) {
 			if (ally == npc || ally.isDead() || ally.inCombat() || !ally.isMonster()) {
 				continue;
@@ -228,11 +230,10 @@ public class NpcAiService {
 				continue;
 			}
 			double dist2d = Math.hypot(ally.x() - npc.x(), ally.y() - npc.y());
-			boolean sameFaction = hasFaction && ally.template() != null
+			boolean sameFaction = ally.template() != null
 					&& factionId.equalsIgnoreCase(ally.template().factionId()) && dist2d <= factionRange;
-			boolean sameNpcClan = (ally.npcId() > 0 && ally.npcId() == npc.npcId() && dist2d <= 400.0);
 
-			if (sameFaction || sameNpcClan) {
+			if (sameFaction) {
 				if (!hasLoS(ally.x(), ally.y(), ally.z(), npc.x(), npc.y(), npc.z())) {
 					continue;
 				}

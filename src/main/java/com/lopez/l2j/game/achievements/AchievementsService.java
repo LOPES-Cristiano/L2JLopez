@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -141,6 +142,19 @@ public class AchievementsService {
 	public boolean hasCompleted(int playerId, int achievementId) {
 		Map<Integer, PlayerAchievement> completed = getPlayerAchievements(playerId);
 		return completed.containsKey(achievementId);
+	}
+
+	public synchronized void recordCompletion(int playerId, int achievementId) {
+		Map<Integer, PlayerAchievement> completed = playerProgress.computeIfAbsent(playerId, this::loadFromDatabase);
+		PlayerAchievement existing = completed.get(achievementId);
+		int newTimes = (existing == null ? 1 : existing.timesCompleted() + 1);
+		PlayerAchievement pa = new PlayerAchievement(playerId, achievementId, newTimes, Instant.now());
+		completed.put(achievementId, pa);
+		saveToDatabase(pa);
+	}
+
+	public Set<Integer> completedIds(int playerId) {
+		return getPlayerAchievements(playerId).keySet();
 	}
 
 	public boolean meetsRequirement(AchievementDef def, PlayerCharacter player, long currentAdena, int raidKills, int weaponEnchant, long onlineHours) {

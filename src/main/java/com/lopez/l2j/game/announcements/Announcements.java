@@ -22,8 +22,15 @@ public class Announcements {
 
 	private final List<String> announcements = new CopyOnWriteArrayList<>();
 	private final List<String> autoAnnouncements = new CopyOnWriteArrayList<>();
+	private final org.springframework.jdbc.core.simple.JdbcClient jdbc;
 
 	public Announcements() {
+		this(null);
+	}
+
+	@org.springframework.beans.factory.annotation.Autowired
+	public Announcements(@org.springframework.beans.factory.annotation.Autowired(required = false) org.springframework.jdbc.core.simple.JdbcClient jdbc) {
+		this.jdbc = jdbc;
 		// Anuncios padrao de boas-vindas
 		announcements.add("Bem-vindo ao L2JLopez Interlude Server!");
 		announcements.add("Digite .menu ou .stats para visualizar seus atributos e .classmaster para avancar de classe.");
@@ -33,8 +40,22 @@ public class Announcements {
 	}
 
 	public void loadAutoAnnouncements() {
-		if (!Config.LOAD_AUTO_ANNOUNCE_AT_STARTUP) {
-			return;
+		if (jdbc != null) {
+			try {
+				var rows = jdbc.sql("SELECT memo FROM auto_announcements").query().listOfRows();
+				for (var row : rows) {
+					String memo = (String) row.get("memo");
+					if (memo != null && !memo.isBlank() && !autoAnnouncements.contains(memo.trim())) {
+						autoAnnouncements.add(memo.trim());
+					}
+				}
+				if (!rows.isEmpty()) {
+					log.info("Announcements: {} auto-anúncios carregados de auto_announcements", rows.size());
+					return;
+				}
+			} catch (Exception ex) {
+				log.warn("Nao foi possivel carregar auto_announcements: {}", ex.getMessage());
+			}
 		}
 		if (autoAnnouncements.isEmpty()) {
 			autoAnnouncements.addAll(announcements);
