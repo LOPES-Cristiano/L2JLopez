@@ -1,0 +1,130 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<!-- Blacksmith of Mammon - Weapon Exchange -->
+<!-- MULTISELL - [ssq_weapon_yupgrade] -->
+<list>
+    <config showall="false" notax="true" keepenchanted="True" />
+    <item>
+        <ingredient id="6687" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6679" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6687" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6683" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6679" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6683" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6679" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6687" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6683" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6687" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6683" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6679" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6682" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6686" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6682" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6677" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6686" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6677" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6686" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6682" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6677" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6682" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6677" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6686" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6685" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6681" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6685" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6676" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6681" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6685" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6681" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6676" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6676" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6681" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6676" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6685" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6674" count="1"/>
+		<ingredient id="6675" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6680" count="1"/>
+    </item>
+    <item>
+	    <ingredient id="6674" count="1"/>
+        <ingredient id="6675" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6684" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6680" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6674" count="1"/>
+		<production id="6675" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6680" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6684" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6684" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6674" count="1"/>
+		<production id="6675" count="1"/>
+    </item>
+    <item>
+        <ingredient id="6684" count="1"/>
+        <ingredient id="57" count="50000000"/>
+        <production id="6680" count="1"/>
+    </item>
+</list>
