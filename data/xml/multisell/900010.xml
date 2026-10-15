@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- Sell Crystal -->
+<list maintainEnchantment="true" applyTaxes="true">
+	<item id="1"> <!-- Crystal: D-Grade -->
+		<production id="1458" count="1"/>
+		<ingredient id="57" count="650"/>
+	</item>
+	<item id="2"> <!-- Crystal: C-Grade -->
+		<production id="1459" count="1"/>
+		<ingredient id="57" count="3000"/>
+	</item>
+	<item id="3"> <!-- Crystal: B-Grade -->
+		<production id="1460" count="1"/>
+		<ingredient id="57" count="9000"/>
+	</item>
+</list>
