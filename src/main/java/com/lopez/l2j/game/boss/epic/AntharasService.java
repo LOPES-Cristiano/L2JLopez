@@ -267,6 +267,9 @@ public class AntharasService {
 	}
 
 	public synchronized void onAntharasKilled(PlayerCharacter killer) {
+		if (status == BossStatus.INTERVAL) {
+			return;
+		}
 		status = BossStatus.INTERVAL;
 		if (arrivalTask != null) arrivalTask.cancel(false);
 		if (minionTask != null) minionTask.cancel(false);

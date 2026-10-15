@@ -268,6 +268,9 @@ public class BaiumService {
 	}
 
 	public synchronized void onBaiumKilled(PlayerCharacter killer) {
+		if (status == BossStatus.INTERVAL) {
+			return;
+		}
 		status = BossStatus.INTERVAL;
 		if (sleepCheckTask != null) {
 			sleepCheckTask.cancel(false);

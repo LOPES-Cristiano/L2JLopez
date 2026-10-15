@@ -209,11 +209,6 @@ public class RaidBossSpawnManager {
 		}
 		int bossId = npc.npcId();
 
-		// Se for Grand Boss registrado no GrandBossManager, notifica-o tambem
-		if (grandBossManager != null && grandBossManager.isGrandBoss(bossId)) {
-			grandBossManager.onBossKilled(bossId);
-		}
-
 		RaidBossRecord rec = storedInfo.get(bossId);
 		if (rec == null) {
 			return;
