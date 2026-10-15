@@ -37,8 +37,15 @@ public class RecipeService {
 	private final Map<Integer, RecipeEntry> recipesByItemId = new ConcurrentHashMap<>();
 	private final Map<Integer, Set<Integer>> dwarvenBookByChar = new ConcurrentHashMap<>();
 	private final Map<Integer, Set<Integer>> commonBookByChar = new ConcurrentHashMap<>();
+	private final org.springframework.jdbc.core.simple.JdbcClient jdbc;
 
 	public RecipeService() {
+		this(null);
+	}
+
+	@org.springframework.beans.factory.annotation.Autowired
+	public RecipeService(@org.springframework.beans.factory.annotation.Autowired(required = false) org.springframework.jdbc.core.simple.JdbcClient jdbc) {
+		this.jdbc = jdbc;
 		instance = this;
 		loadRecipes();
 	}
@@ -325,7 +332,20 @@ public class RecipeService {
 		}
 		Map<Integer, Set<Integer>> targetMap = recipe.isDwarven() ? dwarvenBookByChar : commonBookByChar;
 		Set<Integer> book = targetMap.computeIfAbsent(charId, k -> ConcurrentHashMap.newKeySet());
-		return book.add(recipeId);
+		boolean added = book.add(recipeId);
+		if (added && jdbc != null) {
+			try {
+				int type = recipe.isDwarven() ? 0 : 1;
+				jdbc.sql("INSERT INTO character_recipebook (charId, id, type) VALUES (:cId, :rId, :t) ON DUPLICATE KEY UPDATE type = VALUES(type)")
+						.param("cId", charId)
+						.param("rId", recipeId)
+						.param("t", type)
+						.update();
+			} catch (Exception ex) {
+				log.debug("character_recipebook insert: {}", ex.getMessage());
+			}
+		}
+		return added;
 	}
 
 	public boolean isCraftingEnabled() {
@@ -386,6 +406,16 @@ public class RecipeService {
 		boolean removedCommon = Optional.ofNullable(commonBookByChar.get(charId))
 				.map(s -> s.remove(recipeId))
 				.orElse(false);
+		if ((removedDwarven || removedCommon) && jdbc != null) {
+			try {
+				jdbc.sql("DELETE FROM character_recipebook WHERE charId = :cId AND id = :rId")
+						.param("cId", charId)
+						.param("rId", recipeId)
+						.update();
+			} catch (Exception ex) {
+				log.debug("character_recipebook delete: {}", ex.getMessage());
+			}
+		}
 		return removedDwarven || removedCommon;
 	}
 
@@ -396,17 +426,53 @@ public class RecipeService {
 		}
 		Map<Integer, Set<Integer>> targetMap = recipe.isDwarven() ? dwarvenBookByChar : commonBookByChar;
 		Set<Integer> book = targetMap.get(charId);
+		if (book == null && jdbc != null) {
+			loadRecipeBookFromDb(charId);
+			book = targetMap.get(charId);
+		}
 		return book != null && book.contains(recipeId);
 	}
 
 	public List<Integer> getRecipeBook(int charId, boolean isDwarven) {
 		Map<Integer, Set<Integer>> targetMap = isDwarven ? dwarvenBookByChar : commonBookByChar;
 		Set<Integer> book = targetMap.get(charId);
+		if ((book == null || book.isEmpty()) && jdbc != null) {
+			loadRecipeBookFromDb(charId);
+			book = targetMap.get(charId);
+		}
 		if (book == null || book.isEmpty()) {
 			return List.of();
 		}
 		List<Integer> sorted = new ArrayList<>(book);
 		Collections.sort(sorted);
 		return sorted;
+	}
+
+	public void loadRecipeBookFromDb(int charId) {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			List<Map<String, Object>> rows = jdbc.sql("SELECT id, type FROM character_recipebook WHERE charId = :cId")
+					.param("cId", charId)
+					.query().listOfRows();
+			for (var r : rows) {
+				int rId = ((Number) r.get("id")).intValue();
+				int type = ((Number) r.get("type")).intValue();
+				Map<Integer, Set<Integer>> targetMap = (type == 0) ? dwarvenBookByChar : commonBookByChar;
+				targetMap.computeIfAbsent(charId, k -> ConcurrentHashMap.newKeySet()).add(rId);
+			}
+		} catch (Exception ex) {
+			log.debug("character_recipebook load: {}", ex.getMessage());
+		}
+	}
+
+	public int calculateCraftSuccessRate(RecipeEntry recipe, com.lopez.l2j.game.model.PlayerCharacter player) {
+		if (recipe == null) return 0;
+		int rate = recipe.successRate();
+		if (player != null && com.lopez.l2j.game.craft.DwarfCraftBonus.isDwarf(player)) {
+			rate += com.lopez.l2j.game.craft.DwarfCraftBonus.getCraftBonusPercent();
+		}
+		return Math.min(100, Math.max(1, rate));
 	}
 }

@@ -124,7 +124,7 @@ public abstract class SagaMasterQuest extends Quest {
 			return event;
 		}
 
-		if ("accept".equalsIgnoreCase(event)) {
+		if ("accept".equalsIgnoreCase(event) || "quest_accept".equalsIgnoreCase(event)) {
 			qs.setCond(1);
 			qs.setState(State.STARTED);
 			qs.playSound(QuestState.SOUND_ACCEPT);
@@ -304,8 +304,10 @@ public abstract class SagaMasterQuest extends Quest {
 		} else if (cond == 17) {
 			if (npcId == npc[9]) return "9-04.htm";
 			if (npcId == npc[10]) return "10-01.htm";
+			if (npcId == npc[4]) return "4-06.htm";
 		} else if (cond == 18) {
 			if (npcId == npc[10]) return "10-05.htm";
+			if (npcId == npc[4]) return "4-09.htm";
 		} else if (cond == 19) {
 			if (npcId == npc[10]) return "10-07.htm";
 			if (npcId == npc[0]) return "0-06.htm";
