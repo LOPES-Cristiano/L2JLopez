@@ -1,0 +1,54 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<!-- Clan Oath Armor (Academy Equipment) - Blacksmith Pinter (30298) -->
+<list applyTaxes="true">
+	<!-- Clan Oath Helm -->
+	<item id="1">
+		<ingredient id="-200" count="139" />
+		<production id="7850" count="1" />
+	</item>
+	<!-- Clan Oath Armor -->
+	<item id="2">
+		<ingredient id="-200" count="580" />
+		<production id="7851" count="1" />
+	</item>
+	<!-- Clan Oath Gauntlets -->
+	<item id="3">
+		<ingredient id="-200" count="93" />
+		<production id="7852" count="1" />
+	</item>
+	<!-- Clan Oath Sabaton -->
+	<item id="4">
+		<ingredient id="-200" count="93" />
+		<production id="7853" count="1" />
+	</item>
+	<!-- Clan Oath Brigandine -->
+	<item id="5">
+		<ingredient id="-200" count="435" />
+		<production id="7854" count="1" />
+	</item>
+	<!-- Clan Oath Leather Gloves -->
+	<item id="6">
+		<ingredient id="-200" count="93" />
+		<production id="7855" count="1" />
+	</item>
+	<!-- Clan Oath Boots -->
+	<item id="7">
+		<ingredient id="-200" count="93" />
+		<production id="7856" count="1" />
+	</item>
+	<!-- Clan Oath Aketon -->
+	<item id="8">
+		<ingredient id="-200" count="435" />
+		<production id="7857" count="1" />
+	</item>
+	<!-- Clan Oath Padded Gloves -->
+	<item id="9">
+		<ingredient id="-200" count="93" />
+		<production id="7858" count="1" />
+	</item>
+	<!-- Clan Oath Sandals -->
+	<item id="10">
+		<ingredient id="-200" count="93" />
+		<production id="7859" count="1" />
+	</item>
+</list>
