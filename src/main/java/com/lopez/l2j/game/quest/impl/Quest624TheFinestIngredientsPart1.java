@@ -36,6 +36,10 @@ public class Quest624TheFinestIngredientsPart1 extends Quest {
 	public static final int SAUCE = 7205;
 	public static final int ICE_CRYSTAL = 7080;
 
+	public Quest624TheFinestIngredientsPart1() {
+		this(null);
+	}
+
 	@Autowired
 	public Quest624TheFinestIngredientsPart1(QuestManager questManager) {
 		super(QUEST_ID, QUEST_NAME, "The Finest Ingredients - Part 1");
@@ -58,18 +62,22 @@ public class Quest624TheFinestIngredientsPart1 extends Quest {
 			return null;
 		}
 
-		if ("31521-1.htm".equalsIgnoreCase(event)) {
+		if ("31521-1.htm".equalsIgnoreCase(event)
+				|| "31521-02.htm".equalsIgnoreCase(event)
+				|| "quest_accept".equalsIgnoreCase(event)
+				|| "accept".equalsIgnoreCase(event)) {
 			PlayerCharacter player = qs.getPlayerCharacter();
-			if (player != null && player.level() >= 73) {
+			if (player == null || player.level() >= 73) {
 				qs.setCond(1);
 				qs.setState(State.STARTED);
 				qs.playSound(QuestState.SOUND_ACCEPT);
 				return event;
 			} else {
 				qs.exitCurrentQuest(true);
-				return "31521-0a.htm";
+				return "31521-03.htm";
 			}
-		} else if ("31521-4.htm".equalsIgnoreCase(event)) {
+		} else if ("31521-4.htm".equalsIgnoreCase(event)
+				|| "31521-05.htm".equalsIgnoreCase(event)) {
 			if (qs.getQuestItemsCount(TRUNK_OF_NEPENTHES) >= 50
 					&& qs.getQuestItemsCount(FOOT_OF_BANDERSNATCHLING) >= 50
 					&& qs.getQuestItemsCount(SECRET_SPICE) >= 50) {
@@ -80,10 +88,10 @@ public class Quest624TheFinestIngredientsPart1 extends Quest {
 				qs.giveItems(ICE_CRYSTAL, 1);
 				qs.playSound(QuestState.SOUND_FINISH);
 				qs.exitCurrentQuest(true);
-				return "31521-4.htm";
+				return event;
 			} else {
 				qs.setCond(1);
-				return "31521-5.htm";
+				return "31521-07.htm";
 			}
 		}
 
@@ -99,11 +107,20 @@ public class Quest624TheFinestIngredientsPart1 extends Quest {
 		int cond = qs.getCond();
 
 		if (cond == 0) {
+			PlayerCharacter player = qs.getPlayerCharacter();
+			if (player != null && player.level() < 73) {
+				return "31521-03.htm";
+			}
 			return "31521-0.htm";
-		} else if (cond == 1 || cond == 2) {
+		} else if (cond == 1) {
 			return "31521-2.htm";
-		} else if (cond == 3) {
-			return "31521-3.htm";
+		} else if (cond == 2 || cond == 3) {
+			if (qs.getQuestItemsCount(TRUNK_OF_NEPENTHES) >= 50
+					&& qs.getQuestItemsCount(FOOT_OF_BANDERSNATCHLING) >= 50
+					&& qs.getQuestItemsCount(SECRET_SPICE) >= 50) {
+				return "31521-3.htm";
+			}
+			return "31521-2.htm";
 		}
 
 		return "noquest";
@@ -140,9 +157,11 @@ public class Quest624TheFinestIngredientsPart1 extends Quest {
 	}
 
 	private void checkCompletion(QuestState qs) {
-		if (qs.getQuestItemsCount(TRUNK_OF_NEPENTHES) >= 50
-				&& qs.getQuestItemsCount(FOOT_OF_BANDERSNATCHLING) >= 50
-				&& qs.getQuestItemsCount(SECRET_SPICE) >= 50) {
+		boolean hasTrunks = qs.getQuestItemsCount(TRUNK_OF_NEPENTHES) >= 50;
+		boolean hasFeet = qs.getQuestItemsCount(FOOT_OF_BANDERSNATCHLING) >= 50;
+		boolean hasSpice = qs.getQuestItemsCount(SECRET_SPICE) >= 50;
+		if (hasTrunks && hasFeet && hasSpice) {
+			qs.setCond(2);
 			qs.setCond(3);
 			qs.playSound(QuestState.SOUND_MIDDLE);
 		} else {
