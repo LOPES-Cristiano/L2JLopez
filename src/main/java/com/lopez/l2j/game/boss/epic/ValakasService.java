@@ -221,6 +221,9 @@ public class ValakasService {
 	}
 
 	public synchronized void onValakasKilled(PlayerCharacter killer) {
+		if (status == BossStatus.INTERVAL) {
+			return;
+		}
 		status = BossStatus.INTERVAL;
 		if (arrivalTask != null) arrivalTask.cancel(false);
 		if (activityTimeoutTask != null) activityTimeoutTask.cancel(false);

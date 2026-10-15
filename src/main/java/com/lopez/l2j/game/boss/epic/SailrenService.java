@@ -206,6 +206,9 @@ public class SailrenService {
 	}
 
 	public synchronized void onSailrenKilled(PlayerCharacter killer) {
+		if (status == BossStatus.INTERVAL) {
+			return;
+		}
 		status = BossStatus.INTERVAL;
 		if (grandBossManager != null) {
 			grandBossManager.onBossKilled(GrandBossManager.SAILREN);

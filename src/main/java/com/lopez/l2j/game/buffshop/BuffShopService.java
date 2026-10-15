@@ -299,8 +299,10 @@ public class BuffShopService {
 		for (String part : raw.split("[,;\\s]+")) {
 			String trimmed = part.trim();
 			if (!trimmed.isEmpty()) {
+				int dashIdx = trimmed.indexOf('-');
+				String idStr = dashIdx != -1 ? trimmed.substring(0, dashIdx) : trimmed;
 				try {
-					allowed.add(Integer.parseInt(trimmed));
+					allowed.add(Integer.parseInt(idStr));
 				} catch (NumberFormatException ignored) {}
 			}
 		}
