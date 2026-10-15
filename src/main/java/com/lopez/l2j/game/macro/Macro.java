@@ -39,7 +39,7 @@ public record Macro(
 			return true;
 		}
 		for (MacroCmd cmd : commands) {
-			if (cmd != null && isRestrictedCommand(cmd.command())) {
+			if (cmd != null && isRestrictedCommand(cmd.cmd())) {
 				return false;
 			}
 		}
@@ -51,7 +51,7 @@ public record Macro(
 			return this;
 		}
 		List<MacroCmd> filtered = commands.stream()
-				.filter(c -> c != null && !isRestrictedCommand(c.command()))
+				.filter(c -> c != null && !isRestrictedCommand(c.cmd()))
 				.toList();
 		return new Macro(id, icon, name, descr, acronym, filtered);
 	}

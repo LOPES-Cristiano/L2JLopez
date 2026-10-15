@@ -61,6 +61,18 @@ public record ItemTemplate(
 		return subType;
 	}
 
+	public boolean isWeapon() {
+		return kind == Kind.WEAPON;
+	}
+
+	public boolean isArmor() {
+		return kind == Kind.ARMOR;
+	}
+
+	public boolean isQuest() {
+		return type2 == TYPE2_QUEST || "quest".equalsIgnoreCase(subType);
+	}
+
 	public static final int ADENA_ID = 57;
 
 	public static final int TYPE1_WEAPON_RING_EARRING_NECKLACE = 0;

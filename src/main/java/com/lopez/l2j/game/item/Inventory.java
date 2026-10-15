@@ -83,6 +83,10 @@ public final class Inventory {
 				.sum();
 	}
 
+	public int count(int itemId) {
+		return getItemCount(itemId);
+	}
+
 	public synchronized boolean destroyItemByItemId(int itemId, int count) {
 		if (count <= 0) {
 			return true;
