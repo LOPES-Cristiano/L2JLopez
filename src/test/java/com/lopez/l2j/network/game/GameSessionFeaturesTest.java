@@ -844,7 +844,7 @@ class GameSessionFeaturesTest {
 		player2.currentHp(60.0);
 
 		var groupHeal = new com.lopez.l2j.game.skill.SkillTemplate(1217, 1, "Greater Group Heal",
-				com.lopez.l2j.game.skill.SkillTemplate.OperateType.ACTIVE, "HEAL", "TARGET_PARTY", true,
+				com.lopez.l2j.game.skill.SkillTemplate.OperateType.ACTIVE, "HEAL_STATIC", "TARGET_PARTY", true,
 				10, 0, 0, 100.0, 0, 1000, 0, 0, 0, 40, 0, false, List.of(), List.of(), null, null);
 
 		// Dispara a cura em grupo
