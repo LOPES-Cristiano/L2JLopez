@@ -64,7 +64,8 @@ public class MultiSellTable {
 
 		// Alias canônicos do Lineage 2 Interlude
 		int mappedId = switch (listId) {
-			case 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75 -> 20000 + (listId > 70 ? 70 : listId);
+			case 60, 61, 62 -> 20000 + listId;
+			case 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75 -> 20000 + (listId > 70 ? 70 : listId);
 			case 519 -> 313750003;
 			case 520 -> 313820003;
 			case 522 -> 313750001;
@@ -75,33 +76,48 @@ public class MultiSellTable {
 			default -> listId;
 		};
 
-		if (mappedId != listId) {
-			c = lists.get(mappedId);
-			if (c != null) {
-				lists.put(listId, c);
-				return Optional.of(c);
+		// Tenta carregar sob demanda o proprio listId primeiro (ex: 64.xml, 002.xml)
+		String[] directFileNames = {
+				String.valueOf(listId) + ".xml",
+				String.format("%03d.xml", listId),
+				String.format("%04d.xml", listId),
+				String.format("%05d.xml", listId)
+		};
+		for (String fn : directFileNames) {
+			Path p = multisellDir.resolve(fn);
+			if (Files.isRegularFile(p)) {
+				loadFile(p);
+				c = lists.get(listId);
+				if (c != null) {
+					return Optional.of(c);
+				}
 			}
 		}
 
-		// Tenta carregar sob demanda se o arquivo existir (ex: 002.xml para listId=2 ou mappedId)
-		int[] checkIds = mappedId != listId ? new int[]{listId, mappedId} : new int[]{listId};
-		for (int idToSearch : checkIds) {
-			String[] fileNames = {
-					String.valueOf(idToSearch) + ".xml",
-					String.format("%03d.xml", idToSearch),
-					String.format("%04d.xml", idToSearch),
-					String.format("%05d.xml", idToSearch)
+		if (mappedId != listId) {
+			c = lists.get(mappedId);
+			if (c != null) {
+				MultiSellContainer aliased = new MultiSellContainer(
+						listId, c.applyTaxes(), c.maintainEnchantment(), c.entries());
+				lists.put(listId, aliased);
+				return Optional.of(aliased);
+			}
+			String[] mappedFileNames = {
+					String.valueOf(mappedId) + ".xml",
+					String.format("%03d.xml", mappedId),
+					String.format("%04d.xml", mappedId),
+					String.format("%05d.xml", mappedId)
 			};
-			for (String fn : fileNames) {
+			for (String fn : mappedFileNames) {
 				Path p = multisellDir.resolve(fn);
 				if (Files.isRegularFile(p)) {
 					loadFile(p);
-					c = lists.get(idToSearch);
+					c = lists.get(mappedId);
 					if (c != null) {
-						if (listId != idToSearch) {
-							lists.put(listId, c);
-						}
-						return Optional.of(c);
+						MultiSellContainer aliased = new MultiSellContainer(
+								listId, c.applyTaxes(), c.maintainEnchantment(), c.entries());
+						lists.put(listId, aliased);
+						return Optional.of(aliased);
 					}
 				}
 			}
@@ -116,7 +132,11 @@ public class MultiSellTable {
 			try {
 				listId = Integer.parseInt(fn);
 			} catch (NumberFormatException e) {
-				return;
+				if ("tournament".equalsIgnoreCase(fn)) {
+					listId = 70000;
+				} else {
+					return;
+				}
 			}
 
 			var dbf = DocumentBuilderFactory.newInstance();
@@ -130,7 +150,18 @@ public class MultiSellTable {
 			boolean applyTaxes = "true".equalsIgnoreCase(root.getAttribute("applyTaxes"));
 			boolean maintainEnchantment = "true".equalsIgnoreCase(root.getAttribute("maintainEnchantment"));
 
+			NodeList configNodes = root.getElementsByTagName("config");
+			if (configNodes.getLength() > 0 && configNodes.item(0) instanceof Element cfgEl) {
+				if (cfgEl.hasAttribute("notax")) {
+					applyTaxes = !"true".equalsIgnoreCase(cfgEl.getAttribute("notax").trim());
+				}
+				if (cfgEl.hasAttribute("keepenchanted")) {
+					maintainEnchantment = "true".equalsIgnoreCase(cfgEl.getAttribute("keepenchanted").trim());
+				}
+			}
+
 			List<MultiSellContainer.MultiSellEntry> entries = new ArrayList<>();
+			java.util.Set<Integer> usedEntryIds = new java.util.HashSet<>();
 			NodeList items = root.getElementsByTagName("item");
 
 			for (int i = 0; i < items.getLength(); i++) {
@@ -147,8 +178,15 @@ public class MultiSellTable {
 					} catch (NumberFormatException ignored) {
 					}
 				}
+				if (entryId <= 0 || !usedEntryIds.add(entryId)) {
+					int candidate = entries.size() + 1;
+					while (!usedEntryIds.add(candidate)) {
+						candidate++;
+					}
+					entryId = candidate;
+				}
 
-				List<MultiSellContainer.Ingredient> ingredients = new ArrayList<>();
+				List<MultiSellContainer.Ingredient> rawIngredients = new ArrayList<>();
 				List<MultiSellContainer.Ingredient> products = new ArrayList<>();
 
 				NodeList children = itemEl.getChildNodes();
@@ -170,18 +208,54 @@ public class MultiSellTable {
 							} catch (NumberFormatException ignored) {
 							}
 						}
+						boolean isTaxIngredient = "true".equalsIgnoreCase(childEl.getAttribute("isTaxIngredient").trim());
+						boolean maintainIngredient = "true".equalsIgnoreCase(childEl.getAttribute("mantainIngredient").trim())
+								|| "true".equalsIgnoreCase(childEl.getAttribute("maintainIngredient").trim());
 
-						var ing = new MultiSellContainer.Ingredient(itemId, count, enchant);
+						var ing = new MultiSellContainer.Ingredient(itemId, count, enchant, isTaxIngredient, maintainIngredient);
 						if ("ingredient".equalsIgnoreCase(tag)) {
-							ingredients.add(ing);
+							rawIngredients.add(ing);
 						} else {
 							products.add(ing);
 						}
 					}
 				}
 
+				// Mescla ingredientes normais de Adena (id=57, !isTaxIngredient) e filtra entradas puramente fiscais (isTaxIngredient)
+				List<MultiSellContainer.Ingredient> ingredients = new ArrayList<>();
+				long regularAdenaCount = 0L;
+				int adenaInsertIndex = -1;
+				for (var ing : rawIngredients) {
+					if (ing.isTaxIngredient()) {
+						// Ingrediente base para calculo de imposto do castelo: nao deve ser cobrado duplicado como preco cheio
+						continue;
+					}
+					if (ing.itemId() == 57 && !ing.maintainIngredient()) {
+						if (adenaInsertIndex < 0) {
+							adenaInsertIndex = ingredients.size();
+							ingredients.add(ing);
+						}
+						regularAdenaCount += ing.count();
+					} else {
+						ingredients.add(ing);
+					}
+				}
+				if (adenaInsertIndex >= 0) {
+					var firstAdena = ingredients.get(adenaInsertIndex);
+					ingredients.set(adenaInsertIndex, new MultiSellContainer.Ingredient(
+							57, regularAdenaCount, firstAdena.enchantLevel(), false, false));
+				}
+				if (ingredients.isEmpty() && !rawIngredients.isEmpty()) {
+					// Caso especial raro onde uma entrada so tinha isTaxIngredient (ex: 0 adena base)
+					for (var ing : rawIngredients) {
+						ingredients.add(new MultiSellContainer.Ingredient(
+								ing.itemId(), ing.count(), ing.enchantLevel(), false, ing.maintainIngredient()));
+					}
+				}
+
 				if (!ingredients.isEmpty() && !products.isEmpty()) {
-					entries.add(new MultiSellContainer.MultiSellEntry(entryId, ingredients, products));
+					entries.add(new MultiSellContainer.MultiSellEntry(
+							entryId, Collections.unmodifiableList(ingredients), Collections.unmodifiableList(products)));
 				}
 			}
 

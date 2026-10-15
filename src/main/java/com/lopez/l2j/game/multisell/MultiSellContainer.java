@@ -17,6 +17,12 @@ public record MultiSellContainer(
 	public record Ingredient(
 			int itemId,
 			long count,
-			int enchantLevel) {
+			int enchantLevel,
+			boolean isTaxIngredient,
+			boolean maintainIngredient) {
+
+		public Ingredient(int itemId, long count, int enchantLevel) {
+			this(itemId, count, enchantLevel, false, false);
+		}
 	}
 }

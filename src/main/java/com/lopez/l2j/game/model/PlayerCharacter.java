@@ -26,7 +26,7 @@ public final class PlayerCharacter implements Creature {
 	private int level;
 	private long exp;
 	private int sp;
-	private final int race;
+	private int race;
 	private int classId;
 	private int baseClassId;
 	private boolean female;
@@ -158,6 +158,10 @@ public final class PlayerCharacter implements Creature {
 		return vip;
 	}
 
+	public boolean vip() {
+		return vip;
+	}
+
 	public void setVip(boolean vip) {
 		this.vip = vip;
 	}
@@ -218,11 +222,12 @@ public final class PlayerCharacter implements Creature {
 		return 0; // None
 	}
 
+	public ClassId getClassId() {
+		return ClassId.getClassId(classId);
+	}
+
 	public boolean isMage() {
-		return (classId >= 10 && classId <= 17) || (classId >= 25 && classId <= 30)
-				|| (classId >= 38 && classId <= 43) || (classId >= 49 && classId <= 52)
-				|| (classId >= 94 && classId <= 98) || (classId >= 103 && classId <= 105)
-				|| (classId >= 110 && classId <= 112) || (classId >= 115 && classId <= 116);
+		return ClassId.isMage(classId);
 	}
 
 	public int race() {
@@ -238,6 +243,18 @@ public final class PlayerCharacter implements Creature {
 			case 4 -> Race.dwarf;
 			default -> Race.human;
 		};
+	}
+
+	public void race(int race) {
+		this.race = race;
+	}
+
+	public void setRace(Race r) {
+		this.race = r != null ? r.ordinal() : 0;
+	}
+
+	public void setClanLeader(boolean isLeader) {
+		this.clanLeader = isLeader;
 	}
 
 	public Clan getClan() {
@@ -320,8 +337,8 @@ public final class PlayerCharacter implements Creature {
 		this.account = account;
 		this.name = name;
 		this.level = level;
-		this.exp = exp;
-		this.sp = sp;
+		this.exp = Math.min(ExperienceTable.MAX_EXP, Math.max(0L, exp));
+		this.sp = Math.max(0, sp);
 		this.race = race;
 		this.classId = classId;
 		this.baseClassId = baseClassId;
@@ -354,6 +371,10 @@ public final class PlayerCharacter implements Creature {
 				"", 0, 0L, 0L, x, y, z, 0, 100.0, 100.0, 100.0);
 	}
 
+	public PlayerCharacter(int objectId, String name) {
+		this(objectId, name, 80, 83400, 147900, -3400);
+	}
+
 	public int objectId() {
 		return objectId;
 	}
@@ -379,8 +400,13 @@ public final class PlayerCharacter implements Creature {
 	}
 
 	public void addExpAndSp(long addExp, int addSp) {
-		this.exp += addExp;
-		this.sp += addSp;
+		if (addExp > 0) {
+			long nextExp = this.exp + addExp;
+			this.exp = nextExp < 0L ? ExperienceTable.MAX_EXP : Math.min(ExperienceTable.MAX_EXP, nextExp);
+		}
+		if (addSp > 0) {
+			this.sp = (int) Math.min(Integer.MAX_VALUE, Math.max(0L, (long) this.sp + addSp));
+		}
 	}
 
 	public int maxInventorySlots() {
@@ -401,9 +427,6 @@ public final class PlayerCharacter implements Creature {
 		this.classId = value;
 	}
 
-	public int getClassId() {
-		return classId;
-	}
 
 	public int baseClassId() {
 		return baseClassId;
@@ -543,12 +566,36 @@ public final class PlayerCharacter implements Creature {
 		return karma;
 	}
 
+	public void karma(int value) {
+		this.karma = value;
+	}
+
+	public void setKarma(int value) {
+		this.karma = value;
+	}
+
 	public int pvpKills() {
 		return pvpKills;
 	}
 
+	public void pvpKills(int value) {
+		this.pvpKills = value;
+	}
+
+	public void setPvpKills(int value) {
+		this.pvpKills = value;
+	}
+
 	public int pkKills() {
 		return pkKills;
+	}
+
+	public void pkKills(int value) {
+		this.pkKills = value;
+	}
+
+	public void setPkKills(int value) {
+		this.pkKills = value;
 	}
 
 	private volatile com.lopez.l2j.game.clan.Clan clan;
@@ -614,6 +661,14 @@ public final class PlayerCharacter implements Creature {
 
 	public String title() {
 		return title;
+	}
+
+	public void title(String value) {
+		this.title = value != null ? value : "";
+	}
+
+	public void setTitle(String value) {
+		this.title = value != null ? value : "";
 	}
 
 	public int accessLevel() {
@@ -774,11 +829,11 @@ public final class PlayerCharacter implements Creature {
 	}
 
 	public void exp(long value) {
-		this.exp = value;
+		this.exp = Math.min(ExperienceTable.MAX_EXP, Math.max(0L, value));
 	}
 
 	public void sp(int value) {
-		this.sp = value;
+		this.sp = Math.max(0, value);
 	}
 
 	public void level(int value) {
@@ -1058,22 +1113,6 @@ public final class PlayerCharacter implements Creature {
 
 	public void name(String value) {
 		this.name = value;
-	}
-
-	public void title(String value) {
-		this.title = value;
-	}
-
-	public void karma(int value) {
-		this.karma = value;
-	}
-
-	public void pvpKills(int value) {
-		this.pvpKills = value;
-	}
-
-	public void pkKills(int value) {
-		this.pkKills = value;
 	}
 
 	public int mountType() {
@@ -1557,5 +1596,107 @@ public final class PlayerCharacter implements Creature {
 
 	public boolean hasSummon() {
 		return activeSummon != null && !activeSummon.isDead();
+	}
+	private volatile int newbie;
+	private volatile int varkaKetraAlly;
+	private volatile int jailTimer;
+	private volatile int pcCaffePoints;
+	private volatile int deathPenaltyLevel;
+	private volatile int pledgeRank;
+	private volatile int subPledge;
+	private volatile int clanPrivs;
+	private volatile int apprentice;
+	private volatile int sponsor;
+	private volatile int arenaWins;
+	private volatile int arenaDefeats;
+	private volatile int buffShopSlots = 8;
+	private volatile boolean canCraft;
+	private volatile int onlineTime;
+	private volatile boolean isCensor;
+	private volatile boolean isBanned;
+	private volatile boolean wantsPeace;
+	private volatile boolean isIn7sDungeon;
+	private volatile int lvlJoinedAcademy;
+
+	public int getNewbie() { return newbie; }
+	public int newbie() { return newbie; }
+	public void setNewbie(int newbie) { this.newbie = newbie; }
+	public void newbie(int newbie) { this.newbie = newbie; }
+
+	public int getAllianceWithVarkaKetra() { return varkaKetraAlly; }
+	public int varkaKetraAlly() { return varkaKetraAlly; }
+	public void setAllianceWithVarkaKetra(int val) { this.varkaKetraAlly = val; }
+	public void varkaKetraAlly(int val) { this.varkaKetraAlly = val; }
+
+	public boolean inJail() { return inJail; }
+	public void inJail(boolean inJail) { this.inJail = inJail; }
+	public int jailTimer() { return jailTimer; }
+	public void jailTimer(int jailTimer) { this.jailTimer = jailTimer; }
+
+	public int pcCaffePoints() { return pcCaffePoints; }
+	public void pcCaffePoints(int pcCaffePoints) { this.pcCaffePoints = pcCaffePoints; }
+
+	public int deathPenaltyLevel() { return deathPenaltyLevel; }
+	public void deathPenaltyLevel(int deathPenaltyLevel) { this.deathPenaltyLevel = deathPenaltyLevel; }
+
+	public int pledgeRank() { return pledgeRank; }
+	public void pledgeRank(int pledgeRank) { this.pledgeRank = pledgeRank; }
+
+	public int subPledge() { return subPledge; }
+	public void subPledge(int subPledge) { this.subPledge = subPledge; }
+
+	public int clanPrivs() { return clanPrivs; }
+	public void clanPrivs(int clanPrivs) { this.clanPrivs = clanPrivs; }
+
+	public int apprentice() { return apprentice; }
+	public void apprentice(int apprentice) { this.apprentice = apprentice; }
+
+	public int sponsor() { return sponsor; }
+	public void sponsor(int sponsor) { this.sponsor = sponsor; }
+
+	public int arenaWins() { return arenaWins; }
+	public void arenaWins(int arenaWins) { this.arenaWins = arenaWins; }
+
+	public int arenaDefeats() { return arenaDefeats; }
+	public void arenaDefeats(int arenaDefeats) { this.arenaDefeats = arenaDefeats; }
+
+	public int buffShopSlots() { return buffShopSlots; }
+	public void buffShopSlots(int buffShopSlots) { this.buffShopSlots = buffShopSlots; }
+
+	public boolean canCraft() { return canCraft; }
+	public void canCraft(boolean canCraft) { this.canCraft = canCraft; }
+
+	public int onlineTime() { return onlineTime; }
+	public void onlineTime(int onlineTime) { this.onlineTime = onlineTime; }
+
+	public boolean isCensor() { return isCensor; }
+	public void isCensor(boolean isCensor) { this.isCensor = isCensor; }
+
+	public boolean isBanned() { return isBanned; }
+	public void isBanned(boolean isBanned) { this.isBanned = isBanned; }
+
+	public boolean wantsPeace() { return wantsPeace; }
+	public void wantsPeace(boolean wantsPeace) { this.wantsPeace = wantsPeace; }
+
+	public boolean isIn7sDungeon() { return isIn7sDungeon; }
+	public void isIn7sDungeon(boolean isIn7sDungeon) { this.isIn7sDungeon = isIn7sDungeon; }
+
+	public int lvlJoinedAcademy() { return lvlJoinedAcademy; }
+	public void lvlJoinedAcademy(int lvlJoinedAcademy) { this.lvlJoinedAcademy = lvlJoinedAcademy; }
+
+	public int classLevel() {
+		return getClassId() != null ? getClassId().level() : 0;
+	}
+
+	public void setInventory(Inventory inventory) {
+		this.inventory = inventory;
+	}
+
+	public void sendMessage(String message) {
+		if (message == null || message.isBlank()) return;
+		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (world != null) {
+			world.sendMessage(objectId, message);
+		}
 	}
 }
