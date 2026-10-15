@@ -1,0 +1,26 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+
+<list>
+
+  
+  <!-- Majestic Ring -->
+  <item id="48">
+    <ingredient id="57" count="5000000"/>
+    <production id="893" count="1"/>
+  </item>
+
+  <!-- Majestic Earring -->
+  <item id="49">
+    <ingredient id="57" count="5000000"/>
+    <production id="862" count="1"/>
+  </item>
+
+  <!-- Majestic Neck -->
+  <item id="50">
+    <ingredient id="57" count="5000000"/>
+    <production id="924" count="1"/>
+  </item>
+
+	
+
+</list>
