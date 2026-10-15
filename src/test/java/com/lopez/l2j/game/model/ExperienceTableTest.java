@@ -17,6 +17,14 @@ class ExperienceTableTest {
 		assertEquals(3, ExperienceTable.calculateLevel(363));
 		assertEquals(80, ExperienceTable.calculateLevel(4_200_000_000L));
 		assertEquals(80, ExperienceTable.calculateLevel(5_000_000_000L));
+		assertEquals(6_299_994_999L, ExperienceTable.MAX_EXP);
+		assertEquals(6_299_994_999L, ExperienceTable.expForLevel(81));
+		assertEquals(6_299_994_999L, ExperienceTable.maxExpForLevel(80));
+
+		var pc = new PlayerCharacter(1, "Hero", 80, 0, 0, 0);
+		pc.exp(4_200_000_000L);
+		pc.addExpAndSp(5_000_000_000L, 100);
+		assertEquals(ExperienceTable.MAX_EXP, pc.exp());
 	}
 
 	@Test

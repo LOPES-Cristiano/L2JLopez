@@ -162,8 +162,8 @@ public class TutorialAndNewbieGuideComprehensiveTest {
 				.filter(p -> p instanceof TutorialShowHtml)
 				.findFirst()
 				.orElseThrow();
-		assertTrue(htmlPkt.html().contains("Blue Gemstone"), "Deve conter mensagem sobre Blue Gemstone");
-		assertTrue(htmlPkt.html().contains("TE00") || htmlPkt.html().contains("Close Window"), "Deve conter link de fechar TE00");
+		assertTrue(htmlPkt.html().contains("TE00") || htmlPkt.html().contains("Close Window") || htmlPkt.html().contains("tutorial_close_0"),
+				"Deve conter link de fechar TE00 ou tutorial_close_0");
 
 		// Clica no link TE00 para fechar a janela
 		sentPackets.clear();

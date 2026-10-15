@@ -84,4 +84,69 @@ class NpcQuestAndMultiSellIntegrationTest {
 		assertFalse(firstClassQuests.isEmpty(), "Catalogo de 1a classe deve conter todas as quests de 1a classe");
 		assertEquals(18, firstClassQuests.size());
 	}
+
+	@Test
+	void testAllTraderHtmlMultisellsResolveAndHaveUniqueEntryIds() throws Exception {
+		java.nio.file.Path htmlRoot = java.nio.file.Path.of("data/html");
+		java.util.regex.Pattern msPattern = java.util.regex.Pattern.compile(
+				"(?i)(?:exc_multisell|multisell)\\s+([^\\s\"'>|\\]]+)");
+
+		java.util.Set<Integer> referencedIds = new java.util.TreeSet<>();
+		try (var stream = java.nio.file.Files.walk(htmlRoot)) {
+			stream.filter(java.nio.file.Files::isRegularFile)
+					.filter(p -> {
+						String n = p.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+						return n.endsWith(".htm") || n.endsWith(".html");
+					})
+					.forEach(p -> {
+						try {
+							String content = java.nio.file.Files.readString(p, java.nio.charset.StandardCharsets.ISO_8859_1);
+							var m = msPattern.matcher(content);
+							while (m.find()) {
+								String token = m.group(1).trim();
+								try {
+									referencedIds.add(Integer.parseInt(token));
+								} catch (NumberFormatException ignored) {
+								}
+							}
+						} catch (Exception ignored) {
+						}
+					});
+		}
+
+		assertFalse(referencedIds.isEmpty(), "Deve encontrar referencias de multisell nos HTMLs de NPCs");
+		for (int listId : referencedIds) {
+			var opt = multiSellTable.get(listId);
+			assertTrue(opt.isPresent(), "Multisell ID " + listId + " referenciada em HTML de NPC deve existir");
+			var container = opt.get();
+			assertFalse(container.entries().isEmpty(), "Multisell ID " + listId + " nao pode estar vazia");
+
+			java.util.Set<Integer> seenEntries = new java.util.HashSet<>();
+			for (var entry : container.entries()) {
+				assertTrue(seenEntries.add(entry.entryId()),
+						"Multisell ID " + listId + " possui entryId duplicado: " + entry.entryId());
+				long adenaRows = entry.ingredients().stream()
+						.filter(i -> i.itemId() == 57 && !i.isTaxIngredient() && !i.maintainIngredient())
+						.count();
+				assertTrue(adenaRows <= 1,
+						"Multisell ID " + listId + " entry " + entry.entryId() + " nao deve ter linhas duplicadas de Adena");
+			}
+		}
+
+		// Shadow weapon multisell 319463001 deve cobrar 87600 Adena (e nao 175200 com isTaxIngredient duplicado)
+		var shadowMs = multiSellTable.get(319463001).orElseThrow();
+		var firstShadow = shadowMs.entries().get(0);
+		assertEquals(1, firstShadow.ingredients().size(), "Shadow weapon deve ter apenas 1 ingrediente de Adena");
+		assertEquals(57, firstShadow.ingredients().get(0).itemId());
+		assertEquals(87600L, firstShadow.ingredients().get(0).count());
+
+		// Shadow weapon multisell 319463002 deve cobrar 71500 Adena (e nao 143000)
+		var shadowMsD = multiSellTable.get(319463002).orElseThrow();
+		assertEquals(71500L, shadowMsD.entries().get(0).ingredients().get(0).count());
+
+		// Life Crystal multisell 64 (Gludio) deve exigir Life Crystals reais (8158..8171) e nao recipes de GM Shop
+		var lifeCrystalMs = multiSellTable.get(64).orElseThrow();
+		assertTrue(lifeCrystalMs.entries().get(0).ingredients().stream().anyMatch(i -> i.itemId() == 8158),
+				"Multisell 64 deve ser a troca oficial de Life Crystals do Adventurer's Guildsman");
+	}
 }
