@@ -199,40 +199,55 @@ public class BossManager {
 			raidBossSpawnManager.onBossKilled(npc, killer);
 		}
 
+		boolean grandBossHandled = false;
+
 		if (antharasService != null && (npcId == 29019 || npcId == 29066 || npcId == 29067 || npcId == 29068)) {
 			antharasService.onAntharasKilled(killer);
+			grandBossHandled = true;
 		}
 
 		if (valakasService != null && npcId == 29028) {
 			valakasService.onValakasKilled(killer);
+			grandBossHandled = true;
 		}
 
 		if (baiumService != null && npcId == 29020) {
 			baiumService.onBaiumKilled(killer);
+			grandBossHandled = true;
 		}
 
 		if (sailrenService != null && (npcId == 29065 || npcId == 22196 || npcId == 22197 || npcId == 22198 || npcId == 22218)) {
 			sailrenService.onSailrenKilled(killer);
+			grandBossHandled = true;
 		}
 
 		if (queenAntService != null && npcId == 29001) {
 			queenAntService.onQueenAntKilled(killer);
+			grandBossHandled = true;
 		}
 
 		if (zakenService != null && npcId == 29022) {
 			zakenService.onZakenKilled(killer);
+			grandBossHandled = true;
 		}
 
 		if (coreAndOrfenService != null) {
 			if (npcId == 29006) {
 				coreAndOrfenService.onCoreKilled(killer);
+				grandBossHandled = true;
 			} else if (npcId == 29014) {
 				coreAndOrfenService.onOrfenKilled(killer);
+				grandBossHandled = true;
 			}
 		}
 
 		if (vanHalterService != null && npcId == VanHalterService.VAN_HALTER) {
 			vanHalterService.onVanHalterKilled(killer);
+			grandBossHandled = true;
+		}
+
+		if (!grandBossHandled && grandBossManager != null && grandBossManager.isGrandBoss(npcId)) {
+			grandBossManager.onBossKilled(npcId);
 		}
 
 		if (fourSepulchersService != null) {

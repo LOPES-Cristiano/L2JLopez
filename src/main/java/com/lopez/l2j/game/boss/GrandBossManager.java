@@ -39,6 +39,7 @@ public class GrandBossManager {
 	public static final int SAILREN = 29065;
 
 	private final Map<Integer, GrandBossInfo> bosses = new ConcurrentHashMap<>();
+	private final Map<Integer, java.util.concurrent.ScheduledFuture<?>> respawnTasks = new ConcurrentHashMap<>();
 	private final JdbcClient jdbc;
 	private final SpawnService spawnService;
 	private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -163,6 +164,11 @@ public class GrandBossManager {
 			return;
 		}
 
+		var prevTask = respawnTasks.remove(bossId);
+		if (prevTask != null) {
+			prevTask.cancel(false);
+		}
+
 		long respawnTime = info.calculateNextRespawnTime();
 		long delay = Math.max(0, respawnTime - System.currentTimeMillis());
 
@@ -172,7 +178,7 @@ public class GrandBossManager {
 
 		log.info("GrandBoss {} foi morto! Respawn agendado para {} ({} ms, status INTERVAL)",
 				info.name(), info.getNextRespawnFormatted(), delay);
-		scheduler.schedule(() -> spawnBoss(bossId), delay, TimeUnit.MILLISECONDS);
+		respawnTasks.put(bossId, scheduler.schedule(() -> spawnBoss(bossId), delay, TimeUnit.MILLISECONDS));
 	}
 
 	public void notifyBossKilled(int bossId) {
@@ -183,6 +189,10 @@ public class GrandBossManager {
 		GrandBossInfo info = bosses.get(bossId);
 		if (info == null) {
 			return;
+		}
+		var prevTask = respawnTasks.remove(bossId);
+		if (prevTask != null) {
+			prevTask.cancel(false);
 		}
 		if (!isBossEnabled(bossId)) {
 			log.info("GrandBoss {} (ID {}) esta desabilitado via Config; spawn ignorado.", info.name(), bossId);
@@ -212,7 +222,7 @@ public class GrandBossManager {
 					spawnBoss(info.bossId());
 				} else {
 					log.info("GrandBoss {} em INTERVAL, agendando renascimento em {} ms", info.name(), interval);
-					scheduler.schedule(() -> spawnBoss(info.bossId()), interval, TimeUnit.MILLISECONDS);
+					respawnTasks.put(info.bossId(), scheduler.schedule(() -> spawnBoss(info.bossId()), interval, TimeUnit.MILLISECONDS));
 				}
 			} else if (info.status() == BossStatus.ALIVE || info.status() == BossStatus.NOTSPAWN) {
 				spawnBoss(info.bossId());

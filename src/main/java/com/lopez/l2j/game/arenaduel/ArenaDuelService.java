@@ -149,15 +149,11 @@ public class ArenaDuelService {
 
 	public Set<Integer> getRestrictedItemIds() {
 		Set<Integer> restricted = new HashSet<>();
-		String raw = Config.ARENA_DUEL_ITEMS_RESTRICTION;
-		if (raw != null && !raw.isBlank()) {
-			for (String token : raw.split(",")) {
-				String trimmed = token.trim();
-				if (!trimmed.isEmpty()) {
-					try {
-						restricted.add(Integer.parseInt(trimmed));
-					} catch (NumberFormatException ignored) {
-					}
+		List<Integer> raw = Config.ARENA_DUEL_ITEMS_RESTRICTION;
+		if (raw != null) {
+			for (Integer id : raw) {
+				if (id != null && id > 0) {
+					restricted.add(id);
 				}
 			}
 		}
