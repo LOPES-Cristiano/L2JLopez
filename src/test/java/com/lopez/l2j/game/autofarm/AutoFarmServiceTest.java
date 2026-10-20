@@ -3,12 +3,15 @@ package com.lopez.l2j.game.autofarm;
 import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.npc.NpcInstance;
+import com.lopez.l2j.game.npc.NpcTemplate;
 import com.lopez.l2j.game.shortcut.ShortCut;
 import com.lopez.l2j.game.shortcut.ShortCutRepository;
 import com.lopez.l2j.game.skill.SkillService;
 import com.lopez.l2j.game.skill.SkillTable;
 import com.lopez.l2j.game.skill.SkillTemplate;
+import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.GameSession;
+import com.lopez.l2j.network.game.handler.packet.MagicSkillPacketHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -220,5 +223,59 @@ class AutoFarmServiceTest {
         AutoFarmAction action = service.processTick(player, List.of(monster));
         assertEquals(AutoFarmAction.ActionType.CAST_SKILL, action.type());
         assertEquals(1177, action.skillId());
+    }
+
+    @Test
+    void testLiveFarmTickAutoAttacksAndAutoSweepsSpoiledCorpses() {
+        SkillTable skillTable = mock(SkillTable.class);
+        SkillTemplate festiveSweeper = new SkillTemplate(
+                444, 1, "Festive Sweeper", SkillTemplate.OperateType.ACTIVE, "SWEEP", "TARGET_AREA_CORPSE_MOB",
+                false, 12, 0, 0, 0.0, 0, 300, 500, 0, 1000, 28, 0.0, false,
+                0, 0, 0, 0, 0, true, false,
+                Collections.emptyList(), Collections.emptyList(), null, null
+        );
+        when(skillTable.get(444, 1)).thenReturn(Optional.of(festiveSweeper));
+
+        GameWorld world = new GameWorld();
+        AutoFarmService service = new AutoFarmService();
+        ReflectionTestUtils.setField(service, "skillTable", skillTable);
+        ReflectionTestUtils.setField(service, "gameWorld", world);
+
+        PlayerCharacter dwarf = createPlayer(5005, "AutoDwarf");
+        dwarf.skills().put(444, 1);
+        dwarf.moveTo(100, 100, 0);
+
+        GameSession session = mock(GameSession.class);
+        MagicSkillPacketHandler magicHandler = mock(MagicSkillPacketHandler.class);
+        when(magicHandler.skillReuse()).thenReturn(new java.util.concurrent.ConcurrentHashMap<>());
+        when(magicHandler.isApproachingToCast()).thenReturn(false);
+        when(session.activeCharacter()).thenReturn(dwarf);
+        when(session.magicSkillHandler()).thenReturn(magicHandler);
+        when(session.casting()).thenReturn(false);
+
+        NpcTemplate tpl = new NpcTemplate(
+                20432, 20432, "Elpy", false, "", false,
+                8.0, 16.0, 20, "male", "L2Monster",
+                40, 500, 100, 50, 40, 30, 10, 250, 333,
+                0, 0, 0, 50, 100, 0, false, "", 0);
+        NpcInstance aliveMob = new NpcInstance(91001, tpl, 150, 150, 0, 0);
+        world.addNpc(aliveMob);
+
+        service.startFarm(dwarf, session);
+        AutoFarmState state = service.getOrCreateState(dwarf);
+
+        // 1. Monstro vivo nas proximidades -> seleciona alvo e inicia ataque fisico
+        ReflectionTestUtils.invokeMethod(service, "executeLiveFarmTick", session, dwarf, state);
+        verify(session, times(1)).selectNpcTarget(aliveMob);
+        verify(session, times(1)).startAutoAttack(aliveMob);
+
+        // 2. Monstro morre com Spoil ativo -> AutoFarm usa Festive Sweeper (444) automaticamente
+        aliveMob.spoiled(true);
+        aliveMob.spoilerPlayerId(dwarf.objectId());
+        aliveMob.dead(true);
+        aliveMob.spoilRewards(List.of(new com.lopez.l2j.game.drop.DropReward(57, 100, true, true)));
+
+        ReflectionTestUtils.invokeMethod(service, "executeLiveFarmTick", session, dwarf, state);
+        verify(session, times(1)).castSkill(eq(festiveSweeper), eq(true));
     }
 }

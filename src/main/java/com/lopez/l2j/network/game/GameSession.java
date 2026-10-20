@@ -2495,7 +2495,26 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
+	public void selectNpcTarget(NpcInstance npc) {
+		if (npc == null || active == null) {
+			return;
+		}
+		targetObjectId = npc.objectId();
+		int levelDiff = active.level() - (npc.template() != null ? npc.template().level() : active.level());
+		send(new MyTargetSelected(npc.objectId(), levelDiff));
+		send(StatusUpdate.hp(npc.objectId(), (int) npc.currentHp(), (int) npc.maxHp()));
+		if (npc.isDead()) {
+			send(new Die(npc.objectId(), false, false, false, npc.isSweepable()));
+		}
+		send(new ValidateLocation(npc.objectId(), npc.x(), npc.y(), npc.z(), npc.heading()));
+	}
+
 	public void startAutoAttack(NpcInstance npc) {
+		if (npc != null && autoAttacking && targetObjectId == npc.objectId() && !npc.isDead()) {
+			if (isAttackingNow() || (playerAutoAttackTask != null && !playerAutoAttackTask.isDone())) {
+				return;
+			}
+		}
 		if (isAttackingNow()) {
 			send(new ActionFailed());
 			return;

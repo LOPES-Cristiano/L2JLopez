@@ -21,6 +21,8 @@ import com.lopez.l2j.game.world.GameWorld.OnlinePlayer;
 import com.lopez.l2j.game.zone.Zone;
 import com.lopez.l2j.game.zone.ZoneTable;
 import com.lopez.l2j.network.game.GameSession;
+import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToLocation;
+import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToPawn;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -98,6 +100,9 @@ public class AutoFarmService {
 
     @Autowired(required = false)
     private ZoneTable zoneTable;
+
+    @Autowired(required = false)
+    private GameWorld gameWorld;
 
     private ScheduledExecutorService scheduler;
     private ScheduledFuture<?> mainLoopFuture;
@@ -434,6 +439,11 @@ public class AutoFarmService {
 
         if (state.isKeepLocation()) {
             state.setKeepLocation(true, player.x(), player.y(), player.z());
+        }
+
+        if (state.getAttackSpells().isEmpty() && state.getChanceSpells().isEmpty()
+                && state.getSelfSpells().isEmpty() && state.getLowLifeSpells().isEmpty()) {
+            refreshSkillsFromShortcutBar(player, state);
         }
 
         state.setEnabled(true);
@@ -1112,8 +1122,20 @@ public class AutoFarmService {
         state.getSelfSpells().clear();
         state.getLowLifeSpells().clear();
 
+        populateSkillsFromShortcutPage(player, state, shortcuts, targetPage);
+        if (state.getAttackSpells().isEmpty() && state.getChanceSpells().isEmpty()
+                && state.getSelfSpells().isEmpty() && state.getLowLifeSpells().isEmpty()) {
+            populateSkillsFromShortcutPage(player, state, shortcuts, -1);
+        }
+
+        for (int i = 0; i < 4; i++) {
+            saveSkills(state, SKILL_TYPE_KEYS[i]);
+        }
+    }
+
+    private void populateSkillsFromShortcutPage(PlayerCharacter player, AutoFarmState state, List<ShortCut> shortcuts, int targetPage) {
         for (ShortCut sc : shortcuts) {
-            if (sc.page() != targetPage || sc.type() != ShortCut.TYPE_SKILL) {
+            if ((targetPage >= 0 && sc.page() != targetPage) || sc.type() != ShortCut.TYPE_SKILL) {
                 continue;
             }
             SkillTemplate sk = resolveKnownSkill(player, sc.id());
@@ -1137,10 +1159,6 @@ public class AutoFarmService {
                     state.getAttackSpells().add(sk.id());
                 }
             }
-        }
-
-        for (int i = 0; i < 4; i++) {
-            saveSkills(state, SKILL_TYPE_KEYS[i]);
         }
     }
 
@@ -1200,8 +1218,8 @@ public class AutoFarmService {
             return false;
         }
         int id = sk.id();
-        // Ignora skills de recall, fake death, summon/mount basico, fishing, strider
-        if (id == 42 || id == 60 || id == 821 || id == 889 || id == 890 || id == 911 || id == 1050 || id == 1255 || id == 1262 || id == 1324 || id == 1374) {
+        // Ignora skills de recall, fake death, summon/mount basico, fishing, strider (Sweep 42 e 444 sao tratados automaticamente pelo AutoSweep)
+        if (id == 42 || id == 444 || id == 60 || id == 821 || id == 889 || id == 890 || id == 911 || id == 1050 || id == 1255 || id == 1262 || id == 1324 || id == 1374) {
             return false;
         }
         String st = sk.skillType() != null ? sk.skillType().toUpperCase(Locale.ROOT) : "";
@@ -1225,7 +1243,7 @@ public class AutoFarmService {
     private boolean isChanceDebuffSkill(SkillTemplate sk) {
         if (sk == null) return false;
         int id = sk.id();
-        if (id == 254 || id == 42 || id == 302 || id == 1263 || id == 1269 || id == 1160 || id == 1222 || id == 1206 || id == 122 || id == 512) {
+        if (id == 254 || id == 42 || id == 444 || id == 302 || id == 348 || id == 1263 || id == 1269 || id == 1160 || id == 1222 || id == 1206 || id == 122 || id == 512) {
             return true;
         }
         String st = sk.skillType() != null ? sk.skillType().toUpperCase(Locale.ROOT) : "";
@@ -1648,11 +1666,21 @@ public class AutoFarmService {
     // MOTOR DE COMBATE GLOBAL E TICK POR JOGADOR
     // =========================================================================
 
+    private GameWorld resolveWorld(GameSession session) {
+        if (gameWorld != null) {
+            return gameWorld;
+        }
+        if (session != null && session.ctx() != null && session.ctx().world() != null) {
+            return session.ctx().world();
+        }
+        return GameWorld.getInstance();
+    }
+
     private void runGlobalFarmLoop() {
         if (!Config.ALLOW_AUTO_FARM || activeFarmStates.isEmpty()) {
             return;
         }
-        GameWorld world = GameWorld.getInstance();
+        GameWorld world = resolveWorld(null);
         if (world == null) {
             return;
         }
@@ -1686,7 +1714,7 @@ public class AutoFarmService {
             return;
         }
 
-        // Verifica expiraÃ§Ã£o de tempo online gratuito
+        // Verifica expiracao de tempo online gratuito
         if (!Config.AUTOFARM_IS_FREE && !state.isActiveAutofarmAllowed() && Config.AUTOFARM_ONLINE_TYPE && Config.AUTOFARM_FREE_TIME > 0) {
             if (state.getFarmOnlineTime() >= TimeUnit.MINUTES.toMillis(Config.AUTOFARM_FREE_TIME)) {
                 stopFarm(player, session);
@@ -1698,16 +1726,39 @@ public class AutoFarmService {
         // 1. ACP (Auto Combat Potions)
         processLiveAcp(session, player, state);
 
-        // 2. Coleta NPCs nas proximidades do mundo
+        // Se o jogador estiver conjurando ou caminhando para conjurar uma skill, aguarda concluir sem enviar ActionFailed
+        if (session != null) {
+            if (session.casting()) {
+                return;
+            }
+            if (session.magicSkillHandler() != null && session.magicSkillHandler().isApproachingToCast()) {
+                return;
+            }
+        }
+
+        // 2. Coleta NPCs nas proximidades do mundo (vivos para ataque e mortos com spoil para Auto-Sweep)
         List<NpcInstance> nearbyNpcs = new ArrayList<>();
+        List<NpcInstance> sweepableCorpses = new ArrayList<>();
         int searchRadius = Math.max(state.getFarmRadius(), 2000);
-        GameWorld world = GameWorld.getInstance();
+        GameWorld world = resolveWorld(session);
         if (world != null) {
             for (NpcInstance npc : world.findNpcsAround(player.x(), player.y(), searchRadius, player.instanceId())) {
-                if (isAttackableMonster(npc)) {
+                if (npc == null || npc.template() == null || npc.isRaid()) {
+                    continue;
+                }
+                if (npc.isDead()) {
+                    if (npc.isMonster() && npc.isSweepable()) {
+                        sweepableCorpses.add(npc);
+                    }
+                } else if (npc.isMonster()) {
                     nearbyNpcs.add(npc);
                 }
             }
+        }
+
+        // 2.5 Auto-Sweep: Se o anao/spoiler matou um monstro com spoil ativo, usa Festive Sweeper (444) ou Sweeper (42) automaticamente
+        if (!sweepableCorpses.isEmpty() && tryAutoSweep(session, player, state, sweepableCorpses)) {
+            return;
         }
 
         // 3. Executa logica de selecao de alvo e skills/ataque
@@ -1717,6 +1768,47 @@ public class AutoFarmService {
         }
     }
 
+    private boolean tryAutoSweep(GameSession session, PlayerCharacter player, AutoFarmState state, List<NpcInstance> sweepableCorpses) {
+        if (session == null || player == null || sweepableCorpses == null || sweepableCorpses.isEmpty()) {
+            return false;
+        }
+        SkillTemplate festiveSweeper = getReadySkill(player, 444, session);
+        SkillTemplate singleSweeper = getReadySkill(player, 42, session);
+        if (festiveSweeper == null && singleSweeper == null) {
+            return false;
+        }
+        NpcInstance closestCorpse = null;
+        double closestDist = Double.MAX_VALUE;
+        for (NpcInstance corpse : sweepableCorpses) {
+            if (!canSweepCorpse(session, player, corpse)) {
+                continue;
+            }
+            double dist = calculateDistance(player.x(), player.y(), corpse.x(), corpse.y());
+            if (dist <= Math.max(300, state.getFarmRadius()) && dist < closestDist) {
+                closestDist = dist;
+                closestCorpse = corpse;
+            }
+        }
+        if (closestCorpse == null) {
+            return false;
+        }
+        SkillTemplate chosenSweep = (festiveSweeper != null && closestDist <= Math.max(250, festiveSweeper.skillRadius()))
+                ? festiveSweeper
+                : (singleSweeper != null ? singleSweeper : festiveSweeper);
+        session.selectNpcTarget(closestCorpse);
+        session.castSkill(chosenSweep, true);
+        return true;
+    }
+
+    private boolean canSweepCorpse(GameSession session, PlayerCharacter player, NpcInstance corpse) {
+        if (corpse == null || !corpse.isDead() || !corpse.isSweepable()) {
+            return false;
+        }
+        if (corpse.spoilerPlayerId() == 0 || corpse.spoilerPlayerId() == player.objectId()) {
+            return true;
+        }
+        return session != null && session.party() != null && session.party().contains(corpse.spoilerPlayerId());
+    }
     private void processLiveAcp(GameSession session, PlayerCharacter player, AutoFarmState state) {
         if (!Config.AUTOFARM_ALLOW_ACP) {
             return;
@@ -1797,7 +1889,7 @@ public class AutoFarmService {
         }
 
         // 3. Skills da aba Low Life / Heal (para qualquer classe se HP < lifePercent)
-        SkillTemplate lowLifeSkill = selectLowLifeSpell(player, state);
+        SkillTemplate lowLifeSkill = selectLowLifeSpell(player, state, session);
         if (lowLifeSkill != null) {
             executeSkillOrAction(session, player, player.objectId(), null, lowLifeSkill);
             return AutoFarmAction.cast(player.objectId(), lowLifeSkill.id());
@@ -1812,7 +1904,7 @@ public class AutoFarmService {
         }
 
         // 5. Skills da aba Self Buff (buffs e toggles)
-        SkillTemplate selfSkill = selectSelfBuffSpell(player, state);
+        SkillTemplate selfSkill = selectSelfBuffSpell(player, state, session);
         if (selfSkill != null) {
             executeSkillOrAction(session, player, player.objectId(), null, selfSkill);
             return AutoFarmAction.cast(player.objectId(), selfSkill.id());
@@ -1825,9 +1917,18 @@ public class AutoFarmService {
             if (state.isKeepLocation() && state.getKeepLocationX() != 0) {
                 double distFromStart = calculateDistance(player.x(), player.y(), state.getKeepLocationX(), state.getKeepLocationY());
                 if (distFromStart > 200) {
+                    int oldX = player.x(), oldY = player.y(), oldZ = player.z();
                     player.x(state.getKeepLocationX());
                     player.y(state.getKeepLocationY());
                     player.z(state.getKeepLocationZ());
+                    if (session != null) {
+                        var move = new MoveToLocation(player.objectId(), state.getKeepLocationX(), state.getKeepLocationY(), state.getKeepLocationZ(), oldX, oldY, oldZ);
+                        session.send(move);
+                        GameWorld w = resolveWorld(session);
+                        if (w != null) {
+                            w.broadcastAround(session, GameWorld.VISIBILITY_RADIUS, move, false);
+                        }
+                    }
                 }
             }
             return AutoFarmAction.none();
@@ -1835,7 +1936,7 @@ public class AutoFarmService {
 
         state.setCurrentTargetId(target.objectId());
         if (session != null && session.targetObjectId() != target.objectId()) {
-            session.targetObjectId(target.objectId());
+            session.selectNpcTarget(target);
         }
 
         // 7. Integracao com Summon / Pet
@@ -1847,17 +1948,17 @@ public class AutoFarmService {
 
         double targetDist = calculateDistance(player.x(), player.y(), target.x(), target.y());
 
-        // 8. ArquÃ©tipo ARCHER: Mantem distancia segura (kite se o monstro chegar perto)
+        // 8. Arquetipo ARCHER: Mantem distancia segura (kite se o monstro chegar perto)
         if (state.getMode() == AutoFarmMode.ARCHER && !state.isRunTargetCloseUp()) {
             if (targetDist < state.getKiteDistance()) {
-                kiteAwayFromTarget(player, target, 260);
+                kiteAwayFromTarget(player, target, 260, session);
             }
         } else if (state.isRunTargetCloseUp() && targetDist > 100 && session != null) {
-            moveCloserToTarget(player, target, 80);
+            moveCloserToTarget(player, target, 80, session);
         }
 
-        // 9. Skills da aba Chance / Debuff
-        SkillTemplate chanceSkill = selectChanceSpell(player, state, target);
+        // 9. Skills da aba Chance / Debuff (ex: Spoil 254, Spoil Festival 302, Spoil Crush 348, Hex, Stun)
+        SkillTemplate chanceSkill = selectChanceSpell(player, state, target, session);
         if (chanceSkill != null) {
             if (state.isExtraDelaySkill()) {
                 state.setExtraDelayTimerMs(System.currentTimeMillis() + Config.AUTOFARM_EXTRA_DELAY_MS);
@@ -1867,7 +1968,7 @@ public class AutoFarmService {
         }
 
         // 10. Skills da aba Attack (ou selectedSkillId legado)
-        SkillTemplate attackSkill = selectAttackSpell(player, state, targetDist);
+        SkillTemplate attackSkill = selectAttackSpell(player, state, targetDist, session);
         if (attackSkill != null) {
             if (state.isExtraDelaySkill()) {
                 state.setExtraDelayTimerMs(System.currentTimeMillis() + Config.AUTOFARM_EXTRA_DELAY_MS);
@@ -1887,8 +1988,8 @@ public class AutoFarmService {
             }
         }
 
-        // 11. Ataque fisico padrao
-        if (session != null && state.getMode() != AutoFarmMode.MAGE) {
+        // 11. Ataque fisico padrao (inclusive para MAGE caso nao tenha magias de ataque configuradas ou disponiveis)
+        if (session != null && (state.getMode() != AutoFarmMode.MAGE || state.getAttackSpells().isEmpty())) {
             session.startAutoAttack(target);
         }
         return AutoFarmAction.attack(target.objectId());
@@ -1931,7 +2032,7 @@ public class AutoFarmService {
         return null;
     }
 
-    private SkillTemplate selectLowLifeSpell(PlayerCharacter player, AutoFarmState state) {
+    private SkillTemplate selectLowLifeSpell(PlayerCharacter player, AutoFarmState state, GameSession session) {
         if (state.getLowLifeSpells().isEmpty() || player.maxHp() <= 0) {
             return null;
         }
@@ -1945,16 +2046,16 @@ public class AutoFarmService {
         List<Integer> list = state.getLowLifeSpells();
         if (state.isRndLifeSkills()) {
             int skId = list.get(ThreadLocalRandom.current().nextInt(list.size()));
-            return getReadySkill(player, skId);
+            return getReadySkill(player, skId, session);
         }
         for (int skId : list) {
-            SkillTemplate sk = getReadySkill(player, skId);
+            SkillTemplate sk = getReadySkill(player, skId, session);
             if (sk != null) return sk;
         }
         return null;
     }
 
-    private SkillTemplate selectSelfBuffSpell(PlayerCharacter player, AutoFarmState state) {
+    private SkillTemplate selectSelfBuffSpell(PlayerCharacter player, AutoFarmState state, GameSession session) {
         if (state.getSelfSpells().isEmpty() || player.maxMp() <= 0) {
             return null;
         }
@@ -1968,14 +2069,14 @@ public class AutoFarmService {
         List<Integer> list = state.getSelfSpells();
         if (state.isRndSelfSkills()) {
             int skId = list.get(ThreadLocalRandom.current().nextInt(list.size()));
-            SkillTemplate sk = getReadySkill(player, skId);
+            SkillTemplate sk = getReadySkill(player, skId, session);
             if (sk != null && !hasActiveBuffOrToggle(player, sk)) {
                 return sk;
             }
             return null;
         }
         for (int skId : list) {
-            SkillTemplate sk = getReadySkill(player, skId);
+            SkillTemplate sk = getReadySkill(player, skId, session);
             if (sk != null && !hasActiveBuffOrToggle(player, sk)) {
                 return sk;
             }
@@ -1983,7 +2084,7 @@ public class AutoFarmService {
         return null;
     }
 
-    private SkillTemplate selectChanceSpell(PlayerCharacter player, AutoFarmState state, NpcInstance target) {
+    private SkillTemplate selectChanceSpell(PlayerCharacter player, AutoFarmState state, NpcInstance target, GameSession session) {
         if (state.getChanceSpells().isEmpty() || player.maxMp() <= 0 || target == null) {
             return null;
         }
@@ -2000,29 +2101,31 @@ public class AutoFarmService {
         List<Integer> list = state.getChanceSpells();
         if (state.isRndChanceSkills()) {
             int skId = list.get(ThreadLocalRandom.current().nextInt(list.size()));
-            return getReadyChanceSkillForTarget(player, skId, target);
+            return getReadyChanceSkillForTarget(player, skId, target, session);
         }
         for (int skId : list) {
-            SkillTemplate sk = getReadyChanceSkillForTarget(player, skId, target);
+            SkillTemplate sk = getReadyChanceSkillForTarget(player, skId, target, session);
             if (sk != null) return sk;
         }
         return null;
     }
 
-    private SkillTemplate getReadyChanceSkillForTarget(PlayerCharacter player, int skillId, NpcInstance target) {
-        SkillTemplate sk = getReadySkill(player, skillId);
+    private SkillTemplate getReadyChanceSkillForTarget(PlayerCharacter player, int skillId, NpcInstance target, GameSession session) {
+        SkillTemplate sk = getReadySkill(player, skillId, session);
         if (sk == null) return null;
         String st = sk.skillType() != null ? sk.skillType().toUpperCase(Locale.ROOT) : "";
-        if ((st.contains("SPOIL") || skillId == 254 || skillId == 302) && target.isSpoiled()) {
+        boolean isSpoilSkill = st.contains("SPOIL") || skillId == 254 || skillId == 302 || skillId == 348
+                || sk.effects().stream().anyMatch(e -> "spoil".equalsIgnoreCase(e.name()));
+        if (isSpoilSkill && target.isSpoiled()) {
             return null;
         }
-        if (st.contains("SWEEP") || skillId == 42) {
+        if (st.contains("SWEEP") || skillId == 42 || skillId == 444) {
             return null;
         }
         return sk;
     }
 
-    private SkillTemplate selectAttackSpell(PlayerCharacter player, AutoFarmState state, double targetDist) {
+    private SkillTemplate selectAttackSpell(PlayerCharacter player, AutoFarmState state, double targetDist, GameSession session) {
         if (state.getAttackSpells().isEmpty() || player.maxMp() <= 0) {
             return null;
         }
@@ -2039,22 +2142,31 @@ public class AutoFarmService {
         List<Integer> list = state.getAttackSpells();
         if (state.isRndAttackSkills()) {
             int skId = list.get(ThreadLocalRandom.current().nextInt(list.size()));
-            return getReadySkill(player, skId);
+            return getReadySkill(player, skId, session);
         }
         for (int skId : list) {
-            SkillTemplate sk = getReadySkill(player, skId);
+            SkillTemplate sk = getReadySkill(player, skId, session);
             if (sk != null) return sk;
         }
         return null;
     }
 
-    private SkillTemplate getReadySkill(PlayerCharacter player, int skillId) {
+    private SkillTemplate getReadySkill(PlayerCharacter player, int skillId, GameSession session) {
         SkillTemplate sk = resolveKnownSkill(player, skillId);
         if (sk == null) {
             return null;
         }
-        if (player.currentMp() < sk.mpConsume()) {
+        if (player.currentMp() < sk.mpConsume() + sk.mpInitialConsume()) {
             return null;
+        }
+        if (sk.hpConsume() > 0 && player.currentHp() <= sk.hpConsume()) {
+            return null;
+        }
+        if (session != null && session.magicSkillHandler() != null) {
+            Long readyAt = session.magicSkillHandler().skillReuse().get(sk.id());
+            if (readyAt != null && readyAt > System.currentTimeMillis()) {
+                return null;
+            }
         }
         return sk;
     }
@@ -2077,8 +2189,13 @@ public class AutoFarmService {
             return;
         }
         int prevTarget = session.targetObjectId();
-        session.targetObjectId(targetObjectId);
-        session.castSkill(sk, sk.isOffensive());
+        if (npcTarget != null && session.targetObjectId() != npcTarget.objectId()) {
+            session.selectNpcTarget(npcTarget);
+        } else {
+            session.targetObjectId(targetObjectId);
+        }
+        boolean allowMoveToTarget = npcTarget != null || sk.isOffensive();
+        session.castSkill(sk, allowMoveToTarget);
         if (targetObjectId == player.objectId() && prevTarget > 0 && prevTarget != player.objectId()) {
             session.targetObjectId(prevTarget);
         }
@@ -2164,9 +2281,10 @@ public class AutoFarmService {
     // UTILITARIOS DE MOVIMENTO, HTML, ICONES E TEXTO
     // =========================================================================
 
-    private void kiteAwayFromTarget(PlayerCharacter player, NpcInstance target, int desiredDistance) {
-        double dx = player.x() - target.x();
-        double dy = player.y() - target.y();
+    private void kiteAwayFromTarget(PlayerCharacter player, NpcInstance target, int desiredDistance, GameSession session) {
+        int oldX = player.x(), oldY = player.y(), oldZ = player.z();
+        double dx = oldX - target.x();
+        double dy = oldY - target.y();
         double dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < 1.0) {
             dx = 1.0;
@@ -2177,11 +2295,20 @@ public class AutoFarmService {
         int newY = target.y() + (int) Math.round((dy / dist) * desiredDistance);
         player.x(newX);
         player.y(newY);
+        if (session != null) {
+            var move = new MoveToLocation(player.objectId(), newX, newY, oldZ, oldX, oldY, oldZ);
+            session.send(move);
+            GameWorld w = resolveWorld(session);
+            if (w != null) {
+                w.broadcastAround(session, GameWorld.VISIBILITY_RADIUS, move, false);
+            }
+        }
     }
 
-    private void moveCloserToTarget(PlayerCharacter player, NpcInstance target, int stopDistance) {
-        double dx = player.x() - target.x();
-        double dy = player.y() - target.y();
+    private void moveCloserToTarget(PlayerCharacter player, NpcInstance target, int stopDistance, GameSession session) {
+        int oldX = player.x(), oldY = player.y(), oldZ = player.z();
+        double dx = oldX - target.x();
+        double dy = oldY - target.y();
         double dist = Math.sqrt(dx * dx + dy * dy);
         if (dist <= stopDistance || dist < 1.0) {
             return;
@@ -2190,6 +2317,14 @@ public class AutoFarmService {
         int newY = target.y() + (int) Math.round((dy / dist) * stopDistance);
         player.x(newX);
         player.y(newY);
+        if (session != null) {
+            var move = new MoveToPawn(player.objectId(), target.objectId(), stopDistance, oldX, oldY, oldZ);
+            session.send(move);
+            GameWorld w = resolveWorld(session);
+            if (w != null) {
+                w.broadcastAround(session, GameWorld.VISIBILITY_RADIUS, move, false);
+            }
+        }
     }
 
     private double calculateDistance(int x1, int y1, int x2, int y2) {
