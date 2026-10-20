@@ -197,6 +197,7 @@ public abstract class SagaMasterQuest extends Quest {
 			qs.playSound(QuestState.SOUND_MIDDLE);
 			return "6-03.htm";
 		} else if ("7-1".equalsIgnoreCase(event)) {
+			qs.addSpawn(mob[0], x[0], y[0], z[0], 0, false, 180000);
 			return "7-02.htm";
 		} else if ("7-2".equalsIgnoreCase(event)) {
 			qs.setCond(10);
@@ -214,6 +215,8 @@ public abstract class SagaMasterQuest extends Quest {
 			qs.playSound(QuestState.SOUND_MIDDLE);
 			return "9-03.htm";
 		} else if ("10-1".equalsIgnoreCase(event)) {
+			qs.addSpawn(mob[2], x[2], y[2], z[2], 0, false, 180000);
+			qs.addSpawn(npc[4], x[1], y[1], z[1], 0, false, 180000);
 			return "10-02.htm";
 		} else if ("10-2".equalsIgnoreCase(event)) {
 			qs.setCond(19);

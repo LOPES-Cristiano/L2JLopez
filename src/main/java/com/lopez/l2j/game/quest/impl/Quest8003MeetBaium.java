@@ -68,6 +68,9 @@ public class Quest8003MeetBaium extends Quest {
 		if ("baium".equalsIgnoreCase(event) || "enter".equalsIgnoreCase(event) || "enter_baium".equalsIgnoreCase(event)) {
 			if (qs.getQuestItemsCount(BLOODED_FABRIC) > 0) {
 				qs.takeItems(BLOODED_FABRIC, 1);
+				if (baiumService != null && player.activeChar() != null) {
+					baiumService.registerPlayerInside(player.activeChar().objectId());
+				}
 				player.teleportToLocation(BaiumService.FLOOR14_X, BaiumService.FLOOR14_Y, BaiumService.FLOOR14_Z);
 				qs.exitQuest(true);
 				return null;

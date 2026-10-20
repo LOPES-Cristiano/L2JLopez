@@ -29,17 +29,24 @@ public class GameTimeController {
 		void onDayNightChange(boolean isNight);
 	}
 
+	public interface GameHourListener {
+		void onGameHourChanged(int gameHour);
+	}
+
 	private final GameWorld world;
 	private final List<DayNightListener> listeners = new CopyOnWriteArrayList<>();
+	private final List<GameHourListener> hourListeners = new CopyOnWriteArrayList<>();
 	private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
 			Thread.ofVirtual().name("game-time-clock-", 0).factory());
 
 	private volatile boolean currentNight;
+	private volatile int currentHour;
 
 	@Autowired
 	public GameTimeController(GameWorld world) {
 		this.world = world;
 		this.currentNight = isNightTime(GameTime.now());
+		this.currentHour = (GameTime.now() / 60) % 24;
 	}
 
 	@PostConstruct
@@ -57,6 +64,12 @@ public class GameTimeController {
 	public void addListener(DayNightListener listener) {
 		if (listener != null) {
 			listeners.add(listener);
+		}
+	}
+
+	public void addHourListener(GameHourListener listener) {
+		if (listener != null) {
+			hourListeners.add(listener);
 		}
 	}
 
@@ -80,6 +93,17 @@ public class GameTimeController {
 	private void tick() {
 		try {
 			int now = GameTime.now();
+			int hour = (now / 60) % 24;
+			if (hour != currentHour) {
+				currentHour = hour;
+				for (GameHourListener hl : hourListeners) {
+					try {
+						hl.onGameHourChanged(hour);
+					} catch (Exception e) {
+						log.warn("Erro ao notificar listener de hora de jogo", e);
+					}
+				}
+			}
 			boolean night = isNightTime(now);
 			if (night != currentNight) {
 				currentNight = night;

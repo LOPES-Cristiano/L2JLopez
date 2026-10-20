@@ -115,7 +115,10 @@ public class Quest246PossessorOfAPreciousSoul3 extends Quest {
 
 		if (npcId == CARADINE) {
 			if (cond == 0) {
-				if (qs.hasQuestItems(CARADINE_LETTER_1)) {
+				if (qs.isCompleted()) {
+					return getAlreadyCompletedMsg();
+				}
+				if (qs.hasQuestItems(CARADINE_LETTER_1) || (player != null && player.level() >= 65)) {
 					return "31740-01.htm";
 				}
 				return "31740-02.htm";

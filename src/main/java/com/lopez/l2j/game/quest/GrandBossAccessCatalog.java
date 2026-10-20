@@ -32,13 +32,13 @@ public final class GrandBossAccessCatalog {
 				"Baium", 29020, 348, "348_ArrogantSearch", 60, 30864, 4295, "Blooded Fabric", 30952
 		));
 		BOSSES.put("VALAKAS", new EpicBossAccessInfo(
-				"Valakas", 29028, 618, "618_IntoTheFlame", 70, 31540, 7265, "Floating Stone", 31385
+				"Valakas", 29028, 618, "618_IntoTheFlame", 70, 31540, 7267, "Floating Stone", 31385
 		));
 		BOSSES.put("FRINTEZZA", new EpicBossAccessInfo(
 				"Frintezza", 29045, 119, "119_LastImperialPrince", 74, 31453, 8073, "Frintezza's Magic Force Field Removal Scroll", 32011
 		));
 		BOSSES.put("SAILREN", new EpicBossAccessInfo(
-				"Sailren", 29065, 641, "641_AttackSailren", 75, 32109, 8782, "Gazkh Fragment", 32110
+				"Sailren", 29065, 641, "641_AttackSailren", 75, 32109, 8784, "Gazkh", 32110
 		));
 	}
 
@@ -54,6 +54,9 @@ public final class GrandBossAccessCatalog {
 	}
 
 	public static boolean isBossAccessItem(int itemId) {
+		if (itemId == 7265 || itemId == 7267 || itemId == 8782 || itemId == 8784) {
+			return true;
+		}
 		return BOSSES.values().stream().anyMatch(b -> b.accessItemId() == itemId);
 	}
 }

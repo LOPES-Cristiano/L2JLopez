@@ -185,6 +185,13 @@ public class GrandBossManager {
 		onBossKilled(bossId);
 	}
 
+	public static boolean isInstanceControlledBoss(int bossId) {
+		return switch (bossId) {
+			case ANTHARAS, 29066, 29067, 29068, BAIUM, VALAKAS, FRINTEZZA, 29046, 29047, 29048, SAILREN -> true;
+			default -> false;
+		};
+	}
+
 	public synchronized void spawnBoss(int bossId) {
 		GrandBossInfo info = bosses.get(bossId);
 		if (info == null) {
@@ -202,6 +209,11 @@ public class GrandBossManager {
 		info.status(BossStatus.ALIVE);
 		info.respawnTime(0);
 		persistDb(info);
+
+		if (isInstanceControlledBoss(bossId)) {
+			log.info("GrandBoss {} (ID {}) disponivel para entrada/despertar na instancia (status ALIVE).", info.name(), bossId);
+			return;
+		}
 
 		if (spawnService != null) {
 			spawnService.spawn(bossId, info.locX(), info.locY(), info.locZ(), info.heading());

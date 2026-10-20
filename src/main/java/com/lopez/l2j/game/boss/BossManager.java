@@ -216,7 +216,7 @@ public class BossManager {
 			grandBossHandled = true;
 		}
 
-		if (sailrenService != null && (npcId == 29065 || npcId == 22196 || npcId == 22197 || npcId == 22198 || npcId == 22218)) {
+		if (sailrenService != null && npcId == 29065) {
 			sailrenService.onSailrenKilled(killer);
 			grandBossHandled = true;
 		}
