@@ -1,18 +1,21 @@
 package com.lopez.l2j.network.game.handler.bypass;
 
-import com.lopez.l2j.game.autofarm.AutoFarmMode;
 import com.lopez.l2j.game.autofarm.AutoFarmService;
 import com.lopez.l2j.network.game.GameSession;
-import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
-import com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.Locale;
 
 /**
- * Handler modular para bypasses da janela interativa do .autofarm
+ * Handler modular para todos os bypasses da interface grafica do AutoFarm Premium.
+ * Suporta comandos:
+ * - voiced_autofarm ...
+ * - voice_autofarm, voice_farmstart, voice_farmstop, voice_farmacp, voice_changeSkillType,
+ *   voice_refreshSkills, voice_removeSkill, voice_addSkill, voice_addNewSkill,
+ *   voice_editFarmOption, voice_editSummonSkills, voice_removeSummonSkill,
+ *   voice_addSummonSkill, voice_addNewSummonSkill, voice_editSummonFarmOption,
+ *   voice_autosummonfarm, voice_buyfarm, voice_buyfarmTime, voice_tryFreeTime, voice_expendLimit
  */
 @Component
 public class BypassAutoFarmHandler implements IBypassHandler {
@@ -26,8 +29,28 @@ public class BypassAutoFarmHandler implements IBypassHandler {
 
 	@Override
 	public boolean canHandle(String command) {
-		if (command == null) return false;
-		return command.startsWith("voiced_autofarm");
+		if (command == null || command.isBlank()) {
+			return false;
+		}
+		String lower = command.trim().toLowerCase(Locale.ROOT);
+		return lower.startsWith("voiced_autofarm")
+				|| lower.startsWith("voice_autofarm")
+				|| lower.startsWith("voice_farm")
+				|| lower.startsWith("voice_changeskilltype")
+				|| lower.startsWith("voice_refreshskills")
+				|| lower.startsWith("voice_removeskill")
+				|| lower.startsWith("voice_addskill")
+				|| lower.startsWith("voice_addnewskill")
+				|| lower.startsWith("voice_editfarmoption")
+				|| lower.startsWith("voice_editsummonskills")
+				|| lower.startsWith("voice_removesummonskill")
+				|| lower.startsWith("voice_addsummonskill")
+				|| lower.startsWith("voice_addnewsummonskill")
+				|| lower.startsWith("voice_editsummonfarmoption")
+				|| lower.startsWith("voice_autosummonfarm")
+				|| lower.startsWith("voice_buyfarm")
+				|| lower.startsWith("voice_tryfreetime")
+				|| lower.startsWith("voice_expendlimit");
 	}
 
 	@Override
@@ -35,74 +58,7 @@ public class BypassAutoFarmHandler implements IBypassHandler {
 		if (session == null || session.activeCharacter() == null || autoFarmService == null) {
 			return false;
 		}
-		var active = session.activeCharacter();
-		var skillService = session.context() != null ? session.context().skillService() : null;
-
-		String param = command.length() > 15 ? command.substring(15).trim() : "";
-
-		if (param.isEmpty()) {
-			session.send(new NpcHtmlMessage(0, autoFarmService.renderHtml(active, skillService)));
-			return true;
-		}
-
-		String[] parts = param.split("\\s+");
-		String sub = parts[0].toLowerCase(Locale.ROOT);
-
-		switch (sub) {
-			case "toggle" -> {
-				boolean now = autoFarmService.toggleAutoFarm(active);
-				session.send(new CreatureSay(0, CreatureSay.ALL, "AutoFarm", "Auto-Farm " + (now ? "ATIVADO." : "DESATIVADO.")));
-				session.send(new NpcHtmlMessage(0, autoFarmService.renderHtml(active, skillService)));
-				return true;
-			}
-			case "mode" -> {
-				if (parts.length > 1) {
-					try {
-						AutoFarmMode mode = AutoFarmMode.valueOf(parts[1].toUpperCase(Locale.ROOT));
-						autoFarmService.setMode(active.objectId(), mode);
-						session.send(new CreatureSay(0, CreatureSay.ALL, "AutoFarm", "Modo alterado para: " + mode));
-					} catch (IllegalArgumentException ignored) {}
-				}
-				session.send(new NpcHtmlMessage(0, autoFarmService.renderHtml(active, skillService)));
-				return true;
-			}
-			case "radius" -> {
-				if (parts.length > 1) {
-					try {
-						int r = Integer.parseInt(parts[1]);
-						autoFarmService.setFarmRadius(active.objectId(), Math.max(300, Math.min(3000, r)));
-						session.send(new CreatureSay(0, CreatureSay.ALL, "AutoFarm", "Raio configurado para: " + r));
-					} catch (NumberFormatException ignored) {}
-				}
-				session.send(new NpcHtmlMessage(0, autoFarmService.renderHtml(active, skillService)));
-				return true;
-			}
-			case "hp" -> {
-				if (parts.length > 1) {
-					try {
-						int hp = Integer.parseInt(parts[1]);
-						autoFarmService.setAutoPotionHpThreshold(active.objectId(), Math.max(0.1, Math.min(0.95, hp / 100.0)));
-						session.send(new CreatureSay(0, CreatureSay.ALL, "AutoFarm", "Pocao de HP configurada para: " + hp + "%"));
-					} catch (NumberFormatException ignored) {}
-				}
-				session.send(new NpcHtmlMessage(0, autoFarmService.renderHtml(active, skillService)));
-				return true;
-			}
-			case "skill" -> {
-				if (parts.length > 1) {
-					try {
-						int skId = Integer.parseInt(parts[1]);
-						autoFarmService.setSelectedSkill(active.objectId(), skId);
-						session.send(new CreatureSay(0, CreatureSay.ALL, "AutoFarm", "Magia selecionada: ID " + skId));
-					} catch (NumberFormatException ignored) {}
-				}
-				session.send(new NpcHtmlMessage(0, autoFarmService.renderHtml(active, skillService)));
-				return true;
-			}
-			default -> {
-				session.send(new NpcHtmlMessage(0, autoFarmService.renderHtml(active, skillService)));
-				return true;
-			}
-		}
+		autoFarmService.handleCommand(session, command);
+		return true;
 	}
 }

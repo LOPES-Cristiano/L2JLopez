@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -787,6 +788,45 @@ public final class Config {
 	public static int GOLD_BAR_ID = 3470;
 
 	public static boolean ALLOW_AUTO_FARM = true;
+	public static boolean AUTOFARM_IS_FREE = true;
+	public static boolean AUTOFARM_ONLY_FOR_PREMIUM = false;
+	public static boolean AUTOFARM_FREE_FOR_PREMIUM = true;
+	public static boolean AUTOFARM_ONLINE_TYPE = false;
+	public static int AUTOFARM_FREE_TIME = 0;
+	public static boolean AUTOFARM_REFRESH_TIME = false;
+	public static int AUTOFARM_GAIN_FREE_TIME = 0;
+	public static String AUTOFARM_PRICES_RAW = "1,57,100000;3,57,250000;5,57,500000;8,57,800000;12,57,1200000;24,57,2000000";
+	public static Map<Integer, int[]> AUTOFARM_PRICES = Collections.emptyMap();
+	public static int AUTOFARM_MAXIMUM_ACTIVATED_LIMITS = 2;
+	public static boolean AUTOFARM_ALLOW_EXTEND_LIMITS = true;
+	public static int[] AUTOFARM_VISIBLE_LIMITS_PRICE = new int[]{57, 1000000};
+	public static boolean AUTOFARM_ALLOW_FOR_CURSED_WEAPON = false;
+	public static boolean AUTOFARM_STOP_IF_KARMA = false;
+	public static boolean AUTOFARM_SET_RED_RING = false;
+	public static String AUTOFARM_ABNORMAL_EFFECT_NAME = "";
+	public static List<Integer> AUTOFARM_PROHIBITED_ZONES = List.of();
+	public static int AUTOFARM_TASK_TICK_MS = 500;
+	public static int AUTOFARM_EXTRA_DELAY_MS = 5000;
+	public static int AUTOFARM_ATTACK_SKILLS_MIN_MP_PERCENT = 10;
+	public static int AUTOFARM_CHANCE_SKILLS_MIN_MP_PERCENT = 10;
+	public static int AUTOFARM_SELF_SKILLS_MIN_MP_PERCENT = 10;
+	public static int AUTOFARM_LOW_LIFE_SKILLS_MIN_HP_PERCENT = 30;
+	public static int AUTOFARM_ATTACK_SKILLS_DEFAULT_CHANCE = 100;
+	public static int AUTOFARM_CHANCE_SKILLS_DEFAULT_CHANCE = 100;
+	public static int AUTOFARM_SELF_SKILLS_DEFAULT_CHANCE = 100;
+	public static int AUTOFARM_LOW_LIFE_SKILLS_DEFAULT_CHANCE = 100;
+	public static int AUTOFARM_SUMMON_ATTACK_MIN_MP_PERCENT = 10;
+	public static int AUTOFARM_SUMMON_SELF_MIN_MP_PERCENT = 10;
+	public static int AUTOFARM_SUMMON_HEAL_MIN_HP_PERCENT = 30;
+	public static int AUTOFARM_SUMMON_ATTACK_DEFAULT_CHANCE = 100;
+	public static int AUTOFARM_SUMMON_SELF_DEFAULT_CHANCE = 100;
+	public static int AUTOFARM_SUMMON_HEAL_DEFAULT_CHANCE = 100;
+	public static boolean AUTOFARM_ALLOW_ACP = true;
+	public static int AUTOFARM_ACP_COOLDOWN_MS = 1000;
+	public static int AUTOFARM_ACP_HP_POTION_ID = 1539;
+	public static int AUTOFARM_ACP_MP_POTION_ID = 728;
+	public static int AUTOFARM_ACP_CP_POTION_ID = 5592;
+
 	public static boolean ALLOW_DRESS_ME = true;
 	public static boolean ALLOW_PVP_RANK = true;
 	public static boolean ALLOW_RESET = true;
@@ -2155,8 +2195,8 @@ public final class Config {
 		SHOW_CLASS_CHANGE_MESSAGE = ConfigLoader.getBoolean("ShowClassChangeMessage", true);
 		INVENTORY_MAXIMUM_NO_DWARF = ConfigLoader.getInt("MaxInventorySlotsForOther", 80);
 		INVENTORY_MAXIMUM_DWARF = ConfigLoader.getInt("MaxInventorySlotsForDwarf", 100);
-		WAREHOUSE_SLOT_NO_DWARF = ConfigLoader.getInt("WarehouseSlotLimitNoDwarf", 100);
-		WAREHOUSE_SLOT_DWARF = ConfigLoader.getInt("WarehouseSlotLimitDwarf", 120);
+		WAREHOUSE_SLOT_NO_DWARF = ConfigLoader.getInt("MaxWarehouseSlotsForOther", ConfigLoader.getInt("WarehouseSlotLimitNoDwarf", 100));
+		WAREHOUSE_SLOT_DWARF = ConfigLoader.getInt("MaxWarehouseSlotsForDwarf", ConfigLoader.getInt("WarehouseSlotLimitDwarf", 120));
 		ALT_WEIGHT_LIMIT = ConfigLoader.getFloat("AltWeightLimit", 1.0f);
 		AUTO_LEARN_SKILLS = ConfigLoader.getBoolean("AutoLearnSkills", true);
 		AUTO_LEARN_MAX_LEVEL = ConfigLoader.getInt("AutoLearnMaxLevel", 0);
@@ -2525,6 +2565,44 @@ public final class Config {
 		GOLD_BAR_PRICE = ConfigLoader.getInt("GoldBarPrice", 250000000);
 		GOLD_BAR_ID = ConfigLoader.getInt("GoldBarId", 3470);
 		ALLOW_AUTO_FARM = ConfigLoader.getBoolean("AllowAutoFarm", true);
+		AUTOFARM_IS_FREE = ConfigLoader.getBoolean("AutoFarmIsFree", true);
+		AUTOFARM_ONLY_FOR_PREMIUM = ConfigLoader.getBoolean("AutoFarmOnlyForPremium", false);
+		AUTOFARM_FREE_FOR_PREMIUM = ConfigLoader.getBoolean("AutoFarmFreeForPremium", true);
+		AUTOFARM_ONLINE_TYPE = ConfigLoader.getBoolean("AutoFarmOnlineType", false);
+		AUTOFARM_FREE_TIME = ConfigLoader.getInt("AutoFarmFreeTime", 0);
+		AUTOFARM_REFRESH_TIME = ConfigLoader.getBoolean("AutoFarmRefreshTime", false);
+		AUTOFARM_GAIN_FREE_TIME = ConfigLoader.getInt("AutoFarmGainFreeTime", 0);
+		AUTOFARM_PRICES_RAW = ConfigLoader.getProperty("AutoFarmPrices", "1,57,100000;3,57,250000;5,57,500000;8,57,800000;12,57,1200000;24,57,2000000");
+		AUTOFARM_PRICES = parseAutoFarmPrices(AUTOFARM_PRICES_RAW);
+		AUTOFARM_MAXIMUM_ACTIVATED_LIMITS = ConfigLoader.getInt("AutoFarmMaximumActivatedLimits", 2);
+		AUTOFARM_ALLOW_EXTEND_LIMITS = ConfigLoader.getBoolean("AutoFarmAllowExtendLimits", true);
+		AUTOFARM_VISIBLE_LIMITS_PRICE = getIntArray("AutoFarmVisibleLimitsPrice", new int[]{57, 1000000});
+		AUTOFARM_ALLOW_FOR_CURSED_WEAPON = ConfigLoader.getBoolean("AutoFarmAllowForCursedWeapon", false);
+		AUTOFARM_STOP_IF_KARMA = ConfigLoader.getBoolean("AutoFarmStopIfKarma", false);
+		AUTOFARM_SET_RED_RING = ConfigLoader.getBoolean("AutoFarmSetRedRing", false);
+		AUTOFARM_ABNORMAL_EFFECT_NAME = ConfigLoader.getProperty("AutoFarmAbnormalEffectName", "");
+		AUTOFARM_PROHIBITED_ZONES = getIntList("AutoFarmProhibitedZones", List.of());
+		AUTOFARM_TASK_TICK_MS = ConfigLoader.getInt("AutoFarmTaskTickMs", 500);
+		AUTOFARM_EXTRA_DELAY_MS = ConfigLoader.getInt("AutoFarmExtraDelayMs", 5000);
+		AUTOFARM_ATTACK_SKILLS_MIN_MP_PERCENT = ConfigLoader.getInt("AutoFarmAttackSkillsMinMpPercent", 10);
+		AUTOFARM_CHANCE_SKILLS_MIN_MP_PERCENT = ConfigLoader.getInt("AutoFarmChanceSkillsMinMpPercent", 10);
+		AUTOFARM_SELF_SKILLS_MIN_MP_PERCENT = ConfigLoader.getInt("AutoFarmSelfSkillsMinMpPercent", 10);
+		AUTOFARM_LOW_LIFE_SKILLS_MIN_HP_PERCENT = ConfigLoader.getInt("AutoFarmLowLifeSkillsMinHpPercent", 30);
+		AUTOFARM_ATTACK_SKILLS_DEFAULT_CHANCE = ConfigLoader.getInt("AutoFarmAttackSkillsDefaultChance", 100);
+		AUTOFARM_CHANCE_SKILLS_DEFAULT_CHANCE = ConfigLoader.getInt("AutoFarmChanceSkillsDefaultChance", 100);
+		AUTOFARM_SELF_SKILLS_DEFAULT_CHANCE = ConfigLoader.getInt("AutoFarmSelfSkillsDefaultChance", 100);
+		AUTOFARM_LOW_LIFE_SKILLS_DEFAULT_CHANCE = ConfigLoader.getInt("AutoFarmLowLifeSkillsDefaultChance", 100);
+		AUTOFARM_SUMMON_ATTACK_MIN_MP_PERCENT = ConfigLoader.getInt("AutoFarmSummonAttackMinMpPercent", 10);
+		AUTOFARM_SUMMON_SELF_MIN_MP_PERCENT = ConfigLoader.getInt("AutoFarmSummonSelfMinMpPercent", 10);
+		AUTOFARM_SUMMON_HEAL_MIN_HP_PERCENT = ConfigLoader.getInt("AutoFarmSummonHealMinHpPercent", 30);
+		AUTOFARM_SUMMON_ATTACK_DEFAULT_CHANCE = ConfigLoader.getInt("AutoFarmSummonAttackDefaultChance", 100);
+		AUTOFARM_SUMMON_SELF_DEFAULT_CHANCE = ConfigLoader.getInt("AutoFarmSummonSelfDefaultChance", 100);
+		AUTOFARM_SUMMON_HEAL_DEFAULT_CHANCE = ConfigLoader.getInt("AutoFarmSummonHealDefaultChance", 100);
+		AUTOFARM_ALLOW_ACP = ConfigLoader.getBoolean("AutoFarmAllowAcp", true);
+		AUTOFARM_ACP_COOLDOWN_MS = ConfigLoader.getInt("AutoFarmAcpCooldownMs", 1000);
+		AUTOFARM_ACP_HP_POTION_ID = ConfigLoader.getInt("AutoFarmAcpHpPotionId", 1539);
+		AUTOFARM_ACP_MP_POTION_ID = ConfigLoader.getInt("AutoFarmAcpMpPotionId", 728);
+		AUTOFARM_ACP_CP_POTION_ID = ConfigLoader.getInt("AutoFarmAcpCpPotionId", 5592);
 		ALLOW_DRESS_ME = ConfigLoader.getBoolean("AllowDressMe", true);
 		ALLOW_PVP_RANK = ConfigLoader.getBoolean("AllowPvpRank", true);
 		ALLOW_RESET = ConfigLoader.getBoolean("AllowReset", true);
@@ -3700,6 +3778,28 @@ public final class Config {
 					int skillId = Integer.parseInt(parts[0].trim());
 					int durationSec = Integer.parseInt(parts[1].trim());
 					map.put(skillId, durationSec);
+				} catch (Exception ignored) {}
+			}
+		}
+		return Collections.unmodifiableMap(map);
+	}
+
+	private static Map<Integer, int[]> parseAutoFarmPrices(String str) {
+		if (str == null || str.isBlank()) {
+			return Collections.emptyMap();
+		}
+		Map<Integer, int[]> map = new LinkedHashMap<>();
+		String[] entries = str.split(";");
+		for (String entry : entries) {
+			String clean = entry.trim();
+			if (clean.isEmpty()) continue;
+			String[] parts = clean.split(",");
+			if (parts.length == 3) {
+				try {
+					int hours = Integer.parseInt(parts[0].trim());
+					int itemId = Integer.parseInt(parts[1].trim());
+					int count = Integer.parseInt(parts[2].trim());
+					map.put(hours, new int[]{itemId, count});
 				} catch (Exception ignored) {}
 			}
 		}

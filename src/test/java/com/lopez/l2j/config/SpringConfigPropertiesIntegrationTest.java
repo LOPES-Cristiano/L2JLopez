@@ -135,12 +135,12 @@ class SpringConfigPropertiesIntegrationTest {
 		ExStorageMaxCount dwarfStorage = ExStorageMaxCount.of(dwarf);
 
 		// Conforme player.properties e rates.properties
-		assertEquals(80, humanStorage.inventory());
-		assertEquals(100, dwarfStorage.inventory());
-		assertEquals(100, humanStorage.warehouse());
-		assertEquals(120, dwarfStorage.warehouse());
-		assertEquals(4, humanStorage.privateSell());
-		assertEquals(6, dwarfStorage.privateSell());
+		assertEquals(Config.MAX_INVENTORY_SLOTS_FOR_OTHER, humanStorage.inventory());
+		assertEquals(Config.MAX_INVENTORY_SLOTS_FOR_DWARF, dwarfStorage.inventory());
+		assertEquals(Config.MAX_WAREHOUSE_SLOTS_FOR_OTHER, humanStorage.warehouse());
+		assertEquals(Config.MAX_WAREHOUSE_SLOTS_FOR_DWARF, dwarfStorage.warehouse());
+		assertEquals(Config.MAX_PVT_STORE_SELL_SLOTS_OTHER, humanStorage.privateSell());
+		assertEquals(Config.MAX_PVT_STORE_SELL_SLOTS_DWARF, dwarfStorage.privateSell());
 	}
 
 	@Test
