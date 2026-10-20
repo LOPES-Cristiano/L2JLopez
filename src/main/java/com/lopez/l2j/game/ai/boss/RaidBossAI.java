@@ -75,25 +75,6 @@ public class RaidBossAI extends FighterAI {
 
 	@Override
 	protected SkillTemplate chooseMonsterSkill() {
-		if (npcSkillTable == null || skillTable == null) {
-			return null;
-		}
-		var skillList = npcSkillTable.getSkills(npc.npcId());
-		if (skillList == null || skillList.isEmpty()) {
-			return null;
-		}
-
-		// Raid Bosses tem 50% de chance por acao de usar uma de suas habilidades especiais
-		if (ThreadLocalRandom.current().nextInt(100) < 50) {
-			// Sorteia uma habilidade do boss
-			int idx = ThreadLocalRandom.current().nextInt(skillList.size());
-			var entry = skillList.get(idx);
-			var opt = skillTable.get(entry.skillId(), entry.level());
-			if (opt.isPresent() && (npc.currentMp() >= opt.get().mpConsume() || opt.get().mpConsume() == 0)) {
-				return opt.get();
-			}
-		}
-
 		return super.chooseMonsterSkill();
 	}
 

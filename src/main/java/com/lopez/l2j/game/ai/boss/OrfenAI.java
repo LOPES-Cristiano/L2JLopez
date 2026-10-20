@@ -28,6 +28,12 @@ public class OrfenAI extends RaidBossAI {
 		super(npc, world, combatService, charTemplates, npcSkillTable, skillTable);
 	}
 
+	public OrfenAI(NpcInstance npc, GameWorld world, CombatService combatService,
+			CharTemplateTable charTemplates, NpcSkillTable npcSkillTable, SkillTable skillTable,
+			java.util.concurrent.ScheduledExecutorService scheduler, com.lopez.l2j.game.zone.ZoneTable zones) {
+		super(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler, zones);
+	}
+
 	@Override
 	public void processCombat() {
 		if (npc.isDead()) return;

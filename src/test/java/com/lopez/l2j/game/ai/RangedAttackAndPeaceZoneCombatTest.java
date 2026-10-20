@@ -109,7 +109,7 @@ class RangedAttackAndPeaceZoneCombatTest {
 		assertThat(player.currentHp()).isEqualTo(1000.0);
 
 		// Um callback foi agendado para o impacto com timeToHit correspondendo a 70% do tempo de ataque
-		long expectedTimeToHit = (long) ((500_000L / 250) * 0.70);
+		long expectedTimeToHit = (long) ((333_000L / 250) * 0.70);
 		assertThat(delayCaptor.getValue()).isEqualTo(expectedTimeToHit);
 		assertThat(archer.currentAttackTask() != null).isTrue();
 
@@ -131,6 +131,7 @@ class RangedAttackAndPeaceZoneCombatTest {
 		skillTable.register(nukeSkill);
 
 		when(npcSkillTable.getSkills(20060)).thenReturn(List.of(new NpcSkillTable.NpcSkillHolder(4032, 1)));
+		when(npcSkillTable.getSkills(eq(20060), anyInt())).thenReturn(List.of(new NpcSkillTable.NpcSkillHolder(4032, 1)));
 
 		NpcTemplate mageTpl = mock(NpcTemplate.class);
 		when(mageTpl.id()).thenReturn(20060);

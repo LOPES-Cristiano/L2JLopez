@@ -77,6 +77,144 @@ class NpcAiArchetypesTest {
 	}
 
 	@Test
+	@DisplayName("Monstros guerreiros com passivas/buffs magicos (isMagic=true) ou skills hibridas recebem FighterAI e nunca MysticAI")
+	void testWarriorWithMagicPassivesAndBuffsStaysFighter() {
+		SkillTemplate passiveMagic = new SkillTemplate(
+				4009, 1, "Resist Fire", SkillTemplate.OperateType.PASSIVE, "BUFF",
+				"TARGET_SELF", true, 0, 0, 0, 0.0,
+				0, 0, 0, 0, 0, 1,
+				0.0, false, List.of(), List.of(), null, null);
+		SkillTemplate hasteBuff = new SkillTemplate(
+				4402, 1, "NPC Haste", SkillTemplate.OperateType.ACTIVE, "BUFF",
+				"TARGET_SELF", true, 10, 0, 0, 0.0,
+				400, 0, 1000, 0, 5000, 1,
+				0.0, false, List.of(), List.of(), null, null);
+		SkillTemplate stunSkill = new SkillTemplate(
+				4072, 1, "NPC Stun", SkillTemplate.OperateType.ACTIVE, "STUN",
+				"TARGET_ONE", false, 20, 0, 0, 100.0,
+				40, 0, 1000, 0, 6000, 40,
+				0.0, false, List.of(), List.of(), null, null);
+		SkillTemplate nukeSkill = new SkillTemplate(
+				4001, 1, "NPC Wind Strike", SkillTemplate.OperateType.ACTIVE, "MDAM",
+				"TARGET_ONE", true, 20, 0, 0, 50.0,
+				600, 0, 2000, 0, 8000, 40,
+				0.0, false, List.of(), List.of(), null, null);
+
+		skillTable.register(passiveMagic);
+		skillTable.register(hasteBuff);
+		skillTable.register(stunSkill);
+		skillTable.register(nukeSkill);
+
+		// Monstro guerreiro com passiva magica, buff magico e skill hibrida (MDAM + STUN)
+		when(npcSkillTable.getSkills(eq(20555), anyInt())).thenReturn(List.of(
+				new NpcSkillTable.NpcSkillHolder(4009, 1),
+				new NpcSkillTable.NpcSkillHolder(4402, 1),
+				new NpcSkillTable.NpcSkillHolder(4072, 1),
+				new NpcSkillTable.NpcSkillHolder(4001, 1)
+		));
+
+		NpcTemplate warriorTpl = mock(NpcTemplate.class);
+		when(warriorTpl.id()).thenReturn(20555);
+		when(warriorTpl.idTemplate()).thenReturn(20555);
+		when(warriorTpl.type()).thenReturn("L2Monster");
+		when(warriorTpl.name()).thenReturn("Ketra Orc Footman");
+		when(warriorTpl.attackRange()).thenReturn(40);
+
+		NpcInstance warrior = new NpcInstance(105, warriorTpl, 0, 0, 0, 0);
+		AbstractNpcAI ai = NpcAiFactory.createAI(warrior, world, combatService, charTemplates, npcSkillTable, skillTable);
+		assertEquals(AbstractNpcAI.AiArchetype.FIGHTER, ai.getArchetype(),
+				"Guerreiro com passivas/buffs magicos ou skills fisicas deve receber FighterAI");
+	}
+
+	@Test
+	@DisplayName("Cooldown de skills e filtro de passivas em chooseMonsterSkill garantem ataques fisicos continuos")
+	void testSkillCooldownAndPassiveFilter() {
+		SkillTemplate passiveRace = new SkillTemplate(
+				4416, 6, "Humanoids", SkillTemplate.OperateType.PASSIVE, "PASSIVE",
+				"TARGET_SELF", false, 0, 0, 0, 0.0,
+				0, 0, 0, 0, 0, 1,
+				0.0, false, List.of(), List.of(), null, null);
+		SkillTemplate activeStrike = new SkillTemplate(
+				4032, 1, "Power Strike", SkillTemplate.OperateType.ACTIVE, "PDAM",
+				"TARGET_ONE", false, 10, 0, 0, 150.0,
+				40, 0, 1000, 0, 8000, 40,
+				0.0, false, List.of(), List.of(), null, null);
+
+		skillTable.register(passiveRace);
+		skillTable.register(activeStrike);
+
+		when(npcSkillTable.getSkills(eq(20556), anyInt())).thenReturn(List.of(
+				new NpcSkillTable.NpcSkillHolder(4416, 6),
+				new NpcSkillTable.NpcSkillHolder(4032, 1)
+		));
+
+		NpcTemplate tpl = mock(NpcTemplate.class);
+		when(tpl.id()).thenReturn(20556);
+		when(tpl.idTemplate()).thenReturn(20556);
+		when(tpl.type()).thenReturn("L2Monster");
+		when(tpl.name()).thenReturn("Orc Grunt");
+		when(tpl.attackRange()).thenReturn(40);
+		when(tpl.maxHp()).thenReturn(1000);
+		when(tpl.maxMp()).thenReturn(500);
+
+		NpcInstance mob = new NpcInstance(106, tpl, 0, 0, 0, 0);
+		FighterAI fighterAI = new FighterAI(mob, world, combatService, charTemplates, npcSkillTable, skillTable);
+
+		// Desabilita a skill ativa (simulando cooldown)
+		mob.disableSkill(4032, 8000L);
+		assertTrue(mob.isSkillDisabled(4032));
+
+		// Em 50 tentativas, chooseMonsterSkill NUNCA deve retornar a passiva 4416 nem a skill 4032 em cooldown
+		for (int i = 0; i < 50; i++) {
+			assertNull(fighterAI.chooseMonsterSkill(), "Com a skill ativa em cooldown, deve retornar null para atacar fisicamente");
+		}
+	}
+
+	@Test
+	@DisplayName("Grand Bosses (Antharas, Valakas, Baium) alternam ataques fisicos (65%) e skills (35%) respeitando cooldown")
+	void testGrandBossPhysicalAttackCadenceAndCooldown() {
+		SkillTemplate fist = new SkillTemplate(
+				com.lopez.l2j.game.ai.boss.BaiumAI.SKILL_FIST, 1, "Baium Fist", SkillTemplate.OperateType.ACTIVE, "PDAM",
+				"TARGET_ONE", false, 0, 0, 0, 5000.0,
+				100, 0, 1500, 0, 10000, 75,
+				0.0, false, List.of(), List.of(), null, null);
+		SkillTemplate thunder = new SkillTemplate(
+				com.lopez.l2j.game.ai.boss.BaiumAI.SKILL_THUNDER, 1, "Baium Thunder", SkillTemplate.OperateType.ACTIVE, "MDAM",
+				"TARGET_AURA", true, 0, 0, 0, 3000.0,
+				0, 300, 2000, 0, 10000, 75,
+				0.0, false, List.of(), List.of(), null, null);
+		SkillTemplate quake = new SkillTemplate(
+				com.lopez.l2j.game.ai.boss.BaiumAI.SKILL_EARTHQUAKE, 1, "Baium Earthquake", SkillTemplate.OperateType.ACTIVE, "PDAM",
+				"TARGET_AURA", false, 0, 0, 0, 4000.0,
+				0, 300, 2000, 0, 10000, 75,
+				0.0, false, List.of(), List.of(), null, null);
+
+		skillTable.register(fist);
+		skillTable.register(thunder);
+		skillTable.register(quake);
+
+		NpcTemplate baiumTpl = mock(NpcTemplate.class);
+		when(baiumTpl.id()).thenReturn(29020);
+		when(baiumTpl.type()).thenReturn("L2GrandBoss");
+		when(baiumTpl.name()).thenReturn("Baium");
+		when(baiumTpl.maxHp()).thenReturn(500000);
+		when(baiumTpl.collisionRadius()).thenReturn(65.0);
+		when(baiumTpl.collisionHeight()).thenReturn(174.0);
+		when(baiumTpl.attackRange()).thenReturn(40);
+
+		NpcInstance baium = new NpcInstance(29020, baiumTpl, 0, 0, 0, 0);
+		AbstractNpcAI baiumAI = new com.lopez.l2j.game.ai.boss.BaiumAI(baium, world, combatService, charTemplates, npcSkillTable, skillTable);
+
+		int physicalTurns = 0;
+		for (int i = 0; i < 100; i++) {
+			if (baiumAI.chooseMonsterSkill() == null) {
+				physicalTurns++;
+			}
+		}
+		assertTrue(physicalTurns >= 40, "Baium deve realizar ataques fisicos na maioria dos turnos (esperado ~65%, obtido " + physicalTurns + "%)");
+	}
+
+	@Test
 	@DisplayName("RangerAI recua (kiting) quando o jogador se aproxima a menos de 150 unidades")
 	void testRangerKitingRetreat() {
 		NpcTemplate archerTpl = mock(NpcTemplate.class);
@@ -129,6 +267,7 @@ class NpcAiArchetypesTest {
 		skillTable.register(healSkill);
 
 		when(npcSkillTable.getSkills(401)).thenReturn(List.of(new NpcSkillTable.NpcSkillHolder(4035, 1)));
+		when(npcSkillTable.getSkills(eq(401), anyInt())).thenReturn(List.of(new NpcSkillTable.NpcSkillHolder(4035, 1)));
 
 		NpcTemplate priestTpl = mock(NpcTemplate.class);
 		when(priestTpl.id()).thenReturn(401);

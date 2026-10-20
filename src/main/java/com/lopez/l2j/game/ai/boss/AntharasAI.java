@@ -36,6 +36,12 @@ public class AntharasAI extends RaidBossAI {
 		super(npc, world, combatService, charTemplates, npcSkillTable, skillTable);
 	}
 
+	public AntharasAI(NpcInstance npc, GameWorld world, CombatService combatService,
+			CharTemplateTable charTemplates, NpcSkillTable npcSkillTable, SkillTable skillTable,
+			java.util.concurrent.ScheduledExecutorService scheduler, com.lopez.l2j.game.zone.ZoneTable zones) {
+		super(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler, zones);
+	}
+
 	@Override
 	public void processCombat() {
 		if (npc.isDead()) return;
@@ -74,6 +80,11 @@ public class AntharasAI extends RaidBossAI {
 	protected SkillTemplate chooseMonsterSkill() {
 		if (skillTable == null) return null;
 
+		// 1. So tenta usar skill especial em 35% das acoes (nos outros 65%, retorna null para dar o ataque fisico pesado do Boss!)
+		if (ThreadLocalRandom.current().nextInt(100) >= 35) {
+			return null;
+		}
+
 		int roll = ThreadLocalRandom.current().nextInt(100);
 		int skillId = switch (hpPhase) {
 			case 1 -> roll < 35 ? SKILL_METEOR : (roll < 65 ? SKILL_CURSE : SKILL_PARALYZE);
@@ -82,6 +93,11 @@ public class AntharasAI extends RaidBossAI {
 			default -> roll < 25 ? SKILL_METEOR : (roll < 50 ? SKILL_BREATH : (roll < 70 ? SKILL_SHOCK : SKILL_FEAR));
 		};
 
-		return skillTable.get(skillId, 1).orElseGet(super::chooseMonsterSkill);
+		// 2. Verifica !npc.isSkillDisabled(skillId) antes de retornar a skill; se estiver em cooldown, retorna null para atacar fisicamente!
+		if (npc.isSkillDisabled(skillId)) {
+			return null;
+		}
+
+		return skillTable.get(skillId, 1).orElse(null);
 	}
 }

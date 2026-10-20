@@ -105,8 +105,8 @@ public class NpcAiService {
 			t.setDaemon(true);
 			return t;
 		});
-		scheduler.scheduleAtFixedRate(this::tick, 500, 500, TimeUnit.MILLISECONDS);
-		log.info("NpcAiService iniciado (tick a cada 500ms)");
+		scheduler.scheduleAtFixedRate(this::tick, 250, 250, TimeUnit.MILLISECONDS);
+		log.info("NpcAiService iniciado (tick a cada 250ms)");
 	}
 
 	@PreDestroy
@@ -164,6 +164,7 @@ public class NpcAiService {
 		}
 		npc.targetPlayerId(targetPlayerId);
 		npc.inCombat(true);
+		npc.applyPassiveSkills(npcSkillTable, skillTable);
 
 		var npcStart = new com.lopez.l2j.network.game.packet.GameServerPacket.AutoAttackStart(npc.objectId());
 		world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, npcStart);
@@ -398,6 +399,7 @@ public class NpcAiService {
 			npc.currentHp(npc.maxHp());
 			npc.currentMp(npc.template().maxMp());
 		}
+		npc.applyPassiveSkills(npcSkillTable, skillTable);
 		npc.targetPlayerId(0);
 		npc.inCombat(false);
 
@@ -460,7 +462,7 @@ public class NpcAiService {
 		tickCount++;
 
 		// 1. Checagem de aggro e Guardas contra PKs
-		if (tickCount == 1 || tickCount % 2 == 0) {
+		if (tickCount == 1 || tickCount == 2 || tickCount % 4 == 0) {
 			checkAggroAroundPlayers();
 		}
 
@@ -476,8 +478,8 @@ public class NpcAiService {
 		// 3. Suporte de Priests ociosos proximos a aliados feridos
 		processIdlePriests();
 
-		// 4. Roaming aleatorio de monstros pacificos / ociosos (a cada 10 segundos = 20 ticks)
-		if (tickCount % 20 == 0) {
+		// 4. Roaming aleatorio de monstros pacificos / ociosos (a cada 10 segundos = 40 ticks)
+		if (tickCount % 40 == 0) {
 			roamIdleMonsters();
 		}
 	}

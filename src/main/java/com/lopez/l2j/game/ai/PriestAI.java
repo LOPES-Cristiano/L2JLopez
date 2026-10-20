@@ -124,29 +124,34 @@ public class PriestAI extends MysticAI {
 
 	private SkillTemplate findHealSkill() {
 		if (npcSkillTable != null && skillTable != null) {
-			var list = npcSkillTable.getSkills(npc.npcId());
+			var list = npcSkillTable.getSkills(npc.npcId(), npc.idTemplate());
 			if (list != null) {
 				for (var entry : list) {
 					var opt = skillTable.get(entry.skillId(), entry.level());
-					if (opt.isPresent() && opt.get().isHeal()) {
+					if (opt.isPresent() && !opt.get().isPassive() && !opt.get().isToggle() && opt.get().isHeal()
+							&& !npc.isSkillDisabled(opt.get().id())) {
 						return opt.get();
 					}
 				}
 			}
 		}
-		return DEFAULT_PRIEST_HEAL;
+		if (!npc.isSkillDisabled(DEFAULT_PRIEST_HEAL.id())) {
+			return DEFAULT_PRIEST_HEAL;
+		}
+		return null;
 	}
 
 	private void healAlly(NpcInstance target, SkillTemplate skill) {
 		if (target == null || target.isDead()) {
 			return;
 		}
-		int mAtkSpd = Math.max(100, npc.template() != null ? npc.template().mAtkSpd() : 333);
-		long cooldownMs = 500_000L / mAtkSpd;
+		int mAtkSpd = Math.max(100, npc.mAtkSpd());
+		long cooldownMs = Math.max(400L, 333_000L / mAtkSpd);
 		long now = System.currentTimeMillis();
 
 		if (now - npc.lastAttackTime() >= cooldownMs) {
 			npc.lastAttackTime(now);
+			npc.disableSkill(skill.id(), Math.max(4000L, skill.reuseDelay()));
 			if (skill.mpConsume() > 0) {
 				npc.currentMp(Math.max(0, npc.currentMp() - skill.mpConsume()));
 			}

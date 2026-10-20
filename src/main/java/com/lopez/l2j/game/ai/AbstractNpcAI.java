@@ -51,6 +51,9 @@ public abstract class AbstractNpcAI {
 		this.skillTable = skillTable;
 		this.scheduler = scheduler != null ? scheduler : com.lopez.l2j.network.game.GameSession.autoAttackScheduler();
 		this.zones = zones;
+		if (npc != null) {
+			npc.applyPassiveSkills(npcSkillTable, skillTable);
+		}
 	}
 
 	public abstract AiArchetype getArchetype();
@@ -103,33 +106,67 @@ public abstract class AbstractNpcAI {
 		return combatService.canSeeTarget(npc, character);
 	}
 
+	protected int getEffectiveAttackRange() {
+		int baseRange = Math.max(40, npc.template() != null ? npc.template().attackRange() : 40);
+		int npcRadius = npc.template() != null ? (int) Math.ceil(npc.template().collisionRadius()) : 10;
+		return baseRange + npcRadius + 20; // inclui collisionRadius do monstro/boss + raio do player
+	}
+
 	protected SkillTemplate chooseMonsterSkill() {
 		if (npcSkillTable == null || skillTable == null) {
 			return null;
 		}
-		var skillList = npcSkillTable.getSkills(npc.npcId());
+		var skillList = npcSkillTable.getSkills(npc.npcId(), npc.idTemplate());
 		if (skillList == null || skillList.isEmpty()) {
 			return null;
 		}
 
-		// 1. Se estiver ferido (HP < 50%), prioriza habilidades de cura
+		// 1. Se estiver ferido (HP < 50%), prioriza habilidades de cura ativas disponiveis
 		boolean lowHp = npc.currentHp() < (npc.maxHp() * 0.5);
 		if (lowHp) {
 			for (var entry : skillList) {
 				var opt = skillTable.get(entry.skillId(), entry.level());
-				if (opt.isPresent() && opt.get().isHeal() && npc.currentMp() >= opt.get().mpConsume()) {
-					return opt.get();
+				if (opt.isPresent()) {
+					SkillTemplate sk = opt.get();
+					if (!sk.isPassive() && !sk.isToggle() && sk.isHeal()
+							&& !npc.isSkillDisabled(sk.id())
+							&& npc.currentMp() >= sk.mpConsume()) {
+						return sk;
+					}
 				}
 			}
 		}
 
-		// 2. Chance de 30% de usar habilidade ofensiva ou debuff
-		if (ThreadLocalRandom.current().nextInt(100) < 30) {
+		// 2. Chance equilibrada (25% em monstros normais, 35% em RaidBosses) de usar habilidade ativa
+		int skillChance = npc.isRaid() ? 35 : 25;
+		if (ThreadLocalRandom.current().nextInt(100) < skillChance) {
+			java.util.List<SkillTemplate> candidates = new java.util.ArrayList<>();
 			for (var entry : skillList) {
 				var opt = skillTable.get(entry.skillId(), entry.level());
-				if (opt.isPresent() && !opt.get().isHeal() && npc.currentMp() >= opt.get().mpConsume()) {
-					return opt.get();
+				if (opt.isEmpty()) {
+					continue;
 				}
+				SkillTemplate sk = opt.get();
+				if (sk.isPassive() || sk.isToggle() || sk.isHeal()) {
+					continue;
+				}
+				if (npc.isSkillDisabled(sk.id()) || npc.currentMp() < sk.mpConsume()) {
+					continue;
+				}
+				if (sk.isMagic() && npc.isMuted()) {
+					continue;
+				}
+				if (!sk.isMagic() && npc.isPhysicalMuted()) {
+					continue;
+				}
+				boolean isSelfBuff = sk.isBuff() || "TARGET_SELF".equalsIgnoreCase(sk.target());
+				if (isSelfBuff && npc.hasActiveBuff(sk.id())) {
+					continue;
+				}
+				candidates.add(sk);
+			}
+			if (!candidates.isEmpty()) {
+				return candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
 			}
 		}
 
@@ -141,8 +178,9 @@ public abstract class AbstractNpcAI {
 			return;
 		}
 		npc.running(true);
-		double runSpeed = Math.max(60, npc.template().runSpd());
-		double step = Math.max(16.0, Math.min(dist - attackRange, runSpeed * 0.5));
+		int stopDistance = Math.max(20, attackRange);
+		double runSpeed = Math.max(60, npc.runSpd());
+		double step = Math.max(16.0, Math.min(Math.max(0.0, dist - stopDistance), runSpeed * 0.5));
 
 		int goalX = targetX;
 		int goalY = targetY;
@@ -196,7 +234,7 @@ public abstract class AbstractNpcAI {
 		npc.moveTo(newX, newY, newZ, heading);
 		world.updateNpcPosition(npc, fromX, fromY);
 
-		var movePawn = new MoveToPawn(npc.objectId(), targetObjId, attackRange, npc.x(), npc.y(), npc.z());
+		var movePawn = new MoveToPawn(npc.objectId(), targetObjId, stopDistance, npc.x(), npc.y(), npc.z());
 		world.player(targetObjId).ifPresent(p -> p.send(movePawn));
 		world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, movePawn);
 	}

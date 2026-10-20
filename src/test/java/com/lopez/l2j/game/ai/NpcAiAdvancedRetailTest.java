@@ -379,6 +379,21 @@ class NpcAiAdvancedRetailTest {
 		public java.util.List<NpcSkillHolder> getSkills(int npcId) {
 			return testSkills.getOrDefault(npcId, java.util.List.of());
 		}
+
+		@Override
+		public java.util.List<NpcSkillHolder> getSkills(int npcId, int idTemplate) {
+			var list = testSkills.get(npcId);
+			if (list != null && !list.isEmpty()) {
+				return list;
+			}
+			if (idTemplate > 0 && idTemplate != npcId) {
+				list = testSkills.get(idTemplate);
+				if (list != null && !list.isEmpty()) {
+					return list;
+				}
+			}
+			return java.util.List.of();
+		}
 	}
 
 	private static class TestGameSession implements com.lopez.l2j.game.world.GameWorld.OnlinePlayer {

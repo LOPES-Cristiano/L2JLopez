@@ -27,9 +27,20 @@ public class BaiumAI extends RaidBossAI {
 		super(npc, world, combatService, charTemplates, npcSkillTable, skillTable);
 	}
 
+	public BaiumAI(NpcInstance npc, GameWorld world, CombatService combatService,
+			CharTemplateTable charTemplates, NpcSkillTable npcSkillTable, SkillTable skillTable,
+			java.util.concurrent.ScheduledExecutorService scheduler, com.lopez.l2j.game.zone.ZoneTable zones) {
+		super(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler, zones);
+	}
+
 	@Override
 	protected SkillTemplate chooseMonsterSkill() {
 		if (skillTable == null) return null;
+
+		// 1. So tenta usar skill especial em 35% das acoes (nos outros 65%, retorna null para dar o ataque fisico pesado do Boss!)
+		if (ThreadLocalRandom.current().nextInt(100) >= 35) {
+			return null;
+		}
 
 		double hpPercent = (npc.currentHp() / npc.maxHp()) * 100.0;
 		int roll = ThreadLocalRandom.current().nextInt(100);
@@ -45,6 +56,11 @@ public class BaiumAI extends RaidBossAI {
 			skillId = SKILL_STRIKE_1;
 		}
 
-		return skillTable.get(skillId, 1).orElseGet(super::chooseMonsterSkill);
+		// 2. Verifica !npc.isSkillDisabled(skillId) antes de retornar a skill; se estiver em cooldown, retorna null para atacar fisicamente!
+		if (npc.isSkillDisabled(skillId)) {
+			return null;
+		}
+
+		return skillTable.get(skillId, 1).orElse(null);
 	}
 }

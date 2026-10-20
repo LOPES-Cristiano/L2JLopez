@@ -37,7 +37,7 @@ public class MysticAI extends FighterAI {
 		if (npcSkillTable == null || skillTable == null) {
 			return null;
 		}
-		var skillList = npcSkillTable.getSkills(npc.npcId());
+		var skillList = npcSkillTable.getSkills(npc.npcId(), npc.idTemplate());
 		if (skillList == null || skillList.isEmpty()) {
 			return null;
 		}
@@ -46,21 +46,44 @@ public class MysticAI extends FighterAI {
 		if (npc.currentHp() < (npc.maxHp() * 0.5)) {
 			for (var entry : skillList) {
 				var opt = skillTable.get(entry.skillId(), entry.level());
-				if (opt.isPresent() && opt.get().isHeal() && npc.currentMp() >= opt.get().mpConsume()) {
-					return opt.get();
+				if (opt.isPresent()) {
+					SkillTemplate sk = opt.get();
+					if (!sk.isPassive() && !sk.isToggle() && sk.isHeal()
+							&& !npc.isSkillDisabled(sk.id())
+							&& npc.currentMp() >= sk.mpConsume()) {
+						return sk;
+					}
 				}
 			}
 		}
 
-		// 2. Mystic prioriza conjurar skills magicas ofensivas / debuffs sempre que tiver MP
+		// 2. Mystic prioriza conjurar skills magicas ofensivas / debuffs sempre que tiver MP e fora de cooldown
+		java.util.List<SkillTemplate> candidates = new java.util.ArrayList<>();
 		for (var entry : skillList) {
 			var opt = skillTable.get(entry.skillId(), entry.level());
 			if (opt.isPresent()) {
 				SkillTemplate sk = opt.get();
-				if (!sk.isHeal() && !sk.isPassive() && !sk.isToggle() && npc.currentMp() >= sk.mpConsume()) {
-					return sk;
+				if (sk.isHeal() || sk.isPassive() || sk.isToggle()) {
+					continue;
 				}
+				if (npc.isSkillDisabled(sk.id()) || npc.currentMp() < sk.mpConsume()) {
+					continue;
+				}
+				if (sk.isMagic() && npc.isMuted()) {
+					continue;
+				}
+				if (!sk.isMagic() && npc.isPhysicalMuted()) {
+					continue;
+				}
+				boolean isSelfBuff = sk.isBuff() || "TARGET_SELF".equalsIgnoreCase(sk.target());
+				if (isSelfBuff && npc.hasActiveBuff(sk.id())) {
+					continue;
+				}
+				candidates.add(sk);
 			}
+		}
+		if (!candidates.isEmpty()) {
+			return candidates.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(candidates.size()));
 		}
 
 		return null;
@@ -89,41 +112,47 @@ public class MysticAI extends FighterAI {
 		if (Math.abs(dz) > 400.0 || !hasLineOfSight(character)) return;
 		if (npc.isDisabled()) return;
 
-		// Conjuradores tentam manter alcance de 600u
-		if (dist > CAST_RANGE && !npc.isRooted()) {
-			moveTowards(player.x(), player.y(), player.z(), player.objectId(), CAST_RANGE - 50, dist);
+		SkillTemplate chosenSkill = chooseMonsterSkill();
+		if (chosenSkill != null) {
+			int castRange = chosenSkill.castRange() > 0 ? chosenSkill.castRange() : CAST_RANGE;
+			if (dist > castRange && !npc.isRooted()) {
+				moveTowards(player.x(), player.y(), player.z(), player.objectId(), Math.max(40, castRange - 50), dist);
+			} else {
+				executeMagicAttack(player, character, chosenSkill);
+			}
 		} else {
-			executeMagicAttack(player, character);
+			// Quando as skills estiverem em cooldown ou MP acabar, avanca ate getEffectiveAttackRange() e ataca fisicamente
+			int effectiveRange = getEffectiveAttackRange();
+			int reach = effectiveRange + 30;
+			if (dist <= reach) {
+				executeAttack(player, character);
+			} else if (!npc.isRooted()) {
+				moveTowards(player.x(), player.y(), player.z(), player.objectId(), effectiveRange, dist);
+				double newDist = Math.hypot(player.x() - npc.x(), player.y() - npc.y());
+				if (newDist <= reach) {
+					executeAttack(player, character);
+				}
+			}
 		}
 	}
 
-	private void executeMagicAttack(com.lopez.l2j.game.world.GameWorld.OnlinePlayer player, com.lopez.l2j.game.model.PlayerCharacter character) {
+	private void executeMagicAttack(com.lopez.l2j.game.world.GameWorld.OnlinePlayer player,
+			com.lopez.l2j.game.model.PlayerCharacter character, SkillTemplate chosenSkill) {
 		if (character.isDead() || npc.isCasting() || player.isTeleporting()) {
 			return;
 		}
 		if (isPeaceBlocked(player.x(), player.y(), player.z(), character)) {
 			return;
 		}
-		int mAtkSpd = Math.max(100, npc.template().mAtkSpd());
-		long cooldownMs = 500_000L / mAtkSpd;
+		int mAtkSpd = Math.max(100, npc.mAtkSpd());
+		long cooldownMs = Math.max(400L, 333_000L / mAtkSpd);
 		long now = System.currentTimeMillis();
 
 		if (now - npc.lastAttackTime() >= cooldownMs) {
-			SkillTemplate chosenSkill = chooseMonsterSkill();
 			var template = charTemplates != null ? charTemplates.get(character.classId()).orElse(null) : null;
 			if (chosenSkill != null) {
 				npc.lastAttackTime(now);
 				castMonsterSkill(chosenSkill, player, character, template);
-			} else {
-				// Fallback para ataque fisico apenas se estiver no alcance de melee
-				int attackRange = Math.max(40, npc.template().attackRange());
-				int reach = attackRange + 30;
-				double dist = Math.hypot(player.x() - npc.x(), player.y() - npc.y());
-				if (dist <= reach) {
-					executeAttack(player, character);
-				} else if (!npc.isRooted()) {
-					moveTowards(player.x(), player.y(), player.z(), player.objectId(), attackRange, dist);
-				}
 			}
 		}
 	}

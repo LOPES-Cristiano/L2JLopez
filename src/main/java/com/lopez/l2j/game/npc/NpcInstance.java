@@ -47,6 +47,7 @@ public final class NpcInstance implements Creature {
 	public NpcTemplate getTemplate() { return template; }
 	public int npcId() { return template.id(); }
 	public int getNpcId() { return template.id(); }
+	public int idTemplate() { return template != null ? template.idTemplate() : 0; }
 	@Override
 	public int level() { return template != null ? template.level() : 1; }
 	public int getLevel() { return level(); }
@@ -367,6 +368,140 @@ public final class NpcInstance implements Creature {
 			sleeping = false;
 			disabledUntil = 0;
 			stopAbnormalEffect(0x0080);
+		}
+	}
+
+	// ---- controle de Reuse (Cooldown), Self-Buffs e Passivas de Monstros ----
+
+	private final java.util.Map<Integer, Long> skillReuses = new java.util.concurrent.ConcurrentHashMap<>();
+	private final java.util.Map<Integer, Long> activeBuffs = new java.util.concurrent.ConcurrentHashMap<>();
+	private volatile boolean passivesInitialized;
+
+	public boolean isSkillDisabled(int skillId) {
+		Long until = skillReuses.get(skillId);
+		if (until == null) {
+			return false;
+		}
+		if (System.currentTimeMillis() < until) {
+			return true;
+		}
+		skillReuses.remove(skillId, until);
+		return false;
+	}
+
+	public void disableSkill(int skillId, long delayMs) {
+		if (delayMs > 0) {
+			skillReuses.put(skillId, System.currentTimeMillis() + delayMs);
+		}
+	}
+
+	public boolean hasActiveBuff(int skillId) {
+		Long until = activeBuffs.get(skillId);
+		if (until == null) {
+			return false;
+		}
+		if (System.currentTimeMillis() < until) {
+			return true;
+		}
+		activeBuffs.remove(skillId, until);
+		return false;
+	}
+
+	public void applySkillBuff(com.lopez.l2j.game.skill.SkillTemplate skill) {
+		if (skill == null) {
+			return;
+		}
+		long durationMs = 60_000L;
+		for (var eff : skill.effects()) {
+			if (eff.durationMs() > 0) {
+				durationMs = Math.max(durationMs, eff.durationMs());
+			}
+		}
+		boolean alreadyActive = hasActiveBuff(skill.id());
+		activeBuffs.put(skill.id(), System.currentTimeMillis() + durationMs);
+		if (alreadyActive) {
+			return;
+		}
+		applyStatFuncsToMultipliers(skill.funcs());
+		for (var eff : skill.effects()) {
+			applyStatFuncsToMultipliers(eff.funcs());
+		}
+	}
+
+	public void applyPassiveSkills(NpcSkillTable npcSkillTable, com.lopez.l2j.game.skill.SkillTable skillTable) {
+		if (passivesInitialized || npcSkillTable == null || skillTable == null || template == null) {
+			return;
+		}
+		passivesInitialized = true;
+		var skills = npcSkillTable.getSkills(npcId(), idTemplate());
+		if (skills == null || skills.isEmpty()) {
+			return;
+		}
+		double oldMaxHp = maxHp();
+		for (var holder : skills) {
+			var opt = skillTable.get(holder.skillId(), holder.level());
+			if (opt.isPresent() && opt.get().isPassive()) {
+				var sk = opt.get();
+				applyStatFuncsToMultipliers(sk.funcs());
+				for (var eff : sk.effects()) {
+					applyStatFuncsToMultipliers(eff.funcs());
+				}
+			}
+		}
+		double newMaxHp = maxHp();
+		if (newMaxHp != oldMaxHp && oldMaxHp > 0 && !dead) {
+			double ratio = currentHp / oldMaxHp;
+			currentHp = Math.min(newMaxHp, newMaxHp * ratio);
+		}
+	}
+
+	private void applyStatFuncsToMultipliers(java.util.List<com.lopez.l2j.game.skill.StatFunc> funcs) {
+		if (funcs == null || funcs.isEmpty() || template == null) {
+			return;
+		}
+		for (var f : funcs) {
+			if (f == null || f.stat() == null || f.op() == null) {
+				continue;
+			}
+			String st = f.stat().toLowerCase(java.util.Locale.ROOT);
+			double val = f.value();
+			if (val <= 0 && f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) {
+				continue;
+			}
+			switch (st) {
+				case "patk" -> {
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.pAtkMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pAtk() > 0) this.pAtkMul += (val / template.pAtk());
+				}
+				case "pdef" -> {
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.pDefMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pDef() > 0) this.pDefMul += (val / template.pDef());
+				}
+				case "matk" -> {
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.mAtkMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mAtk() > 0) this.mAtkMul += (val / template.mAtk());
+				}
+				case "mdef" -> {
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.mDefMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mDef() > 0) this.mDefMul += (val / template.mDef());
+				}
+				case "patkspd" -> {
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.pAtkSpdMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pAtkSpd() > 0) this.pAtkSpdMul += (val / template.pAtkSpd());
+				}
+				case "matkspd" -> {
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.mAtkSpdMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mAtkSpd() > 0) this.mAtkSpdMul += (val / template.mAtkSpd());
+				}
+				case "runspd" -> {
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.runSpdMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.runSpd() > 0) this.runSpdMul += (val / template.runSpd());
+				}
+				case "maxhp" -> {
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.maxHpMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.maxHp() > 0) this.maxHpMul += (val / template.maxHp());
+				}
+			}
 		}
 	}
 

@@ -80,6 +80,20 @@ public class NpcSkillTable {
 		return skillsByNpc.getOrDefault(npcId, Collections.emptyList());
 	}
 
+	public List<NpcSkillHolder> getSkills(int npcId, int idTemplate) {
+		List<NpcSkillHolder> list = skillsByNpc.get(npcId);
+		if (list != null && !list.isEmpty()) {
+			return list;
+		}
+		if (idTemplate > 0 && idTemplate != npcId) {
+			list = skillsByNpc.get(idTemplate);
+			if (list != null && !list.isEmpty()) {
+				return list;
+			}
+		}
+		return Collections.emptyList();
+	}
+
 	public boolean hasSkill(int npcId, int skillId) {
 		List<NpcSkillHolder> holders = skillsByNpc.get(npcId);
 		if (holders == null || holders.isEmpty()) {

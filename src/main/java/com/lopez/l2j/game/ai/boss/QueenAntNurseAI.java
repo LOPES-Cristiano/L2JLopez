@@ -25,6 +25,12 @@ public class QueenAntNurseAI extends PriestAI {
 		super(npc, world, combatService, charTemplates, npcSkillTable, skillTable);
 	}
 
+	public QueenAntNurseAI(NpcInstance npc, GameWorld world, CombatService combatService,
+			CharTemplateTable charTemplates, NpcSkillTable npcSkillTable, SkillTable skillTable,
+			java.util.concurrent.ScheduledExecutorService scheduler, com.lopez.l2j.game.zone.ZoneTable zones) {
+		super(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler, zones);
+	}
+
 	@Override
 	public void processCombat() {
 		if (npc.isDead() || world == null) return;
@@ -47,9 +53,30 @@ public class QueenAntNurseAI extends PriestAI {
 			if (dist > 600) {
 				moveTowards(healTarget.x(), healTarget.y(), healTarget.z(), healTarget.objectId(), 400, dist);
 			} else {
-				// Cura o alvo
+				// Cura o alvo e envia MagicSkillUse (4020 / 4024) e StatusUpdate
+				int skillId = healTarget.npcId() == QUEEN_ANT_LARVA ? SKILL_HEAL_2 : SKILL_HEAL_1;
+				int hitTime = 1500;
+				int reuseDelay = 3000;
+				if (skillTable != null) {
+					var skOpt = skillTable.get(skillId, 1);
+					if (skOpt.isPresent()) {
+						hitTime = skOpt.get().hitTime() > 0 ? skOpt.get().hitTime() : 1500;
+						reuseDelay = skOpt.get().reuseDelay() > 0 ? skOpt.get().reuseDelay() : 3000;
+					}
+				}
 				double healAmount = healTarget.maxHp() * 0.05;
 				healTarget.currentHp(Math.min(healTarget.maxHp(), healTarget.currentHp() + healAmount));
+				int targetMaxHp = healTarget.maxHp() > 0 ? (int) healTarget.maxHp()
+						: (healTarget.template() != null ? healTarget.template().maxHp() : 1000);
+
+				var msu = new com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse(
+						npc.objectId(), healTarget.objectId(), skillId, 1,
+						hitTime, reuseDelay, npc.x(), npc.y(), npc.z(),
+						healTarget.x(), healTarget.y(), healTarget.z());
+				var su = com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate.hp(
+						healTarget.objectId(), (int) healTarget.currentHp(), targetMaxHp);
+				world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, msu);
+				world.broadcastAround(healTarget.x(), healTarget.y(), GameWorld.VISIBILITY_RADIUS, su);
 			}
 		}
 

@@ -826,9 +826,10 @@ public class CombatService {
 				|| zones.isInsidePeace(target.x(), target.y(), target.z()))) {
 			return new HitPlan(0, 0x80, true, false);
 		}
-		int attackRange = Math.max(40, attacker.template().attackRange());
+		int npcRadius = attacker.template() != null ? (int) Math.ceil(attacker.template().collisionRadius()) : 10;
+		int attackRange = Math.max(40, attacker.template().attackRange()) + npcRadius + 20;
 		double dist = Math.hypot(attacker.x() - target.x(), attacker.y() - target.y());
-		if (dist > (attackRange + 150)) {
+		if (dist > (attackRange + 180)) {
 			return new HitPlan(0, 0x80, true, false);
 		}
 		if (!canSeeTarget(attacker, target)) {
@@ -893,9 +894,10 @@ public class CombatService {
 			}
 		}
 		// Validacao de alcance: ataque fisico nao pode acertar jogador distante
-		int attackRange = Math.max(40, attacker.template().attackRange());
+		int npcRadius = attacker.template() != null ? (int) Math.ceil(attacker.template().collisionRadius()) : 10;
+		int attackRange = Math.max(40, attacker.template().attackRange()) + npcRadius + 20;
 		double dist = Math.hypot(attacker.x() - target.x(), attacker.y() - target.y());
-		if (dist > (attackRange + 150)) {
+		if (dist > (attackRange + 180)) {
 			return new HitResult(0, 0x80, target.isDead(), (int) target.currentHp(), target.maxHp(), 0, 0);
 		}
 		if (!canSeeTarget(attacker, target)) {
