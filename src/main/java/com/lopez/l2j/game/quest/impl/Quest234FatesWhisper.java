@@ -213,12 +213,23 @@ public class Quest234FatesWhisper extends Quest {
 					return "31002-BGradeList.htm";
 				}
 				return "31002-09b.htm";
-			} else if (cond == 10 || cond == 11) {
+			} else if (cond == 10) {
 				if (qs.getInt("bypass") == 1) {
 					int itemId = qs.getInt("weaponId");
 					return qs.hasQuestItems(itemId) ? "31002-AGradeList.htm" : "31002-15.htm";
 				}
 				return "31002-BGradeList.htm";
+			} else if (cond >= 11) {
+				if (qs.getQuestItemsCount(CRYSTAL_B) >= 984) {
+					qs.takeItems(CRYSTAL_B, 984);
+					qs.giveItems(STAR_OF_DESTINY, 1);
+					qs.giveItems(79, 1); // Sword of Damascus (Low A-Grade representativo)
+					qs.setCond(0);
+					qs.exitQuest(false);
+					qs.playSound(QuestState.SOUND_FINISH);
+					return "31002-12.htm";
+				}
+				return "31002-11.htm";
 			}
 		} else if (npcId == CLIFF) {
 			if (cond == 3) {
@@ -294,8 +305,7 @@ public class Quest234FatesWhisper extends Quest {
 		if (npc.npcId() == BAIUM && qs.getCond() == 7 && qs.hasQuestItems(PIPETTE_KNIFE) && !qs.hasQuestItems(RED_PIPETTE_KNIFE)) {
 			qs.takeItems(PIPETTE_KNIFE, 1);
 			qs.giveItems(RED_PIPETTE_KNIFE, 1);
-			qs.setCond(8);
-			qs.playSound(QuestState.SOUND_MIDDLE);
+			qs.playSound(QuestState.SOUND_ITEMGET);
 		}
 		return null;
 	}

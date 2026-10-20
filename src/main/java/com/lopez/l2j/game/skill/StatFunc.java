@@ -40,10 +40,6 @@ public record StatFunc(String stat, Op op, int order, double value, SkillConditi
 	}
 
 	/** Aplica a funcao ao valor corrente; {@code base} e o valor antes de qualquer funcao (para basemul). */
-	public double apply(double current) {
-		return apply(current, current);
-	}
-
 	public double apply(double current, double base) {
 		return switch (op) {
 			case ADD -> current + value;

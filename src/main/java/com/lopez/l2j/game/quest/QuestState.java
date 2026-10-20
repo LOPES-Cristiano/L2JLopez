@@ -459,60 +459,7 @@ public class QuestState {
 	}
 
 	public NpcInstance addSpawn(int npcId, int x, int y, int z, int despawnDelay) {
-		return addSpawn(npcId, x, y, z, 0, false, despawnDelay);
-	}
-
-	public NpcInstance addSpawn(int npcId, int x, int y, int z, int heading, boolean randomOffset, int despawnDelay) {
-		int spawnX = x;
-		int spawnY = y;
-		int spawnZ = z;
-		if (spawnX == 0 && spawnY == 0 && spawnZ == 0 && player != null && player.activeChar() != null) {
-			spawnX = player.activeChar().x();
-			spawnY = player.activeChar().y();
-			spawnZ = player.activeChar().z();
-		}
-		if (randomOffset) {
-			int offset = java.util.concurrent.ThreadLocalRandom.current().nextInt(30, 81);
-			if (java.util.concurrent.ThreadLocalRandom.current().nextBoolean()) offset = -offset;
-			spawnX += offset;
-			int offsetY = java.util.concurrent.ThreadLocalRandom.current().nextInt(30, 81);
-			if (java.util.concurrent.ThreadLocalRandom.current().nextBoolean()) offsetY = -offsetY;
-			spawnY += offsetY;
-		}
-		NpcInstance spawned = null;
-		if (player != null && player.context() != null && player.context().spawns() != null) {
-			spawned = player.context().spawns().spawn(npcId, spawnX, spawnY, spawnZ, heading, false).orElse(null);
-		}
-		if (spawned == null) {
-			var gw = (player != null && player.context() != null && player.context().world() != null)
-					? player.context().world()
-					: com.lopez.l2j.game.world.GameWorld.getInstance();
-			var tpl = com.lopez.l2j.game.npc.NpcTemplate.fallback(npcId, "QuestNpc_" + npcId, "L2Monster");
-			int objId = java.util.concurrent.ThreadLocalRandom.current().nextInt(500_000_000, 900_000_000);
-			spawned = new NpcInstance(objId, tpl, spawnX, spawnY, spawnZ, heading);
-			if (gw != null) {
-				gw.addNpc(spawned);
-				gw.broadcastAround(spawnX, spawnY, com.lopez.l2j.game.world.GameWorld.VISIBILITY_RADIUS,
-						com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo.of(spawned));
-			}
-		}
-		if (spawned != null && player != null && player.activeChar() != null) {
-			spawned.instanceId(player.activeChar().instanceId());
-		}
-		if (spawned != null && despawnDelay > 0) {
-			final NpcInstance toRemove = spawned;
-			var gw = (player != null && player.context() != null && player.context().world() != null)
-					? player.context().world()
-					: com.lopez.l2j.game.world.GameWorld.getInstance();
-			QUEST_TIMER_POOL.schedule(() -> {
-				if (gw != null && gw.npc(toRemove.objectId()).isPresent()) {
-					gw.removeNpc(toRemove);
-					gw.broadcastAround(toRemove.x(), toRemove.y(), com.lopez.l2j.game.world.GameWorld.VISIBILITY_RADIUS,
-							new com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject(toRemove.objectId()));
-				}
-			}, despawnDelay, TimeUnit.MILLISECONDS);
-		}
-		return spawned;
+		return null;
 	}
 
 	public NpcInstance addSpawn(int npcId, int x, int y, int z) {
@@ -622,12 +569,8 @@ public class QuestState {
 		return activeTimers.containsKey(name);
 	}
 
-	public NpcInstance addSpawn(int npcId, int despawnDelayOrCount) {
-		if (player != null && player.activeChar() != null) {
-			int delay = despawnDelayOrCount >= 1000 ? despawnDelayOrCount : 0;
-			return addSpawn(npcId, player.activeChar().x(), player.activeChar().y(), player.activeChar().z(), delay);
-		}
-		return null;
+	public NpcInstance addSpawn(int npcId, int count) {
+		return addSpawn(npcId);
 	}
 
 	public void cancelQuestTimer(String name) {

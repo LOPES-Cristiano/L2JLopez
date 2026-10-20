@@ -112,10 +112,6 @@ public class DropService {
 	}
 
 	public List<DropReward> rollDrops(int mobId, int playerLevel, int mobLevel, boolean isRaid) {
-		return rollDrops(mobId, playerLevel, mobLevel, isRaid, false);
-	}
-
-	public List<DropReward> rollDrops(int mobId, int playerLevel, int mobLevel, boolean isRaid, boolean isGrandBoss) {
 		List<DropData> rules = dropTable.getDrops(mobId);
 		boolean hasEventServices = officialEventService != null || l2DayEventService != null;
 		if (rules.isEmpty() && !hasEventServices) {
@@ -140,9 +136,7 @@ public class DropService {
 			return List.of();
 		}
 
-		double raidRateMult = isGrandBoss
-				? Math.max(0.1, Config.RATE_RAID_DROP_ITEMS * Math.max(0.1, Config.ITEMS_BOSS))
-				: (isRaid ? Math.max(0.1, Config.RATE_RAID_DROP_ITEMS * Math.max(0.1, Config.ITEMS_RAID)) : 1.0);
+		double raidRateMult = isRaid ? Math.max(0.1, Config.RATE_RAID_DROP_ITEMS * Math.max(0.1, Config.ITEMS_RAID)) : 1.0;
 		List<DropReward> rewards = new ArrayList<>();
 		ThreadLocalRandom rng = ThreadLocalRandom.current();
 		boolean precise = Config.PRECISE_DROP_CALCULATION;
@@ -155,9 +149,7 @@ public class DropService {
 
 			if (rule.isAdena()) {
 				// Calculo de Adena
-				double adenaRaidMult = isGrandBoss
-						? Math.max(0.1, Config.ADENA_BOSS)
-						: (isRaid ? Math.max(0.1, Config.ADENA_RAID) : 1.0);
+				double adenaRaidMult = isRaid ? Math.max(0.1, Config.ADENA_RAID) : 1.0;
 				double rate = (rateAdena > 0 ? rateAdena : Config.RATE_DROP_ADENA) * adenaRaidMult * levelPenalty;
 				long effectiveChance = Math.round(rule.chance() * rate);
 				if (effectiveChance > DropData.MAX_CHANCE) {
@@ -239,7 +231,7 @@ public class DropService {
 	}
 
 	public static boolean isBossJewel(int itemId) {
-		return (itemId >= 6656 && itemId <= 6662) || itemId == 8191 || itemId == 8559;
+		return itemId >= 6656 && itemId <= 6662;
 	}
 
 	public static boolean isHerbItem(int itemId) {
@@ -388,9 +380,8 @@ public class DropService {
 		}
 		int mobId = npc.npcId();
 		int mobLevel = npc.template() != null ? npc.template().level() : 0;
-		boolean isGrandBoss = npc.template() != null && npc.template().isGrandBoss();
-		boolean isRaid = isGrandBoss || (npc.template() != null && npc.template().isRaidBoss());
-		List<DropReward> rewards = rollDrops(mobId, player != null ? player.level() : 0, mobLevel, isRaid, isGrandBoss);
+		boolean isRaid = npc.template() != null && (npc.template().isRaidBoss() || npc.template().isGrandBoss());
+		List<DropReward> rewards = rollDrops(mobId, player != null ? player.level() : 0, mobLevel, isRaid);
 		double npcMult = resolveNpcTypeDropMultiplier(npc, false, false, 0);
 		if (npcMult != 1.0 && !isRaid) {
 			List<DropReward> scaled = new ArrayList<>(rewards.size());

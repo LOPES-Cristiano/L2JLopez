@@ -40,7 +40,7 @@ public class FrintezzaService {
 	public static final int SCARLET_STRONG_ID = 29048;
 
 	public static final int FORCE_FIELD_SCROLL = 8073; // Frintezza's Magic Force Field Removal Scroll
-	public static final int NECKLACE_OF_FRINTEZZA = 8191;
+	public static final int NECKLACE_OF_FRINTEZZA = 8559;
 
 	public static final int MIN_LEVEL = 74;
 	public static final long RESPAWN_INTERVAL_MILLIS = 48 * 60 * 60 * 1000L; // 48 horas
@@ -219,8 +219,6 @@ public class FrintezzaService {
 		status = FrintezzaStatus.ENTRY;
 		log.info("{} e seu grupo entraram no Ultimo Tumulo Imperial ({} jogadores, limite {} min)",
 				leader.name(), playersInside.size(), getTimeLimitMinutes());
-		com.lopez.l2j.network.game.GameSession.autoAttackScheduler().schedule(
-				this::startFight, 15, java.util.concurrent.TimeUnit.SECONDS);
 		return true;
 	}
 
@@ -335,7 +333,7 @@ public class FrintezzaService {
 		}
 		try {
 			jdbc.sql("""
-					REPLACE INTO grandboss_data (boss_id, loc_x, loc_y, loc_z, heading, respawn_time, currentHP, currentMP, status)
+					REPLACE INTO grandboss_data (boss_id, loc_x, loc_y, loc_z, heading, respawn_time, currentHp, currentMp, status)
 					VALUES (:id, :x, :y, :z, 0, :respawn, 1000000, 500000, :status)
 					""")
 					.param("id", FRINTEZZA_NPC_ID)

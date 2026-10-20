@@ -1,7 +1,6 @@
 package com.lopez.l2j.network.game.handler.packet;
 
 import com.lopez.l2j.config.Config;
-import com.lopez.l2j.game.effect.PlayerEffects;
 import com.lopez.l2j.game.effect.PlayerEffects.ActiveBuff;
 import com.lopez.l2j.game.effect.ConsumableTable;
 import com.lopez.l2j.game.effect.ConsumableTable.Consumable;

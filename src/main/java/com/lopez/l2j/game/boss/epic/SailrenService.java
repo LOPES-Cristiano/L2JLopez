@@ -116,7 +116,7 @@ public class SailrenService {
 		}
 		if (Config.QUEST_REQUIRED_FOR_BOSS) {
 			Inventory inv = player.inventory();
-			if (inv == null || (inv.byItemId(GAZKH).isEmpty() && inv.byItemId(8782).isEmpty())) {
+			if (inv == null || inv.byItemId(GAZKH).isEmpty()) {
 				return false;
 			}
 		}
@@ -129,8 +129,7 @@ public class SailrenService {
 		}
 
 		if (Config.QUEST_REQUIRED_FOR_BOSS && player.inventory() != null) {
-			var gazkhOpt = player.inventory().byItemId(GAZKH).or(() -> player.inventory().byItemId(8782));
-			gazkhOpt.ifPresent(item -> {
+			player.inventory().byItemId(GAZKH).ifPresent(item -> {
 				if (item.count() <= 1) {
 					player.inventory().remove(item);
 				} else {
@@ -139,13 +138,9 @@ public class SailrenService {
 			});
 		}
 
-		if (world != null) {
-			world.teleportPlayer(player, NEST_X, NEST_Y, NEST_Z, 0);
-		} else {
-			player.x(NEST_X);
-			player.y(NEST_Y);
-			player.z(NEST_Z);
-		}
+		player.x(NEST_X);
+		player.y(NEST_Y);
+		player.z(NEST_Z);
 		playersInside.add(player.objectId());
 
 		if (status == BossStatus.NOTSPAWN) {

@@ -68,21 +68,11 @@ public class ZakenService {
 	private final GameWorld world;
 	private final ObjectIdFactory objectIds;
 	private final DoorTable doorService;
-	private final com.lopez.l2j.game.time.GameTimeController gameTimeController;
 
 	private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
 		Thread t = Thread.ofVirtual().name("ZakenDoorScheduler").unstarted(r);
 		return t;
 	});
-
-	public ZakenService(
-			GrandBossManager grandBossManager,
-			NpcTemplateTable templates,
-			GameWorld world,
-			ObjectIdFactory objectIds,
-			DoorTable doorService) {
-		this(grandBossManager, templates, world, objectIds, doorService, null);
-	}
 
 	@Autowired
 	public ZakenService(
@@ -90,23 +80,18 @@ public class ZakenService {
 			@Autowired(required = false) NpcTemplateTable templates,
 			@Autowired(required = false) GameWorld world,
 			@Autowired(required = false) ObjectIdFactory objectIds,
-			@Autowired(required = false) DoorTable doorService,
-			@Autowired(required = false) com.lopez.l2j.game.time.GameTimeController gameTimeController) {
+			@Autowired(required = false) DoorTable doorService) {
 		this.grandBossManager = grandBossManager;
 		this.templates = templates;
 		this.world = world;
 		this.objectIds = objectIds;
 		this.doorService = doorService;
-		this.gameTimeController = gameTimeController;
 	}
 
 	@PostConstruct
 	public void init() {
 		if (!Config.ZAKEN_ENABLED) {
 			return;
-		}
-		if (gameTimeController != null) {
-			gameTimeController.addHourListener(this::onGameHourChanged);
 		}
 		if (grandBossManager != null) {
 			this.status = grandBossManager.getStatus(GrandBossManager.ZAKEN);
