@@ -55,6 +55,11 @@ public final class PlayerEffects {
 			return new ActiveBuff(skillId, level, stackType, level, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), isDebuff);
 		}
 
+	public static ActiveBuff ofSkill(int skillId, int level, String stackType, int stackOrder, long endTimeMillis,
+				List<StatFunc> funcs) {
+			return new ActiveBuff(skillId, level, stackType, stackOrder, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), false);
+		}
+
 		public static ActiveBuff ofSkill(int skillId, int level, String stackType, int stackOrder, long endTimeMillis,
 				List<StatFunc> funcs, boolean isDebuff) {
 			return new ActiveBuff(skillId, level, stackType, stackOrder, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), isDebuff);
@@ -101,7 +106,7 @@ public final class PlayerEffects {
 	}
 
 	public int maxBuffAmount() {
-		return Math.max(1, Config.MAX_BUFF_AMOUNT) + extraBuffSlots;
+		return Math.max(1, Config.MAX_BUFFS_AMOUNT) + extraBuffSlots;
 	}
 
 	public void put(ActiveBuff buff) {
@@ -140,7 +145,7 @@ public final class PlayerEffects {
 					evictOldest(dances);
 				}
 			} else if (!buff.isPermanent()) {
-				int maxBuffs = (extraSlots > 0 && extraSlots <= 10) ? extraSlots : (Math.max(1, Config.MAX_BUFFS_AMOUNT) + Math.max(0, extraSlots));
+				int maxBuffs = Math.max(1, Config.MAX_BUFFS_AMOUNT) + Math.max(0, extraSlots);
 				List<ActiveBuff> normalBuffs = active().stream()
 						.filter(b -> !b.isDebuff() && !b.isPermanent() && !isDanceOrSong(b.skillId()))
 						.toList();
@@ -235,6 +240,93 @@ public final class PlayerEffects {
 	public synchronized boolean hasSkill(int skillId) {
 		long now = System.currentTimeMillis();
 		return byStack.values().stream().anyMatch(b -> b.skillId() == skillId && b.endTimeMillis() > now);
+	}
+
+	public synchronized int getSkillLevel(int skillId) {
+		long now = System.currentTimeMillis();
+		return byStack.values().stream()
+				.filter(b -> b.skillId() == skillId && b.endTimeMillis() > now)
+				.mapToInt(ActiveBuff::level)
+				.max()
+				.orElse(0);
+	}
+
+	/**
+	 * Remove buffs positivos por IDs de skill, stackType ou atributo modificado em StatFunc.
+	 * Usado por Warrior Bane, Mage Bane, Block Shield e Block Wind Walk.
+	 */
+	public synchronized boolean removeBuffsByIdsOrStackOrStats(java.util.Set<Integer> skillIds,
+			java.util.Set<String> stackKeywords, java.util.Set<String> statNames) {
+		long now = System.currentTimeMillis();
+		return byStack.values().removeIf(b -> {
+			if (b.isDebuff() || b.isPermanent() || b.endTimeMillis() <= now) {
+				return false;
+			}
+			if (skillIds != null && skillIds.contains(b.skillId())) {
+				return true;
+			}
+			if (stackKeywords != null && b.stackType() != null) {
+				String st = b.stackType().toLowerCase(java.util.Locale.ROOT);
+				for (String kw : stackKeywords) {
+					if (st.contains(kw.toLowerCase(java.util.Locale.ROOT))) {
+						return true;
+					}
+				}
+			}
+			if (statNames != null) {
+				if (statNames.contains("runSpd") && b.runSpdAdd() > 0) {
+					return true;
+				}
+				if (statNames.contains("pAtkSpd") && b.pAtkSpdMul() > 1.0) {
+					return true;
+				}
+				if (statNames.contains("mAtkSpd") && b.mAtkSpdMul() > 1.0) {
+					return true;
+				}
+				if (b.funcs() != null) {
+					for (StatFunc f : b.funcs()) {
+						for (String s : statNames) {
+							if (s.equalsIgnoreCase(f.stat())) {
+								return true;
+							}
+						}
+					}
+				}
+			}
+			return false;
+		});
+	}
+
+	/**
+	 * Rouba até {@code maxSteal} buffs positivos (nao-permanentes) do alvo, removendo-os deste {@link PlayerEffects}
+	 * e retornando a lista de buffs roubados para aplicacao no conjurador (Steal Divinity / STEAL_BUFF).
+	 */
+	public synchronized List<ActiveBuff> stealBuffs(int maxSteal) {
+		int limit = maxSteal > 0 ? maxSteal : 3;
+		List<ActiveBuff> cancelable = new ArrayList<>(active().stream()
+				.filter(b -> !b.isDebuff() && !b.isPermanent())
+				.toList());
+		if (cancelable.isEmpty()) {
+			return List.of();
+		}
+		cancelable.sort((a, b) -> {
+			boolean da = isDanceOrSong(a.skillId());
+			boolean db = isDanceOrSong(b.skillId());
+			if (da != db) {
+				return da ? -1 : 1;
+			}
+			return Long.compare(b.endTimeMillis(), a.endTimeMillis());
+		});
+		List<ActiveBuff> stolen = new ArrayList<>();
+		for (ActiveBuff b : cancelable) {
+			if (stolen.size() >= limit) {
+				break;
+			}
+			if (remove(b)) {
+				stolen.add(b);
+			}
+		}
+		return stolen;
 	}
 
 	public synchronized void clear() {

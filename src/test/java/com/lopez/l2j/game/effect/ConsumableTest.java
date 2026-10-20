@@ -81,18 +81,24 @@ class ConsumableTest {
 
 	@Test
 	void maxBuffLimitRemovesOldestBuffWhenLimitReached() {
-		PlayerEffects effects = new PlayerEffects();
-		long now = System.currentTimeMillis();
-		effects.put(new ActiveBuff(1001, 1, "stack_1", now + 10_000, 0, 1.0, 1.0, 0), 2);
-		effects.put(new ActiveBuff(1002, 1, "stack_2", now + 20_000, 0, 1.0, 1.0, 0), 2);
-		assertEquals(2, effects.active().size());
+		int prevMax = com.lopez.l2j.config.Config.MAX_BUFFS_AMOUNT;
+		try {
+			com.lopez.l2j.config.Config.MAX_BUFFS_AMOUNT = 2;
+			PlayerEffects effects = new PlayerEffects();
+			long now = System.currentTimeMillis();
+			effects.put(new ActiveBuff(1001, 1, "stack_1", now + 10_000, 0, 1.0, 1.0, 0), 0);
+			effects.put(new ActiveBuff(1002, 1, "stack_2", now + 20_000, 0, 1.0, 1.0, 0), 0);
+			assertEquals(2, effects.active().size());
 
-		// Ao adicionar o 3º buff excedendo o limite 2, o mais antigo deve ser removido
-		effects.put(new ActiveBuff(1003, 1, "stack_3", now + 30_000, 0, 1.0, 1.0, 0), 2);
-		assertEquals(2, effects.active().size());
-		assertTrue(effects.hasSkill(1002));
-		assertTrue(effects.hasSkill(1003));
-		org.junit.jupiter.api.Assertions.assertFalse(effects.hasSkill(1001));
+			// Ao adicionar o 3º buff excedendo o limite 2, o mais antigo deve ser removido
+			effects.put(new ActiveBuff(1003, 1, "stack_3", now + 30_000, 0, 1.0, 1.0, 0), 0);
+			assertEquals(2, effects.active().size());
+			assertTrue(effects.hasSkill(1002));
+			assertTrue(effects.hasSkill(1003));
+			org.junit.jupiter.api.Assertions.assertFalse(effects.hasSkill(1001));
+		} finally {
+			com.lopez.l2j.config.Config.MAX_BUFFS_AMOUNT = prevMax;
+		}
 	}
 
 	@Test

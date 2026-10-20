@@ -347,6 +347,17 @@ public final class PlayerCombatHandler {
 				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, atk, false);
 			}
 
+			if (hit.damage() > 0 && !summon.isDead() && summon.absorbDam() > 0.0 && summon.currentHp() < summon.maxHp()) {
+				double vampHeal = Math.min(hit.damage(), Math.max(1.0, hit.damage() * (summon.absorbDam() / 100.0)));
+				summon.currentHp(Math.min(summon.maxHp(), summon.currentHp() + vampHeal));
+				StatusUpdate sumSu = StatusUpdate.hp(summon.objectId(), (int) summon.currentHp(), summon.maxHp());
+				session.send(sumSu);
+				session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.PetStatusUpdate(summon));
+				if (ctx.world() != null) {
+					ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, sumSu, false);
+				}
+			}
+
 			int remHp = hit.isDead() ? 0 : Math.max(0, hit.remainingHp());
 			StatusUpdate su = StatusUpdate.hp(npc.objectId(), remHp, (int) npc.maxHp());
 			session.send(su);
@@ -357,6 +368,76 @@ public final class PlayerCombatHandler {
 			if (hit.isDead()) {
 				CharTemplate tpl = ctx.characters() != null ? ctx.characters().template(owner.classId()).orElse(null) : null;
 				handleMonsterDeath(session, ctx, owner, tpl, npc, session.party(), hit.expReward(), hit.spReward());
+			}
+		}
+	}
+
+	/**
+	 * Executa ataque assistido do Summon/Pet ativo contra o jogador alvo (PvP) caso o dono esteja atacando.
+	 */
+	public static void triggerSummonAssistAttackPlayer(GameSession session, GameSession.Context ctx, GameSession targetSession) {
+		if (session == null || ctx == null || targetSession == null || targetSession.active() == null || targetSession.active().isDead()) {
+			return;
+		}
+		PlayerCharacter owner = session.active();
+		if (owner == null) {
+			return;
+		}
+		SummonInstance summon = owner.activeSummon();
+		if (summon == null || summon.isDead() || summon.isDisabled()) {
+			return;
+		}
+		PlayerCharacter targetPlayer = targetSession.active();
+		double dist = summon.distanceTo(targetPlayer);
+		if (dist > 120.0) {
+			double angle = Math.atan2(summon.y() - targetPlayer.y(), summon.x() - targetPlayer.x());
+			int nx = targetPlayer.x() + (int) Math.round(Math.cos(angle) * 60);
+			int ny = targetPlayer.y() + (int) Math.round(Math.sin(angle) * 60);
+			int nz = targetPlayer.z();
+			int ox = summon.x();
+			int oy = summon.y();
+			int oz = summon.z();
+			summon.moveTo(nx, ny, nz);
+			MoveToLocation mv = new MoveToLocation(summon.objectId(), nx, ny, nz, ox, oy, oz);
+			session.send(mv);
+			if (ctx.world() != null) {
+				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, mv, false);
+			}
+		}
+
+		if (ctx.combat() != null) {
+			CharTemplate tgtTpl = ctx.characters() != null ? ctx.characters().template(targetPlayer.classId()).orElse(null) : null;
+			var dmgRes = ctx.combat().summonAttackPlayer(summon, targetPlayer, tgtTpl);
+			Attack atk = new Attack(summon.objectId(), targetPlayer.objectId(), dmgRes.damage(), 0,
+					summon.x(), summon.y(), summon.z());
+			session.send(atk);
+			if (ctx.world() != null) {
+				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, atk, false);
+			}
+
+			if (dmgRes.damage() > 0) {
+				targetSession.onAttacked(owner.objectId(), dmgRes.damage());
+				targetSession.sendVitals();
+				StatusUpdate su = StatusUpdate.hp(targetPlayer.objectId(), dmgRes.remainingHp(), targetPlayer.maxHp());
+				session.send(su);
+				if (ctx.world() != null) {
+					ctx.world().broadcastAround(targetSession, GameWorld.VISIBILITY_RADIUS, su, false);
+				}
+				if (!summon.isDead() && summon.absorbDam() > 0.0 && summon.currentHp() < summon.maxHp()) {
+					double vampHeal = Math.min(dmgRes.damage(), Math.max(1.0, dmgRes.damage() * (summon.absorbDam() / 100.0)));
+					summon.currentHp(Math.min(summon.maxHp(), summon.currentHp() + vampHeal));
+					StatusUpdate sumSu = StatusUpdate.hp(summon.objectId(), (int) summon.currentHp(), summon.maxHp());
+					session.send(sumSu);
+					session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.PetStatusUpdate(summon));
+					if (ctx.world() != null) {
+						ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, sumSu, false);
+					}
+				}
+			}
+
+			if (dmgRes.isDead()) {
+				session.stopAutoAttack();
+				targetSession.handlePlayerDeath(owner);
 			}
 		}
 	}

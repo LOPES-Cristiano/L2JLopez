@@ -1,6 +1,7 @@
 package com.lopez.l2j.network.game.handler.packet;
 
 import com.lopez.l2j.config.Config;
+import com.lopez.l2j.game.effect.PlayerEffects;
 import com.lopez.l2j.game.effect.PlayerEffects.ActiveBuff;
 import com.lopez.l2j.game.effect.ConsumableTable;
 import com.lopez.l2j.game.effect.ConsumableTable.Consumable;
@@ -1138,7 +1139,7 @@ public class ItemPacketHandler {
 		}
 		var buff = ActiveBuff.ofSkill(c.skillId(), c.level(), stackType, System.currentTimeMillis() + durationMs,
 				List.of(func));
-		owner.effects().put(buff);
+		owner.effects().put(buff, PlayerEffects.getExtraBuffSlots(owner));
 		session.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT, new SystemMessage.SkillName(c.skillId(), c.level())));
 		session.refreshBuffs();
 		session.sendVitals();
@@ -1300,12 +1301,7 @@ public class ItemPacketHandler {
 		long durationMs = remainingMs > 0 ? remainingMs : d.durationMs();
 		var buff = new ActiveBuff(c.skillId(), c.level(), d.stackType(), System.currentTimeMillis() + durationMs,
 				d.runSpdAdd(), d.pAtkSpdMul(), d.mAtkSpdMul(), d.accuracyAdd());
-		int maxBuffs = Config.MAX_BUFFS_AMOUNT > 0 ? Config.MAX_BUFFS_AMOUNT : 20;
-		var currentActive = owner.effects().active();
-		if (currentActive.size() >= maxBuffs && !owner.effects().hasSkill(c.skillId())) {
-			owner.effects().remove(currentActive.get(0));
-		}
-		owner.effects().put(buff);
+		owner.effects().put(buff, PlayerEffects.getExtraBuffSlots(owner));
 		session.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT, new SystemMessage.SkillName(c.skillId(), c.level())));
 		session.refreshBuffs();
 		session.saveBuffs();

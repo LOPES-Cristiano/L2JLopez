@@ -45,6 +45,7 @@ public final class SummonInstance implements Creature {
 	private volatile int mAtkSpd;
 	private volatile int runSpd;
 	private volatile int walkSpd;
+	private volatile double absorbDam;
 
 	private volatile long exp;
 	private volatile int sp;
@@ -66,6 +67,23 @@ public final class SummonInstance implements Creature {
 
 	private volatile boolean soulshotCharged;
 	private volatile int spiritshotCharged; // 0=none, 1=spiritshot, 2=blessed
+
+	private final int baseMaxHp;
+	private final int baseMaxMp;
+	private final int basePAtk;
+	private final int basePDef;
+	private final int baseMAtk;
+	private final int baseMDef;
+	private final int basePAtkSpd;
+	private final int baseMAtkSpd;
+	private final int baseRunSpd;
+	private final int baseWalkSpd;
+
+	public record SummonBuff(int skillId, int level, String stackType, int stackOrder, long endTimeMillis,
+			java.util.List<com.lopez.l2j.game.skill.StatFunc> funcs) {
+	}
+
+	private final java.util.Map<String, SummonBuff> activeBuffs = new java.util.concurrent.ConcurrentHashMap<>();
 
 	public SummonInstance(
 			int objectId,
@@ -94,19 +112,30 @@ public final class SummonInstance implements Creature {
 		}
 
 		int scaleLv = Math.max(1, this.level);
-		this.maxHp = Math.max(100, this.template.maxHp() > 0 ? this.template.maxHp() : 200 + scaleLv * 45);
-		this.maxMp = Math.max(50, this.template.maxMp() > 0 ? this.template.maxMp() : 100 + scaleLv * 22);
+		this.baseMaxHp = Math.max(100, this.template.maxHp() > 0 ? this.template.maxHp() : 200 + scaleLv * 45);
+		this.baseMaxMp = Math.max(50, this.template.maxMp() > 0 ? this.template.maxMp() : 100 + scaleLv * 22);
+		this.maxHp = this.baseMaxHp;
+		this.maxMp = this.baseMaxMp;
 		this.currentHp = this.maxHp;
 		this.currentMp = this.maxMp;
 
-		this.pAtk = Math.max(15, this.template.pAtk() > 0 ? this.template.pAtk() : 25 + scaleLv * 12);
-		this.pDef = Math.max(20, this.template.pDef() > 0 ? this.template.pDef() : 35 + scaleLv * 8);
-		this.mAtk = Math.max(15, this.template.mAtk() > 0 ? this.template.mAtk() : 20 + scaleLv * 10);
-		this.mDef = Math.max(20, this.template.mDef() > 0 ? this.template.mDef() : 30 + scaleLv * 7);
-		this.pAtkSpd = Math.max(200, this.template.pAtkSpd() > 0 ? this.template.pAtkSpd() : 278);
-		this.mAtkSpd = Math.max(200, this.template.mAtkSpd() > 0 ? this.template.mAtkSpd() : 333);
-		this.runSpd = Math.max(80, this.template.runSpd() > 0 ? this.template.runSpd() : 125);
-		this.walkSpd = Math.max(40, this.template.walkSpd() > 0 ? this.template.walkSpd() : 80);
+		this.basePAtk = Math.max(15, this.template.pAtk() > 0 ? this.template.pAtk() : 25 + scaleLv * 12);
+		this.basePDef = Math.max(20, this.template.pDef() > 0 ? this.template.pDef() : 35 + scaleLv * 8);
+		this.baseMAtk = Math.max(15, this.template.mAtk() > 0 ? this.template.mAtk() : 20 + scaleLv * 10);
+		this.baseMDef = Math.max(20, this.template.mDef() > 0 ? this.template.mDef() : 30 + scaleLv * 7);
+		this.basePAtkSpd = Math.max(200, this.template.pAtkSpd() > 0 ? this.template.pAtkSpd() : 278);
+		this.baseMAtkSpd = Math.max(200, this.template.mAtkSpd() > 0 ? this.template.mAtkSpd() : 333);
+		this.baseRunSpd = Math.max(80, this.template.runSpd() > 0 ? this.template.runSpd() : 125);
+		this.baseWalkSpd = Math.max(40, this.template.walkSpd() > 0 ? this.template.walkSpd() : 80);
+
+		this.pAtk = this.basePAtk;
+		this.pDef = this.basePDef;
+		this.mAtk = this.baseMAtk;
+		this.mDef = this.baseMDef;
+		this.pAtkSpd = this.basePAtkSpd;
+		this.mAtkSpd = this.baseMAtkSpd;
+		this.runSpd = this.baseRunSpd;
+		this.walkSpd = this.baseWalkSpd;
 
 		this.maxFed = summonType == TYPE_PET ? 1200 : 1000;
 		this.currentFed = this.maxFed;
@@ -343,6 +372,14 @@ public final class SummonInstance implements Creature {
 		this.walkSpd = Math.max(1, value);
 	}
 
+	public double absorbDam() {
+		return absorbDam;
+	}
+
+	public void absorbDam(double value) {
+		this.absorbDam = Math.max(0.0, value);
+	}
+
 	public int accuracy() {
 		return 30 + level;
 	}
@@ -555,5 +592,111 @@ public final class SummonInstance implements Creature {
 	@Override
 	public boolean isSummon() {
 		return true;
+	}
+
+	public java.util.List<SummonBuff> activeBuffs() {
+		long now = System.currentTimeMillis();
+		activeBuffs.values().removeIf(b -> b.endTimeMillis() <= now);
+		return java.util.List.copyOf(activeBuffs.values());
+	}
+
+	/**
+	 * Aplica os efeitos de buff de uma {@link com.lopez.l2j.game.skill.SkillTemplate} no Summon/Pet,
+	 * recalculando atributos a partir dos valores base para evitar acumulacao infinita ao rebuffar,
+	 * e retorna a maior duracao aplicada (em ms) para agendamento de expiracao.
+	 */
+	public synchronized long applySkillBuff(com.lopez.l2j.game.skill.SkillTemplate sk) {
+		if (sk == null || sk.effects() == null || sk.effects().isEmpty()) {
+			return 0L;
+		}
+		long now = System.currentTimeMillis();
+		long maxDuration = 0L;
+		boolean modified = false;
+		for (var e : sk.effects()) {
+			if (e.funcs() == null || e.funcs().isEmpty()) {
+				continue;
+			}
+			long dur = Math.max(1000L, e.durationMs());
+			if (com.lopez.l2j.config.Config.ENABLE_MODIFY_SKILL_DURATION
+					&& com.lopez.l2j.config.Config.SKILL_DURATION_LIST != null
+					&& com.lopez.l2j.config.Config.SKILL_DURATION_LIST.containsKey(sk.id())) {
+				dur = com.lopez.l2j.config.Config.SKILL_DURATION_LIST.get(sk.id()) * 1000L;
+			}
+			String stack = (e.stackType() == null || e.stackType().equalsIgnoreCase("none") || e.stackType().isBlank())
+					? "skill_" + sk.id() + "_" + e.name()
+					: e.stackType().toLowerCase(java.util.Locale.ROOT);
+			int order = e.stackOrder() > 0 ? (int) Math.round(e.stackOrder()) : sk.level();
+			SummonBuff existing = activeBuffs.get(stack);
+			if (existing != null && existing.endTimeMillis() > now && com.lopez.l2j.config.Config.CANCEL_LESSER_EFFECT
+					&& order < existing.stackOrder()) {
+				continue;
+			}
+			SummonBuff buff = new SummonBuff(sk.id(), sk.level(), stack, order, now + dur, java.util.List.copyOf(e.funcs()));
+			activeBuffs.put(stack, buff);
+			maxDuration = Math.max(maxDuration, dur);
+			modified = true;
+		}
+		if (modified) {
+			recalculateStats();
+		}
+		return maxDuration;
+	}
+
+	public synchronized boolean removeBuffByStack(String stackType) {
+		if (stackType == null) {
+			return false;
+		}
+		boolean removed = activeBuffs.remove(stackType.toLowerCase(java.util.Locale.ROOT)) != null;
+		if (removed) {
+			recalculateStats();
+		}
+		return removed;
+	}
+
+	public synchronized void clearBuffs() {
+		activeBuffs.clear();
+		recalculateStats();
+	}
+
+	public synchronized void recalculateStats() {
+		long now = System.currentTimeMillis();
+		activeBuffs.values().removeIf(b -> b.endTimeMillis() <= now);
+
+		java.util.List<com.lopez.l2j.game.skill.StatFunc> allFuncs = new java.util.ArrayList<>();
+		for (SummonBuff b : activeBuffs.values()) {
+			if (b.funcs() != null) {
+				allFuncs.addAll(b.funcs());
+			}
+		}
+		allFuncs.sort(java.util.Comparator.comparingInt(com.lopez.l2j.game.skill.StatFunc::order));
+
+		this.pAtk = Math.max(1, (int) Math.round(calcStat(allFuncs, "pAtk", this.basePAtk)));
+		this.pDef = Math.max(1, (int) Math.round(calcStat(allFuncs, "pDef", this.basePDef)));
+		this.mAtk = Math.max(1, (int) Math.round(calcStat(allFuncs, "mAtk", this.baseMAtk)));
+		this.mDef = Math.max(1, (int) Math.round(calcStat(allFuncs, "mDef", this.baseMDef)));
+		this.pAtkSpd = Math.max(1, (int) Math.round(calcStat(allFuncs, "pAtkSpd", this.basePAtkSpd)));
+		this.mAtkSpd = Math.max(1, (int) Math.round(calcStat(allFuncs, "mAtkSpd", this.baseMAtkSpd)));
+		this.runSpd = Math.max(1, (int) Math.round(calcStat(allFuncs, "runSpd", this.baseRunSpd)));
+		this.walkSpd = Math.max(1, (int) Math.round(calcStat(allFuncs, "walkSpd", this.baseWalkSpd)));
+		this.maxHp = Math.max(1, (int) Math.round(calcStat(allFuncs, "maxHp", this.baseMaxHp)));
+		this.maxMp = Math.max(1, (int) Math.round(calcStat(allFuncs, "maxMp", this.baseMaxMp)));
+		this.absorbDam = Math.max(0.0, calcStat(allFuncs, "absorbDam", 0.0));
+
+		if (this.currentHp > this.maxHp) {
+			this.currentHp = this.maxHp;
+		}
+		if (this.currentMp > this.maxMp) {
+			this.currentMp = this.maxMp;
+		}
+	}
+
+	private double calcStat(java.util.List<com.lopez.l2j.game.skill.StatFunc> funcs, String stat, double baseVal) {
+		double env = baseVal;
+		for (com.lopez.l2j.game.skill.StatFunc f : funcs) {
+			if (stat.equalsIgnoreCase(f.stat()) && (f.condition() == null || f.condition().test(this.owner, this))) {
+				env = f.apply(env, baseVal);
+			}
+		}
+		return env;
 	}
 }

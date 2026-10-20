@@ -70,6 +70,7 @@ public final class PlayerCharacter implements Creature {
 	private double currentCp;
 	private boolean running = true;
 	private boolean sitting;
+	private volatile long lastMoveTime;
 	private Inventory inventory;
 
 	private final Map<Integer, Integer> skills = new ConcurrentHashMap<>();
@@ -744,7 +745,25 @@ public final class PlayerCharacter implements Creature {
 	}
 
 	public void currentHp(double value) {
-		this.currentHp = Math.max(0, Math.min(maxHp, value));
+		double clamped = Math.max(0.0, Math.min(maxHp, value));
+		if (clamped < this.currentHp && this.currentHp > 0.0 && this.effects != null && this.effects.hasSkill(1262)) {
+			var summon = this.activeSummon;
+			if (summon != null && !summon.isDead()) {
+				double dx = this.x - summon.x();
+				double dy = this.y - summon.y();
+				if (dx * dx + dy * dy <= 1000.0 * 1000.0) {
+					int tpLvl = Math.max(1, Math.min(5, this.effects.getSkillLevel(1262)));
+					double ratio = (tpLvl * 10.0) / 100.0;
+					double incomingDmg = this.currentHp - clamped;
+					int transferred = (int) Math.min(summon.currentHp(), Math.round(incomingDmg * ratio));
+					if (transferred > 0) {
+						summon.applyDamage(transferred);
+						clamped = Math.min(this.maxHp, clamped + transferred);
+					}
+				}
+			}
+		}
+		this.currentHp = clamped;
 	}
 
 	public boolean isDead() {
@@ -847,7 +866,11 @@ public final class PlayerCharacter implements Creature {
 	}
 
 	public boolean isMoving() {
-		return running;
+		return !sitting && !autoAttacking && (System.currentTimeMillis() - lastMoveTime < 1500L);
+	}
+
+	public void stopMove() {
+		this.lastMoveTime = 0L;
 	}
 
 	public void running(boolean value) {
@@ -1104,6 +1127,9 @@ public final class PlayerCharacter implements Creature {
 	}
 
 	public void moveTo(int x, int y, int z) {
+		if (this.x != x || this.y != y || this.z != z) {
+			this.lastMoveTime = System.currentTimeMillis();
+		}
 		this.x = x;
 		this.y = y;
 		this.z = z;

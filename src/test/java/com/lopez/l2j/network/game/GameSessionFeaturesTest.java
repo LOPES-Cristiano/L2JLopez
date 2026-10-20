@@ -1626,4 +1626,44 @@ class GameSessionFeaturesTest {
 				"Deve emitir ExVariationCancelResult (0x57)");
 		assertFalse(weapon.isAugmented(), "Augment deve ter sido removido");
 	}
+
+	@Test
+	void testMeleeAttackRecoversHpWithVampiricRageDanceAndChantOfVampire() throws Exception {
+		// Configura jogador com HP parcial (100 / 1000) e arma corpo a corpo (sword)
+		player.level(76);
+		player.maxHp(1000);
+		player.currentHp(100.0);
+
+		ItemTemplate swordTpl = ItemTemplate.weapon(6364, 6364, "Forgotten Blade", "rhand", "sword",
+				1300, "s", 281, 132, 379, 8, 0, 0, true, true, true, true);
+		ItemInstance sword = new ItemInstance(6001, swordTpl, player.objectId(), 1);
+		player.inventory().add(sword);
+		player.inventory().equip(sword);
+
+		// Aplica Chant of Vampire Lv4 (+9% absorbDam) + Dance of Vampire (+8% absorbDam) = 17% absorbDam
+		var chantFunc = new com.lopez.l2j.game.skill.StatFunc("absorbDam", com.lopez.l2j.game.skill.StatFunc.Op.ADD, 0x40, 9.0);
+		var danceFunc = new com.lopez.l2j.game.skill.StatFunc("absorbDam", com.lopez.l2j.game.skill.StatFunc.Op.ADD, 0x40, 8.0);
+		long end = System.currentTimeMillis() + 600_000L;
+		player.effects().put(com.lopez.l2j.game.effect.PlayerEffects.ActiveBuff.ofSkill(
+				1310, 4, "vampiric_attack", 9, end, List.of(chantFunc)), 4);
+		player.effects().put(com.lopez.l2j.game.effect.PlayerEffects.ActiveBuff.ofSkill(
+				310, 1, "dance_of_vampire", 1, end, List.of(danceFunc)), 4);
+
+		// Monstro com bastante HP
+		var toughMobTpl = new NpcTemplate(20999, 20999, "Orc Warrior", false, "", false, 10.0, 15.0, 70, "male",
+				"L2Monster", 40, 5000, 500, 100, 50, 50, 50, 250, 250, 0, 0, 0, 50, 100, 0, true);
+		NpcInstance toughMob = new NpcInstance(30999, toughMobTpl, 20, 0, 0, 0);
+		world.addNpc(toughMob);
+
+		// Executa golpes corpo a corpo ate acertar pelo menos 1 hit e aguarda timeToHit
+		for (int attempt = 0; attempt < 5 && player.currentHp() <= 100.0; attempt++) {
+			setField(session, "attackEndTime", 0L);
+			invokeMethod(session, "onAttackNpc", new Class<?>[] { NpcInstance.class }, toughMob);
+			Thread.sleep(600);
+		}
+		session.stopAutoAttack();
+
+		assertTrue(player.currentHp() > 100.0,
+				"Ataque corpo a corpo com Chant of Vampire + Dance of Vampire deve recuperar HP (HP atual: " + player.currentHp() + ")");
+	}
 }

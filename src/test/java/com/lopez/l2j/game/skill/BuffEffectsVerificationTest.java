@@ -41,8 +41,9 @@ class BuffEffectsVerificationTest {
 			String stack = eff.stackType() == null || eff.stackType().equalsIgnoreCase("none")
 					? "skill_" + sk.id() + "_" + eff.name()
 					: eff.stackType();
-			p.effects().put(PlayerEffects.ActiveBuff.ofSkill(sk.id(), sk.level(), stack,
-					System.currentTimeMillis() + 600_000L, eff.funcs()));
+			int stackOrder = eff.stackOrder() > 0 ? (int) Math.round(eff.stackOrder()) : sk.level();
+			p.effects().put(PlayerEffects.ActiveBuff.ofSkill(sk.id(), sk.level(), stack, stackOrder,
+					System.currentTimeMillis() + 600_000L, eff.funcs()), PlayerEffects.getExtraBuffSlots(p));
 		}
 	}
 
@@ -160,14 +161,18 @@ class BuffEffectsVerificationTest {
 		double cAtkFront = PlayerStats.applyStat(attacker, target, "cAtk", 100.0);
 		assertEquals(70.0, cAtkFront, 0.5, "cAtk pela frente com Focus Power deve reduzir em 30%");
 
-		// Clear Mind (1297 Lv6): bonus de regMp diferenciado andando vs parado
+		// Clear Mind (1297 Lv6): bonus de regMp diferenciado andando/parado vs correndo
 		SkillTemplate clearMind = skillTable.get(1297, 6).orElseThrow();
 		attacker.passiveFuncs(clearMind.funcs());
-		attacker.running(false); // walking/standing -> +6.2 regMp
+		attacker.moveTo(10, 10, 0);
+		attacker.running(false); // walking -> +6.2 regMp
 		double regWalk = PlayerStats.applyStat(attacker, "regMp", 10.0);
-		attacker.running(true); // running -> sem o bonus de walking
+		attacker.running(true); // running (moving) -> sem o bonus de walking/standing
 		double regRun = PlayerStats.applyStat(attacker, "regMp", 10.0);
 		assertTrue(regWalk > regRun, "Clear Mind deve conceder mais regMp andando/parado do que correndo");
+		attacker.stopMove(); // standing -> +4.9 regMp
+		double regStand = PlayerStats.applyStat(attacker, "regMp", 10.0);
+		assertTrue(regStand > regRun, "Clear Mind deve conceder mais regMp parado do que correndo em movimento");
 	}
 
 	@Test
@@ -221,5 +226,32 @@ class BuffEffectsVerificationTest {
 		assertTrue(CombatService.calcDebuffVulnerability(defender, "stun") <= 0.65);
 		assertTrue(CombatService.calcDebuffVulnerability(defender, "sleep") <= 0.55);
 		assertTrue(CombatService.calcDebuffVulnerability(defender, "fear") <= 0.55);
+	}
+
+	@Test
+	void testVampiricRageChantOfVampireAndDanceOfVampireWithDivineInspirationDoNotEvict() {
+		PlayerCharacter p = newTestPlayer(0, 0, 0);
+		// Simula jogador nivel 78 que aprendeu Divine Inspiration Lv4 (4 slots extras = 24 buffs normais)
+		p.skills().put(1405, 4);
+		assertEquals(4, PlayerEffects.getExtraBuffSlots(p));
+
+		// Aplica todos os buffs de um Fighter full buff (incluindo Vampiric Rage 1268, Chant of Vampire 1310 e Dance of Vampire 310)
+		int[] fighterBuffs = { 1068, 1040, 1086, 1077, 1242, 1240, 1045, 1204, 1268, 1036, 1044, 1388, 1363, 264, 269, 268, 304, 271, 274, 275, 310 };
+		for (int id : fighterBuffs) {
+			int maxLvl = skillTable.maxLevel(id);
+			applySkillBuff(p, id, maxLvl > 0 ? maxLvl : 1);
+		}
+
+		// Garante que Vampiric Rage (1268) e Dance of Vampire (310) permanecem ativos e somam 9% + 8% = 17% absorbDam
+		assertTrue(p.effects().hasSkill(1268), "Vampiric Rage (1268) nao pode ser removido por Divine Inspiration!");
+		assertTrue(p.effects().hasSkill(310), "Dance of Vampire (310) deve estar ativo!");
+		assertEquals(17.0, PlayerStats.applyStat(p, "absorbDam", 0.0), 0.1,
+				"Vampiric Rage Lv4 (9%) + Dance of Vampire (8%) devem totalizar 17% de absorbDam");
+
+		// Aplica Chant of Vampire Lv4 (1310, stackType vampiric_attack, stackOrder 9) -> substitui Vampiric Rage mantendo 9% + 8% = 17%
+		applySkillBuff(p, 1310, 4);
+		assertTrue(p.effects().hasSkill(1310), "Chant of Vampire Lv4 deve substituir Vampiric Rage no stack vampiric_attack");
+		assertEquals(17.0, PlayerStats.applyStat(p, "absorbDam", 0.0), 0.1,
+				"Chant of Vampire Lv4 (9%) + Dance of Vampire (8%) devem manter 17% de absorbDam");
 	}
 }

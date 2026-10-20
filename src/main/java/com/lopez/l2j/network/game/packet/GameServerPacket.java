@@ -449,6 +449,7 @@ public sealed interface GameServerPacket {
 		public static final int NO_MORE_SKILLS_TO_LEARN = 750;
 		public static final int S2_HP_RESTORED_BY_S1 = 1067;
 		public static final int CRITICAL_HIT_MAGIC = 1280;
+		public static final int AVOIDED_S1_ATTACK = 43;
 		public static final int CRITICAL_HIT = 44;
 		public static final int S1_WAS_UNAFFECTED_BY_S2 = 139;
 		public static final int DRAIN_HALF_SUCCESFUL = 156;

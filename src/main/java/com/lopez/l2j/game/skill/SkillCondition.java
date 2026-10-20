@@ -99,7 +99,7 @@ public interface SkillCondition {
 				}
 				if (e.hasAttribute("standing")) {
 					boolean val = Boolean.parseBoolean(e.getAttribute("standing").trim());
-					playerConditions.add((p, target) -> p != null && (!p.isSitting() && !p.running()) == val);
+					playerConditions.add((p, target) -> p != null && (!p.isSitting() && !p.isMoving()) == val);
 				}
 				if (e.hasAttribute("flying")) {
 					boolean val = Boolean.parseBoolean(e.getAttribute("flying").trim());

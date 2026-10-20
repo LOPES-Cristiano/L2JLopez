@@ -839,8 +839,10 @@ public class SchemeBufferService {
 						String stack = e.stackType() == null || e.stackType().equalsIgnoreCase("none")
 								? "skill_" + sk.id() + "_" + e.name()
 								: e.stackType();
+						int stackOrder = e.stackOrder() > 0 ? (int) Math.round(e.stackOrder()) : sk.level();
 						long end = System.currentTimeMillis() + duration;
-						player.effects().put(PlayerEffects.ActiveBuff.ofSkill(sk.id(), sk.level(), stack, end, e.funcs()));
+						player.effects().put(PlayerEffects.ActiveBuff.ofSkill(sk.id(), sk.level(), stack, stackOrder, end, e.funcs()),
+								PlayerEffects.getExtraBuffSlots(player));
 					}
 					if (!player.effects().hasSkill(sk.id())) {
 						player.effects().addBuff(sk.id(), sk.level(), duration);
@@ -893,6 +895,7 @@ public class SchemeBufferService {
 								summon.maxMp((int) Math.max(50, Math.round(f.apply(summon.maxMp()))));
 								summon.currentMp(summon.maxMp());
 							}
+							case "absorbDam" -> summon.absorbDam(Math.max(0.0, f.apply(summon.absorbDam())));
 							default -> {}
 						}
 					}
@@ -916,6 +919,8 @@ public class SchemeBufferService {
 				summon.maxMp((int) (summon.maxMp() * 1.35));
 				summon.currentMp(summon.maxMp());
 			}
+			case 1268, 1310 -> summon.absorbDam(Math.max(summon.absorbDam(), 9.0));
+			case 310 -> summon.absorbDam(summon.absorbDam() + 8.0);
 		}
 	}
 

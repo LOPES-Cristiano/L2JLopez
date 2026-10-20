@@ -18,7 +18,11 @@ public enum Stat {
 	ACCURACY("accCombat"),
 	EVASION("rEvas"),
 	RUN_SPEED("runSpd"),
-	WALK_SPEED("walkSpd");
+	WALK_SPEED("walkSpd"),
+	REG_HP("regHp"),
+	REG_MP("regMp"),
+	REG_CP("regCp"),
+	ABSORB_DAM("absorbDam");
 
 	private final String value;
 

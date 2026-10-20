@@ -90,6 +90,7 @@ public class ActionPacketHandler {
 		}
 
 		if (p.targetX() == p.originX() && p.targetY() == p.originY() && p.targetZ() == p.originZ()) {
+			active.stopMove();
 			session.send(new StopMove(active.objectId(), session.x(), session.y(), session.z(), active.heading()));
 			return;
 		}
@@ -741,6 +742,13 @@ public class ActionPacketHandler {
 				var hit = ctx.combat().summonAttackNpc(sum, npc);
 				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
 						new com.lopez.l2j.network.game.packet.GameServerPacket.Attack(sum.objectId(), npc.objectId(), hit.damage(), hit.flags(), sum.x(), sum.y(), sum.z()), true);
+				if (hit.damage() > 0 && !sum.isDead() && sum.absorbDam() > 0.0 && sum.currentHp() < sum.maxHp()) {
+					double vampHeal = Math.min(hit.damage(), Math.max(1.0, hit.damage() * (sum.absorbDam() / 100.0)));
+					sum.currentHp(Math.min(sum.maxHp(), sum.currentHp() + vampHeal));
+					session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.PetStatusUpdate(sum));
+					ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
+							StatusUpdate.hp(sum.objectId(), (int) sum.currentHp(), sum.maxHp()), true);
+				}
 				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
 						StatusUpdate.hp(npc.objectId(), (int) npc.currentHp(), (int) npc.maxHp()), true);
 				if (hit.isDead()) {
@@ -759,6 +767,13 @@ public class ActionPacketHandler {
 			var hit = ctx.combat().summonAttackPlayer(sum, targetChar, charTpl);
 			ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
 					new com.lopez.l2j.network.game.packet.GameServerPacket.Attack(sum.objectId(), targetChar.objectId(), hit.damage(), 0, sum.x(), sum.y(), sum.z()), true);
+			if (hit.damage() > 0 && !sum.isDead() && sum.absorbDam() > 0.0 && sum.currentHp() < sum.maxHp()) {
+				double vampHeal = Math.min(hit.damage(), Math.max(1.0, hit.damage() * (sum.absorbDam() / 100.0)));
+				sum.currentHp(Math.min(sum.maxHp(), sum.currentHp() + vampHeal));
+				session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.PetStatusUpdate(sum));
+				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
+						StatusUpdate.hp(sum.objectId(), (int) sum.currentHp(), sum.maxHp()), true);
+			}
 			targetSession.send(StatusUpdate.forPlayer(targetChar));
 		}
 	}

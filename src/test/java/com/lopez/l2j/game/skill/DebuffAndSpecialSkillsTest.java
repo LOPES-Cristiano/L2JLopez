@@ -221,7 +221,7 @@ class DebuffAndSpecialSkillsTest {
 		player.root(until);
 		player.mute(until);
 		player.disable(until, false);
-		player.startAbnormalEffect(0x0040 | 0x0020 | 0x0010);
+		player.startAbnormalEffect(0x0200 | 0x0100 | 0x0400);
 
 		assertTrue(player.isRooted());
 		assertTrue(player.isMuted());
@@ -277,5 +277,38 @@ class DebuffAndSpecialSkillsTest {
 
 		assertEquals(600.0, player1.currentHp());
 		assertEquals(600.0, player2.currentHp());
+	}
+
+	@Test
+	void testRetailAbnormalEffectsAndClearMethods() {
+		var player = createPlayer(1012, "AbnormalTarget", 75);
+		long until = System.currentTimeMillis() + 10000;
+
+		// Root = 0x0200 (Anéis/Círculos nos pés)
+		player.root(until);
+		player.startAbnormalEffect(0x0200);
+		assertTrue(player.isRooted());
+		assertEquals(0x0200, player.abnormalEffect());
+		player.clearRoot();
+		assertFalse(player.isRooted());
+		assertEquals(0, player.abnormalEffect());
+
+		// Paralyze (HOLD_1) = 0x0400
+		player.disable(until, false);
+		player.startAbnormalEffect(0x0400);
+		assertTrue(player.isDisabled());
+		assertEquals(0x0400, player.abnormalEffect());
+		player.clearParalyze();
+		assertFalse(player.isDisabled());
+		assertEquals(0, player.abnormalEffect());
+
+		// Silence/Mute = 0x0100
+		player.mute(until);
+		player.startAbnormalEffect(0x0100);
+		assertTrue(player.isMuted());
+		assertEquals(0x0100, player.abnormalEffect());
+		player.clearSilence();
+		assertFalse(player.isMuted());
+		assertEquals(0, player.abnormalEffect());
 	}
 }
