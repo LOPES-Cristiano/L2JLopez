@@ -125,6 +125,7 @@ public class Quest255Tutorial extends Quest {
 		}
 		if (ex < 5) {
 			qs.set("tutorial_quest_ex", "5", true);
+			qs.setState(State.COMPLETED);
 			// Limpa seta do radar acima da cabeca do jogador
 			player.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RadarControl(2, 2, 0, 0, 0));
 
@@ -215,14 +216,34 @@ public class Quest255Tutorial extends Quest {
 		if (!TUTORIAL_MOBS.contains(npc.npcId())) {
 			return null;
 		}
-		QuestState qs = player.getQuestState(QUEST_NAME);
-		if (qs != null && qs.isStarted() && qs.getQuestItemsCount(BLUE_GEMSTONE) == 0) {
-			qs.giveItems(BLUE_GEMSTONE, 1);
-			qs.set("Gemstone", 1);
-			qs.playSound("ItemSound.quest_tutorial");
-			qs.playTutorialVoice("tutorial_voice_013");
-			qs.showQuestionMark(5);
+		PlayerCharacter pc = player.activeChar();
+		if (pc.level() >= 6) {
+			return null;
 		}
+		QuestState qs = player.getQuestState(QUEST_NAME);
+		if (qs == null || !qs.isStarted() || qs.isCompleted()) {
+			return null;
+		}
+		if (qs.getInt("Gemstone") > 0 || qs.getQuestItemsCount(BLUE_GEMSTONE) > 0) {
+			return null;
+		}
+		int ex = qs.get("tutorial_quest_ex") == null ? -1 : qs.getInt("tutorial_quest_ex");
+		if (ex >= 3) {
+			return null;
+		}
+		for (String qName : RACE_TUTORIAL_QUESTS) {
+			QuestState rqs = player.getQuestState(qName);
+			if (rqs != null) {
+				if (rqs.isCompleted() || rqs.getInt("tutorial_quest_ex") >= 3 || rqs.getQuestItemsCount(BLUE_GEMSTONE) > 0 || rqs.getInt("Gemstone") > 0) {
+					return null;
+				}
+			}
+		}
+		qs.giveItems(BLUE_GEMSTONE, 1);
+		qs.set("Gemstone", 1);
+		qs.playSound("ItemSound.quest_tutorial");
+		qs.playTutorialVoice("tutorial_voice_013");
+		qs.showQuestionMark(5);
 		return null;
 	}
 

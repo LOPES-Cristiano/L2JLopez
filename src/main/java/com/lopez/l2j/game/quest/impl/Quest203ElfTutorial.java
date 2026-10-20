@@ -123,6 +123,8 @@ public class Quest203ElfTutorial extends Quest {
 			event2 = "nerupa006.htm";
 			qs.addRadar(45475, 48359, -3060);
 			qs.setState(State.COMPLETED);
+			setTutorialVar(qs, qs2, "tutorial_quest_ex", "4");
+			setTutorialVar(qs, qs2, "Gemstone", "1");
 		}
 		return event2;
 	}
@@ -170,6 +172,7 @@ public class Quest203ElfTutorial extends Quest {
 				if ((n2 == 1 || n2 == 2 || n2 == 0) && qs.getQuestItemsCount(6353) > 0) {
 					qs.takeItems(6353, -1);
 					setTutorialVar(qs, qs255, "tutorial_quest_ex", "3");
+					setTutorialVar(qs, qs255, "Gemstone", "1");
 					qs.giveItems(1069, 1);
 					qs.startQuestTimer("timer_newbie_helper", 30000);
 					setTutorialVar(qs, qs255, "tutorial_quest", String.valueOf(n4 | 4));
@@ -210,20 +213,25 @@ public class Quest203ElfTutorial extends Quest {
 
 	@Override
 	public String onKill(NpcInstance npc, QuestState qs) {
-		if (qs == null) return null;
+		if (qs == null || qs.isCompleted()) return null;
 		PlayerCharacter pc = qs.playerChar();
-		if (pc == null) return null;
+		if (pc == null || pc.level() >= 6) return null;
 
 		QuestState qs255 = getTutorialQuestState(qs);
 		int n = getTutorialEx(qs, qs255);
+		if (n >= 3) return null;
 		if (n < 0) n = 0;
 		if (n == 0 || n == 1) {
 			qs.playTutorialVoice("tutorial_voice_011");
 			qs.showQuestionMark(3);
 			setTutorialVar(qs, qs255, "tutorial_quest", "2");
 		}
-		if ((n == 0 || n == 1 || n == 2) && qs.getQuestItemsCount(6353) < 1) {
+		if ((n == 0 || n == 1 || n == 2)
+				&& qs.getQuestItemsCount(6353) < 1
+				&& (qs255 == null || (qs255.getQuestItemsCount(6353) < 1 && qs255.getInt("Gemstone") == 0))
+				&& qs.getInt("Gemstone") == 0) {
 			qs.giveItems(6353, 1);
+			setTutorialVar(qs, qs255, "Gemstone", "1");
 			qs.playSound(QuestState.SOUND_ACCEPT);
 			qs.playTutorialVoice("tutorial_voice_013");
 			qs.showQuestionMark(5);

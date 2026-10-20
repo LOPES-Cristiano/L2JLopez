@@ -8,6 +8,7 @@ import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.npc.NpcTemplate;
 import com.lopez.l2j.game.quest.impl.Quest201HfighterTutorial;
+import com.lopez.l2j.game.quest.impl.Quest206DwarfTutorial;
 import com.lopez.l2j.game.quest.impl.Quest255Tutorial;
 import com.lopez.l2j.game.service.CharacterService;
 import com.lopez.l2j.game.service.InventoryService;
@@ -253,5 +254,59 @@ public class TutorialAndNewbieGuideComprehensiveTest {
 
 		// Jogador deve estar com o buff de Wind Walk aplicado
 		assertTrue(player.effects().hasSkill(1204), "Jogador deve receber o buff de Wind Walk (1204)");
+	}
+
+	@Test
+	@DisplayName("6. Quest 206 Dwarf: Nao permite dropar segunda Blue Gemstone apos concluir a quest")
+	void testQuest206DwarfTutorialNoDuplicateBlueGemstoneAfterCompletion() {
+		player.race(4); // Dwarf
+		player.classId(53); // Dwarven Fighter
+		Quest206DwarfTutorial q206 = new Quest206DwarfTutorial(questManager);
+		Quest255Tutorial q255 = new Quest255Tutorial(questManager);
+		q255.onEnterWorld(session);
+
+		var carlTpl = new NpcTemplate(30530, 30530, "Newbie Helper Miner Mai", false, "L2NewbieHelper", false, 10.0, 15.0, 70, "male",
+				"L2NewbieHelper", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
+		NpcInstance carl = new NpcInstance(6005, carlTpl, 0, 0, 0, 0);
+
+		var laferonTpl = new NpcTemplate(30528, 30528, "Foreman Laferon", false, "L2Trainer", false, 10.0, 15.0, 70, "male",
+				"L2Trainer", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
+		NpcInstance laferon = new NpcInstance(6006, laferonTpl, 0, 0, 0, 0);
+
+		var mobTpl = new NpcTemplate(20420, 20420, "Keltir", false, "L2Monster", false, 10.0, 15.0, 1, "male",
+				"L2Monster", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
+		NpcInstance mob = new NpcInstance(6007, mobTpl, 0, 0, 0, 0);
+
+		// Passo 1: Fala com Newbie Helper Carl / Miner Mai (30530)
+		String firstHtml = q206.notifyFirstTalk(carl, session);
+		assertEquals("carl001.htm", firstHtml);
+		QuestState qs206 = session.getQuestState("206_DwarfTutorial");
+		assertNotNull(qs206);
+
+		// Passo 2: Abate do mob inicial -> Drop da PRIMEIRA Blue Gemstone (6353)
+		questManager.onNpcKill(mob, session, false);
+		assertEquals(1, qs206.getQuestItemsCount(6353), "Deve dropar a primeira Blue Gemstone");
+
+		// Passo 3: Retorno a Carl -> Entrega a Blue Gemstone, recebe License of Miner (1498)
+		String secondHtml = q206.notifyFirstTalk(carl, session);
+		assertEquals("miner_mai003.htm", secondHtml);
+		assertEquals(0, qs206.getQuestItemsCount(6353), "A Blue Gemstone deve ser removida do inventario");
+		assertEquals(1, qs206.getQuestItemsCount(1498), "Deve receber a License of Miner");
+
+		// Passo 4: Fala com Foreman Laferon (30528) e conclui a quest
+		String laferonHtml = q206.notifyFirstTalk(laferon, session);
+		assertEquals("foreman_laferon001.htm", laferonHtml);
+
+		String reply31 = q206.notifyEvent("reply_31", laferon, session);
+		assertEquals("foreman_laferon002.htm", reply31);
+		assertEquals(0, qs206.getQuestItemsCount(1498), "License of Miner deve ser entregue");
+
+		String reply42 = q206.notifyEvent("reply_42", laferon, session);
+		assertEquals("foreman_laferon006.htm", reply42);
+		assertTrue(qs206.isCompleted(), "Quest 206 deve estar COMPLETED");
+
+		// Passo 5: Abate de outro mob apos completar a quest dos 2 NPCs
+		questManager.onNpcKill(mob, session, false);
+		assertEquals(0, qs206.getQuestItemsCount(6353), "NAO deve dropar uma segunda Blue Gemstone apos a quest concluida!");
 	}
 }

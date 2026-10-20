@@ -67,11 +67,11 @@ public class Quest7000HeroItems extends Quest {
 			return renderList();
 		}
 		return "<html><body><table border=0 width=300><tr><td><font color=\"LEVEL\">Item Information</font></td>"
-				+ "<td align=right><button value=Back action=\"bypass -h Quest 7000_HeroItems buy\" width=80 height=27 back=L2UI_ch3.Btn1_normalOn fore=L2UI_ch3.Btn1_normal></td></tr></table>"
+				+ "<td align=right><button value=Back action=\"bypass -h Quest 7000_HeroItems buy\" width=75 height=21 back=L2UI_ch3.Btn1_normalOn fore=L2UI_ch3.Btn1_normal></td></tr></table>"
 				+ "<br><table border=0><tr><td width=35><img src=icon." + item.icon() + " width=32 height=32></td>"
 				+ "<td><font color=\"FFFFFF\">" + item.name() + "</font><br><font color=\"B09878\">Type: " + item.type() + " | P.Atk/M.Atk: " + item.patkMatk() + "</font></td></tr></table>"
 				+ "<br><font color=\"B09878\">" + item.descr() + "</font><br><br>"
-				+ "<button value=Obtain action=\"bypass -h Quest 7000_HeroItems _" + itemId + "\" width=80 height=27 back=L2UI_ch3.Btn1_normalOn fore=L2UI_ch3.Btn1_normal>"
+				+ "<button value=Obtain action=\"bypass -h Quest 7000_HeroItems _" + itemId + "\" width=75 height=21 back=L2UI_ch3.Btn1_normalOn fore=L2UI_ch3.Btn1_normal>"
 				+ "</body></html>";
 	}
 
