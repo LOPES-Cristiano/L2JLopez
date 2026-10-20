@@ -43,9 +43,23 @@ public class MagicSkillPacketHandler {
 
 	private final GameSession session;
 	private final Map<Integer, Long> skillReuse = new ConcurrentHashMap<>();
+	private volatile ScheduledFuture<?> approachCastTask;
+	private volatile int approachingSkillId;
 
 	public MagicSkillPacketHandler(GameSession session) {
 		this.session = session;
+	}
+
+	public boolean isApproachingToCast() {
+		return approachCastTask != null && !approachCastTask.isDone();
+	}
+
+	public void cancelApproachCastTask() {
+		if (approachCastTask != null && !approachCastTask.isDone()) {
+			approachCastTask.cancel(false);
+		}
+		approachCastTask = null;
+		approachingSkillId = 0;
 	}
 
 	public GameSession session() {
@@ -164,8 +178,13 @@ public class MagicSkillPacketHandler {
 		DoorInstance doorTarget = null;
 		GameSession playerTarget = null;
 		com.lopez.l2j.game.summon.SummonInstance summonTarget = null;
-		boolean isSweep = "TARGET_CORPSE_MOB".equalsIgnoreCase(sk.target())
-				|| "SWEEP".equalsIgnoreCase(sk.skillType()) || sk.id() == 42;
+		boolean isAreaSweep = "TARGET_AREA_CORPSE_MOB".equalsIgnoreCase(sk.target())
+				|| sk.id() == 444
+				|| ("SWEEP".equalsIgnoreCase(sk.skillType()) && sk.isAreaAroundSelf());
+		boolean isSweep = isAreaSweep
+				|| "TARGET_CORPSE_MOB".equalsIgnoreCase(sk.target())
+				|| "SWEEP".equalsIgnoreCase(sk.skillType())
+				|| sk.id() == 42;
 		boolean isResurrect = !isSweep && ("RESURRECT".equalsIgnoreCase(sk.skillType()) || sk.target().startsWith("TARGET_CORPSE_"));
 		boolean isUnlock = "UNLOCK".equalsIgnoreCase(sk.skillType())
 				|| "DELUXE_KEY_UNLOCK".equalsIgnoreCase(sk.skillType())
@@ -178,19 +197,42 @@ public class MagicSkillPacketHandler {
 
 		if (isSweep) {
 			npcTarget = ctx().world().npc(session.targetObjectId()).filter(n -> n.isAttackable() && n.isDead()).orElse(null);
-			if (npcTarget == null) {
-				send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
-				send(new ActionFailed());
-				return;
-			}
-			if (!npcTarget.isSweepable()) {
-				send(SystemMessage.id(SystemMessage.SWEEPER_FAILED_TARGET_NOT_SPOILED));
-				send(new ActionFailed());
-				return;
-			}
-			if (npcTarget.spoilerPlayerId() != 0 && npcTarget.spoilerPlayerId() != active().objectId()) {
-				boolean inParty = session.party() != null && session.party().contains(npcTarget.spoilerPlayerId());
-				if (!inParty) {
+			if (isAreaSweep) {
+				int sweepRadius = Math.max(250, sk.skillRadius() > 0 ? sk.skillRadius() : 300);
+				if (npcTarget != null && npcTarget.isSweepable() && canPlayerSweepCorpse(npcTarget)) {
+					// Usa o cadaver selecionado como centro de referencia
+				} else {
+					npcTarget = null;
+					boolean hasAnySweepable = false;
+					boolean hasAnySpoiledByOther = false;
+					for (NpcInstance corpse : ctx().world().findNpcsAround(active().x(), active().y(), sweepRadius, active().instanceId())) {
+						if (corpse != null && corpse.isAttackable() && corpse.isDead() && corpse.isSweepable()) {
+							if (canPlayerSweepCorpse(corpse)) {
+								hasAnySweepable = true;
+								break;
+							} else {
+								hasAnySpoiledByOther = true;
+							}
+						}
+					}
+					if (!hasAnySweepable) {
+						send(SystemMessage.id(hasAnySpoiledByOther ? SystemMessage.SWEEP_NOT_ALLOWED : SystemMessage.SWEEPER_FAILED_TARGET_NOT_SPOILED));
+						send(new ActionFailed());
+						return;
+					}
+				}
+			} else {
+				if (npcTarget == null) {
+					send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+					send(new ActionFailed());
+					return;
+				}
+				if (!npcTarget.isSweepable()) {
+					send(SystemMessage.id(SystemMessage.SWEEPER_FAILED_TARGET_NOT_SPOILED));
+					send(new ActionFailed());
+					return;
+				}
+				if (!canPlayerSweepCorpse(npcTarget)) {
 					send(SystemMessage.id(SystemMessage.SWEEP_NOT_ALLOWED));
 					send(new ActionFailed());
 					return;
@@ -341,6 +383,10 @@ public class MagicSkillPacketHandler {
 				int targetId = npcTarget != null ? npcTarget.objectId()
 						: (doorTarget != null ? doorTarget.objectId()
 						: (summonTarget != null ? summonTarget.objectId() : playerTarget.objectId()));
+				if (isApproachingToCast() && approachingSkillId == sk.id() && session.targetObjectId() == targetId) {
+					return;
+				}
+				cancelApproachCastTask();
 				var move = new MoveToPawn(active().objectId(), targetId, sk.castRange(), active().x(), active().y(),
 						active().z());
 				send(move);
@@ -353,8 +399,11 @@ public class MagicSkillPacketHandler {
 				int stopY = (int) (ty + stopDist * Math.sin(angle));
 				int stopZ = tz;
 				PlayerCharacter owner = active();
-				GameSession.autoAttackScheduler().schedule(() -> {
-					if (active() == owner) {
+				approachingSkillId = sk.id();
+				approachCastTask = GameSession.autoAttackScheduler().schedule(() -> {
+					approachingSkillId = 0;
+					approachCastTask = null;
+					if (active() == owner && !owner.isDead() && session.inWorld()) {
 						active().moveTo(stopX, stopY, stopZ);
 						castSkill(sk, false);
 					}
@@ -379,7 +428,7 @@ public class MagicSkillPacketHandler {
 		}
 
 		// Inicio da conjuracao
-		var t = ctx().characters().template(active());
+		var t = ctx() != null && ctx().characters() != null ? ctx().characters().template(active()) : null;
 		var stats = PlayerStats.calculate(active(), t);
 		if (sk.magic() && !session.spiritshotCharged()) {
 			session.rechargeAutoSoulShots();
@@ -408,7 +457,8 @@ public class MagicSkillPacketHandler {
 			session.stopAutoAttack();
 			session.autoAttacking(false);
 		}
-		boolean resumeAttack = !isSleepOrTrance && session.isAutoAttacking() && (npcTarget != null || playerTarget != null) && sk.nextActionAttack();
+		boolean resumeAttack = !isSleepOrTrance && (session.isAutoAttacking() || sk.nextActionAttack())
+				&& (npcTarget != null || playerTarget != null);
 		session.autoAttacking(false); // o auto-ataque para durante o cast
 
 		// Para a movimentacao do personagem para conjurar a habilidade ("da uma paradinha")
@@ -486,7 +536,7 @@ public class MagicSkillPacketHandler {
 				send(SystemMessage.of(SystemMessage.S1_DISAPPEARED, new SystemMessage.ItemName(sk.itemConsumeId())));
 			}
 		}
-		var t = ctx().characters().template(active());
+		var t = ctx() != null && ctx().characters() != null ? ctx().characters().template(active()) : null;
 
 		if (sk.id() == 1312) { // Fishing
 			if (ctx().fishing() != null) {
@@ -512,17 +562,48 @@ public class MagicSkillPacketHandler {
 			return;
 		}
 
-		if ("TARGET_CORPSE_MOB".equalsIgnoreCase(sk.target()) || "SWEEP".equalsIgnoreCase(sk.skillType()) || sk.id() == 42) {
-			if (mainNpc != null && ctx().drops() != null) {
-				boolean swept = ctx().drops().sweep(active(), mainNpc, ctx().inventories(), session::send);
-				if (swept) {
-					var dieNoGlow = new Die(mainNpc.objectId(), false, false, false, false);
-					send(dieNoGlow);
-					if (ctx().world() != null) {
-						ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, dieNoGlow, false);
+		boolean isAreaSweep = "TARGET_AREA_CORPSE_MOB".equalsIgnoreCase(sk.target())
+				|| sk.id() == 444
+				|| ("SWEEP".equalsIgnoreCase(sk.skillType()) && sk.isAreaAroundSelf());
+		if (isAreaSweep || "TARGET_CORPSE_MOB".equalsIgnoreCase(sk.target()) || "SWEEP".equalsIgnoreCase(sk.skillType()) || sk.id() == 42) {
+			if (ctx().drops() != null) {
+				List<NpcInstance> corpsesToSweep = new ArrayList<>();
+				if (isAreaSweep) {
+					int sweepRadius = Math.max(250, sk.skillRadius() > 0 ? sk.skillRadius() : 300);
+					int cx = mainNpc != null ? mainNpc.x() : active().x();
+					int cy = mainNpc != null ? mainNpc.y() : active().y();
+					if (mainNpc != null && mainNpc.isDead() && mainNpc.isSweepable() && canPlayerSweepCorpse(mainNpc)) {
+						corpsesToSweep.add(mainNpc);
 					}
-					if (ctx().npcAi() != null) {
-						ctx().npcAi().scheduleQuickDecay(mainNpc, 3000);
+					if (ctx().world() != null) {
+						for (NpcInstance corpse : ctx().world().findNpcsAround(cx, cy, sweepRadius, active().instanceId())) {
+							if (corpse != null && corpse.isAttackable() && corpse.isDead() && corpse.isSweepable()
+									&& canPlayerSweepCorpse(corpse) && !corpsesToSweep.contains(corpse)) {
+								corpsesToSweep.add(corpse);
+							}
+						}
+					}
+				} else if (mainNpc != null) {
+					corpsesToSweep.add(mainNpc);
+				}
+
+				if (!corpsesToSweep.isEmpty()) {
+					broadcastLaunched(sk, corpsesToSweep.stream().map(NpcInstance::objectId).toList());
+				}
+				for (NpcInstance corpse : corpsesToSweep) {
+					boolean swept = ctx().drops().sweep(active(), corpse, ctx().inventories(), session::send);
+					if (swept) {
+						if (sk.absorbPart() > 0) {
+							healHp(sk.absorbPart());
+						}
+						var dieNoGlow = new Die(corpse.objectId(), false, false, false, false);
+						send(dieNoGlow);
+						if (ctx().world() != null) {
+							ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, dieNoGlow, false);
+						}
+						if (ctx().npcAi() != null) {
+							ctx().npcAi().scheduleQuickDecay(corpse, 3000);
+						}
 					}
 				}
 			}
@@ -956,8 +1037,11 @@ public class MagicSkillPacketHandler {
 			}
 		}
 
-		// Spoil (Skill 254)
-		if (sk.id() == 254 || "SPOIL".equalsIgnoreCase(sk.skillType())) {
+		// Spoil (Skill 254 Spoil, 302 Spoil Festival, 348 Spoil Crush)
+		boolean hasSpoilEffect = sk.id() == 254 || sk.id() == 302 || sk.id() == 348
+				|| "SPOIL".equalsIgnoreCase(sk.skillType())
+				|| sk.effects().stream().anyMatch(e -> "spoil".equalsIgnoreCase(e.name()));
+		if (hasSpoilEffect) {
 			handleSpoil(npc, sk);
 		}
 
@@ -1082,6 +1166,16 @@ public class MagicSkillPacketHandler {
 		} else if (!npc.isDead() && ctx().npcAi() != null) {
 			ctx().npcAi().startCombat(npc, active().objectId()); // debuff puro tambem gera aggro
 		}
+	}
+
+	public boolean canPlayerSweepCorpse(NpcInstance corpse) {
+		if (corpse == null || active() == null) {
+			return false;
+		}
+		if (corpse.spoilerPlayerId() == 0 || corpse.spoilerPlayerId() == active().objectId()) {
+			return true;
+		}
+		return session.party() != null && session.party().contains(corpse.spoilerPlayerId());
 	}
 
 	public void handleSpoil(NpcInstance npc, SkillTemplate sk) {
@@ -1597,7 +1691,7 @@ public class MagicSkillPacketHandler {
 				int newLvl = com.lopez.l2j.game.model.ExperienceTable.calculateLevel(active().exp());
 				if (newLvl != active().level()) {
 					active().level(newLvl);
-					var t = ctx().characters().template(active());
+					var t = ctx() != null && ctx().characters() != null ? ctx().characters().template(active()) : null;
 					session.rewardSkills(t, false);
 				}
 			}
@@ -2084,7 +2178,7 @@ public class MagicSkillPacketHandler {
 		send(revive);
 		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, revive, false);
 
-		var t = ctx().characters().template(active());
+		var t = ctx() != null && ctx().characters() != null ? ctx().characters().template(active()) : null;
 		send(new UserInfo(active(), t));
 		session.sendVitals();
 		send(SystemMessage.of(SystemMessage.S1_HP_RESTORED, new SystemMessage.Number(revivedHp)));

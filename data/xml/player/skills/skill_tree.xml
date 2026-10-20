@@ -25375,6 +25375,8 @@
 			min_level="28" />
 		<data skill_id="302" level="2" name="Spoil Festival" sp="35000"
 			min_level="36" />
+		<data skill_id="444" level="1" name="Festive Sweeper" sp="13000"
+			min_level="28" />
 	</skill>
 	<skill class_id="55" parent_id="54">
 		<data skill_id="34" level="2" name="Bandage" sp="67000"

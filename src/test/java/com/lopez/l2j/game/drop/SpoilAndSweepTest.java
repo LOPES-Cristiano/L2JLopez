@@ -2,18 +2,25 @@ package com.lopez.l2j.game.drop;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import com.lopez.l2j.game.item.Inventory;
-import com.lopez.l2j.game.npc.NpcTemplate;
 import com.lopez.l2j.game.model.ObjectIdFactory;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.npc.NpcInstance;
+import com.lopez.l2j.game.npc.NpcTemplate;
 import com.lopez.l2j.game.service.InventoryService;
+import com.lopez.l2j.game.skill.SkillTable;
+import com.lopez.l2j.game.skill.SkillTemplate;
+import com.lopez.l2j.game.skill.SkillTreeTable;
+import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.network.game.GameSession;
+import com.lopez.l2j.network.game.handler.packet.MagicSkillPacketHandler;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
-import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -150,5 +157,95 @@ class SpoilAndSweepTest {
 			}
 		}
 		assertThat(plus5LvlSuccess).isGreaterThanOrEqualTo(930);
+	}
+
+	@Test
+	void festiveSweeperSkill444AndSpoilSkillsLoadedCorrectlyFromDatapack() {
+		SkillTable skillTable = new SkillTable("data/xml");
+		// 42 = Sweeper
+		SkillTemplate sweeper = skillTable.get(42, 1).orElseThrow();
+		assertEquals("SWEEP", sweeper.skillType());
+
+		// 254 = Spoil
+		SkillTemplate spoil = skillTable.get(254, 1).orElseThrow();
+		assertEquals("SPOIL", spoil.skillType());
+		assertTrue(spoil.nextActionAttack());
+
+		// 302 = Spoil Festival (AoE Spoil)
+		SkillTemplate spoilFestival = skillTable.get(302, 1).orElseThrow();
+		assertEquals("SPOIL", spoilFestival.skillType());
+		assertEquals("TARGET_AREA", spoilFestival.target());
+		assertTrue(spoilFestival.nextActionAttack());
+
+		// 348 = Spoil Crush (Fortune Seeker 76+ physical blow + spoil)
+		SkillTemplate spoilCrush = skillTable.get(348, 1).orElseThrow();
+		assertEquals("PDAM", spoilCrush.skillType());
+		assertTrue(spoilCrush.effects().stream().anyMatch(e -> "spoil".equalsIgnoreCase(e.name())));
+		assertTrue(spoilCrush.nextActionAttack());
+
+		// 444 = Festive Sweeper (AoE Sweep)
+		SkillTemplate festiveSweeper = skillTable.get(444, 1).orElseThrow();
+		assertEquals("SWEEP", festiveSweeper.skillType());
+		assertEquals("TARGET_AREA_CORPSE_MOB", festiveSweeper.target());
+		assertEquals(300, festiveSweeper.skillRadius());
+		assertEquals(500, festiveSweeper.hitTime());
+
+		// SkillTreeTable: Scavenger (54), Bounty Hunter (55), Fortune Seeker (117) learn 444 Festive Sweeper at level 28
+		SkillTreeTable tree = new SkillTreeTable(Path.of("data/xml/player/skills"));
+		assertTrue(tree.allFor(54).stream().anyMatch(s -> s.id() == 444 && s.minLevel() == 28));
+		assertTrue(tree.allFor(55).stream().anyMatch(s -> s.id() == 444));
+		assertTrue(tree.allFor(117).stream().anyMatch(s -> s.id() == 444));
+	}
+
+	@Test
+	void festiveSweeperShouldSweepMultipleSpoiledCorpsesInArea() {
+		NpcTemplate tpl = new NpcTemplate(
+				MOB_ID, MOB_ID, "TargetMob", false, "", false,
+				8.0, 16.0, 20, "male", "L2Monster",
+				40, 500, 100, 50, 40, 30, 10, 250, 333,
+				0, 0, 0, 50, 100, 0, false, "", 0);
+
+		NpcInstance mob1 = new NpcInstance(8101, tpl, 100, 100, 0, 0);
+		mob1.spoiled(true);
+		mob1.spoilerPlayerId(dwarf.objectId());
+		mob1.dead(true);
+		mob1.spoilRewards(dropService.rollSpoil(MOB_ID, dwarf.level(), 20));
+
+		NpcInstance mob2 = new NpcInstance(8102, tpl, 150, 120, 0, 0);
+		mob2.spoiled(true);
+		mob2.spoilerPlayerId(dwarf.objectId());
+		mob2.dead(true);
+		mob2.spoilRewards(dropService.rollSpoil(MOB_ID, dwarf.level(), 20));
+
+		assertTrue(mob1.isSweepable());
+		assertTrue(mob2.isSweepable());
+
+		dwarf.moveTo(110, 110, 0);
+
+		GameWorld world = new GameWorld();
+		world.addNpc(mob1);
+		world.addNpc(mob2);
+
+		GameSession session = mock(GameSession.class);
+		GameSession.Context ctx = mock(GameSession.Context.class);
+		when(session.active()).thenReturn(dwarf);
+		when(session.ctx()).thenReturn(ctx);
+		when(ctx.world()).thenReturn(world);
+		when(ctx.drops()).thenReturn(dropService);
+		when(ctx.inventories()).thenReturn(inventoryService);
+
+		MagicSkillPacketHandler handler = new MagicSkillPacketHandler(session);
+		SkillTemplate festiveSweeper = new SkillTemplate(
+				444, 1, "Festive Sweeper", SkillTemplate.OperateType.ACTIVE, "SWEEP", "TARGET_AREA_CORPSE_MOB",
+				false, 12, 0, 0, 0.0, 0, 300, 500, 0, 1000, 28, 0.0, false,
+				0, 0, 0, 0, 0, true, false,
+				List.of(), List.of(), null, null
+		);
+
+		handler.finishCast(festiveSweeper, mob1, null, null, false, false, false);
+
+		assertFalse(mob1.isSweepable(), "Mob 1 deve ter sido coletado pelo Festive Sweeper");
+		assertFalse(mob2.isSweepable(), "Mob 2 deve ter sido coletado em area pelo Festive Sweeper");
+		assertTrue(dwarf.inventory().byItemId(SPOIL_ITEM_ID).isPresent());
 	}
 }

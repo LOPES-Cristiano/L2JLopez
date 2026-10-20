@@ -1056,12 +1056,13 @@
 	</skill>
 	<skill id="444" levels="1" name="Festive Sweeper">
 		<set name="mpConsume" val="12" />
-		<set name="skillRadius" val="85" />
+		<set name="magicLvl" val="28" />
+		<set name="skillRadius" val="300" />
 		<set name="target" val="TARGET_AREA_CORPSE_MOB" />
 		<set name="skillType" val="SWEEP" />
 		<set name="operateType" val="OP_ACTIVE" />
-		<set name="reuseDelay" val="23000" />
-		<set name="hitTime" val="5000" />
+		<set name="reuseDelay" val="1000" />
+		<set name="hitTime" val="500" />
 	</skill>
     <!-- Reworked by L. Dante / Daniel Mello -->				
 	<skill id="445" levels="1" name="Mirage">
