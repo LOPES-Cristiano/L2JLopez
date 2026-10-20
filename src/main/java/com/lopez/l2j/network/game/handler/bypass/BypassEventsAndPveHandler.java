@@ -318,8 +318,8 @@ public class BypassEventsAndPveHandler implements IBypassHandler {
 	public static String buildTvtHtml(TvtEventService tvt) {
 		String base = tvt.buildStatusHtml();
 		if (!base.contains("evt_tvt_join")) {
-			String buttons = "<br><button value=\"Registrar\" action=\"bypass -h evt_tvt_join\" width=90 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>"
-					+ "<button value=\"Sair\" action=\"bypass -h evt_tvt_leave\" width=90 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></center></body></html>";
+			String buttons = "<br><button value=\"Registrar\" action=\"bypass -h evt_tvt_join\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"><br>"
+					+ "<button value=\"Sair\" action=\"bypass -h evt_tvt_leave\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></center></body></html>";
 			return base.replace("</center></body></html>", buttons);
 		}
 		return base;
@@ -328,8 +328,8 @@ public class BypassEventsAndPveHandler implements IBypassHandler {
 	public static String buildCtfHtml(CtfEventService ctf) {
 		String base = ctf.buildStatusHtml();
 		if (!base.contains("evt_ctf_join")) {
-			String buttons = "<br><button value=\"Registrar\" action=\"bypass -h evt_ctf_join\" width=90 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>"
-					+ "<button value=\"Sair\" action=\"bypass -h evt_ctf_leave\" width=90 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></center></body></html>";
+			String buttons = "<br><button value=\"Registrar\" action=\"bypass -h evt_ctf_join\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"><br>"
+					+ "<button value=\"Sair\" action=\"bypass -h evt_ctf_leave\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></center></body></html>";
 			return base.replace("</center></body></html>", buttons);
 		}
 		return base;
@@ -338,8 +338,8 @@ public class BypassEventsAndPveHandler implements IBypassHandler {
 	public static String buildDmHtml(DmEventService dm) {
 		String base = dm.buildStatusHtml();
 		if (!base.contains("evt_dm_join")) {
-			String buttons = "<br><button value=\"Registrar\" action=\"bypass -h evt_dm_join\" width=90 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>"
-					+ "<button value=\"Sair\" action=\"bypass -h evt_dm_leave\" width=90 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></center></body></html>";
+			String buttons = "<br><button value=\"Registrar\" action=\"bypass -h evt_dm_join\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"><br>"
+					+ "<button value=\"Sair\" action=\"bypass -h evt_dm_leave\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></center></body></html>";
 			return base.replace("</center></body></html>", buttons);
 		}
 		return base;
@@ -351,8 +351,8 @@ public class BypassEventsAndPveHandler implements IBypassHandler {
 		sb.append("<font color=\"LEVEL\">=== Coliseu 1x1 (Arena Duel) ===</font><br><br>");
 		sb.append("Jogadores na fila: <font color=\"8FA888\">").append(arena.getQueueSize()).append("</font><br>");
 		sb.append("Status: ").append(arena.isRegistered(player.objectId()) ? "<font color=\"8FA888\">Na Fila</font>" : "Fora da Fila").append("<br><br>");
-		sb.append("<button value=\"Entrar na Fila 1x1\" action=\"bypass -h evt_arena_join\" width=130 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>");
-		sb.append("<button value=\"Sair da Fila 1x1\" action=\"bypass -h evt_arena_leave\" width=130 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>");
+		sb.append("<button value=\"Entrar na Fila 1x1\" action=\"bypass -h evt_arena_join\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"><br>");
+		sb.append("<button value=\"Sair da Fila 1x1\" action=\"bypass -h evt_arena_leave\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"><br>");
 		sb.append("</center></body></html>");
 		return sb.toString();
 	}
@@ -364,7 +364,7 @@ public class BypassEventsAndPveHandler implements IBypassHandler {
 		var map = dungeonService.allDungeons();
 		if (map.isEmpty()) {
 			sb.append("Nenhuma dungeon carregada.<br>");
-			sb.append("<button value=\"Entrar Dungeon #1\" action=\"bypass -h pve_dungeon_enter 1\" width=140 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>");
+			sb.append("<button value=\"Entrar Dungeon #1\" action=\"bypass -h pve_dungeon_enter 1\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"><br>");
 		} else {
 			sb.append("<table width=270>");
 			for (var d : map.values()) {
@@ -372,7 +372,7 @@ public class BypassEventsAndPveHandler implements IBypassHandler {
 				sb.append("<td><font color=\"LEVEL\">").append(d.name()).append("</font> (").append(d.type()).append(")<br1>");
 				sb.append("Taxa: ").append(d.entryFeeCount()).append(" Adena | CD: ").append(d.cooldownMinutes()).append("m</td>");
 				sb.append("<td align=right><button value=\"Entrar\" action=\"bypass -h pve_dungeon_enter ").append(d.id())
-						.append("\" width=70 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+						.append("\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
 				sb.append("</tr>");
 			}
 			sb.append("</table>");
@@ -387,10 +387,10 @@ public class BypassEventsAndPveHandler implements IBypassHandler {
 		sb.append("<font color=\"LEVEL\">=== Arena SoloFarm Instanciada ===</font><br><br>");
 		sb.append("Custo por monstro: <font color=\"8FA888\">").append(SoloFarmService.PRICE_PER_MOB_ADENA).append(" Adena</font><br>");
 		sb.append("Pacotes disponiveis (").append(SoloFarmService.MIN_BUY).append(" a ").append(SoloFarmService.MAX_BUY).append(" monstros):<br><br>");
-		sb.append("<button value=\"Entrar SoloFarm (100 Mobs)\" action=\"bypass -h pve_solofarm_enter 100\" width=170 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>");
-		sb.append("<button value=\"Comprar 100 Monstros\" action=\"bypass -h pve_solofarm_buy 100\" width=170 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>");
-		sb.append("<button value=\"Comprar 500 Monstros\" action=\"bypass -h pve_solofarm_buy 500\" width=170 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>");
-		sb.append("<button value=\"Comprar 1000 Monstros\" action=\"bypass -h pve_solofarm_buy 1000\" width=170 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>");
+		sb.append("<button value=\"Entrar SoloFarm (100 Mobs)\" action=\"bypass -h pve_solofarm_enter 100\" width=204 height=20 back=\"sek.cbui36\" fore=\"sek.cbui75\"><br>");
+		sb.append("<button value=\"Comprar 100 Monstros\" action=\"bypass -h pve_solofarm_buy 100\" width=204 height=20 back=\"sek.cbui36\" fore=\"sek.cbui75\"><br>");
+		sb.append("<button value=\"Comprar 500 Monstros\" action=\"bypass -h pve_solofarm_buy 500\" width=204 height=20 back=\"sek.cbui36\" fore=\"sek.cbui75\"><br>");
+		sb.append("<button value=\"Comprar 1000 Monstros\" action=\"bypass -h pve_solofarm_buy 1000\" width=204 height=20 back=\"sek.cbui36\" fore=\"sek.cbui75\"><br>");
 		sb.append("</center></body></html>");
 		return sb.toString();
 	}

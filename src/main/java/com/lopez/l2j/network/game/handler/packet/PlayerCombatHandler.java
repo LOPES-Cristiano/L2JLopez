@@ -64,7 +64,21 @@ public final class PlayerCombatHandler {
 			BossManager.getInstance().onBossKilled(npc, active, party);
 		}
 
-		var die = new Die(npc.objectId(), false);
+		boolean hasSweep = false;
+		if (npc.isSpoiled() && ctx.drops() != null) {
+			double spoilMult = ctx.drops().resolveNpcTypeDropMultiplier(npc, false, true, 0);
+			var spoilDrops = ctx.drops().rollSpoil(npc.npcId(), active.level(),
+					npc.template() != null ? npc.template().level() : 0, spoilMult);
+			if (spoilDrops != null && !spoilDrops.isEmpty()) {
+				npc.spoilRewards(spoilDrops);
+				hasSweep = true;
+			} else {
+				npc.spoilRewards(null);
+				npc.spoiled(false);
+			}
+		}
+
+		var die = new Die(npc.objectId(), false, false, false, hasSweep);
 		session.send(die);
 		if (ctx.world() != null) {
 			ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, die, false);
@@ -76,12 +90,6 @@ public final class PlayerCombatHandler {
 			party.distributeExpAndSp(expReward, spReward, active, ratePartyXp, ratePartySp);
 		} else {
 			session.applyExpAndSp(expReward, spReward, template);
-		}
-
-		if (npc.isSpoiled() && ctx.drops() != null) {
-			var spoilDrops = ctx.drops().rollSpoil(npc.npcId(), active.level(),
-					npc.template() != null ? npc.template().level() : 0);
-			npc.spoilRewards(spoilDrops);
 		}
 
 		if (ctx.drops() != null) {

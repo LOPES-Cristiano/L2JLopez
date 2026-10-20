@@ -110,4 +110,32 @@ public final class ItemSlots {
 			default -> -1;
 		};
 	}
+
+	/** Retorna a mascara de slot exata para o indice do paperdoll (ex.: LEAR -> SLOT_L_EAR). */
+	public static int slotMaskOfPaperdoll(int paperdollSlot) {
+		return switch (paperdollSlot) {
+			case UNDER -> SLOT_UNDERWEAR;
+			case REAR -> SLOT_R_EAR;
+			case LEAR -> SLOT_L_EAR;
+			case NECK -> SLOT_NECK;
+			case RFINGER -> SLOT_R_FINGER;
+			case LFINGER -> SLOT_L_FINGER;
+			case HEAD -> SLOT_HEAD;
+			case RHAND -> SLOT_R_HAND;
+			case LHAND -> SLOT_L_HAND;
+			case GLOVES -> SLOT_GLOVES;
+			case CHEST -> SLOT_CHEST;
+			case LEGS -> SLOT_LEGS;
+			case FEET -> SLOT_FEET;
+			case BACK -> SLOT_BACK;
+			case LRHAND -> SLOT_LR_HAND;
+			case FULLARMOR -> SLOT_FULL_ARMOR;
+			case HAIR -> SLOT_HAIR;
+			case ALLDRESS -> SLOT_ALLDRESS;
+			case FACE -> SLOT_FACE;
+			case HAIRALL -> SLOT_HAIRALL;
+			default -> SLOT_NONE;
+		};
+	}
 }
+

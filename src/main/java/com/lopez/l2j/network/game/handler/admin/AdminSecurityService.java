@@ -364,19 +364,19 @@ public class AdminSecurityService {
 		StringBuilder sb = new StringBuilder();
 		sb.append("<html><title>GM Security Audit</title><body><center>");
 		sb.append("<table width=270 bgcolor=\"000000\"><tr>");
-		sb.append("<td width=50><button value=\"Main\" action=\"bypass -h admin_admin\" width=45 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+		sb.append("<td width=50><button value=\"Main\" action=\"bypass -h admin_admin\" width=45 height=19 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
 		sb.append("<td width=170 align=center><font color=\"LEVEL\">GM Security & Audit</font></td>");
 		sb.append("<td width=50 align=right><button value=\"Refresh\" action=\"bypass -h admin_gmaudit ")
 				.append(safeFilter.isEmpty() ? String.valueOf(currentPage) : safeFilter + " " + currentPage)
-				.append("\" width=50 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+				.append("\" width=50 height=21 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>");
 		sb.append("</tr></table>");
 		sb.append("<img src=\"L2UI.SquareGray\" width=270 height=1><br>");
 
 		sb.append("<table width=270><tr>");
 		sb.append("<td width=45>Filtro:</td>");
 		sb.append("<td width=125><edit var=\"qfilter\" width=120 height=15></td>");
-		sb.append("<td width=50><button value=\"Filtrar\" action=\"bypass -h admin_gmaudit $qfilter 1\" width=48 height=18 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
-		sb.append("<td width=50><button value=\"Limpar\" action=\"bypass -h admin_gmaudit 1\" width=48 height=18 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+		sb.append("<td width=50><button value=\"Filtrar\" action=\"bypass -h admin_gmaudit $qfilter 1\" width=50 height=21 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>");
+		sb.append("<td width=50><button value=\"Limpar\" action=\"bypass -h admin_gmaudit 1\" width=50 height=21 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>");
 		sb.append("</tr></table>");
 		if (!safeFilter.isEmpty()) {
 			sb.append("<font color=\"8FA888\">Filtro ativo: ").append(escapeHtml(safeFilter)).append("</font><br>");
@@ -416,7 +416,7 @@ public class AdminSecurityService {
 		if (currentPage > 1) {
 			String prevArg = safeFilter.isEmpty() ? String.valueOf(currentPage - 1) : safeFilter + " " + (currentPage - 1);
 			sb.append("<button value=\"Prev\" action=\"bypass -h admin_gmaudit ").append(prevArg)
-					.append("\" width=50 height=18 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
+					.append("\" width=50 height=21 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\">");
 		}
 		sb.append("</td>");
 		sb.append("<td width=150 align=center><font color=\"LEVEL\">Pag ").append(currentPage)
@@ -425,7 +425,7 @@ public class AdminSecurityService {
 		if (currentPage < maxPages) {
 			String nextArg = safeFilter.isEmpty() ? String.valueOf(currentPage + 1) : safeFilter + " " + (currentPage + 1);
 			sb.append("<button value=\"Next\" action=\"bypass -h admin_gmaudit ").append(nextArg)
-					.append("\" width=50 height=18 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
+					.append("\" width=50 height=21 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\">");
 		}
 		sb.append("</td></tr></table>");
 		sb.append("</center></body></html>");

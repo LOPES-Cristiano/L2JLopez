@@ -374,32 +374,17 @@ public class CommandPacketHandler {
 			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce e " + targetChar.name() + " agora estao noivos!"));
 			targetOpt.get().send(
 					new CreatureSay(0, CreatureSay.ALL, "SYS", active.name() + " oficializou o noivado com voce!"));
-		} else if (lower.equals(".autofarm") || lower.startsWith(".autofarm ") || lower.equals(".farm") || lower.startsWith(".farm ")) {
+		} else if (lower.equals(".autofarm") || lower.startsWith(".autofarm ")
+				|| lower.equals(".farm") || lower.startsWith(".farm ")
+				|| lower.equals(".farmstart") || lower.startsWith(".farmstart ")
+				|| lower.equals(".farmstop") || lower.startsWith(".farmstop ")
+				|| lower.equals(".farmacp") || lower.startsWith(".farmacp ")
+				|| lower.equals(".autosummonfarm") || lower.startsWith(".autosummonfarm ")) {
 			if (ctx.autoFarm() == null) {
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema de Auto-Farm desativado."));
 				return;
 			}
-			var skillService = ctx.skillService();
-			String rawParam = lower.contains(" ") ? lower.substring(lower.indexOf(' ')).trim() : "";
-			if (rawParam.isEmpty() || rawParam.equals("menu") || rawParam.equals("gui")) {
-				send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(0, ctx.autoFarm().renderHtml(active, skillService)));
-			} else if (rawParam.equals("on")) {
-				if (!ctx.autoFarm().isAutoFarm(active.objectId())) {
-					ctx.autoFarm().toggleAutoFarm(active);
-				}
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Auto-Farm ATIVADO."));
-				send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(0, ctx.autoFarm().renderHtml(active, skillService)));
-			} else if (rawParam.equals("off")) {
-				if (ctx.autoFarm().isAutoFarm(active.objectId())) {
-					ctx.autoFarm().toggleAutoFarm(active);
-				}
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Auto-Farm DESATIVADO."));
-				send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(0, ctx.autoFarm().renderHtml(active, skillService)));
-			} else {
-				boolean activeState = ctx.autoFarm().toggleAutoFarm(active);
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Auto-Farm " + (activeState ? "ATIVADO" : "DESATIVADO") + "."));
-				send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(0, ctx.autoFarm().renderHtml(active, skillService)));
-			}
+			ctx.autoFarm().handleCommand(session, "voice_" + rawCmd);
 		} else if (lower.equals(".dressme")) {
 			if (ctx.dressMe() == null) {
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema DressMe indisponivel."));

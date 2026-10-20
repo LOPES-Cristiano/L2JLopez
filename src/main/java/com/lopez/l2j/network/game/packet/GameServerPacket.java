@@ -298,7 +298,7 @@ public sealed interface GameServerPacket {
 			w.writeD(0); // clan privileges
 			w.writeH(c.recomLeft()).writeH(c.recomHave()); // recom left/have
 			w.writeD(0);
-			w.writeH(INVENTORY_LIMIT);
+			w.writeH(c != null ? c.maxInventorySlots() : INVENTORY_LIMIT);
 			w.writeD(c.classId()).writeD(0);
 			w.writeD(c.maxCp()).writeD((int) c.currentCp());
 			int enchantEffect = 0;
@@ -335,8 +335,12 @@ public sealed interface GameServerPacket {
 			var t = i.template();
 			int count = (change == REMOVED) ? 0 : i.count();
 			boolean equipped = (change == REMOVED) ? false : i.isEquipped();
+			int bodyPart = equipped ? ItemSlots.slotMaskOfPaperdoll(i.locationData()) : t.bodyPart();
+			if (bodyPart == ItemSlots.SLOT_NONE) {
+				bodyPart = t.bodyPart();
+			}
 			return new ItemInfo(change, t.type1(), i.objectId(), t.displayId(), count, t.type2(),
-					i.customType1(), equipped, t.bodyPart(), i.enchant(), i.customType2(),
+					i.customType1(), equipped, bodyPart, i.enchant(), i.customType2(),
 					i.augmentation() != null ? i.augmentation().attributes() : 0, i.mana());
 		}
 
@@ -347,9 +351,9 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0x1b ItemList: inventario completo (o legado limita a 400 linhas). */
+	/** 0x1b ItemList: inventario completo. */
 	record ItemList(List<ItemInfo> items, boolean showWindow) implements GameServerPacket {
-		static final int MAX_ITEMS = 400;
+		static final int MAX_ITEMS = 1000;
 
 		public ItemList {
 			items = List.copyOf(items.size() > MAX_ITEMS ? items.subList(0, MAX_ITEMS) : items);
@@ -503,6 +507,9 @@ public sealed interface GameServerPacket {
 		public static final int SPOIL_SUCCESS = 612;
 		public static final int ALREADY_SPOILED = 357;
 		public static final int SWEEPER_FAILED_TARGET_NOT_SPOILED = 343;
+		public static final int S1_SWEEPED_UP_S3_S2 = 608;
+		public static final int S1_SWEEPED_UP_S2 = 609;
+		public static final int SWEEP_NOT_ALLOWED = 683;
 		public static final int FISHING_POLE_NOT_EQUIPPED = 1453;
 		public static final int BAIT_ON_HOOK_BEFORE_FISHING = 1454;
 		public static final int CANNOT_FISH_UNDER_WATER = 1455;
@@ -1093,17 +1100,21 @@ public sealed interface GameServerPacket {
 
 		public static ExStorageMaxCount of(PlayerCharacter c) {
 			boolean isDwarf = c != null && c.race() == 4;
-			boolean isGM = c != null && c.accessLevel() > 0;
-			int inv = isGM ? ConfigLoader.getInt("MaxInventorySlotsForGameMaster", 250)
-					: (isDwarf ? Config.INVENTORY_MAXIMUM_DWARF : Config.INVENTORY_MAXIMUM_NO_DWARF);
-			int wh = isDwarf ? Config.WAREHOUSE_SLOT_DWARF : Config.WAREHOUSE_SLOT_NO_DWARF;
-			int freight = ConfigLoader.getInt("MaxWarehouseFreightSlots", 100);
-			int pSell = isDwarf ? ConfigLoader.getInt("MaxPvtStoreSellSlotsDwarf", 6)
-					: ConfigLoader.getInt("MaxPvtStoreSellSlotsOther", 4);
-			int pBuy = isDwarf ? ConfigLoader.getInt("MaxPvtStoreBuySlotsDwarf", 6)
-					: ConfigLoader.getInt("MaxPvtStoreBuySlotsOther", 4);
-			int dwarfRec = ConfigLoader.getInt("DwarfRecipeLimit", 50);
-			int commonRec = ConfigLoader.getInt("CommonRecipeLimit", 50);
+			int inv = c != null ? c.maxInventorySlots() : Config.MAX_INVENTORY_SLOTS_FOR_OTHER;
+			int wh = isDwarf ? Config.MAX_WAREHOUSE_SLOTS_FOR_DWARF : Config.MAX_WAREHOUSE_SLOTS_FOR_OTHER;
+			int freight = Config.MAX_WAREHOUSE_FREIGHT_SLOTS;
+			int pSell = isDwarf ? Config.MAX_PVT_STORE_SELL_SLOTS_DWARF : Config.MAX_PVT_STORE_SELL_SLOTS_OTHER;
+			int pBuy = isDwarf ? Config.MAX_PVT_STORE_BUY_SLOTS_DWARF : Config.MAX_PVT_STORE_BUY_SLOTS_OTHER;
+			int dwarfRec = Config.DWARF_RECIPE_LIMIT;
+			int commonRec = Config.COMMON_RECIPE_LIMIT;
+			if (c != null) {
+				wh = (int) Math.round(PlayerStats.applyStat(c, "whLimit", wh));
+				freight = (int) Math.round(PlayerStats.applyStat(c, "FreightLimit", freight));
+				pSell = (int) Math.round(PlayerStats.applyStat(c, "PrivateSellLimit", pSell));
+				pBuy = (int) Math.round(PlayerStats.applyStat(c, "PrivateBuyLimit", pBuy));
+				dwarfRec = (int) Math.round(PlayerStats.applyStat(c, "DwarfRecipeLimit", dwarfRec));
+				commonRec = (int) Math.round(PlayerStats.applyStat(c, "CommonRecipeLimit", commonRec));
+			}
 			return new ExStorageMaxCount(inv, wh, freight, pSell, pBuy, dwarfRec, commonRec);
 		}
 
@@ -1809,9 +1820,13 @@ public sealed interface GameServerPacket {
 	}
 
 	/** 0x06 Die: objeto morreu. */
-	record Die(int charObjId, boolean toVillage, boolean toClanHall, boolean toCastle) implements GameServerPacket {
+	record Die(int charObjId, boolean toVillage, boolean toClanHall, boolean toCastle, boolean sweepable) implements GameServerPacket {
 		public Die(int charObjId, boolean toVillage) {
-			this(charObjId, toVillage, false, false);
+			this(charObjId, toVillage, false, false, false);
+		}
+
+		public Die(int charObjId, boolean toVillage, boolean toClanHall, boolean toCastle) {
+			this(charObjId, toVillage, toClanHall, toCastle, false);
 		}
 
 		@Override
@@ -1822,7 +1837,7 @@ public sealed interface GameServerPacket {
 			w.writeD(toClanHall ? 1 : 0); // clanhall
 			w.writeD(toCastle ? 1 : 0); // castle
 			w.writeD(0); // flag
-			w.writeD(0); // sweepable
+			w.writeD(sweepable ? 1 : 0); // sweepable (blue glow)
 			w.writeD(0); // fixedres
 			return w.toByteArray();
 		}
@@ -2920,82 +2935,82 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0xfe:0x51 ExShowVariationMakeWindow: abre a janela de augmentacao de armas. */
+	/** 0xfe:0x50 ExShowVariationMakeWindow: abre a janela de augmentacao de armas. */
 	record ExShowVariationMakeWindow() implements GameServerPacket {
 		public static final ExShowVariationMakeWindow STATIC_PACKET = new ExShowVariationMakeWindow();
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x50).toByteArray();
+		}
+	}
+
+	/** 0xfe:0x51 ExShowVariationCancelWindow: abre a janela de cancelamento de augmentacao. */
+	record ExShowVariationCancelWindow() implements GameServerPacket {
+		public static final ExShowVariationCancelWindow STATIC_PACKET = new ExShowVariationCancelWindow();
 		@Override
 		public byte[] encode() {
 			return new PacketWriter().writeC(0xfe).writeH(0x51).toByteArray();
 		}
 	}
 
-	/** 0xfe:0x52 ExShowVariationCancelWindow: abre a janela de cancelamento de augmentacao. */
-	record ExShowVariationCancelWindow() implements GameServerPacket {
-		public static final ExShowVariationCancelWindow STATIC_PACKET = new ExShowVariationCancelWindow();
-		@Override
-		public byte[] encode() {
-			return new PacketWriter().writeC(0xfe).writeH(0x52).toByteArray();
-		}
-	}
-
-	/** 0xfe:0x53 ExPutItemResultForVariationMake: confirma o item alvo para augmentacao. */
+	/** 0xfe:0x52 ExPutItemResultForVariationMake: confirma o item alvo para augmentacao. */
 	record ExPutItemResultForVariationMake(int itemObjId) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xfe).writeH(0x53).writeD(itemObjId).writeD(1).toByteArray();
+			return new PacketWriter().writeC(0xfe).writeH(0x52).writeD(itemObjId).writeD(1).writeD(1).toByteArray();
 		}
 	}
 
-	/** 0xfe:0x54 ExPutIntensiveResultForVariationMake: confirma a Life Stone e requisitos de Gemstones. */
+	/** 0xfe:0x53 ExPutIntensiveResultForVariationMake: confirma a Life Stone e requisitos de Gemstones. */
 	record ExPutIntensiveResultForVariationMake(int refinerItemObjId, int lifeStoneId, int gemstoneItemId, int gemstoneCount) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xfe).writeH(0x54)
+			return new PacketWriter().writeC(0xfe).writeH(0x53)
 					.writeD(refinerItemObjId).writeD(lifeStoneId).writeD(gemstoneItemId).writeD(gemstoneCount).writeD(1)
 					.toByteArray();
 		}
 	}
 
-	/** 0xfe:0x55 ExPutCommissionResultForVariationMake: confirma o deposito de Gemstones. */
-	record ExPutCommissionResultForVariationMake(int gemstoneItemObjId, int gemstoneCount, int gemstoneItemId) implements GameServerPacket {
+	/** 0xfe:0x54 ExPutCommissionResultForVariationMake: confirma o deposito de Gemstones. */
+	record ExPutCommissionResultForVariationMake(int gemstoneItemObjId, int gemstoneCount) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xfe).writeH(0x55)
-					.writeD(gemstoneItemObjId).writeD(gemstoneCount).writeD(1)
+			return new PacketWriter().writeC(0xfe).writeH(0x54)
+					.writeD(gemstoneItemObjId).writeD(1).writeD(gemstoneCount).writeD(1).writeD(1)
 					.toByteArray();
 		}
 	}
 
-	/** 0xfe:0x56 ExVariationResult: resultado da augmentacao (stat12, stat34, 1=sucesso, 0=falha). */
+	/** 0xfe:0x55 ExVariationResult: resultado da augmentacao (stat12, stat34, 1=sucesso, 0=falha). */
 	record ExVariationResult(int stat12, int stat34, int success) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xfe).writeH(0x56)
+			return new PacketWriter().writeC(0xfe).writeH(0x55)
 					.writeD(stat12).writeD(stat34).writeD(success)
 					.toByteArray();
 		}
 	}
 
-	/** 0xfe:0x57 ExPutItemResultForVariationCancel: confirma o item para remocao de augmentacao e custo. */
-	record ExPutItemResultForVariationCancel(int itemObjId, int stat12, int stat34, long price) implements GameServerPacket {
-		public ExPutItemResultForVariationCancel(int itemObjId, long price) {
-			this(itemObjId, 0x2006, 0x27, price);
+	/** 0xfe:0x56 ExPutItemResultForVariationCancel: confirma o item para remocao de augmentacao e custo. */
+	record ExPutItemResultForVariationCancel(int itemObjId, int itemId, int stat12, int stat34, long price) implements GameServerPacket {
+		public ExPutItemResultForVariationCancel(int itemObjId, int itemId, long price) {
+			this(itemObjId, itemId, 0, 0, price);
 		}
 
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xfe).writeH(0x57)
-					.writeD(itemObjId).writeD(stat34).writeD(stat12).writeQ(price).writeD(0x01)
+			return new PacketWriter().writeC(0xfe).writeH(0x56)
+					.writeD(itemObjId).writeD(itemId).writeD(stat12).writeD(stat34).writeQ(price).writeD(0x01)
 					.toByteArray();
 		}
 	}
 
-	/** 0xfe:0x58 ExVariationCancelResult: resultado da remocao de augmentacao (1=sucesso). */
+	/** 0xfe:0x57 ExVariationCancelResult: resultado da remocao de augmentacao (1=sucesso). */
 	record ExVariationCancelResult(int result) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xfe).writeH(0x58)
-					.writeD(result)
+			return new PacketWriter().writeC(0xfe).writeH(0x57)
+					.writeD(1).writeD(result)
 					.toByteArray();
 		}
 	}

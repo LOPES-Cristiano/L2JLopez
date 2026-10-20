@@ -183,10 +183,18 @@ public class MagicSkillPacketHandler {
 				send(new ActionFailed());
 				return;
 			}
-			if (!npcTarget.isSpoiled()) {
+			if (!npcTarget.isSweepable()) {
 				send(SystemMessage.id(SystemMessage.SWEEPER_FAILED_TARGET_NOT_SPOILED));
 				send(new ActionFailed());
 				return;
+			}
+			if (npcTarget.spoilerPlayerId() != 0 && npcTarget.spoilerPlayerId() != active().objectId()) {
+				boolean inParty = session.party() != null && session.party().contains(npcTarget.spoilerPlayerId());
+				if (!inParty) {
+					send(SystemMessage.id(SystemMessage.SWEEP_NOT_ALLOWED));
+					send(new ActionFailed());
+					return;
+				}
 			}
 		} else if (isUnlock) {
 			npcTarget = ctx().world().npc(session.targetObjectId()).filter(n -> !n.isDead() && GameSession.isChestNpc(n)).orElse(null);
@@ -506,7 +514,17 @@ public class MagicSkillPacketHandler {
 
 		if ("TARGET_CORPSE_MOB".equalsIgnoreCase(sk.target()) || "SWEEP".equalsIgnoreCase(sk.skillType()) || sk.id() == 42) {
 			if (mainNpc != null && ctx().drops() != null) {
-				ctx().drops().sweep(active(), mainNpc, ctx().inventories(), session::send);
+				boolean swept = ctx().drops().sweep(active(), mainNpc, ctx().inventories(), session::send);
+				if (swept) {
+					var dieNoGlow = new Die(mainNpc.objectId(), false, false, false, false);
+					send(dieNoGlow);
+					if (ctx().world() != null) {
+						ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, dieNoGlow, false);
+					}
+					if (ctx().npcAi() != null) {
+						ctx().npcAi().scheduleQuickDecay(mainNpc, 3000);
+					}
+				}
 			}
 			session.sendVitals();
 			return;
@@ -1080,13 +1098,13 @@ public class MagicSkillPacketHandler {
 
 		int targetLvl = npc.template() != null ? npc.template().level() : 1;
 		int skillLvl = sk.magicLevel() > 0 ? sk.magicLevel() : active().level();
-		int diff = targetLvl - skillLvl;
-		int baseChance = 80;
-		if (diff > 0) {
-			baseChance -= diff * 5;
-		}
-		int chance = Math.max(5, Math.min(95, baseChance));
-		boolean success = ThreadLocalRandom.current().nextInt(100) < chance;
+		double lvlDiff = targetLvl - skillLvl;
+		// Formula oficial Lineage 2 / L2JDream:
+		// Mesma faixa de nivel ou inferior = ~99% de sucesso (falha rara)
+		// Nivel superior decai progressivamente de forma exponencial suave (pow(1.3, diff) * 100 em 10000)
+		int failRate = (int) Math.round(Math.pow(1.3, lvlDiff) * 100.0);
+		failRate = Math.max(100, Math.min(9500, failRate)); // Entre 99% e 5% de chance de sucesso
+		boolean success = ThreadLocalRandom.current().nextInt(10000) >= failRate;
 		if (success) {
 			npc.spoiled(true);
 			npc.spoilerPlayerId(active().objectId());

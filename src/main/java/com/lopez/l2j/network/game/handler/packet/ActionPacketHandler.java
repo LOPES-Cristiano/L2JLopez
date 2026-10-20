@@ -163,6 +163,16 @@ public class ActionPacketHandler {
 		double dx = active.x() - gi.x();
 		double dy = active.y() - gi.y();
 		if (dx * dx + dy * dy <= 150 * 150) {
+			if (active.inventory() != null && ctx.inventories() != null) {
+				boolean alreadyOwned = active.inventory().byItemId(gi.itemId()).isPresent();
+				var tpl = ctx.inventories().templates().get(gi.itemId()).orElse(null);
+				boolean stackable = tpl != null && tpl.stackable();
+				if ((!stackable || !alreadyOwned) && active.inventory().size() >= active.maxInventorySlots()) {
+					session.send(SystemMessage.id(SystemMessage.SLOTS_FULL));
+					session.send(new ActionFailed());
+					return false;
+				}
+			}
 			var picked = ctx.groundItems().pickupItem(active, gi.objectId());
 			if (picked.isPresent() && ctx.inventories() != null) {
 				var added = ctx.inventories().addItem(active.inventory(), gi.itemId(), gi.count(), "GroundPickup");
@@ -207,7 +217,7 @@ public class ActionPacketHandler {
 				session.send(new MyTargetSelected(npc.objectId(), levelDiff));
 				session.send(StatusUpdate.hp(npc.objectId(), (int) npc.currentHp(), (int) npc.maxHp()));
 				if (npc.isDead()) {
-					session.send(new Die(npc.objectId(), false));
+					session.send(new Die(npc.objectId(), false, false, false, npc.isSweepable()));
 				}
 				session.showAdminNpcInfo(npc);
 				return;
@@ -215,7 +225,7 @@ public class ActionPacketHandler {
 			if (session.targetObjectId() == npc.objectId()) {
 				if (npc.isDead()) {
 					session.send(StatusUpdate.hp(npc.objectId(), 0, (int) npc.maxHp()));
-					session.send(new Die(npc.objectId(), false));
+					session.send(new Die(npc.objectId(), false, false, false, npc.isSweepable()));
 					session.send(new ActionFailed());
 					return;
 				}
@@ -251,7 +261,7 @@ public class ActionPacketHandler {
 				session.send(new MyTargetSelected(npc.objectId(), levelDiff));
 				session.send(StatusUpdate.hp(npc.objectId(), (int) npc.currentHp(), (int) npc.maxHp()));
 				if (npc.isDead()) {
-					session.send(new Die(npc.objectId(), false));
+					session.send(new Die(npc.objectId(), false, false, false, npc.isSweepable()));
 				}
 				session.send(new ValidateLocation(npc.objectId(), npc.x(), npc.y(), npc.z(), npc.heading()));
 			}

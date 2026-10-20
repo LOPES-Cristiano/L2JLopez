@@ -1228,6 +1228,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		private static volatile com.lopez.l2j.game.service.PvpRewardService globalPvpRewardService;
 		private static volatile com.lopez.l2j.game.henna.CharacterHennaRepository globalCharacterHennaRepository;
+		private static volatile com.lopez.l2j.game.augmentation.AugmentationService globalAugmentationService;
 
 		public static void setGlobalPvpRewardService(com.lopez.l2j.game.service.PvpRewardService service) {
 			globalPvpRewardService = service;
@@ -1243,6 +1244,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		public com.lopez.l2j.game.henna.CharacterHennaRepository characterHennas() {
 			return globalCharacterHennaRepository;
+		}
+
+		public static void setGlobalAugmentationService(com.lopez.l2j.game.augmentation.AugmentationService service) {
+			globalAugmentationService = service;
+		}
+
+		public com.lopez.l2j.game.augmentation.AugmentationService augmentation() {
+			return augmentation != null ? augmentation : globalAugmentationService;
 		}
 
 		public com.lopez.l2j.game.service.SchemeBufferService schemeBufferService() {
@@ -4442,6 +4451,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		var t = ctx.characters().template(active);
 		recalcMaxVitals(t);
 		sendSkillList();
+		send(ExStorageMaxCount.of(active));
 		send(new UserInfo(active, t));
 		updateSkillShortcuts(p.skillId(), p.level());
 		ctx.characters().save(active, true);
@@ -5474,12 +5484,15 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		var item = active.inventory().byObjectId(p.itemObjId()).orElse(null);
 		if (item == null || ctx.augmentation() == null || !ctx.augmentation().isAugmentable(item)) {
-			send(SystemMessage.id(SystemMessage.THIS_IS_NOT_A_SUITABLE_ITEM));
+			if (item != null && item.isAugmented()) {
+				send(SystemMessage.id(SystemMessage.AUGMENTATION_REMOVAL_CAN_ONLY_BE_DONE_ON_AN_AUGMENTED_ITEM));
+			} else {
+				send(SystemMessage.id(SystemMessage.THIS_IS_NOT_A_SUITABLE_ITEM));
+			}
 			send(new ActionFailed());
 			return;
 		}
 		send(new ExPutItemResultForVariationMake(p.itemObjId()));
-		send(SystemMessage.id(SystemMessage.SELECT_THE_CATALYST_FOR_AUGMENTATION));
 	}
 
 	private void onConfirmRefinerItem(GameClientPacket.RequestConfirmRefinerItem p) {
@@ -5519,10 +5532,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		int reqItemId = AugmentationService.getGemstoneItemId(target);
 		int reqCount = AugmentationService.getGemstoneCount(target);
 		if (gem.itemId() != reqItemId || gem.count() < reqCount || p.gemstoneCount() != reqCount) {
+			send(SystemMessage.id(SystemMessage.GEMSTONE_QUANTITY_IS_INCORRECT));
 			send(new ActionFailed());
 			return;
 		}
-		send(new ExPutCommissionResultForVariationMake(p.gemstoneItemObjId(), p.gemstoneCount(), reqItemId));
+		send(new ExPutCommissionResultForVariationMake(p.gemstoneItemObjId(), p.gemstoneCount()));
 	}
 
 	private void onRefine(GameClientPacket.RequestRefine p) {
@@ -5568,7 +5582,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), target.objectId()));
 		}
 		sendUserInfoAndBroadcastCharInfo();
-		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Arma augmentada com sucesso!"));
+		send(SystemMessage.id(SystemMessage.THE_ITEM_WAS_SUCCESSFULLY_AUGMENTED));
 	}
 
 	private void onConfirmCancelItem(GameClientPacket.RequestConfirmCancelItem p) {
@@ -5578,6 +5592,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		var item = active.inventory().byObjectId(p.itemObjId()).orElse(null);
 		if (item == null || !item.isAugmented()) {
+			send(SystemMessage.id(SystemMessage.AUGMENTATION_REMOVAL_CAN_ONLY_BE_DONE_ON_AN_AUGMENTED_ITEM));
 			send(new ActionFailed());
 			return;
 		}
@@ -5585,7 +5600,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		var aug = item.augmentation();
 		int stat12 = aug != null ? aug.stat12() : 0;
 		int stat34 = aug != null ? aug.stat34() : 0;
-		send(new ExPutItemResultForVariationCancel(p.itemObjId(), stat12, stat34, price));
+		send(new ExPutItemResultForVariationCancel(p.itemObjId(), item.itemId(), stat12, stat34, price));
 	}
 
 	private void onRefineCancel(GameClientPacket.RequestRefineCancel p) {
@@ -5623,6 +5638,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), target.objectId()));
 		}
 		sendUserInfoAndBroadcastCharInfo();
-		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Augmentacao removida com sucesso."));
+		send(SystemMessage.id(SystemMessage.AUGMENTATION_HAS_BEEN_SUCCESSFULLY_REMOVED_FROM_YOUR_S1));
 	}
 }

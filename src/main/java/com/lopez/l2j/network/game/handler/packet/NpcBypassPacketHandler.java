@@ -3378,6 +3378,10 @@ public class NpcBypassPacketHandler {
 				showNpcHtml(npc, 1);
 				return;
 			}
+			if (npc.npcId() == 50017) {
+				showNpcHtml(npc, 0);
+				return;
+			}
 			if (lType.contains("merchant") || lType.contains("trader") || lType.contains("grocer")) {
 				session.showBuyList(npc, 1);
 				return;

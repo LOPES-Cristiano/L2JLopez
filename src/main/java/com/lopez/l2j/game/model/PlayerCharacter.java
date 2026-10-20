@@ -410,13 +410,15 @@ public final class PlayerCharacter implements Creature {
 	}
 
 	public int maxInventorySlots() {
+		int base;
 		if (isGm()) {
-			return com.lopez.l2j.config.Config.MAX_INVENTORY_SLOTS_FOR_GM;
+			base = com.lopez.l2j.config.Config.MAX_INVENTORY_SLOTS_FOR_GM;
+		} else if (race == 4) {
+			base = com.lopez.l2j.config.Config.MAX_INVENTORY_SLOTS_FOR_DWARF;
+		} else {
+			base = com.lopez.l2j.config.Config.MAX_INVENTORY_SLOTS_FOR_OTHER;
 		}
-		if (race == 4) {
-			return com.lopez.l2j.config.Config.MAX_INVENTORY_SLOTS_FOR_DWARF;
-		}
-		return com.lopez.l2j.config.Config.MAX_INVENTORY_SLOTS_FOR_OTHER;
+		return (int) Math.round(PlayerStats.applyStat(this, "inventoryLimit", base));
 	}
 
 	public int classId() {

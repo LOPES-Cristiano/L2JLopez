@@ -1495,49 +1495,49 @@ class GameSessionFeaturesTest {
 
 	@Test
 	void testAugmentationPacketOpcodesAndLifeStoneUse() {
-		// 1. Validar opcodes dos pacotes de augmentacao (Interlude C6 client table: 0x51 a 0x58)
+		// 1. Validar opcodes dos pacotes de augmentacao (Interlude C6 client table: 0x50 a 0x57)
 		byte[] makeWindow = new GameServerPacket.ExShowVariationMakeWindow().encode();
 		assertEquals((byte) 0xfe, makeWindow[0]);
-		assertEquals((short) 0x51, ByteBuffer.wrap(makeWindow, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
-				"ExShowVariationMakeWindow deve ter sub-opcode 0x51");
+		assertEquals((short) 0x50, ByteBuffer.wrap(makeWindow, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExShowVariationMakeWindow deve ter sub-opcode 0x50");
 
 		byte[] cancelWindow = new GameServerPacket.ExShowVariationCancelWindow().encode();
 		assertEquals((byte) 0xfe, cancelWindow[0]);
-		assertEquals((short) 0x52, ByteBuffer.wrap(cancelWindow, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
-				"ExShowVariationCancelWindow deve ter sub-opcode 0x52");
+		assertEquals((short) 0x51, ByteBuffer.wrap(cancelWindow, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExShowVariationCancelWindow deve ter sub-opcode 0x51");
 
 		byte[] putItemMake = new GameServerPacket.ExPutItemResultForVariationMake(12345).encode();
 		assertEquals((byte) 0xfe, putItemMake[0]);
-		assertEquals((short) 0x53, ByteBuffer.wrap(putItemMake, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
-				"ExPutItemResultForVariationMake deve ter sub-opcode 0x53");
+		assertEquals((short) 0x52, ByteBuffer.wrap(putItemMake, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExPutItemResultForVariationMake deve ter sub-opcode 0x52");
 
 		byte[] putIntensive = new GameServerPacket.ExPutIntensiveResultForVariationMake(1, 8723, 2130, 20).encode();
 		assertEquals((byte) 0xfe, putIntensive[0]);
-		assertEquals((short) 0x54, ByteBuffer.wrap(putIntensive, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
-				"ExPutIntensiveResultForVariationMake deve ter sub-opcode 0x54");
+		assertEquals((short) 0x53, ByteBuffer.wrap(putIntensive, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExPutIntensiveResultForVariationMake deve ter sub-opcode 0x53");
 
-		byte[] putCommission = new GameServerPacket.ExPutCommissionResultForVariationMake(2, 20, 2130).encode();
+		byte[] putCommission = new GameServerPacket.ExPutCommissionResultForVariationMake(2, 20).encode();
 		assertEquals((byte) 0xfe, putCommission[0]);
-		assertEquals((short) 0x55, ByteBuffer.wrap(putCommission, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
-				"ExPutCommissionResultForVariationMake deve ter sub-opcode 0x55");
+		assertEquals((short) 0x54, ByteBuffer.wrap(putCommission, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExPutCommissionResultForVariationMake deve ter sub-opcode 0x54");
 
 		byte[] variationResult = new GameServerPacket.ExVariationResult(100, 200, 1).encode();
 		assertEquals((byte) 0xfe, variationResult[0]);
-		assertEquals((short) 0x56, ByteBuffer.wrap(variationResult, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
-				"ExVariationResult deve ter sub-opcode 0x56");
+		assertEquals((short) 0x55, ByteBuffer.wrap(variationResult, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExVariationResult deve ter sub-opcode 0x55");
 
-		byte[] putItemCancel = new GameServerPacket.ExPutItemResultForVariationCancel(12345, 100, 200, 210000).encode();
+		byte[] putItemCancel = new GameServerPacket.ExPutItemResultForVariationCancel(12345, 200, 100, 200, 210000).encode();
 		assertEquals((byte) 0xfe, putItemCancel[0]);
-		assertEquals((short) 0x57, ByteBuffer.wrap(putItemCancel, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
-				"ExPutItemResultForVariationCancel deve ter sub-opcode 0x57");
+		assertEquals((short) 0x56, ByteBuffer.wrap(putItemCancel, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExPutItemResultForVariationCancel deve ter sub-opcode 0x56");
 		assertEquals(12345, ByteBuffer.wrap(putItemCancel, 3, 4).order(ByteOrder.LITTLE_ENDIAN).getInt(),
 				"Primeiro campo de ExPutItemResultForVariationCancel deve ser o itemObjId");
 
 		byte[] cancelResult = new GameServerPacket.ExVariationCancelResult(1).encode();
 		assertEquals((byte) 0xfe, cancelResult[0]);
-		assertEquals((short) 0x58, ByteBuffer.wrap(cancelResult, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
-				"ExVariationCancelResult deve ter sub-opcode 0x58");
-		assertEquals(7, cancelResult.length, "ExVariationCancelResult deve ter 7 bytes no total");
+		assertEquals((short) 0x57, ByteBuffer.wrap(cancelResult, 1, 2).order(ByteOrder.LITTLE_ENDIAN).getShort(),
+				"ExVariationCancelResult deve ter sub-opcode 0x57");
+		assertEquals(11, cancelResult.length, "ExVariationCancelResult deve ter 11 bytes no total (1 byte C + 2 bytes H + 4 bytes D + 4 bytes D)");
 		assertEquals(1, ByteBuffer.wrap(cancelResult, 3, 4).order(ByteOrder.LITTLE_ENDIAN).getInt());
 
 		// 2. Validar que usar Life Stone do inventario abre a janela de augmentacao
@@ -1548,5 +1548,82 @@ class GameSessionFeaturesTest {
 		session.onUseItem(new GameClientPacket.UseItem(lifeStone.objectId()));
 		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.ExShowVariationMakeWindow),
 				"Usar Life Stone do inventario deve abrir ExShowVariationMakeWindow");
+	}
+
+	@Test
+	void testAugmentationEndToEndSessionFlow() {
+		com.lopez.l2j.game.augmentation.AugmentationRepository augRepo = new com.lopez.l2j.game.augmentation.AugmentationRepository() {
+			private final java.util.Map<Integer, com.lopez.l2j.game.augmentation.Augmentation> map = new java.util.HashMap<>();
+			@Override public void save(int itemId, com.lopez.l2j.game.augmentation.Augmentation aug) { map.put(itemId, aug); }
+			@Override public void delete(int itemId) { map.remove(itemId); }
+			@Override public java.util.Optional<com.lopez.l2j.game.augmentation.Augmentation> findByItemId(int itemId) { return java.util.Optional.ofNullable(map.get(itemId)); }
+			@Override public java.util.Map<Integer, com.lopez.l2j.game.augmentation.Augmentation> findByOwnerId(int ownerId) { return map; }
+		};
+		GameSession.Context.setGlobalAugmentationService(new com.lopez.l2j.game.augmentation.AugmentationService(augRepo));
+		player.level(80);
+
+		// 1. Equipamento S-Grade
+		ItemTemplate bowTpl = ItemTemplate.weapon(7575, 7575, "Draconic Bow", "lrhand", "bow", 1650, "s", 581, 132, 293, 12, 0, 0, true, true, true, true);
+		ItemInstance weapon = new ItemInstance(5001, bowTpl, player.objectId(), 1);
+		player.inventory().addItem(weapon);
+
+		// Life Stone Top Lv 76 (8762)
+		ItemTemplate lsTpl = ItemTemplate.etc(8762, 8762, "Top-Grade Life Stone: level 76", "none", "normal", 1, "none", 0, true, true, true, true);
+		ItemInstance lifeStone = new ItemInstance(5002, lsTpl, player.objectId(), 1);
+		player.inventory().addItem(lifeStone);
+
+		// Gemstone C (2131) x25
+		ItemTemplate gemTpl = ItemTemplate.etc(2131, 2131, "Gemstone C", "none", "normal", 1, "none", 0, true, true, true, true);
+		ItemInstance gemstones = new ItemInstance(5003, gemTpl, player.objectId(), 25);
+		player.inventory().addItem(gemstones);
+
+		// 2. Client envia RequestConfirmTargetItem
+		sent.clear();
+		session.handle(new byte[] { (byte) 0xd0, 0x29, 0x00, (byte) weapon.objectId(), (byte) (weapon.objectId() >> 8), (byte) (weapon.objectId() >> 16), (byte) (weapon.objectId() >> 24) });
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.ExPutItemResultForVariationMake),
+				"Deve responder com ExPutItemResultForVariationMake (0x52)");
+
+		// 3. Client envia RequestConfirmRefinerItem
+		sent.clear();
+		ByteBuffer bufRefiner = ByteBuffer.allocate(11).order(ByteOrder.LITTLE_ENDIAN);
+		bufRefiner.put((byte) 0xd0).putShort((short) 0x2a).putInt(weapon.objectId()).putInt(lifeStone.objectId());
+		session.handle(bufRefiner.array());
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.ExPutIntensiveResultForVariationMake),
+				"Deve responder com ExPutIntensiveResultForVariationMake (0x53)");
+
+		// 4. Client envia RequestConfirmGemStone
+		sent.clear();
+		ByteBuffer bufGem = ByteBuffer.allocate(19).order(ByteOrder.LITTLE_ENDIAN);
+		bufGem.put((byte) 0xd0).putShort((short) 0x2b).putInt(weapon.objectId()).putInt(lifeStone.objectId()).putInt(gemstones.objectId()).putInt(25);
+		session.handle(bufGem.array());
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.ExPutCommissionResultForVariationMake),
+				"Deve responder com ExPutCommissionResultForVariationMake (0x54)");
+
+		// 5. Client clica em Augment -> RequestRefine
+		sent.clear();
+		ByteBuffer bufRefine = ByteBuffer.allocate(19).order(ByteOrder.LITTLE_ENDIAN);
+		bufRefine.put((byte) 0xd0).putShort((short) 0x2c).putInt(weapon.objectId()).putInt(lifeStone.objectId()).putInt(gemstones.objectId()).putInt(25);
+		session.handle(bufRefine.array());
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.ExVariationResult),
+				"Deve emitir ExVariationResult (0x55)");
+		assertTrue(weapon.isAugmented(), "Arma deve ter sido augmentada");
+
+		// 6. Cancelamento: RequestConfirmCancelItem
+		sent.clear();
+		ByteBuffer bufConfirmCancel = ByteBuffer.allocate(7).order(ByteOrder.LITTLE_ENDIAN);
+		bufConfirmCancel.put((byte) 0xd0).putShort((short) 0x2d).putInt(weapon.objectId());
+		session.handle(bufConfirmCancel.array());
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.ExPutItemResultForVariationCancel),
+				"Deve responder com ExPutItemResultForVariationCancel (0x56)");
+
+		// 7. RequestRefineCancel
+		sent.clear();
+		player.inventory().addItem(new ItemInstance(5004, ItemTemplate.etc(57, 57, "Adena", "none", "normal", 1, "none", 0, true, true, true, true), player.objectId(), 10_000_000));
+		ByteBuffer bufCancel = ByteBuffer.allocate(7).order(ByteOrder.LITTLE_ENDIAN);
+		bufCancel.put((byte) 0xd0).putShort((short) 0x2e).putInt(weapon.objectId());
+		session.handle(bufCancel.array());
+		assertTrue(sent.stream().anyMatch(p -> p instanceof GameServerPacket.ExVariationCancelResult),
+				"Deve emitir ExVariationCancelResult (0x57)");
+		assertFalse(weapon.isAugmented(), "Augment deve ter sido removido");
 	}
 }

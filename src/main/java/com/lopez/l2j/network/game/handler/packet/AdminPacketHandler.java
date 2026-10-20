@@ -362,10 +362,10 @@ public class AdminPacketHandler {
 					cwSb.append("<tr><td><font color=\"LEVEL\">").append(cw.name()).append(":</font></td></tr>");
 					cwSb.append("<tr><td>Status: ").append(status).append("</td></tr>");
 					cwSb.append("<tr><td>");
-					cwSb.append("<button value=\"Spawn CW\" action=\"bypass -h admin_cw_add ").append(cw.itemId()).append("\" width=80 height=20 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"> ");
-					cwSb.append("<button value=\"Remover CW\" action=\"bypass -h admin_cw_remove ").append(cw.itemId()).append("\" width=80 height=20 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\">");
+					cwSb.append("<button value=\"Spawn CW\" action=\"bypass -h admin_cw_add ").append(cw.itemId()).append("\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"> ");
+					cwSb.append("<button value=\"Remover CW\" action=\"bypass -h admin_cw_remove ").append(cw.itemId()).append("\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
 					if (cw.isDropped() || cw.isActive()) {
-						cwSb.append(" <button value=\"Ir ate Ela\" action=\"bypass -h admin_move_to ").append(cw.x()).append(" ").append(cw.y()).append(" ").append(cw.z()).append("\" width=70 height=20 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\">");
+						cwSb.append(" <button value=\"Ir ate Ela\" action=\"bypass -h admin_move_to ").append(cw.x()).append(" ").append(cw.y()).append(" ").append(cw.z()).append("\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
 					}
 					cwSb.append("</td></tr>");
 				}
@@ -536,7 +536,7 @@ public class AdminPacketHandler {
 					pages.append("<td><button value=\"[").append(p)
 							.append("]\" action=\"bypass -h admin_show_characters ").append(safeQuery).append(" ")
 							.append(p)
-							.append("\" width=30 height=19 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>");
+							.append("\" width=30 height=19 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
 				} else {
 					pages.append("<td><button value=\"").append(p)
 							.append("\" action=\"bypass -h admin_show_characters ").append(safeQuery).append(" ")
@@ -563,11 +563,11 @@ public class AdminPacketHandler {
 		var ctx = session.context();
 		StringBuilder sb = new StringBuilder("<html><title>Castles Management</title><body><center>");
 		sb.append("<table width=270><tr>");
-		sb.append("<td align=center><button value=\"Main\" action=\"bypass -h admin_admin\" width=52 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
-		sb.append("<td align=center><button value=\"ALT+G\" action=\"bypass -h admin_altg\" width=52 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
-		sb.append("<td align=center><button value=\"Game\" action=\"bypass -h admin_gamemenu\" width=52 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
-		sb.append("<td align=center><button value=\"Server\" action=\"bypass -h admin_server\" width=52 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
-		sb.append("<td align=center><button value=\"Tele\" action=\"bypass -h admin_show_moves\" width=52 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+		sb.append("<td align=center><button value=\"Main\" action=\"bypass -h admin_admin\" width=50 height=21 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>");
+		sb.append("<td align=center><button value=\"ALT+G\" action=\"bypass -h admin_altg\" width=50 height=21 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>");
+		sb.append("<td align=center><button value=\"Game\" action=\"bypass -h admin_gamemenu\" width=50 height=21 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>");
+		sb.append("<td align=center><button value=\"Server\" action=\"bypass -h admin_server\" width=50 height=21 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>");
+		sb.append("<td align=center><button value=\"Tele\" action=\"bypass -h admin_show_moves\" width=50 height=21 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>");
 		sb.append("</tr></table><img src=\"L2UI.SquareGray\" width=270 height=1>");
 		sb.append("<table width=270><tr><td><font color=\"8FA8BE\">Gerenciamento de Castelos (Sieges)</font></td></tr></table>");
 		sb.append("<table width=270 bgcolor=\"000000\">");
@@ -583,7 +583,7 @@ public class AdminPacketHandler {
 				sb.append("<tr>")
 						.append("<td width=90><font color=\"D4C49A\">").append(c.name()).append("</font></td>")
 						.append("<td width=90>").append(ownerName).append("</td>")
-						.append("<td width=90><button value=\"Dar Alvo\" action=\"bypass -h admin_setcastle ").append(c.name()).append("\" width=60 height=18 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>")
+						.append("<td width=90><button value=\"Dar Alvo\" action=\"bypass -h admin_setcastle ").append(c.name()).append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>")
 						.append("</tr>");
 			}
 		} else {
@@ -591,7 +591,7 @@ public class AdminPacketHandler {
 		}
 		sb.append("</table><img src=\"L2UI.SquareGray\" width=270 height=1>");
 		sb.append("<table width=270><tr>");
-		sb.append("<td align=center><button value=\"Atualizar\" action=\"bypass -h admin_siege\" width=130 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+		sb.append("<td align=center><button value=\"Atualizar\" action=\"bypass -h admin_siege\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
 		sb.append("</tr></table></center></body></html>");
 		send(new NpcHtmlMessage(0, sb.toString()));
 	}
@@ -716,8 +716,8 @@ public class AdminPacketHandler {
 			for (var t : sub) {
 				sb.append("<tr>");
 				sb.append("<td width=160><font color=\"D4C49A\">").append(t.name()).append("</font> <font color=\"AAAAAA\">[").append(t.id()).append("]</font></td>");
-				sb.append("<td width=55><button value=\"Spawn\" action=\"bypass -h admin_spawn ").append(t.id()).append("\" width=50 height=17 back=\"L2UI_ch3.smallbutton2_over\" fore=\"L2UI_ch3.smallbutton2\"></td>");
-				sb.append("<td width=55><button value=\"1x\" action=\"bypass -h admin_spawn_once ").append(t.id()).append("\" width=45 height=17 back=\"L2UI_ch3.smallbutton2_over\" fore=\"L2UI_ch3.smallbutton2\"></td>");
+				sb.append("<td width=55><button value=\"Spawn\" action=\"bypass -h admin_spawn ").append(t.id()).append("\" width=50 height=21 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>");
+				sb.append("<td width=55><button value=\"1x\" action=\"bypass -h admin_spawn_once ").append(t.id()).append("\" width=45 height=17 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
 				sb.append("</tr>");
 			}
 		}
@@ -725,13 +725,13 @@ public class AdminPacketHandler {
 		if (maxPages > 1) {
 			sb.append("<table width=260><tr>");
 			if (currentPage > 1) {
-				sb.append("<td align=left><button value=\"Prev\" action=\"bypass -h admin_spawn_index ").append(level).append(" ").append(currentPage - 1).append("\" width=55 height=17 back=\"L2UI_ch3.smallbutton2_over\" fore=\"L2UI_ch3.smallbutton2\"></td>");
+				sb.append("<td align=left><button value=\"Prev\" action=\"bypass -h admin_spawn_index ").append(level).append(" ").append(currentPage - 1).append("\" width=50 height=21 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>");
 			} else {
 				sb.append("<td width=55></td>");
 			}
 			sb.append("<td align=center><font color=\"LEVEL\">Page ").append(currentPage).append(" / ").append(maxPages).append(" (").append(total).append(")</font></td>");
 			if (currentPage < maxPages) {
-				sb.append("<td align=right><button value=\"Next\" action=\"bypass -h admin_spawn_index ").append(level).append(" ").append(currentPage + 1).append("\" width=55 height=17 back=\"L2UI_ch3.smallbutton2_over\" fore=\"L2UI_ch3.smallbutton2\"></td>");
+				sb.append("<td align=right><button value=\"Next\" action=\"bypass -h admin_spawn_index ").append(level).append(" ").append(currentPage + 1).append("\" width=50 height=21 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"></td>");
 			} else {
 				sb.append("<td width=55></td>");
 			}
@@ -781,18 +781,18 @@ public class AdminPacketHandler {
 				+ "<br><center><img src=\"L2UI.SquareGray\" width=270 height=1></center><br>"
 				+ "<table width=270>"
 				+ "<tr>"
-				+ "<td><button value=\"Kill\" action=\"bypass -h admin_kill\" width=65 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
-				+ "<td><button value=\"Delete\" action=\"bypass -h admin_delete\" width=65 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
-				+ "<td><button value=\"Heal\" action=\"bypass -h admin_heal\" width=65 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+				+ "<td><button value=\"Kill\" action=\"bypass -h admin_kill\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+				+ "<td><button value=\"Delete\" action=\"bypass -h admin_delete\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+				+ "<td><button value=\"Heal\" action=\"bypass -h admin_heal\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
 				+ "<td><button value=\"Teleport\" action=\"bypass -h admin_move_to " + npc.x() + " " + npc.y() + " "
 				+ npc.z()
-				+ "\" width=65 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+				+ "\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
 				+ "</tr>"
 				+ "<tr>"
 				+ "<td colspan=2><button value=\"Talk Dialogue\" action=\"bypass -h npc_" + npc.objectId()
-				+ "_Chat 0\" width=130 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td>"
+				+ "_Chat 0\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>"
 				+ "<td colspan=2><button value=\"View DropList\" action=\"bypass -h admin_show_droplist " + npc.npcId()
-				+ "\" width=130 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td>"
+				+ "\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>"
 				+ "</tr>"
 				+ "</table>"
 				+ "</center></body></html>";
@@ -1562,9 +1562,9 @@ public class AdminPacketHandler {
 						for (var t : pending) {
 							sb.append("<tr><td>#").append(t.getId()).append(" ").append(t.getPetitionerName())
 							  .append("</td><td><button value=\"Aceitar\" action=\"bypass -h admin_accept_petition ")
-							  .append(t.getId()).append("\" width=60 height=19 back=\"L2UI_ch3.smallbutton2_over\" fore=\"L2UI_ch3.smallbutton2\"></td></tr>");
+							  .append(t.getId()).append("\" width=65 height=19 back=\"L2UI_ch3.smallbutton2_over\" fore=\"L2UI_ch3.smallbutton2\"></td></tr>");
 						}
-						sb.append("</table><br><button value=\"Voltar\" action=\"bypass -h admin_admin\" width=60 height=19 back=\"L2UI_ch3.smallbutton2_over\" fore=\"L2UI_ch3.smallbutton2\"></center></body></html>");
+						sb.append("</table><br><button value=\"Voltar\" action=\"bypass -h admin_admin\" width=65 height=19 back=\"L2UI_ch3.smallbutton2_over\" fore=\"L2UI_ch3.smallbutton2\"></center></body></html>");
 						send(new NpcHtmlMessage(0, sb.toString()));
 						return;
 					}
@@ -2482,8 +2482,14 @@ public class AdminPacketHandler {
 				} else if (type.contains("skill")) {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Skills recarregadas com sucesso."));
 				} else if (type.contains("html") || type.contains("htm")) {
+					if (ctx != null && ctx.htmls() != null) {
+						ctx.htmls().reload();
+					}
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "HTMLs recarregados com sucesso."));
 				} else if (type.contains("multisell")) {
+					if (ctx != null && ctx.multisell() != null) {
+						ctx.multisell().loadAll();
+					}
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Multisell recarregado com sucesso."));
 				} else if (type.contains("spawn")) {
 					if (ctx.spawns() != null) {

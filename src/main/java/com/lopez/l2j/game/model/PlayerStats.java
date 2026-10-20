@@ -217,6 +217,11 @@ public record PlayerStats(
 		if (com.lopez.l2j.config.Config.GRADE_PENALTY && inv != null) {
 			for (var item : inv.equipped()) {
 				var it = item.template();
+				// Acessorios de cabelo e rosto nao aplicam penalidade de grade no Interlude
+				int bp = it.bodyPart();
+				if (bp == ItemSlots.SLOT_HAIR || bp == ItemSlots.SLOT_FACE || bp == ItemSlots.SLOT_HAIRALL) {
+					continue;
+				}
 				int grade = it.crystalGrade();
 				if (grade > charExpertise) {
 					int diff = grade - charExpertise;

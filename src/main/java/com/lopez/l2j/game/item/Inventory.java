@@ -167,6 +167,11 @@ public final class Inventory {
 				e[s] = paperdoll[s].enchant();
 			}
 		}
+		if (paperdoll[HAIR] == null && paperdoll[HAIRALL] != null) {
+			o[HAIR] = paperdoll[HAIRALL].objectId();
+			i[HAIR] = paperdoll[HAIRALL].template().displayId();
+			e[HAIR] = paperdoll[HAIRALL].enchant();
+		}
 		return new Paperdoll(o, i, e);
 	}
 
@@ -228,8 +233,8 @@ public final class Inventory {
 				}
 				set(RHAND, item, changed);
 			}
-			case SLOT_LR_EAR, SLOT_L_EAR, SLOT_R_EAR -> set(pair(LEAR, REAR), item, changed);
-			case SLOT_LR_FINGER, SLOT_L_FINGER, SLOT_R_FINGER -> set(pair(LFINGER, RFINGER), item, changed);
+			case SLOT_LR_EAR, SLOT_L_EAR, SLOT_R_EAR -> set(pair(LEAR, REAR, item), item, changed);
+			case SLOT_LR_FINGER, SLOT_L_FINGER, SLOT_R_FINGER -> set(pair(LFINGER, RFINGER, item), item, changed);
 			case SLOT_NECK -> set(NECK, item, changed);
 			case SLOT_FULL_ARMOR -> {
 				set(LEGS, null, changed);
@@ -291,11 +296,21 @@ public final class Inventory {
 		return unequip(paperdoll[slot]);
 	}
 
-	private int pair(int first, int second) {
+	private int pair(int first, int second, ItemInstance newItem) {
 		if (paperdoll[first] == null) {
 			return first;
 		}
-		return paperdoll[second] == null ? second : first;
+		if (paperdoll[second] == null) {
+			return second;
+		}
+		// Se ja possui o mesmo item equipado em um dos slots, substitui ele
+		if (paperdoll[first].itemId() == newItem.itemId()) {
+			return first;
+		}
+		if (paperdoll[second].itemId() == newItem.itemId()) {
+			return second;
+		}
+		return first;
 	}
 
 	private void set(int slot, ItemInstance item, Set<ItemInstance> changed) {

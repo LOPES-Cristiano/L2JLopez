@@ -573,8 +573,7 @@ public class AdminGeneralHandler implements IAdminCommandHandler {
 					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "XMLs de balance recarregados com sucesso!"));
 					return true;
 				}
-				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //reload balance"));
-				return true;
+				return false;
 			}
 			case "movie" -> {
 				String[] p = safeParams.split(" ");
