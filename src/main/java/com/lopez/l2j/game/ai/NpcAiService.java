@@ -313,7 +313,8 @@ public class NpcAiService {
 			return;
 		}
 
-		// 1. Decay: Apos 7s o corpo some do chao dos jogadores proximos
+		// 1. Decay: Apos 7s o corpo some do chao dos jogadores proximos (ou 25s retail se estiver spoiled/sweepable)
+		long decayDelayMs = (npc.isSpoiled() || npc.isSweepable()) ? 25000L : 7000L;
 		scheduler.schedule(() -> {
 			try {
 				var deletePacket = new DeleteObject(npc.objectId());
@@ -356,7 +357,24 @@ public class NpcAiService {
 				}
 			}, respawnDelayMs, TimeUnit.MILLISECONDS);
 
-		}, DECAY_DELAY_MS, TimeUnit.MILLISECONDS);
+		}, decayDelayMs, TimeUnit.MILLISECONDS);
+	}
+
+	public void scheduleQuickDecay(NpcInstance npc, long delayMs) {
+		if (scheduler == null || scheduler.isShutdown() || npc == null) {
+			return;
+		}
+		scheduler.schedule(() -> {
+			try {
+				if (npc.isDead()) {
+					var deletePacket = new DeleteObject(npc.objectId());
+					world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, deletePacket);
+					world.removeNpc(npc);
+				}
+			} catch (Exception e) {
+				log.warn("Erro ao executar quick decay do monstro {}: {}", npc.name(), e.getMessage());
+			}
+		}, delayMs, TimeUnit.MILLISECONDS);
 	}
 
 	public long resolveRespawnDelayMs(NpcInstance npc) {

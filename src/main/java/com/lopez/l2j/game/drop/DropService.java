@@ -535,7 +535,8 @@ public class DropService {
 				continue;
 			}
 
-			double rate = (rateSpoil > 0 ? rateSpoil : Config.RATE_DROP_SPOIL) * Math.max(0.1, spoilTypeMult) * levelPenalty;
+			double effectiveRate = Config.RATE_DROP_SPOIL > 1.0f ? Config.RATE_DROP_SPOIL : (rateSpoil > 0 ? rateSpoil : Config.RATE_DROP_SPOIL);
+			double rate = effectiveRate * Math.max(0.1, spoilTypeMult) * levelPenalty;
 			long effectiveChance = Math.round(rule.chance() * rate);
 			if (effectiveChance >= DropData.MAX_CHANCE) {
 				double extraMultiplier = (double) effectiveChance / DropData.MAX_CHANCE;
@@ -561,23 +562,20 @@ public class DropService {
 			InventoryService inventoryService,
 			Consumer<GameServerPacket> packetSender) {
 
-		if (player == null || npc == null || !npc.isDead() || !npc.isSpoiled()) {
+		if (player == null || npc == null || !npc.isDead() || !npc.isSweepable()) {
 			return false;
 		}
 
 		List<DropReward> rewards = npc.spoilRewards();
-		if (rewards == null) {
-			double spoilMult = resolveNpcTypeDropMultiplier(npc, false, true, 0);
-			rewards = rollSpoil(npc.npcId(), player.level(), npc.template() != null ? npc.template().level() : 0, spoilMult);
+		if (rewards == null || rewards.isEmpty()) {
+			npc.spoiled(false);
+			npc.spoilRewards(null);
+			return false;
 		}
 
 		// Consome o spoil do monstro
 		npc.spoiled(false);
 		npc.spoilRewards(null);
-
-		if (rewards == null || rewards.isEmpty()) {
-			return true;
-		}
 
 		List<ItemInfo> itemUpdates = new ArrayList<>();
 		for (DropReward reward : rewards) {
@@ -589,18 +587,16 @@ public class DropService {
 						itemUpdates.add(ItemInfo.of(addResult.item(), change));
 					}
 					if (packetSender != null) {
-						if (reward.isAdena()) {
+						if (reward.count() > 1) {
 							packetSender.accept(SystemMessage.of(
-									SystemMessage.YOU_PICKED_UP_S1_ADENA,
-									new SystemMessage.Number(reward.count())));
-						} else if (reward.count() > 1) {
-							packetSender.accept(SystemMessage.of(
-									SystemMessage.YOU_PICKED_UP_S1_S2,
-									new SystemMessage.ItemName(reward.itemId()),
-									new SystemMessage.Number(reward.count())));
+									SystemMessage.S1_SWEEPED_UP_S3_S2,
+									new SystemMessage.Text(player.name()),
+									new SystemMessage.Number(reward.count()),
+									new SystemMessage.ItemName(reward.itemId())));
 						} else {
 							packetSender.accept(SystemMessage.of(
-									SystemMessage.YOU_PICKED_UP_S1,
+									SystemMessage.S1_SWEEPED_UP_S2,
+									new SystemMessage.Text(player.name()),
 									new SystemMessage.ItemName(reward.itemId())));
 						}
 					}

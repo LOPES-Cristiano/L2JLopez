@@ -109,5 +109,15 @@ class DropAndEconomyConfigurationTest {
 
 		assertEquals(100, dwarf.maxInventorySlots(), "Dwarf deve receber 100 slots conforme config");
 		assertEquals(80, human.maxInventorySlots(), "Human deve receber 80 slots conforme config");
+
+		Config.MAX_INVENTORY_SLOTS_FOR_OTHER = 500;
+		Config.MAX_INVENTORY_SLOTS_FOR_DWARF = 500;
+		assertEquals(500, human.maxInventorySlots());
+		assertEquals(500, com.lopez.l2j.network.game.packet.GameServerPacket.ExStorageMaxCount.of(human).inventory());
+
+		var tpl = new com.lopez.l2j.game.template.CharTemplateTable().get(0).orElseThrow();
+		byte[] userInfoBytes = new com.lopez.l2j.network.game.packet.GameServerPacket.UserInfo(human, tpl).encode();
+		// Verifica que o pacote UserInfo foi codificado com sucesso
+		org.junit.jupiter.api.Assertions.assertTrue(userInfoBytes.length > 200);
 	}
 }
