@@ -45,7 +45,7 @@ public class ConfigPropertiesEnvironmentPostProcessor implements EnvironmentPost
 			mapIfPresent(raw, "RatePartySp", springProps, "l2.rates.party-sp", "1.0");
 			mapIfPresent(raw, "RateDropAdena", springProps, "l2.rates.adena", "100.0");
 			mapIfPresent(raw, "RateDropItems", springProps, "l2.rates.drop", "100.0");
-			mapIfPresent(raw, "RateDropSpoil", springProps, "l2.rates.spoil", "1.0");
+			mapIfPresent(raw, "RateDropSpoil", springProps, "l2.rates.spoil", "100.0");
 
 			// Server info & Game (gameserver.properties / custom.properties)
 			mapIfPresent(raw, "ServerName", springProps, "l2.server-name", "L2JLopez");

@@ -105,6 +105,16 @@ public class MagicSkillPacketHandler {
 		}
 	}
 
+	public int getEffectiveMpConsume(SkillTemplate sk, int baseMp) {
+		if (baseMp <= 0 || active() == null || sk == null) {
+			return Math.max(0, baseMp);
+		}
+		String rateStat = sk.isDanceOrSong() ? "DanceMpConsumeRate"
+				: (sk.magic() ? "MagicalMpConsumeRate" : "PhysicalMpConsumeRate");
+		double rate = PlayerStats.applyStat(active(), rateStat, 1.0);
+		return Math.max(0, (int) Math.round(baseMp * rate));
+	}
+
 	public void castSkill(SkillTemplate sk, boolean mayMove) {
 		if (!session.inWorld() || active() == null || active().isDead() || active().isDisabled()) {
 			return;
@@ -145,7 +155,9 @@ public class MagicSkillPacketHandler {
 				return;
 			}
 		}
-		if (active().currentMp() < sk.mpConsume() + sk.mpInitialConsume()) {
+		int effMpInitial = getEffectiveMpConsume(sk, sk.mpInitialConsume());
+		int effMpConsume = getEffectiveMpConsume(sk, sk.mpConsume());
+		if (active().currentMp() < effMpConsume + effMpInitial) {
 			send(SystemMessage.id(SystemMessage.NOT_ENOUGH_MP));
 			send(new ActionFailed());
 			return;
@@ -199,14 +211,14 @@ public class MagicSkillPacketHandler {
 			npcTarget = ctx().world().npc(session.targetObjectId()).filter(n -> n.isAttackable() && n.isDead()).orElse(null);
 			if (isAreaSweep) {
 				int sweepRadius = Math.max(250, sk.skillRadius() > 0 ? sk.skillRadius() : 300);
-				if (npcTarget != null && npcTarget.isSweepable() && canPlayerSweepCorpse(npcTarget)) {
+				if (npcTarget != null && (npcTarget.isSweepable() || npcTarget.isSpoiled()) && canPlayerSweepCorpse(npcTarget)) {
 					// Usa o cadaver selecionado como centro de referencia
 				} else {
 					npcTarget = null;
 					boolean hasAnySweepable = false;
 					boolean hasAnySpoiledByOther = false;
 					for (NpcInstance corpse : ctx().world().findNpcsAround(active().x(), active().y(), sweepRadius, active().instanceId())) {
-						if (corpse != null && corpse.isAttackable() && corpse.isDead() && corpse.isSweepable()) {
+						if (corpse != null && corpse.isAttackable() && corpse.isDead() && (corpse.isSweepable() || corpse.isSpoiled())) {
 							if (canPlayerSweepCorpse(corpse)) {
 								hasAnySweepable = true;
 								break;
@@ -227,7 +239,7 @@ public class MagicSkillPacketHandler {
 					send(new ActionFailed());
 					return;
 				}
-				if (!npcTarget.isSweepable()) {
+				if (!npcTarget.isSweepable() && !npcTarget.isSpoiled()) {
 					send(SystemMessage.id(SystemMessage.SWEEPER_FAILED_TARGET_NOT_SPOILED));
 					send(new ActionFailed());
 					return;
@@ -444,11 +456,13 @@ public class MagicSkillPacketHandler {
 		int minHit = (active().isGm() || active().gmSpeed() > 0) ? 10 : Config.getInt("MinimumHitTime", 330);
 		int hitTime = sk.hitTime() > 0 ? Math.max(minHit, (int) (sk.hitTime() * speedFactor)) : 0;
 		int reuse = (int) (sk.reuseDelay() * speedFactor);
-		double mReuse = PlayerStats.applyStat(active(), "mReuse", 1.0);
-		if (mReuse > 1.0) {
-			reuse = (int) (reuse / mReuse);
+		double reuseRate = sk.magic()
+				? PlayerStats.applyStat(active(), "mReuse", 1.0)
+				: PlayerStats.applyStat(active(), "pReuse", 1.0);
+		if (reuseRate > 0.0 && reuseRate != 1.0) {
+			reuse = (int) Math.round(reuse * reuseRate);
 		}
-		active().currentMp(active().currentMp() - sk.mpInitialConsume());
+		active().currentMp(Math.max(0, active().currentMp() - effMpInitial));
 		if (reuse > 0) {
 			skillReuse.put(sk.id(), now + Math.max(reuse, hitTime));
 		}
@@ -522,11 +536,12 @@ public class MagicSkillPacketHandler {
 	public void finishCast(SkillTemplate sk, NpcInstance mainNpc, DoorInstance doorTarget, GameSession targetPlayer, boolean resumeAttack,
 			boolean sps, boolean bss) {
 		var party = session.party();
-		if (active().currentMp() < sk.mpConsume()) {
+		int effMpConsume = getEffectiveMpConsume(sk, sk.mpConsume());
+		if (active().currentMp() < effMpConsume) {
 			send(SystemMessage.id(SystemMessage.NOT_ENOUGH_MP));
 			return;
 		}
-		active().currentMp(active().currentMp() - sk.mpConsume());
+		active().currentMp(Math.max(0, active().currentMp() - effMpConsume));
 		if (sk.hpConsume() > 0) {
 			active().currentHp(active().currentHp() - sk.hpConsume());
 		}
@@ -572,12 +587,12 @@ public class MagicSkillPacketHandler {
 					int sweepRadius = Math.max(250, sk.skillRadius() > 0 ? sk.skillRadius() : 300);
 					int cx = mainNpc != null ? mainNpc.x() : active().x();
 					int cy = mainNpc != null ? mainNpc.y() : active().y();
-					if (mainNpc != null && mainNpc.isDead() && mainNpc.isSweepable() && canPlayerSweepCorpse(mainNpc)) {
+					if (mainNpc != null && mainNpc.isDead() && (mainNpc.isSweepable() || mainNpc.isSpoiled()) && canPlayerSweepCorpse(mainNpc)) {
 						corpsesToSweep.add(mainNpc);
 					}
 					if (ctx().world() != null) {
 						for (NpcInstance corpse : ctx().world().findNpcsAround(cx, cy, sweepRadius, active().instanceId())) {
-							if (corpse != null && corpse.isAttackable() && corpse.isDead() && corpse.isSweepable()
+							if (corpse != null && corpse.isAttackable() && corpse.isDead() && (corpse.isSweepable() || corpse.isSpoiled())
 									&& canPlayerSweepCorpse(corpse) && !corpsesToSweep.contains(corpse)) {
 								corpsesToSweep.add(corpse);
 							}
@@ -591,11 +606,19 @@ public class MagicSkillPacketHandler {
 					broadcastLaunched(sk, corpsesToSweep.stream().map(NpcInstance::objectId).toList());
 				}
 				for (NpcInstance corpse : corpsesToSweep) {
-					boolean swept = ctx().drops().sweep(active(), corpse, ctx().inventories(), session::send);
+					java.util.function.Consumer<GameServerPacket> partySender = party != null
+							? pkt -> party.broadcastExcept(pkt, active().objectId())
+							: null;
+					boolean wasSpoiled = corpse.isSpoiled();
+					boolean swept = ctx().drops().sweep(active(), corpse, ctx().inventories(), session::send, partySender);
 					if (swept) {
 						if (sk.absorbPart() > 0) {
 							healHp(sk.absorbPart());
 						}
+					}
+					if (swept || wasSpoiled) {
+						corpse.spoiled(false);
+						corpse.spoilRewards(null);
 						var dieNoGlow = new Die(corpse.objectId(), false, false, false, false);
 						send(dieNoGlow);
 						if (ctx().world() != null) {
@@ -1383,19 +1406,27 @@ public class MagicSkillPacketHandler {
 		// Debuffs & DoTs em jogadores
 		if (!targetActive.isDead()) {
 			if ("CANCEL".equalsIgnoreCase(sk.skillType()) || sk.id() == 1056) {
-				var cancelRestore = com.lopez.l2j.game.service.CancelRestoreService.getInstance();
-				if (cancelRestore != null) {
-					cancelRestore.applyCancelWithRestore(targetSession, 5);
-				} else {
-					var activeBuffs = new java.util.ArrayList<>(targetActive.effects().active());
-					if (!activeBuffs.isEmpty()) {
-						java.util.Collections.shuffle(activeBuffs);
-						int count = Math.min(5, activeBuffs.size());
+				double cancelVuln = Math.max(0.0, Math.min(2.0, PlayerStats.applyStat(targetActive, "cancelVuln", 1.0)));
+				int maxCancel = (int) Math.round(5 * cancelVuln);
+				if (maxCancel > 0) {
+					var cancelRestore = com.lopez.l2j.game.service.CancelRestoreService.getInstance();
+					if (cancelRestore != null) {
+						cancelRestore.applyCancelWithRestore(targetSession, maxCancel);
+					} else {
+						var activeBuffs = new java.util.ArrayList<>(targetActive.effects().active());
+						if (!activeBuffs.isEmpty()) {
+							java.util.Collections.shuffle(activeBuffs);
+							int count = Math.min(maxCancel, activeBuffs.size());
 						for (int i = 0; i < count; i++) {
 							targetActive.effects().remove(activeBuffs.get(i));
 						}
-						targetSession.sendMagicEffectIcons();
+							targetSession.sendMagicEffectIcons();
+						}
 					}
+				} else {
+					send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
+							new SystemMessage.Text(targetActive.name()),
+							new SystemMessage.SkillName(sk.id(), sk.level())));
 				}
 			}
 			if ("WARRIOR_BANE".equalsIgnoreCase(sk.skillType()) || sk.id() == 1344 || sk.id() == 1350) {
@@ -1449,7 +1480,7 @@ public class MagicSkillPacketHandler {
 						|| st.equals("root") || st.equals("mute") || st.equals("fear");
 				if (control) {
 					if (combat.debuffLandsPlayer(sk.power() > 0 ? sk.power() : 50, sk.magicLevel(), active().level(),
-							targetActive, sps, bss)) {
+							targetActive, sps, bss, st)) {
 						long until = System.currentTimeMillis() + 15000L;
 						targetSession.applyControlEffect(sk.id(), sk.level(), st, until);
 						targetSession.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT,
@@ -1471,7 +1502,7 @@ public class MagicSkillPacketHandler {
 
 				if (control) {
 					if (!combat.debuffLandsPlayer(sk.power() > 0 ? sk.power() : 50, sk.magicLevel(), active().level(),
-							targetActive, sps, bss)) {
+							targetActive, sps, bss, name)) {
 						send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
 								new SystemMessage.Text(targetActive.name()),
 								new SystemMessage.SkillName(sk.id(), sk.level())));
@@ -1497,8 +1528,10 @@ public class MagicSkillPacketHandler {
 					}
 				} else if (name.equals("damovertime") || name.equals("manadamovertime") || name.equals("poison")
 						|| name.equals("bleed")) {
+					String dotKind = (name.equals("poison") || "POISON".equalsIgnoreCase(sk.skillType())) ? "poison"
+							: ((name.equals("bleed") || "BLEED".equalsIgnoreCase(sk.skillType())) ? "bleed" : name);
 					if (combat.debuffLandsPlayer(sk.power() > 0 ? sk.power() : 50, sk.magicLevel(), active().level(),
-							targetActive, sps, bss)) {
+							targetActive, sps, bss, dotKind)) {
 						targetSession.startSkillDot(sk, e);
 					} else {
 						send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
@@ -1507,7 +1540,7 @@ public class MagicSkillPacketHandler {
 					}
 				} else if (!e.funcs().isEmpty() || sk.isDebuff() || sk.isOffensive() || name.equals("debuff")) {
 					if (combat.debuffLandsPlayer(sk.power() > 0 ? sk.power() : 50, sk.magicLevel(), active().level(),
-							targetActive, sps, bss)) {
+							targetActive, sps, bss, sk.skillType())) {
 						targetSession.applySkillEffects(sk, false);
 					} else {
 						send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
@@ -1905,34 +1938,30 @@ public class MagicSkillPacketHandler {
 				dur = Config.SKILL_DURATION_LIST.get(sk.id()) * 1000L;
 			}
 			for (var f : e.funcs()) {
-				double val = f.value();
-				if (val <= 0) {
-					continue;
-				}
 				switch (f.stat()) {
 					case "pDef" -> {
 						int prev = summon.pDef();
-						summon.pDef((int) Math.round(prev * val));
+						summon.pDef(Math.max(1, (int) Math.round(f.apply(prev, prev))));
 						GameSession.autoAttackScheduler().schedule(() -> summon.pDef(prev), dur, TimeUnit.MILLISECONDS);
 					}
 					case "mDef" -> {
 						int prev = summon.mDef();
-						summon.mDef((int) Math.round(prev * val));
+						summon.mDef(Math.max(1, (int) Math.round(f.apply(prev, prev))));
 						GameSession.autoAttackScheduler().schedule(() -> summon.mDef(prev), dur, TimeUnit.MILLISECONDS);
 					}
 					case "pAtk" -> {
 						int prev = summon.pAtk();
-						summon.pAtk((int) Math.round(prev * val));
+						summon.pAtk(Math.max(1, (int) Math.round(f.apply(prev, prev))));
 						GameSession.autoAttackScheduler().schedule(() -> summon.pAtk(prev), dur, TimeUnit.MILLISECONDS);
 					}
 					case "mAtk" -> {
 						int prev = summon.mAtk();
-						summon.mAtk((int) Math.round(prev * val));
+						summon.mAtk(Math.max(1, (int) Math.round(f.apply(prev, prev))));
 						GameSession.autoAttackScheduler().schedule(() -> summon.mAtk(prev), dur, TimeUnit.MILLISECONDS);
 					}
 					case "runSpd" -> {
 						int prev = summon.runSpd();
-						summon.runSpd((int) Math.round(prev * val));
+						summon.runSpd(Math.max(1, (int) Math.round(f.apply(prev, prev))));
 						ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, new SummonNpcInfo(summon), false);
 						GameSession.autoAttackScheduler().schedule(() -> {
 							summon.runSpd(prev);
@@ -1941,7 +1970,7 @@ public class MagicSkillPacketHandler {
 					}
 					case "pAtkSpd" -> {
 						int prev = summon.pAtkSpd();
-						summon.pAtkSpd((int) Math.round(prev * val));
+						summon.pAtkSpd(Math.max(1, (int) Math.round(f.apply(prev, prev))));
 						ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, new SummonNpcInfo(summon), false);
 						GameSession.autoAttackScheduler().schedule(() -> {
 							summon.pAtkSpd(prev);
@@ -1950,8 +1979,18 @@ public class MagicSkillPacketHandler {
 					}
 					case "mAtkSpd" -> {
 						int prev = summon.mAtkSpd();
-						summon.mAtkSpd((int) Math.round(prev * val));
+						summon.mAtkSpd(Math.max(1, (int) Math.round(f.apply(prev, prev))));
 						GameSession.autoAttackScheduler().schedule(() -> summon.mAtkSpd(prev), dur, TimeUnit.MILLISECONDS);
+					}
+					case "maxHp" -> {
+						int prev = (int) summon.maxHp();
+						summon.maxHp(Math.max(1, (int) Math.round(f.apply(prev, prev))));
+						GameSession.autoAttackScheduler().schedule(() -> summon.maxHp(prev), dur, TimeUnit.MILLISECONDS);
+					}
+					case "maxMp" -> {
+						int prev = (int) summon.maxMp();
+						summon.maxMp(Math.max(1, (int) Math.round(f.apply(prev, prev))));
+						GameSession.autoAttackScheduler().schedule(() -> summon.maxMp(prev), dur, TimeUnit.MILLISECONDS);
 					}
 				}
 			}
@@ -2046,7 +2085,7 @@ public class MagicSkillPacketHandler {
 				healHp(healAmount);
 			}
 			case "HEAL_STATIC" -> healHp(power);
-			case "HEAL_PERCENT" -> healHp(active().maxHp() * power / 100.0);
+			case "HEAL_PERCENT" -> healHp(active().maxHp() * power / 100.0, false);
 			case "MANAHEAL" -> {
 				double before = active().currentMp();
 				active().currentMp(before + power);
@@ -2186,6 +2225,17 @@ public class MagicSkillPacketHandler {
 	}
 
 	public void healHp(double amount) {
+		eloHealHp(amount, true);
+	}
+
+	public void healHp(double amount, boolean applyGainHpStat) {
+		eloHealHp(amount, applyGainHpStat);
+	}
+
+	private void eloHealHp(double amount, boolean applyGainHpStat) {
+		if (active() != null && applyGainHpStat) {
+			amount = PlayerStats.applyStat(active(), "gainHp", amount);
+		}
 		if (active() != null && active().isOlympiadMode() && ctx() != null && ctx().combat() != null && ctx().combat().olyDamageManager() != null) {
 			amount *= ctx().combat().olyDamageManager().getHealMultiplier(active().classId());
 		}
@@ -2455,11 +2505,12 @@ public class MagicSkillPacketHandler {
 			session.saveBuffs();
 			return;
 		}
-		if (active().currentMp() < sk.mpConsume() + sk.mpInitialConsume()) {
+		int toggleMp = getEffectiveMpConsume(sk, sk.mpConsume() + sk.mpInitialConsume());
+		if (active().currentMp() < toggleMp) {
 			send(SystemMessage.id(SystemMessage.NOT_ENOUGH_MP));
 			return;
 		}
-		active().currentMp(active().currentMp() - sk.mpConsume() - sk.mpInitialConsume());
+		active().currentMp(Math.max(0, active().currentMp() - toggleMp));
 		var msu = new MagicSkillUse(active().objectId(), active().objectId(), sk.id(), sk.level(), 0, 0,
 				active().x(), active().y(), active().z(), active().x(), active().y(), active().z());
 		send(msu);

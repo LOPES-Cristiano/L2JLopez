@@ -352,13 +352,25 @@ public record PlayerStats(
 
 	/** Aplica ao valor base as funcoes do stat (ex.: "maxHp"), em ordem crescente de order. */
 	public static double applyStat(PlayerCharacter player, String stat, double base) {
-		return apply(player, allFuncs(player), stat, base);
+		return applyStat(player, null, stat, base);
+	}
+
+	/** Aplica ao valor base as funcoes do stat considerando tambem o alvo (ex.: posicoes front/behind). */
+	public static double applyStat(PlayerCharacter player, Object target, String stat, double base) {
+		if (player == null) {
+			return base;
+		}
+		return apply(player, target, allFuncs(player), stat, base);
 	}
 
 	private static double apply(PlayerCharacter player, List<StatFunc> funcs, String stat, double base) {
+		return apply(player, null, funcs, stat, base);
+	}
+
+	private static double apply(PlayerCharacter player, Object target, List<StatFunc> funcs, String stat, double base) {
 		List<StatFunc> matching = new ArrayList<>();
 		for (StatFunc f : funcs) {
-			if (f.stat().equalsIgnoreCase(stat) && f.appliesTo(player)) {
+			if (f.stat().equalsIgnoreCase(stat) && f.appliesTo(player, target)) {
 				matching.add(f);
 			}
 		}

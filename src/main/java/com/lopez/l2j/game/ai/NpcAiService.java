@@ -389,6 +389,9 @@ public class NpcAiService {
 
 	private void respawnNpc(NpcInstance npc) {
 		npc.dead(false);
+		npc.spoiled(false);
+		npc.spoilerPlayerId(0);
+		npc.spoilRewards(null);
 		if (championService != null) {
 			championService.tryRollChampion(npc);
 		} else {
@@ -428,6 +431,9 @@ public class NpcAiService {
 			return;
 		}
 		minion.dead(false);
+		minion.spoiled(false);
+		minion.spoilerPlayerId(0);
+		minion.spoilRewards(null);
 		minion.currentHp(minion.template().maxHp());
 		minion.currentMp(minion.template().maxMp());
 		minion.targetPlayerId(0);

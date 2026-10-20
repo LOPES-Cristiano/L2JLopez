@@ -561,8 +561,17 @@ public class DropService {
 			NpcInstance npc,
 			InventoryService inventoryService,
 			Consumer<GameServerPacket> packetSender) {
+		return sweep(player, npc, inventoryService, packetSender, null);
+	}
 
-		if (player == null || npc == null || !npc.isDead() || !npc.isSweepable()) {
+	public boolean sweep(
+			PlayerCharacter player,
+			NpcInstance npc,
+			InventoryService inventoryService,
+			Consumer<GameServerPacket> packetSender,
+			Consumer<GameServerPacket> partyPacketSender) {
+
+		if (player == null || npc == null || !npc.isDead() || (!npc.isSweepable() && !npc.isSpoiled())) {
 			return false;
 		}
 
@@ -587,14 +596,30 @@ public class DropService {
 						itemUpdates.add(ItemInfo.of(addResult.item(), change));
 					}
 					if (packetSender != null) {
-						if (reward.count() > 1) {
+						if (reward.isAdena()) {
 							packetSender.accept(SystemMessage.of(
+									SystemMessage.YOU_PICKED_UP_S1_ADENA,
+									new SystemMessage.Number(reward.count())));
+						} else if (reward.count() > 1) {
+							packetSender.accept(SystemMessage.of(
+									SystemMessage.YOU_PICKED_UP_S1_S2,
+									new SystemMessage.ItemName(reward.itemId()),
+									new SystemMessage.Number(reward.count())));
+						} else {
+							packetSender.accept(SystemMessage.of(
+									SystemMessage.YOU_PICKED_UP_S1,
+									new SystemMessage.ItemName(reward.itemId())));
+						}
+					}
+					if (partyPacketSender != null) {
+						if (reward.count() > 1) {
+							partyPacketSender.accept(SystemMessage.of(
 									SystemMessage.S1_SWEEPED_UP_S3_S2,
 									new SystemMessage.Text(player.name()),
 									new SystemMessage.Number(reward.count()),
 									new SystemMessage.ItemName(reward.itemId())));
 						} else {
-							packetSender.accept(SystemMessage.of(
+							partyPacketSender.accept(SystemMessage.of(
 									SystemMessage.S1_SWEEPED_UP_S2,
 									new SystemMessage.Text(player.name()),
 									new SystemMessage.ItemName(reward.itemId())));

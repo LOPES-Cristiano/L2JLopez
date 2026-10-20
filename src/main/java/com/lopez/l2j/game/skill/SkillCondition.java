@@ -93,6 +93,73 @@ public interface SkillCondition {
 					boolean val = Boolean.parseBoolean(e.getAttribute("moving").trim());
 					playerConditions.add((p, target) -> p != null && p.isMoving() == val);
 				}
+				if (e.hasAttribute("running")) {
+					boolean val = Boolean.parseBoolean(e.getAttribute("running").trim());
+					playerConditions.add((p, target) -> p != null && (!p.isSitting() && p.running()) == val);
+				}
+				if (e.hasAttribute("standing")) {
+					boolean val = Boolean.parseBoolean(e.getAttribute("standing").trim());
+					playerConditions.add((p, target) -> p != null && (!p.isSitting() && !p.running()) == val);
+				}
+				if (e.hasAttribute("flying")) {
+					boolean val = Boolean.parseBoolean(e.getAttribute("flying").trim());
+					playerConditions.add((p, target) -> p != null && p.isFlying() == val);
+				}
+				if (e.hasAttribute("front")) {
+					boolean val = Boolean.parseBoolean(e.getAttribute("front").trim());
+					playerConditions.add((p, target) -> {
+						if (p == null) return false;
+						if (target instanceof com.lopez.l2j.game.model.Creature c) {
+							boolean isFront = com.lopez.l2j.game.combat.CombatService.getRelativePosition(
+									p.x(), p.y(), c.x(), c.y(), c.heading()) == com.lopez.l2j.game.combat.CombatService.RelativePosition.FRONT;
+							return isFront == val;
+						}
+						return true;
+					});
+				}
+				if (e.hasAttribute("behind")) {
+					boolean val = Boolean.parseBoolean(e.getAttribute("behind").trim());
+					playerConditions.add((p, target) -> {
+						if (p == null) return false;
+						if (target instanceof com.lopez.l2j.game.model.Creature c) {
+							boolean isBehind = com.lopez.l2j.game.combat.CombatService.getRelativePosition(
+									p.x(), p.y(), c.x(), c.y(), c.heading()) == com.lopez.l2j.game.combat.CombatService.RelativePosition.BEHIND;
+							return isBehind == val;
+						}
+						return !val;
+					});
+				}
+				if (e.hasAttribute("side")) {
+					boolean val = Boolean.parseBoolean(e.getAttribute("side").trim());
+					playerConditions.add((p, target) -> {
+						if (p == null) return false;
+						if (target instanceof com.lopez.l2j.game.model.Creature c) {
+							boolean isSide = com.lopez.l2j.game.combat.CombatService.getRelativePosition(
+									p.x(), p.y(), c.x(), c.y(), c.heading()) == com.lopez.l2j.game.combat.CombatService.RelativePosition.SIDE;
+							return isSide == val;
+						}
+						return !val;
+					});
+				}
+				if (e.hasAttribute("seed_fire")) {
+					int min = Integer.parseInt(e.getAttribute("seed_fire").trim());
+					playerConditions.add((p, target) -> p != null && (p.effects().hasSkill(1285) || p.charges() >= min));
+				}
+				if (e.hasAttribute("seed_water")) {
+					int min = Integer.parseInt(e.getAttribute("seed_water").trim());
+					playerConditions.add((p, target) -> p != null && (p.effects().hasSkill(1286) || p.charges() >= min));
+				}
+				if (e.hasAttribute("seed_wind")) {
+					int min = Integer.parseInt(e.getAttribute("seed_wind").trim());
+					playerConditions.add((p, target) -> p != null && (p.effects().hasSkill(1287) || p.charges() >= min));
+				}
+				if (e.hasAttribute("seed_any")) {
+					int min = Integer.parseInt(e.getAttribute("seed_any").trim());
+					playerConditions.add((p, target) -> p != null && (p.effects().hasSkill(1285) || p.effects().hasSkill(1286) || p.effects().hasSkill(1287) || p.charges() >= min));
+				}
+				if (e.hasAttribute("SiegeZone")) {
+					playerConditions.add((p, target) -> p != null && (p.isInSiege() || p.isGm()));
+				}
 				if (playerConditions.isEmpty()) {
 					return null;
 				}

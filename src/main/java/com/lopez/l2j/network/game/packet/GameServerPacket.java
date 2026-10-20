@@ -451,6 +451,10 @@ public sealed interface GameServerPacket {
 		public static final int CRITICAL_HIT_MAGIC = 1280;
 		public static final int CRITICAL_HIT = 44;
 		public static final int S1_WAS_UNAFFECTED_BY_S2 = 139;
+		public static final int DRAIN_HALF_SUCCESFUL = 156;
+		public static final int RESISTED_S1_DRAIN = 157;
+		public static final int ATTACK_FAILED = 158;
+		public static final int RESISTED_S1_MAGIC = 159;
 		public static final int SPIRITSHOTS_GRADE_MISMATCH = 530;
 		public static final int NOT_ENOUGH_SPIRITSHOTS = 531;
 		public static final int CANNOT_USE_SPIRITSHOTS = 532;

@@ -32,7 +32,11 @@ public record StatFunc(String stat, Op op, int order, double value, SkillConditi
 	}
 
 	public boolean appliesTo(PlayerCharacter p) {
-		return condition == null || condition.test(p);
+		return appliesTo(p, null);
+	}
+
+	public boolean appliesTo(PlayerCharacter p, Object target) {
+		return condition == null || condition.test(p, target);
 	}
 
 	/** Aplica a funcao ao valor corrente; {@code base} e o valor antes de qualquer funcao (para basemul). */

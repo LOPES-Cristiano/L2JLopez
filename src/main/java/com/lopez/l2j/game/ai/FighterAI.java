@@ -140,6 +140,20 @@ public class FighterAI extends AbstractNpcAI {
 							player.send(StatusUpdate.hp(character.objectId(), (int) character.currentHp(), character.maxHp()));
 							player.send(new UserInfo(character, template));
 
+							// Reflect Damage em ataques melee de monstros (Song of Vengeance 266, Chant of Revenge 1284, Reflect Damage 86)
+							if (!isRanged && !npc.isDead()) {
+								double reflectPct = com.lopez.l2j.game.model.PlayerStats.applyStat(character, npc, "reflectDam", 0.0);
+								if (reflectPct > 0.0) {
+									int reflectedDmg = (int) Math.round(hit.damage() * (reflectPct / 100.0));
+									if (reflectedDmg > 0) {
+										var refHit = combatService.applyDamage(npc, reflectedDmg, 0);
+										var suNpc = StatusUpdate.hp(npc.objectId(), refHit.isDead() ? 0 : Math.max(0, refHit.remainingHp()), (int) npc.maxHp());
+										player.send(suNpc);
+										world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, suNpc);
+									}
+								}
+							}
+
 							if (hit.isDead()) {
 								player.onDeath(npc.objectId());
 							}
@@ -243,7 +257,7 @@ public class FighterAI extends AbstractNpcAI {
 								|| st.equals("root") || st.equals("mute") || st.equals("fear");
 						if (control) {
 							if (combatService.debuffLandsPlayer(skill.power() > 0 ? skill.power() : 50, skill.magicLevel(),
-									npc.template().level(), character, false, false)) {
+									npc.template().level(), character, false, false, st)) {
 								long until = System.currentTimeMillis() + 15000L;
 								gs.applyControlEffect(skill.id(), skill.level(), st, until);
 								player.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT,
@@ -259,7 +273,7 @@ public class FighterAI extends AbstractNpcAI {
 								|| name.equals("physicalmute") || name.equals("silencemagicphysical");
 						if (control) {
 							if (combatService.debuffLandsPlayer(skill.power() > 0 ? skill.power() : 50, skill.magicLevel(),
-									npc.template().level(), character, false, false)) {
+									npc.template().level(), character, false, false, name)) {
 								long until = System.currentTimeMillis() + Math.max(1000, e.durationMs());
 								gs.applyControlEffect(skill.id(), skill.level(), name, until);
 								player.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT,
@@ -272,12 +286,12 @@ public class FighterAI extends AbstractNpcAI {
 						} else if (name.equals("damovertime") || name.equals("manadamovertime") || name.equals("poison")
 								|| name.equals("bleed")) {
 							if (combatService.debuffLandsPlayer(skill.power() > 0 ? skill.power() : 50, skill.magicLevel(),
-									npc.template().level(), character, false, false)) {
+									npc.template().level(), character, false, false, name)) {
 								gs.startSkillDot(skill, e);
 							}
 						} else if (!e.funcs().isEmpty() || skill.isDebuff() || skill.isOffensive() || name.equals("debuff")) {
 							if (combatService.debuffLandsPlayer(skill.power() > 0 ? skill.power() : 50, skill.magicLevel(),
-									npc.template().level(), character, false, false)) {
+									npc.template().level(), character, false, false, skill.skillType())) {
 								gs.applySkillEffects(skill, false);
 							}
 						}

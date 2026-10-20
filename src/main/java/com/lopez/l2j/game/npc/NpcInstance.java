@@ -291,6 +291,7 @@ public final class NpcInstance implements Creature {
 	public void spoilerPlayerId(int value) { this.spoilerPlayerId = value; }
 	public java.util.List<com.lopez.l2j.game.drop.DropReward> spoilRewards() { return spoilRewards; }
 	public void spoilRewards(java.util.List<com.lopez.l2j.game.drop.DropReward> rewards) { this.spoilRewards = rewards; }
+	public boolean hasSpoilRewards() { return spoilRewards != null && !spoilRewards.isEmpty(); }
 	public boolean isSweepable() { return dead && spoiled && spoilRewards != null && !spoilRewards.isEmpty(); }
 
 	public void addMinion(NpcInstance minion) {

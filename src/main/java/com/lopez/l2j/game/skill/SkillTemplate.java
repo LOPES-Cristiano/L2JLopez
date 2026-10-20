@@ -135,6 +135,17 @@ public record SkillTemplate(int id, int level, String name, OperateType operateT
 				|| "MDOT".equalsIgnoreCase(skillType) || "AGGDEBUFF".equalsIgnoreCase(skillType);
 	}
 
+	public boolean isDanceOrSong() {
+		if ((id >= 264 && id <= 277) || (id >= 304 && id <= 311) || id == 349 || (id >= 363 && id <= 367)) {
+			return true;
+		}
+		if (name != null) {
+			String lower = name.toLowerCase(java.util.Locale.ROOT);
+			return lower.startsWith("song of ") || lower.startsWith("dance of ") || lower.contains("siren's dance");
+		}
+		return false;
+	}
+
 	public boolean isAreaAroundSelf() {
 		return target.equals("TARGET_AURA") || target.equals("TARGET_FRONT_AURA")
 				|| target.equals("TARGET_BEHIND_AURA");

@@ -248,4 +248,38 @@ class SpoilAndSweepTest {
 		assertFalse(mob2.isSweepable(), "Mob 2 deve ter sido coletado em area pelo Festive Sweeper");
 		assertTrue(dwarf.inventory().byItemId(SPOIL_ITEM_ID).isPresent());
 	}
+
+	@Test
+	void sweepSendsFirstPersonPickedUpToPlayerAndThirdPersonToParty() {
+		NpcTemplate tpl = new NpcTemplate(
+				MOB_ID, MOB_ID, "TargetMob", false, "", false,
+				8.0, 16.0, 20, "male", "L2Monster",
+				40, 500, 100, 50, 40, 30, 10, 250, 333,
+				0, 0, 0, 50, 100, 0, false, "", 0);
+
+		NpcInstance mob = new NpcInstance(8201, tpl, 0, 0, 0, 0);
+		mob.spoiled(true);
+		mob.dead(true);
+		mob.spoilRewards(List.of(new DropReward(SPOIL_ITEM_ID, 1, false)));
+
+		List<GameServerPacket> playerPackets = new ArrayList<>();
+		List<GameServerPacket> partyPackets = new ArrayList<>();
+
+		boolean swept = dropService.sweep(dwarf, mob, inventoryService, playerPackets::add, partyPackets::add);
+		assertTrue(swept);
+
+		var playerSysMsg = playerPackets.stream()
+				.filter(GameServerPacket.SystemMessage.class::isInstance)
+				.map(GameServerPacket.SystemMessage.class::cast)
+				.findFirst()
+				.orElseThrow();
+		assertEquals(GameServerPacket.SystemMessage.YOU_PICKED_UP_S1, playerSysMsg.id());
+
+		var partySysMsg = partyPackets.stream()
+				.filter(GameServerPacket.SystemMessage.class::isInstance)
+				.map(GameServerPacket.SystemMessage.class::cast)
+				.findFirst()
+				.orElseThrow();
+		assertEquals(GameServerPacket.SystemMessage.S1_SWEEPED_UP_S2, partySysMsg.id());
+	}
 }

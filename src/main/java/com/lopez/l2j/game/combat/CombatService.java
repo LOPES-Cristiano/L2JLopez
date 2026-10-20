@@ -305,15 +305,15 @@ public class CombatService {
 			return new HitPlan(0, 0x80, true, false);
 		}
 
-		// Chance de critico (base 40-120 per 1000)
-		int critRate = stats.critical();
+		// Chance de critico (base 40-120 per 1000, com suporte a condicoes posicionais front/side/behind)
+		int critRate = (int) Math.round(PlayerStats.applyStat(attacker, target, "rCrit", stats.critical()));
 		boolean crit = ThreadLocalRandom.current().nextInt(1000) < Math.max(40, critRate);
 
 		// Formula base Interlude: (pAtk * 70.0) / pDef
-		double baseDam = (pAtk * 70.0) / pDef;
+		double baseDam = (pAtk * 70.0 * calcNpcTypeAtkBonus(attacker, target) * calcElementalModifier(attacker, null, target)) / pDef;
 		if (crit) {
-			double cAtk = PlayerStats.applyStat(attacker, "cAtk", 1.0);
-			double cAtkAdd = PlayerStats.applyStat(attacker, "cAtkAdd", 0.0);
+			double cAtk = PlayerStats.applyStat(attacker, target, "cAtk", 1.0);
+			double cAtkAdd = PlayerStats.applyStat(attacker, target, "cAtkAdd", 0.0);
 			baseDam = (baseDam * 2.0 * cAtk) + cAtkAdd;
 		}
 		if (Config.ALT_GAME_TIREDNESS && attacker != null && attacker.maxCp() > 0) {
@@ -331,6 +331,179 @@ public class CombatService {
 		}
 
 		return new HitPlan(damage, flags, false, crit);
+	}
+
+	/**
+	 * Calcula a resistencia/vulnerabilidade de arma fisica (ex.: Deflect Arrow -> bowWpnVuln,
+	 * Dance of Alignment / Song of Invocation -> bluntWpnVuln, daggerWpnVuln, swordWpnVuln, dualWpnVuln, poleWpnVuln).
+	 */
+	public static double calcWeaponVulnerability(PlayerCharacter attacker, PlayerCharacter target) {
+		if (attacker == null || target == null || attacker.inventory() == null) {
+			return 1.0;
+		}
+		var w = attacker.inventory().paperdoll(com.lopez.l2j.game.item.ItemSlots.RHAND);
+		if (w == null) {
+			w = attacker.inventory().paperdoll(com.lopez.l2j.game.item.ItemSlots.LRHAND);
+		}
+		if (w == null || w.template() == null || w.template().subType() == null) {
+			return PlayerStats.applyStat(target, "fistWpnVuln", 1.0);
+		}
+		String sub = w.template().subType().toLowerCase(java.util.Locale.ROOT).replace(" ", "").replace("_", "");
+		String vulnStat = switch (sub) {
+			case "bow", "crossbow" -> "bowWpnVuln";
+			case "dagger", "dualdagger" -> "daggerWpnVuln";
+			case "blunt", "bigblunt", "twohandblunt" -> "bluntWpnVuln";
+			case "sword", "bigsword", "twohandsword", "rapier", "ancientsword" -> "swordWpnVuln";
+			case "dual", "dualsword" -> "dualWpnVuln";
+			case "pole", "polearm", "spear" -> "poleWpnVuln";
+			case "fist", "dualfist" -> "fistWpnVuln";
+			default -> null;
+		};
+		return vulnStat != null ? PlayerStats.applyStat(target, vulnStat, 1.0) : 1.0;
+	}
+
+	/**
+	 * Calcula se o alvo bloqueia o golpe com escudo (Bless Shield, Advanced Block, Shield Fortress, Aegis Stance)
+	 * e retorna a defesa adicional de escudo (sDef) ou Integer.MAX_VALUE para bloqueio perfeito (1 de dano).
+	 */
+	public static int calcShieldDefense(PlayerCharacter target, CharTemplate targetTemplate, boolean attackerUsingBow) {
+		if (target == null || target.inventory() == null) {
+			return 0;
+		}
+		var shield = target.inventory().paperdoll(com.lopez.l2j.game.item.ItemSlots.LHAND);
+		if (shield == null || shield.template() == null || shield.template().shieldDef() <= 0) {
+			return 0;
+		}
+		int dex = targetTemplate != null ? targetTemplate.dex() + target.hennaDEX() + target.augDEX() : 30;
+		double dexMod = PlayerStats.dexBonus(dex);
+		double baseShldRate = 20.0 * dexMod;
+		double shldRate = PlayerStats.applyStat(target, "rShld", baseShldRate);
+		if (attackerUsingBow) {
+			shldRate *= 3.0;
+		}
+		shldRate = Math.min(90.0, Math.max(0.0, shldRate));
+		if (ThreadLocalRandom.current().nextDouble(100.0) >= shldRate) {
+			return 0;
+		}
+		if (ThreadLocalRandom.current().nextInt(100) < 5) {
+			return Integer.MAX_VALUE; // bloqueio perfeito (1 de dano)
+		}
+		double baseSDef = shield.template().shieldDef() + (shield.enchant() * 2);
+		return Math.max(1, (int) Math.round(PlayerStats.applyStat(target, "sDef", baseSDef)));
+	}
+
+	/**
+	 * Calcula multiplicador de dano contra tipos de monstros (Holy Weapon, Dance of Light, Eye of Hunter, Eye of Slayer,
+	 * Chant of Victory, Valakas/Antharas).
+	 */
+	public static double calcNpcTypeAtkBonus(PlayerCharacter attacker, NpcInstance target) {
+		if (attacker == null || target == null || target.template() == null) {
+			return 1.0;
+		}
+		double mult = 1.0;
+		if (target.template().isUndead()) {
+			mult *= PlayerStats.applyStat(attacker, "pAtk-undead", 1.0);
+			double holyAtk = PlayerStats.applyStat(attacker, "holyPower", 0.0);
+			if (holyAtk > 0) {
+				mult *= (1.0 + Math.min(0.50, holyAtk / 100.0));
+			}
+		}
+		mult *= PlayerStats.applyStat(attacker, "pAtk-monsters", 1.0);
+		mult *= PlayerStats.applyStat(attacker, "pAtk-animals", 1.0);
+		mult *= PlayerStats.applyStat(attacker, "pAtk-plants", 1.0);
+		mult *= PlayerStats.applyStat(attacker, "pAtk-insects", 1.0);
+		mult *= PlayerStats.applyStat(attacker, "pAtk-dragons", 1.0);
+		mult *= PlayerStats.applyStat(attacker, "pAtk-giants", 1.0);
+		mult *= PlayerStats.applyStat(attacker, "pAtk-magicCreature", 1.0);
+		return mult;
+	}
+
+	/**
+	 * Calcula o multiplicador de poder elemental do conjurador e vulnerabilidade elemental do alvo
+	 * (Fire, Water, Wind, Earth, Holy, Dark - ex: Surrender to Fire/Water/Wind, Song of Flame/Storm/Invocation,
+	 * Dance of Aqua/Earth/Light/Alignment, Elemental/Divine Protection).
+	 */
+	public static double calcElementalModifier(PlayerCharacter attacker, PlayerCharacter targetPlayer, NpcInstance targetNpc) {
+		double mod = 1.0;
+		if (attacker != null) {
+			double elemPwr = 0.0;
+			elemPwr += Math.max(0.0, PlayerStats.applyStat(attacker, "firePower", 0.0));
+			elemPwr += Math.max(0.0, PlayerStats.applyStat(attacker, "waterPower", 0.0));
+			elemPwr += Math.max(0.0, PlayerStats.applyStat(attacker, "windPower", 0.0));
+			elemPwr += Math.max(0.0, PlayerStats.applyStat(attacker, "earthPower", 0.0));
+			elemPwr += Math.max(0.0, PlayerStats.applyStat(attacker, "holyPower", 0.0));
+			elemPwr += Math.max(0.0, PlayerStats.applyStat(attacker, "darkPower", 0.0));
+			if (elemPwr > 0) {
+				mod *= (1.0 + Math.min(0.50, elemPwr / 100.0));
+			}
+		}
+		if (targetPlayer != null) {
+			double fireV = PlayerStats.applyStat(targetPlayer, "fireVuln", 1.0);
+			double waterV = PlayerStats.applyStat(targetPlayer, "waterVuln", 1.0);
+			double windV = PlayerStats.applyStat(targetPlayer, "windVuln", 1.0);
+			double earthV = PlayerStats.applyStat(targetPlayer, "earthVuln", 1.0);
+			double holyV = PlayerStats.applyStat(targetPlayer, "holyVuln", 1.0);
+			double darkV = PlayerStats.applyStat(targetPlayer, "darkVuln", 1.0);
+			double vulnFactor = fireV * waterV * windV * earthV * holyV * darkV;
+			mod *= Math.max(0.20, Math.min(2.0, vulnFactor));
+		}
+		return mod;
+	}
+
+	/**
+	 * Aplica todas as vulnerabilidades de debuff do alvo (debuffVuln + vulnerabilidade especifica do efeito,
+	 * como stunVuln, sleepVuln, rootVuln, paralyzeVuln, derangementVuln, confusionVuln, poisonVuln, bleedVuln).
+	 */
+	public static double calcDebuffVulnerability(PlayerCharacter target, String effectOrSkillType) {
+		if (target == null) {
+			return 1.0;
+		}
+		double vuln = PlayerStats.applyStat(target, "debuffVuln", 1.0);
+		if (effectOrSkillType != null && !effectOrSkillType.isBlank()) {
+			String k = effectOrSkillType.trim().toLowerCase(java.util.Locale.ROOT);
+			String specificStat = switch (k) {
+				case "stun" -> "stunVuln";
+				case "sleep" -> "sleepVuln";
+				case "root" -> "rootVuln";
+				case "paralyze", "petrification", "medusa" -> "paralyzeVuln";
+				case "mute", "silence", "physicalmute", "silencemagicphysical", "fear", "betray", "derangement" -> "derangementVuln";
+				case "confusion", "confuse", "confuse_mob_only", "switch", "aggdebuff", "aggdamage", "aggremove", "aggreduce" -> "confusionVuln";
+				case "poison" -> "poisonVuln";
+				case "bleed" -> "bleedVuln";
+				case "cancel", "warrior_bane", "mage_bane", "steal_buff" -> "cancelVuln";
+				default -> null;
+			};
+			if (specificStat != null) {
+				vuln *= PlayerStats.applyStat(target, specificStat, 1.0);
+			}
+		}
+		return Math.max(0.0, Math.min(2.0, vuln));
+	}
+
+	/**
+	 * Calcula a chance efetiva de um golpe crítico mágico (baseada em WIT + buffs como Wild Magic, Siren's Dance,
+	 * Prophecy of Water, Magnus' Chant).
+	 */
+	public static int calcMagicCritRate(PlayerCharacter attacker, CharTemplate template) {
+		int wit = template != null ? template.wit() : 20;
+		if (attacker != null && template != null) {
+			wit = PlayerStats.calculate(attacker, template).wit();
+		}
+		double baseMCrit = Math.max(10.0, wit * 1.5);
+		double applied = attacker != null ? PlayerStats.applyStat(attacker, "mCritRate", baseMCrit) : baseMCrit;
+		int mCritCap = Config.getInt("AltMCriticalCap", 320);
+		return (int) Math.min(mCritCap, Math.max(1, Math.round(applied)));
+	}
+
+	public static boolean isUsingBowWeapon(PlayerCharacter player) {
+		if (player == null || player.inventory() == null) {
+			return false;
+		}
+		var w = player.inventory().paperdoll(com.lopez.l2j.game.item.ItemSlots.RHAND);
+		if (w == null) {
+			w = player.inventory().paperdoll(com.lopez.l2j.game.item.ItemSlots.LRHAND);
+		}
+		return w != null && w.template() != null && "bow".equalsIgnoreCase(w.template().subType());
 	}
 
 	public static double getEffectiveNpcPDef(NpcInstance target) {
@@ -379,12 +552,18 @@ public class CombatService {
 			return new HitPlan(0, 0x80, true, false);
 		}
 
-		int critRate = atkStats.critical();
+		int shldDef = calcShieldDefense(target, targetTemplate, isUsingBowWeapon(attacker));
+		if (shldDef == Integer.MAX_VALUE) {
+			return new HitPlan(1, soulshot ? (0x10 | soulshotGrade) : 0, false, false);
+		} else if (shldDef > 0) {
+			pDef += shldDef;
+		}
+		int critRate = (int) Math.round(PlayerStats.applyStat(attacker, target, "rCrit", atkStats.critical()));
 		boolean crit = ThreadLocalRandom.current().nextInt(1000) < Math.max(40, critRate);
 		double baseDam = (pAtk * 70.0) / pDef;
 		if (crit) {
-			double cAtk = PlayerStats.applyStat(attacker, "cAtk", 1.0);
-			double cAtkAdd = PlayerStats.applyStat(attacker, "cAtkAdd", 0.0);
+			double cAtk = PlayerStats.applyStat(attacker, target, "cAtk", 1.0);
+			double cAtkAdd = PlayerStats.applyStat(attacker, target, "cAtkAdd", 0.0);
 			baseDam = (baseDam * 2.0 * cAtk) + cAtkAdd;
 		}
 		if (Config.ALT_GAME_TIREDNESS && attacker != null && attacker.maxCp() > 0) {
@@ -394,7 +573,9 @@ public class CombatService {
 		double rnd = calcRndMultiplier(attacker);
 		double bowMult = calcBowDistanceMultiplier(attacker, target.x(), target.y());
 		double pvpPhysDmg = PlayerStats.applyStat(attacker, "pvpPhysDmg", 1.0);
-		double finalDam = baseDam * rnd * bowMult * pvpPhysDmg;
+		double wpnVuln = calcWeaponVulnerability(attacker, target);
+		double elemMod = calcElementalModifier(attacker, target, null);
+		double finalDam = baseDam * rnd * bowMult * pvpPhysDmg * wpnVuln * elemMod;
 		if (attacker != null && target != null && attacker.isOlympiadMode() && target.isOlympiadMode() && olyDamageManager != null) {
 			finalDam *= olyDamageManager.getDamageMultiplier(attacker, target);
 		}
@@ -448,7 +629,7 @@ public class CombatService {
 		var stats = PlayerStats.calculate(attacker, template);
 		double pAtk = stats.pAtk() * (soulshot ? 2.0 : 1.0);
 		double pDef = getEffectiveNpcPDef(target);
-		double dmg = (pAtk + power) * 70.0 / pDef;
+		double dmg = (pAtk + power) * 70.0 * calcNpcTypeAtkBonus(attacker, target) * calcElementalModifier(attacker, null, target) / pDef;
 		if (chargeDam) {
 			dmg *= (0.8 + 0.201 * attacker.charges());
 		}
@@ -504,9 +685,8 @@ public class CombatService {
 			mAtk *= 2.0;
 		}
 		double mDef = getEffectiveNpcMDef(target);
-		double dmg = 91.0 * Math.sqrt(mAtk) * power / mDef;
-		int mCritCap = Config.getInt("AltMCriticalCap", 200);
-		int mCritRate = (int) Math.min(mCritCap, Math.max(10, Math.round(template.wit() * 1.5)));
+		double dmg = (91.0 * Math.sqrt(mAtk) * power / mDef) * calcElementalModifier(attacker, null, target);
+		int mCritRate = calcMagicCritRate(attacker, template);
 		boolean crit = ThreadLocalRandom.current().nextInt(1000) < mCritRate;
 		if (crit) {
 			dmg *= Config.M_CRIT_RATE > 0 ? (double) Config.M_CRIT_RATE : 3.0;
@@ -665,8 +845,18 @@ public class CombatService {
 			return new HitPlan(0, 0x80, true, false);
 		}
 
+		boolean isBowNpc = attackRange >= 300;
+		int shldDef = calcShieldDefense(target, targetTemplate, isBowNpc);
+		if (shldDef == Integer.MAX_VALUE) {
+			return new HitPlan(1, 0, false, false);
+		} else if (shldDef > 0) {
+			pDef += shldDef;
+		}
 		boolean crit = ThreadLocalRandom.current().nextInt(1000) < 40;
 		double baseDam = (pAtk * 70.0) / pDef;
+		if (isBowNpc) {
+			baseDam *= PlayerStats.applyStat(target, "bowWpnVuln", 1.0);
+		}
 		if (crit) {
 			baseDam *= 2.0;
 		}
@@ -750,7 +940,7 @@ public class CombatService {
 			double mAtk = Math.max(1, attacker.mAtk());
 			double mDef = Math.max(1, targetStats.mDef());
 			double pwr = power;
-			baseDam = 91.0 * Math.sqrt(mAtk) * pwr / mDef;
+			baseDam = (91.0 * Math.sqrt(mAtk) * pwr / mDef) * calcElementalModifier(null, target, attacker);
 
 			boolean crit = ThreadLocalRandom.current().nextInt(1000) < 50;
 			if (crit) {
@@ -767,6 +957,12 @@ public class CombatService {
 			}
 		} else {
 			double pDef = Math.max(1, targetStats.pDef());
+			int shldDef = calcShieldDefense(target, targetTemplate, false);
+			if (shldDef == Integer.MAX_VALUE) {
+				return applyDamageToPlayer(attacker, target, 1, 0);
+			} else if (shldDef > 0) {
+				pDef += shldDef;
+			}
 			double pAtk = attacker.pAtk();
 			baseDam = ((pAtk + power) * 70.0) / pDef;
 
@@ -804,7 +1000,13 @@ public class CombatService {
 		var targetStats = PlayerStats.calculate(target, targetTemplate);
 		double pAtk = attackerStats.pAtk() * (soulshot ? 2.0 : 1.0);
 		double pDef = Math.max(1, targetStats.pDef());
-		double dmg = (pAtk + power) * 70.0 / pDef;
+		int shldDef = calcShieldDefense(target, targetTemplate, isUsingBowWeapon(attacker));
+		if (shldDef == Integer.MAX_VALUE) {
+			return 1;
+		} else if (shldDef > 0) {
+			pDef += shldDef;
+		}
+		double dmg = ((pAtk + power) * 70.0 / pDef) * calcWeaponVulnerability(attacker, target) * calcElementalModifier(attacker, target, null);
 		if (chargeDam) {
 			dmg *= (0.8 + 0.201 * attacker.charges());
 		}
@@ -851,10 +1053,11 @@ public class CombatService {
 			mAtk *= 2.0;
 		}
 		double mDef = Math.max(1, targetStats.mDef());
-		double dmg = 91.0 * Math.sqrt(mAtk) * power / mDef;
-		boolean crit = ThreadLocalRandom.current().nextInt(100) < 5;
+		double dmg = (91.0 * Math.sqrt(mAtk) * power / mDef) * calcElementalModifier(attacker, target, null);
+		int mCritRate = calcMagicCritRate(attacker, attackerTemplate);
+		boolean crit = ThreadLocalRandom.current().nextInt(1000) < mCritRate;
 		if (crit) {
-			dmg *= 3.0;
+			dmg *= Config.M_CRIT_RATE > 0 ? (double) Config.M_CRIT_RATE : 3.0;
 		}
 		double pvpMagicalDmg = PlayerStats.applyStat(attacker, "pvpMagicalDmg", 1.0);
 		dmg *= pvpMagicalDmg;
@@ -1010,7 +1213,16 @@ public class CombatService {
 
 	public boolean debuffLandsPlayer(double basePower, int magicLevel, int attackerLevel, PlayerCharacter target,
 			boolean sps, boolean bss) {
-		double chance = basePower > 0 ? basePower : 50;
+		return debuffLandsPlayer(basePower, magicLevel, attackerLevel, target, sps, bss, null);
+	}
+
+	public boolean debuffLandsPlayer(double basePower, int magicLevel, int attackerLevel, PlayerCharacter target,
+			boolean sps, boolean bss, String effectOrSkillType) {
+		double vuln = calcDebuffVulnerability(target, effectOrSkillType);
+		if (vuln <= 0.0) {
+			return false;
+		}
+		double chance = (basePower > 0 ? basePower : 50) * vuln;
 		int lvl = Config.USE_LEVEL_PENALTY
 				? (magicLevel > 0 ? Math.min(magicLevel, attackerLevel) : attackerLevel)
 				: (magicLevel > 0 ? magicLevel : attackerLevel);

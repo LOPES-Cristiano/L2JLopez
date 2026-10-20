@@ -1040,12 +1040,12 @@ public class ItemPacketHandler {
 		boolean cureBleed = c.itemId() == 1833 || c.itemId() == 1834 || c.itemId() == 3889;
 		if (curePoison) {
 			active.effects().removeDebuffsByStackOrName("poison");
-			active.stopAbnormalEffect(0x0001);
+			active.stopAbnormalEffect(0x0002);
 			cancelDotTasks("poison");
 		}
 		if (cureBleed) {
 			active.effects().removeDebuffsByStackOrName("bleed");
-			active.stopAbnormalEffect(0x0002);
+			active.stopAbnormalEffect(0x0001);
 			cancelDotTasks("bleed");
 		}
 		session.sendMagicEffectIcons();

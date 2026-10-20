@@ -73,8 +73,7 @@ public final class PlayerCombatHandler {
 				npc.spoilRewards(spoilDrops);
 				hasSweep = true;
 			} else {
-				npc.spoilRewards(null);
-				npc.spoiled(false);
+				npc.spoilRewards(java.util.List.of());
 			}
 		}
 
