@@ -21,6 +21,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
@@ -226,7 +227,7 @@ class AutoFarmServiceTest {
     }
 
     @Test
-    void testLiveFarmTickAutoAttacksAndAutoSweepsSpoiledCorpses() {
+    void testLiveFarmTickAutoAttacksAndOnlySweepsWhenConfiguredInSkills() {
         SkillTable skillTable = mock(SkillTable.class);
         SkillTemplate festiveSweeper = new SkillTemplate(
                 444, 1, "Festive Sweeper", SkillTemplate.OperateType.ACTIVE, "SWEEP", "TARGET_AREA_CORPSE_MOB",
@@ -269,12 +270,17 @@ class AutoFarmServiceTest {
         verify(session, times(1)).selectNpcTarget(aliveMob);
         verify(session, times(1)).startAutoAttack(aliveMob);
 
-        // 2. Monstro morre com Spoil ativo -> AutoFarm usa Festive Sweeper (444) automaticamente
+        // 2. Monstro morre com Spoil ativo: se o usuario NAO adicionou o Sweeper nas skills do AutoFarm, NAO deve usar automaticamente
         aliveMob.spoiled(true);
         aliveMob.spoilerPlayerId(dwarf.objectId());
         aliveMob.dead(true);
         aliveMob.spoilRewards(List.of(new com.lopez.l2j.game.drop.DropReward(57, 100, true, true)));
 
+        ReflectionTestUtils.invokeMethod(service, "executeLiveFarmTick", session, dwarf, state);
+        verify(session, never()).castSkill(eq(festiveSweeper), anyBoolean());
+
+        // 3. Quando o usuario adiciona o Festive Sweeper (444) na aba de skills do AutoFarm, ele coleta o Spoil
+        state.getChanceSpells().add(444);
         ReflectionTestUtils.invokeMethod(service, "executeLiveFarmTick", session, dwarf, state);
         verify(session, times(1)).castSkill(eq(festiveSweeper), eq(true));
     }

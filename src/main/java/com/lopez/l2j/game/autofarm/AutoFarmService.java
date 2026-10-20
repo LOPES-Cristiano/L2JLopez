@@ -441,13 +441,7 @@ public class AutoFarmService {
             state.setKeepLocation(true, player.x(), player.y(), player.z());
         }
 
-        if (state.getAttackSpells().isEmpty() && state.getChanceSpells().isEmpty()
-                && state.getSelfSpells().isEmpty() && state.getLowLifeSpells().isEmpty()) {
-            refreshSkillsFromShortcutBar(player, state);
-        }
-
         state.setEnabled(true);
-        activeFarmStates.put(player.objectId(), state);
 
         applyVisualEffects(player, session, true);
         sendMessage(session, "AutoFarm ativado!");
@@ -1218,8 +1212,8 @@ public class AutoFarmService {
             return false;
         }
         int id = sk.id();
-        // Ignora skills de recall, fake death, summon/mount basico, fishing, strider (Sweep 42 e 444 sao tratados automaticamente pelo AutoSweep)
-        if (id == 42 || id == 444 || id == 60 || id == 821 || id == 889 || id == 890 || id == 911 || id == 1050 || id == 1255 || id == 1262 || id == 1324 || id == 1374) {
+        // Ignora skills de recall, fake death, summon/mount basico, fishing, strider
+        if (id == 60 || id == 821 || id == 889 || id == 890 || id == 911 || id == 1050 || id == 1255 || id == 1262 || id == 1324 || id == 1374) {
             return false;
         }
         String st = sk.skillType() != null ? sk.skillType().toUpperCase(Locale.ROOT) : "";
@@ -1769,11 +1763,16 @@ public class AutoFarmService {
     }
 
     private boolean tryAutoSweep(GameSession session, PlayerCharacter player, AutoFarmState state, List<NpcInstance> sweepableCorpses) {
-        if (session == null || player == null || sweepableCorpses == null || sweepableCorpses.isEmpty()) {
+        if (session == null || player == null || state == null || sweepableCorpses == null || sweepableCorpses.isEmpty()) {
             return false;
         }
-        SkillTemplate festiveSweeper = getReadySkill(player, 444, session);
-        SkillTemplate singleSweeper = getReadySkill(player, 42, session);
+        boolean configured444 = isSkillConfiguredInAutoFarm(state, 444);
+        boolean configured42 = isSkillConfiguredInAutoFarm(state, 42);
+        if (!configured444 && !configured42) {
+            return false;
+        }
+        SkillTemplate festiveSweeper = configured444 ? getReadySkill(player, 444, session) : null;
+        SkillTemplate singleSweeper = configured42 ? getReadySkill(player, 42, session) : null;
         if (festiveSweeper == null && singleSweeper == null) {
             return false;
         }
@@ -1798,6 +1797,17 @@ public class AutoFarmService {
         session.selectNpcTarget(closestCorpse);
         session.castSkill(chosenSweep, true);
         return true;
+    }
+
+    private boolean isSkillConfiguredInAutoFarm(AutoFarmState state, int skillId) {
+        if (state == null || skillId <= 0) {
+            return false;
+        }
+        return state.getChanceSpells().contains(skillId)
+                || state.getAttackSpells().contains(skillId)
+                || state.getSelfSpells().contains(skillId)
+                || state.getLowLifeSpells().contains(skillId)
+                || state.getSelectedSkillId() == skillId;
     }
 
     private boolean canSweepCorpse(GameSession session, PlayerCharacter player, NpcInstance corpse) {
