@@ -181,7 +181,7 @@ public class CommunityBoardService {
 
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body><br>");
-        sb.append("<table width=750 border=0 cellpadding=2 cellspacing=2>");
+        sb.append("<table width=610 border=0 cellpadding=2 cellspacing=2>");
         sb.append(
                 "<tr><td align=center><font color=\"LEVEL\" size=4><b>=== PAINEL DA COMUNIDADE (ALT + B) ===</b></font></td></tr>");
         sb.append(
@@ -192,9 +192,9 @@ public class CommunityBoardService {
         sb.append(renderNavigationBar());
 
         // Estatisticas do Servidor & Jogador
-        sb.append("<table width=750 bgcolor=111111 border=1 cellpadding=4 cellspacing=0>");
+        sb.append("<table width=610 bgcolor=111111 border=1 cellpadding=4 cellspacing=0>");
         sb.append("<tr>");
-        sb.append("<td width=375><font color=\"8FA888\"><b>Status do Jogador:</b></font><br>");
+        sb.append("<td width=305><font color=\"8FA888\"><b>Status do Jogador:</b></font><br>");
         sb.append("Nome: <font color=\"FFFFFF\">").append(player.name()).append("</font><br>");
         sb.append("Nivel: <font color=\"FFFFFF\">").append(player.level()).append("</font><br>");
         sb.append("PvP / PK: <font color=\"8FA8BE\">").append(player.pvpKills())
@@ -202,21 +202,21 @@ public class CommunityBoardService {
         sb.append("Karma: <font color=\"").append(player.karma() > 0 ? "B86B6B" : "8FA888").append("\">")
                 .append(player.karma()).append("</font>");
         sb.append("</td>");
-        sb.append("<td width=375><font color=\"8FA888\"><b>Status do Servidor:</b></font><br>");
+        sb.append("<td width=305><font color=\"8FA888\"><b>Status do Servidor:</b></font><br>");
         String onlineDisplay = Config.ONLINE_COMMUNITY_BOARD ? String.valueOf(onlineCount) : "N/A";
         sb.append("Jogadores Online: <font color=\"D4C49A\">").append(onlineDisplay).append("</font><br>");
         sb.append("Taxas: <font color=\"FFFFFF\">XP: 1x | SP: 1x | Adena: 1x | Drop: 1x</font><br>");
-        sb.append("Plataforma: <font color=\"8FA888\">Java 21 / Spring Boot 3.5 High-Performance</font>");
+        sb.append("Plataforma: <font color=\"8FA888\">Java 21 / Spring Boot 3.5</font>");
         sb.append("</td>");
         sb.append("</tr></table><br>");
 
         // Tabela Rapida Top 5 PvP e PK
-        sb.append("<table width=750 border=0 cellpadding=2 cellspacing=2>");
+        sb.append("<table width=610 border=0 cellpadding=2 cellspacing=2>");
         sb.append("<tr>");
-        sb.append("<td width=375 valign=top>");
+        sb.append("<td width=305 valign=top>");
         sb.append("<font color=\"LEVEL\"><b>Top 5 Guerreiros PvP:</b></font><br>");
-        sb.append("<table width=360 bgcolor=222222 border=1 cellpadding=2 cellspacing=0>");
-        sb.append("<tr><th width=40>#</th><th width=220>Nome</th><th width=100>PvPs</th></tr>");
+        sb.append("<table width=295 bgcolor=222222 border=1 cellpadding=2 cellspacing=0>");
+        sb.append("<tr><th width=35>#</th><th width=180>Nome</th><th width=80>PvPs</th></tr>");
         if (topPvp.isEmpty()) {
             sb.append("<tr><td colspan=3 align=center>Nenhum PvP registrado</td></tr>");
         } else {
@@ -229,10 +229,10 @@ public class CommunityBoardService {
         }
         sb.append("</table></td>");
 
-        sb.append("<td width=375 valign=top>");
+        sb.append("<td width=305 valign=top>");
         sb.append("<font color=\"B86B6B\"><b>Top 5 Assassinos PK:</b></font><br>");
-        sb.append("<table width=360 bgcolor=222222 border=1 cellpadding=2 cellspacing=0>");
-        sb.append("<tr><th width=40>#</th><th width=220>Nome</th><th width=100>PKs</th></tr>");
+        sb.append("<table width=295 bgcolor=222222 border=1 cellpadding=2 cellspacing=0>");
+        sb.append("<tr><th width=35>#</th><th width=180>Nome</th><th width=80>PKs</th></tr>");
         if (topPk.isEmpty()) {
             sb.append("<tr><td colspan=3 align=center>Nenhum PK registrado</td></tr>");
         } else {
@@ -275,18 +275,18 @@ public class CommunityBoardService {
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body><br>");
         sb.append(renderNavigationBar());
-        sb.append("<table width=750 border=0 cellpadding=2 cellspacing=2>");
+        sb.append("<table width=610 border=0 cellpadding=2 cellspacing=2>");
         sb.append("<tr><td align=center><font color=\"LEVEL\" size=3><b>RANKINGS DO SERVIDOR</b></font></td></tr>");
         sb.append("</table><br>");
 
-        sb.append("<table width=750 border=0 cellpadding=4 cellspacing=4>");
+        sb.append("<table width=610 border=0 cellpadding=4 cellspacing=4>");
         sb.append("<tr>");
 
         // Top 10 PvP
-        sb.append("<td width=375 valign=top>");
-        sb.append("<table width=365 bgcolor=151515 border=1 cellpadding=2 cellspacing=0>");
+        sb.append("<td width=305 valign=top>");
+        sb.append("<table width=295 bgcolor=151515 border=1 cellpadding=2 cellspacing=0>");
         sb.append("<tr><th colspan=4 bgcolor=333333><font color=\"8FA888\">TOP 10 PVP</font></th></tr>");
-        sb.append("<tr><th width=35>#</th><th width=170>Nome</th><th width=70>Nivel</th><th width=90>PvPs</th></tr>");
+        sb.append("<tr><th width=30>#</th><th width=145>Nome</th><th width=55>Nivel</th><th width=65>PvPs</th></tr>");
         int rank = 1;
         for (PlayerCharacter p : topPvp) {
             if (!Config.SHOW_KARMA_PLAYERS && p.karma() > 0) continue;
@@ -302,10 +302,10 @@ public class CommunityBoardService {
         sb.append("</table></td>");
 
         // Top 10 PK
-        sb.append("<td width=375 valign=top>");
-        sb.append("<table width=365 bgcolor=151515 border=1 cellpadding=2 cellspacing=0>");
+        sb.append("<td width=305 valign=top>");
+        sb.append("<table width=295 bgcolor=151515 border=1 cellpadding=2 cellspacing=0>");
         sb.append("<tr><th colspan=4 bgcolor=333333><font color=\"B86B6B\">TOP 10 PK</font></th></tr>");
-        sb.append("<tr><th width=35>#</th><th width=170>Nome</th><th width=70>Nivel</th><th width=90>PKs</th></tr>");
+        sb.append("<tr><th width=30>#</th><th width=145>Nome</th><th width=55>Nivel</th><th width=65>PKs</th></tr>");
         rank = 1;
         for (PlayerCharacter p : topPk) {
             if (!Config.SHOW_KARMA_PLAYERS && p.karma() > 0) continue;
@@ -323,9 +323,9 @@ public class CommunityBoardService {
         sb.append("</tr></table><br>");
 
         // Top Clans
-        sb.append("<table width=750 bgcolor=151515 border=1 cellpadding=2 cellspacing=0 align=center>");
+        sb.append("<table width=610 bgcolor=151515 border=1 cellpadding=2 cellspacing=0 align=center>");
         sb.append("<tr><th colspan=4 bgcolor=333333><font color=\"LEVEL\">TOP CLANS DO REINO</font></th></tr>");
-        sb.append("<tr><th width=50>#</th><th width=350>Nome do Clan</th><th width=150>Nivel</th><th width=200>Reputacao</th></tr>");
+        sb.append("<tr><th width=45>#</th><th width=285>Nome do Clan</th><th width=120>Nivel</th><th width=160>Reputacao</th></tr>");
         if (topClans.isEmpty()) {
             sb.append("<tr><td colspan=4 align=center>Nenhum Clan registrado</td></tr>");
         } else {
@@ -353,36 +353,36 @@ public class CommunityBoardService {
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body><br>");
         sb.append(renderNavigationBar());
-        sb.append("<table width=750 border=0 cellpadding=2 cellspacing=2>");
+        sb.append("<table width=610 border=0 cellpadding=2 cellspacing=2>");
         sb.append(
                 "<tr><td align=center><font color=\"LEVEL\" size=3><b>PORTAL DE TELEPORTE RAPIDO</b></font></td></tr>");
         sb.append(
                 "<tr><td align=center><font color=\"AAAAAA\">Teleporte direto e instantaneo para todas as capitais do reino.</font></td></tr>");
         sb.append("</table><br>");
 
-        sb.append("<table width=750 border=0 cellpadding=4 cellspacing=4 align=center>");
+        sb.append("<table width=610 border=0 cellpadding=4 cellspacing=4 align=center>");
         sb.append("<tr>");
         sb.append(
-                "<td align=center><button value=\"Town of Giran\" action=\"bypass _bbsteleport_to 1\" width=160 height=25 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                "<td align=center><button value=\"Town of Giran\" action=\"bypass _bbsteleport_to 1\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
         sb.append(
-                "<td align=center><button value=\"Town of Aden\" action=\"bypass _bbsteleport_to 2\" width=160 height=25 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                "<td align=center><button value=\"Town of Aden\" action=\"bypass _bbsteleport_to 2\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
         sb.append(
-                "<td align=center><button value=\"Town of Goddard\" action=\"bypass _bbsteleport_to 3\" width=160 height=25 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                "<td align=center><button value=\"Town of Goddard\" action=\"bypass _bbsteleport_to 3\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
         sb.append(
-                "<td align=center><button value=\"Rune Township\" action=\"bypass _bbsteleport_to 4\" width=160 height=25 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                "<td align=center><button value=\"Rune Township\" action=\"bypass _bbsteleport_to 4\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
         sb.append("</tr><tr>");
         sb.append(
-                "<td align=center><button value=\"Town of Dion\" action=\"bypass _bbsteleport_to 5\" width=160 height=25 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                "<td align=center><button value=\"Town of Dion\" action=\"bypass _bbsteleport_to 5\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
         sb.append(
-                "<td align=center><button value=\"Town of Gludio\" action=\"bypass _bbsteleport_to 6\" width=160 height=25 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                "<td align=center><button value=\"Town of Gludio\" action=\"bypass _bbsteleport_to 6\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
         sb.append(
-                "<td align=center><button value=\"Town of Heine\" action=\"bypass _bbsteleport_to 7\" width=160 height=25 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                "<td align=center><button value=\"Town of Heine\" action=\"bypass _bbsteleport_to 7\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
         sb.append(
-                "<td align=center><button value=\"Hunters Village\" action=\"bypass _bbsteleport_to 8\" width=160 height=25 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                "<td align=center><button value=\"Hunters Village\" action=\"bypass _bbsteleport_to 8\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
         sb.append("</tr></table><br>");
 
         // Favoritos Pessoais (Bookmarks - ate 10 slots)
-        sb.append("<table width=750 border=0 cellpadding=2 cellspacing=2>");
+        sb.append("<table width=610 border=0 cellpadding=2 cellspacing=2>");
         sb.append("<tr><td align=center><font color=\"LEVEL\"><b>MEUS TELEPORTES FAVORITOS (MAX 10)</b></font></td></tr>");
         sb.append("<tr><td align=center><font color=\"AAAAAA\">Salve coordenadas personalizadas no mundo aberto (proibido em zonas de Boss/Siege/Olympiad).</font></td></tr>");
         sb.append("</table>");
@@ -397,11 +397,11 @@ public class CommunityBoardService {
                 String[] parts = fav.split(";");
                 String name = parts[0];
                 sb.append("<td><font color=\"8FA888\"><b>").append(name).append("</b></font></td>");
-                sb.append("<td align=center><button value=\"Teleportar\" action=\"bypass _bbsteleport_fav ").append(slot).append("\" width=75 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"> ");
-                sb.append("<button value=\"Excluir\" action=\"bypass _bbsteleport_del ").append(slot).append("\" width=60 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+                sb.append("<td align=center><button value=\"Teleportar\" action=\"bypass _bbsteleport_fav ").append(slot).append("\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"> ");
+                sb.append("<button value=\"Excluir\" action=\"bypass _bbsteleport_del ").append(slot).append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
             } else {
                 sb.append("<td><font color=\"666666\">[Vazio]</font></td>");
-                sb.append("<td align=center><button value=\"Salvar Atual\" action=\"bypass _bbsteleport_save ").append(slot).append("\" width=90 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+                sb.append("<td align=center><button value=\"Salvar Atual\" action=\"bypass _bbsteleport_save ").append(slot).append("\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td>");
             }
             sb.append("</tr>");
         }
@@ -633,25 +633,25 @@ public class CommunityBoardService {
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body><br>");
         sb.append(renderNavigationBar());
-        sb.append("<table width=750 border=0 cellpadding=2 cellspacing=2>");
+        sb.append("<table width=610 border=0 cellpadding=2 cellspacing=2>");
         sb.append("<tr><td align=center><font color=\"LEVEL\" size=3><b>GABINETE PESSOAL DO JOGADOR</b></font></td></tr>");
         sb.append("<tr><td align=center><font color=\"AAAAAA\">Gerenciamento de conta, seguranca e destravamento de personagens (Repair).</font></td></tr>");
         sb.append("</table><br>");
 
-        sb.append("<table width=750 bgcolor=151515 border=1 cellpadding=6 cellspacing=0>");
-        sb.append("<tr><td width=375 valign=top>");
+        sb.append("<table width=610 bgcolor=151515 border=1 cellpadding=6 cellspacing=0>");
+        sb.append("<tr><td width=305 valign=top>");
         sb.append("<font color=\"8FA888\"><b>Informacoes da Conta:</b></font><br>");
         sb.append("Conta: <font color=\"FFFFFF\">").append(player.accountName() != null ? player.accountName() : "N/A").append("</font><br>");
         sb.append("Personagem Ativo: <font color=\"FFFFFF\">").append(player.name()).append("</font><br>");
         sb.append("Posicao Atual: <font color=\"AAAAAA\">").append(player.x()).append(", ").append(player.y()).append(", ").append(player.z()).append("</font><br><br>");
-        sb.append("<button value=\"Painel de Reparo (.repair)\" action=\"bypass _bbsrepair\" width=180 height=25 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\">");
+        sb.append("<button value=\"Painel de Reparo (.repair)\" action=\"bypass _bbsrepair\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\">");
         sb.append("</td>");
 
-        sb.append("<td width=375 valign=top>");
+        sb.append("<td width=305 valign=top>");
         sb.append("<font color=\"LEVEL\"><b>Alteracao de Senha da Conta:</b></font><br>");
         sb.append("Senha Atual:<br><edit var=\"oldpass\" width=160 height=15><br>");
         sb.append("Nova Senha:<br><edit var=\"newpass\" width=160 height=15><br>");
-        sb.append("<button value=\"Alterar Senha\" action=\"bypass _bbsservice;passchange; $oldpass ; $newpass\" width=150 height=22 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
+        sb.append("<button value=\"Alterar Senha\" action=\"bypass _bbsservice;passchange; $oldpass ; $newpass\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\">");
         sb.append("</td></tr></table>");
 
         sb.append("</body></html>");
@@ -665,7 +665,7 @@ public class CommunityBoardService {
         String[] parts = args.split(";");
         if (parts.length < 2 || parts[0].trim().isEmpty() || parts[1].trim().isEmpty() || parts[1].trim().length() < 4) {
             return "<html><body><br><center><font color=\"B86B6B\">Informe a senha atual e uma nova senha valida (minimo 4 caracteres)!</font><br><br>"
-                    + "<button value=\"Voltar\" action=\"bypass _bbsservice\" width=120 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></center></body></html>";
+                    + "<button value=\"Voltar\" action=\"bypass _bbsservice\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></center></body></html>";
         }
         String oldPass = parts[0].trim();
         String newPass = parts[1].trim();
@@ -673,12 +673,12 @@ public class CommunityBoardService {
         String existing = accountPasswordHashes.get(acc);
         if (existing != null && !existing.equals(oldPass)) {
             return "<html><body><br><center><font color=\"B86B6B\">A senha atual informada esta incorreta!</font><br><br>"
-                    + "<button value=\"Voltar\" action=\"bypass _bbsservice\" width=120 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></center></body></html>";
+                    + "<button value=\"Voltar\" action=\"bypass _bbsservice\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></center></body></html>";
         }
         accountPasswordHashes.put(acc, newPass);
         log.info("Conta {} alterou a senha via Gabinete BBS (_bbsservice)", acc);
         return "<html><body><br><center><font color=\"8FA888\">Senha da conta alterada com sucesso!</font><br><br>"
-                + "<button value=\"Voltar\" action=\"bypass _bbsservice\" width=120 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></center></body></html>";
+                + "<button value=\"Voltar\" action=\"bypass _bbsservice\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></center></body></html>";
     }
 
     /**
@@ -691,20 +691,20 @@ public class CommunityBoardService {
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body><br>");
         sb.append(renderNavigationBar());
-        sb.append("<table width=750 border=0 cellpadding=2 cellspacing=2>");
+        sb.append("<table width=610 border=0 cellpadding=2 cellspacing=2>");
         sb.append("<tr><td align=center><font color=\"LEVEL\" size=3><b>BUFFER COMUNITÁRIO</b></font></td></tr>");
         sb.append(
                 "<tr><td align=center><font color=\"AAAAAA\">Selecione o esquema de buffs desejado ou recupere totalmente seu HP/MP/CP.</font></td></tr>");
         sb.append("</table><br>");
 
-        sb.append("<table width=750 border=0 cellpadding=6 cellspacing=6 align=center>");
+        sb.append("<table width=610 border=0 cellpadding=6 cellspacing=6 align=center>");
         sb.append("<tr>");
         sb.append(
-                "<td align=center><button value=\"Esquema Guerreiro (Fighter)\" action=\"bypass _bbsbuff_fighter\" width=220 height=30 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                "<td align=center><button value=\"Esquema Guerreiro\" action=\"bypass _bbsbuff_fighter\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
         sb.append(
-                "<td align=center><button value=\"Esquema Mago (Mage)\" action=\"bypass _bbsbuff_mage\" width=220 height=30 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                "<td align=center><button value=\"Esquema Mago\" action=\"bypass _bbsbuff_mage\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
         sb.append(
-                "<td align=center><button value=\"Restaurar HP/MP/CP Total\" action=\"bypass _bbsbuff_heal\" width=220 height=30 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                "<td align=center><button value=\"Restaurar HP/MP/CP\" action=\"bypass _bbsbuff_heal\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
         sb.append("</tr></table>");
 
         sb.append("</body></html>");
@@ -740,12 +740,12 @@ public class CommunityBoardService {
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body><br>");
         sb.append(renderNavigationBar());
-        sb.append("<table width=750 border=0 cellpadding=2 cellspacing=2>");
+        sb.append("<table width=610 border=0 cellpadding=2 cellspacing=2>");
         sb.append(
                 "<tr><td align=center><font color=\"LEVEL\" size=3><b>INFORMAÇÕES E REGRAS DO SERVIDOR</b></font></td></tr>");
         sb.append("</table><br>");
 
-        sb.append("<table width=750 bgcolor=111111 border=1 cellpadding=6 cellspacing=0>");
+        sb.append("<table width=610 bgcolor=111111 border=1 cellpadding=6 cellspacing=0>");
         sb.append("<tr><td>");
         sb.append("<font color=\"8FA888\"><b>Horários e Ciclos do Servidor:</b></font><br>");
         sb.append("- <b>Sieges de Castelo:</b> A cada 14 dias aos sábados e domingos às 18:00.<br>");
@@ -776,31 +776,31 @@ public class CommunityBoardService {
             RepairBBSManager.RepairResult res = repairBBSManager.repairCharacter(player, charName);
             if (res == RepairBBSManager.RepairResult.SUCCESS) {
                 return "<html><body><br><center><font color=\"8FA888\">Personagem " + charName + " reparado com sucesso!</font><br><br>"
-                        + "<button value=\"Voltar\" action=\"bypass _bbsrepair\" width=120 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></center></body></html>";
+                        + "<button value=\"Voltar\" action=\"bypass _bbsrepair\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></center></body></html>";
             } else {
                 return "<html><body><br><center><font color=\"B86B6B\">Falha ao reparar personagem: " + res.name() + "</font><br><br>"
-                        + "<button value=\"Voltar\" action=\"bypass _bbsrepair\" width=120 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></center></body></html>";
+                        + "<button value=\"Voltar\" action=\"bypass _bbsrepair\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></center></body></html>";
             }
         }
         return "<html><body><br><center><font color=\"B86B6B\">Servico de reparo indisponivel.</font></center></body></html>";
     }
 
     private String renderNavigationBar() {
-        return "<table width=750 border=0 cellpadding=2 cellspacing=2 align=center>" +
+        return "<table width=610 border=0 cellpadding=1 cellspacing=1 align=center>" +
                 "<tr>" +
-                "<td align=center><button value=\"Início\" action=\"bypass _bbshome\" width=105 height=22 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+                "<td align=center><button value=\"Início\" action=\"bypass _bbshome\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>"
                 +
-                "<td align=center><button value=\"Rankings\" action=\"bypass _bbstop\" width=105 height=22 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+                "<td align=center><button value=\"Rankings\" action=\"bypass _bbstop\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>"
                 +
-                "<td align=center><button value=\"Teleportes\" action=\"bypass _bbsteleport\" width=105 height=22 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+                "<td align=center><button value=\"Teleportes\" action=\"bypass _bbsteleport\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>"
                 +
-                "<td align=center><button value=\"Buffer\" action=\"bypass _bbsbuffer\" width=105 height=22 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+                "<td align=center><button value=\"Buffer\" action=\"bypass _bbsbuffer\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>"
                 +
-                "<td align=center><button value=\"Gabinete\" action=\"bypass _bbsservice\" width=105 height=22 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+                "<td align=center><button value=\"Gabinete\" action=\"bypass _bbsservice\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>"
                 +
-                "<td align=center><button value=\"Reparar Char\" action=\"bypass _bbsrepair\" width=105 height=22 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+                "<td align=center><button value=\"Reparar Char\" action=\"bypass _bbsrepair\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>"
                 +
-                "<td align=center><button value=\"Informações\" action=\"bypass _bbsinfo\" width=105 height=22 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>"
+                "<td align=center><button value=\"Informações\" action=\"bypass _bbsinfo\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>"
                 +
                 "</tr></table><br>";
     }
@@ -915,7 +915,7 @@ public class CommunityBoardService {
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body><br>");
         sb.append(renderNavigationBar());
-        sb.append("<table width=750 border=0 cellpadding=2 cellspacing=2>");
+        sb.append("<table width=610 border=0 cellpadding=2 cellspacing=2>");
         sb.append("<tr><td align=center><font color=\"LEVEL\" size=3><b>JOGADORES ONLINE NA REGIAO</b></font></td></tr>");
         if (Config.SHOW_STATUS_ON_COMMUNITY_BOARD) {
             sb.append("<tr><td align=center><font color=\"8FA888\">Status do Servidor: ONLINE (").append(onlinePlayers.size()).append(" jogadores visiveis)</font></td></tr>");
@@ -923,7 +923,7 @@ public class CommunityBoardService {
         sb.append("</table><br>");
 
         if (Config.CUSTOM_COMMUNITY_BOARD && Config.SHOW_LEGEND) {
-            sb.append("<table width=750 bgcolor=111111 border=1 cellpadding=3 cellspacing=0><tr><td align=center>");
+            sb.append("<table width=610 bgcolor=111111 border=1 cellpadding=3 cellspacing=0><tr><td align=center>");
             sb.append("Legenda: [GM] Admin | ");
             if (Config.SHOW_CLAN_LEADER) {
                 sb.append("[Lider Cla Nv.").append(Config.SHOW_CLAN_LEADER_AT_CLAN_LEVEL).append("+] | ");
@@ -942,7 +942,7 @@ public class CommunityBoardService {
             defaultColor = "00FF00";
         }
 
-        sb.append("<table width=750 bgcolor=151515 border=1 cellpadding=4 cellspacing=0><tr>");
+        sb.append("<table width=610 bgcolor=151515 border=1 cellpadding=4 cellspacing=0><tr>");
         int col = 0;
         for (PlayerCharacter p : pageList) {
             if (col > 0 && col % perRow == 0) {

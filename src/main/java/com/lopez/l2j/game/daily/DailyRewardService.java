@@ -145,7 +145,7 @@ public class DailyRewardService {
 		sb.append("</table><br>");
 
 		if (canClaim) {
-			sb.append("<button value=\"Resgatar Recompensa\" action=\"bypass -h voiced_daily claim\" width=160 height=26 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>");
+			sb.append("<button value=\"Resgatar Recompensa\" action=\"bypass -h voiced_daily claim\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"><br>");
 		} else {
 			sb.append("<font color=\"AAAAAA\">Volte amanha para o proximo resgate!</font><br>");
 		}

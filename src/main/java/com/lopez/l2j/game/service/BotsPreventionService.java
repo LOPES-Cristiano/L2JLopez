@@ -166,7 +166,7 @@ public class BotsPreventionService {
         for (int opt : challenge.getOptions()) {
             sb.append("<td><button value=\"").append(opt)
               .append("\" action=\"bypass -h antibot_validate ").append(opt)
-              .append("\" width=60 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+              .append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
         }
         sb.append("</tr></table><br>");
         sb.append("<font color=\"B86B6B\">Voce tem ").append(validationTimeoutSeconds).append(" segundos para responder.</font>");

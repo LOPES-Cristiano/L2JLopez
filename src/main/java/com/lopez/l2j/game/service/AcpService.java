@@ -165,10 +165,10 @@ public class AcpService {
 		sb.append("<tr><td><b>Status:</b></td><td align=center>");
 		if (cfg.enabled()) {
 			sb.append("<font color=\"8FA888\"><b>ATIVADO</b></font></td><td>");
-			sb.append("<button value=\"Desativar\" action=\"bypass -h voiced_acp off\" width=65 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
+			sb.append("<button value=\"Desativar\" action=\"bypass -h voiced_acp off\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
 		} else {
 			sb.append("<font color=\"B86B6B\"><b>DESATIVADO</b></font></td><td>");
-			sb.append("<button value=\"Ativar\" action=\"bypass -h voiced_acp on\" width=65 height=20 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
+			sb.append("<button value=\"Ativar\" action=\"bypass -h voiced_acp on\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
 		}
 		sb.append("</td></tr>");
 

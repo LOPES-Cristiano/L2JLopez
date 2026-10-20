@@ -298,7 +298,7 @@ public class CharacterResetService {
 		sb.append("</table><br>");
 
 		if (canReset(player, inventoryCounts)) {
-			sb.append("<button value=\"PERFORM RESET\" action=\"bypass -h voiced_reset do\" width=120 height=26 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>");
+			sb.append("<button value=\"PERFORM RESET\" action=\"bypass -h voiced_reset do\" width=114 height=30 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"><br>");
 		} else {
 			sb.append("<font color=\"808080\">Requirements not satisfied.</font><br>");
 		}

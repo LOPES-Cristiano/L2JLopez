@@ -305,11 +305,11 @@ public class AdminSearchService {
 				sb.append("</td>");
 
 				sb.append("<td width=95 align=right>");
-				sb.append("<button value=\"Spawn\" action=\"bypass -h admin_spawn ").append(npc.id()).append(" 1\" width=60 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"><br>");
+				sb.append("<button value=\"Spawn\" action=\"bypass -h admin_spawn ").append(npc.id()).append(" 1\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"><br>");
 				if (npc.isSpawnedInWorld()) {
-					sb.append("<button value=\"Teleport\" action=\"bypass -h admin_move_to ").append(npc.spawnX()).append(" ").append(npc.spawnY()).append(" ").append(npc.spawnZ()).append("\" width=60 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"><br>");
+					sb.append("<button value=\"Teleport\" action=\"bypass -h admin_move_to ").append(npc.spawnX()).append(" ").append(npc.spawnY()).append(" ").append(npc.spawnZ()).append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"><br>");
 				}
-				sb.append("<button value=\"DropList\" action=\"bypass -h admin_show_droplist ").append(npc.id()).append("\" width=60 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
+				sb.append("<button value=\"DropList\" action=\"bypass -h admin_show_droplist ").append(npc.id()).append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
 				sb.append("</td>");
 				sb.append("</tr>");
 				sb.append("</table>");
@@ -386,7 +386,7 @@ public class AdminSearchService {
 				sb.append("</td>");
 
 				sb.append("<td width=90 align=right>");
-				sb.append("<button value=\"Give 1\" action=\"bypass -h admin_create_item ").append(item.id()).append(" 1\" width=55 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"> ");
+				sb.append("<button value=\"Give 1\" action=\"bypass -h admin_create_item ").append(item.id()).append(" 1\" width=50 height=21 back=\"L2UI_CH3.smallbutton1_over\" fore=\"L2UI_CH3.smallbutton1\"> ");
 				sb.append("<button value=\"Give Target\" action=\"bypass -h admin_give_item_target ").append(item.id()).append(" 1\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
 				sb.append("</td>");
 				sb.append("</tr>");
@@ -464,8 +464,8 @@ public class AdminSearchService {
 				sb.append("</td>");
 
 				sb.append("<td width=95 align=right>");
-				sb.append("<button value=\"Add Max\" action=\"bypass -h admin_skill ").append(sk.id()).append(" ").append(sk.maxLevel()).append("\" width=60 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"><br>");
-				sb.append("<button value=\"Remove\" action=\"bypass -h admin_removeskill ").append(sk.id()).append("\" width=60 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
+				sb.append("<button value=\"Add Max\" action=\"bypass -h admin_skill ").append(sk.id()).append(" ").append(sk.maxLevel()).append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"><br>");
+				sb.append("<button value=\"Remove\" action=\"bypass -h admin_removeskill ").append(sk.id()).append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
 				sb.append("</td>");
 				sb.append("</tr>");
 				sb.append("</table>");
@@ -517,13 +517,13 @@ public class AdminSearchService {
 		sb.append("<table width=280 bgcolor=\"181818\">");
 		sb.append("<tr><td colspan=2><font color=\"LEVEL\">Resultados para: </font><font color=\"FFFFFF\">").append(safeQuery.isEmpty() ? "(Todos)" : safeQuery).append("</font></td></tr>");
 		sb.append("<tr><td width=170><font color=\"8FA888\">NPCs Encontrados:</font> ").append(npcsFound).append("</td>");
-		sb.append("<td width=110 align=right><button value=\"Ver NPCs\" action=\"bypass -h admin_find_npc ").append(safeQuery).append("\" width=85 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td></tr>");
+		sb.append("<td width=110 align=right><button value=\"Ver NPCs\" action=\"bypass -h admin_find_npc ").append(safeQuery).append("\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td></tr>");
 
 		sb.append("<tr><td width=170><font color=\"8FA8BE\">Itens Encontrados:</font> ").append(itemsFound).append("</td>");
-		sb.append("<td width=110 align=right><button value=\"Ver Itens\" action=\"bypass -h admin_find_item ").append(safeQuery).append("\" width=85 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td></tr>");
+		sb.append("<td width=110 align=right><button value=\"Ver Itens\" action=\"bypass -h admin_find_item ").append(safeQuery).append("\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td></tr>");
 
 		sb.append("<tr><td width=170><font color=\"D4C49A\">Skills Encontradas:</font> ").append(skillsFound).append("</td>");
-		sb.append("<td width=110 align=right><button value=\"Ver Skills\" action=\"bypass -h admin_find_skill ").append(safeQuery).append("\" width=85 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td></tr>");
+		sb.append("<td width=110 align=right><button value=\"Ver Skills\" action=\"bypass -h admin_find_skill ").append(safeQuery).append("\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td></tr>");
 		sb.append("</table>");
 
 		sb.append("<br><img src=\"L2UI.SquareGray\" width=290 height=1><br>");

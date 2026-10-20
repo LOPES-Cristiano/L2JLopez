@@ -414,7 +414,7 @@ public class AchievementsService {
 				sb.append("<font color=\"8FA888\">Completed</font>");
 			} else if (canClaim) {
 				sb.append("<button value=\"Claim\" action=\"bypass -h achieve_claim ").append(def.id())
-						.append("\" width=60 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+						.append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
 			} else {
 				sb.append("<font color=\"808080\">In Progress</font>");
 			}

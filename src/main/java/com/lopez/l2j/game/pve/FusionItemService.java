@@ -417,7 +417,7 @@ public class FusionItemService {
 			sb.append("<td><font color=\"00FF00\">").append(r.category()).append(" -> Item ").append(r.resultItemId()).append("</font><br>");
 			sb.append("<font color=\"AAAAAA\">Chance: ").append(r.chance()).append("%</font></td>");
 			sb.append("<td><button value=\"Fundir\" action=\"bypass custom_fusion_exec ").append(i)
-					.append("\" width=60 height=22 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+					.append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
 			sb.append("</tr>");
 		}
 		sb.append("</table></center></body></html>");
@@ -428,7 +428,7 @@ public class FusionItemService {
 		return "<html><body><title>Item Fusion</title><center><br><br>"
 				+ (res.success() ? "<font color=\"00FF00\"><b>" : "<font color=\"FF0000\"><b>")
 				+ res.message() + "</b></font><br><br>"
-				+ "<button value=\"Voltar\" action=\"bypass custom_fusion_list\" width=75 height=24 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">"
+				+ "<button value=\"Voltar\" action=\"bypass custom_fusion_list\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">"
 				+ "</center></body></html>";
 	}
 }

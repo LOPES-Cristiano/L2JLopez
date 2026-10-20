@@ -913,7 +913,7 @@ public class SchemeBufferService {
 		for (int s = 1; s <= 3; s++) {
 			sb.append("<td align=center><button value=\"Esquema ").append(s).append("\" action=\"bypass -h ")
 					.append(prefix).append("editschemes ").append(s)
-					.append("\" width=85 height=20 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
+					.append("\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td>");
 		}
 		sb.append("</tr></table><br>");
 
@@ -964,22 +964,22 @@ public class SchemeBufferService {
 
 		sb.append("<table width=260 bgcolor=222222 border=1 cellpadding=4 cellspacing=0>");
 		sb.append("<tr><td align=center colspan=2><font color=\"8FA888\"><b>Esquemas Salvos (Personagem)</b></font></td></tr>");
-		sb.append("<tr><td align=center><button value=\"Esquema 1 (Fighter)\" action=\"bypass -h voiced_buffer 1\" width=120 height=24 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-		sb.append("<td align=center><button value=\"Esquema 2 (Mage)\" action=\"bypass -h voiced_buffer 2\" width=120 height=24 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td></tr>");
-		sb.append("<tr><td align=center><button value=\"Esquema 3 (Custom)\" action=\"bypass -h voiced_buffer 3\" width=120 height=24 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-		sb.append("<td align=center><button value=\"Editar Esquemas\" action=\"bypass -h voiced_buffer editschemes 3\" width=120 height=24 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td></tr>");
+		sb.append("<tr><td align=center><button value=\"Esquema 1 (Fighter)\" action=\"bypass -h voiced_buffer 1\" width=114 height=30 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+		sb.append("<td align=center><button value=\"Esquema 2 (Mage)\" action=\"bypass -h voiced_buffer 2\" width=114 height=30 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td></tr>");
+		sb.append("<tr><td align=center><button value=\"Esquema 3 (Custom)\" action=\"bypass -h voiced_buffer 3\" width=114 height=30 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+		sb.append("<td align=center><button value=\"Editar Esquemas\" action=\"bypass -h voiced_buffer editschemes 3\" width=114 height=30 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td></tr>");
 		sb.append("</table><br>");
 
 		sb.append("<table width=260 bgcolor=222222 border=1 cellpadding=4 cellspacing=0>");
 		sb.append("<tr><td align=center colspan=2><font color=\"95B8D1\"><b>Buffar Mascote / Summon</b></font></td></tr>");
-		sb.append("<tr><td align=center><button value=\"Pet Fighter\" action=\"bypass -h voiced_buffer pet_1\" width=120 height=22 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-		sb.append("<td align=center><button value=\"Pet Mage\" action=\"bypass -h voiced_buffer pet_2\" width=120 height=22 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td></tr>");
+		sb.append("<tr><td align=center><button value=\"Pet Fighter\" action=\"bypass -h voiced_buffer pet_1\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td>");
+		sb.append("<td align=center><button value=\"Pet Mage\" action=\"bypass -h voiced_buffer pet_2\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td></tr>");
 		sb.append("</table><br>");
 
 		sb.append("<table width=260 bgcolor=222222 border=1 cellpadding=4 cellspacing=0>");
 		sb.append("<tr><td align=center colspan=2><font color=\"C8B588\"><b>Opcoes Utilitarias</b></font></td></tr>");
-		sb.append("<tr><td align=center><button value=\"Restaurar HP/MP/CP\" action=\"bypass -h voiced_buffer heal\" width=120 height=22 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-		sb.append("<td align=center><button value=\"Cancelar Buffs\" action=\"bypass -h voiced_buffer cancel\" width=120 height=22 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td></tr>");
+		sb.append("<tr><td align=center><button value=\"Restaurar HP/MP/CP\" action=\"bypass -h voiced_buffer heal\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td>");
+		sb.append("<td align=center><button value=\"Cancelar Buffs\" action=\"bypass -h voiced_buffer cancel\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td></tr>");
 		sb.append("</table><br>");
 
 		sb.append("<table width=260>");

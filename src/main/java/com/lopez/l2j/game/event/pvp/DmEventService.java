@@ -419,8 +419,8 @@ public class DmEventService {
         }
 
         if (state == EventState.REGISTRATION) {
-            sb.append("<button value=\"Participar\" action=\"bypass -h voiced_dmjoin\" width=90 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>");
-            sb.append("<button value=\"Cancelar\" action=\"bypass -h voiced_dmleave\" width=90 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+            sb.append("<button value=\"Participar\" action=\"bypass -h voiced_dmjoin\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"><br>");
+            sb.append("<button value=\"Cancelar\" action=\"bypass -h voiced_dmleave\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\">");
         }
         sb.append("</center></body></html>");
         return sb.toString();

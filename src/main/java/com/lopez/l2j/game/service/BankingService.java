@@ -151,8 +151,8 @@ public class BankingService {
 		sb.append("Gold Bars: <font color=\"C8B588\">").append(currentBars).append("</font><br><br>");
 		sb.append("<table width=240>");
 		sb.append("<tr>");
-		sb.append("<td><button value=\"Depositar (1 Bar)\" action=\"bypass -h voiced_deposit\" width=115 height=22 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-		sb.append("<td><button value=\"Sacar (1 Bar)\" action=\"bypass -h voiced_withdraw\" width=115 height=22 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		sb.append("<td><button value=\"Depositar (1 Bar)\" action=\"bypass -h voiced_deposit\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td>");
+		sb.append("<td><button value=\"Sacar (1 Bar)\" action=\"bypass -h voiced_withdraw\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td>");
 		sb.append("</tr>");
 		sb.append("</table><br>");
 		sb.append("<font color=\"LEVEL\">Comandos de Chat:</font><br>");

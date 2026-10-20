@@ -517,7 +517,7 @@ public class OfficialEventService {
 					sb.append("<tr>");
 					sb.append("<td><font color=\"FFFFFF\">").append(ex.name()).append("</font></td>");
 					sb.append("<td align=right><button value=\"Exchange\" action=\"bypass -h event_exchange ")
-							.append(ex.exchangeId()).append("\" width=65 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+							.append(ex.exchangeId()).append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
 					sb.append("</tr>");
 				}
 				sb.append("</table><br>");

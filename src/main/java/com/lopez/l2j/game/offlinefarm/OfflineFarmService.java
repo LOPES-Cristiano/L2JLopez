@@ -138,7 +138,7 @@ public class OfflineFarmService {
 			}
 		}
 
-		if (player.inventory() != null && player.inventory().size() >= MAX_INVENTORY_SLOTS) {
+		if (player.inventory() != null && player.inventory().size() >= player.maxInventorySlots()) {
 			return OfflineFarmResult.fail("Seu inventario esta lotado! Libere espaco antes de ativar o Offline Farm.");
 		}
 
@@ -201,7 +201,7 @@ public class OfflineFarmService {
 					break;
 				}
 
-				if (player.inventory() != null && player.inventory().size() >= MAX_INVENTORY_SLOTS) {
+				if (player.inventory() != null && player.inventory().size() >= player.maxInventorySlots()) {
 					log.info("Offline Farm: Inventario de {} lotou. Encerrando sessao.", player.name());
 					break;
 				}

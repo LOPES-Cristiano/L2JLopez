@@ -263,8 +263,8 @@ public class GvEService {
 				+ "Placar Geral:<br>"
 				+ "<font color=\"3366FF\">Good: " + goodScore.get() + "</font> | "
 				+ "<font color=\"FF3300\">Evil: " + evilScore.get() + "</font><br><br>"
-				+ "<button value=\"Entrar GOOD\" action=\"bypass voiced_gve_join good\" width=95 height=22 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br>"
-				+ "<button value=\"Entrar EVIL\" action=\"bypass voiced_gve_join evil\" width=95 height=22 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">"
+				+ "<button value=\"Entrar GOOD\" action=\"bypass voiced_gve_join good\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"><br>"
+				+ "<button value=\"Entrar EVIL\" action=\"bypass voiced_gve_join evil\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\">"
 				+ "</center></body></html>";
 	}
 

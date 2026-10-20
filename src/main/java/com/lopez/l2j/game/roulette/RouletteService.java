@@ -258,7 +258,7 @@ public class RouletteService {
 		sb.append("<font color=\"LEVEL\">=== Lucky Wheel of Fortune ===</font><br>");
 		sb.append("Spin cost: <font color=\"8FA888\">").append(String.format("%,d", defaultCostCount)).append(" Adena</font><br><br>");
 
-		sb.append("<button value=\"SPIN WHEEL!\" action=\"bypass -h voiced_roulette spin\" width=120 height=28 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br><br>");
+		sb.append("<button value=\"SPIN WHEEL!\" action=\"bypass -h voiced_roulette spin\" width=114 height=30 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"><br><br>");
 
 		sb.append("<table width=280 bgcolor=000000>");
 		sb.append("<tr><td colspan=2 align=center><font color=\"LEVEL\">Possible Rewards</font></td></tr>");
@@ -291,11 +291,11 @@ public class RouletteService {
 			if (result.item().enchantLevel() > 0) {
 				sb.append("Enchant: <font color=\"LEVEL\">+").append(result.item().enchantLevel()).append("</font><br>");
 			}
-			sb.append("<br><button value=\"Spin Again\" action=\"bypass -h voiced_roulette spin\" width=100 height=24 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+			sb.append("<br><button value=\"Spin Again\" action=\"bypass -h voiced_roulette spin\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\">");
 		} else {
 			sb.append("<font color=\"B86B6B\">*** SPIN FAILED ***</font><br><br>");
 			sb.append("<font color=\"FFFFFF\">").append(result.message()).append("</font><br><br>");
-			sb.append("<button value=\"Back\" action=\"bypass -h voiced_roulette\" width=80 height=22 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+			sb.append("<button value=\"Back\" action=\"bypass -h voiced_roulette\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
 		}
 		sb.append("</center></body></html>");
 		return sb.toString();

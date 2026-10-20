@@ -170,7 +170,7 @@ public class CommunityAuctionService {
 			sb.append("<td>+").append(listing.enchant()).append("</td>");
 			sb.append("<td>").append(listing.price()).append(" ").append(curName).append("</td>");
 			sb.append("<td>").append(listing.sellerName()).append("</td>");
-			sb.append("<td><button value=\"Comprar\" action=\"bypass -h _bbsauction;buy;").append(listing.auctionId()).append("\" width=60 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+			sb.append("<td><button value=\"Comprar\" action=\"bypass -h _bbsauction;buy;").append(listing.auctionId()).append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
 			sb.append("</tr>");
 		}
 		sb.append("</table>");

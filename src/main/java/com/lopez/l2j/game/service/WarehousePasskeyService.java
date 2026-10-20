@@ -233,15 +233,15 @@ public class WarehousePasskeyService {
 			for (int num : row) {
 				sb.append("<td><button value=\"").append(num)
 						.append("\" action=\"bypass -h passkey_key ").append(mode).append(" ").append(baseInput).append(num)
-						.append("\" width=45 height=24 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+						.append("\" width=45 height=20 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
 			}
 			sb.append("</tr>");
 		}
 		// Ultima linha: Limpar, 0, Confirmar
 		sb.append("<tr>");
-		sb.append("<td><button value=\"C\" action=\"bypass -h passkey_key ").append(mode).append(" \" width=45 height=24 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-		sb.append("<td><button value=\"0\" action=\"bypass -h passkey_key ").append(mode).append(" ").append(baseInput).append("0\" width=45 height=24 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-		sb.append("<td><button value=\"OK\" action=\"bypass -h passkey_submit ").append(mode).append(" ").append(baseInput).append("\" width=45 height=24 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		sb.append("<td><button value=\"C\" action=\"bypass -h passkey_key ").append(mode).append(" \" width=45 height=20 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
+		sb.append("<td><button value=\"0\" action=\"bypass -h passkey_key ").append(mode).append(" ").append(baseInput).append("0\" width=45 height=20 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
+		sb.append("<td><button value=\"OK\" action=\"bypass -h passkey_submit ").append(mode).append(" ").append(baseInput).append("\" width=45 height=20 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
 		sb.append("</tr>");
 		sb.append("</table>");
 

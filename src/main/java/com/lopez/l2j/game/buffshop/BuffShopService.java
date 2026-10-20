@@ -598,29 +598,29 @@ public class BuffShopService {
 			};
 			sb.append("<td align=center><button value=\"").append(label)
 					.append("\" action=\"bypass -h voiced_buffshop page ").append(c.getCode()).append(" 1\" width=").append(w)
-					.append(" height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+					.append(" height=18 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
 		}
 		sb.append("</tr></table>");
 		sb.append("<br1>");
 
 		// Precos rapidos
 		sb.append("<table width=285 cellpadding=0 cellspacing=1><tr>");
-		sb.append("<td align=center><button value=\"10k\" action=\"bypass -h voiced_buffshop setall 10000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-		sb.append("<td align=center><button value=\"50k\" action=\"bypass -h voiced_buffshop setall 50000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-		sb.append("<td align=center><button value=\"100k\" action=\"bypass -h voiced_buffshop setall 100000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=50 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-		sb.append("<td align=center><button value=\"500k\" action=\"bypass -h voiced_buffshop setall 500000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=50 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-		sb.append("<td align=center><button value=\"1kk\" action=\"bypass -h voiced_buffshop setall 1000000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-		sb.append("<td align=center><button value=\"2kk\" action=\"bypass -h voiced_buffshop setall 2000000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		sb.append("<td align=center><button value=\"10k\" action=\"bypass -h voiced_buffshop setall 10000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=45 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
+		sb.append("<td align=center><button value=\"50k\" action=\"bypass -h voiced_buffshop setall 50000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=45 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
+		sb.append("<td align=center><button value=\"100k\" action=\"bypass -h voiced_buffshop setall 100000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=48 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
+		sb.append("<td align=center><button value=\"500k\" action=\"bypass -h voiced_buffshop setall 500000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=48 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
+		sb.append("<td align=center><button value=\"1kk\" action=\"bypass -h voiced_buffshop setall 1000000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=45 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
+		sb.append("<td align=center><button value=\"2kk\" action=\"bypass -h voiced_buffshop setall 2000000 ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=45 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
 		sb.append("</tr></table>");
 
 		// Botoes de selecao em lote
 		sb.append("<table width=285 cellpadding=1 cellspacing=0><tr>");
 		if (curCat != BuffCategory.ALL) {
-			sb.append("<td align=center><button value=\"Marcar Aba\" action=\"bypass -h voiced_buffshop selectcat ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=68 height=19 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-			sb.append("<td align=center><button value=\"Desmarcar Aba\" action=\"bypass -h voiced_buffshop clearcat ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=75 height=19 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+			sb.append("<td align=center><button value=\"Marcar Aba\" action=\"bypass -h voiced_buffshop selectcat ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+			sb.append("<td align=center><button value=\"Desmarcar Aba\" action=\"bypass -h voiced_buffshop clearcat ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
 		}
-		sb.append("<td align=center><button value=\"Marcar Todos\" action=\"bypass -h voiced_buffshop selectall ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=70 height=19 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
-		sb.append("<td align=center><button value=\"Desmarcar Todos\" action=\"bypass -h voiced_buffshop clearall ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=70 height=19 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		sb.append("<td align=center><button value=\"Marcar Todos\" action=\"bypass -h voiced_buffshop selectall ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+		sb.append("<td align=center><button value=\"Desmarcar Todos\" action=\"bypass -h voiced_buffshop clearall ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
 		sb.append("</tr></table>");
 		sb.append("<img src=\"L2UI.SquareGray\" width=285 height=1><br1>");
 
@@ -641,9 +641,9 @@ public class BuffShopService {
 				sb.append("</td>");
 				sb.append("<td width=66 align=right valign=center>");
 				if (selected) {
-					sb.append("<button value=\"Remover\" action=\"bypass -h voiced_buffshop toggle ").append(buff.skillId()).append(" ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=62 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+					sb.append("<button value=\"Remover\" action=\"bypass -h voiced_buffshop toggle ").append(buff.skillId()).append(" ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
 				} else {
-					sb.append("<button value=\"Adicionar\" action=\"bypass -h voiced_buffshop toggle ").append(buff.skillId()).append(" ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=62 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+					sb.append("<button value=\"Adicionar\" action=\"bypass -h voiced_buffshop toggle ").append(buff.skillId()).append(" ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
 				}
 				sb.append("</td></tr></table>");
 			}
@@ -652,34 +652,34 @@ public class BuffShopService {
 		sb.append("<table width=285 cellpadding=0 cellspacing=0><tr>");
 		sb.append("<td width=35 align=left>");
 		if (curPage > 1) {
-			sb.append("<button value=\"<<\" action=\"bypass -h voiced_buffshop page ").append(curCat.getCode()).append(" 1\" width=30 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+			sb.append("<button value=\"<<\" action=\"bypass -h voiced_buffshop page ").append(curCat.getCode()).append(" 1\" width=30 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\">");
 		}
 		sb.append("</td>");
 		sb.append("<td width=50 align=left>");
 		if (curPage > 1) {
-			sb.append("<button value=\"< Ant\" action=\"bypass -h voiced_buffshop page ").append(curCat.getCode()).append(" ").append(curPage - 1).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+			sb.append("<button value=\"< Ant\" action=\"bypass -h voiced_buffshop page ").append(curCat.getCode()).append(" ").append(curPage - 1).append("\" width=45 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\">");
 		}
 		sb.append("</td>");
 		sb.append("<td width=115 align=center><font color=\"AAAAAA\">Pagina ").append(curPage).append(" / ").append(totalPages).append(" (").append(filtered.size()).append(" buffs)</font></td>");
 		sb.append("<td width=50 align=right>");
 		if (curPage < totalPages) {
-			sb.append("<button value=\"Prox >\" action=\"bypass -h voiced_buffshop page ").append(curCat.getCode()).append(" ").append(curPage + 1).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+			sb.append("<button value=\"Prox &gt;\" action=\"bypass -h voiced_buffshop page ").append(curCat.getCode()).append(" ").append(curPage + 1).append("\" width=45 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\">");
 		}
 		sb.append("</td>");
 		sb.append("<td width=35 align=right>");
 		if (curPage < totalPages) {
-			sb.append("<button value=\">>\" action=\"bypass -h voiced_buffshop page ").append(curCat.getCode()).append(" ").append(totalPages).append("\" width=30 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+			sb.append("<button value=\"&gt;&gt;\" action=\"bypass -h voiced_buffshop page ").append(curCat.getCode()).append(" ").append(totalPages).append("\" width=30 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\">");
 		}
 		sb.append("</td></tr></table>");
 		sb.append("<br1>");
 
 		if (isRunning) {
 			sb.append("<table width=280><tr>");
-			sb.append("<td align=center><button value=\"Encerrar Loja\" action=\"bypass -h voiced_buffshop stop\" width=130 height=24 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-			sb.append("<td align=center><button value=\"Modo Offline\" action=\"bypass -h voiced_buffshop offline\" width=130 height=24 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+			sb.append("<td align=center><button value=\"Encerrar Loja\" action=\"bypass -h voiced_buffshop stop\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
+			sb.append("<td align=center><button value=\"Modo Offline\" action=\"bypass -h voiced_buffshop offline\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
 			sb.append("</tr></table>");
 		} else {
-			sb.append("<button value=\"INICIAR BUFF STORE (").append(totalDraftCount).append(" BUFFS)\" action=\"bypass -h voiced_buffshop start\" width=230 height=26 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\">");
+			sb.append("<button value=\"INICIAR BUFF STORE (").append(totalDraftCount).append(" BUFFS)\" action=\"bypass -h voiced_buffshop start\" width=204 height=20 back=\"sek.cbui36\" fore=\"sek.cbui75\">");
 		}
 		sb.append("</center></body></html>");
 		return sb.toString();
@@ -695,8 +695,8 @@ public class BuffShopService {
 				+ "<br><br>Titulo atual: <font color=\"8FA888\">" + cur + "</font><br><br>"
 				+ "Digite o novo titulo abaixo:<br>"
 				+ "<edit var=\"t\" width=180 height=15><br><br>"
-				+ "<button value=\"Salvar Titulo\" action=\"bypass -h voiced_buffshop title $t\" width=110 height=22 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br><br>"
-				+ "<button value=\"Voltar\" action=\"bypass -h voiced_buffshop page 1\" width=80 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">"
+				+ "<button value=\"Salvar Titulo\" action=\"bypass -h voiced_buffshop title $t\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"><br><br>"
+				+ "<button value=\"Voltar\" action=\"bypass -h voiced_buffshop page 1\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">"
 				+ "</center></body></html>";
 	}
 
@@ -721,15 +721,15 @@ public class BuffShopService {
 				+ "<font color=\"FFFFFF\">" + name + "</font><br>"
 				+ "Preco atual: <font color=\"8FA888\">" + formatAdena(curPrice) + " Adena</font><br><br>"
 				+ "Precos rapidos:<br>"
-				+ "<button value=\"10.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 10000 " + category.getCode() + " " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>"
-				+ "<button value=\"50.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 50000 " + category.getCode() + " " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>"
-				+ "<button value=\"100.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 100000 " + category.getCode() + " " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>"
-				+ "<button value=\"500.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 500000 " + category.getCode() + " " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>"
-				+ "<button value=\"1.000.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 1000000 " + category.getCode() + " " + page + "\" width=130 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br><br>"
+				+ "<button value=\"10.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 10000 " + category.getCode() + " " + page + "\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"><br1>"
+				+ "<button value=\"50.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 50000 " + category.getCode() + " " + page + "\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"><br1>"
+				+ "<button value=\"100.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 100000 " + category.getCode() + " " + page + "\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"><br1>"
+				+ "<button value=\"500.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 500000 " + category.getCode() + " " + page + "\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"><br1>"
+				+ "<button value=\"1.000.000 Adena\" action=\"bypass -h voiced_buffshop price " + skillId + " 1000000 " + category.getCode() + " " + page + "\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"><br><br>"
 				+ "Ou digite o valor desejado:<br>"
 				+ "<edit var=\"val\" width=110 height=15><br>"
-				+ "<button value=\"Confirmar Preco\" action=\"bypass -h voiced_buffshop price " + skillId + " $val " + category.getCode() + " " + page + "\" width=110 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br><br>"
-				+ "<button value=\"Voltar\" action=\"bypass -h voiced_buffshop page " + category.getCode() + " " + page + "\" width=75 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">"
+				+ "<button value=\"Confirmar Preco\" action=\"bypass -h voiced_buffshop price " + skillId + " $val " + category.getCode() + " " + page + "\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"><br><br>"
+				+ "<button value=\"Voltar\" action=\"bypass -h voiced_buffshop page " + category.getCode() + " " + page + "\" width=75 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">"
 				+ "</center></body></html>";
 	}
 
@@ -798,7 +798,7 @@ public class BuffShopService {
 			};
 			sb.append("<td align=center><button value=\"").append(label)
 					.append("\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(c.getCode()).append(" 1\" width=").append(w)
-					.append(" height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+					.append(" height=18 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
 		}
 		sb.append("</tr></table>");
 		sb.append("<br1>");
@@ -806,9 +806,11 @@ public class BuffShopService {
 		// Botoes de compra em lote
 		sb.append("<table width=285 cellpadding=1 cellspacing=0><tr>");
 		if (curCat != BuffCategory.ALL && !filtered.isEmpty()) {
-			sb.append("<td align=center><button value=\"Comprar ").append(curCat.getLabel()).append(" (").append(formatAdena(totalPriceCat)).append("a)\" action=\"bypass -h voiced_buffshop buycat ").append(sellerId).append(" ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=140 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+			sb.append("<td align=center><button value=\"Comprar ").append(curCat.getLabel()).append(" (").append(formatAdena(totalPriceCat)).append("a)\" action=\"bypass -h voiced_buffshop buycat ").append(sellerId).append(" ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
+			sb.append("<td align=center><button value=\"Comprar Todos (").append(formatAdena(totalPriceAll)).append(" ").append(coinName).append(")\" action=\"bypass -h voiced_buffshop buyall ").append(sellerId).append("\" width=134 height=21 back=\"L2UI_ch3.BigButton3_over\" fore=\"L2UI_ch3.BigButton3\"></td>");
+		} else {
+			sb.append("<td align=center><button value=\"Comprar Todos (").append(formatAdena(totalPriceAll)).append(" ").append(coinName).append(")\" action=\"bypass -h voiced_buffshop buyall ").append(sellerId).append("\" width=204 height=20 back=\"sek.cbui36\" fore=\"sek.cbui75\"></td>");
 		}
-		sb.append("<td align=center><button value=\"Comprar Todos (").append(formatAdena(totalPriceAll)).append(" ").append(coinName).append(")\" action=\"bypass -h voiced_buffshop buyall ").append(sellerId).append("\" width=").append(curCat != BuffCategory.ALL && !filtered.isEmpty() ? "140" : "260").append(" height=21 back=\"L2UI_CH3.bigbutton2_over\" fore=\"L2UI_CH3.bigbutton2\"></td>");
 		sb.append("</tr></table>");
 		sb.append("<img src=\"L2UI.SquareGray\" width=285 height=1><br1>");
 
@@ -824,7 +826,7 @@ public class BuffShopService {
 				sb.append("<font color=\"888888\">Nv.").append(buff.level()).append("</font> - <font color=\"LEVEL\">").append(formatAdena(buff.price())).append(" ").append(coinName).append("</font>");
 				sb.append("</td>");
 				sb.append("<td width=66 align=right valign=center>");
-				sb.append("<button value=\"Comprar\" action=\"bypass -h voiced_buffshop buy ").append(sellerId).append(" ").append(buff.skillId()).append(" ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=62 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+				sb.append("<button value=\"Comprar\" action=\"bypass -h voiced_buffshop buy ").append(sellerId).append(" ").append(buff.skillId()).append(" ").append(curCat.getCode()).append(" ").append(curPage).append("\" width=65 height=19 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\">");
 				sb.append("</td></tr></table>");
 			}
 		}
@@ -832,23 +834,23 @@ public class BuffShopService {
 		sb.append("<table width=285 cellpadding=0 cellspacing=0><tr>");
 		sb.append("<td width=35 align=left>");
 		if (curPage > 1) {
-			sb.append("<button value=\"<<\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(curCat.getCode()).append(" 1\" width=30 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+			sb.append("<button value=\"<<\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(curCat.getCode()).append(" 1\" width=30 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\">");
 		}
 		sb.append("</td>");
 		sb.append("<td width=50 align=left>");
 		if (curPage > 1) {
-			sb.append("<button value=\"< Ant\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(curCat.getCode()).append(" ").append(curPage - 1).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+			sb.append("<button value=\"< Ant\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(curCat.getCode()).append(" ").append(curPage - 1).append("\" width=45 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\">");
 		}
 		sb.append("</td>");
 		sb.append("<td width=115 align=center><font color=\"AAAAAA\">Pagina ").append(curPage).append(" / ").append(totalPages).append(" (").append(filtered.size()).append(" buffs)</font></td>");
 		sb.append("<td width=50 align=right>");
 		if (curPage < totalPages) {
-			sb.append("<button value=\"Prox >\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(curCat.getCode()).append(" ").append(curPage + 1).append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+			sb.append("<button value=\"Prox &gt;\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(curCat.getCode()).append(" ").append(curPage + 1).append("\" width=45 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\">");
 		}
 		sb.append("</td>");
 		sb.append("<td width=35 align=right>");
 		if (curPage < totalPages) {
-			sb.append("<button value=\">>\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(curCat.getCode()).append(" ").append(totalPages).append("\" width=30 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\">");
+			sb.append("<button value=\"&gt;&gt;\" action=\"bypass -h voiced_buffshop buyer_page ").append(sellerId).append(" ").append(curCat.getCode()).append(" ").append(totalPages).append("\" width=30 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\">");
 		}
 		sb.append("</td></tr></table>");
 

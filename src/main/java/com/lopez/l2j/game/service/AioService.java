@@ -460,13 +460,13 @@ public class AioService {
         sb.append("<font color=\"LEVEL\">=== Painel de Buffer AIOx ===</font><br>");
         sb.append("Ola, <font color=\"8FA8BE\">").append(player.getName()).append("</font>!<br>");
         sb.append("Utilize o menu abaixo para aplicar buffs ou retirar itens.<br><br>");
-        sb.append("<button value=\"Retirar Consumiveis (.getaiogoods)\" action=\"bypass -h voiced_getaiogoods\" width=190 height=21 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br><br>");
+        sb.append("<button value=\"Retirar Consumiveis (.getaiogoods)\" action=\"bypass -h voiced_getaiogoods\" width=204 height=20 back=\"sek.cbui36\" fore=\"sek.cbui75\"><br><br>");
         sb.append("<table width=240>");
         for (AioBuff buff : getAioBuffs()) {
             sb.append("<tr>");
             sb.append("<td>").append(buff.name()).append("</td>");
             sb.append("<td><button value=\"Cast\" action=\"bypass -h voiced_aiobuff ").append(buff.skillId())
-              .append("\" width=45 height=18 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td>");
+              .append("\" width=45 height=18 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>");
             sb.append("</tr>");
         }
         sb.append("</table>");
@@ -625,7 +625,7 @@ public class AioService {
         }
         for (AioPackageOption pkg : getAvailablePackages()) {
             sb.append(String.format(java.util.Locale.ROOT,
-                    "<button value=\"%d Dias (%d %s)\" action=\"bypass -h aio_buy %d\" width=200 height=22 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"><br1>",
+                    "<button value=\"%d Dias (%d %s)\" action=\"bypass -h aio_buy %d\" width=204 height=20 back=\"sek.cbui36\" fore=\"sek.cbui75\"><br1>",
                     pkg.days(), pkg.itemCount(), coin, pkg.tier()));
         }
         sb.append("</center></body></html>");

@@ -84,7 +84,7 @@ public class RepairBBSManager {
     public String buildRepairHtml(PlayerCharacter activePlayer) {
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body><br>");
-        sb.append("<table width=750 border=0 cellpadding=2 cellspacing=2>");
+        sb.append("<table width=610 border=0 cellpadding=2 cellspacing=2>");
         sb.append("<tr><td align=center><font color=\"LEVEL\" size=3><b>DESENCALHE E REPARO DE PERSONAGENS</b></font></td></tr>");
         sb.append("<tr><td align=center><font color=\"AAAAAA\">Se outro personagem da sua conta estiver travado no mundo, clique para destrava-lo.</font></td></tr>");
         sb.append("</table><br>");
@@ -106,7 +106,7 @@ public class RepairBBSManager {
             sb.append("<td><font color=\"8FA8BE\">").append(c.getName()).append("</font></td>");
             sb.append("<td align=center>").append(c.getLevel()).append("</td>");
             sb.append("<td align=center><button value=\"Reparar Char\" action=\"bypass _bbsrepair_char ")
-              .append(c.getName()).append("\" width=120 height=21 back=\"L2UI_CH3.smallbutton2_over\" fore=\"L2UI_CH3.smallbutton2\"></td>");
+              .append(c.getName()).append("\" width=95 height=21 back=\"L2UI_CH3.bigbutton_over\" fore=\"L2UI_CH3.bigbutton\"></td>");
             sb.append("</tr>");
         }
 
