@@ -1,0 +1,79 @@
+<html noscrollbar>
+<title>AutoFarm ACP</title>
+<body>
+<table width="262" cellpadding="4">
+	<tr>
+		<td width="45" valign="center" align="center"><img src="icon.skill1342" width="32" height="32"></td>
+		<td valign="top">
+			<table width="240">
+				<tr>
+					<td width="160"><font color="LEVEL">Auto Potion (ACP)</font></td>
+					<td width="80" align="right">
+						<button value="Back" action="%back_bypass%" width="50" height="20" back="L2UI_CH3.bigbutton_down" fore="L2UI_CH3.bigbutton">
+					</td>
+				</tr>
+			</table>
+		</td>
+	</tr>
+</table>
+<img src="L2UI.SquareWhite" width="298" height="2">
+<br>
+<table width="298">
+	<tr>
+		<td align="center" width="298">
+			<font color="a2a0a0">Configure thresholds to use potions automatically</font>
+		</td>
+	</tr>
+</table>
+<br>
+<table width="298" cellpadding="5">
+	<tr>
+		<td width="40" align="center"><img src="icon.etc_greater_healing_potion_i00" width="32" height="32"></td>
+		<td width="70">
+			<font color="E6D0AE">HP Potion</font>
+		</td>
+		<td width="20" align="right">
+			<button action="%hp_dec_bypass%" width="15" height="15" back="L2UI_CH3.shortcut_prev_down" fore="L2UI_CH3.shortcut_prev">
+		</td>
+		<td width="35" align="center">
+			<font color="FF6666">%hp_percent%</font>
+		</td>
+		<td width="20" align="left">
+			<button action="%hp_inc_bypass%" width="15" height="15" back="L2UI_CH3.shortcut_next_down" fore="L2UI_CH3.shortcut_next">
+		</td>
+		<td width="35">
+			<edit var="editHp" width="30" height="12">
+		</td>
+		<td width="38">
+			<button value="Set" action="bypass -h voice_farmacp hp $editHp" width="35" height="18" back="L2UI_CH3.bigbutton_down" fore="L2UI_CH3.bigbutton">
+		</td>
+	</tr>
+</table>
+<br1>
+<table width="298" cellpadding="5">
+	<tr>
+		<td width="40" align="center"><img src="icon.etc_reagent_blue_i00" width="32" height="32"></td>
+		<td width="70">
+			<font color="E6D0AE">MP Potion</font>
+		</td>
+		<td width="20" align="right">
+			<button action="%mp_dec_bypass%" width="15" height="15" back="L2UI_CH3.shortcut_prev_down" fore="L2UI_CH3.shortcut_prev">
+		</td>
+		<td width="35" align="center">
+			<font color="66CCFF">%mp_percent%</font>
+		</td>
+		<td width="20" align="left">
+			<button action="%mp_inc_bypass%" width="15" height="15" back="L2UI_CH3.shortcut_next_down" fore="L2UI_CH3.shortcut_next">
+		</td>
+		<td width="35">
+			<edit var="editMp" width="30" height="12">
+		</td>
+		<td width="38">
+			<button value="Set" action="bypass -h voice_farmacp mp $editMp" width="35" height="18" back="L2UI_CH3.bigbutton_down" fore="L2UI_CH3.bigbutton">
+		</td>
+	</tr>
+</table>
+<br>
+<img src="L2UI.SquareWhite" width="298" height="2">
+</body>
+</html>

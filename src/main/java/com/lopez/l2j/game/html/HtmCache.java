@@ -59,6 +59,21 @@ public class HtmCache {
 				datapackHtmlDir.toAbsolutePath(), indexedFiles.size(), questDirsById.size());
 	}
 
+	public void reload() {
+		cache.clear();
+		indexedFiles.clear();
+		questDirsById.clear();
+		scriptsDirsByCategory.clear();
+		indexHtmlFiles(this.datapackHtmlDir, this.datapackHtmlDir);
+		Path scriptsDir = Path.of("data/scripts");
+		if (Files.isDirectory(scriptsDir)) {
+			indexHtmlFiles(scriptsDir, scriptsDir);
+		}
+		indexQuestAndScriptDirectories(scriptsDir);
+		log.info("HtmCache recarregado: {} arquivos indexados, {} quests mapeadas",
+				indexedFiles.size(), questDirsById.size());
+	}
+
 	private void indexHtmlFiles(Path dir, Path baseDir) {
 		if (!Files.isDirectory(dir)) {
 			return;
@@ -431,13 +446,6 @@ public class HtmCache {
 			}
 		}
 
-		// 2c. Para Newbie Guides (30598-30602, 31076, 31077, 32327), prioriza o dialogo oficial em newbiehelper/ antes de default/
-		if ("newbiehelper".equals(folder) && val == 0) {
-			String newbieShared = resolveSharedTypeHtml(folder, npcId, val);
-			if (newbieShared != null && !newbieShared.isBlank()) {
-				return newbieShared;
-			}
-		}
 
 		// 3. Tenta na pasta default (se folder != default)
 		if (!"default".equals(folder)) {
