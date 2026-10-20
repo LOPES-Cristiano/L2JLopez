@@ -1,0 +1,105 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- General Shop - No-Grade Jewels -->
+<list>
+  <config notax="true"/>
+  <!-- Necklace of Anguish -->
+  <item id="1">
+    <ingredient id="57" count="4680"/>
+    <production id="907" count="1"/>
+  </item>
+  <!-- Ring of Anguish -->
+  <item id="2">
+    <ingredient id="57" count="2340"/>
+    <production id="876" count="1"/>
+  </item>
+  <!-- Apprentice's Earring -->
+  <item id="3">
+    <ingredient id="57" count="10000"/>
+    <production id="112" count="1"/>
+  </item>
+  <!-- Blue Diamond Necklace -->
+  <item id="4">
+    <ingredient id="57" count="16400"/>
+    <production id="909" count="1"/>
+  </item>
+  <!-- Blue Coral Ring -->
+  <item id="5">
+    <ingredient id="57" count="8200"/>
+    <production id="878" count="1"/>
+  </item>
+  <!-- Cat's Eye Earring -->
+  <item id="6">
+    <ingredient id="57" count="6840"/>
+    <production id="845" count="1"/>
+  </item>
+  <!-- Coral Earring -->
+  <item id="7">
+    <ingredient id="57" count="12300"/>
+    <production id="846" count="1"/>
+  </item>
+  <!-- Necklace of Courage -->
+  <item id="8">
+    <ingredient id="57" count="10000"/>
+    <production id="1506" count="1"/>
+  </item>
+  <!-- Ring of Firefly -->
+  <item id="9">
+    <ingredient id="57" count="2340"/>
+    <production id="1509" count="1"/>
+  </item>
+  <!-- Necklace of Knowledge -->
+  <item id="10">
+    <ingredient id="57" count="1080"/>
+    <production id="906" count="1"/>
+  </item>
+  <!-- Ring of Knowledge -->
+  <item id="11">
+    <ingredient id="57" count="540"/>
+    <production id="875" count="1"/>
+  </item>
+  <!-- Necklace of Magic -->
+  <item id="12">
+    <ingredient id="57" count="10000"/>
+    <production id="118" count="1"/>
+  </item>
+  <!-- Magic Ring -->
+  <item id="13">
+    <ingredient id="57" count="10000"/>
+    <production id="116" count="1"/>
+  </item>
+  <!-- Mystic's Earring -->
+  <item id="14">
+    <ingredient id="57" count="811"/>
+    <production id="113" count="1"/>
+  </item>
+  <!-- Ring of Raccoon -->
+  <item id="15">
+    <ingredient id="57" count="2340"/>
+    <production id="1508" count="1"/>
+  </item>
+  <!-- Earring of Strength -->
+  <item id="16">
+    <ingredient id="57" count="3510"/>
+    <production id="114" count="1"/>
+  </item>
+  <!-- Necklace of Valor -->
+  <item id="17">
+    <ingredient id="57" count="4680"/>
+    <production id="1507" count="1"/>
+  </item>
+  <!-- Necklace of Wisdom -->
+  <item id="18">
+    <ingredient id="57" count="10000"/>
+    <production id="908" count="1"/>
+  </item>
+  <!-- Earring of Wisdom -->
+  <item id="19">
+    <ingredient id="57" count="10000"/>
+    <production id="115" count="1"/>
+  </item>
+  <!-- Ring of Wisdom -->
+  <item id="20">
+    <ingredient id="57" count="10000"/>
+    <production id="877" count="1"/>
+  </item>
+</list>

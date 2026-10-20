@@ -1,0 +1,105 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- General Shop Multisell 50154 generated for L2JLopez -->
+<list>
+  <config notax="true"/>
+  <!-- Greater Dye of STR &lt;STR+4 DEX-4&gt; -->
+  <item id="1">
+    <ingredient id="57" count="1200000"/>
+    <production id="4442" count="1"/>
+  </item>
+  <!-- Greater Dye of STR &lt;STR+4 CON-4&gt; -->
+  <item id="2">
+    <ingredient id="57" count="1200000"/>
+    <production id="4443" count="1"/>
+  </item>
+  <!-- Greater Dye of DEX &lt;DEX+4 STR-4&gt; -->
+  <item id="3">
+    <ingredient id="57" count="1200000"/>
+    <production id="4444" count="1"/>
+  </item>
+  <!-- Greater Dye of DEX &lt;DEX+4 CON-4&gt; -->
+  <item id="4">
+    <ingredient id="57" count="1200000"/>
+    <production id="4445" count="1"/>
+  </item>
+  <!-- Greater Dye of CON &lt;CON+4 STR-4&gt; -->
+  <item id="5">
+    <ingredient id="57" count="1200000"/>
+    <production id="4446" count="1"/>
+  </item>
+  <!-- Greater Dye of CON &lt;CON+4 DEX-4&gt; -->
+  <item id="6">
+    <ingredient id="57" count="1200000"/>
+    <production id="4447" count="1"/>
+  </item>
+  <!-- Greater Dye of INT &lt;INT+4 MEN-4&gt; -->
+  <item id="7">
+    <ingredient id="57" count="1200000"/>
+    <production id="4448" count="1"/>
+  </item>
+  <!-- Greater Dye of INT &lt;INT+4 WIT-4&gt; -->
+  <item id="8">
+    <ingredient id="57" count="1200000"/>
+    <production id="4449" count="1"/>
+  </item>
+  <!-- Greater Dye of WIT &lt;WIT+4 INT-4&gt; -->
+  <item id="9">
+    <ingredient id="57" count="1200000"/>
+    <production id="4450" count="1"/>
+  </item>
+  <!-- Greater Dye of WIT &lt;WIT+4 MEN-4&gt; -->
+  <item id="10">
+    <ingredient id="57" count="1200000"/>
+    <production id="4451" count="1"/>
+  </item>
+  <!-- Greater Dye of MEN &lt;MEN+4 INT-4&gt; -->
+  <item id="11">
+    <ingredient id="57" count="1200000"/>
+    <production id="4452" count="1"/>
+  </item>
+  <!-- Greater Dye of MEN &lt;MEN+4 WIT-4&gt; -->
+  <item id="12">
+    <ingredient id="57" count="1200000"/>
+    <production id="4453" count="1"/>
+  </item>
+  <!-- Dye of STR &lt;STR+3 DEX-3&gt; -->
+  <item id="13">
+    <ingredient id="57" count="450000"/>
+    <production id="4454" count="1"/>
+  </item>
+  <!-- Dye of STR &lt;STR+3 CON-3&gt; -->
+  <item id="14">
+    <ingredient id="57" count="450000"/>
+    <production id="4455" count="1"/>
+  </item>
+  <!-- Dye of DEX &lt;DEX+3 STR-3&gt; -->
+  <item id="15">
+    <ingredient id="57" count="450000"/>
+    <production id="4456" count="1"/>
+  </item>
+  <!-- Dye of DEX &lt;DEX+3 CON-3&gt; -->
+  <item id="16">
+    <ingredient id="57" count="450000"/>
+    <production id="4457" count="1"/>
+  </item>
+  <!-- Dye of CON &lt;CON+3 STR-3&gt; -->
+  <item id="17">
+    <ingredient id="57" count="450000"/>
+    <production id="4458" count="1"/>
+  </item>
+  <!-- Dye of CON &lt;CON+3 DEX-3&gt; -->
+  <item id="18">
+    <ingredient id="57" count="450000"/>
+    <production id="4459" count="1"/>
+  </item>
+  <!-- Dye of INT &lt;INT+3 MEN-3&gt; -->
+  <item id="19">
+    <ingredient id="57" count="450000"/>
+    <production id="4460" count="1"/>
+  </item>
+  <!-- Dye of WIT &lt;WIT+3 MEN-3&gt; -->
+  <item id="20">
+    <ingredient id="57" count="450000"/>
+    <production id="4461" count="1"/>
+  </item>
+</list>

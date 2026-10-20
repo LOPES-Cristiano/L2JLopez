@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- General Shop - B-Grade Jewels -->
+<list>
+  <config notax="true"/>
+  <!-- Adamantite Necklace -->
+  <item id="1">
+    <ingredient id="57" count="808000"/>
+    <production id="918" count="1"/>
+  </item>
+  <!-- Adamantite Earring -->
+  <item id="2">
+    <ingredient id="57" count="606000"/>
+    <production id="856" count="1"/>
+  </item>
+  <!-- Adamantite Ring -->
+  <item id="3">
+    <ingredient id="57" count="404000"/>
+    <production id="887" count="1"/>
+  </item>
+  <!-- Necklace of Black Ore -->
+  <item id="4">
+    <ingredient id="57" count="1230000"/>
+    <production id="926" count="1"/>
+  </item>
+  <!-- Earring of Black Ore -->
+  <item id="5">
+    <ingredient id="57" count="924000"/>
+    <production id="864" count="1"/>
+  </item>
+  <!-- Ring of Black Ore -->
+  <item id="6">
+    <ingredient id="57" count="616000"/>
+    <production id="895" count="1"/>
+  </item>
+  <!-- Sage's Necklace -->
+  <item id="7">
+    <ingredient id="57" count="1230000"/>
+    <production id="922" count="1"/>
+  </item>
+  <!-- Sage's Ring -->
+  <item id="8">
+    <ingredient id="57" count="616000"/>
+    <production id="891" count="1"/>
+  </item>
+</list>

@@ -1,0 +1,425 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- General Shop - D-Grade Armors & Shields -->
+<list>
+  <config notax="true"/>
+  <!-- Aspis -->
+  <item id="1">
+    <ingredient id="57" count="26900"/>
+    <production id="627" count="1"/>
+  </item>
+  <!-- Assault Boots -->
+  <item id="2">
+    <ingredient id="57" count="75200"/>
+    <production id="1125" count="1"/>
+  </item>
+  <!-- Blast Plate -->
+  <item id="3">
+    <ingredient id="57" count="203000"/>
+    <production id="351" count="1"/>
+  </item>
+  <!-- Blue Buckskin Boots -->
+  <item id="4">
+    <ingredient id="57" count="25600"/>
+    <production id="1123" count="1"/>
+  </item>
+  <!-- Bone Helmet -->
+  <item id="5">
+    <ingredient id="57" count="24100"/>
+    <production id="45" count="1"/>
+  </item>
+  <!-- Boots of Power -->
+  <item id="6">
+    <ingredient id="57" count="57400"/>
+    <production id="1124" count="1"/>
+  </item>
+  <!-- Clan Oath Brigandine -->
+  <item id="7">
+    <ingredient id="57" count="247000"/>
+    <production id="7854" count="1"/>
+  </item>
+  <!-- Brigandine Tunic -->
+  <item id="8">
+    <ingredient id="57" count="100000"/>
+    <production id="352" count="1"/>
+  </item>
+  <!-- Brigandine Gaiters -->
+  <item id="9">
+    <ingredient id="57" count="100000"/>
+    <production id="2378" count="1"/>
+  </item>
+  <!-- Brigandine Helmet -->
+  <item id="10">
+    <ingredient id="57" count="100000"/>
+    <production id="2411" count="1"/>
+  </item>
+  <!-- Brigandine Gauntlets -->
+  <item id="11">
+    <ingredient id="57" count="100000"/>
+    <production id="2449" count="1"/>
+  </item>
+  <!-- Brigandine Boots -->
+  <item id="12">
+    <ingredient id="57" count="100000"/>
+    <production id="2425" count="1"/>
+  </item>
+  <!-- Brigandine Shield -->
+  <item id="13">
+    <ingredient id="57" count="100000"/>
+    <production id="2493" count="1"/>
+  </item>
+  <!-- Bronze Helmet -->
+  <item id="14">
+    <ingredient id="57" count="38400"/>
+    <production id="46" count="1"/>
+  </item>
+  <!-- Bronze Shield -->
+  <item id="15">
+    <ingredient id="57" count="16900"/>
+    <production id="626" count="1"/>
+  </item>
+  <!-- Clan Oath Armor -->
+  <item id="16">
+    <ingredient id="57" count="330000"/>
+    <production id="7851" count="1"/>
+  </item>
+  <!-- Clan Oath Aketon -->
+  <item id="17">
+    <ingredient id="57" count="247000"/>
+    <production id="7857" count="1"/>
+  </item>
+  <!-- Clan Oath Helm -->
+  <item id="18">
+    <ingredient id="57" count="76200"/>
+    <production id="7850" count="1"/>
+  </item>
+  <!-- Clan Oath Gauntlets - Heavy Armor -->
+  <item id="19">
+    <ingredient id="57" count="50800"/>
+    <production id="7852" count="1"/>
+  </item>
+  <!-- Clan Oath Leather Gloves - Light Armor -->
+  <item id="20">
+    <ingredient id="57" count="50800"/>
+    <production id="7855" count="1"/>
+  </item>
+  <!-- Clan Oath Padded Gloves - Robe -->
+  <item id="21">
+    <ingredient id="57" count="50800"/>
+    <production id="7858" count="1"/>
+  </item>
+  <!-- Clan Oath Boots - Light Armor -->
+  <item id="22">
+    <ingredient id="57" count="50800"/>
+    <production id="7856" count="1"/>
+  </item>
+  <!-- Clan Oath Sabaton - Heavy Armor -->
+  <item id="23">
+    <ingredient id="57" count="50800"/>
+    <production id="7853" count="1"/>
+  </item>
+  <!-- Clan Oath Sandals - Robe -->
+  <item id="24">
+    <ingredient id="57" count="50800"/>
+    <production id="7859" count="1"/>
+  </item>
+  <!-- Compound Scale Mail -->
+  <item id="25">
+    <ingredient id="57" count="141100"/>
+    <production id="349" count="1"/>
+  </item>
+  <!-- Compound Scale Gaiters -->
+  <item id="26">
+    <ingredient id="57" count="97600"/>
+    <production id="378" count="1"/>
+  </item>
+  <!-- Cursed Tunic -->
+  <item id="27">
+    <ingredient id="57" count="48200"/>
+    <production id="432" count="1"/>
+  </item>
+  <!-- Cursed Stockings -->
+  <item id="28">
+    <ingredient id="57" count="30100"/>
+    <production id="465" count="1"/>
+  </item>
+  <!-- Dark Stockings -->
+  <item id="29">
+    <ingredient id="57" count="48000"/>
+    <production id="467" count="1"/>
+  </item>
+  <!-- Dwarven Scale Mail -->
+  <item id="30">
+    <ingredient id="57" count="141100"/>
+    <production id="350" count="1"/>
+  </item>
+  <!-- Dwarven Scale Gaiters -->
+  <item id="31">
+    <ingredient id="57" count="97600"/>
+    <production id="379" count="1"/>
+  </item>
+  <!-- Gauntlets -->
+  <item id="32">
+    <ingredient id="57" count="39100"/>
+    <production id="63" count="1"/>
+  </item>
+  <!-- Half Plate Armor -->
+  <item id="33">
+    <ingredient id="57" count="300800"/>
+    <production id="353" count="1"/>
+  </item>
+  <!-- Helmet -->
+  <item id="34">
+    <ingredient id="57" count="58600"/>
+    <production id="47" count="1"/>
+  </item>
+  <!-- Hoplon -->
+  <item id="35">
+    <ingredient id="57" count="41000"/>
+    <production id="628" count="1"/>
+  </item>
+  <!-- Iron Boots -->
+  <item id="36">
+    <ingredient id="57" count="39100"/>
+    <production id="553" count="1"/>
+  </item>
+  <!-- Kite Shield -->
+  <item id="37">
+    <ingredient id="57" count="100000"/>
+    <production id="629" count="1"/>
+  </item>
+  <!-- Tunic of Knowledge -->
+  <item id="38">
+    <ingredient id="57" count="117000"/>
+    <production id="436" count="1"/>
+  </item>
+  <!-- Stockings of Knowledge -->
+  <item id="39">
+    <ingredient id="57" count="73200"/>
+    <production id="469" count="1"/>
+  </item>
+  <!-- Gloves of Knowledge -->
+  <item id="40">
+    <ingredient id="57" count="39100"/>
+    <production id="2447" count="1"/>
+  </item>
+  <!-- Crafted Leather Gloves -->
+  <item id="41">
+    <ingredient id="57" count="16100"/>
+    <production id="604" count="1"/>
+  </item>
+  <!-- Leather Gauntlets -->
+  <item id="42">
+    <ingredient id="57" count="25600"/>
+    <production id="605" count="1"/>
+  </item>
+  <!-- Leather Boots -->
+  <item id="43">
+    <ingredient id="57" count="16100"/>
+    <production id="40" count="1"/>
+  </item>
+  <!-- Lion Skin Shirt -->
+  <item id="44">
+    <ingredient id="57" count="76900"/>
+    <production id="392" count="1"/>
+  </item>
+  <!-- Lion Skin Gaiters -->
+  <item id="45">
+    <ingredient id="57" count="48000"/>
+    <production id="414" count="1"/>
+  </item>
+  <!-- Manticore Skin Shirt -->
+  <item id="46">
+    <ingredient id="57" count="100000"/>
+    <production id="395" count="1"/>
+  </item>
+  <!-- Manticore Skin Gaiters -->
+  <item id="47">
+    <ingredient id="57" count="100000"/>
+    <production id="417" count="1"/>
+  </item>
+  <!-- Manticore Skin Gloves -->
+  <item id="48">
+    <ingredient id="57" count="100000"/>
+    <production id="2448" count="1"/>
+  </item>
+  <!-- Manticore Skin Boots -->
+  <item id="49">
+    <ingredient id="57" count="100000"/>
+    <production id="2424" count="1"/>
+  </item>
+  <!-- Mithril Breastplate -->
+  <item id="50">
+    <ingredient id="57" count="141100"/>
+    <production id="58" count="1"/>
+  </item>
+  <!-- Mithril Banded Mail -->
+  <item id="51">
+    <ingredient id="57" count="117000"/>
+    <production id="393" count="1"/>
+  </item>
+  <!-- Elven Mithril Tunic -->
+  <item id="52">
+    <ingredient id="57" count="224000"/>
+    <production id="2396" count="1"/>
+  </item>
+  <!-- Mithril Tunic -->
+  <item id="53">
+    <ingredient id="57" count="172000"/>
+    <production id="437" count="1"/>
+  </item>
+  <!-- Mithril Gaiters -->
+  <item id="54">
+    <ingredient id="57" count="97600"/>
+    <production id="59" count="1"/>
+  </item>
+  <!-- Mithril Scale Gaiters -->
+  <item id="55">
+    <ingredient id="57" count="143600"/>
+    <production id="2377" count="1"/>
+  </item>
+  <!-- Mithril Banded Gaiters -->
+  <item id="56">
+    <ingredient id="57" count="73200"/>
+    <production id="415" count="1"/>
+  </item>
+  <!-- Elven Mithril Stockings -->
+  <item id="57">
+    <ingredient id="57" count="140000"/>
+    <production id="2401" count="1"/>
+  </item>
+  <!-- Mithril Stockings -->
+  <item id="58">
+    <ingredient id="57" count="107700"/>
+    <production id="470" count="1"/>
+  </item>
+  <!-- Mithril Gloves -->
+  <item id="59">
+    <ingredient id="57" count="57400"/>
+    <production id="2450" count="1"/>
+  </item>
+  <!-- Mithril Plate Gloves -->
+  <item id="60">
+    <ingredient id="57" count="75200"/>
+    <production id="61" count="1"/>
+  </item>
+  <!-- Elven Mithril Boots -->
+  <item id="61">
+    <ingredient id="57" count="57400"/>
+    <production id="2426" count="1"/>
+  </item>
+  <!-- Mystic's Tunic -->
+  <item id="62">
+    <ingredient id="57" count="76900"/>
+    <production id="435" count="1"/>
+  </item>
+  <!-- Mystic's Stockings -->
+  <item id="63">
+    <ingredient id="57" count="48000"/>
+    <production id="468" count="1"/>
+  </item>
+  <!-- Ogre Power Gauntlets -->
+  <item id="64">
+    <ingredient id="57" count="75200"/>
+    <production id="607" count="1"/>
+  </item>
+  <!-- Iron Plate Gaiters -->
+  <item id="65">
+    <ingredient id="57" count="40100"/>
+    <production id="376" count="1"/>
+  </item>
+  <!-- Plate Gaiters -->
+  <item id="66">
+    <ingredient id="57" count="188000"/>
+    <production id="380" count="1"/>
+  </item>
+  <!-- Plate Helmet -->
+  <item id="67">
+    <ingredient id="57" count="100000"/>
+    <production id="2412" count="1"/>
+  </item>
+  <!-- Plate Boots -->
+  <item id="68">
+    <ingredient id="57" count="75200"/>
+    <production id="2428" count="1"/>
+  </item>
+  <!-- Plate Shield -->
+  <item id="69">
+    <ingredient id="57" count="79000"/>
+    <production id="2494" count="1"/>
+  </item>
+  <!-- Puma Skin Shirt -->
+  <item id="70">
+    <ingredient id="57" count="48200"/>
+    <production id="391" count="1"/>
+  </item>
+  <!-- Puma Skin Gaiters -->
+  <item id="71">
+    <ingredient id="57" count="30100"/>
+    <production id="413" count="1"/>
+  </item>
+  <!-- Reinforced Leather Shirt -->
+  <item id="72">
+    <ingredient id="57" count="117000"/>
+    <production id="394" count="1"/>
+  </item>
+  <!-- Reinforced Leather Gaiters -->
+  <item id="73">
+    <ingredient id="57" count="73200"/>
+    <production id="416" count="1"/>
+  </item>
+  <!-- Reinforced Leather Boots -->
+  <item id="74">
+    <ingredient id="57" count="39100"/>
+    <production id="2422" count="1"/>
+  </item>
+  <!-- Ring Mail Breastplate -->
+  <item id="75">
+    <ingredient id="57" count="83500"/>
+    <production id="347" count="1"/>
+  </item>
+  <!-- Rip Gauntlets -->
+  <item id="76">
+    <ingredient id="57" count="57400"/>
+    <production id="606" count="1"/>
+  </item>
+  <!-- Sage's Rag -->
+  <item id="77">
+    <ingredient id="57" count="366600"/>
+    <production id="438" count="1"/>
+  </item>
+  <!-- Sage's Worn Gloves -->
+  <item id="78">
+    <ingredient id="57" count="75200"/>
+    <production id="2451" count="1"/>
+  </item>
+  <!-- Salamander Skin Mail -->
+  <item id="79">
+    <ingredient id="57" count="366600"/>
+    <production id="396" count="1"/>
+  </item>
+  <!-- Salamander Skin Boots -->
+  <item id="80">
+    <ingredient id="57" count="75200"/>
+    <production id="2427" count="1"/>
+  </item>
+  <!-- Scale Mail -->
+  <item id="81">
+    <ingredient id="57" count="102500"/>
+    <production id="348" count="1"/>
+  </item>
+  <!-- Scale Gaiters -->
+  <item id="82">
+    <ingredient id="57" count="64100"/>
+    <production id="377" count="1"/>
+  </item>
+  <!-- Square Shield -->
+  <item id="83">
+    <ingredient id="57" count="79000"/>
+    <production id="630" count="1"/>
+  </item>
+  <!-- White Tunic -->
+  <item id="84">
+    <ingredient id="57" count="76900"/>
+    <production id="434" count="1"/>
+  </item>
+</list>

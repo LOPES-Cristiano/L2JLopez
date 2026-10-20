@@ -1,0 +1,245 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- General Shop - Craft Materials (Packs of 10) -->
+<list>
+  <config notax="true"/>
+  <!-- Stem -->
+  <item id="1">
+    <ingredient id="57" count="1000"/>
+    <production id="1864" count="10"/>
+  </item>
+  <!-- Varnish -->
+  <item id="2">
+    <ingredient id="57" count="2000"/>
+    <production id="1865" count="10"/>
+  </item>
+  <!-- Suede -->
+  <item id="3">
+    <ingredient id="57" count="3000"/>
+    <production id="1866" count="10"/>
+  </item>
+  <!-- Animal Skin -->
+  <item id="4">
+    <ingredient id="57" count="1500"/>
+    <production id="1867" count="10"/>
+  </item>
+  <!-- Thread -->
+  <item id="5">
+    <ingredient id="57" count="1000"/>
+    <production id="1868" count="10"/>
+  </item>
+  <!-- Iron Ore -->
+  <item id="6">
+    <ingredient id="57" count="2000"/>
+    <production id="1869" count="10"/>
+  </item>
+  <!-- Coal -->
+  <item id="7">
+    <ingredient id="57" count="2000"/>
+    <production id="1870" count="10"/>
+  </item>
+  <!-- Charcoal -->
+  <item id="8">
+    <ingredient id="57" count="2000"/>
+    <production id="1871" count="10"/>
+  </item>
+  <!-- Animal Bone -->
+  <item id="9">
+    <ingredient id="57" count="1500"/>
+    <production id="1872" count="10"/>
+  </item>
+  <!-- Silver Nugget -->
+  <item id="10">
+    <ingredient id="57" count="5000"/>
+    <production id="1873" count="10"/>
+  </item>
+  <!-- Oriharukon Ore -->
+  <item id="11">
+    <ingredient id="57" count="30000"/>
+    <production id="1874" count="10"/>
+  </item>
+  <!-- Stone of Purity -->
+  <item id="12">
+    <ingredient id="57" count="30000"/>
+    <production id="1875" count="10"/>
+  </item>
+  <!-- Mithril Ore -->
+  <item id="13">
+    <ingredient id="57" count="10000"/>
+    <production id="1876" count="10"/>
+  </item>
+  <!-- Adamantite Nugget -->
+  <item id="14">
+    <ingredient id="57" count="50000"/>
+    <production id="1877" count="10"/>
+  </item>
+  <!-- Braided Hemp -->
+  <item id="15">
+    <ingredient id="57" count="5000"/>
+    <production id="1878" count="10"/>
+  </item>
+  <!-- Cokes -->
+  <item id="16">
+    <ingredient id="57" count="12000"/>
+    <production id="1879" count="10"/>
+  </item>
+  <!-- Steel -->
+  <item id="17">
+    <ingredient id="57" count="20000"/>
+    <production id="1880" count="10"/>
+  </item>
+  <!-- Coarse Bone Powder -->
+  <item id="18">
+    <ingredient id="57" count="15000"/>
+    <production id="1881" count="10"/>
+  </item>
+  <!-- Leather -->
+  <item id="19">
+    <ingredient id="57" count="9000"/>
+    <production id="1882" count="10"/>
+  </item>
+  <!-- Steel Mold -->
+  <item id="20">
+    <ingredient id="57" count="45000"/>
+    <production id="1883" count="10"/>
+  </item>
+  <!-- Cord -->
+  <item id="21">
+    <ingredient id="57" count="3250"/>
+    <production id="1884" count="10"/>
+  </item>
+  <!-- High Grade Suede -->
+  <item id="22">
+    <ingredient id="57" count="24000"/>
+    <production id="1885" count="10"/>
+  </item>
+  <!-- Silver Mold -->
+  <item id="23">
+    <ingredient id="57" count="135000"/>
+    <production id="1886" count="10"/>
+  </item>
+  <!-- Varnish of Purity -->
+  <item id="24">
+    <ingredient id="57" count="81000"/>
+    <production id="1887" count="10"/>
+  </item>
+  <!-- Synthetic Cokes -->
+  <item id="25">
+    <ingredient id="57" count="66000"/>
+    <production id="1888" count="10"/>
+  </item>
+  <!-- Compound Braid -->
+  <item id="26">
+    <ingredient id="57" count="30000"/>
+    <production id="1889" count="10"/>
+  </item>
+  <!-- Mithril Alloy -->
+  <item id="27">
+    <ingredient id="57" count="131000"/>
+    <production id="1890" count="10"/>
+  </item>
+  <!-- Artisan's Frame -->
+  <item id="28">
+    <ingredient id="57" count="500000"/>
+    <production id="1891" count="10"/>
+  </item>
+  <!-- Blacksmith's Frame -->
+  <item id="29">
+    <ingredient id="57" count="450000"/>
+    <production id="1892" count="10"/>
+  </item>
+  <!-- Oriharukon -->
+  <item id="30">
+    <ingredient id="57" count="246000"/>
+    <production id="1893" count="10"/>
+  </item>
+  <!-- Crafted Leather -->
+  <item id="31">
+    <ingredient id="57" count="57000"/>
+    <production id="1894" count="10"/>
+  </item>
+  <!-- Metallic Fiber -->
+  <item id="32">
+    <ingredient id="57" count="7000"/>
+    <production id="1895" count="10"/>
+  </item>
+  <!-- Mold Glue -->
+  <item id="33">
+    <ingredient id="57" count="60000"/>
+    <production id="4039" count="10"/>
+  </item>
+  <!-- Mold Lubricant -->
+  <item id="34">
+    <ingredient id="57" count="100000"/>
+    <production id="4040" count="10"/>
+  </item>
+  <!-- Mold Hardener -->
+  <item id="35">
+    <ingredient id="57" count="230000"/>
+    <production id="4041" count="10"/>
+  </item>
+  <!-- Enria -->
+  <item id="36">
+    <ingredient id="57" count="120000"/>
+    <production id="4042" count="10"/>
+  </item>
+  <!-- Asofe -->
+  <item id="37">
+    <ingredient id="57" count="60000"/>
+    <production id="4043" count="10"/>
+  </item>
+  <!-- Thons -->
+  <item id="38">
+    <ingredient id="57" count="60000"/>
+    <production id="4044" count="10"/>
+  </item>
+  <!-- Maestro Holder -->
+  <item id="39">
+    <ingredient id="57" count="700000"/>
+    <production id="4045" count="10"/>
+  </item>
+  <!-- Maestro Anvil Lock -->
+  <item id="40">
+    <ingredient id="57" count="620000"/>
+    <production id="4046" count="10"/>
+  </item>
+  <!-- Maestro Mold -->
+  <item id="41">
+    <ingredient id="57" count="940000"/>
+    <production id="4047" count="10"/>
+  </item>
+  <!-- Craftsman Mold -->
+  <item id="42">
+    <ingredient id="57" count="810000"/>
+    <production id="4048" count="10"/>
+  </item>
+  <!-- Metallic Thread -->
+  <item id="43">
+    <ingredient id="57" count="15000"/>
+    <production id="5549" count="10"/>
+  </item>
+  <!-- Durable Metal Plate -->
+  <item id="44">
+    <ingredient id="57" count="150000"/>
+    <production id="5550" count="10"/>
+  </item>
+  <!-- Reorin's Mold -->
+  <item id="45">
+    <ingredient id="57" count="500000"/>
+    <production id="5551" count="10"/>
+  </item>
+  <!-- Warsmith's Mold -->
+  <item id="46">
+    <ingredient id="57" count="850000"/>
+    <production id="5552" count="10"/>
+  </item>
+  <!-- Arcsmith's Anvil -->
+  <item id="47">
+    <ingredient id="57" count="900000"/>
+    <production id="5553" count="10"/>
+  </item>
+  <!-- Warsmith's Holder -->
+  <item id="48">
+    <ingredient id="57" count="1200000"/>
+    <production id="5554" count="10"/>
+  </item>
+</list>

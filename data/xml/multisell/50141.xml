@@ -1,0 +1,80 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- General Shop - D-Grade Jewels -->
+<list>
+  <config notax="true"/>
+  <!-- Black Pearl Ring -->
+  <item id="1">
+    <ingredient id="57" count="33000"/>
+    <production id="880" count="1"/>
+  </item>
+  <!-- Necklace of Darkness -->
+  <item id="2">
+    <ingredient id="57" count="124400"/>
+    <production id="914" count="1"/>
+  </item>
+  <!-- Necklace of Devotion -->
+  <item id="3">
+    <ingredient id="57" count="27600"/>
+    <production id="910" count="1"/>
+  </item>
+  <!-- Ring of Devotion -->
+  <item id="4">
+    <ingredient id="57" count="13800"/>
+    <production id="890" count="1"/>
+  </item>
+  <!-- Elven Necklace -->
+  <item id="5">
+    <ingredient id="57" count="50000"/>
+    <production id="913" count="1"/>
+  </item>
+  <!-- Elven Earring -->
+  <item id="6">
+    <ingredient id="57" count="50000"/>
+    <production id="850" count="1"/>
+  </item>
+  <!-- Elven Ring -->
+  <item id="7">
+    <ingredient id="57" count="50000"/>
+    <production id="881" count="1"/>
+  </item>
+  <!-- Enchanted Necklace -->
+  <item id="8">
+    <ingredient id="57" count="43700"/>
+    <production id="911" count="1"/>
+  </item>
+  <!-- Enchanted Earring -->
+  <item id="9">
+    <ingredient id="57" count="32800"/>
+    <production id="848" count="1"/>
+  </item>
+  <!-- Enchanted Ring -->
+  <item id="10">
+    <ingredient id="57" count="21800"/>
+    <production id="879" count="1"/>
+  </item>
+  <!-- Mithril Ring -->
+  <item id="11">
+    <ingredient id="57" count="62200"/>
+    <production id="882" count="1"/>
+  </item>
+  <!-- Near Forest Necklace -->
+  <item id="12">
+    <ingredient id="57" count="65900"/>
+    <production id="912" count="1"/>
+  </item>
+  <!-- Omen Beast's Eye Earring -->
+  <item id="13">
+    <ingredient id="57" count="93300"/>
+    <production id="851" count="1"/>
+  </item>
+  <!-- Red Crescent Earring -->
+  <item id="14">
+    <ingredient id="57" count="20700"/>
+    <production id="847" count="1"/>
+  </item>
+  <!-- Tiger's Eye Earring -->
+  <item id="15">
+    <ingredient id="57" count="49400"/>
+    <production id="849" count="1"/>
+  </item>
+</list>

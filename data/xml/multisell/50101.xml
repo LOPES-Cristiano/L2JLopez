@@ -1,0 +1,230 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- General Shop - No-Grade Weapons -->
+<list>
+  <config notax="true"/>
+  <!-- Short Sword -->
+  <item id="1">
+    <ingredient id="57" count="768"/>
+    <production id="1" count="1"/>
+  </item>
+  <!-- Broadsword -->
+  <item id="2">
+    <ingredient id="57" count="12500"/>
+    <production id="3" count="1"/>
+  </item>
+  <!-- Falchion -->
+  <item id="3">
+    <ingredient id="57" count="25000"/>
+    <production id="68" count="1"/>
+  </item>
+  <!-- Gladius -->
+  <item id="4">
+    <ingredient id="57" count="25000"/>
+    <production id="66" count="1"/>
+  </item>
+  <!-- Handmade Sword -->
+  <item id="5">
+    <ingredient id="57" count="54100"/>
+    <production id="122" count="1"/>
+  </item>
+  <!-- Orcish Sword -->
+  <item id="6">
+    <ingredient id="57" count="54100"/>
+    <production id="67" count="1"/>
+  </item>
+  <!-- Long Sword -->
+  <item id="7">
+    <ingredient id="57" count="105000"/>
+    <production id="2" count="1"/>
+  </item>
+  <!-- Sword of Reflection -->
+  <item id="8">
+    <ingredient id="57" count="136000"/>
+    <production id="120" count="1"/>
+  </item>
+  <!-- Brandish -->
+  <item id="9">
+    <ingredient id="57" count="54100"/>
+    <production id="1333" count="1"/>
+  </item>
+  <!-- Zweihander -->
+  <item id="10">
+    <ingredient id="57" count="188000"/>
+    <production id="5284" count="1"/>
+  </item>
+  <!-- Bone Dagger -->
+  <item id="11">
+    <ingredient id="57" count="768"/>
+    <production id="11" count="1"/>
+  </item>
+  <!-- Doom Dagger -->
+  <item id="12">
+    <ingredient id="57" count="12500"/>
+    <production id="215" count="1"/>
+  </item>
+  <!-- Knife -->
+  <item id="13">
+    <ingredient id="57" count="12500"/>
+    <production id="12" count="1"/>
+  </item>
+  <!-- Dirk -->
+  <item id="14">
+    <ingredient id="57" count="54100"/>
+    <production id="216" count="1"/>
+  </item>
+  <!-- Skeleton Dagger -->
+  <item id="15">
+    <ingredient id="57" count="66600"/>
+    <production id="946" count="1"/>
+  </item>
+  <!-- Throwing Knife -->
+  <item id="16">
+    <ingredient id="57" count="105000"/>
+    <production id="218" count="1"/>
+  </item>
+  <!-- Shining Knife -->
+  <item id="17">
+    <ingredient id="57" count="136000"/>
+    <production id="217" count="1"/>
+  </item>
+  <!-- Sword Breaker -->
+  <item id="18">
+    <ingredient id="57" count="188000"/>
+    <production id="219" count="1"/>
+  </item>
+  <!-- Short Bow -->
+  <item id="19">
+    <ingredient id="57" count="768"/>
+    <production id="13" count="1"/>
+  </item>
+  <!-- Bow -->
+  <item id="20">
+    <ingredient id="57" count="12500"/>
+    <production id="14" count="1"/>
+  </item>
+  <!-- Hunting Bow -->
+  <item id="21">
+    <ingredient id="57" count="54100"/>
+    <production id="271" count="1"/>
+  </item>
+  <!-- Forest Bow -->
+  <item id="22">
+    <ingredient id="57" count="105000"/>
+    <production id="272" count="1"/>
+  </item>
+  <!-- Composite Bow -->
+  <item id="23">
+    <ingredient id="57" count="188000"/>
+    <production id="273" count="1"/>
+  </item>
+  <!-- Short Spear -->
+  <item id="24">
+    <ingredient id="57" count="105000"/>
+    <production id="15" count="1"/>
+  </item>
+  <!-- Great Spear -->
+  <item id="25">
+    <ingredient id="57" count="188000"/>
+    <production id="16" count="1"/>
+  </item>
+  <!-- Apprentice's Rod -->
+  <item id="26">
+    <ingredient id="57" count="768"/>
+    <production id="7" count="1"/>
+  </item>
+  <!-- Club -->
+  <item id="27">
+    <ingredient id="57" count="768"/>
+    <production id="4" count="1"/>
+  </item>
+  <!-- Heavy Chisel -->
+  <item id="28">
+    <ingredient id="57" count="8070"/>
+    <production id="152" count="1"/>
+  </item>
+  <!-- Mace -->
+  <item id="29">
+    <ingredient id="57" count="12500"/>
+    <production id="5" count="1"/>
+  </item>
+  <!-- Sickle -->
+  <item id="30">
+    <ingredient id="57" count="18500"/>
+    <production id="153" count="1"/>
+  </item>
+  <!-- Wand of Adept -->
+  <item id="31">
+    <ingredient id="57" count="25500"/>
+    <production id="747" count="1"/>
+  </item>
+  <!-- Dwarven Mace -->
+  <item id="32">
+    <ingredient id="57" count="54100"/>
+    <production id="154" count="1"/>
+  </item>
+  <!-- Bone Club -->
+  <item id="33">
+    <ingredient id="57" count="136000"/>
+    <production id="2501" count="1"/>
+  </item>
+  <!-- Flanged Mace -->
+  <item id="34">
+    <ingredient id="57" count="188000"/>
+    <production id="155" count="1"/>
+  </item>
+  <!-- Iron Hammer -->
+  <item id="35">
+    <ingredient id="57" count="188000"/>
+    <production id="87" count="1"/>
+  </item>
+  <!-- Willow Staff -->
+  <item id="36">
+    <ingredient id="57" count="12500"/>
+    <production id="8" count="1"/>
+  </item>
+  <!-- Mage Staff -->
+  <item id="37">
+    <ingredient id="57" count="25000"/>
+    <production id="177" count="1"/>
+  </item>
+  <!-- Red Sunset Staff -->
+  <item id="38">
+    <ingredient id="57" count="25500"/>
+    <production id="754" count="1"/>
+  </item>
+  <!-- Cedar Staff -->
+  <item id="39">
+    <ingredient id="57" count="54100"/>
+    <production id="9" count="1"/>
+  </item>
+  <!-- Journeyman's Staff -->
+  <item id="40">
+    <ingredient id="57" count="105000"/>
+    <production id="176" count="1"/>
+  </item>
+  <!-- Spiked Gloves -->
+  <item id="41">
+    <ingredient id="57" count="768"/>
+    <production id="253" count="1"/>
+  </item>
+  <!-- Iron Gloves -->
+  <item id="42">
+    <ingredient id="57" count="12500"/>
+    <production id="254" count="1"/>
+  </item>
+  <!-- Fox Claw Gloves -->
+  <item id="43">
+    <ingredient id="57" count="54100"/>
+    <production id="255" count="1"/>
+  </item>
+  <!-- Cestus -->
+  <item id="44">
+    <ingredient id="57" count="105000"/>
+    <production id="256" count="1"/>
+  </item>
+  <!-- Viper Fang -->
+  <item id="45">
+    <ingredient id="57" count="188000"/>
+    <production id="257" count="1"/>
+  </item>
+</list>

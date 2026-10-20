@@ -1,0 +1,220 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- General Shop - Underwear & Formal Wear -->
+<list>
+  <config notax="true"/>
+  <!-- Cotton Cloak -->
+  <item id="1">
+    <ingredient id="57" count="607"/>
+    <production id="53" count="1"/>
+  </item>
+  <!-- Silk Cloak -->
+  <item id="2">
+    <ingredient id="57" count="2650"/>
+    <production id="54" count="1"/>
+  </item>
+  <!-- Cotton Undergarment -->
+  <item id="3">
+    <ingredient id="57" count="10000"/>
+    <production id="55" count="1"/>
+  </item>
+  <!-- Wool Undergarment -->
+  <item id="4">
+    <ingredient id="57" count="304"/>
+    <production id="56" count="1"/>
+  </item>
+  <!-- Tattoo of Power -->
+  <item id="5">
+    <ingredient id="57" count="36900"/>
+    <production id="485" count="1"/>
+  </item>
+  <!-- Tattoo of Fire -->
+  <item id="6">
+    <ingredient id="57" count="152000"/>
+    <production id="486" count="1"/>
+  </item>
+  <!-- Tattoo of Resolve -->
+  <item id="7">
+    <ingredient id="57" count="152000"/>
+    <production id="487" count="1"/>
+  </item>
+  <!-- Tattoo of Flame -->
+  <item id="8">
+    <ingredient id="57" count="3470000"/>
+    <production id="488" count="1"/>
+  </item>
+  <!-- Tattoo of Bravery -->
+  <item id="9">
+    <ingredient id="57" count="1070000"/>
+    <production id="489" count="1"/>
+  </item>
+  <!-- Tattoo of Blood -->
+  <item id="10">
+    <ingredient id="57" count="3470000"/>
+    <production id="490" count="1"/>
+  </item>
+  <!-- Tattoo of Absolute -->
+  <item id="11">
+    <ingredient id="57" count="5280000"/>
+    <production id="491" count="1"/>
+  </item>
+  <!-- Tattoo of Soul -->
+  <item id="12">
+    <ingredient id="57" count="99900"/>
+    <production id="492" count="1"/>
+  </item>
+  <!-- Tattoo of Avadon -->
+  <item id="13">
+    <ingredient id="57" count="1560000"/>
+    <production id="493" count="1"/>
+  </item>
+  <!-- Tattoo of Doom -->
+  <item id="14">
+    <ingredient id="57" count="2410000"/>
+    <production id="494" count="1"/>
+  </item>
+  <!-- Tattoo of Pledge -->
+  <item id="15">
+    <ingredient id="57" count="1560000"/>
+    <production id="495" count="1"/>
+  </item>
+  <!-- Tattoo of Divine -->
+  <item id="16">
+    <ingredient id="57" count="2410000"/>
+    <production id="496" count="1"/>
+  </item>
+  <!-- Knight's Cloak -->
+  <item id="17">
+    <ingredient id="57" count="20900"/>
+    <production id="614" count="1"/>
+  </item>
+  <!-- Cobweb Cloak -->
+  <item id="18">
+    <ingredient id="57" count="33300"/>
+    <production id="615" count="1"/>
+  </item>
+  <!-- Cloak of Magic -->
+  <item id="19">
+    <ingredient id="57" count="74700"/>
+    <production id="616" count="1"/>
+  </item>
+  <!-- Mithril Cloak -->
+  <item id="20">
+    <ingredient id="57" count="97800"/>
+    <production id="617" count="1"/>
+  </item>
+  <!-- Cloak of Self Protection -->
+  <item id="21">
+    <ingredient id="57" count="161000"/>
+    <production id="618" count="1"/>
+  </item>
+  <!-- Ancient Cloak -->
+  <item id="22">
+    <ingredient id="57" count="245000"/>
+    <production id="619" count="1"/>
+  </item>
+  <!-- Cloak of Protection -->
+  <item id="23">
+    <ingredient id="57" count="358000"/>
+    <production id="620" count="1"/>
+  </item>
+  <!-- Cloak of Hell -->
+  <item id="24">
+    <ingredient id="57" count="804000"/>
+    <production id="621" count="1"/>
+  </item>
+  <!-- Holy Spirit's Cloak -->
+  <item id="25">
+    <ingredient id="57" count="1160000"/>
+    <production id="622" count="1"/>
+  </item>
+  <!-- Divine Cloak -->
+  <item id="26">
+    <ingredient id="57" count="1760000"/>
+    <production id="623" count="1"/>
+  </item>
+  <!-- Cloak of Invisibility -->
+  <item id="27">
+    <ingredient id="57" count="10000"/>
+    <production id="624" count="1"/>
+  </item>
+  <!-- Silk Yarn Undergarment Set -->
+  <item id="28">
+    <ingredient id="57" count="1330"/>
+    <production id="675" count="1"/>
+  </item>
+  <!-- Pure White Undergarment Set -->
+  <item id="29">
+    <ingredient id="57" count="6150"/>
+    <production id="676" count="1"/>
+  </item>
+  <!-- One-Piece Swimsuit -->
+  <item id="30">
+    <ingredient id="57" count="10400"/>
+    <production id="677" count="1"/>
+  </item>
+  <!-- Bikini Set -->
+  <item id="31">
+    <ingredient id="57" count="16700"/>
+    <production id="678" count="1"/>
+  </item>
+  <!-- Cursed Undergarment Set -->
+  <item id="32">
+    <ingredient id="57" count="25400"/>
+    <production id="679" count="1"/>
+  </item>
+  <!-- Mithril Undergarment Set -->
+  <item id="33">
+    <ingredient id="57" count="63100"/>
+    <production id="680" count="1"/>
+  </item>
+  <!-- Fascination Undergarment Set -->
+  <item id="34">
+    <ingredient id="57" count="80500"/>
+    <production id="681" count="1"/>
+  </item>
+  <!-- Demon's Undergarment Set -->
+  <item id="35">
+    <ingredient id="57" count="179000"/>
+    <production id="682" count="1"/>
+  </item>
+  <!-- Holy Undergarment Set -->
+  <item id="36">
+    <ingredient id="57" count="402000"/>
+    <production id="683" count="1"/>
+  </item>
+  <!-- Underwear of Rule -->
+  <item id="37">
+    <ingredient id="57" count="880000"/>
+    <production id="684" count="1"/>
+  </item>
+  <!-- Crystal Swimsuit Set -->
+  <item id="38">
+    <ingredient id="57" count="1310000"/>
+    <production id="685" count="1"/>
+  </item>
+  <!-- Nightmarish Tattoo -->
+  <item id="39">
+    <ingredient id="57" count="5280000"/>
+    <production id="2410" count="1"/>
+  </item>
+  <!-- Cloak of Silence -->
+  <item id="40">
+    <ingredient id="57" count="6770"/>
+    <production id="2490" count="1"/>
+  </item>
+  <!-- Golden Yarn Cloak -->
+  <item id="41">
+    <ingredient id="57" count="12300"/>
+    <production id="2491" count="1"/>
+  </item>
+  <!-- Shadow Cloak -->
+  <item id="42">
+    <ingredient id="57" count="126000"/>
+    <production id="2492" count="1"/>
+  </item>
+  <!-- Formal Wear -->
+  <item id="43">
+    <ingredient id="57" count="5000000"/>
+    <production id="6408" count="1"/>
+  </item>
+</list>

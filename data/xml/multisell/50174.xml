@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- General Shop Multisell 50174 generated for L2JLopez -->
+<list>
+  <config notax="true"/>
+  <!-- Baby Duck Rod -->
+  <item id="1">
+    <ingredient id="57" count="10000"/>
+    <production id="6529" count="1"/>
+  </item>
+  <!-- Albatross Rod -->
+  <item id="2">
+    <ingredient id="57" count="50000"/>
+    <production id="6530" count="1"/>
+  </item>
+  <!-- Pelican Rod -->
+  <item id="3">
+    <ingredient id="57" count="250000"/>
+    <production id="6531" count="1"/>
+  </item>
+  <!-- Kingfisher Rod -->
+  <item id="4">
+    <ingredient id="57" count="1000000"/>
+    <production id="6532" count="1"/>
+  </item>
+  <!-- Cygnus Pole -->
+  <item id="5">
+    <ingredient id="57" count="3500000"/>
+    <production id="6533" count="1"/>
+  </item>
+  <!-- Triton Pole -->
+  <item id="6">
+    <ingredient id="57" count="10000000"/>
+    <production id="6534" count="1"/>
+  </item>
+  <!-- Green Colored Lure - Low Grade -->
+  <item id="7">
+    <ingredient id="57" count="100"/>
+    <production id="6519" count="100"/>
+  </item>
+  <!-- Green Colored Lure -->
+  <item id="8">
+    <ingredient id="57" count="250"/>
+    <production id="6520" count="100"/>
+  </item>
+  <!-- Green Colored Lure - High Grade -->
+  <item id="9">
+    <ingredient id="57" count="500"/>
+    <production id="6521" count="100"/>
+  </item>
+  <!-- Purple Colored Lure - Low Grade -->
+  <item id="10">
+    <ingredient id="57" count="200"/>
+    <production id="6522" count="100"/>
+  </item>
+  <!-- Purple Colored Lure -->
+  <item id="11">
+    <ingredient id="57" count="400"/>
+    <production id="6523" count="100"/>
+  </item>
+  <!-- Purple Colored Lure - High Grade -->
+  <item id="12">
+    <ingredient id="57" count="800"/>
+    <production id="6524" count="100"/>
+  </item>
+</list>

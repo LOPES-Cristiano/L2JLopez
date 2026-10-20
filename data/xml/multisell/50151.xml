@@ -1,0 +1,130 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- General Shop Multisell 50151 generated for L2JLopez -->
+<list>
+  <config notax="true"/>
+  <!-- Greater Healing Potion -->
+  <item id="1">
+    <ingredient id="57" count="2000"/>
+    <production id="1539" count="10"/>
+  </item>
+  <!-- Lesser Healing Potion -->
+  <item id="2">
+    <ingredient id="57" count="500"/>
+    <production id="1060" count="10"/>
+  </item>
+  <!-- Healing Potion -->
+  <item id="3">
+    <ingredient id="57" count="1000"/>
+    <production id="1061" count="10"/>
+  </item>
+  <!-- Quick Healing Potion -->
+  <item id="4">
+    <ingredient id="57" count="15000"/>
+    <production id="1540" count="5"/>
+  </item>
+  <!-- Mana Potion -->
+  <item id="5">
+    <ingredient id="57" count="5000"/>
+    <production id="728" count="10"/>
+  </item>
+  <!-- CP Potion -->
+  <item id="6">
+    <ingredient id="57" count="1500"/>
+    <production id="5591" count="10"/>
+  </item>
+  <!-- Greater CP Potion -->
+  <item id="7">
+    <ingredient id="57" count="3500"/>
+    <production id="5592" count="10"/>
+  </item>
+  <!-- Elixir of Life (S-Grade) -->
+  <item id="8">
+    <ingredient id="57" count="50000"/>
+    <production id="8626" count="1"/>
+  </item>
+  <!-- Elixir of Mental Strength (S-Grade) -->
+  <item id="9">
+    <ingredient id="57" count="50000"/>
+    <production id="8636" count="1"/>
+  </item>
+  <!-- Elixir of CP (S-Grade) -->
+  <item id="10">
+    <ingredient id="57" count="40000"/>
+    <production id="8631" count="1"/>
+  </item>
+  <!-- Scroll of Escape -->
+  <item id="11">
+    <ingredient id="57" count="1000"/>
+    <production id="736" count="5"/>
+  </item>
+  <!-- Blessed Scroll of Escape -->
+  <item id="12">
+    <ingredient id="57" count="50000"/>
+    <production id="1538" count="1"/>
+  </item>
+  <!-- Scroll of Resurrection -->
+  <item id="13">
+    <ingredient id="57" count="5000"/>
+    <production id="737" count="5"/>
+  </item>
+  <!-- Blessed Scroll of Resurrection -->
+  <item id="14">
+    <ingredient id="57" count="150000"/>
+    <production id="3936" count="1"/>
+  </item>
+  <!-- Scroll of Guidance -->
+  <item id="15">
+    <ingredient id="57" count="10000"/>
+    <production id="3926" count="1"/>
+  </item>
+  <!-- Scroll of Death Whisper -->
+  <item id="16">
+    <ingredient id="57" count="15000"/>
+    <production id="3927" count="1"/>
+  </item>
+  <!-- Scroll of Focus -->
+  <item id="17">
+    <ingredient id="57" count="15000"/>
+    <production id="3928" count="1"/>
+  </item>
+  <!-- Scroll of Acumen -->
+  <item id="18">
+    <ingredient id="57" count="15000"/>
+    <production id="3929" count="1"/>
+  </item>
+  <!-- Scroll of Haste -->
+  <item id="19">
+    <ingredient id="57" count="15000"/>
+    <production id="3930" count="1"/>
+  </item>
+  <!-- Scroll of Agility -->
+  <item id="20">
+    <ingredient id="57" count="10000"/>
+    <production id="3931" count="1"/>
+  </item>
+  <!-- Scroll of Mystic Empower -->
+  <item id="21">
+    <ingredient id="57" count="15000"/>
+    <production id="3932" count="1"/>
+  </item>
+  <!-- Scroll of Might -->
+  <item id="22">
+    <ingredient id="57" count="10000"/>
+    <production id="3933" count="1"/>
+  </item>
+  <!-- Scroll of Wind Walk -->
+  <item id="23">
+    <ingredient id="57" count="15000"/>
+    <production id="3934" count="1"/>
+  </item>
+  <!-- Scroll of Shield -->
+  <item id="24">
+    <ingredient id="57" count="10000"/>
+    <production id="3935" count="1"/>
+  </item>
+  <!-- Scroll of Mana Regeneration -->
+  <item id="25">
+    <ingredient id="57" count="15000"/>
+    <production id="4218" count="1"/>
+  </item>
+</list>

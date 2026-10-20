@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- General Shop - A-Grade Jewels -->
+<list>
+  <config notax="true"/>
+  <!-- Majestic Necklace -->
+  <item id="1">
+    <ingredient id="57" count="3450000"/>
+    <production id="924" count="1"/>
+  </item>
+  <!-- Majestic Earring -->
+  <item id="2">
+    <ingredient id="57" count="2590000"/>
+    <production id="862" count="1"/>
+  </item>
+  <!-- Majestic Ring -->
+  <item id="3">
+    <ingredient id="57" count="1730000"/>
+    <production id="893" count="1"/>
+  </item>
+  <!-- Phoenix Necklace -->
+  <item id="4">
+    <ingredient id="57" count="2600000"/>
+    <production id="933" count="1"/>
+  </item>
+  <!-- Phoenix Earring -->
+  <item id="5">
+    <ingredient id="57" count="1950000"/>
+    <production id="871" count="1"/>
+  </item>
+  <!-- Phoenix Ring -->
+  <item id="6">
+    <ingredient id="57" count="1300000"/>
+    <production id="902" count="1"/>
+  </item>
+</list>

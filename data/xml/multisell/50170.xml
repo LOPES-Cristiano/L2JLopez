@@ -1,0 +1,1255 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- General Shop Multisell 50170 generated for L2JLopez -->
+<list>
+  <config notax="true"/>
+  <!-- Spellbook: Light -->
+  <item id="1">
+    <ingredient id="57" count="100"/>
+    <production id="1047" count="1"/>
+  </item>
+  <!-- Spellbook: Might -->
+  <item id="2">
+    <ingredient id="57" count="100"/>
+    <production id="1048" count="1"/>
+  </item>
+  <!-- Spellbook: Ice Bolt -->
+  <item id="3">
+    <ingredient id="57" count="100"/>
+    <production id="1049" count="1"/>
+  </item>
+  <!-- Spellbook: Battle Heal -->
+  <item id="4">
+    <ingredient id="57" count="100"/>
+    <production id="1050" count="1"/>
+  </item>
+  <!-- Spellbook: Vampiric Touch -->
+  <item id="5">
+    <ingredient id="57" count="100"/>
+    <production id="1051" count="1"/>
+  </item>
+  <!-- Spellbook: Flame Strike -->
+  <item id="6">
+    <ingredient id="57" count="500"/>
+    <production id="1052" count="1"/>
+  </item>
+  <!-- Spellbook: Cure Poison -->
+  <item id="7">
+    <ingredient id="57" count="500"/>
+    <production id="1053" count="1"/>
+  </item>
+  <!-- Spellbook: Group Heal -->
+  <item id="8">
+    <ingredient id="57" count="500"/>
+    <production id="1054" count="1"/>
+  </item>
+  <!-- Spellbook: Curse: Poison -->
+  <item id="9">
+    <ingredient id="57" count="500"/>
+    <production id="1055" count="1"/>
+  </item>
+  <!-- Spellbook: Curse: Weakness -->
+  <item id="10">
+    <ingredient id="57" count="500"/>
+    <production id="1056" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Meal -->
+  <item id="11">
+    <ingredient id="57" count="500"/>
+    <production id="1057" count="1"/>
+  </item>
+  <!-- Spellbook: Shield -->
+  <item id="12">
+    <ingredient id="57" count="500"/>
+    <production id="1058" count="1"/>
+  </item>
+  <!-- Spellbook: Know Enemy -->
+  <item id="13">
+    <ingredient id="57" count="500"/>
+    <production id="1059" count="1"/>
+  </item>
+  <!-- Spellbook: Attack Aura -->
+  <item id="14">
+    <ingredient id="57" count="75"/>
+    <production id="1095" count="1"/>
+  </item>
+  <!-- Spellbook: Elemental Heal -->
+  <item id="15">
+    <ingredient id="57" count="550"/>
+    <production id="1096" count="1"/>
+  </item>
+  <!-- Spellbook: Drain Health -->
+  <item id="16">
+    <ingredient id="57" count="550"/>
+    <production id="1097" count="1"/>
+  </item>
+  <!-- Spellbook: Wind Walk -->
+  <item id="17">
+    <ingredient id="57" count="500"/>
+    <production id="1098" count="1"/>
+  </item>
+  <!-- Spellbook: Wind Shackle -->
+  <item id="18">
+    <ingredient id="57" count="500"/>
+    <production id="1099" count="1"/>
+  </item>
+  <!-- Spellbook: Wind Strike -->
+  <item id="19">
+    <ingredient id="57" count="50"/>
+    <production id="1150" count="1"/>
+  </item>
+  <!-- Spellbook: Self Heal -->
+  <item id="20">
+    <ingredient id="57" count="50"/>
+    <production id="1151" count="1"/>
+  </item>
+  <!-- Spellbook: Heal -->
+  <item id="21">
+    <ingredient id="57" count="100"/>
+    <production id="1152" count="1"/>
+  </item>
+  <!-- Spellbook: Defense Aura -->
+  <item id="22">
+    <ingredient id="57" count="75"/>
+    <production id="1294" count="1"/>
+  </item>
+  <!-- Spellbook: Aqua Swirl -->
+  <item id="23">
+    <ingredient id="57" count="800"/>
+    <production id="1370" count="1"/>
+  </item>
+  <!-- Spellbook: Twister -->
+  <item id="24">
+    <ingredient id="57" count="800"/>
+    <production id="1371" count="1"/>
+  </item>
+  <!-- Spellbook: Blaze -->
+  <item id="25">
+    <ingredient id="57" count="800"/>
+    <production id="1372" count="1"/>
+  </item>
+  <!-- Spellbook: Poison Recovery -->
+  <item id="26">
+    <ingredient id="57" count="800"/>
+    <production id="1377" count="1"/>
+  </item>
+  <!-- Spellbook: Divine Heal -->
+  <item id="27">
+    <ingredient id="57" count="1550"/>
+    <production id="1378" count="1"/>
+  </item>
+  <!-- Spellbook: Cure Bleeding -->
+  <item id="28">
+    <ingredient id="57" count="1150"/>
+    <production id="1379" count="1"/>
+  </item>
+  <!-- Spellbook: Entangle -->
+  <item id="29">
+    <ingredient id="57" count="2600"/>
+    <production id="1380" count="1"/>
+  </item>
+  <!-- Spellbook: Freezing Strike -->
+  <item id="30">
+    <ingredient id="57" count="2600"/>
+    <production id="1381" count="1"/>
+  </item>
+  <!-- Spellbook: Power Break -->
+  <item id="31">
+    <ingredient id="57" count="2600"/>
+    <production id="1382" count="1"/>
+  </item>
+  <!-- Spellbook: Poison -->
+  <item id="32">
+    <ingredient id="57" count="800"/>
+    <production id="1383" count="1"/>
+  </item>
+  <!-- Spellbook: Sprint -->
+  <item id="33">
+    <ingredient id="57" count="2600"/>
+    <production id="1384" count="1"/>
+  </item>
+  <!-- Spellbook: Recharge -->
+  <item id="34">
+    <ingredient id="57" count="1800"/>
+    <production id="1385" count="1"/>
+  </item>
+  <!-- Spellbook: Disrupt Undead -->
+  <item id="35">
+    <ingredient id="57" count="800"/>
+    <production id="1386" count="1"/>
+  </item>
+  <!-- Spellbook: Resist Poison -->
+  <item id="36">
+    <ingredient id="57" count="2450"/>
+    <production id="1387" count="1"/>
+  </item>
+  <!-- Spellbook: Mental Shield -->
+  <item id="37">
+    <ingredient id="57" count="1250"/>
+    <production id="1388" count="1"/>
+  </item>
+  <!-- Spellbook: Holy Weapon -->
+  <item id="38">
+    <ingredient id="57" count="1250"/>
+    <production id="1389" count="1"/>
+  </item>
+  <!-- Spellbook: Regeneration -->
+  <item id="39">
+    <ingredient id="57" count="2450"/>
+    <production id="1390" count="1"/>
+  </item>
+  <!-- Spellbook: Empower -->
+  <item id="40">
+    <ingredient id="57" count="1250"/>
+    <production id="1391" count="1"/>
+  </item>
+  <!-- Spellbook: Berserker Spirit -->
+  <item id="41">
+    <ingredient id="57" count="2450"/>
+    <production id="1392" count="1"/>
+  </item>
+  <!-- Spellbook: Quickness -->
+  <item id="42">
+    <ingredient id="57" count="1250"/>
+    <production id="1393" count="1"/>
+  </item>
+  <!-- Spellbook: Sleep -->
+  <item id="43">
+    <ingredient id="57" count="1800"/>
+    <production id="1394" count="1"/>
+  </item>
+  <!-- Spellbook: Surrender to Water -->
+  <item id="44">
+    <ingredient id="57" count="1250"/>
+    <production id="1395" count="1"/>
+  </item>
+  <!-- Spellbook: Surrender to Wind -->
+  <item id="45">
+    <ingredient id="57" count="1250"/>
+    <production id="1396" count="1"/>
+  </item>
+  <!-- Spellbook: Peace -->
+  <item id="46">
+    <ingredient id="57" count="2450"/>
+    <production id="1397" count="1"/>
+  </item>
+  <!-- Spellbook: Focus -->
+  <item id="47">
+    <ingredient id="57" count="1250"/>
+    <production id="1398" count="1"/>
+  </item>
+  <!-- Spellbook: Concentration -->
+  <item id="48">
+    <ingredient id="57" count="800"/>
+    <production id="1399" count="1"/>
+  </item>
+  <!-- Spellbook: Surrender To Fire -->
+  <item id="49">
+    <ingredient id="57" count="1250"/>
+    <production id="1400" count="1"/>
+  </item>
+  <!-- Spellbook: Acumen -->
+  <item id="50">
+    <ingredient id="57" count="800"/>
+    <production id="1401" count="1"/>
+  </item>
+  <!-- Spellbook: Agility -->
+  <item id="51">
+    <ingredient id="57" count="1250"/>
+    <production id="1402" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Kat the Cat -->
+  <item id="52">
+    <ingredient id="57" count="800"/>
+    <production id="1403" count="1"/>
+  </item>
+  <!-- Spellbook: Servitor Recharge -->
+  <item id="53">
+    <ingredient id="57" count="1250"/>
+    <production id="1404" count="1"/>
+  </item>
+  <!-- Spellbook: Servitor Heal -->
+  <item id="54">
+    <ingredient id="57" count="800"/>
+    <production id="1405" count="1"/>
+  </item>
+  <!-- Spellbook: Servitor Wind Walk -->
+  <item id="55">
+    <ingredient id="57" count="2450"/>
+    <production id="1406" count="1"/>
+  </item>
+  <!-- Spellbook: Servitor Magic Boost -->
+  <item id="56">
+    <ingredient id="57" count="2450"/>
+    <production id="1407" count="1"/>
+  </item>
+  <!-- Spellbook: Mighty Servitor -->
+  <item id="57">
+    <ingredient id="57" count="2450"/>
+    <production id="1408" count="1"/>
+  </item>
+  <!-- Spellbook: Slow -->
+  <item id="58">
+    <ingredient id="57" count="2450"/>
+    <production id="1409" count="1"/>
+  </item>
+  <!-- Spellbook: Poisonous Cloud -->
+  <item id="59">
+    <ingredient id="57" count="1250"/>
+    <production id="1410" count="1"/>
+  </item>
+  <!-- Spellbook: Aura Burn -->
+  <item id="60">
+    <ingredient id="57" count="800"/>
+    <production id="1411" count="1"/>
+  </item>
+  <!-- Spellbook: Resist Aqua -->
+  <item id="61">
+    <ingredient id="57" count="2450"/>
+    <production id="1412" count="1"/>
+  </item>
+  <!-- Spellbook: Resist Wind -->
+  <item id="62">
+    <ingredient id="57" count="2450"/>
+    <production id="1413" count="1"/>
+  </item>
+  <!-- Spellbook: Resist Fire -->
+  <item id="63">
+    <ingredient id="57" count="1800"/>
+    <production id="1414" count="1"/>
+  </item>
+  <!-- Spellbook: Dryad Root -->
+  <item id="64">
+    <ingredient id="57" count="1250"/>
+    <production id="1415" count="1"/>
+  </item>
+  <!-- Spellbook: Curse of Chaos -->
+  <item id="65">
+    <ingredient id="57" count="2450"/>
+    <production id="1416" count="1"/>
+  </item>
+  <!-- Spellbook: Surrender To Earth -->
+  <item id="66">
+    <ingredient id="57" count="1250"/>
+    <production id="1417" count="1"/>
+  </item>
+  <!-- Spellbook: Surrender To Poison -->
+  <item id="67">
+    <ingredient id="57" count="1250"/>
+    <production id="1418" count="1"/>
+  </item>
+  <!-- Spellbook: Confusion -->
+  <item id="68">
+    <ingredient id="57" count="1150"/>
+    <production id="1512" count="1"/>
+  </item>
+  <!-- Spellbook: Charm -->
+  <item id="69">
+    <ingredient id="57" count="800"/>
+    <production id="1513" count="1"/>
+  </item>
+  <!-- Spellbook: Resurrection -->
+  <item id="70">
+    <ingredient id="57" count="800"/>
+    <production id="1514" count="1"/>
+  </item>
+  <!-- Spellbook: Kiss of Eva -->
+  <item id="71">
+    <ingredient id="57" count="800"/>
+    <production id="1515" count="1"/>
+  </item>
+  <!-- Spellbook: Corpse Life Drain -->
+  <item id="72">
+    <ingredient id="57" count="1800"/>
+    <production id="1516" count="1"/>
+  </item>
+  <!-- Spellbook: Body To Mind -->
+  <item id="73">
+    <ingredient id="57" count="1250"/>
+    <production id="1517" count="1"/>
+  </item>
+  <!-- Amulet: Flame Chant -->
+  <item id="74">
+    <ingredient id="57" count="1800"/>
+    <production id="1518" count="1"/>
+  </item>
+  <!-- Amulet: Pa'agrio's Gift -->
+  <item id="75">
+    <ingredient id="57" count="1800"/>
+    <production id="1519" count="1"/>
+  </item>
+  <!-- Amulet: Pa'agrio's Blessing -->
+  <item id="76">
+    <ingredient id="57" count="2450"/>
+    <production id="1520" count="1"/>
+  </item>
+  <!-- Amulet: Chant of Fire -->
+  <item id="77">
+    <ingredient id="57" count="800"/>
+    <production id="1521" count="1"/>
+  </item>
+  <!-- Amulet: Chant of Battle -->
+  <item id="78">
+    <ingredient id="57" count="500"/>
+    <production id="1522" count="1"/>
+  </item>
+  <!-- Amulet: Chant of Shielding -->
+  <item id="79">
+    <ingredient id="57" count="800"/>
+    <production id="1523" count="1"/>
+  </item>
+  <!-- Amulet: Soul Shield -->
+  <item id="80">
+    <ingredient id="57" count="100"/>
+    <production id="1524" count="1"/>
+  </item>
+  <!-- Amulet: Life Drain -->
+  <item id="81">
+    <ingredient id="57" count="100"/>
+    <production id="1525" count="1"/>
+  </item>
+  <!-- Amulet: Fear -->
+  <item id="82">
+    <ingredient id="57" count="500"/>
+    <production id="1526" count="1"/>
+  </item>
+  <!-- Amulet: Venom -->
+  <item id="83">
+    <ingredient id="57" count="100"/>
+    <production id="1527" count="1"/>
+  </item>
+  <!-- Amulet: Seal of Chaos -->
+  <item id="84">
+    <ingredient id="57" count="1800"/>
+    <production id="1528" count="1"/>
+  </item>
+  <!-- Amulet: Dreaming Spirit -->
+  <item id="85">
+    <ingredient id="57" count="100"/>
+    <production id="1529" count="1"/>
+  </item>
+  <!-- Amulet: Seal of Slow -->
+  <item id="86">
+    <ingredient id="57" count="2450"/>
+    <production id="1530" count="1"/>
+  </item>
+  <!-- Amulet: Chill Flame -->
+  <item id="87">
+    <ingredient id="57" count="100"/>
+    <production id="1531" count="1"/>
+  </item>
+  <!-- Amulet: Blaze Quake -->
+  <item id="88">
+    <ingredient id="57" count="1250"/>
+    <production id="1532" count="1"/>
+  </item>
+  <!-- Amulet: Aura Sink -->
+  <item id="89">
+    <ingredient id="57" count="1250"/>
+    <production id="1533" count="1"/>
+  </item>
+  <!-- Amulet: Madness -->
+  <item id="90">
+    <ingredient id="57" count="800"/>
+    <production id="1534" count="1"/>
+  </item>
+  <!-- Amulet: Frost Flame -->
+  <item id="91">
+    <ingredient id="57" count="800"/>
+    <production id="1535" count="1"/>
+  </item>
+  <!-- Amulet: Seal of Binding -->
+  <item id="92">
+    <ingredient id="57" count="1250"/>
+    <production id="1536" count="1"/>
+  </item>
+  <!-- Amulet: Seal of Poison -->
+  <item id="93">
+    <ingredient id="57" count="800"/>
+    <production id="1537" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Shadow -->
+  <item id="94">
+    <ingredient id="57" count="800"/>
+    <production id="1667" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Mew the Cat -->
+  <item id="95">
+    <ingredient id="57" count="1250"/>
+    <production id="1668" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Boxer the Unicorn -->
+  <item id="96">
+    <ingredient id="57" count="800"/>
+    <production id="1669" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Mirage the Unicorn -->
+  <item id="97">
+    <ingredient id="57" count="1250"/>
+    <production id="1670" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Silhouette -->
+  <item id="98">
+    <ingredient id="57" count="800"/>
+    <production id="1671" count="1"/>
+  </item>
+  <!-- Amulet: Chant of Life -->
+  <item id="99">
+    <ingredient id="57" count="800"/>
+    <production id="1856" count="1"/>
+  </item>
+  <!-- Blueprint: Summon Mechanic Golem -->
+  <item id="100">
+    <ingredient id="57" count="1550"/>
+    <production id="3038" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Storm Cubic -->
+  <item id="101">
+    <ingredient id="57" count="3200"/>
+    <production id="3039" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Vampiric Cubic -->
+  <item id="102">
+    <ingredient id="57" count="3700"/>
+    <production id="3040" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Phantom Cubic -->
+  <item id="103">
+    <ingredient id="57" count="3200"/>
+    <production id="3041" count="1"/>
+  </item>
+  <!-- Spellbook: Life Scavenge -->
+  <item id="104">
+    <ingredient id="57" count="3200"/>
+    <production id="3042" count="1"/>
+  </item>
+  <!-- Spellbook: Holy Strike -->
+  <item id="105">
+    <ingredient id="57" count="4250"/>
+    <production id="3043" count="1"/>
+  </item>
+  <!-- Spellbook: Horror -->
+  <item id="106">
+    <ingredient id="57" count="4250"/>
+    <production id="3044" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Life Cubic -->
+  <item id="107">
+    <ingredient id="57" count="3700"/>
+    <production id="3045" count="1"/>
+  </item>
+  <!-- Spellbook: Sacrifice -->
+  <item id="108">
+    <ingredient id="57" count="5400"/>
+    <production id="3046" count="1"/>
+  </item>
+  <!-- Spellbook: Iron Will -->
+  <item id="109">
+    <ingredient id="57" count="3700"/>
+    <production id="3047" count="1"/>
+  </item>
+  <!-- Spellbook: Reflect Damage -->
+  <item id="110">
+    <ingredient id="57" count="3200"/>
+    <production id="3048" count="1"/>
+  </item>
+  <!-- Spellbook: Corpse Plague -->
+  <item id="111">
+    <ingredient id="57" count="4250"/>
+    <production id="3049" count="1"/>
+  </item>
+  <!-- Spellbook: Hex -->
+  <item id="112">
+    <ingredient id="57" count="3200"/>
+    <production id="3050" count="1"/>
+  </item>
+  <!-- Spellbook: Spirit Barrier -->
+  <item id="113">
+    <ingredient id="57" count="3200"/>
+    <production id="3051" count="1"/>
+  </item>
+  <!-- Spellbook: Hamstring -->
+  <item id="114">
+    <ingredient id="57" count="3700"/>
+    <production id="3052" count="1"/>
+  </item>
+  <!-- Spellbook: Holy Blessing -->
+  <item id="115">
+    <ingredient id="57" count="3200"/>
+    <production id="3053" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Viper Cubic -->
+  <item id="116">
+    <ingredient id="57" count="4800"/>
+    <production id="3054" count="1"/>
+  </item>
+  <!-- Spellbook: Lightning Strike -->
+  <item id="117">
+    <ingredient id="57" count="6750"/>
+    <production id="3055" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Dark Panther -->
+  <item id="118">
+    <ingredient id="57" count="3200"/>
+    <production id="3056" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Reanimated Man -->
+  <item id="119">
+    <ingredient id="57" count="3850"/>
+    <production id="3057" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Corrupted Man -->
+  <item id="120">
+    <ingredient id="57" count="3200"/>
+    <production id="3058" count="1"/>
+  </item>
+  <!-- Spellbook: Corpse Burst -->
+  <item id="121">
+    <ingredient id="57" count="4600"/>
+    <production id="3059" count="1"/>
+  </item>
+  <!-- Spellbook: Forget -->
+  <item id="122">
+    <ingredient id="57" count="3850"/>
+    <production id="3060" count="1"/>
+  </item>
+  <!-- Spellbook: Curse Discord -->
+  <item id="123">
+    <ingredient id="57" count="3200"/>
+    <production id="3061" count="1"/>
+  </item>
+  <!-- Spellbook: Curse Fear -->
+  <item id="124">
+    <ingredient id="57" count="3200"/>
+    <production id="3062" count="1"/>
+  </item>
+  <!-- Spellbook: Anchor -->
+  <item id="125">
+    <ingredient id="57" count="3850"/>
+    <production id="3063" count="1"/>
+  </item>
+  <!-- Spellbook: Silence -->
+  <item id="126">
+    <ingredient id="57" count="3200"/>
+    <production id="3064" count="1"/>
+  </item>
+  <!-- Spellbook: Death Spike -->
+  <item id="127">
+    <ingredient id="57" count="3850"/>
+    <production id="3065" count="1"/>
+  </item>
+  <!-- Spellbook: Curse Death Link -->
+  <item id="128">
+    <ingredient id="57" count="5400"/>
+    <production id="3066" count="1"/>
+  </item>
+  <!-- Spellbook: Vampiric Claw -->
+  <item id="129">
+    <ingredient id="57" count="3200"/>
+    <production id="3067" count="1"/>
+  </item>
+  <!-- Spellbook: Vitalize -->
+  <item id="130">
+    <ingredient id="57" count="4600"/>
+    <production id="3068" count="1"/>
+  </item>
+  <!-- Spellbook: Repose -->
+  <item id="131">
+    <ingredient id="57" count="3850"/>
+    <production id="3069" count="1"/>
+  </item>
+  <!-- Spellbook: Hold Undead -->
+  <item id="132">
+    <ingredient id="57" count="4600"/>
+    <production id="3070" count="1"/>
+  </item>
+  <!-- Spellbook: Requiem -->
+  <item id="133">
+    <ingredient id="57" count="3200"/>
+    <production id="3071" count="1"/>
+  </item>
+  <!-- Spellbook: Purify -->
+  <item id="134">
+    <ingredient id="57" count="3850"/>
+    <production id="3072" count="1"/>
+  </item>
+  <!-- Spellbook: Might of Heaven -->
+  <item id="135">
+    <ingredient id="57" count="3200"/>
+    <production id="3073" count="1"/>
+  </item>
+  <!-- Spellbook: Surrender to Wind -->
+  <item id="136">
+    <ingredient id="57" count="3200"/>
+    <production id="3074" count="1"/>
+  </item>
+  <!-- Spellbook: Blazing Circle -->
+  <item id="137">
+    <ingredient id="57" count="3200"/>
+    <production id="3075" count="1"/>
+  </item>
+  <!-- Spellbook: Prominence -->
+  <item id="138">
+    <ingredient id="57" count="3200"/>
+    <production id="3076" count="1"/>
+  </item>
+  <!-- Spellbook: Blazing Skin -->
+  <item id="139">
+    <ingredient id="57" count="3200"/>
+    <production id="3077" count="1"/>
+  </item>
+  <!-- Spellbook: Decay -->
+  <item id="140">
+    <ingredient id="57" count="4600"/>
+    <production id="3078" count="1"/>
+  </item>
+  <!-- Spellbook: Cancel -->
+  <item id="141">
+    <ingredient id="57" count="4600"/>
+    <production id="3079" count="1"/>
+  </item>
+  <!-- Spellbook: Sleeping Cloud -->
+  <item id="142">
+    <ingredient id="57" count="3850"/>
+    <production id="3080" count="1"/>
+  </item>
+  <!-- Spellbook: Aura Flare -->
+  <item id="143">
+    <ingredient id="57" count="3200"/>
+    <production id="3081" count="1"/>
+  </item>
+  <!-- Spellbook: Surrender to Water -->
+  <item id="144">
+    <ingredient id="57" count="3200"/>
+    <production id="3082" count="1"/>
+  </item>
+  <!-- Spellbook: Frost Wall -->
+  <item id="145">
+    <ingredient id="57" count="5400"/>
+    <production id="3083" count="1"/>
+  </item>
+  <!-- Spellbook: Freezing Shackle -->
+  <item id="146">
+    <ingredient id="57" count="3850"/>
+    <production id="3084" count="1"/>
+  </item>
+  <!-- Spellbook: Hydro Blast -->
+  <item id="147">
+    <ingredient id="57" count="3200"/>
+    <production id="3085" count="1"/>
+  </item>
+  <!-- Spellbook: Frost Bolt -->
+  <item id="148">
+    <ingredient id="57" count="3200"/>
+    <production id="3086" count="1"/>
+  </item>
+  <!-- Spellbook: Ice Dagger -->
+  <item id="149">
+    <ingredient id="57" count="3850"/>
+    <production id="3087" count="1"/>
+  </item>
+  <!-- Spellbook: Freezing Skin -->
+  <item id="150">
+    <ingredient id="57" count="3200"/>
+    <production id="3088" count="1"/>
+  </item>
+  <!-- Spellbook: Tempest -->
+  <item id="151">
+    <ingredient id="57" count="4600"/>
+    <production id="3089" count="1"/>
+  </item>
+  <!-- Spellbook: Hurricane -->
+  <item id="152">
+    <ingredient id="57" count="3200"/>
+    <production id="3090" count="1"/>
+  </item>
+  <!-- Spellbook: Servitor Magic Shield -->
+  <item id="153">
+    <ingredient id="57" count="3850"/>
+    <production id="3091" count="1"/>
+  </item>
+  <!-- Spellbook: Servitor Physical Shield -->
+  <item id="154">
+    <ingredient id="57" count="3200"/>
+    <production id="3092" count="1"/>
+  </item>
+  <!-- Spellbook: Servitor Haste -->
+  <item id="155">
+    <ingredient id="57" count="3850"/>
+    <production id="3093" count="1"/>
+  </item>
+  <!-- Spellbook: Invigor -->
+  <item id="156">
+    <ingredient id="57" count="3200"/>
+    <production id="3094" count="1"/>
+  </item>
+  <!-- Spellbook: Magic Barrier -->
+  <item id="157">
+    <ingredient id="57" count="3850"/>
+    <production id="3095" count="1"/>
+  </item>
+  <!-- Spellbook: Blessed Body -->
+  <item id="158">
+    <ingredient id="57" count="3850"/>
+    <production id="3096" count="1"/>
+  </item>
+  <!-- Spellbook: Blessed Soul -->
+  <item id="159">
+    <ingredient id="57" count="3850"/>
+    <production id="3097" count="1"/>
+  </item>
+  <!-- Spellbook: Return -->
+  <item id="160">
+    <ingredient id="57" count="3200"/>
+    <production id="3098" count="1"/>
+  </item>
+  <!-- Spellbook: Haste -->
+  <item id="161">
+    <ingredient id="57" count="3850"/>
+    <production id="3099" count="1"/>
+  </item>
+  <!-- Spellbook: Guidance -->
+  <item id="162">
+    <ingredient id="57" count="3200"/>
+    <production id="3100" count="1"/>
+  </item>
+  <!-- Spellbook: Death Whisper -->
+  <item id="163">
+    <ingredient id="57" count="3200"/>
+    <production id="3101" count="1"/>
+  </item>
+  <!-- Spellbook: Bless Shield -->
+  <item id="164">
+    <ingredient id="57" count="3200"/>
+    <production id="3102" count="1"/>
+  </item>
+  <!-- Amulet: Pa'agrio's Wisdom -->
+  <item id="165">
+    <ingredient id="57" count="3200"/>
+    <production id="3103" count="1"/>
+  </item>
+  <!-- Amulet: Pa'agrio's Glory -->
+  <item id="166">
+    <ingredient id="57" count="3200"/>
+    <production id="3104" count="1"/>
+  </item>
+  <!-- Amulet: Seal of Winter -->
+  <item id="167">
+    <ingredient id="57" count="3200"/>
+    <production id="3105" count="1"/>
+  </item>
+  <!-- Amulet: Seal of Flame -->
+  <item id="168">
+    <ingredient id="57" count="4600"/>
+    <production id="3106" count="1"/>
+  </item>
+  <!-- Amulet: Seal of Gloom -->
+  <item id="169">
+    <ingredient id="57" count="3850"/>
+    <production id="3107" count="1"/>
+  </item>
+  <!-- Amulet: Seal of Mirage -->
+  <item id="170">
+    <ingredient id="57" count="3850"/>
+    <production id="3108" count="1"/>
+  </item>
+  <!-- Amulet: Seal of Silence -->
+  <item id="171">
+    <ingredient id="57" count="4600"/>
+    <production id="3109" count="1"/>
+  </item>
+  <!-- Amulet: Seal of Scourge -->
+  <item id="172">
+    <ingredient id="57" count="3200"/>
+    <production id="3110" count="1"/>
+  </item>
+  <!-- Amulet: Seal of Suspension -->
+  <item id="173">
+    <ingredient id="57" count="4600"/>
+    <production id="3111" count="1"/>
+  </item>
+  <!-- Amulet: Pa'agrio's Vision -->
+  <item id="174">
+    <ingredient id="57" count="3850"/>
+    <production id="3112" count="1"/>
+  </item>
+  <!-- Amulet: Pa'agrio's Protection -->
+  <item id="175">
+    <ingredient id="57" count="3200"/>
+    <production id="3113" count="1"/>
+  </item>
+  <!-- Amulet: Steal Essence -->
+  <item id="176">
+    <ingredient id="57" count="3200"/>
+    <production id="3114" count="1"/>
+  </item>
+  <!-- Amulet: Freezing Flame -->
+  <item id="177">
+    <ingredient id="57" count="3200"/>
+    <production id="3115" count="1"/>
+  </item>
+  <!-- Amulet: Chant of Fury -->
+  <item id="178">
+    <ingredient id="57" count="4600"/>
+    <production id="3116" count="1"/>
+  </item>
+  <!-- Amulet: Chant of Evasion -->
+  <item id="179">
+    <ingredient id="57" count="3200"/>
+    <production id="3117" count="1"/>
+  </item>
+  <!-- Amulet: Chant of Rage -->
+  <item id="180">
+    <ingredient id="57" count="3850"/>
+    <production id="3118" count="1"/>
+  </item>
+  <!-- Spellbook: Greater Heal -->
+  <item id="181">
+    <ingredient id="57" count="3200"/>
+    <production id="3429" count="1"/>
+  </item>
+  <!-- Spellbook: Greater Battle Heal -->
+  <item id="182">
+    <ingredient id="57" count="3200"/>
+    <production id="3430" count="1"/>
+  </item>
+  <!-- Spellbook: Greater Group Heal -->
+  <item id="183">
+    <ingredient id="57" count="3200"/>
+    <production id="3431" count="1"/>
+  </item>
+  <!-- Spellbook: Remedy -->
+  <item id="184">
+    <ingredient id="57" count="3200"/>
+    <production id="3432" count="1"/>
+  </item>
+  <!-- Blueprint: Summon Siege Golem -->
+  <item id="185">
+    <ingredient id="57" count="4800"/>
+    <production id="3940" count="1"/>
+  </item>
+  <!-- Spellbook: Mass Resurrection -->
+  <item id="186">
+    <ingredient id="57" count="4600"/>
+    <production id="3941" count="1"/>
+  </item>
+  <!-- Spellbook: Party Return -->
+  <item id="187">
+    <ingredient id="57" count="4600"/>
+    <production id="3942" count="1"/>
+  </item>
+  <!-- Amulet: Pa'agrio's Heart -->
+  <item id="188">
+    <ingredient id="57" count="3850"/>
+    <production id="3943" count="1"/>
+  </item>
+  <!-- Spellbook: Decrease Weight -->
+  <item id="189">
+    <ingredient id="57" count="2450"/>
+    <production id="3944" count="1"/>
+  </item>
+  <!-- Spellbook: Restore Life -->
+  <item id="190">
+    <ingredient id="57" count="3850"/>
+    <production id="4200" count="1"/>
+  </item>
+  <!-- Spellbook: Resist Shock -->
+  <item id="191">
+    <ingredient id="57" count="3200"/>
+    <production id="4201" count="1"/>
+  </item>
+  <!-- Spellbook: Life Leech -->
+  <item id="192">
+    <ingredient id="57" count="3200"/>
+    <production id="4203" count="1"/>
+  </item>
+  <!-- Amulet: Pa'agrio's Tact -->
+  <item id="193">
+    <ingredient id="57" count="3200"/>
+    <production id="4204" count="1"/>
+  </item>
+  <!-- Amulet: Pa'agrio's Rage -->
+  <item id="194">
+    <ingredient id="57" count="3850"/>
+    <production id="4205" count="1"/>
+  </item>
+  <!-- Spellbook: Transfer Pain -->
+  <item id="195">
+    <ingredient id="57" count="3200"/>
+    <production id="4206" count="1"/>
+  </item>
+  <!-- Spellbook: Mana Regeneration -->
+  <item id="196">
+    <ingredient id="57" count="3200"/>
+    <production id="4207" count="1"/>
+  </item>
+  <!-- Spellbook: Curse Gloom -->
+  <item id="197">
+    <ingredient id="57" count="3850"/>
+    <production id="4208" count="1"/>
+  </item>
+  <!-- Spellbook: Solar Spark -->
+  <item id="198">
+    <ingredient id="57" count="1250"/>
+    <production id="4906" count="1"/>
+  </item>
+  <!-- Spellbook: Solar Flare -->
+  <item id="199">
+    <ingredient id="57" count="900"/>
+    <production id="4907" count="1"/>
+  </item>
+  <!-- Spellbook: Shadow Spark -->
+  <item id="200">
+    <ingredient id="57" count="1250"/>
+    <production id="4908" count="1"/>
+  </item>
+  <!-- Spellbook: Shadow Flare -->
+  <item id="201">
+    <ingredient id="57" count="900"/>
+    <production id="4909" count="1"/>
+  </item>
+  <!-- Spellbook: Vampiric Rage -->
+  <item id="202">
+    <ingredient id="57" count="1800"/>
+    <production id="4910" count="1"/>
+  </item>
+  <!-- Spellbook: Curse Disease -->
+  <item id="203">
+    <ingredient id="57" count="6750"/>
+    <production id="4911" count="1"/>
+  </item>
+  <!-- Spellbook: Benediction -->
+  <item id="204">
+    <ingredient id="57" count="8200"/>
+    <production id="4912" count="1"/>
+  </item>
+  <!-- Spellbook: Word of Fear -->
+  <item id="205">
+    <ingredient id="57" count="3850"/>
+    <production id="4913" count="1"/>
+  </item>
+  <!-- Spellbook: Serenade of Eva -->
+  <item id="206">
+    <ingredient id="57" count="3850"/>
+    <production id="4914" count="1"/>
+  </item>
+  <!-- Blueprint: Summon Wild Hog Cannon -->
+  <item id="207">
+    <ingredient id="57" count="6750"/>
+    <production id="4915" count="1"/>
+  </item>
+  <!-- Spellbook: Energy Bolt -->
+  <item id="208">
+    <ingredient id="57" count="800"/>
+    <production id="4916" count="1"/>
+  </item>
+  <!-- Spellbook: Aura Bolt -->
+  <item id="209">
+    <ingredient id="57" count="900"/>
+    <production id="4917" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Kai the Cat -->
+  <item id="210">
+    <ingredient id="57" count="3200"/>
+    <production id="4918" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Merrow the Unicorn -->
+  <item id="211">
+    <ingredient id="57" count="3200"/>
+    <production id="4919" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Soulless -->
+  <item id="212">
+    <ingredient id="57" count="3200"/>
+    <production id="4920" count="1"/>
+  </item>
+  <!-- Blueprint: Summon Big Boom -->
+  <item id="213">
+    <ingredient id="57" count="6750"/>
+    <production id="4921" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Binding Cubic -->
+  <item id="214">
+    <ingredient id="57" count="3200"/>
+    <production id="4922" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Aqua Cubic -->
+  <item id="215">
+    <ingredient id="57" count="3200"/>
+    <production id="4923" count="1"/>
+  </item>
+  <!-- Spellbook: Summon Spark Cubic -->
+  <item id="216">
+    <ingredient id="57" count="3200"/>
+    <production id="4924" count="1"/>
+  </item>
+  <!-- Amulet: Pa'agrio's Haste -->
+  <item id="217">
+    <ingredient id="57" count="6750"/>
+    <production id="4925" count="1"/>
+  </item>
+  <!-- Amulet: Soul Guard -->
+  <item id="218">
+    <ingredient id="57" count="3850"/>
+    <production id="4926" count="1"/>
+  </item>
+  <!-- Amulet: Chant of Revenge -->
+  <item id="219">
+    <ingredient id="57" count="7700"/>
+    <production id="4927" count="1"/>
+  </item>
+  <!-- Spellbook: Seed of Fire -->
+  <item id="220">
+    <ingredient id="57" count="7200"/>
+    <production id="4928" count="1"/>
+  </item>
+  <!-- Spellbook: Seed of Water -->
+  <item id="221">
+    <ingredient id="57" count="7200"/>
+    <production id="4929" count="1"/>
+  </item>
+  <!-- Spellbook: Seed of Wind -->
+  <item id="222">
+    <ingredient id="57" count="7200"/>
+    <production id="4930" count="1"/>
+  </item>
+  <!-- Spellbook: Aura Symphony -->
+  <item id="223">
+    <ingredient id="57" count="7200"/>
+    <production id="4931" count="1"/>
+  </item>
+  <!-- Spellbook: Inferno -->
+  <item id="224">
+    <ingredient id="57" count="7200"/>
+    <production id="4932" count="1"/>
+  </item>
+  <!-- Spellbook: Blizzard -->
+  <item id="225">
+    <ingredient id="57" count="7200"/>
+    <production id="4933" count="1"/>
+  </item>
+  <!-- Spellbook: Demon Wind -->
+  <item id="226">
+    <ingredient id="57" count="7200"/>
+    <production id="4934" count="1"/>
+  </item>
+  <!-- Spellbook: Elemental Symphony -->
+  <item id="227">
+    <ingredient id="57" count="50000"/>
+    <production id="4935" count="1"/>
+  </item>
+  <!-- Spellbook: Elemental Assault -->
+  <item id="228">
+    <ingredient id="57" count="7200"/>
+    <production id="5013" count="1"/>
+  </item>
+  <!-- Spellbook: Elemental Symphony -->
+  <item id="229">
+    <ingredient id="57" count="7200"/>
+    <production id="5014" count="1"/>
+  </item>
+  <!-- Spellbook: Elemental Storm -->
+  <item id="230">
+    <ingredient id="57" count="7200"/>
+    <production id="5015" count="1"/>
+  </item>
+  <!-- Spellbook: Aqua Splash -->
+  <item id="231">
+    <ingredient id="57" count="6750"/>
+    <production id="5809" count="1"/>
+  </item>
+  <!-- Spellbook: Rain of Fire -->
+  <item id="232">
+    <ingredient id="57" count="6750"/>
+    <production id="5810" count="1"/>
+  </item>
+  <!-- Spellbook: Mass Slow -->
+  <item id="233">
+    <ingredient id="57" count="7700"/>
+    <production id="5811" count="1"/>
+  </item>
+  <!-- Spellbook: Servitor Empowerment -->
+  <item id="234">
+    <ingredient id="57" count="5400"/>
+    <production id="5812" count="1"/>
+  </item>
+  <!-- Spellbook: Servitor Cure -->
+  <item id="235">
+    <ingredient id="57" count="3200"/>
+    <production id="5813" count="1"/>
+  </item>
+  <!-- Spellbook: Servitor Blessing -->
+  <item id="236">
+    <ingredient id="57" count="7700"/>
+    <production id="5814" count="1"/>
+  </item>
+  <!-- Spellbook: Wild Magic -->
+  <item id="237">
+    <ingredient id="57" count="7700"/>
+    <production id="5815" count="1"/>
+  </item>
+  <!-- Spellbook: Advanced Block -->
+  <item id="238">
+    <ingredient id="57" count="6750"/>
+    <production id="5816" count="1"/>
+  </item>
+  <!-- Amulet: Pa'agrio's Honor -->
+  <item id="239">
+    <ingredient id="57" count="8700"/>
+    <production id="6350" count="1"/>
+  </item>
+  <!-- Amulet: Ritual of Life -->
+  <item id="240">
+    <ingredient id="57" count="8200"/>
+    <production id="6351" count="1"/>
+  </item>
+  <!-- Spellbook: Prayer -->
+  <item id="241">
+    <ingredient id="57" count="8700"/>
+    <production id="6352" count="1"/>
+  </item>
+  <!-- Amulet: Chant of Predator -->
+  <item id="242">
+    <ingredient id="57" count="4600"/>
+    <production id="6395" count="1"/>
+  </item>
+  <!-- Amulet: Chant of Eagle -->
+  <item id="243">
+    <ingredient id="57" count="4600"/>
+    <production id="6396" count="1"/>
+  </item>
+  <!-- Amulet: Chant of Vampire -->
+  <item id="244">
+    <ingredient id="57" count="3850"/>
+    <production id="6397" count="1"/>
+  </item>
+  <!-- Spellbook: Body of Avatar -->
+  <item id="245">
+    <ingredient id="57" count="4600"/>
+    <production id="6398" count="1"/>
+  </item>
+  <!-- Spellbook - Mass Summon Storm Cubic -->
+  <item id="246">
+    <ingredient id="57" count="3200"/>
+    <production id="7638" count="1"/>
+  </item>
+  <!-- Spellbook - Mass Summon Aqua Cubic -->
+  <item id="247">
+    <ingredient id="57" count="3200"/>
+    <production id="7639" count="1"/>
+  </item>
+  <!-- Spellbook - Mass Summon Phantom Cubic -->
+  <item id="248">
+    <ingredient id="57" count="3200"/>
+    <production id="7640" count="1"/>
+  </item>
+  <!-- Spellbook - Summon Feline Queen -->
+  <item id="249">
+    <ingredient id="57" count="3200"/>
+    <production id="7641" count="1"/>
+  </item>
+  <!-- Spellbook - Summon Unicorn Seraphim -->
+  <item id="250">
+    <ingredient id="57" count="3200"/>
+    <production id="7642" count="1"/>
+  </item>
+</list>
