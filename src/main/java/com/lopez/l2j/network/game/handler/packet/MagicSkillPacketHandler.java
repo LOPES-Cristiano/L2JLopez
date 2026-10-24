@@ -2325,10 +2325,14 @@ public class MagicSkillPacketHandler {
 	 * HoT, DoT, toggles).
 	 */
 	public void applySkillEffects(SkillTemplate sk, boolean toggle) {
-		applySkillEffects(sk, toggle, 0);
+		applySkillEffects(sk, toggle, 0, false);
 	}
 
 	public void applySkillEffects(SkillTemplate sk, boolean toggle, long remainingMs) {
+		applySkillEffects(sk, toggle, remainingMs, false);
+	}
+
+	public void applySkillEffects(SkillTemplate sk, boolean toggle, long remainingMs, boolean forceDebuff) {
 		boolean any = false;
 		PlayerCharacter owner = active();
 		for (var e : sk.effects()) {
@@ -2344,7 +2348,7 @@ public class MagicSkillPacketHandler {
 				any = true;
 				continue;
 			}
-			boolean isDebuff = !toggle && (sk.isDebuff() || sk.isOffensive());
+			boolean isDebuff = forceDebuff || (!toggle && (sk.isDebuff() || sk.isOffensive()));
 			boolean isInvincible = name.equalsIgnoreCase("Invincible");
 			boolean isBuffOrDebuff = toggle || name.equalsIgnoreCase("Buff") || name.equalsIgnoreCase("Debuff")
 					|| sk.isBuff() || isDebuff || isInvincible;

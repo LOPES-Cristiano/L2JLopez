@@ -1,7 +1,5 @@
 package com.lopez.l2j.network.game;
 
-
-
 import java.util.Collection;
 
 import java.util.Collections;
@@ -488,35 +486,29 @@ import org.slf4j.Logger;
 
 import org.slf4j.LoggerFactory;
 
-
-
 /**
-
+ * 
  * Maquina de estados de UMA conexao de jogo (porta enxuta de L2GameClient +
-
+ * 
  * clientpackets). Nao conhece
-
+ * 
  * sockets: recebe o corpo decifrado e envia respostas pelo {@code sink} (que
-
+ * 
  * precisa ser thread-safe, pois
-
+ * 
  * outros jogadores tambem enviam por ele - ex.: chat). {@link #handle} deve ser
-
+ * 
  * chamado por uma unica
-
+ * 
  * thread (a da conexao).
-
+ * 
  */
 
 public final class GameSession implements GameWorld.OnlinePlayer {
 
-
-
 	private static final Logger log = LoggerFactory.getLogger(GameSession.class);
 
 	static final int MAX_CHAT_LENGTH = 105;
-
-
 
 	/** Configuracao/servicos compartilhados por todas as sessoes. */
 
@@ -705,8 +697,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			com.lopez.l2j.game.service.VipService vip,
 
 			com.lopez.l2j.config.ServerProperties.Rates rates, String serverName) {
-
-
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
@@ -924,8 +914,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -1116,8 +1104,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -1304,8 +1290,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(MacroRepository macros) {
 
 			this(746, 746, null, null, null, null, null, null, null,
@@ -1333,8 +1317,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					macros, null, null, "TestServer");
 
 		}
-
-
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
@@ -1483,8 +1465,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					rates, serverName);
 
 		}
-
-
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
@@ -1666,8 +1646,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -1733,8 +1711,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					serverName);
 
 		}
-
-
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
@@ -1812,8 +1788,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -1872,8 +1846,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -1930,8 +1902,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -1986,8 +1956,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -2040,8 +2008,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -2090,8 +2056,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -2136,8 +2100,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -2178,8 +2140,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -2210,8 +2170,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -2238,8 +2196,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, String serverName) {
@@ -2249,8 +2205,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					null, null, null, null, null, null, null, null, serverName);
 
 		}
-
-
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
@@ -2264,8 +2218,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -2278,8 +2230,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -2291,8 +2241,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					combat, null, null, null, null, null, null, null, null, null, serverName);
 
 		}
-
-
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
@@ -2312,8 +2260,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -2327,8 +2273,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					combat, drops, null, null, null, null, null, null, null, null, serverName);
 
 		}
-
-
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
@@ -2346,8 +2290,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -2363,8 +2305,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					combat, drops, shortcuts, skills, npcAi, null, null, null, null, null, serverName);
 
 		}
-
-
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
@@ -2384,8 +2324,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
 				CharacterService characters, InventoryService inventories, GameWorld world, HtmCache htmls,
@@ -2403,8 +2341,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					combat, drops, shortcuts, skills, npcAi, skillService, null, null, null, rates, serverName);
 
 		}
-
-
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
@@ -2425,8 +2361,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					combat, drops, shortcuts, skills, npcAi, skillService, multisell, null, null, rates, serverName);
 
 		}
-
-
 
 		public Context(int protocolMin, int protocolMax, SessionKeyRegistry sessionKeys,
 
@@ -2452,15 +2386,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		private static volatile com.lopez.l2j.game.service.PvpRewardService globalPvpRewardService;
 
 		private static volatile com.lopez.l2j.game.henna.CharacterHennaRepository globalCharacterHennaRepository;
 
 		private static volatile com.lopez.l2j.game.augmentation.AugmentationService globalAugmentationService;
-
-
 
 		public static void setGlobalPvpRewardService(com.lopez.l2j.game.service.PvpRewardService service) {
 
@@ -2468,15 +2398,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public com.lopez.l2j.game.service.PvpRewardService pvpRewards() {
 
 			return globalPvpRewardService;
 
 		}
-
-
 
 		public static void setGlobalCharacterHennaRepository(com.lopez.l2j.game.henna.CharacterHennaRepository repo) {
 
@@ -2484,15 +2410,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public com.lopez.l2j.game.henna.CharacterHennaRepository characterHennas() {
 
 			return globalCharacterHennaRepository;
 
 		}
-
-
 
 		public static void setGlobalAugmentationService(com.lopez.l2j.game.augmentation.AugmentationService service) {
 
@@ -2500,23 +2422,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public com.lopez.l2j.game.augmentation.AugmentationService augmentation() {
 
 			return augmentation != null ? augmentation : globalAugmentationService;
 
 		}
 
-
-
 		public com.lopez.l2j.game.service.SchemeBufferService schemeBufferService() {
 
 			return schemeBuffer;
 
 		}
-
-
 
 		public com.lopez.l2j.game.skill.SkillEnchantService skillEnchant() {
 
@@ -2526,19 +2442,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		private static volatile com.lopez.l2j.game.service.CancelRestoreService globalCancelRestoreService;
-
-
 
 		public static void setGlobalCancelRestoreService(com.lopez.l2j.game.service.CancelRestoreService service) {
 
 			globalCancelRestoreService = service;
 
 		}
-
-
 
 		public com.lopez.l2j.game.service.CancelRestoreService cancelRestore() {
 
@@ -2552,13 +2462,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		private static volatile com.lopez.l2j.game.npc.NpcTemplateTable globalNpcTemplateTable;
 
 		private static volatile org.springframework.context.ApplicationContext globalApplicationContext;
-
-
 
 		public static void setGlobalNpcTemplateTable(com.lopez.l2j.game.npc.NpcTemplateTable table) {
 
@@ -2566,15 +2472,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public static void setApplicationContext(org.springframework.context.ApplicationContext ctx) {
 
 			globalApplicationContext = ctx;
 
 		}
-
-
 
 		public <T> T getBean(Class<T> type) {
 
@@ -2596,8 +2498,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		public com.lopez.l2j.game.npc.NpcTemplateTable npcTemplates() {
 
 			if (spawns != null && spawns.templates() != null) {
@@ -2618,8 +2518,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private final Context ctx;
 
 	private final byte[] cryptKey;
@@ -2630,23 +2528,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	private State state = State.CONNECTED;
 
-
-
 	public State state() {
 
 		return state;
 
 	}
 
-
-
 	public void setState(State state) {
 
 		this.state = state;
 
 	}
-
-
 
 	private boolean protocolOk;
 
@@ -2700,8 +2592,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	private final Map<String, ScheduledFuture<?>> hotTasks = new ConcurrentHashMap<>();
 
-
-
 	private com.lopez.l2j.game.party.Party party;
 
 	private RequestPartyPending pendingPartyInvite;
@@ -2744,13 +2634,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	private int nextMacroId = 1000;
 
-
-
 	public record RequestPartyPending(GameSession requester, int itemDistribution) {
 
 	}
-
-
 
 	private static final ScheduledExecutorService autoAttackScheduler = Executors.newScheduledThreadPool(4, r -> {
 
@@ -2762,15 +2648,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	});
 
-
-
 	public static ScheduledExecutorService autoAttackScheduler() {
 
 		return autoAttackScheduler;
 
 	}
-
-
 
 	private final Consumer<GameServerPacket> closeCallback;
 
@@ -2796,15 +2678,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	private final CommandPacketHandler commandHandler;
 
-
-
 	public GameSession(Context ctx, byte[] cryptKey, String ip, Consumer<GameServerPacket> sink) {
 
 		this(ctx, cryptKey, ip, sink, null);
 
 	}
-
-
 
 	public GameSession(Context ctx, byte[] cryptKey, String ip, Consumer<GameServerPacket> sink,
 
@@ -2844,8 +2722,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	@Override
 
 	public void close(GameServerPacket packet) {
@@ -2860,8 +2736,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void kick() {
 
 		send(SystemMessage.of(SystemMessage.DISCONNECTED_FROM_SERVER));
@@ -2870,15 +2744,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public boolean inWorld() {
 
 		return inWorld;
 
 	}
-
-
 
 	public boolean isAutoAttacking() {
 
@@ -2886,15 +2756,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void autoAttacking(boolean autoAttacking) {
 
 		this.autoAttacking = autoAttacking;
 
 	}
-
-
 
 	public String account() {
 
@@ -2902,15 +2768,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public String ip() {
 
 		return ip;
 
 	}
-
-
 
 	public String clientIp() {
 
@@ -2918,15 +2780,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public PlayerCharacter activeCharacter() {
 
 		return active;
 
 	}
-
-
 
 	public PlayerCharacter activeChar() {
 
@@ -2934,15 +2792,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public PlayerCharacter active() {
 
 		return active;
 
 	}
-
-
 
 	public int getLevel() {
 
@@ -2950,15 +2804,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public ItemInstance getActiveWeaponItem() {
 
 		return active != null && active.inventory() != null ? active.inventory().paperdoll(ItemSlots.RHAND) : null;
 
 	}
-
-
 
 	public Context context() {
 
@@ -2966,23 +2816,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public Context ctx() {
 
 		return ctx;
 
 	}
 
-
-
 	public Set<Integer> knownObjects() {
 
 		return knownObjects;
 
 	}
-
-
 
 	@Override
 
@@ -2992,8 +2836,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	@Override
 
 	public void removeKnownObject(int objectId) {
@@ -3002,15 +2844,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public int targetObjectId() {
 
 		return targetObjectId;
 
 	}
-
-
 
 	public void targetObjectId(int id) {
 
@@ -3031,8 +2869,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 	}
-
-
 
 	public void clearTarget() {
 
@@ -3060,8 +2896,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void forceTarget(int objId) {
 
 		this.targetObjectId = objId;
@@ -3069,8 +2903,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new MyTargetSelected(objId, 0));
 
 	}
-
-
 
 	public boolean canAttackInPvP(GameSession target) {
 
@@ -3098,15 +2930,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public List<String> sessionBypasses() {
 
 		return sessionBypasses;
 
 	}
-
-
 
 	public com.lopez.l2j.network.game.security.PacketRateLimiter.SessionRateState rateState() {
 
@@ -3114,15 +2942,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public QuestState getQuestState(String questName) {
 
 		return questName != null ? questStates.get(questName.toLowerCase(java.util.Locale.ROOT)) : null;
 
 	}
-
-
 
 	public void addQuestState(QuestState qs) {
 
@@ -3134,15 +2958,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public Collection<QuestState> getAllQuestStates() {
 
 		return questStates.values();
 
 	}
-
-
 
 	public com.lopez.l2j.game.party.Party party() {
 
@@ -3150,15 +2970,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void party(com.lopez.l2j.game.party.Party party) {
 
 		this.party = party;
 
 	}
-
-
 
 	public RequestPartyPending pendingPartyInvite() {
 
@@ -3166,15 +2982,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void setPendingPartyInvite(RequestPartyPending pendingPartyInvite) {
 
 		this.pendingPartyInvite = pendingPartyInvite;
 
 	}
-
-
 
 	public ChatPacketHandler chatHandler() {
 
@@ -3182,15 +2994,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public PartyClanPacketHandler partyClanHandler() {
 
 		return partyClanHandler;
 
 	}
-
-
 
 	public ItemPacketHandler itemHandler() {
 
@@ -3198,15 +3006,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public ActionPacketHandler actionHandler() {
 
 		return actionHandler;
 
 	}
-
-
 
 	public TradeStorePacketHandler tradeStoreHandler() {
 
@@ -3214,15 +3018,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public boolean casting() {
 
 		return casting;
 
 	}
-
-
 
 	public void casting(boolean casting) {
 
@@ -3230,15 +3030,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public SkillTemplate castingSkill() {
 
 		return castingSkill;
 
 	}
-
-
 
 	public void castingSkill(SkillTemplate castingSkill) {
 
@@ -3246,15 +3042,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public ScheduledFuture<?> castTask() {
 
 		return castTask;
 
 	}
-
-
 
 	public void castTask(ScheduledFuture<?> castTask) {
 
@@ -3262,15 +3054,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public boolean teleporting() {
 
 		return teleporting;
 
 	}
-
-
 
 	public void teleporting(boolean teleporting) {
 
@@ -3278,15 +3066,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public boolean pendingRevive() {
 
 		return pendingRevive;
 
 	}
-
-
 
 	public void pendingRevive(boolean pendingRevive) {
 
@@ -3294,15 +3078,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public int pendingNpcInteractObjectId() {
 
 		return pendingNpcInteractObjectId;
 
 	}
-
-
 
 	public void pendingNpcInteractObjectId(int id) {
 
@@ -3310,15 +3090,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public int pendingGroundItemPickupObjectId() {
 
 		return pendingGroundItemPickupObjectId;
 
 	}
-
-
 
 	public void pendingGroundItemPickupObjectId(int id) {
 
@@ -3326,15 +3102,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public boolean soulshotCharged() {
 
 		return soulshotCharged;
 
 	}
-
-
 
 	public void soulshotCharged(boolean soulshotCharged) {
 
@@ -3342,15 +3114,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public boolean spiritshotCharged() {
 
 		return spiritshotCharged;
 
 	}
-
-
 
 	public void spiritshotCharged(boolean spiritshotCharged) {
 
@@ -3358,15 +3126,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public int chargedGrade() {
 
 		return chargedGrade;
 
 	}
-
-
 
 	public void chargedGrade(int chargedGrade) {
 
@@ -3374,15 +3138,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public int chargedSpSGrade() {
 
 		return chargedSpSGrade;
 
 	}
-
-
 
 	public void chargedSpSGrade(int chargedSpSGrade) {
 
@@ -3390,15 +3150,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public boolean blessedSpiritshot() {
 
 		return blessedSpiritshot;
 
 	}
-
-
 
 	public void blessedSpiritshot(boolean blessedSpiritshot) {
 
@@ -3406,15 +3162,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public Set<Integer> autoSoulShots() {
 
 		return autoSoulShots;
 
 	}
-
-
 
 	public int activeEnchantScrollObjectId() {
 
@@ -3422,15 +3174,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void activeEnchantScrollObjectId(int activeEnchantScrollObjectId) {
 
 		this.activeEnchantScrollObjectId = activeEnchantScrollObjectId;
 
 	}
-
-
 
 	public Map<Integer, Long> consumableReuse() {
 
@@ -3438,15 +3186,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public Map<String, ScheduledFuture<?>> hotTasks() {
 
 		return hotTasks;
 
 	}
-
-
 
 	@Override
 
@@ -3455,8 +3199,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return teleporting;
 
 	}
-
-
 
 	public void clearHotTasks() {
 
@@ -3473,8 +3215,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		hotTasks.clear();
 
 	}
-
-
 
 	/** Processa um pacote; devolve false quando a conexao deve ser fechada. */
 
@@ -3608,7 +3348,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			case GameClientPacket.RequestPledgeMemberPowerInfo p -> partyClanHandler.handlePledgeMemberPowerInfo(p);
 
-			case GameClientPacket.RequestPledgeSetMemberPowerGrade p -> partyClanHandler.handlePledgeSetMemberPowerGrade(p);
+			case GameClientPacket.RequestPledgeSetMemberPowerGrade p ->
+				partyClanHandler.handlePledgeSetMemberPowerGrade(p);
 
 			case GameClientPacket.RequestPledgeMemberInfo p -> partyClanHandler.handlePledgeMemberInfo(p);
 
@@ -3836,8 +3577,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	/** Chame quando a conexao cair, por qualquer motivo. */
 
 	public void onDisconnect() {
@@ -3862,11 +3601,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	// ---- CONNECTED ----
-
-
 
 	private void onProtocolVersion(ProtocolVersion p) {
 
@@ -3901,8 +3636,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new KeyPacket(cryptKey, true));
 
 	}
-
-
 
 	private void onAuthLogin(AuthLogin p) {
 
@@ -3954,11 +3687,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	// ---- AUTHED ----
-
-
 
 	private void sendCharacterList() {
 
@@ -3969,8 +3698,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(CharSelectionInfo.of(account, sessionId, characterList, paperdolls));
 
 	}
-
-
 
 	private void onCharacterCreate(CharacterCreate p) {
 
@@ -3992,15 +3719,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private PlayerCharacter slot(int slot) {
 
 		return slot >= 0 && slot < characterList.size() ? characterList.get(slot) : null;
 
 	}
-
-
 
 	private void onCharacterDelete(CharacterDelete p) {
 
@@ -4020,8 +3743,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private void onCharacterRestore(CharacterRestore p) {
 
 		PlayerCharacter c = slot(p.slot());
@@ -4035,8 +3756,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		sendCharacterList();
 
 	}
-
-
 
 	private void onCharacterSelect(CharacterSelect p) {
 
@@ -4074,13 +3793,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		boolean hasGmRight = Config.getBoolean("EveryoneHasAdminRights", false)
 
 				|| Config.getBoolean("EveryoneIsGM", false);
-
-
 
 		if (!hasGmRight && ctx.adminSuperusers() != null && !ctx.adminSuperusers().isEmpty()) {
 
@@ -4098,15 +3813,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		if (hasGmRight && c.accessLevel() < 100) {
 
 			c.accessLevel(100);
 
 		}
-
-
 
 		var shutdownSvc = com.lopez.l2j.game.service.ShutdownService.getInstance();
 
@@ -4137,8 +3848,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 
 		}
-
-
 
 		if (c.accessLevel() > 0) {
 
@@ -4202,11 +3911,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	// ---- IN_GAME ----
-
-
 
 	private void onEnterWorld() {
 
@@ -4454,23 +4159,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onMove(MoveBackwardToLocation p) {
 
 		actionHandler.handleMove(p);
 
 	}
 
-
-
 	public void onValidatePosition(ValidatePosition p) {
 
 		actionHandler.handleValidatePosition(p);
 
 	}
-
-
 
 	public void checkZoneEnvironment() {
 
@@ -4487,8 +4186,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		int py = active.y();
 
 		int pz = active.z();
-
-
 
 		// V.28: Zona de Agua e Afogamento (Retail Interlude)
 
@@ -4540,8 +4237,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		// V.29: Zonas de Dano Ambiental (Lava / Pantano Acido)
 
 		if (ctx.zones().isInsideDamage(px, py, pz)) {
@@ -4570,15 +4265,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private void onPlayerDeath() {
 
 		handlePlayerDeath(null);
 
 	}
-
-
 
 	public void onAppearing() {
 
@@ -4610,8 +4301,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			active.currentCp(0.0);
 
-
-
 			var revive = new Revive(active.objectId());
 
 			send(revive);
@@ -4635,8 +4324,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		updateKnownObjects();
 
 	}
-
-
 
 	@Override
 
@@ -4716,8 +4403,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void updateKnownObjects() {
 
 		if (!inWorld || active == null || teleporting) {
@@ -4736,11 +4421,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		long r2 = (long) range * range;
 
-
-
 		Set<Integer> currentAround = new HashSet<>();
-
-
 
 		// 1. NPCs ao redor (filtrados pela mesma instancia)
 
@@ -4766,8 +4447,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		// 1b. Summons / Pets ao redor (filtrados pela mesma instancia)
 
 		for (var summon : ctx.world().findSummonsAround(myX, myY, range, myInst)) {
@@ -4783,8 +4462,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 
 		}
-
-
 
 		// 2. Outros jogadores ao redor (filtrados pela mesma instancia)
 
@@ -4836,8 +4513,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		// 3. Portas ao redor
 
 		if (ctx.doors() != null) {
@@ -4860,8 +4535,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		// 4. Objetos estaticos ao redor (Town Map, Signboard, Tronos)
 
 		if (ctx.staticObjects() != null) {
@@ -4881,8 +4554,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 
 		}
-
-
 
 		// 5. Itens caidos no chao ao redor
 
@@ -4909,8 +4580,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 
 		}
-
-
 
 		// 6. Remove objetos que sairam do alcance
 
@@ -4944,15 +4613,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onSay(Say2 p) {
 
 		chatHandler.handleSay(p);
 
 	}
-
-
 
 	private int getPhysicalAttackRange(PlayerCharacter player) {
 
@@ -4974,7 +4639,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				baseRange = 500;
 
-			} else if ("pole".equalsIgnoreCase(sub) || "polearm".equalsIgnoreCase(sub) || "spear".equalsIgnoreCase(sub)) {
+			} else if ("pole".equalsIgnoreCase(sub) || "polearm".equalsIgnoreCase(sub)
+					|| "spear".equalsIgnoreCase(sub)) {
 
 				baseRange = 80;
 
@@ -4982,13 +4648,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-		// Aplica passivas e buffs de alcance de ataque (Long Shot 113, Snipe 313, Rapid Shot, etc.)
+		// Aplica passivas e buffs de alcance de ataque (Long Shot 113, Snipe 313, Rapid
+		// Shot, etc.)
 
 		return Math.max(40, (int) Math.round(PlayerStats.applyStat(player, "pAtkRange", baseRange)));
 
 	}
-
-
 
 	public void onAction(Action p) {
 
@@ -4996,23 +4661,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onAttackRequest(AttackRequest p) {
 
 		actionHandler.handleAttackRequest(p);
 
 	}
 
-
-
 	public boolean isAttackingNow() {
 
 		return System.currentTimeMillis() < attackEndTime;
 
 	}
-
-
 
 	public synchronized void cancelPlayerAutoAttackTask() {
 
@@ -5025,8 +4684,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 	}
-
-
 
 	public void selectNpcTarget(NpcInstance npc) {
 
@@ -5053,8 +4710,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new ValidateLocation(npc.objectId(), npc.x(), npc.y(), npc.z(), npc.heading()));
 
 	}
-
-
 
 	public void startAutoAttack(NpcInstance npc) {
 
@@ -5120,8 +4775,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		onAttacking();
 
-
-
 		double dx = active.x() - npc.x();
 
 		double dy = active.y() - npc.y();
@@ -5133,8 +4786,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		double colRad = (npc.template() != null ? npc.template().collisionRadius() : 30.0);
 
 		double maxDist = attackRange + colRad + 50.0;
-
-
 
 		if (distSq > maxDist * maxDist) {
 
@@ -5158,15 +4809,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void startAutoAttack(GameSession targetPlayer) {
 
 		startAutoAttack(targetPlayer, false);
 
 	}
-
-
 
 	public void startAutoAttack(GameSession targetPlayer, boolean force) {
 
@@ -5252,8 +4899,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		updatePvPFlag();
 
-
-
 		double dx = active.x() - targetPlayer.x();
 
 		double dy = active.y() - targetPlayer.y();
@@ -5265,8 +4910,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		double colRad = 25.0;
 
 		double maxDist = attackRange + colRad + 50.0;
-
-
 
 		if (distSq > maxDist * maxDist) {
 
@@ -5289,8 +4932,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 	}
-
-
 
 	public boolean canAutoAttackPlayerWithoutCtrl(GameSession targetPlayer) {
 
@@ -5348,8 +4989,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public boolean isInsidePvpCombatZone() {
 
 		if (active == null || ctx == null || ctx.zones() == null) {
@@ -5361,8 +5000,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return ctx.zones().isInsidePvpCombatZone(active.x(), active.y(), active.z());
 
 	}
-
-
 
 	public void startFollow(GameSession targetPlayer) {
 
@@ -5380,13 +5017,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		stopFollow();
 
-
-
 		this.followingTarget = targetPlayer;
 
 		this.targetObjectId = targetPlayer.objectId();
-
-
 
 		int offset = 60;
 
@@ -5402,13 +5035,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		scheduleFollow(targetPlayer);
 
 	}
-
-
 
 	private void scheduleFollow(GameSession targetPlayer) {
 
@@ -5468,8 +5097,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void stopFollow() {
 
 		followingTarget = null;
@@ -5484,23 +5111,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public boolean isFollowing() {
 
 		return followingTarget != null;
 
 	}
 
-
-
 	public GameSession followingTarget() {
 
 		return followingTarget;
 
 	}
-
-
 
 	private boolean isFriendlyTarget(GameSession target) {
 
@@ -5526,8 +5147,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	@Override
 
 	public void onAttacked(int attackerObjectId) {
@@ -5535,8 +5154,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		onAttacked(attackerObjectId, 0);
 
 	}
-
-
 
 	@Override
 
@@ -5564,13 +5181,15 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				active.activeSummon(null);
 
-				send(new com.lopez.l2j.network.game.packet.GameServerPacket.PetDelete(summon.summonType(), summon.objectId()));
+				send(new com.lopez.l2j.network.game.packet.GameServerPacket.PetDelete(summon.summonType(),
+						summon.objectId()));
 
 				if (ctx.world() != null) {
 
 					ctx.world().removeSummon(summon);
 
-					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new DeleteObject(summon.objectId()), true);
+					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, new DeleteObject(summon.objectId()),
+							true);
 
 				}
 
@@ -5620,8 +5239,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, startAtk, false);
 
-
-
 		if (casting && castTask != null && !castTask.isDone()) {
 
 			// V.08: Cancelamento de Cast por Dano Massivo (Retail Interlude / L2JDream)
@@ -5668,8 +5285,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		if (combatStanceTask != null && !combatStanceTask.isDone()) {
 
 			combatStanceTask.cancel(false);
@@ -5691,8 +5306,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}, 15_000L, TimeUnit.MILLISECONDS);
 
 	}
-
-
 
 	public void onAttacking() {
 
@@ -5710,8 +5323,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, startAtk, false);
 
-
-
 		if (combatStanceTask != null && !combatStanceTask.isDone()) {
 
 			combatStanceTask.cancel(false);
@@ -5733,8 +5344,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}, 15_000L, TimeUnit.MILLISECONDS);
 
 	}
-
-
 
 	public void stopAutoAttack() {
 
@@ -5757,8 +5366,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 	}
-
-
 
 	public void checkAutoAttackRangeOnMove() {
 
@@ -5830,15 +5437,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onCancelTarget() {
 
 		actionHandler.handleCancelTarget();
 
 	}
-
-
 
 	private synchronized void onAttackNpc(NpcInstance npc) {
 
@@ -5880,8 +5483,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		var t = ctx.characters().template(active);
 
-
-
 		// Flechas para arco: checa e consome antes do disparo
 
 		if (!checkAndConsumeArrow()) {
@@ -5891,8 +5492,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 
 		}
-
-
 
 		var stats = PlayerStats.calculate(active, t);
 
@@ -5906,15 +5505,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		attackEndTime = now + timeAtk;
 
-
-
 		// Vira de frente para o alvo
 
 		int heading = (int) Math.round(Math.atan2(npc.y() - active.y(), npc.x() - active.x()) * 10430.378);
 
 		active.heading(heading);
-
-
 
 		if (ctx.combat() != null && ctx.combat().checkRaidCurse(active, npc)) {
 
@@ -5934,8 +5529,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		autoAttacking = true;
 
 		onAttacking();
@@ -5945,8 +5538,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			ctx.npcAi().startCombat(npc, active.objectId());
 
 		}
-
-
 
 		// Soulshot
 
@@ -5962,13 +5553,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		rechargeAutoSoulShots();
 
-
-
 		// Planeja dano/flags SEM aplicar ao HP do monstro antes do impacto da animacao
 
 		var plan = ctx.combat().planAttackNpc(active, t, npc, ssGrade);
-
-
 
 		var atk = new Attack(active.objectId(), npc.objectId(), plan.damage(), plan.flags(), active.x(), active.y(),
 
@@ -5977,8 +5564,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(atk);
 
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, atk, false);
-
-
 
 		// Agenda a aplicacao do dano e atualizacoes no momento exato do impacto
 
@@ -6006,17 +5591,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			}
 
-
-
 			var hit = ctx.combat().applyDamage(npc, plan.damage(), plan.flags());
-
-
 
 			if (hit.damage() > 0) {
 
 				send(SystemMessage.of(SystemMessage.YOU_DID_S1_DMG, new SystemMessage.Number(hit.damage())));
 
-				// Vampiric Rage / Dance of Vampire / Chant of Vampire / Prophecy of Wind (absorbDam em ataques melee)
+				// Vampiric Rage / Dance of Vampire / Chant of Vampire / Prophecy of Wind
+				// (absorbDam em ataques melee)
 
 				boolean isBowAtk = com.lopez.l2j.game.combat.CombatService.isUsingBowWeapon(active);
 
@@ -6046,8 +5628,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			}
 
-
-
 			int remainingHp = hit.isDead() ? 0 : Math.max(0, hit.remainingHp());
 
 			var su = StatusUpdate.hp(npc.objectId(), remainingHp, (int) npc.maxHp());
@@ -6055,8 +5635,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			send(su);
 
 			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, su, false);
-
-
 
 			if (hit.isDead()) {
 
@@ -6082,15 +5660,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void schedulePlayerAutoAttack(NpcInstance npc) {
 
 		schedulePlayerAutoAttack(npc, 100);
 
 	}
-
-
 
 	private synchronized void schedulePlayerAutoAttack(NpcInstance npc, long delayMs) {
 
@@ -6172,15 +5746,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void schedulePlayerAutoAttack(GameSession targetPlayer) {
 
 		schedulePlayerAutoAttack(targetPlayer, 100);
 
 	}
-
-
 
 	private synchronized void schedulePlayerAutoAttack(GameSession targetPlayer, long delayMs) {
 
@@ -6266,8 +5836,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private synchronized void onAttackPlayer(GameSession targetPlayer) {
 
 		if (targetPlayer == null || targetPlayer.active == null || targetPlayer.active.isDead()) {
@@ -6318,8 +5886,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		var stats = PlayerStats.calculate(active, t);
 
 		int pAtkSpd = Math.max(100, stats.pAtkSpd());
@@ -6332,15 +5898,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		attackEndTime = now + timeAtk;
 
-
-
 		int heading = (int) Math
 
 				.round(Math.atan2(targetPlayer.y() - active.y(), targetPlayer.x() - active.x()) * 10430.378);
 
 		active.heading(heading);
-
-
 
 		if (!autoAttacking) {
 
@@ -6356,8 +5918,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		updatePvPFlag();
 
-
-
 		if (!soulshotCharged) {
 
 			rechargeAutoSoulShots();
@@ -6370,13 +5930,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		rechargeAutoSoulShots();
 
-
-
 		var tgtTemplate = ctx.characters().template(targetPlayer.active);
 
 		var plan = ctx.combat().planAttackPlayer(active, t, targetPlayer.active, tgtTemplate, ssGrade);
-
-
 
 		var atk = new Attack(active.objectId(), targetPlayer.objectId(), plan.damage(), plan.flags(), active.x(),
 
@@ -6387,8 +5943,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(atk);
 
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, atk, false);
-
-
 
 		autoAttackScheduler.schedule(() -> {
 
@@ -6420,8 +5974,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				targetPlayer.onAttacked(active.objectId(), dmgRes.damage());
 
-
-
 				boolean isBowAtk = com.lopez.l2j.game.combat.CombatService.isUsingBowWeapon(active);
 
 				if (!isBowAtk && !active.isDead()) {
@@ -6442,7 +5994,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 					}
 
-					// 2. Reflect Damage (Song of Vengeance 266, Chant of Revenge 1284, Reflect Damage 86)
+					// 2. Reflect Damage (Song of Vengeance 266, Chant of Revenge 1284, Reflect
+					// Damage 86)
 
 					double reflectPct = PlayerStats.applyStat(targetPlayer.active, active, "reflectDam", 0.0);
 
@@ -6492,8 +6045,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			ctx.world().broadcastAround(targetPlayer, GameWorld.VISIBILITY_RADIUS, su, false);
 
-
-
 			if (dmgRes.isDead()) {
 
 				stopAutoAttack();
@@ -6512,7 +6063,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				}
 
-				com.lopez.l2j.network.game.handler.packet.PlayerCombatHandler.triggerSummonAssistAttackPlayer(this, ctx, targetPlayer);
+				com.lopez.l2j.network.game.handler.packet.PlayerCombatHandler.triggerSummonAssistAttackPlayer(this, ctx,
+						targetPlayer);
 
 				schedulePlayerAutoAttack(targetPlayer, Math.max(50, (timeAtk - timeToHit) + 50));
 
@@ -6521,8 +6073,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}, timeToHit, TimeUnit.MILLISECONDS);
 
 	}
-
-
 
 	public void applyExpAndSp(long expReward, int spReward) {
 
@@ -6535,8 +6085,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 	}
-
-
 
 	public void applyExpAndSp(long expReward, int spReward, CharTemplate t) {
 
@@ -6552,13 +6100,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		int maxLevel = active.isSubClassActive()
 
-				? (Config.SUBCLASS_MAX_LEVEL > 0 ? Math.min(ExperienceTable.MAX_LEVEL, Config.SUBCLASS_MAX_LEVEL) : ExperienceTable.MAX_LEVEL)
+				? (Config.SUBCLASS_MAX_LEVEL > 0 ? Math.min(ExperienceTable.MAX_LEVEL, Config.SUBCLASS_MAX_LEVEL)
+						: ExperienceTable.MAX_LEVEL)
 
-				: (Config.PLAYER_MAX_LEVEL > 0 ? Math.min(ExperienceTable.MAX_LEVEL, Config.PLAYER_MAX_LEVEL) : ExperienceTable.MAX_LEVEL);
+				: (Config.PLAYER_MAX_LEVEL > 0 ? Math.min(ExperienceTable.MAX_LEVEL, Config.PLAYER_MAX_LEVEL)
+						: ExperienceTable.MAX_LEVEL);
 
 		long maxAllowedExp = ExperienceTable.maxExpForLevel(maxLevel);
-
-
 
 		long currentExp = Math.min(maxAllowedExp, active.exp());
 
@@ -6567,8 +6115,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		active.exp(currentExp + addedExp);
 
 		active.sp((int) Math.min(Integer.MAX_VALUE, Math.max(0L, (long) active.sp() + safeSp)));
-
-
 
 		// Notificacao de EXP e SP recebidos (sempre enviada no L2)
 
@@ -6596,13 +6142,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		int oldLevel = active.level();
 
 		int newLevel = Math.min(maxLevel, ExperienceTable.calculateLevel(active.exp()));
-
-
 
 		if (newLevel > oldLevel) {
 
@@ -6620,8 +6162,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			active.currentCp(active.maxCp());
 
-
-
 			var social = new SocialAction(active.objectId(), 15);
 
 			send(social);
@@ -6632,19 +6172,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			}
 
-
-
 			send(SystemMessage.of(SystemMessage.YOU_INCREASED_YOUR_LEVEL));
-
-
 
 			if (ctx.questManager() != null) {
 
 				ctx.questManager().onPlayerLevelUp(this, oldLevel, newLevel);
 
 			}
-
-
 
 			refreshWeightAndPenalties();
 
@@ -6669,8 +6203,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) active.currentCp()),
 
 					new StatusUpdate.Attribute(StatusUpdate.MAX_CP, active.maxCp()))));
-
-
 
 			checkClassMasterPopup(oldLevel, newLevel);
 
@@ -6698,15 +6230,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public NpcBypassPacketHandler npcBypassHandler() {
 
 		return npcBypassHandler;
 
 	}
-
-
 
 	public void showNpcHtml(NpcInstance npc, int val) {
 
@@ -6714,15 +6242,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onBypass(RequestBypassToServer p) {
 
 		npcBypassHandler.onBypass(p);
 
 	}
-
-
 
 	public void onBbsWrite(RequestBBSwrite p) {
 
@@ -6730,15 +6254,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void handleBbsCommand(String command) {
 
 		npcBypassHandler.handleBbsCommand(command);
 
 	}
-
-
 
 	public void handleQuestBypass(int npcObjId, String questArg) {
 
@@ -6746,15 +6266,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void handleSubclassBypass(int npcObjId, String command) {
 
 		npcBypassHandler.handleSubclassBypass(npcObjId, command);
 
 	}
-
-
 
 	public void applySubClassSwitch(int slot, int classId, int level, long exp, int sp) {
 
@@ -6762,15 +6278,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void saveCurrentClassProgress() {
 
 		npcBypassHandler.saveCurrentClassProgress();
 
 	}
-
-
 
 	public void showClassMasterMenu(NpcInstance npc, int menuLevel) {
 
@@ -6778,15 +6290,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void showClassMasterMenu(int npcObjectId, int menuLevel) {
 
 		npcBypassHandler.showClassMasterMenu(npcObjectId, menuLevel);
 
 	}
-
-
 
 	public boolean canChangeClass() {
 
@@ -6838,15 +6346,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void checkClassMasterPopup() {
 
 		checkClassMasterPopup(0, active != null ? active.level() : 0);
 
 	}
-
-
 
 	public void checkClassMasterPopup(int oldLevel, int newLevel) {
 
@@ -6900,15 +6404,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void handleChangeClass(int npcObjectId, int classId) {
 
 		npcBypassHandler.handleChangeClass(npcObjectId, classId);
 
 	}
-
-
 
 	public void handleChangeClass(int npcObjectId, int classId, boolean quiet) {
 
@@ -6916,23 +6416,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void teleportTo(int teleId) {
 
 		npcBypassHandler.teleportTo(teleId);
 
 	}
 
-
-
 	public void teleportToCoordinates(int x, int y, int z) {
 
 		npcBypassHandler.teleportToCoordinates(x, y, z);
 
 	}
-
-
 
 	public void showBuyList(NpcInstance npc, int listId) {
 
@@ -6978,15 +6472,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onBuyItem(RequestBuyItem p) {
 
 		itemHandler.handleBuyItem(p);
 
 	}
-
-
 
 	public void showSellList(NpcInstance npc) {
 
@@ -6994,15 +6484,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onSellItem(RequestSellItem p) {
 
 		itemHandler.handleSellItem(p);
 
 	}
-
-
 
 	public void showMultiSell(NpcInstance npc, int listId) {
 
@@ -7010,23 +6496,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onMultiSellChoose(GameClientPacket.MultiSellChoose p) {
 
 		tradeStoreHandler.handleMultiSellChoose(p);
 
 	}
 
-
-
 	public void onActionUse(RequestActionUse p) {
 
 		actionHandler.handleActionUse(p);
 
 	}
-
-
 
 	public void sendSocialAction(int actionId) {
 
@@ -7050,15 +6530,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private void onSocialAction(GameClientPacket.RequestSocialAction p) {
 
 		sendSocialAction(p.actionId());
 
 	}
-
-
 
 	public void onRecipeBookOpen(GameClientPacket.RequestRecipeBookOpen p) {
 
@@ -7082,23 +6558,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onLeaveParty() {
 
 		partyClanHandler.handleLeaveParty();
 
 	}
 
-
-
 	public void onExpelPartyMember(String name) {
 
 		partyClanHandler.handleExpelPartyMember(name);
 
 	}
-
-
 
 	public void onShowMiniMap() {
 
@@ -7122,8 +6592,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private void onGetBossRecord(int bossId) {
 
 		if (!inWorld || active == null) {
@@ -7141,8 +6609,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		Map<Integer, Integer> list = ctx.raidPoints() != null ? ctx.raidPoints().getList(active.objectId()) : Map.of();
 
 		send(new ExGetBossRecord(ranking, points, list));
-
-
 
 		if (bossId != 0) {
 
@@ -7178,11 +6644,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private ScheduledFuture<?> chargeDecayTask;
-
-
 
 	public void increaseCharges(int count, int max) {
 
@@ -7222,8 +6684,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void decreaseCharges(int count) {
 
 		if (active == null) {
@@ -7250,8 +6710,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void clearCharges() {
 
 		if (active == null) {
@@ -7272,8 +6730,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void stopChargeTask() {
 
 		if (chargeDecayTask != null) {
@@ -7285,8 +6741,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 	}
-
-
 
 	private void resetChargeDecayTask() {
 
@@ -7306,8 +6760,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void sendEtcStatusUpdate() {
 
 		if (active == null) {
@@ -7323,8 +6775,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new GameServerPacket.EtcStatusUpdate(active, stats));
 
 	}
-
-
 
 	private void onRestartPoint(GameClientPacket.RequestRestartPoint p) {
 
@@ -7368,7 +6818,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			var clan = ctx.clans() != null ? ctx.clans().byClanId(active.clanId()).orElse(null) : null;
 			int chId = clan != null ? clan.clanHallId() : 0;
 			if (chId <= 0 && ctx.clanHalls() != null) {
-				chId = ctx.clanHalls().getClanHallByOwner(active.clanId()).map(com.lopez.l2j.game.clan.clanhall.ClanHallRecord::id).orElse(0);
+				chId = ctx.clanHalls().getClanHallByOwner(active.clanId())
+						.map(com.lopez.l2j.game.clan.clanhall.ClanHallRecord::id).orElse(0);
 			}
 			if (chId > 0) {
 				townLoc = resolveClanHallCoordinates(chId);
@@ -7399,14 +6850,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	/**
-
+	 * 
 	 * UseItem: equipaveis alternam equipar; consumiveis (pocoes, soulshots,
-
+	 * 
 	 * scrolls) passam pelos handlers.
-
+	 * 
 	 */
 
 	public void onUseItem(UseItem p) {
@@ -7415,15 +6864,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void useConsumable(Consumable c) {
 
 		itemHandler.useConsumable(c);
 
 	}
-
-
 
 	/** UserInfo para o proprio jogador e CharInfo para quem esta por perto. */
 
@@ -7433,8 +6878,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	/** Tira {@code count} unidades do item e manda InventoryUpdate + peso. */
 
 	public boolean consumeItem(int itemId, int count) {
@@ -7442,8 +6885,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return itemHandler.consumeItem(itemId, count);
 
 	}
-
-
 
 	public static boolean isChestNpc(NpcInstance npc) {
 
@@ -7493,8 +6934,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public static int getRequiredChestKeyGrade(int chestLevel) {
 
 		if (chestLevel < 30)
@@ -7529,8 +6968,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void broadcastSelfSkill(int skillId, int level) {
 
 		var msu = new MagicSkillUse(active.objectId(), active.objectId(), skillId, level, 0, 0,
@@ -7550,8 +6987,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msl, false);
 
 	}
-
-
 
 	public void sendVitals() {
 
@@ -7577,14 +7012,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	/**
-
+	 * 
 	 * HealOverTime/ManaHealOverTime: um efeito por stackType, o novo substitui o
-
+	 * 
 	 * anterior.
-
+	 * 
 	 */
 
 	private void startHealOverTime(Consumable c) {
@@ -7645,8 +7078,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void stopHot(String stack, ScheduledFuture<?> task) {
 
 		if (task != null) {
@@ -7659,15 +7090,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private void applyBuff(Consumable c) {
 
 		applyBuff(c, 0);
 
 	}
-
-
 
 	private void applyBuff(Consumable c, long remainingMs) {
 
@@ -7707,15 +7134,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void sendMagicEffectIcons() {
 
 		refreshBuffs();
 
 	}
-
-
 
 	/** Icones de buff + UserInfo (velocidade/atk spd/max HP mudam). */
 
@@ -7755,8 +7178,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void saveBuffs() {
 
 		if (active == null || ctx.buffRepository() == null) {
@@ -7770,8 +7191,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		ctx.buffRepository().saveBuffs(active.objectId(), 0, buffsToSave);
 
 	}
-
-
 
 	private void restoreBuffs() {
 
@@ -7793,7 +7212,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		PlayerCharacter owner = active;
 
-		var seenSkills = new java.util.HashSet<Integer>(); for (var s : saved) { if (!seenSkills.add(s.skillId())) continue;
+		var seenSkills = new java.util.HashSet<Integer>();
+		for (var s : saved) {
+			if (!seenSkills.add(s.skillId()))
+				continue;
 
 			long remainingMs = s.systime() == com.lopez.l2j.game.effect.PlayerEffects.PERMANENT
 
@@ -7861,7 +7283,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 						String name = e.name();
 
-						boolean isHotSpringsBuff = sk.id() >= 4551 && sk.id() <= 4554 && sk.level() <= 4; boolean isDebuff = !sk.isToggle() && !isHotSpringsBuff && (sk.isDebuff() || sk.isOffensive() || name.equalsIgnoreCase("Debuff"));
+						boolean isHotSpringsBuff = sk.id() >= 4551 && sk.id() <= 4554 && sk.level() <= 4;
+						boolean isDebuff = !sk.isToggle() && !isHotSpringsBuff
+								&& (sk.isDebuff() || sk.isOffensive() || name.equalsIgnoreCase("Debuff"));
 
 						boolean isInvincible = name.equalsIgnoreCase("Invincible");
 
@@ -7889,15 +7313,21 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 						}
 
-						long end = (sk.isToggle() || remainingMs == com.lopez.l2j.game.effect.PlayerEffects.PERMANENT) ? com.lopez.l2j.game.effect.PlayerEffects.PERMANENT : System.currentTimeMillis() + duration;
+						long end = (sk.isToggle() || remainingMs == com.lopez.l2j.game.effect.PlayerEffects.PERMANENT)
+								? com.lopez.l2j.game.effect.PlayerEffects.PERMANENT
+								: System.currentTimeMillis() + duration;
 
-						int stackOrder = com.lopez.l2j.game.effect.PlayerEffects.resolveStackOrder(e.stackOrder(), sk.level());
+						int stackOrder = com.lopez.l2j.game.effect.PlayerEffects.resolveStackOrder(e.stackOrder(),
+								sk.level());
 
 						int abnMask = e.abnormalMask();
 
-						var buff = ActiveBuff.ofSkill(sk.id(), sk.level(), stack, stackOrder, end, e.funcs(), isDebuff, abnMask);
+						var buff = ActiveBuff.ofSkill(sk.id(), sk.level(), stack, stackOrder, end, e.funcs(), isDebuff,
+								abnMask);
 
-						if (!owner.effects().put(buff, com.lopez.l2j.game.effect.PlayerEffects.getExtraBuffSlots(owner))) continue;
+						if (!owner.effects().put(buff,
+								com.lopez.l2j.game.effect.PlayerEffects.getExtraBuffSlots(owner)))
+							continue;
 
 						if (isInvincible) {
 
@@ -7987,7 +7417,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			var buff = new ActiveBuff(s.skillId(), s.level(), "saved_" + s.skillId(),
 
-					remainingMs == com.lopez.l2j.game.effect.PlayerEffects.PERMANENT ? com.lopez.l2j.game.effect.PlayerEffects.PERMANENT : System.currentTimeMillis() + remainingMs, 0, 1.0, 1.0, 0);
+					remainingMs == com.lopez.l2j.game.effect.PlayerEffects.PERMANENT
+							? com.lopez.l2j.game.effect.PlayerEffects.PERMANENT
+							: System.currentTimeMillis() + remainingMs,
+					0, 1.0, 1.0, 0);
 
 			owner.effects().put(buff, com.lopez.l2j.game.effect.PlayerEffects.getExtraBuffSlots(owner));
 
@@ -8009,11 +7442,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	// ---- Soulshots ----
-
-
 
 	public void onAutoSoulShot(RequestAutoSoulShot p) {
 
@@ -8021,15 +7450,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void rechargeAutoSoulShots() {
 
 		itemHandler.rechargeAutoSoulShots();
 
 	}
-
-
 
 	public com.lopez.l2j.game.item.ItemInstance activeWeapon() {
 
@@ -8037,15 +7462,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public boolean chargeSoulShot(int itemId, boolean quiet) {
 
 		return itemHandler.chargeSoulShot(itemId, quiet);
 
 	}
-
-
 
 	public boolean chargeSpiritShot(int itemId, boolean quiet, boolean blessed) {
 
@@ -8053,15 +7474,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onUnEquip(RequestUnEquipItem p) {
 
 		itemHandler.handleUnEquip(p);
 
 	}
-
-
 
 	public void afterEquipChange(EquipResult r) {
 
@@ -8069,23 +7486,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void updateArmorSetBonus() {
 
 		itemHandler.updateArmorSetBonus();
 
 	}
 
-
-
 	public void updateEquippedItemSkills() {
 
 		itemHandler.updateEquippedItemSkills();
 
 	}
-
-
 
 	private void triggerWeaponOnCritSkill(NpcInstance npc, GameSession targetPlayer) {
 
@@ -8113,8 +7524,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void triggerWeaponOnCastSkill(NpcInstance npc, GameSession targetPlayer) {
 
 		var weapon = activeWeapon();
@@ -8140,8 +7549,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 	}
-
-
 
 	private void triggerWeaponSkill(ItemSkillHolder holder, NpcInstance npc, GameSession targetPlayer) {
 
@@ -8174,7 +7581,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		int tz = npc != null ? npc.z()
 				: (targetPlayer != null && targetPlayer.active != null ? targetPlayer.active.z() : active.z());
 
-		var msu = new MagicSkillUse(active.objectId(), targetId, sk.displayId(), sk.level(), 0, 0, active.x(), active.y(),
+		var msu = new MagicSkillUse(active.objectId(), targetId, sk.displayId(), sk.level(), 0, 0, active.x(),
+				active.y(),
 
 				active.z(), tx, ty, tz);
 
@@ -8192,8 +7600,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		send(SystemMessage.of(SystemMessage.USE_S1, new SystemMessage.SkillName(sk.id(), sk.level())));
 
-
-
 		var t = ctx.characters() != null ? ctx.characters().template(active) : null;
 
 		if (npc != null && !npc.isDead()) {
@@ -8208,15 +7614,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void updateAugmentationBonus() {
 
 		itemHandler.updateAugmentationBonus();
 
 	}
-
-
 
 	public void onLogout() {
 
@@ -8235,8 +7637,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		close(new LeaveWorld());
 
 	}
-
-
 
 	private void onRestart() {
 
@@ -8261,8 +7661,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		sendCharacterList();
 
 	}
-
-
 
 	private void leaveWorld() {
 
@@ -8386,8 +7784,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private void onShortCutReg(RequestShortCutReg p) {
 
 		if (!inWorld) {
@@ -8416,8 +7812,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private void onShortCutDel(RequestShortCutDel p) {
 
 		if (!inWorld) {
@@ -8440,24 +7834,24 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	/**
-
-	 * Registra os atalhos padrao na barra rapida (F1-F12) de um personagem recem-criado,
-
+	 * 
+	 * Registra os atalhos padrao na barra rapida (F1-F12) de um personagem
+	 * recem-criado,
+	 * 
 	 * espelhando o CharacterCreate do L2JDream/Interlude:
-
+	 * 
 	 * - F1 (slot 0): Action Attack (2)
-
+	 * 
 	 * - F2 (slot 1): Skill Wind Strike (1177) ou Soul Cry (1001), se aprendida
-
+	 * 
 	 * - F4 (slot 3): Action Next Target / Pickup (5)
-
-	 * - F11 (slot 10): Skill Self Heal (1216) para magos ou Action Sit/Stand (0) para fighters
-
+	 * 
+	 * - F11 (slot 10): Skill Self Heal (1216) para magos ou Action Sit/Stand (0)
+	 * para fighters
+	 * 
 	 * - F12 (slot 11): Item Tutorial Guide (5588), se presente no inventario
-
+	 * 
 	 */
 
 	private List<ShortCut> initDefaultNewbieShortCuts(PlayerCharacter player) {
@@ -8472,11 +7866,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		defaults.add(new ShortCut(3, 0, ShortCut.TYPE_ACTION, 5, -1, 1));
 
-		// F11 (slot 10): Sit/Stand (Action ID 0) - pode ser sobrescrito por Self Heal (1216) abaixo
+		// F11 (slot 10): Sit/Stand (Action ID 0) - pode ser sobrescrito por Self Heal
+		// (1216) abaixo
 
 		ShortCut slot10 = new ShortCut(10, 0, ShortCut.TYPE_ACTION, 0, -1, 1);
-
-
 
 		// Skills iniciais na barra
 
@@ -8494,8 +7887,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		if (player.skillLevel(1216) > 0) {
 
 			// Self Heal no F11 (slot 10)
@@ -8505,8 +7896,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 		defaults.add(slot10);
-
-
 
 		// F12 (slot 11): Tutorial Guide (itemId 5588)
 
@@ -8522,8 +7911,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		if (ctx.shortcuts() != null) {
 
 			for (ShortCut sc : defaults) {
@@ -8537,8 +7924,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return defaults;
 
 	}
-
-
 
 	private void loadMacros() {
 
@@ -8570,8 +7955,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private void sendMacroList() {
 
 		macroRevision++;
@@ -8591,8 +7974,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 	}
-
-
 
 	private void onMakeMacro(RequestMakeMacro p) {
 
@@ -8614,8 +7995,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		int totalCmdLength = 0;
 
 		for (MacroCmd cmd : macro.commands()) {
@@ -8636,8 +8015,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		if (macro.name().isEmpty()) {
 
 			send(SystemMessage.id(SystemMessage.ENTER_THE_MACRO_NAME));
@@ -8646,8 +8023,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		if (macro.descr().length() > 32) {
 
 			send(SystemMessage.id(SystemMessage.MACRO_DESCRIPTION_MAX_32_CHARS));
@@ -8655,8 +8030,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 
 		}
-
-
 
 		boolean isNew = macro.id() == 0 || !macros.containsKey(macro.id());
 
@@ -8667,8 +8040,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 
 		}
-
-
 
 		int macroId = macro.id();
 
@@ -8686,8 +8057,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		macros.put(macroId, macro);
 
 		if (ctx.macros() != null) {
@@ -8699,8 +8068,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		sendMacroList();
 
 	}
-
-
 
 	private void onDeleteMacro(RequestDeleteMacro p) {
 
@@ -8722,27 +8089,19 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		if (ctx.shortcuts() != null) {
 
 			ctx.shortcuts().deleteByTypeAndId(active.objectId(), ShortCut.TYPE_MACRO, macroId);
 
 		}
 
-
-
 		sendMacroList();
 
 	}
 
-
-
 	// ---- Skills (porta enxuta de L2Character.doCast/onMagicHitTimer + handlers de
 
 	// skill do L2JDream) ----
-
-
 
 	/** Conjuracao em andamento (um skill por vez, como no cliente). */
 
@@ -8757,16 +8116,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private final Map<Integer, Long> skillReuse = new ConcurrentHashMap<>();
 
 	/**
-
+	 * 
 	 * Treinador da ultima janela de skills aberta (RequestAcquireSkill confere a
-
+	 * 
 	 * distancia).
-
+	 * 
 	 */
 
 	private int lastTrainerObjectId;
-
-
 
 	public void onMagicSkillUse(RequestMagicSkillUse p) {
 
@@ -8774,14 +8131,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	/**
-
+	 * 
 	 * Valida e inicia a conjuracao; {@code mayMove} = pode andar ate o alvo antes
-
+	 * 
 	 * (uma vez).
-
+	 * 
 	 */
 
 	public MagicSkillPacketHandler magicSkillHandler() {
@@ -8790,15 +8145,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void castSkill(SkillTemplate sk, boolean mayMove) {
 
 		magicSkillHandler.castSkill(sk, mayMove);
 
 	}
-
-
 
 	public void finishCast(SkillTemplate sk, NpcInstance mainNpc, DoorInstance doorTarget, GameSession targetPlayer,
 
@@ -8808,15 +8159,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void applyControlEffect(String effectName, long until) {
 
 		magicSkillHandler.applyControlEffect(effectName, until);
 
 	}
-
-
 
 	public void applyControlEffect(int skillId, int skillLevel, String effectName, long until) {
 
@@ -8824,15 +8171,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void handlePlayerDeath() {
 
 		magicSkillHandler.handlePlayerDeath();
 
 	}
-
-
 
 	public void onDeath() {
 
@@ -8840,15 +8183,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onDeath(int killerObjectId) {
 
 		magicSkillHandler.onDeath(killerObjectId);
 
 	}
-
-
 
 	public void handlePlayerDeath(PlayerCharacter killer) {
 
@@ -8856,15 +8195,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void rewardBarakielNoblesse(com.lopez.l2j.game.party.Party party, PlayerCharacter active) {
 
 		magicSkillHandler.rewardBarakielNoblesse(party, active);
 
 	}
-
-
 
 	public void grantNoblesseStatus(GameSession session) {
 
@@ -8872,15 +8207,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void grantNoblesseStatus(PlayerCharacter p) {
 
 		magicSkillHandler.grantNoblesseStatus(p);
 
 	}
-
-
 
 	public void cancelCast() {
 
@@ -8888,15 +8219,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void updatePvPFlag() {
 
 		magicSkillHandler.updatePvPFlag();
 
 	}
-
-
 
 	public void updatePvPFlag(boolean againstPvPPlayer) {
 
@@ -8904,15 +8231,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void receivePositiveSkill(SkillTemplate sk, String casterName) {
 
 		magicSkillHandler.receivePositiveSkill(sk, casterName);
 
 	}
-
-
 
 	public void applySkillEffects(SkillTemplate sk, boolean toggle) {
 
@@ -8920,15 +8243,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void applySkillEffects(SkillTemplate sk, boolean toggle, long remainingMs) {
 
 		magicSkillHandler.applySkillEffects(sk, toggle, remainingMs);
 
 	}
-
-
 
 	public void startSkillDot(SkillTemplate sk, SkillTemplate.EffectTemplate e) {
 
@@ -8936,23 +8255,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void toggleSkill(SkillTemplate sk) {
 
 		magicSkillHandler.toggleSkill(sk);
 
 	}
 
-
-
 	public void recalcMaxVitals(CharTemplate t) {
 
 		magicSkillHandler.recalcMaxVitals(t);
 
 	}
-
-
 
 	public void applyOffensive(SkillTemplate sk, NpcInstance npc, CharTemplate t, boolean soulshot, boolean sps,
 
@@ -8962,8 +8275,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void applyOffensivePlayer(SkillTemplate sk, GameSession targetSession, CharTemplate t, boolean soulshot,
 
 			boolean sps, boolean bss) {
@@ -8971,8 +8282,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		magicSkillHandler.applyOffensivePlayer(sk, targetSession, t, soulshot, sps, bss);
 
 	}
-
-
 
 	public void sendSkillList() {
 
@@ -8989,8 +8298,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 	}
-
-
 
 	/** Expertise/Lucky/AutoLearn depois de entrar ou subir de nivel. */
 
@@ -9016,13 +8323,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	// ---- Treinador (L2NpcInstance.showSkillList +
 
 	// RequestAquireSkillInfo/RequestAquireSkill) ----
-
-
 
 	public void showSkillList(NpcInstance npc) {
 
@@ -9139,7 +8442,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		List<GameServerPacket.AcquireSkillList.Entry> entries = new ArrayList<>();
 		for (var s : list) {
-			entries.add(new GameServerPacket.AcquireSkillList.Entry(s.id(), s.level(), s.level(), s.repCost(), s.itemId() > 0 ? 1 : 0));
+			entries.add(new GameServerPacket.AcquireSkillList.Entry(s.id(), s.level(), s.level(), s.repCost(),
+					s.itemId() > 0 ? 1 : 0));
 		}
 		send(new GameServerPacket.AcquireSkillList(2, entries));
 		send(new ActionFailed());
@@ -9189,7 +8493,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new GameServerPacket.AcquireSkillInfo(p.skillId(), p.level(), learn.sp(), 0, reqs));
 	}
 
-	private void onAcquireSkill(GameClientPacket.RequestAcquireSkill p) { NpcInstance trainer = null;
+	private void onAcquireSkill(GameClientPacket.RequestAcquireSkill p) {
+		NpcInstance trainer = null;
 		var svc = ctx.skillService();
 		if (!inWorld || svc == null || active == null) {
 			return;
@@ -9374,8 +8679,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	/** Atalhos do skill passam a apontar para o novo nivel. */
 
 	private void updateSkillShortcuts(int skillId, int level) {
@@ -9401,8 +8704,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 	}
-
-
 
 	public void showEnchantSkillList(NpcInstance npc) {
 
@@ -9446,8 +8747,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private void onExEnchantSkillInfo(GameClientPacket.RequestExEnchantSkillInfo p) {
 
 		if (active == null || !inWorld) {
@@ -9473,8 +8772,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 	}
-
-
 
 	private void onExEnchantSkill(GameClientPacket.RequestExEnchantSkill p) {
 
@@ -9562,15 +8859,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public boolean isBow(com.lopez.l2j.game.item.ItemInstance weapon) {
 
 		return weapon != null && weapon.template() != null && "bow".equalsIgnoreCase(weapon.template().subType());
 
 	}
-
-
 
 	private int calculateTimeToHit(int timeAtk, com.lopez.l2j.game.item.ItemInstance weapon, double targetDist) {
 
@@ -9614,8 +8907,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private int getArrowIdForGrade(String crystalType) {
 
 		if (crystalType == null) {
@@ -9641,8 +8932,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		};
 
 	}
-
-
 
 	public boolean checkAndConsumeArrow() {
 
@@ -9681,8 +8970,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return consumeItem(arrowId, 1);
 
 	}
-
-
 
 	public void checkPendingNpcInteract() {
 
@@ -9726,8 +9013,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private static final int[][] MAJOR_TOWNS = {
 
 			{ -84318, 244579, -3730 }, // Talking Island
@@ -9763,8 +9048,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			{ 87331, -142842, -1317 } // Schuttgart
 
 	};
-
-
 
 	private static final Map<Integer, int[]> TOWN_SCROLL_COORDINATES = Map.ofEntries(
 
@@ -9822,8 +9105,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			Map.entry(7619, new int[] { 108275, -53785, -2524 }));
 
-
-
 	public boolean isScrollOfEscape(int itemId) {
 
 		return itemId == 736 || itemId == 1538 || itemId == 1829 || itemId == 1830
@@ -9855,8 +9136,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		};
 	}
 
-
-
 	private static final Map<Integer, int[]> CASTLE_INNER_COORDINATES = Map.of(
 
 			1, new int[] { -18112, 109413, -2496 }, // Gludio
@@ -9878,8 +9157,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			9, new int[] { 77548, -152398, -545 } // Schuttgart
 
 	);
-
-
 
 	private int[] resolveClanHallCoordinates(int clanHallId) {
 
@@ -9929,8 +9206,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void useScrollOfEscape(com.lopez.l2j.game.item.ItemInstance item) {
 
 		if (active == null || active.isDead() || casting) {
@@ -9952,8 +9227,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		int itemId = item.itemId();
 
 		int[] dest = null;
-
-
 
 		if (itemId == 1829 || itemId == 5858) {
 
@@ -10039,8 +9312,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-
-
 		int[] soeSkill = resolveScrollOfEscapeSkill(itemId);
 		int escapeSkillId = soeSkill[0];
 		int escapeSkillLvl = soeSkill[1];
@@ -10058,15 +9329,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		send(new GameServerPacket.SetupGauge(GameServerPacket.SetupGauge.BLUE, hitTime));
 
-
-
 		var stop = new StopMove(active.objectId(), active.x(), active.y(), active.z(), active.heading());
 
 		send(stop);
 
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, stop, false);
-
-
 
 		var msu = new MagicSkillUse(active.objectId(), active.objectId(), escapeSkillId, escapeSkillLvl, hitTime, 0,
 
@@ -10075,8 +9342,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(msu);
 
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msu, false);
-
-
 
 		casting = true;
 
@@ -10102,8 +9367,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}, hitTime, TimeUnit.MILLISECONDS);
 
 	}
-
-
 
 	private int[] findNearestTown(int px, int py) {
 
@@ -10145,23 +9408,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onJoinParty(GameClientPacket.RequestJoinParty p) {
 
 		partyClanHandler.handleJoinParty(p);
 
 	}
 
-
-
 	public void onAnswerJoinParty(GameClientPacket.RequestAnswerJoinParty p) {
 
 		partyClanHandler.handleAnswerJoinParty(p);
 
 	}
-
-
 
 	private void startVitalsRegenTask() {
 
@@ -10193,13 +9450,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				double maxCp = owner.maxCp();
 
-
-
-				// Multiplicador de postura (sentado: 1.5x, parado/atacando no lugar: 1.1x, andando: 1.0x, correndo em movimento: 0.7x)
+				// Multiplicador de postura (sentado: 1.5x, parado/atacando no lugar: 1.1x,
+				// andando: 1.0x, correndo em movimento: 0.7x)
 
 				double stanceMod = owner.sitting() ? 1.5 : (owner.isMoving() ? (owner.running() ? 0.7 : 1.0) : 1.1);
-
-
 
 				// Bonus de atributos
 
@@ -10216,8 +9470,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				var stats = t != null ? com.lopez.l2j.game.model.PlayerStats.calculate(owner, t) : null;
 
 				int weightPenalty = stats != null ? stats.weightPenalty() : 0;
-
-
 
 				double chHpMult = 1.0;
 
@@ -10239,11 +9491,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				}
 
-
-
 				// 1. HP Regen: base ~ 1.5 + level/10 (bloqueado se peso >= 50%)
 
-				// Aplica buffs de regHp (Regeneration 1044, Song of Life 265, Prophecy of Fire/Water, Clear Mind 1297, etc.)
+				// Aplica buffs de regHp (Regeneration 1044, Song of Life 265, Prophecy of
+				// Fire/Water, Clear Mind 1297, etc.)
 
 				if (weightPenalty < 1 && owner.currentHp() < maxHp) {
 
@@ -10265,11 +9516,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				}
 
-
-
 				// 2. MP Regen: base ~ 0.9 + level/12 (bloqueado se peso >= 50%)
 
-				// Aplica buffs de regMp (Mana Regeneration 1047, Song of Meditation 363, Blessing of Seraphim 4702, Magnus' Chant 1413, Clear Mind 1297, etc.)
+				// Aplica buffs de regMp (Mana Regeneration 1047, Song of Meditation 363,
+				// Blessing of Seraphim 4702, Magnus' Chant 1413, Clear Mind 1297, etc.)
 
 				if (weightPenalty < 1 && owner.currentMp() < maxMp) {
 
@@ -10290,8 +9540,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 					}
 
 				}
-
-
 
 				// 3. CP Regen: base ~ 1.0 + level/15
 
@@ -10315,8 +9563,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				}
 
-
-
 				if (updated) {
 
 					sendVitals();
@@ -10335,8 +9581,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private void stopVitalsRegenTask() {
 
 		if (regenTask != null) {
@@ -10348,8 +9592,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 	}
-
-
 
 	public void onUserCommand(int commandId) {
 
@@ -10402,10 +9644,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msu, false);
 
 				if (!isGm) {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Transporting to the nearest village in 30 seconds..."));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Transporting to the nearest village in 30 seconds..."));
 				}
-
-
 
 				casting = true;
 
@@ -10518,7 +9759,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 							.map(s -> s.character().name())
 							.findFirst().orElse("Unknown");
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
-							String.format("Party Leader: %s | Loot: %s | Members: %d/9", leaderName, lootRule, party.size())));
+							String.format("Party Leader: %s | Loot: %s | Members: %d/9", leaderName, lootRule,
+									party.size())));
 				}
 			}
 
@@ -10559,16 +9801,19 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			case 92, 93, 96, 97 -> { // Command Channel (/channelcreate, /channeldelete, /channelleave, /channelinfo)
 				if (party == null) {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce precisa estar em uma party para usar o Command Channel."));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Voce precisa estar em uma party para usar o Command Channel."));
 				} else {
-					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Command Channel Party Status: " + party.size() + " membros ativos."));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Command Channel Party Status: " + party.size() + " membros ativos."));
 				}
 			}
 
 			case 99, 100 -> { // /clanpenalty & /siegestatus
 				long nowMs = System.currentTimeMillis();
 				boolean hasPen = false;
-				StringBuilder html = new StringBuilder("<html><body><font color=\"LEVEL\">Clan Penalty & Siege Status</font><br>");
+				StringBuilder html = new StringBuilder(
+						"<html><body><font color=\"LEVEL\">Clan Penalty & Siege Status</font><br>");
 				if (active.clanJoinExpiryTime() > nowMs) {
 					html.append("Penalidade de entrada em cla ativa.<br>");
 					hasPen = true;
@@ -10596,15 +9841,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public CommandPacketHandler commandHandler() {
 
 		return commandHandler;
 
 	}
-
-
 
 	public void handleSlashCommand(String cmd) {
 
@@ -10612,23 +9853,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void targetByName(String query) {
 
 		commandHandler.targetByName(query);
 
 	}
 
-
-
 	public void handleDotCommand(String cmd) {
 
 		commandHandler.handleDotCommand(cmd);
 
 	}
-
-
 
 	public void teleportToLocation(int x, int y, int z) {
 
@@ -10702,15 +9937,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public AdminPacketHandler adminHandler() {
 
 		return adminHandler;
 
 	}
-
-
 
 	public PlayerCharacter getTargetPlayerOrActive() {
 
@@ -10718,15 +9949,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public GameWorld.OnlinePlayer getTargetOnlinePlayerOrSelf() {
 
 		return adminHandler.getTargetOnlinePlayerOrSelf();
 
 	}
-
-
 
 	public String resolveAdminHtml(String requested) {
 
@@ -10734,15 +9961,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void showAdminHtml(String requested) {
 
 		adminHandler.showAdminHtml(requested);
 
 	}
-
-
 
 	public void onGMCommand(GameClientPacket.RequestGMCommand p) {
 
@@ -10750,15 +9973,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void handleGMCommand(String targetName, int command) {
 
 		adminHandler.handleGMCommand(targetName, command);
 
 	}
-
-
 
 	public void showAdminCharList(String query, int page) {
 
@@ -10766,15 +9985,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void showAdminCastlesHtml(String args) {
 
 		adminHandler.showAdminCastlesHtml(args);
 
 	}
-
-
 
 	public void showAdminCastlesHtml() {
 
@@ -10782,15 +9997,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void showAdminCharInfo(String charName) {
 
 		adminHandler.showAdminCharInfo(charName);
 
 	}
-
-
 
 	public void showAdminCharInfo(PlayerCharacter target) {
 
@@ -10798,15 +10009,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void showAdminSpawnIndex(int level, int page) {
 
 		adminHandler.showAdminSpawnIndex(level, page);
 
 	}
-
-
 
 	public void showAdminNpcInfo(NpcInstance npc) {
 
@@ -10814,15 +10021,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void showAdminDropList(int npcId) {
 
 		adminHandler.showAdminDropList(npcId);
 
 	}
-
-
 
 	public void showAdminDropList(NpcInstance npc, int page) {
 
@@ -10830,15 +10033,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void showAdminRaidBossList(String args) {
 
 		adminHandler.showAdminRaidBossList(args);
 
 	}
-
-
 
 	public void showAdminRaidBossList(int page) {
 
@@ -10846,15 +10045,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void adminChangeClass(PlayerCharacter targetChar, int targetClassId) {
 
 		adminHandler.adminChangeClass(targetChar, targetClassId);
 
 	}
-
-
 
 	public void showAdminSubClassMenu(PlayerCharacter targetChar) {
 
@@ -10862,15 +10057,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void adminAddSubClass(PlayerCharacter targetChar, int targetClassId) {
 
 		adminHandler.adminAddSubClass(targetChar, targetClassId);
 
 	}
-
-
 
 	public void adminRemoveSubClass(PlayerCharacter targetChar, int subIndex) {
 
@@ -10878,23 +10069,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void adminSwitchSubClass(PlayerCharacter targetChar, int targetIndex) {
 
 		adminHandler.adminSwitchSubClass(targetChar, targetIndex);
 
 	}
 
-
-
 	public void handleAdminCommand(String fullCmd) {
 
 		adminHandler.handleAdminCommand(fullCmd);
 
 	}
-
-
 
 	@Override
 
@@ -10934,8 +10119,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	@Override
 
 	public void sendMessage(String text) {
@@ -10948,15 +10131,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onEnchantItem(RequestEnchantItem p) {
 
 		itemHandler.handleEnchantItem(p);
 
 	}
-
-
 
 	public void onWareHouseDeposit(SendWareHouseDepositList p) {
 
@@ -10964,23 +10143,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onWareHouseWithdraw(SendWareHouseWithDrawList p) {
 
 		tradeStoreHandler.handleWareHouseWithdraw(p);
 
 	}
 
-
-
 	public void onDestroyItem(RequestDestroyItem p) {
 
 		itemHandler.handleDestroyItem(p);
 
 	}
-
-
 
 	public GameServerPacket charInfo() {
 
@@ -11014,15 +10187,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onPledgeCrest(GameClientPacket.RequestPledgeCrest p) {
 
 		partyClanHandler.handlePledgeCrest(p);
 
 	}
-
-
 
 	public void onPledgeInfo(GameClientPacket.RequestPledgeInfo p) {
 
@@ -11030,15 +10199,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onPledgeMemberList() {
 
 		partyClanHandler.handlePledgeMemberList();
 
 	}
-
-
 
 	public void onSetPledgeCrest(GameClientPacket.RequestSetPledgeCrest p) {
 
@@ -11046,15 +10211,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void createClan(String clanName) {
 
 		partyClanHandler.createClan(clanName);
 
 	}
-
-
 
 	public void increaseClanLevel() {
 
@@ -11062,15 +10223,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void dissolveClan() {
 
 		partyClanHandler.dissolveClan();
 
 	}
-
-
 
 	public HennaPacketHandler hennaHandler() {
 
@@ -11078,15 +10235,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public int getClassLevel(PlayerCharacter player) {
 
 		return hennaHandler.getClassLevel(player);
 
 	}
-
-
 
 	public void loadHennasForCurrentSubclass() {
 
@@ -11094,15 +10247,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onHennaList() {
 
 		hennaHandler.handleHennaList();
 
 	}
-
-
 
 	public void onHennaItemInfo(int symbolId) {
 
@@ -11110,15 +10259,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onHennaEquip(int symbolId) {
 
 		hennaHandler.handleHennaEquip(symbolId);
 
 	}
-
-
 
 	public void onHennaUnequipList() {
 
@@ -11126,15 +10271,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onHennaUnequipInfo(int symbolId) {
 
 		hennaHandler.handleHennaUnequipInfo(symbolId);
 
 	}
-
-
 
 	public void onHennaUnequip(int symbolId) {
 
@@ -11142,15 +10283,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onHennaRemoveBySlot(int slot) {
 
 		hennaHandler.handleHennaRemoveBySlot(slot);
 
 	}
-
-
 
 	public void onCursedWeaponList() {
 
@@ -11158,15 +10295,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onCursedWeaponLocation() {
 
 		hennaHandler.handleCursedWeaponLocation();
 
 	}
-
-
 
 	public void onSSQStatus(int page) {
 
@@ -11190,8 +10323,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	@Override
 
 	public int objectId() {
@@ -11199,8 +10330,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return active == null ? 0 : active.objectId();
 
 	}
-
-
 
 	@Override
 
@@ -11210,8 +10339,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	@Override
 
 	public int x() {
@@ -11219,8 +10346,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return active == null ? 0 : active.x();
 
 	}
-
-
 
 	@Override
 
@@ -11230,8 +10355,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	@Override
 
 	public int z() {
@@ -11240,8 +10363,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	@Override
 
 	public PlayerCharacter character() {
@@ -11249,8 +10370,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		return active;
 
 	}
-
-
 
 	private void onEvaluate(GameClientPacket.RequestEvaluate p) {
 
@@ -11312,15 +10431,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public SocialPacketHandler socialHandler() {
 
 		return socialHandler;
 
 	}
-
-
 
 	public int pendingFriendInviteFrom() {
 
@@ -11328,15 +10443,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void pendingFriendInviteFrom(int pendingFriendInviteFrom) {
 
 		this.pendingFriendInviteFrom = pendingFriendInviteFrom;
 
 	}
-
-
 
 	public void onFriendList() {
 
@@ -11344,15 +10455,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onFriendInvite(GameClientPacket.RequestFriendInvite p) {
 
 		socialHandler.handleFriendInvite(p);
 
 	}
-
-
 
 	public void onAnswerFriendInvite(GameClientPacket.RequestAnswerFriendInvite p) {
 
@@ -11360,23 +10467,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onFriendDel(GameClientPacket.RequestFriendDel p) {
 
 		socialHandler.handleFriendDel(p);
 
 	}
 
-
-
 	public void onBlock(GameClientPacket.RequestBlock p) {
 
 		socialHandler.handleBlock(p);
 
 	}
-
-
 
 	public static int parseIntSafe(String val, int def) {
 
@@ -11392,8 +10493,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public static long parseLongSafe(String val, long def) {
 
 		try {
@@ -11407,8 +10506,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 	}
-
-
 
 	private void refreshPenalties(com.lopez.l2j.game.model.PlayerStats stats) {
 
@@ -11456,8 +10553,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void refreshWeightAndPenalties() {
 
 		if (active == null) {
@@ -11487,8 +10582,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 	}
-
-
 
 	public void sendUserInfoAndBroadcastCharInfo() {
 
@@ -11544,15 +10637,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onPrivateStoreManageSell() {
 
 		tradeStoreHandler.handlePrivateStoreManageSell();
 
 	}
-
-
 
 	public void onSetPrivateStoreListSell(GameClientPacket.SetPrivateStoreListSell p) {
 
@@ -11560,15 +10649,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onPrivateStoreQuitSell() {
 
 		tradeStoreHandler.handlePrivateStoreQuitSell();
 
 	}
-
-
 
 	public void onSetPrivateStoreMsgSell(GameClientPacket.SetPrivateStoreMsgSell p) {
 
@@ -11576,15 +10661,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	public void onPrivateStoreBuy(GameClientPacket.RequestPrivateStoreBuy p) {
 
 		tradeStoreHandler.handlePrivateStoreBuy(p);
 
 	}
-
-
 
 	private void onConfirmTargetItem(GameClientPacket.RequestConfirmTargetItem p) {
 
@@ -11619,8 +10700,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new ExPutItemResultForVariationMake(p.itemObjId()));
 
 	}
-
-
 
 	private void onConfirmRefinerItem(GameClientPacket.RequestConfirmRefinerItem p) {
 
@@ -11666,8 +10745,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private void onConfirmGemStone(GameClientPacket.RequestConfirmGemStone p) {
 
 		if (!inWorld || active == null || active.isDead() || ctx.augmentation() == null) {
@@ -11707,8 +10784,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new ExPutCommissionResultForVariationMake(p.gemstoneItemObjId(), p.gemstoneCount()));
 
 	}
-
-
 
 	private void onRefine(GameClientPacket.RequestRefine p) {
 
@@ -11800,8 +10875,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
 	private void onConfirmCancelItem(GameClientPacket.RequestConfirmCancelItem p) {
 
 		if (!inWorld || active == null || active.isDead() || ctx.augmentation() == null) {
@@ -11835,8 +10908,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		send(new ExPutItemResultForVariationCancel(p.itemObjId(), item.itemId(), stat12, stat34, price));
 
 	}
-
-
 
 	private void onRefineCancel(GameClientPacket.RequestRefineCancel p) {
 
@@ -11937,7 +11008,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 		int crystSkillLvl = active.skillLevel(248); // Crystallize
 		if (crystSkillLvl <= 0 && !active.isGm()) {
-			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce precisa da habilidade Crystallize para cristalizar itens."));
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					"Voce precisa da habilidade Crystallize para cristalizar itens."));
 			send(new ActionFailed());
 			return;
 		}
@@ -12024,18 +11096,21 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	private void onDuelStart(GameClientPacket.RequestDuelStart p) {
-		if (!inWorld || active == null || active.isDead() || active.isInCombat() || ctx.world() == null || p.player() == null) {
+		if (!inWorld || active == null || active.isDead() || active.isInCombat() || ctx.world() == null
+				|| p.player() == null) {
 			send(new ActionFailed());
 			return;
 		}
 		var targetOpt = ctx.world().byName(p.player().trim());
-		if (targetOpt.isEmpty() || !(targetOpt.get() instanceof GameSession targetGs) || targetGs.activeChar() == null || targetGs == this) {
+		if (targetOpt.isEmpty() || !(targetOpt.get() instanceof GameSession targetGs) || targetGs.activeChar() == null
+				|| targetGs == this) {
 			send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
 			return;
 		}
 		targetGs.pendingDuelChallengerId = active.objectId();
 		targetGs.send(new GameServerPacket.ExDuelAskStart(active.name(), p.partyDuel()));
-		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Desafio de duelo enviado para " + targetGs.activeChar().name() + "."));
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+				"Desafio de duelo enviado para " + targetGs.activeChar().name() + "."));
 	}
 
 	private void onDuelAnswerStart(GameClientPacket.RequestDuelAnswerStart p) {
@@ -12045,11 +11120,13 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		var challengerOpt = ctx.world().player(challengerId);
-		if (challengerOpt.isEmpty() || !(challengerOpt.get() instanceof GameSession challengerGs) || challengerGs.activeChar() == null) {
+		if (challengerOpt.isEmpty() || !(challengerOpt.get() instanceof GameSession challengerGs)
+				|| challengerGs.activeChar() == null) {
 			return;
 		}
 		if (p.response() != 1) {
-			challengerGs.send(new CreatureSay(0, CreatureSay.ALL, "SYS", active.name() + " recusou seu desafio de duelo."));
+			challengerGs
+					.send(new CreatureSay(0, CreatureSay.ALL, "SYS", active.name() + " recusou seu desafio de duelo."));
 			return;
 		}
 		active.team(2);
@@ -12072,4 +11149,3 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 }
-
