@@ -118,12 +118,11 @@ public class InventoryService {
 		toEquip.sort(Comparator.comparingInt(ItemInstance::locationData));
 		Set<ItemInstance> changed = new LinkedHashSet<>();
 		for (ItemInstance item : toEquip) {
+			int savedSlot = item.locationData();
 			item.location(ItemInstance.Location.INVENTORY, 0);
 			changed.addAll(inv.equip(item));
-		}
-		// Normaliza linhas inconsistentes (ex.: dois itens no mesmo slot): o que nao reequipou volta ao inventario.
-		for (ItemInstance item : toEquip) {
-			if (!item.isEquipped()) {
+			// Normaliza linhas inconsistentes (ex.: dois itens no mesmo slot): o que nao reequipou ou mudou de slot atualiza no banco.
+			if (!item.isEquipped() || item.locationData() != savedSlot) {
 				repository.update(item);
 			}
 		}
@@ -265,8 +264,7 @@ public class InventoryService {
 
 	/** RequestUnEquipItem (mascara de body part). */
 	public EquipResult unequipBodyPart(Inventory inv, int bodyPart) {
-		int slot = com.lopez.l2j.game.item.ItemSlots.paperdollIndex(bodyPart);
-		ItemInstance item = slot < 0 ? null : inv.paperdoll(slot);
+		ItemInstance item = inv.resolveEquippedByBodyPart(bodyPart);
 		if (item == null) {
 			return EquipResult.NONE;
 		}
