@@ -351,7 +351,7 @@ class GameServerEndToEndTest {
 			assertEquals(3, equippedCount);
 			c.readUntil(0x4a);
 
-			// UseItem na dagger: mensagem, InventoryUpdate (dagger + espada) e UserInfo
+			// UseItem na dagger: mensagem, UserInfo (antes do InventoryUpdate para sincronizar paperdoll no cliente) e InventoryUpdate (dagger + espada)
 			c.send(new PacketWriter().writeC(0x14).writeD(daggerObject).writeD(0).toByteArray());
 			PacketReader msg = new PacketReader(c.read());
 			assertEquals(0x64, msg.readC());
@@ -359,7 +359,8 @@ class GameServerEndToEndTest {
 			assertEquals(1, msg.readD());
 			assertEquals(3, msg.readD());
 			assertEquals(TestItems.DAGGER, msg.readD());
-			PacketReader update = new PacketReader(c.read());
+			assertEquals(0x04, c.read()[0], "UserInfo com o novo paperdoll deve chegar antes do InventoryUpdate");
+			PacketReader update = new PacketReader(c.readUntil(0x27));
 			assertEquals(0x27, update.readC());
 			int changes = update.readH();
 			assertEquals(2, changes);
@@ -375,7 +376,6 @@ class GameServerEndToEndTest {
 				}
 			}
 			assertTrue(daggerOn);
-			assertEquals(0x04, c.read()[0], "UserInfo com o novo paperdoll");
 			assertEquals("PAPERDOLL", items.rows.get(daggerObject).loc());
 
 			// RequestUnEquipItem(SLOT_R_HAND)
@@ -383,8 +383,8 @@ class GameServerEndToEndTest {
 			msg = new PacketReader(c.readUntil(0x64));
 			msg.readC();
 			assertEquals(417, msg.readD(), "S1_DISARMED");
-			assertEquals(0x27, c.readUntil(0x27)[0]);
 			assertEquals(0x04, c.readUntil(0x04)[0]);
+			assertEquals(0x27, c.readUntil(0x27)[0]);
 			assertEquals("INVENTORY", items.rows.get(daggerObject).loc());
 
 			// RequestItemList abre a janela
@@ -763,6 +763,7 @@ class GameServerEndToEndTest {
 			assertEquals("vendo espada", tr.readS());
 
 			// Testa chat hero com prefixo %
+			world.byName("Speaker").orElseThrow().character().hero(true);
 			c.send(new PacketWriter().writeC(0x38).writeS("%aviso hero").writeD(0).toByteArray());
 			byte[] heroBytes = c.readUntil(0x4a);
 			PacketReader hr = new PacketReader(heroBytes);
