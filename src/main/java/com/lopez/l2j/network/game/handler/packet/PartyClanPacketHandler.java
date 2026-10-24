@@ -180,6 +180,7 @@ public class PartyClanPacketHandler {
 		}
 		var clan = ctx.clans().byClanId(p.clanId()).orElse(null);
 		if (clan != null) {
+			session.send(new GameServerPacket.PledgeInfo(clan.clanId(), clan.name(), clan.allyName()));
 			session.send(new PledgeShowInfoUpdate(clan));
 		}
 	}
@@ -387,6 +388,7 @@ public class PartyClanPacketHandler {
 		var check = ctx.alliances().checkAllyJoinCondition(active, targetSession.activeChar());
 		if (check == com.lopez.l2j.game.clan.alliance.AllianceService.InviteResult.SUCCESS) {
 			targetSession.partyClanHandler().pendingAllyInviterId = active.objectId();
+			targetSession.send(new GameServerPacket.AskJoinAlly(active.objectId(), active.name()));
 			targetSession.send(new CreatureSay(0, CreatureSay.ALL, "SYS", active.name() + " convidou seu cla para a alianca."));
 			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Convite de alianca enviado para " + targetSession.activeChar().name() + "."));
 		} else {
@@ -749,6 +751,7 @@ public class PartyClanPacketHandler {
 								ctx.characters().save(op.character(), true);
 							}
 						}
+						op.send(new GameServerPacket.TitleUpdate(m.objectId(), finalTitle));
 						op.sendUserInfoAndBroadcastCharInfo();
 					});
 				}
