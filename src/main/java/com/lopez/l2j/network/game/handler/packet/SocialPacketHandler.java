@@ -60,8 +60,26 @@ public class SocialPacketHandler {
 		if (targetPlayer instanceof GameSession s) {
 			s.pendingFriendInviteFrom(active.objectId());
 		}
+		targetPlayer.send(new GameServerPacket.FriendAddRequest(active.name()));
 		send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 				"Convite de amizade enviado para " + targetPlayer.name() + "."));
+	}
+
+	public void handleSendFriendMsg(GameClientPacket.RequestSendFriendMsg p) {
+		PlayerCharacter active = active();
+		if (!session.inWorld() || active == null || p.receiver() == null || p.receiver().isBlank() || p.message() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var targetPlayer = ctx() != null && ctx().world() != null ? ctx().world().byName(p.receiver().trim()).orElse(null) : null;
+		if (targetPlayer == null || targetPlayer.character() == null) {
+			send(new GameServerPacket.FriendStatus(false, p.receiver().trim(), 0));
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O amigo " + p.receiver() + " nao esta online."));
+			return;
+		}
+		var friendMsg = new GameServerPacket.L2FriendSay(active.name(), targetPlayer.name(), p.message());
+		targetPlayer.send(friendMsg);
+		send(friendMsg);
 	}
 
 	public void handleAnswerFriendInvite(GameClientPacket.RequestAnswerFriendInvite p) {
