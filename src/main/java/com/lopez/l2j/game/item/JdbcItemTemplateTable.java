@@ -217,11 +217,18 @@ class JdbcItemTemplateTable implements ItemTemplateTable {
 	}
 
 	private static ItemTemplate armor(ResultSet rs, int displayId) throws SQLException {
+		int itemId = rs.getInt("item_id");
 		int avoidModify = optInt(rs, "avoid_modify");
 		int mpBonus = optInt(rs, "mp_bonus");
 		String skillsItem = optString(rs, "skills_item");
-		return ItemTemplate.armor(rs.getInt("item_id"), displayId, rs.getString("name"), rs.getString("bodypart"),
-				rs.getString("armor_type"), rs.getInt("weight"), rs.getString("crystal_type"), rs.getInt("p_def"),
+		String crystalType = switch (itemId) {
+			case 6660 -> "b"; // Ring of Queen Ant (Grade B)
+			case 6661, 6662, 8191 -> "a"; // Earring of Orfen, Ring of Core, Frintezza's Necklace (Grade A)
+			case 6656, 6657, 6658, 6659 -> "s"; // Antharas, Valakas, Baium, Zaken (Grade S)
+			default -> rs.getString("crystal_type");
+		};
+		return ItemTemplate.armor(itemId, displayId, rs.getString("name"), rs.getString("bodypart"),
+				rs.getString("armor_type"), rs.getInt("weight"), crystalType, rs.getInt("p_def"),
 				rs.getInt("m_def"), avoidModify, mpBonus, rs.getInt("price"), ItemSkillHolder.parseList(skillsItem),
 				flag(rs, "sellable"), flag(rs, "dropable"), flag(rs, "destroyable"), flag(rs, "tradeable"));
 	}
