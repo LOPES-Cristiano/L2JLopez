@@ -2,6 +2,7 @@ package com.lopez.l2j.game.item;
 
 import static com.lopez.l2j.game.item.ItemSlots.SLOT_FACE;
 import static com.lopez.l2j.game.item.ItemSlots.SLOT_HAIR;
+import static com.lopez.l2j.game.item.ItemSlots.SLOT_HAIRALL;
 import static com.lopez.l2j.game.item.ItemSlots.SLOT_L_EAR;
 import static com.lopez.l2j.game.item.ItemSlots.SLOT_L_FINGER;
 import static com.lopez.l2j.game.item.ItemSlots.SLOT_L_HAND;
@@ -223,8 +224,8 @@ public record ItemTemplate(
 		int bodyPart = ItemSlots.parseBodyPart(bodyPartName);
 		int type1;
 		int type2;
-		if (bodyPart == SLOT_NECK || bodyPart == SLOT_HAIR || bodyPart == SLOT_FACE || (bodyPart & SLOT_L_EAR) != 0
-				&& bodyPart > 0 || (bodyPart & SLOT_L_FINGER) != 0 && bodyPart > 0) {
+		if (bodyPart == SLOT_NECK || bodyPart == SLOT_HAIR || bodyPart == SLOT_FACE || bodyPart == SLOT_HAIRALL
+				|| (bodyPart & SLOT_L_EAR) != 0 && bodyPart > 0 || (bodyPart & SLOT_L_FINGER) != 0 && bodyPart > 0) {
 			type1 = TYPE1_WEAPON_RING_EARRING_NECKLACE;
 			type2 = TYPE2_ACCESSORY;
 		} else {
