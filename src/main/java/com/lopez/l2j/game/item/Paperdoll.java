@@ -66,6 +66,12 @@ public record Paperdoll(int[] objectIds, int[] itemIds, int[] enchants) {
 				i[ItemSlots.HAIR] = entry.itemId();
 				e[ItemSlots.HAIR] = entry.enchant();
 			}
+			if ((entry.slot() == ItemSlots.FULLARMOR || entry.slot() == ItemSlots.ALLDRESS)
+					&& o[ItemSlots.CHEST] == 0) {
+				o[ItemSlots.CHEST] = entry.objectId();
+				i[ItemSlots.CHEST] = entry.itemId();
+				e[ItemSlots.CHEST] = entry.enchant();
+			}
 		}
 		return new Paperdoll(o, i, e);
 	}
