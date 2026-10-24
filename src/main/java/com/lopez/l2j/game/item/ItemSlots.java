@@ -70,13 +70,17 @@ public final class ItemSlots {
 
 	private static final Map<String, Integer> BY_NAME = Map.ofEntries(Map.entry("shirt", SLOT_UNDERWEAR),
 			Map.entry("underwear", SLOT_UNDERWEAR), Map.entry("chest", SLOT_CHEST),
-			Map.entry("fullarmor", SLOT_FULL_ARMOR), Map.entry("head", SLOT_HEAD), Map.entry("hair", SLOT_HAIR),
-			Map.entry("face", SLOT_FACE), Map.entry("dhair", SLOT_HAIRALL), Map.entry("back", SLOT_BACK),
-			Map.entry("neck", SLOT_NECK), Map.entry("legs", SLOT_LEGS), Map.entry("feet", SLOT_FEET),
-			Map.entry("gloves", SLOT_GLOVES), Map.entry("chest,legs", SLOT_CHEST | SLOT_LEGS),
-			Map.entry("rhand", SLOT_R_HAND), Map.entry("lhand", SLOT_L_HAND), Map.entry("lrhand", SLOT_LR_HAND),
-			Map.entry("rear,lear", SLOT_LR_EAR), Map.entry("rfinger,lfinger", SLOT_LR_FINGER),
-			Map.entry("wolf", SLOT_WOLF), Map.entry("hatchling", SLOT_HATCHLING), Map.entry("strider", SLOT_STRIDER),
+			Map.entry("fullarmor", SLOT_FULL_ARMOR), Map.entry("onepiece", SLOT_FULL_ARMOR),
+			Map.entry("alldress", SLOT_ALLDRESS), Map.entry("head", SLOT_HEAD), Map.entry("hair", SLOT_HAIR),
+			Map.entry("face", SLOT_FACE), Map.entry("dhair", SLOT_HAIRALL), Map.entry("hairall", SLOT_HAIRALL),
+			Map.entry("back", SLOT_BACK), Map.entry("neck", SLOT_NECK), Map.entry("legs", SLOT_LEGS),
+			Map.entry("feet", SLOT_FEET), Map.entry("gloves", SLOT_GLOVES),
+			Map.entry("chest,legs", SLOT_CHEST | SLOT_LEGS), Map.entry("rhand", SLOT_R_HAND),
+			Map.entry("lhand", SLOT_L_HAND), Map.entry("lrhand", SLOT_LR_HAND), Map.entry("rear,lear", SLOT_LR_EAR),
+			Map.entry("lear", SLOT_L_EAR), Map.entry("rear", SLOT_R_EAR),
+			Map.entry("rfinger,lfinger", SLOT_LR_FINGER), Map.entry("lfinger", SLOT_L_FINGER),
+			Map.entry("rfinger", SLOT_R_FINGER), Map.entry("wolf", SLOT_WOLF),
+			Map.entry("hatchling", SLOT_HATCHLING), Map.entry("strider", SLOT_STRIDER),
 			Map.entry("babypet", SLOT_BABYPET), Map.entry("none", SLOT_NONE));
 
 	/** Converte a coluna {@code bodypart} das tabelas armor/weapon; desconhecido vira SLOT_NONE. */
