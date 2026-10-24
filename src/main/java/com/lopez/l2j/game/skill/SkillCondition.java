@@ -28,6 +28,14 @@ public interface SkillCondition {
 
 	Set<String> ARMOR_KINDS = Set.of("light", "heavy", "magic");
 
+	static SkillCondition using(String kind) {
+		List<String> kinds = new ArrayList<>();
+		for (String k : kind.split(",")) {
+			kinds.add(normalize(k));
+		}
+		return (p, target) -> kinds.stream().anyMatch(k -> isUsing(p, k));
+	}
+
 	/** @return condicao ou null se algum elemento nao for suportado */
 	static SkillCondition parse(Element e) {
 		String tag = e.getTagName().toLowerCase(Locale.ROOT);
@@ -288,7 +296,14 @@ public interface SkillCondition {
 		}
 		if (ARMOR_KINDS.contains(kind)) {
 			ItemInstance chest = inv.paperdoll(ItemSlots.CHEST);
-			return chest != null && kind.equals(chest.template().subType());
+			if (chest == null || !kind.equals(chest.template().subType())) {
+				return false;
+			}
+			if (chest.template().bodyPart() == ItemSlots.SLOT_FULL_ARMOR) {
+				return true;
+			}
+			ItemInstance legs = inv.paperdoll(ItemSlots.LEGS);
+			return legs != null && kind.equals(legs.template().subType());
 		}
 		if ("shield".equals(kind)) {
 			ItemInstance left = inv.paperdoll(ItemSlots.LHAND);
