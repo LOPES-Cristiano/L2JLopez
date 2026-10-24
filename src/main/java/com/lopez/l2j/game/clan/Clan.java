@@ -87,7 +87,11 @@ public class Clan {
 	private final Map<Integer, Integer> rankPrivileges = new ConcurrentHashMap<>(); // rank (1-9) -> bitmask
 	private final Map<Integer, SubPledgeRecord> subPledges = new ConcurrentHashMap<>(); // type -> SubPledgeRecord
 
-	public record SubPledgeRecord(int type, String name, int leaderId) {}
+	public record SubPledgeRecord(int type, String name, int leaderId) {
+		public int pledgeType() {
+			return type;
+		}
+	}
 
 	public Clan(int clanId, String name, int leaderId, String leaderName, int level) {
 		this.clanId = clanId;
