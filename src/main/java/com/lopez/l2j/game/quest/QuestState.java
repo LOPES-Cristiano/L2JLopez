@@ -91,6 +91,7 @@ public class QuestState {
 	}
 
 	public void setState(State state) {
+		boolean changed = this.state != state;
 		this.state = state;
 		if (state == State.COMPLETED) {
 			variables.put("<state>", "Completed");
@@ -100,6 +101,14 @@ public class QuestState {
 			variables.put("<state>", "Created");
 		}
 		save();
+		if (player != null) {
+			if (changed && state == State.STARTED && quest != null && quest.isVisible()) {
+				player.send(new ExShowQuestMark(quest.getQuestId()));
+			}
+			if (player.context() != null && player.context().questManager() != null) {
+				player.context().questManager().sendQuestList(player);
+			}
+		}
 	}
 
 	public void setStateInternal(State state) {
@@ -142,6 +151,19 @@ public class QuestState {
 	}
 
 	public void set(String var, String val) {
+		if ("cond".equals(var)) {
+			if (val == null || val.isBlank()) {
+				variables.remove("cond");
+				variables.remove("__compltdStateFlags");
+				save();
+				return;
+			}
+			try {
+				setCondInternal(Integer.parseInt(val.trim()), false);
+				return;
+			} catch (NumberFormatException ignored) {
+			}
+		}
 		if (val == null) {
 			variables.remove(var);
 		} else {
@@ -171,7 +193,13 @@ public class QuestState {
 	}
 
 	public void unset(String var) {
-		variables.remove(var);
+		String removed = variables.remove(var);
+		if ("cond".equals(var)) {
+			variables.remove("__compltdStateFlags");
+		}
+		if (removed != null && player != null && player.context() != null && player.context().questManager() != null) {
+			player.context().questManager().deleteQuestVar(this, var);
+		}
 		save();
 	}
 
@@ -236,14 +264,87 @@ public class QuestState {
 	}
 
 	public int getCond() {
+		int val = getInt("cond");
+		if ((val & 0x80000000) != 0) {
+			val &= 0x7FFFFFFF;
+			for (int i = 1; i < 32; i++) {
+				val >>= 1;
+				if (val == 0) {
+					return i;
+				}
+			}
+		}
+		return val;
+	}
+
+	/**
+	 * Retorna o valor de estado/condicao formatado para o pacote QuestList (0x80).
+	 * Quando etapas intermediarias de cond sao puladas, envia a bitmask (0x80000001 | bits)
+	 * exigida pelo cliente Interlude para atualizar a descricao e a localizacao alvo no mapa.
+	 */
+	public int getQuestListState() {
+		int flags = getInt("__compltdStateFlags");
+		if (flags != 0) {
+			return flags;
+		}
 		return getInt("cond");
 	}
 
 	public void setCond(int value) {
-		set("cond", value);
-		playSound(SOUND_MIDDLE);
-		if (player != null && player.context() != null && player.context().questManager() != null) {
-			player.context().questManager().sendQuestList(player);
+		setCondInternal(value, true);
+	}
+
+	private void setCondInternal(int cond, boolean playDefaultSound) {
+		int old = getCond();
+		variables.put("cond", String.valueOf(cond));
+
+		if (cond != old) {
+			int completedStateFlags = 0;
+			if (cond < 3 || cond > 31) {
+				variables.remove("__compltdStateFlags");
+				if (player != null && player.context() != null && player.context().questManager() != null) {
+					player.context().questManager().deleteQuestVar(this, "__compltdStateFlags");
+				}
+			} else {
+				completedStateFlags = getInt("__compltdStateFlags");
+				if (completedStateFlags == 0) {
+					if (cond > (old + 1)) {
+						completedStateFlags = 0x80000001;
+						completedStateFlags |= ((1 << old) - 1);
+						completedStateFlags |= (1 << (cond - 1));
+						variables.put("__compltdStateFlags", String.valueOf(completedStateFlags));
+					}
+				} else {
+					if (cond < old) {
+						completedStateFlags &= ((1 << cond) - 1);
+						if (completedStateFlags == ((1 << cond) - 1)) {
+							variables.remove("__compltdStateFlags");
+							if (player != null && player.context() != null && player.context().questManager() != null) {
+								player.context().questManager().deleteQuestVar(this, "__compltdStateFlags");
+							}
+						} else {
+							completedStateFlags |= 0x80000001;
+							variables.put("__compltdStateFlags", String.valueOf(completedStateFlags));
+						}
+					} else {
+						completedStateFlags |= (1 << (cond - 1));
+						variables.put("__compltdStateFlags", String.valueOf(completedStateFlags));
+					}
+				}
+			}
+		}
+
+		save();
+		if (playDefaultSound) {
+			playSound(SOUND_MIDDLE);
+		}
+		if (player != null) {
+			if (player.context() != null && player.context().questManager() != null) {
+				player.context().questManager().sendQuestList(player);
+			}
+			if (quest != null && quest.isVisible() && cond > 0 && isStarted()) {
+				player.send(new ExShowQuestMark(quest.getQuestId()));
+			}
 		}
 	}
 
