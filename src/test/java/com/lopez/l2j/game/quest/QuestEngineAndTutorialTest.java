@@ -182,18 +182,18 @@ public class QuestEngineAndTutorialTest {
 	}
 
 	@Test
-	@DisplayName("CP 2.1: Codificação de QuestList (0x80) com bitmask retail")
+	@DisplayName("CP 2.1: Codificação de QuestList (0x80), bitmask de cond pulado (__compltdStateFlags) e ExShowQuestMark (0xfe:0x1a)")
 	void testQuestListPacketEncoding() {
 		List<QuestEntry> list = List.of(
-				new QuestEntry(255, 1),
+				new QuestEntry(5, 1),
 				new QuestEntry(1, 2)
 		);
 		QuestList packet = new QuestList(list);
 		byte[] encoded = packet.encode();
 
 		assertNotNull(encoded);
-		// 1 byte opcode (0x80) + 2 bytes size + 2 * (4 bytes id + 4 bytes cond) + 32 bytes mask = 1 + 2 + 16 + 32 = 51 bytes
-		assertEquals(51, encoded.length);
+		// Formato Interlude C6: 1 byte opcode (0x80) + 2 bytes size + 2 * (4 bytes id + 4 bytes cond/flags) = 19 bytes
+		assertEquals(19, encoded.length);
 
 		ByteBuffer bb = ByteBuffer.wrap(encoded).order(ByteOrder.LITTLE_ENDIAN);
 		int opcode = bb.get() & 0xFF;
@@ -204,7 +204,7 @@ public class QuestEngineAndTutorialTest {
 
 		int q1Id = bb.getInt();
 		int q1Cond = bb.getInt();
-		assertEquals(255, q1Id);
+		assertEquals(5, q1Id);
 		assertEquals(1, q1Cond);
 
 		int q2Id = bb.getInt();
@@ -212,10 +212,33 @@ public class QuestEngineAndTutorialTest {
 		assertEquals(1, q2Id);
 		assertEquals(2, q2Cond);
 
-		// 32 bytes de máscara de quests completadas
-		byte[] mask = new byte[32];
-		bb.get(mask);
-		assertEquals(32, mask.length);
+		// Verifica cálculo de __compltdStateFlags quando etapas de cond são puladas (para atualizar Target Loc no mapa)
+		Quest qSkip = new Quest(108, "108_JumbleTumbleDiamondFuss", "Jumble, Tumble, Diamond Fuss") {};
+		questManager.registerQuest(qSkip);
+		QuestState qsSkip = qSkip.newQuestState(session);
+		sentPackets.clear();
+
+		qsSkip.setCond(1);
+		qsSkip.setState(State.STARTED);
+		assertEquals(1, qsSkip.getCond());
+		assertEquals(1, qsSkip.getQuestListState());
+		assertTrue(sentPackets.stream().anyMatch(p -> p instanceof GameServerPacket.ExShowQuestMark m && m.questId() == 108),
+				"Deve enviar ExShowQuestMark(108) ao iniciar a quest para atualizar pino no mapa");
+
+		// Avança de cond 1 para cond 2 (sem pulo)
+		qsSkip.setCond(2);
+		assertEquals(2, qsSkip.getCond());
+		assertEquals(2, qsSkip.getQuestListState());
+
+		// Pula de cond 2 direto para cond 5 (etapas 3 e 4 puladas)
+		sentPackets.clear();
+		qsSkip.setCond(5);
+		assertEquals(5, qsSkip.getCond());
+		int expectedFlags = 0x80000001 | ((1 << 2) - 1) | (1 << (5 - 1));
+		assertEquals(expectedFlags, qsSkip.getQuestListState(),
+				"Quando cond pula etapas (2 -> 5), getQuestListState deve retornar bitmask 0x80000001 | steps");
+		assertTrue(sentPackets.stream().anyMatch(p -> p instanceof GameServerPacket.ExShowQuestMark m && m.questId() == 108),
+				"Deve enviar ExShowQuestMark(108) ao mudar cond");
 	}
 
 	@Test
