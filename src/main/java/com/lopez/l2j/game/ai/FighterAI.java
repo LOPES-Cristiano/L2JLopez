@@ -414,7 +414,7 @@ public class FighterAI extends AbstractNpcAI {
 				} else if (!e.funcs().isEmpty() || skill.isDebuff() || skill.isOffensive() || name.equals("debuff")) {
 					if (combatService.debuffLandsPlayer(skill.power() > 0 ? skill.power() : 50, skill.magicLevel(),
 							npc.template().level(), targetChar, false, false, skill.skillType())) {
-						gs.magicSkillHandler().applySkillEffects(skill, false, 0, true);
+						gs.magicSkillHandler().applySkillEffects(skill, false, 0);
 					} else {
 						targetPlayer.send(SystemMessage.of(SystemMessage.RESISTED_S1_MAGIC,
 								new SystemMessage.NpcName(npc.npcId())));

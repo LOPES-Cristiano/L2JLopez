@@ -2348,7 +2348,7 @@ public class MagicSkillPacketHandler {
 				any = true;
 				continue;
 			}
-			boolean isDebuff = forceDebuff || (!toggle && (sk.isDebuff() || sk.isOffensive()));
+			boolean isDebuff = forceDebuff || (!toggle && (sk.isDebuff() || sk.isOffensive() || name.equalsIgnoreCase("Debuff")));
 			boolean isInvincible = name.equalsIgnoreCase("Invincible");
 			boolean isBuffOrDebuff = toggle || name.equalsIgnoreCase("Buff") || name.equalsIgnoreCase("Debuff")
 					|| sk.isBuff() || isDebuff || isInvincible;

@@ -2395,9 +2395,11 @@ public class NpcBypassPacketHandler {
 							return;
 						} else if (actionLower.startsWith("augment")) {
 							if (action.contains("2")) {
-								send(new ExShowVariationCancelWindow());
+								send(SystemMessage.id(SystemMessage.SELECT_THE_ITEM_FROM_WHICH_YOU_WISH_TO_REMOVE_AUGMENTATION));
+								send(ExShowVariationCancelWindow.STATIC_PACKET);
 							} else {
-								send(new ExShowVariationMakeWindow());
+								send(SystemMessage.id(SystemMessage.SELECT_THE_ITEM_TO_BE_AUGMENTED));
+								send(ExShowVariationMakeWindow.STATIC_PACKET);
 							}
 							return;
 						} else if (actionLower.startsWith("create_clan_check")) {

@@ -10668,319 +10668,179 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	private void onConfirmTargetItem(GameClientPacket.RequestConfirmTargetItem p) {
-
 		if (!inWorld || active == null || active.isDead() || active.sitting()) {
-
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		var item = active.inventory().byObjectId(p.itemObjId()).orElse(null);
-
 		if (item == null || ctx.augmentation() == null || !ctx.augmentation().isAugmentable(item)) {
-
 			if (item != null && item.isAugmented()) {
-
-				send(SystemMessage.id(SystemMessage.AUGMENTATION_REMOVAL_CAN_ONLY_BE_DONE_ON_AN_AUGMENTED_ITEM));
-
+				send(SystemMessage.id(SystemMessage.ONCE_AN_ITEM_IS_AUGMENTED_IT_CANNOT_BE_AUGMENTED_AGAIN));
 			} else {
-
 				send(SystemMessage.id(SystemMessage.THIS_IS_NOT_A_SUITABLE_ITEM));
-
 			}
-
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		send(new ExPutItemResultForVariationMake(p.itemObjId()));
-
+		send(SystemMessage.id(SystemMessage.SELECT_THE_CATALYST_FOR_AUGMENTATION));
 	}
 
 	private void onConfirmRefinerItem(GameClientPacket.RequestConfirmRefinerItem p) {
-
 		if (!inWorld || active == null || active.isDead() || ctx.augmentation() == null) {
-
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		var target = active.inventory().byObjectId(p.targetItemObjId()).orElse(null);
-
 		var refiner = active.inventory().byObjectId(p.refinerItemObjId()).orElse(null);
-
 		if (target == null || refiner == null || !AugmentationService.isLifeStone(refiner.itemId())) {
-
 			send(SystemMessage.id(SystemMessage.THIS_IS_NOT_A_SUITABLE_ITEM));
-
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		int level = AugmentationService.getLifeStoneLevel(refiner.itemId());
-
-		if (active.level() < AugmentationService.getMinPlayerLevel(level)) {
-
+		if (active.level() < AugmentationService.getMinPlayerLevel(level) && !active.isGm()) {
 			send(SystemMessage.id(SystemMessage.THIS_IS_NOT_A_SUITABLE_ITEM));
-
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		int gemItemId = AugmentationService.getGemstoneItemId(target);
-
 		int gemCount = AugmentationService.getGemstoneCount(target);
-
 		send(new ExPutIntensiveResultForVariationMake(p.refinerItemObjId(), refiner.itemId(), gemItemId, gemCount));
-
+		send(SystemMessage.of(SystemMessage.REQUIRES_S1_S2, new SystemMessage.Number(gemCount), new SystemMessage.ItemName(gemItemId)));
 	}
 
 	private void onConfirmGemStone(GameClientPacket.RequestConfirmGemStone p) {
-
 		if (!inWorld || active == null || active.isDead() || ctx.augmentation() == null) {
-
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		var target = active.inventory().byObjectId(p.targetItemObjId()).orElse(null);
-
 		var gem = active.inventory().byObjectId(p.gemstoneItemObjId()).orElse(null);
-
 		if (target == null || gem == null) {
-
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		int reqItemId = AugmentationService.getGemstoneItemId(target);
-
 		int reqCount = AugmentationService.getGemstoneCount(target);
-
-		if (gem.itemId() != reqItemId || gem.count() < reqCount || p.gemstoneCount() != reqCount) {
-
+		if (gem.itemId() != reqItemId || gem.count() < reqCount || p.gemstoneCount() < reqCount) {
 			send(SystemMessage.id(SystemMessage.GEMSTONE_QUANTITY_IS_INCORRECT));
-
 			send(new ActionFailed());
-
 			return;
-
 		}
-
-		send(new ExPutCommissionResultForVariationMake(p.gemstoneItemObjId(), p.gemstoneCount()));
-
+		send(new ExPutCommissionResultForVariationMake(p.gemstoneItemObjId(), reqCount));
+		send(SystemMessage.id(SystemMessage.PRESS_THE_AUGMENT_BUTTON_TO_BEGIN));
 	}
 
 	private void onRefine(GameClientPacket.RequestRefine p) {
-
 		if (!inWorld || active == null || active.isDead() || ctx.augmentation() == null) {
-
 			send(new ExVariationResult(0, 0, 0));
-
+			send(SystemMessage.id(SystemMessage.AUGMENTATION_FAILED_DUE_TO_INAPPROPRIATE_CONDITIONS));
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		var target = active.inventory().byObjectId(p.targetItemObjId()).orElse(null);
-
 		var refiner = active.inventory().byObjectId(p.refinerItemObjId()).orElse(null);
-
 		var gem = active.inventory().byObjectId(p.gemstoneItemObjId()).orElse(null);
-
 		if (target == null || refiner == null || gem == null || !ctx.augmentation().isAugmentable(target)
-
 				|| !AugmentationService.isLifeStone(refiner.itemId())) {
-
 			send(new ExVariationResult(0, 0, 0));
-
+			send(SystemMessage.id(SystemMessage.AUGMENTATION_FAILED_DUE_TO_INAPPROPRIATE_CONDITIONS));
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		int reqCount = AugmentationService.getGemstoneCount(target);
-
 		int reqGemId = AugmentationService.getGemstoneItemId(target);
-
 		if (gem.itemId() != reqGemId || gem.count() < reqCount) {
-
 			send(new ExVariationResult(0, 0, 0));
-
+			send(SystemMessage.id(SystemMessage.AUGMENTATION_FAILED_DUE_TO_INAPPROPRIATE_CONDITIONS));
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		boolean wasEquipped = target.isEquipped();
-
 		if (wasEquipped) {
-
 			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), target.objectId()));
-
 		}
-
 		var resRefiner = ctx.inventories().destroyItem(active.inventory(), refiner.objectId(), 1, "Refine");
-
 		var resGem = ctx.inventories().destroyItem(active.inventory(), gem.objectId(), reqCount, "Refine");
-
 		var aug = ctx.augmentation().applyAugmentation(target, refiner.itemId());
-
 		send(new ExVariationResult(aug.stat12(), aug.stat34(), 1));
-
 		List<ItemInfo> updates = new ArrayList<>();
-
 		updates.add(ItemInfo.of(target, ItemInfo.MODIFIED));
-
 		if (resRefiner != null) {
-
 			updates.add(ItemInfo.of(resRefiner.item(), resRefiner.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
-
 		}
-
 		if (resGem != null) {
-
 			updates.add(ItemInfo.of(resGem.item(), resGem.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
-
 		}
-
 		send(new InventoryUpdate(updates));
-
 		if (wasEquipped) {
-
 			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), target.objectId()));
-
 		}
-
+		updateAugmentationBonus();
+		refreshWeightAndPenalties();
 		sendUserInfoAndBroadcastCharInfo();
-
 		send(SystemMessage.id(SystemMessage.THE_ITEM_WAS_SUCCESSFULLY_AUGMENTED));
-
 	}
 
 	private void onConfirmCancelItem(GameClientPacket.RequestConfirmCancelItem p) {
-
 		if (!inWorld || active == null || active.isDead() || ctx.augmentation() == null) {
-
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		var item = active.inventory().byObjectId(p.itemObjId()).orElse(null);
-
 		if (item == null || !item.isAugmented()) {
-
 			send(SystemMessage.id(SystemMessage.AUGMENTATION_REMOVAL_CAN_ONLY_BE_DONE_ON_AN_AUGMENTED_ITEM));
-
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		long price = AugmentationService.getCancelPrice(item);
-
 		var aug = item.augmentation();
-
 		int stat12 = aug != null ? aug.stat12() : 0;
-
 		int stat34 = aug != null ? aug.stat34() : 0;
-
 		send(new ExPutItemResultForVariationCancel(p.itemObjId(), item.itemId(), stat12, stat34, price));
-
 	}
 
 	private void onRefineCancel(GameClientPacket.RequestRefineCancel p) {
-
 		if (!inWorld || active == null || active.isDead() || ctx.augmentation() == null) {
-
 			send(new ExVariationCancelResult(0));
-
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		var target = active.inventory().byObjectId(p.itemObjId()).orElse(null);
-
 		if (target == null || !target.isAugmented()) {
-
+			send(SystemMessage.id(SystemMessage.AUGMENTATION_REMOVAL_CAN_ONLY_BE_DONE_ON_AN_AUGMENTED_ITEM));
 			send(new ExVariationCancelResult(0));
-
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		long price = AugmentationService.getCancelPrice(target);
-
 		if (active.inventory().adena() < price) {
-
+			send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
 			send(new ExVariationCancelResult(0));
-
 			send(new ActionFailed());
-
 			return;
-
 		}
-
 		boolean wasEquipped = target.isEquipped();
-
 		if (wasEquipped) {
-
 			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), target.objectId()));
-
 		}
-
 		var resAdena = ctx.inventories().consumeItem(active.inventory(), 57, (int) price, "RefineCancel");
-
 		ctx.augmentation().removeAugmentation(target);
-
 		send(new ExVariationCancelResult(1));
-
 		List<ItemInfo> updates = new ArrayList<>();
-
 		updates.add(ItemInfo.of(target, ItemInfo.MODIFIED));
-
 		if (resAdena != null) {
-
 			updates.add(ItemInfo.of(resAdena.item(), resAdena.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
-
 		}
-
 		send(new InventoryUpdate(updates));
-
 		if (wasEquipped) {
-
 			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), target.objectId()));
-
 		}
-
+		updateAugmentationBonus();
 		sendUserInfoAndBroadcastCharInfo();
-
-		send(SystemMessage.id(SystemMessage.AUGMENTATION_HAS_BEEN_SUCCESSFULLY_REMOVED_FROM_YOUR_S1));
-
+		send(SystemMessage.of(SystemMessage.AUGMENTATION_HAS_BEEN_SUCCESSFULLY_REMOVED_FROM_YOUR_S1,
+				new SystemMessage.ItemName(target.itemId())));
 	}
 
 	private int pendingDuelChallengerId;

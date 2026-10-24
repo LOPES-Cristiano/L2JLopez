@@ -197,6 +197,7 @@ public class ItemPacketHandler {
 					session.send(new ActionFailed());
 					return;
 				}
+				session.send(SystemMessage.id(SystemMessage.SELECT_THE_ITEM_TO_BE_AUGMENTED));
 				session.send(ExShowVariationMakeWindow.STATIC_PACKET);
 				session.send(new ActionFailed());
 				return;

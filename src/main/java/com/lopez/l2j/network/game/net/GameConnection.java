@@ -58,8 +58,12 @@ final class GameConnection implements Runnable {
 			while (true) {
 				byte[] body = readFrame(in);
 				crypt.decrypt(body, 0, body.length);
-				if (!session.handle(body)) {
-					return;
+				try {
+					if (!session.handle(body)) {
+						return;
+					}
+				} catch (Exception | LinkageError e) {
+					log.error("Erro processando pacote de {}", peer, e);
 				}
 				if (!relaxedTimeout && session.state() != GameClientPacket.State.CONNECTED) {
 					socket.setSoTimeout(0); // cliente pode ficar parado na selecao/no mundo sem enviar nada
@@ -72,12 +76,12 @@ final class GameConnection implements Runnable {
 			log.debug("{} nao completou o handshake a tempo", peer);
 		} catch (IOException | IllegalArgumentException e) {
 			log.debug("Conexao de jogo {} encerrada: {}", peer, e.toString());
-		} catch (RuntimeException e) {
+		} catch (Throwable e) {
 			log.error("Erro processando pacote de {}", peer, e);
 		} finally {
 			try {
 				session.onDisconnect();
-			} catch (RuntimeException e) {
+			} catch (Throwable e) {
 				log.error("Erro ao finalizar sessao de {}", peer, e);
 			}
 			onClose.run();

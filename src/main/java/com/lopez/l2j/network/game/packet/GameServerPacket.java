@@ -504,6 +504,7 @@ public sealed interface GameServerPacket {
 		public static final int WAREHOUSE_FULL = 130;
 		public static final int INAPPROPRIATE_ENCHANT_CONDITION = 355;
 		public static final int BLESSED_ENCHANT_FAILED = 1517;
+		public static final int SELECT_THE_ITEM_TO_BE_AUGMENTED = 1957;
 		public static final int SELECT_THE_CATALYST_FOR_AUGMENTATION = 1958;
 		public static final int REQUIRES_S1_S2 = 1959;
 		public static final int THIS_IS_NOT_A_SUITABLE_ITEM = 1960;
@@ -513,6 +514,9 @@ public sealed interface GameServerPacket {
 		public static final int YOU_HAVE_BECOME_A_NOBLESSE = 1665;
 		public static final int AUGMENTATION_REMOVAL_CAN_ONLY_BE_DONE_ON_AN_AUGMENTED_ITEM = 1964;
 		public static final int AUGMENTATION_HAS_BEEN_SUCCESSFULLY_REMOVED_FROM_YOUR_S1 = 1965;
+		public static final int ONCE_AN_ITEM_IS_AUGMENTED_IT_CANNOT_BE_AUGMENTED_AGAIN = 1970;
+		public static final int PRESS_THE_AUGMENT_BUTTON_TO_BEGIN = 1984;
+		public static final int AUGMENTATION_FAILED_DUE_TO_INAPPROPRIATE_CONDITIONS = 2001;
 		public static final int SPOIL_SUCCESS = 612;
 		public static final int ALREADY_SPOILED = 357;
 		public static final int SWEEPER_FAILED_TARGET_NOT_SPOILED = 343;
