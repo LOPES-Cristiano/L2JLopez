@@ -2560,6 +2560,12 @@ public class AdminPacketHandler {
 						}
 						var targetPlayer = getTargetOnlinePlayerOrSelf();
 						var piece = targetChar.inventory().paperdoll(slot);
+						if (piece == null && slot == ItemSlots.LEGS) {
+							var chest = targetChar.inventory().paperdoll(ItemSlots.CHEST);
+							if (chest != null && chest.template().bodyPart() == ItemSlots.SLOT_FULL_ARMOR) {
+								piece = chest;
+							}
+						}
 						if (piece != null) {
 							piece.enchant(val);
 							ctx.inventories().saveItem(piece);
