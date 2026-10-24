@@ -681,15 +681,27 @@ public class AutoFarmService {
             case "farmacp" -> {
                 if (st.hasMoreTokens()) {
                     String action = st.nextToken();
-                    if ("set_hp".equalsIgnoreCase(action) && st.hasMoreTokens()) {
-                        state.setAcpHpPercent(parseIntSafe(st.nextToken(), 0));
+                    if (("set_hp".equalsIgnoreCase(action) || "hp".equalsIgnoreCase(action)) && st.hasMoreTokens()) {
+                        state.setAcpHpPercent(Math.max(0, Math.min(100, parseIntSafe(st.nextToken(), 0))));
                         saveVar(player.objectId(), "farmAcpHpPercent", String.valueOf(state.getAcpHpPercent()));
-                    } else if ("set_mp".equalsIgnoreCase(action) && st.hasMoreTokens()) {
-                        state.setAcpMpPercent(parseIntSafe(st.nextToken(), 0));
+                    } else if (("set_mp".equalsIgnoreCase(action) || "mp".equalsIgnoreCase(action)) && st.hasMoreTokens()) {
+                        state.setAcpMpPercent(Math.max(0, Math.min(100, parseIntSafe(st.nextToken(), 0))));
                         saveVar(player.objectId(), "farmAcpMpPercent", String.valueOf(state.getAcpMpPercent()));
-                    } else if ("set_cp".equalsIgnoreCase(action) && st.hasMoreTokens()) {
-                        state.setAcpCpPercent(parseIntSafe(st.nextToken(), 0));
+                    } else if (("set_cp".equalsIgnoreCase(action) || "cp".equalsIgnoreCase(action)) && st.hasMoreTokens()) {
+                        state.setAcpCpPercent(Math.max(0, Math.min(100, parseIntSafe(st.nextToken(), 0))));
                         saveVar(player.objectId(), "farmAcpCpPercent", String.valueOf(state.getAcpCpPercent()));
+                    } else if ("inc_hp".equalsIgnoreCase(action)) {
+                        state.setAcpHpPercent(Math.min(100, state.getAcpHpPercent() + 5));
+                        saveVar(player.objectId(), "farmAcpHpPercent", String.valueOf(state.getAcpHpPercent()));
+                    } else if ("dec_hp".equalsIgnoreCase(action)) {
+                        state.setAcpHpPercent(Math.max(0, state.getAcpHpPercent() - 5));
+                        saveVar(player.objectId(), "farmAcpHpPercent", String.valueOf(state.getAcpHpPercent()));
+                    } else if ("inc_mp".equalsIgnoreCase(action)) {
+                        state.setAcpMpPercent(Math.min(100, state.getAcpMpPercent() + 5));
+                        saveVar(player.objectId(), "farmAcpMpPercent", String.valueOf(state.getAcpMpPercent()));
+                    } else if ("dec_mp".equalsIgnoreCase(action)) {
+                        state.setAcpMpPercent(Math.max(0, state.getAcpMpPercent() - 5));
+                        saveVar(player.objectId(), "farmAcpMpPercent", String.valueOf(state.getAcpMpPercent()));
                     } else if ("off_hp".equalsIgnoreCase(action)) {
                         state.setAcpHpPercent(0);
                         saveVar(player.objectId(), "farmAcpHpPercent", "0");
@@ -1302,48 +1314,45 @@ public class AutoFarmService {
         };
 
         StringBuilder farmTypeSb = new StringBuilder();
-        farmTypeSb.append("<td fixwidth=60><combobox width=66 var=type list=\"").append(currentTypeLabel);
+        farmTypeSb.append("<td width=75><combobox width=70 var=type list=\"").append(currentTypeLabel);
         for (String opt : new String[]{"Fighter", "Archer", "Mage", "Healer", "Summon"}) {
             if (!opt.equals(currentTypeLabel)) {
                 farmTypeSb.append(";").append(opt);
             }
         }
-        farmTypeSb.append("\"></td><td width=40><button value=\"Set\" action=\"bypass -h voice_autofarm $type\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+        farmTypeSb.append("\"></td><td width=50><button value=\"Set\" action=\"bypass -h voice_autofarm $type\" width=45 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
         html = html.replace("%farmType%", farmTypeSb.toString());
 
-        // Header de tempo / licenca / trial / limites
+        // Header de tempo / licenca / trial / limites (sem tabelas aninhadas para evitar crash NCHtmlTable::Align no cliente Interlude)
         StringBuilder activateSb = new StringBuilder();
         boolean isVip = player.vip() && (player.vipExpiration() == 0L || player.vipExpiration() > System.currentTimeMillis());
         if (!Config.AUTOFARM_IS_FREE && !(Config.AUTOFARM_FREE_FOR_PREMIUM && isVip)) {
             if (state.isActiveAutofarmAllowed()) {
-                SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy HH:mm");
-                activateSb.append("<table width=220><tr><td width=220><font color=LEVEL>Exit Date:</font> ").append(sdf.format(new Date(state.getAutoFarmEnd()))).append("</td></tr>");
-                activateSb.append("<tr><td width=220><button value=\"Extend\" action=\"bypass -h voice_buyfarm ").append(tab).append("\" width=60 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td></tr></table>");
+                SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yy HH:mm");
+                activateSb.append("<font color=LEVEL>End:</font> ").append(sdf.format(new Date(state.getAutoFarmEnd()))).append("<br1>");
+                activateSb.append("<a action=\"bypass -h voice_buyfarm ").append(tab).append("\">[Extend]</a>");
             } else {
                 boolean hasFreeTrial = Config.AUTOFARM_GAIN_FREE_TIME > 0 && !state.isFreeTrialUsed();
                 if (Config.AUTOFARM_ONLINE_TYPE && Config.AUTOFARM_FREE_TIME > 0) {
                     long remainingMs = Math.max(0L, TimeUnit.MINUTES.toMillis(Config.AUTOFARM_FREE_TIME) - state.getFarmOnlineTime());
-                    activateSb.append("<table width=220><tr><td width=220><font color=LEVEL>Free Left:</font> ").append(formatTimeMs(remainingMs)).append("</td></tr></table>");
+                    activateSb.append("<font color=LEVEL>Free:</font> ").append(formatTimeMs(remainingMs)).append("<br1>");
                 }
-                activateSb.append("<table width=220><tr><td width=100><button value=\"Buy\" action=\"bypass -h voice_buyfarm ").append(tab).append("\" width=60 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                activateSb.append("<a action=\"bypass -h voice_buyfarm ").append(tab).append("\">[Buy]</a>");
                 if (hasFreeTrial) {
-                    activateSb.append("<td width=100><button value=\"Try Free\" action=\"bypass -h voice_tryFreeTime ").append(tab).append("\" width=60 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                    activateSb.append(" <a action=\"bypass -h voice_tryFreeTime ").append(tab).append("\">[Try Free]</a>");
                 }
-                activateSb.append("</tr></table>");
             }
         } else {
-            activateSb.append("<table width=220><tr><td width=220><font color=\"00FF00\">Mode: FREE UNLIMITED</font></td></tr></table>");
+            activateSb.append("<font color=\"00FF00\">Mode: FREE UNLIMITED</font>");
         }
 
         if (Config.AUTOFARM_MAXIMUM_ACTIVATED_LIMITS > 0) {
             int rem = getRemainingIpSlots(player, state.getClientIp());
+            activateSb.append("<br1><font color=LEVEL>Limits:</font> <font color=FF0000>").append(rem).append("</font>");
             if (Config.AUTOFARM_ALLOW_EXTEND_LIMITS) {
                 int[] price = Config.AUTOFARM_VISIBLE_LIMITS_PRICE;
                 String itemName = resolveItemName(price[0]);
-                activateSb.append("<table width=210><tr><td width=70><font color=LEVEL>Limits:</font> <font color=FF0000>").append(rem).append("</font></td>");
-                activateSb.append("<td width=140><a action=\"bypass -h voice_expendLimit ").append(tab).append("\">Expand (").append(price[1]).append(" ").append(itemName).append(")</a></td></tr></table>");
-            } else {
-                activateSb.append("<table width=210><tr><td width=210><font color=LEVEL>Available Limits:</font> <font color=FF0000>").append(rem).append("</font></td></tr></table>");
+                activateSb.append(" <a action=\"bypass -h voice_expendLimit ").append(tab).append("\">[Expand]</a>");
             }
         }
         html = html.replace("%activate%", activateSb.toString());
@@ -1358,6 +1367,8 @@ public class AutoFarmService {
             String icon = getSkillIcon(skillId);
             String cell = slotTemplate
                     .replace("%icon%", icon)
+                    .replace("%action_label%", "[Del]")
+                    .replace("[Edit]", "[Del]")
                     .replace("%bypass%", "bypass -h voice_removeSkill " + tab + " " + skillId + " " + idx);
             skillSlotsSb.append(cell);
             idx++;
@@ -1365,41 +1376,50 @@ public class AutoFarmService {
         for (int i = idx; i < 8; i++) {
             String cell = slotTemplate
                     .replace("%icon%", "icon.skill0000")
+                    .replace("%action_label%", "[Add]")
+                    .replace("[Edit]", "[Add]")
                     .replace("%bypass%", "bypass -h voice_addSkill " + tab);
             skillSlotsSb.append(cell);
         }
         html = html.replace("%skillList%", skillSlotsSb.toString());
 
-        // Chance e % de MP/HP da aba ativa
+        // Chance e % de MP/HP da aba ativa (suporta ambos os nomes de placeholders dos templates)
         switch (tab) {
             case "chance" -> {
-                html = html.replace("%chanceChance%", "<td width=25><font color=LEVEL>" + state.getChanceChance() + "%</font></td><td width=30><edit var=\"chance\" width=30 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " chanceChance $chance\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-                html = html.replace("%chancePercent%", "<td width=25><font color=LEVEL>" + state.getChancePercent() + "%</font></td><td width=30><edit var=\"percent\" width=30 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " chancePercent $percent\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                String chanceRow = "<td width=28><font color=LEVEL>" + state.getChanceChance() + "%</font></td><td width=30><edit var=\"chance\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " chanceChance $chance\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String pctRow = "<td width=28><font color=LEVEL>" + state.getChancePercent() + "%</font></td><td width=30><edit var=\"percent\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " chancePercent $percent\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                html = html.replace("%chanceChance%", chanceRow).replace("%percentChance%", pctRow);
                 html = html.replace("%rndChanceSk_img%", state.isRndChanceSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
                 html = html.replace("%rndChanceSk_bypass%", "bypass -h voice_editFarmOption " + tab + " rndChanceSkills");
             }
             case "self" -> {
-                html = html.replace("%selfChance%", "<td width=25><font color=LEVEL>" + state.getSelfChance() + "%</font></td><td width=30><edit var=\"chance\" width=30 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " selfChance $chance\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-                html = html.replace("%selfPercent%", "<td width=25><font color=LEVEL>" + state.getSelfPercent() + "%</font></td><td width=30><edit var=\"percent\" width=30 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " selfPercent $percent\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                String chanceRow = "<td width=28><font color=LEVEL>" + state.getSelfChance() + "%</font></td><td width=30><edit var=\"chance\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " selfChance $chance\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String pctRow = "<td width=28><font color=LEVEL>" + state.getSelfPercent() + "%</font></td><td width=30><edit var=\"percent\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " selfPercent $percent\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                html = html.replace("%chanceSelf%", chanceRow).replace("%selfChance%", chanceRow);
+                html = html.replace("%percentSelf%", pctRow).replace("%selfPercent%", pctRow);
                 html = html.replace("%rndSelfSk_img%", state.isRndSelfSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
                 html = html.replace("%rndSelfSk_bypass%", "bypass -h voice_editFarmOption " + tab + " rndSelfSkills");
             }
             case "heal" -> {
-                html = html.replace("%healChance%", "<td width=25><font color=LEVEL>" + state.getLifeChance() + "%</font></td><td width=30><edit var=\"chance\" width=30 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " healChance $chance\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-                html = html.replace("%healPercent%", "<td width=25><font color=LEVEL>" + state.getLifePercent() + "%</font></td><td width=30><edit var=\"percent\" width=30 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " healPercent $percent\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                String chanceRow = "<td width=28><font color=LEVEL>" + state.getLifeChance() + "%</font></td><td width=30><edit var=\"chance\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " healChance $chance\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String pctRow = "<td width=28><font color=LEVEL>" + state.getLifePercent() + "%</font></td><td width=30><edit var=\"percent\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " healPercent $percent\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                html = html.replace("%chanceLowHeal%", chanceRow).replace("%healChance%", chanceRow);
+                html = html.replace("%percentLowHeal%", pctRow).replace("%healPercent%", pctRow);
                 html = html.replace("%rndLifeSk_img%", state.isRndLifeSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
                 html = html.replace("%rndLifeSk_bypass%", "bypass -h voice_editFarmOption " + tab + " rndLifeSkills");
             }
             default -> {
-                html = html.replace("%attackChance%", "<td width=25><font color=LEVEL>" + state.getAttackChance() + "%</font></td><td width=30><edit var=\"chance\" width=30 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " attackChance $chance\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-                html = html.replace("%attackPercent%", "<td width=25><font color=LEVEL>" + state.getAttackPercent() + "%</font></td><td width=30><edit var=\"percent\" width=30 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " attackPercent $percent\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                String chanceRow = "<td width=28><font color=LEVEL>" + state.getAttackChance() + "%</font></td><td width=30><edit var=\"chance\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " attackChance $chance\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String pctRow = "<td width=28><font color=LEVEL>" + state.getAttackPercent() + "%</font></td><td width=30><edit var=\"percent\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " attackPercent $percent\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                html = html.replace("%chanceAttack%", chanceRow).replace("%attackChance%", chanceRow);
+                html = html.replace("%percentAttack%", pctRow).replace("%attackPercent%", pctRow);
                 html = html.replace("%rndAttackSk_img%", state.isRndAttackSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
                 html = html.replace("%rndAttackSk_bypass%", "bypass -h voice_editFarmOption " + tab + " rndAttackSkills");
             }
         }
 
         html = html.replace("%refreshSkills%", "bypass -h voice_refreshSkills " + tab);
-        html = html.replace("%distance%", "<td width=30><font color=LEVEL>" + state.getFarmRadius() + "</font></td><td width=40><edit var=\"dist\" width=40 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " distance $dist\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+        html = html.replace("%distance%", "<td width=42><font color=LEVEL>" + state.getFarmRadius() + "</font></td><td width=42><edit var=\"dist\" width=36 height=12></td><td width=45><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " distance $dist\" width=40 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
 
         html = html.replace("%assist_img%", state.isLeaderAssist() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
         html = html.replace("%assist_bypass%", "bypass -h voice_editFarmOption " + tab + " assist");
@@ -1414,18 +1434,22 @@ public class AutoFarmService {
             html = html.replace("%runCloseUp_img%", state.isRunTargetCloseUp() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
             html = html.replace("%runCloseUp_bypass%", "bypass -h voice_editFarmOption " + tab + " runCloseUp");
         } else if (farmType == 3) {
-            html = html.replace("%restoreMp_img%", state.isTargetRestoreMp() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
-            html = html.replace("%restoreMp_bypass%", "bypass -h voice_editFarmOption " + tab + " restoreMp");
+            String restoreImg = state.isTargetRestoreMp() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox";
+            String restoreBypass = "bypass -h voice_editFarmOption " + tab + " restoreMp";
+            html = html.replace("%tgRestoreMp_img%", restoreImg).replace("%restoreMp_img%", restoreImg);
+            html = html.replace("%tgRestoreMp_bypass%", restoreBypass).replace("%restoreMp_bypass%", restoreBypass);
         } else if (farmType == 4) {
-            html = html.replace("%summonSk_img%", state.isUseSummonSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
-            html = html.replace("%summonSk_bypass%", "bypass -h voice_editFarmOption " + tab + " useSummonSkills");
+            String sumImg = state.isUseSummonSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox";
+            String sumBypass = "bypass -h voice_editFarmOption " + tab + " useSummonSkills";
+            html = html.replace("%useSummonSk_img%", sumImg).replace("%summonSk_img%", sumImg);
+            html = html.replace("%useSummonSk_bypass%", sumBypass).replace("%summonSk_bypass%", sumBypass);
             html = html.replace("%editSummonSkills%", "bypass -h voice_editSummonSkills attack");
         }
 
         html = html.replace("%status%", state.isEnabled() ? "<font color=\"00FF00\">ON</font>" : "<font color=\"FF0000\">OFF</font>");
         html = html.replace("%button%", state.isEnabled()
-                ? "<button value=\"Stop\" action=\"bypass -h voice_farmstop " + tab + "\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\">"
-                : "<button value=\"Start\" action=\"bypass -h voice_farmstart " + tab + "\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\">");
+                ? "<button value=\"Stop\" action=\"bypass -h voice_farmstop " + tab + "\" width=50 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\">"
+                : "<button value=\"Start\" action=\"bypass -h voice_farmstart " + tab + "\" width=50 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\">");
 
         if (activeSkillSvc != null && player.skills() != null && !player.skills().isEmpty()) {
             StringBuilder quickSkills = new StringBuilder("<!-- voiced_autofarm quick_skills: ");
@@ -1446,36 +1470,34 @@ public class AutoFarmService {
 
     private void showAcpWindow(GameSession session, PlayerCharacter player, AutoFarmState state) {
         String html = loadHtmlTemplate("command/autofarm/acp.htm");
-        String hpStatus = state.getAcpHpPercent() > 0 ? "<font color=\"00FF00\">" + state.getAcpHpPercent() + "%</font>" : "<font color=\"FF0000\">OFF</font>";
-        String mpStatus = state.getAcpMpPercent() > 0 ? "<font color=\"00FF00\">" + state.getAcpMpPercent() + "%</font>" : "<font color=\"FF0000\">OFF</font>";
-
-        StringBuilder extra = new StringBuilder();
-        extra.append("<br><center><table width=260 cellpadding=2>");
-        extra.append("<tr><td width=90>HP Threshold:</td><td width=50>").append(hpStatus).append("</td>");
-        extra.append("<td width=60><button value=\"Set\" action=\"bypass -h voice_farmacp set_hp $hp\" width=45 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-        extra.append("<td width=60><button value=\"Off\" action=\"bypass -h voice_farmacp off_hp\" width=45 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td></tr>");
-        extra.append("<tr><td width=90>MP Threshold:</td><td width=50>").append(mpStatus).append("</td>");
-        extra.append("<td width=60><button value=\"Set\" action=\"bypass -h voice_farmacp set_mp $mp\" width=45 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-        extra.append("<td width=60><button value=\"Off\" action=\"bypass -h voice_farmacp off_mp\" width=45 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td></tr>");
-        extra.append("</table><br><button value=\"Back\" action=\"bypass -h voice_autofarm\" width=75 height=21 back=\"L2UI_CH3.Btn1_normalOn\" fore=\"L2UI_CH3.Btn1_normal\"></center></body></html>");
-
-        html = html.replace("</body></html>", extra.toString());
+        String hpStatus = state.getAcpHpPercent() > 0 ? state.getAcpHpPercent() + "%" : "OFF";
+        String mpStatus = state.getAcpMpPercent() > 0 ? state.getAcpMpPercent() + "%" : "OFF";
+        html = html.replace("%back_bypass%", "bypass -h voice_autofarm")
+                .replace("%hp_percent%", hpStatus)
+                .replace("%mp_percent%", mpStatus)
+                .replace("%hp_dec_bypass%", "bypass -h voice_farmacp dec_hp")
+                .replace("%hp_inc_bypass%", "bypass -h voice_farmacp inc_hp")
+                .replace("%mp_dec_bypass%", "bypass -h voice_farmacp dec_mp")
+                .replace("%mp_inc_bypass%", "bypass -h voice_farmacp inc_mp");
         session.send(new NpcHtmlMessage(0, html));
     }
 
     private void showAvailablePlayerSkillsWindow(GameSession session, PlayerCharacter player, AutoFarmState state, String skillType, int page) {
+        String tab = (skillType == null || skillType.isBlank()) ? "attack" : skillType.toLowerCase(Locale.ROOT);
         String html = loadHtmlTemplate("command/autofarm/player_skills.htm");
         String rowTpl = loadHtmlTemplate("command/autofarm/player_skills_template.htm");
 
         List<SkillTemplate> eligible = new ArrayList<>();
-        List<Integer> currentList = state.getSkillsForType(skillType);
+        List<SkillTemplate> allEligible = new ArrayList<>();
+        List<Integer> currentList = state.getSkillsForType(tab);
         if (player.skills() != null) {
             for (int skId : player.skills().keySet()) {
                 SkillTemplate sk = resolveKnownSkill(player, skId);
                 if (sk == null || !isSkillEligibleForAutoFarm(sk) || currentList.contains(sk.id())) {
                     continue;
                 }
-                boolean match = switch (skillType.toLowerCase(Locale.ROOT)) {
+                allEligible.add(sk);
+                boolean match = switch (tab) {
                     case "heal" -> isLowLifeHealSkill(sk);
                     case "self" -> isSelfBuffSkill(sk);
                     case "chance" -> isChanceDebuffSkill(sk);
@@ -1486,6 +1508,9 @@ public class AutoFarmService {
                 }
             }
         }
+        if (eligible.isEmpty() && !allEligible.isEmpty()) {
+            eligible.addAll(allEligible);
+        }
 
         int total = eligible.size();
         int perPage = 6;
@@ -1495,27 +1520,32 @@ public class AutoFarmService {
         int to = Math.min(total, from + perPage);
 
         StringBuilder rowsSb = new StringBuilder();
-        for (int i = from; i < to; i++) {
-            SkillTemplate sk = eligible.get(i);
-            String row = rowTpl
-                    .replace("%icon%", getSkillIcon(sk.id()))
-                    .replace("%name%", shortenSkillName(sk.name()))
-                    .replace("%bypass%", "bypass -h voice_addNewSkill " + sk.id() + " " + skillType);
-            rowsSb.append(row);
-        }
-
-        StringBuilder pagesSb = new StringBuilder("<table width=100><tr>");
-        for (int p = 1; p <= maxPages; p++) {
-            if (p == currentPage) {
-                pagesSb.append("<td width=15>").append(p).append("</td>");
-            } else {
-                pagesSb.append("<td width=15><a action=\"bypass -h voice_addSkill ").append(skillType).append(" ").append(p).append("\">").append(p).append("</a></td>");
+        if (total == 0) {
+            rowsSb.append("<table width=280><tr><td align=center><font color=\"a2a0a0\">No available skills found.</font></td></tr></table>");
+        } else {
+            for (int i = from; i < to; i++) {
+                SkillTemplate sk = eligible.get(i);
+                String row = rowTpl
+                        .replace("%icon%", getSkillIcon(sk.id()))
+                        .replace("%name%", shortenSkillName(sk.name()))
+                        .replace("%bypass%", "bypass -h voice_addNewSkill " + sk.id() + " " + tab);
+                rowsSb.append(row);
             }
         }
-        pagesSb.append("</tr></table>");
+
+        StringBuilder navCellsSb = new StringBuilder();
+        for (int p = 1; p <= maxPages; p++) {
+            if (p == currentPage) {
+                navCellsSb.append("<td width=18 align=center><font color=\"LEVEL\">").append(p).append("</font></td>");
+            } else {
+                navCellsSb.append("<td width=18 align=center><a action=\"bypass -h voice_addSkill ").append(tab).append(" ").append(p).append("\">").append(p).append("</a></td>");
+            }
+        }
 
         html = html.replace("%list%", rowsSb.toString());
-        html = html.replace("%page%", pagesSb.toString());
+        html = html.replace("%navigation%", navCellsSb.toString());
+        html = html.replace("%page%", navCellsSb.toString());
+        html = html.replace("%skillType%", tab);
         html = html.replace("%back%", "bypass -h voice_autofarm");
         session.send(new NpcHtmlMessage(0, html));
     }
@@ -1531,6 +1561,7 @@ public class AutoFarmService {
             default -> "command/autofarm/index-summon_skill_attack.htm";
         };
         html = html.replace("%skillsParam%", loadHtmlTemplate(paramFile));
+        html = html.replace("%skillType%", state.getActiveSkillTab());
 
         String slotTpl = loadHtmlTemplate("command/autofarm/summon_skill-template.htm");
         List<Integer> currentSkills = state.getSummonSkillsForType(tab);
@@ -1540,6 +1571,8 @@ public class AutoFarmService {
             if (idx >= 8) break;
             String cell = slotTpl
                     .replace("%icon%", getSkillIcon(skId))
+                    .replace("%action_label%", "[Del]")
+                    .replace("[Add]", "[Del]")
                     .replace("%bypass%", "bypass -h voice_removeSummonSkill " + tab + " " + skId + " " + idx);
             slotsSb.append(cell);
             idx++;
@@ -1547,6 +1580,7 @@ public class AutoFarmService {
         for (int i = idx; i < 8; i++) {
             String cell = slotTpl
                     .replace("%icon%", "icon.skill0000")
+                    .replace("%action_label%", "[Add]")
                     .replace("%bypass%", "bypass -h voice_addSummonSkill " + tab);
             slotsSb.append(cell);
         }
@@ -1554,20 +1588,26 @@ public class AutoFarmService {
 
         switch (tab) {
             case "self" -> {
-                html = html.replace("%selfChance%", "<td width=25><font color=LEVEL>" + state.getSummonSelfChance() + "%</font></td><td width=30><edit var=\"chance\" width=30 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " selfChance $chance\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-                html = html.replace("%selfPercent%", "<td width=25><font color=LEVEL>" + state.getSummonSelfPercent() + "%</font></td><td width=30><edit var=\"percent\" width=30 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " selfPercent $percent\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                String chanceRow = "<td width=28><font color=LEVEL>" + state.getSummonSelfChance() + "%</font></td><td width=30><edit var=\"chance\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " selfChance $chance\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String pctRow = "<td width=28><font color=LEVEL>" + state.getSummonSelfPercent() + "%</font></td><td width=30><edit var=\"percent\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " selfPercent $percent\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                html = html.replace("%chanceSelf%", chanceRow).replace("%selfChance%", chanceRow);
+                html = html.replace("%percentSelf%", pctRow).replace("%selfPercent%", pctRow);
                 html = html.replace("%rndSelfSk_img%", state.isRndSummonSelfSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
                 html = html.replace("%rndSelfSk_bypass%", "bypass -h voice_editSummonFarmOption " + tab + " rndSelfSkills");
             }
             case "heal" -> {
-                html = html.replace("%healChance%", "<td width=25><font color=LEVEL>" + state.getSummonLifeChance() + "%</font></td><td width=30><edit var=\"chance\" width=30 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " healChance $chance\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-                html = html.replace("%healPercent%", "<td width=25><font color=LEVEL>" + state.getSummonLifePercent() + "%</font></td><td width=30><edit var=\"percent\" width=30 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " healPercent $percent\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                String chanceRow = "<td width=28><font color=LEVEL>" + state.getSummonLifeChance() + "%</font></td><td width=30><edit var=\"chance\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " healChance $chance\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String pctRow = "<td width=28><font color=LEVEL>" + state.getSummonLifePercent() + "%</font></td><td width=30><edit var=\"percent\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " healPercent $percent\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                html = html.replace("%chanceLowHeal%", chanceRow).replace("%healChance%", chanceRow);
+                html = html.replace("%percentLowHeal%", pctRow).replace("%healPercent%", pctRow);
                 html = html.replace("%rndLifeSk_img%", state.isRndSummonLifeSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
                 html = html.replace("%rndLifeSk_bypass%", "bypass -h voice_editSummonFarmOption " + tab + " rndLifeSkills");
             }
             default -> {
-                html = html.replace("%attackChance%", "<td width=25><font color=LEVEL>" + state.getSummonAttackChance() + "%</font></td><td width=30><edit var=\"chance\" width=30 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " attackChance $chance\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
-                html = html.replace("%attackPercent%", "<td width=25><font color=LEVEL>" + state.getSummonAttackPercent() + "%</font></td><td width=30><edit var=\"percent\" width=30 height=15></td><td width=40><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " attackPercent $percent\" width=40 height=20 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
+                String chanceRow = "<td width=28><font color=LEVEL>" + state.getSummonAttackChance() + "%</font></td><td width=30><edit var=\"chance\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " attackChance $chance\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String pctRow = "<td width=28><font color=LEVEL>" + state.getSummonAttackPercent() + "%</font></td><td width=30><edit var=\"percent\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " attackPercent $percent\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                html = html.replace("%chanceAttack%", chanceRow).replace("%attackChance%", chanceRow);
+                html = html.replace("%percentAttack%", pctRow).replace("%attackPercent%", pctRow);
                 html = html.replace("%rndAttackSk_img%", state.isRndSummonAttackSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
                 html = html.replace("%rndAttackSk_bypass%", "bypass -h voice_editSummonFarmOption " + tab + " rndAttackSkills");
             }
@@ -1584,12 +1624,13 @@ public class AutoFarmService {
     }
 
     private void showAvailableSummonSkillsWindow(GameSession session, PlayerCharacter player, AutoFarmState state, String skillType, int page) {
+        String tab = (skillType == null || skillType.isBlank()) ? "attack" : skillType.toLowerCase(Locale.ROOT);
         String html = loadHtmlTemplate("command/autofarm/summon_skills.htm");
         String rowTpl = loadHtmlTemplate("command/autofarm/summon_skills_template.htm");
 
         int[] commonSummonSkills = {4139, 4140, 4141, 4261, 4700, 4702, 4703, 4705, 4706, 4708, 4709, 4710, 5135, 5136, 5137, 5138, 5139, 5140, 5141};
         List<SkillTemplate> eligible = new ArrayList<>();
-        List<Integer> currentList = state.getSummonSkillsForType(skillType);
+        List<Integer> currentList = state.getSummonSkillsForType(tab);
         for (int skId : commonSummonSkills) {
             if (currentList.contains(skId)) continue;
             SkillTemplate sk = resolveAnySkill(skId, 1);
@@ -1606,28 +1647,34 @@ public class AutoFarmService {
         int to = Math.min(total, from + perPage);
 
         StringBuilder rowsSb = new StringBuilder();
-        for (int i = from; i < to; i++) {
-            SkillTemplate sk = eligible.get(i);
-            String row = rowTpl
-                    .replace("%icon%", getSkillIcon(sk.id()))
-                    .replace("%name%", shortenSkillName(sk.name()))
-                    .replace("%bypass%", "bypass -h voice_addNewSummonSkill " + sk.id() + " " + skillType);
-            rowsSb.append(row);
-        }
-
-        StringBuilder pagesSb = new StringBuilder("<table width=100><tr>");
-        for (int p = 1; p <= maxPages; p++) {
-            if (p == currentPage) {
-                pagesSb.append("<td width=15>").append(p).append("</td>");
-            } else {
-                pagesSb.append("<td width=15><a action=\"bypass -h voice_addSummonSkill ").append(skillType).append(" ").append(p).append("\">").append(p).append("</a></td>");
+        if (total == 0) {
+            rowsSb.append("<table width=280><tr><td align=center><font color=\"a2a0a0\">No available summon skills found.</font></td></tr></table>");
+        } else {
+            for (int i = from; i < to; i++) {
+                SkillTemplate sk = eligible.get(i);
+                String row = rowTpl
+                        .replace("%icon%", getSkillIcon(sk.id()))
+                        .replace("%name%", shortenSkillName(sk.name()))
+                        .replace("%bypass%", "bypass -h voice_addNewSummonSkill " + sk.id() + " " + tab);
+                rowsSb.append(row);
             }
         }
-        pagesSb.append("</tr></table>");
+
+        StringBuilder navCellsSb = new StringBuilder();
+        for (int p = 1; p <= maxPages; p++) {
+            if (p == currentPage) {
+                navCellsSb.append("<td width=18 align=center><font color=\"LEVEL\">").append(p).append("</font></td>");
+            } else {
+                navCellsSb.append("<td width=18 align=center><a action=\"bypass -h voice_addSummonSkill ").append(tab).append(" ").append(p).append("\">").append(p).append("</a></td>");
+            }
+        }
 
         html = html.replace("%list%", rowsSb.toString());
-        html = html.replace("%page%", pagesSb.toString());
-        html = html.replace("%back%", "bypass -h voice_autosummonfarm " + skillType);
+        html = html.replace("%navigation%", navCellsSb.toString());
+        html = html.replace("%page%", navCellsSb.toString());
+        html = html.replace("%summonSkillType%", tab);
+        html = html.replace("%skillType%", state.getActiveSkillTab());
+        html = html.replace("%back%", "bypass -h voice_autosummonfarm " + tab);
         session.send(new NpcHtmlMessage(0, html));
     }
 
@@ -1650,7 +1697,11 @@ public class AutoFarmService {
         } else {
             hoursSb.append("1");
         }
-        html = html.replace("%hours%", hoursSb.toString());
+        String freeUseBtn = (Config.AUTOFARM_GAIN_FREE_TIME > 0 && !state.isFreeTrialUsed())
+                ? "<button value=\"Try Free\" action=\"bypass -h voice_tryFreeTime " + skillType + "\" width=80 height=25 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\">"
+                : "";
+        html = html.replace("%time%", hoursSb.toString()).replace("%hours%", hoursSb.toString());
+        html = html.replace("%freeUse%", freeUseBtn);
         html = html.replace("%price%", priceSb.toString());
         html = html.replace("%skill%", skillType);
         session.send(new NpcHtmlMessage(0, html));
@@ -2344,18 +2395,18 @@ public class AutoFarmService {
     }
 
     private String loadHtmlTemplate(String relativePath) {
-        if (htmCache != null) {
-            String cached = htmCache.getHtml(relativePath);
-            if (cached != null) {
-                return cached;
-            }
-        }
         try {
             Path p = Path.of("data/html", relativePath);
             if (Files.exists(p)) {
                 return Files.readString(p, StandardCharsets.UTF_8);
             }
         } catch (Exception ignored) {
+        }
+        if (htmCache != null) {
+            String cached = htmCache.getHtml(relativePath);
+            if (cached != null) {
+                return cached;
+            }
         }
         return "<html><body>AutoFarm Template Missing: " + relativePath + "</body></html>";
     }
