@@ -113,7 +113,14 @@ class LoginCryptTest {
 	}
 
 	@Test
-	void sessionKeysAreRandom() {
+	void sessionKeysAreRandomAndNeverContainZeroByte() {
 		assertNotEquals(Arrays.toString(LoginCrypt.newSessionKey(rnd)), Arrays.toString(LoginCrypt.newSessionKey(rnd)));
+		for (int i = 0; i < 200; i++) {
+			byte[] key = LoginCrypt.newSessionKey(rnd);
+			assertEquals(16, key.length);
+			for (byte b : key) {
+				assertNotEquals(0, b, "Blowfish session key must not contain 0x00 (client reads it as C-string)");
+			}
+		}
 	}
 }
