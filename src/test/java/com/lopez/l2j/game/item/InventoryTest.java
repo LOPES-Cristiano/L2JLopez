@@ -126,6 +126,27 @@ class InventoryTest {
 		var r1 = give(RING_OF_KNOWLEDGE);
 		inv.equip(r1);
 		assertSame(r1, inv.paperdoll(ItemSlots.LFINGER));
+
+		// Quando LFINGER tem Ring of Knowledge #1 e RFINGER tem outro anel, equipar Ring of Knowledge #2 substitui RFINGER
+		var otherRingTemplate = ItemTemplate.armor(876, 876, "Ring of Devotion", "rfinger,lfinger", "none", 150,
+				"none", 0, 21, 3260, true, true, true, true);
+		var otherRing = new ItemInstance(ids.getAndIncrement(), otherRingTemplate, 1, 1);
+		inv.add(otherRing);
+		inv.equip(otherRing);
+		assertSame(otherRing, inv.paperdoll(ItemSlots.RFINGER));
+
+		var r2 = give(RING_OF_KNOWLEDGE);
+		inv.equip(r2);
+		assertSame(r1, inv.paperdoll(ItemSlots.LFINGER), "mantem o primeiro Ring of Knowledge em LFINGER");
+		assertSame(r2, inv.paperdoll(ItemSlots.RFINGER), "substitui o anel diferente em RFINGER");
+		assertFalse(otherRing.isEquipped());
+
+		// unequipBodyPart com SLOT_LR_FINGER tira LFINGER primeiro e depois RFINGER como fallback
+		inv.unequipBodyPart(ItemSlots.SLOT_LR_FINGER);
+		assertNull(inv.paperdoll(ItemSlots.LFINGER));
+		assertSame(r2, inv.paperdoll(ItemSlots.RFINGER));
+		inv.unequipBodyPart(ItemSlots.SLOT_LR_FINGER);
+		assertNull(inv.paperdoll(ItemSlots.RFINGER));
 	}
 
 	@Test
@@ -193,5 +214,67 @@ class InventoryTest {
 		assertEquals(ItemSlots.SLOT_NONE, ItemSlots.parseBodyPart("???"));
 		assertEquals(ItemSlots.RHAND, ItemSlots.paperdollIndex(ItemSlots.SLOT_LR_HAND));
 		assertEquals(-1, ItemSlots.paperdollIndex(12345));
+	}
+
+	@Test
+	void itemInfoPreservesTemplateBodyPartWhenEquipped() {
+		var ring = give(RING_OF_KNOWLEDGE);
+		var earring = give(APPRENTICE_EARRING);
+		var robe = give(TEST_ROBE);
+		inv.equip(ring);
+		inv.equip(earring);
+		inv.equip(robe);
+
+		var ringInfo = com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.of(ring,
+				com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED);
+		var earringInfo = com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.of(earring,
+				com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED);
+		var robeInfo = com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.of(robe,
+				com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED);
+
+		assertTrue(ringInfo.equipped());
+		assertEquals(ItemSlots.SLOT_LR_FINGER, ringInfo.bodyPart());
+		assertTrue(earringInfo.equipped());
+		assertEquals(ItemSlots.SLOT_LR_EAR, earringInfo.bodyPart());
+		assertTrue(robeInfo.equipped());
+		assertEquals(ItemSlots.SLOT_FULL_ARMOR, robeInfo.bodyPart());
+
+		// Desequipar clicando no slot de calca (SLOT_LEGS) ou peito (SLOT_CHEST/SLOT_FULL_ARMOR) remove a fullarmor
+		var removed = inv.unequipBodyPart(ItemSlots.SLOT_LEGS);
+		assertTrue(removed.contains(robe));
+		assertFalse(robe.isEquipped());
+		assertNull(inv.paperdoll(ItemSlots.CHEST));
+	}
+
+	@Test
+	void fullArmorCountsForArmorMasteryConditionWithoutLegs() {
+		var p = new com.lopez.l2j.game.model.PlayerCharacter(1, "Knight", 76, 0, 0, 0);
+		var cond = com.lopez.l2j.game.skill.SkillCondition.using("heavy");
+		org.junit.jupiter.api.Assertions.assertFalse(cond.test(p));
+
+		// Peito 2 pecas (SLOT_CHEST) sozinho sem calca nao ativa mastery
+		var chestOnlyTpl = ItemTemplate.armor(2376, 2376, "Avadon Breastplate", "chest", "heavy", 5000, "b", 157, 0,
+				1000, true, true, true, true);
+		var chestOnly = new ItemInstance(ids.getAndIncrement(), chestOnlyTpl, 1, 1);
+		p.inventory().add(chestOnly);
+		p.inventory().equip(chestOnly);
+		org.junit.jupiter.api.Assertions.assertFalse(cond.test(p), "peito de 2 pecas sem calca nao ativa mastery");
+
+		var legsTpl = ItemTemplate.armor(2379, 2379, "Avadon Gaiters", "legs", "heavy", 3000, "b", 98, 0, 1000,
+				true, true, true, true);
+		var legs = new ItemInstance(ids.getAndIncrement(), legsTpl, 1, 1);
+		p.inventory().add(legs);
+		p.inventory().equip(legs);
+		org.junit.jupiter.api.Assertions.assertTrue(cond.test(p), "peito + calca do mesmo tipo ativam mastery");
+
+		// Fullarmor (ex.: Tallum Plate Armor) ocupa peito+calca e ativa mastery sozinha
+		var tallumTpl = ItemTemplate.armor(2382, 2382, "Tallum Plate Armor", "fullarmor", "heavy", 9780, "a", 278, 0,
+				6770000, true, true, true, true);
+		var tallum = new ItemInstance(ids.getAndIncrement(), tallumTpl, 1, 1);
+		p.inventory().add(tallum);
+		p.inventory().equip(tallum);
+		assertNull(p.inventory().paperdoll(ItemSlots.LEGS), "fullarmor desequipa a calca");
+		assertSame(tallum, p.inventory().paperdoll(ItemSlots.CHEST));
+		org.junit.jupiter.api.Assertions.assertTrue(cond.test(p), "fullarmor deve contar como peito+calca na mastery");
 	}
 }
