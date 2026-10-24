@@ -296,6 +296,20 @@ public class QuestManager implements SmartInitializingSingleton {
 		}
 	}
 
+	public void deleteQuestVar(QuestState qs, String var) {
+		if (qs == null || var == null || jdbcTemplate == null) {
+			return;
+		}
+		int charId = qs.getCharId();
+		String qName = qs.getQuestName();
+		try {
+			String sql = "DELETE FROM character_quests WHERE charId = ? AND name = ? AND var = ? AND class_index = 0";
+			jdbcTemplate.update(sql, charId, qName, var);
+		} catch (Exception e) {
+			log.warn("Erro ao deletar var {} da quest {} para charId {}: {}", var, qName, charId, e.getMessage());
+		}
+	}
+
 	// ==================== Dispatchers ====================
 
 	public void onPlayerLogin(GameSession player) {
@@ -313,8 +327,8 @@ public class QuestManager implements SmartInitializingSingleton {
 		}
 		List<QuestEntry> entries = new ArrayList<>();
 		for (QuestState qs : player.getAllQuestStates()) {
-			if (qs.isStarted() && qs.getQuest() != null) {
-				entries.add(new QuestEntry(qs.getQuest().getQuestId(), qs.getCond()));
+			if (qs.isStarted() && qs.getQuest() != null && qs.getQuest().isVisible()) {
+				entries.add(new QuestEntry(qs.getQuest().getQuestId(), qs.getQuestListState()));
 			}
 		}
 		player.send(new QuestList(entries));
