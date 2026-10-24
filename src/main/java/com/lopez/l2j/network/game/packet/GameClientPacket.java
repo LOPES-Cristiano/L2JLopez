@@ -341,9 +341,6 @@ public sealed interface GameClientPacket {
 	record RequestHennaUnequip(int symbolId) implements GameClientPacket {
 	}
 
-	record RequestHennaRemove(int symbolId) implements GameClientPacket {
-	}
-
 	/** 0xd0:0x18 - solicitacao de historico/ranking de Raid Bosses no mapa mundi (Alt+M). */
 	record RequestGetBossRecord(int bossId) implements GameClientPacket {
 	}
@@ -509,6 +506,239 @@ public sealed interface GameClientPacket {
 	/** 0xc0 - consultar ou definir privilegios de membro/rank do cla. */
 	record RequestPledgePower(int rank, int action, int privs) implements GameClientPacket {}
 
+	/** 0x1c - alternar entre andar (0) e correr (1). */
+	record RequestChangeMoveType(boolean typeRun) implements GameClientPacket {}
+
+	/** 0x1d - alternar entre sentar (0) e levantar (1). */
+	record RequestChangeWaitType(boolean typeStand) implements GameClientPacket {}
+
+	/** 0x20 - clique em link de HTML estatico. */
+	record RequestLinkHtml(String link) implements GameClientPacket {}
+
+	/** 0x36 - parada de movimento por colisao no cliente. */
+	record CannotMoveAnymore(int x, int y, int z, int heading) implements GameClientPacket {}
+
+	/** 0x41 - movimento relativo por teclado (delta). */
+	record MoveWithDelta(int dx, int dy, int dz) implements GameClientPacket {}
+
+	/** 0x42 - embarcar em barco/veiculo. */
+	record RequestGetOnVehicle(int boatId, int x, int y, int z) implements GameClientPacket {}
+
+	/** 0x43 - desembarcar de barco/veiculo. */
+	record RequestGetOffVehicle(int boatId, int x, int y, int z) implements GameClientPacket {}
+
+	/** 0x47 - solicitar informacoes de Siege. */
+	record RequestSiegeInfo() implements GameClientPacket {}
+
+	/** 0x4a - iniciar rotacao pelo teclado. */
+	record StartRotating(int degree, int side) implements GameClientPacket {}
+
+	/** 0x4b - finalizar rotacao pelo teclado. */
+	record FinishRotating(int degree, int unknown) implements GameClientPacket {}
+
+	/** 0x4e - responder declaracao de guerra de cla. */
+	record RequestReplyStartPledgeWar(String reqName, int answer) implements GameClientPacket {}
+
+	/** 0x50 - responder pedido de cessar-fogo de guerra de cla. */
+	record RequestReplyStopPledgeWar(String reqName, int answer) implements GameClientPacket {}
+
+	/** 0x51 - render-se em guerra de cla. */
+	record RequestSurrenderPledgeWar(String pledgeName) implements GameClientPacket {}
+
+	/** 0x5c - mover dentro de barco/veiculo. */
+	record RequestMoveToLocationInVehicle(int boatId, int targetX, int targetY, int targetZ, int originX, int originY, int originZ) implements GameClientPacket {}
+
+	/** 0x5d - parada de movimento dentro de barco/veiculo. */
+	record CannotMoveAnymoreInVehicle(int boatId, int x, int y, int z, int heading) implements GameClientPacket {}
+
+	/** 0x67 - informacoes estendidas do cla. */
+	record RequestPledgeExtendedInfo(String name) implements GameClientPacket {}
+
+	/** 0x69 - rendicao individual em guerra de cla. */
+	record RequestSurrenderPersonally(String pledgeName) implements GameClientPacket {}
+
+	/** 0x6f - abrir/configurar busca de grupo (Party Matching). */
+	record RequestPartyMatchConfig(int auto, int loc, int lvl) implements GameClientPacket {}
+
+	/** 0x70 - criar/atualizar ou listar salas de Party Matching. */
+	record RequestPartyMatchList(int roomId, int maxMembers, int minLvl, int maxLvl, int lootType, String roomTitle) implements GameClientPacket {}
+
+	/** 0x71 - solicitar detalhes de sala de Party Matching. */
+	record RequestPartyMatchDetail(int roomId, int unk1, int unk2, int unk3) implements GameClientPacket {}
+
+	/** 0x75 - cancelar gerenciamento de loja pessoal. */
+	record RequestPrivateStoreManageCancel() implements GameClientPacket {}
+
+	/** 0x7f - enviar peticao de suporte aos GMs. */
+	record RequestPetition(String content, int type) implements GameClientPacket {}
+
+	/** 0x80 - cancelar peticao de suporte. */
+	record RequestPetitionCancel() implements GameClientPacket {}
+
+	/** 0x81 - listar GMs online (/gmlist). */
+	record RequestGmList() implements GameClientPacket {}
+
+	/** 0x84 - sair da alianca (/allyleave). */
+	record AllyLeave() implements GameClientPacket {}
+
+	/** 0x85 - expulsar cla da alianca (/allydismiss). */
+	record AllyDismiss(String clanName) implements GameClientPacket {}
+
+	/** 0x86 - dissolver alianca (/allydissolve). */
+	record RequestDismissAlly() implements GameClientPacket {}
+
+	/** 0x87 - definir brasao da alianca (8x12 BMP). */
+	record RequestSetAllyCrest(byte[] data) implements GameClientPacket {}
+
+	/** 0x88 - solicitar brasao da alianca por crestId. */
+	record RequestAllyCrest(int crestId) implements GameClientPacket {}
+
+	/** 0x89 - definir nome do Pet. */
+	record RequestChangePetName(String name) implements GameClientPacket {}
+
+	/** 0x8a - usar item do inventario do Pet. */
+	record RequestPetUseItem(int objectId) implements GameClientPacket {}
+
+	/** 0x8b - transferir item do jogador para o Pet. */
+	record RequestGiveItemToPet(int objectId, int amount) implements GameClientPacket {}
+
+	/** 0x8c - transferir item do Pet para o jogador. */
+	record RequestGetItemFromPet(int objectId, int amount, int unknown) implements GameClientPacket {}
+
+	/** 0x8e - consultar informacoes da alianca (/allyinfo). */
+	record RequestAllyInfo() implements GameClientPacket {}
+
+	/** 0x8f - comandar o Pet a pegar item no chao. */
+	record RequestPetGetItem(int objectId) implements GameClientPacket {}
+
+	/** 0x9e - solicitar lista de itens enviaveis por Freight. */
+	record RequestPackageSendableItemList(int playerObjectId) implements GameClientPacket {}
+
+	/** 0x9f - enviar pacote de itens por Freight para outro personagem da conta. */
+	record RequestPackageSend(int playerObjectId, List<WareHouseItemRequest> items) implements GameClientPacket {}
+
+	/** 0xab / 0xb4 - encerrar modo Snoop (escuta de chat). */
+	record SnoopQuit(int snoopId) implements GameClientPacket {}
+
+	/** 0xad - apagar receita do livro de receitas. */
+	record RequestRecipeBookDestroy(int recipeId) implements GameClientPacket {}
+
+	/** 0xb0 - abrir gerenciamento de loja de craft (Private Manufacture). */
+	record RequestRecipeShopManageList() implements GameClientPacket {}
+
+	/** 0xb1 - definir mensagem da loja de craft (Private Manufacture). */
+	record RequestRecipeShopMessageSet(String name) implements GameClientPacket {}
+
+	record ManufactureRecipeRequest(int recipeId, int cost) {}
+
+	/** 0xb2 - confirmar lista de receitas e precos na loja de craft. */
+	record RequestRecipeShopListSet(List<ManufactureRecipeRequest> items) implements GameClientPacket {}
+
+	/** 0xb3 - fechar loja de craft (Private Manufacture). */
+	record RequestRecipeShopManageQuit() implements GameClientPacket {}
+
+	/** 0xb5 - inspecionar receita na loja de craft de outro jogador. */
+	record RequestRecipeShopMakeInfo(int playerObjectId, int recipeId) implements GameClientPacket {}
+
+	/** 0xb6 - fabricar item na loja de craft de outro jogador. */
+	record RequestRecipeShopMakeItem(int playerObjectId, int recipeId, int unknown) implements GameClientPacket {}
+
+	/** 0xb7 - voltar a tela anterior na loja de craft de outro jogador. */
+	record RequestRecipeShopManagePrev() implements GameClientPacket {}
+
+	/** 0xb8 - sair do modo observador (Siege / Broadcast Crystal). */
+	record ObserverReturn() implements GameClientPacket {}
+
+	/** 0xc3 - vender colheitas (Procure) no Manor Manager. */
+	record RequestBuyProcure(int listId, List<ItemRequest> items) implements GameClientPacket {}
+
+	/** 0xc4 - comprar sementes (Seeds) no Manor Manager. */
+	record RequestBuySeed(int manorId, List<ItemRequest> seeds) implements GameClientPacket {}
+
+	/** 0xc6 - provar itens na loja (Wear / Try-On). */
+	record RequestPreviewItem(int unk, int listId, List<Integer> items) implements GameClientPacket {}
+
+	/** 0xca - resposta do cliente ao GameGuardQuery. */
+	record GameGuardReply(int dx, int dy, int dz, int dw) implements GameClientPacket {}
+
+	/** 0xcc - enviar mensagem privada na janela de amigos (L2FriendSay). */
+	record RequestSendFriendMsg(String message, String receiver) implements GameClientPacket {}
+
+	/** 0xcf - solicitar reenvio de objetos visiveis ao redor (/loc). */
+	record RequestRecordInfo() implements GameClientPacket {}
+
+	/** 0xd0:0x01 - expulsar jogador da sala de Party Matching. */
+	record RequestOustFromPartyRoom(int charId) implements GameClientPacket {}
+
+	/** 0xd0:0x02 - encerrar sala de Party Matching. */
+	record RequestDismissPartyRoom(int roomId, int data2) implements GameClientPacket {}
+
+	/** 0xd0:0x03 - sair da sala de Party Matching. */
+	record RequestWithdrawPartyRoom(int roomId, int unk1) implements GameClientPacket {}
+
+	record ProcureCropRequest(int objectId, int itemId, int manorId, int count) {}
+
+	/** 0xd0:0x09 - entregar colheitas no Manor Manager. */
+	record RequestProcureCropList(List<ProcureCropRequest> items) implements GameClientPacket {}
+
+	record SeedSettingRequest(int itemId, int sales, int price) {}
+
+	/** 0xd0:0x0a - configurar producao de sementes do castelo (Manor). */
+	record RequestSetSeed(int manorId, List<SeedSettingRequest> seeds) implements GameClientPacket {}
+
+	record CropSettingRequest(int itemId, int sales, int price, int type) {}
+
+	/** 0xd0:0x0b - configurar compra de colheitas do castelo (Manor). */
+	record RequestSetCrop(int manorId, List<CropSettingRequest> crops) implements GameClientPacket {}
+
+	/** 0xd0:0x0c - definir mensagem de Heroi no Monumento. */
+	record RequestWriteHeroWords(String heroWords) implements GameClientPacket {}
+
+	/** 0xd0:0x0d - convidar grupo para o Command Channel (MPCC). */
+	record RequestExAskJoinMPCC(String name) implements GameClientPacket {}
+
+	/** 0xd0:0x0e - responder convite do Command Channel (MPCC). */
+	record RequestExAcceptJoinMPCC(int response) implements GameClientPacket {}
+
+	/** 0xd0:0x0f - expulsar grupo do Command Channel (MPCC). */
+	record RequestExOustFromMPCC(String name) implements GameClientPacket {}
+
+	/** 0xd0:0x12 - sair do modo espectador das Olimpiadas. */
+	record RequestOlympiadObserverEnd() implements GameClientPacket {}
+
+	/** 0xd0:0x13 - solicitar lista de lutas das Olimpiadas (em modo espectador). */
+	record RequestOlympiadMatchList() implements GameClientPacket {}
+
+	/** 0xd0:0x14 - convidar jogador para sala de Party Matching. */
+	record RequestAskJoinPartyRoom(String name) implements GameClientPacket {}
+
+	/** 0xd0:0x15 - responder convite de sala de Party Matching. */
+	record AnswerJoinPartyRoom(int answer) implements GameClientPacket {}
+
+	/** 0xd0:0x16 - listar jogadores na fila de espera de Party Matching. */
+	record RequestListPartyMatchingWaitingRoom(int page, int minLvl, int maxLvl, int mode) implements GameClientPacket {}
+
+	/** 0xd0:0x17 - sair da fila de espera de Party Matching. */
+	record RequestExitPartyMatchingWaitingRoom() implements GameClientPacket {}
+
+	/** 0xd0:0x19 - definir ou remover padrinho (Sponsor) de membro da Academia do cla. */
+	record RequestPledgeSetAcademyMaster(int set, String currPlayerName, String targetPlayerName) implements GameClientPacket {}
+
+	/** 0xd0:0x1f - solicitar ranking do Campeonato de Pesca. */
+	record RequestExFishRanking() implements GameClientPacket {}
+
+	/** 0xd0:0x20 - usar codigo de cupom de PC Cafe. */
+	record RequestPCCafeCouponUse(String couponCode) implements GameClientPacket {}
+
+	/** 0xd0:0x24 - reorganizar membro entre sub-unidades do cla. */
+	record RequestPledgeReorganizeMember(int isMemberSelected, String memberName, int newPledgeType, String selectedMember) implements GameClientPacket {}
+
+	/** 0xd0:0x26 - exibir membros de uma party especifica no Command Channel (MPCC). */
+	record RequestExMPCCShowPartyMembersInfo(int partyLeaderId) implements GameClientPacket {}
+
+	/** 0xd0:0x2f - conjurar habilidade de alvo no chao (Ground Target Skill). */
+	record RequestExMagicSkillUseGround(int x, int y, int z, int skillId, boolean ctrlPressed, boolean shiftPressed) implements GameClientPacket {}
+
 	record Unknown(int opcode, int subOpcode) implements GameClientPacket {
 	}
 
@@ -522,6 +752,7 @@ public sealed interface GameClientPacket {
 					case 0x00 -> new ProtocolVersion(r.readD());
 					case 0x08 -> new AuthLogin(r.readS().toLowerCase(java.util.Locale.ROOT), r.readD(), r.readD(),
 							r.readD(), r.readD());
+					case 0xca -> readGameGuardReply(r);
 					default -> new Unknown(op, -1);
 				};
 				case AUTHED -> switch (op) {
@@ -533,6 +764,7 @@ public sealed interface GameClientPacket {
 					case 0x0d -> new CharacterSelect(r.readD());
 					case 0x09 -> new Logout();
 					case 0x68 -> new RequestPledgeCrest(r.readD());
+					case 0xca -> readGameGuardReply(r);
 					case 0xd0 -> extended(r);
 					default -> new Unknown(op, -1);
 				};
@@ -548,6 +780,9 @@ public sealed interface GameClientPacket {
 					case 0x48 -> new ValidatePosition(r.readD(), r.readD(), r.readD(), r.readD());
 					case 0x38 -> say2(r);
 					case 0x04 -> new Action(r.readD(), r.readD(), r.readD(), r.readD(), r.readC());
+					case 0x1c -> new RequestChangeMoveType(r.remaining() >= 4 && r.readD() == 1);
+					case 0x1d -> new RequestChangeWaitType(r.remaining() >= 4 && r.readD() == 1);
+					case 0x20 -> new RequestLinkHtml(r.remaining() >= 2 ? r.readS() : "");
 					case 0x21 -> new RequestBypassToServer(r.readS());
 					case 0x22 -> readBBSwrite(r);
 					case 0x15 -> r.remaining() >= 4 ? new TradeRequest(r.readD()) : new Unknown(op, -1);
@@ -568,12 +803,22 @@ public sealed interface GameClientPacket {
 					case 0x30 -> new RequestAppearing();
 					case 0x33 -> new RequestShortCutReg(r.readD(), r.readD(), r.readD(), r.readD());
 					case 0x35 -> new RequestShortCutDel(r.readD());
+					case 0x36 -> r.remaining() >= 16 ? new CannotMoveAnymore(r.readD(), r.readD(), r.readD(), r.readD()) : new Unknown(op, -1);
 					case 0x37 -> new RequestTargetCancel();
 					case 0x3c -> new RequestPledgeMemberList();
+					case 0x41 -> r.remaining() >= 12 ? new MoveWithDelta(r.readD(), r.readD(), r.readD()) : new Unknown(op, -1);
+					case 0x42 -> r.remaining() >= 16 ? new RequestGetOnVehicle(r.readD(), r.readD(), r.readD(), r.readD()) : new Unknown(op, -1);
+					case 0x43 -> r.remaining() >= 16 ? new RequestGetOffVehicle(r.readD(), r.readD(), r.readD(), r.readD()) : new Unknown(op, -1);
 					case 0x44 -> r.remaining() >= 4 ? new AnswerTradeRequest(r.readD()) : new Unknown(op, -1);
 					case 0x45 -> new RequestActionUse(r.readD(), r.readD() == 1, r.readC() == 1);
+					case 0x47 -> new RequestSiegeInfo();
+					case 0x4a -> r.remaining() >= 8 ? new StartRotating(r.readD(), r.readD()) : new Unknown(op, -1);
+					case 0x4b -> r.remaining() >= 8 ? new FinishRotating(r.readD(), r.readD()) : new Unknown(op, -1);
 					case 0x4d -> r.remaining() >= 2 ? new RequestStartPledgeWar(r.readS()) : new Unknown(op, -1);
+					case 0x4e -> readReplyPledgeWar(r, true);
 					case 0x4f -> r.remaining() >= 2 ? new RequestStopPledgeWar(r.readS()) : new Unknown(op, -1);
+					case 0x50 -> readReplyPledgeWar(r, false);
+					case 0x51 -> r.remaining() >= 2 ? new RequestSurrenderPledgeWar(r.readS()) : new Unknown(op, -1);
 					case 0x0f -> new RequestItemList();
 					case 0x14 -> new UseItem(r.readD());
 					case 0x11 -> new RequestUnEquipItem(r.readD());
@@ -599,9 +844,13 @@ public sealed interface GameClientPacket {
 					case 0x58 -> r.remaining() >= 4 ? new RequestEnchantItem(r.readD()) : new Unknown(op, -1);
 					case 0x59 -> r.remaining() >= 8 ? new RequestDestroyItem(r.readD(), r.readD()) : new Unknown(op, -1);
 					case 0x5b -> new SendBypassBuildCmd(r.readS());
+					case 0x5c -> r.remaining() >= 28 ? new RequestMoveToLocationInVehicle(r.readD(), r.readD(), r.readD(), r.readD(), r.readD(), r.readD(), r.readD()) : new Unknown(op, -1);
+					case 0x5d -> r.remaining() >= 20 ? new CannotMoveAnymoreInVehicle(r.readD(), r.readD(), r.readD(), r.readD(), r.readD()) : new Unknown(op, -1);
 					case 0x64 -> r.remaining() >= 4 ? new RequestQuestAbort(r.readD()) : new Unknown(op, -1);
 					case 0x66 -> new RequestPledgeInfo(r.readD());
+					case 0x67 -> new RequestPledgeExtendedInfo(r.remaining() >= 2 ? r.readS() : "");
 					case 0x68 -> new RequestPledgeCrest(r.readD());
+					case 0x69 -> new RequestSurrenderPersonally(r.remaining() >= 2 ? r.readS() : "");
 					case 0x6b -> new RequestAcquireSkillInfo(r.readD(), r.readD(), r.readD());
 					case 0x6c -> new RequestAcquireSkill(r.readD(), r.readD(), r.readD());
 					case 0x6d -> new RequestRestartPoint(r.readD());
@@ -610,9 +859,13 @@ public sealed interface GameClientPacket {
 						int cmd = r.remaining() >= 4 ? r.readD() : 1;
 						yield new RequestGMCommand(target, cmd);
 					}
+					case 0x6f -> r.remaining() >= 12 ? new RequestPartyMatchConfig(r.readD(), r.readD(), r.readD()) : new RequestPartyMatchConfig(0, 0, 0);
+					case 0x70 -> r.remaining() >= 22 ? new RequestPartyMatchList(r.readD(), r.readD(), r.readD(), r.readD(), r.readD(), r.readS()) : new RequestPartyMatchList(0, 8, 1, 80, 0, "");
+					case 0x71 -> r.remaining() >= 16 ? new RequestPartyMatchDetail(r.readD(), r.readD(), r.readD(), r.readD()) : new RequestPartyMatchDetail(r.remaining() >= 4 ? r.readD() : 0, 0, 0, 0);
 					case 0x72 -> r.remaining() >= 8 ? new RequestCrystallizeItem(r.readD(), r.readD()) : new Unknown(op, -1);
 					case 0x73 -> new RequestPrivateStoreManageSell();
 					case 0x74 -> readSetPrivateStoreListSell(r);
+					case 0x75 -> new RequestPrivateStoreManageCancel();
 					case 0x76 -> new RequestPrivateStoreQuitSell();
 					case 0x77 -> new SetPrivateStoreMsgSell(r.readS());
 					case 0x79 -> readRequestPrivateStoreBuy(r);
@@ -620,14 +873,30 @@ public sealed interface GameClientPacket {
 					case 0x7c -> new RequestTutorialPassCmdToServer(r.readS());
 					case 0x7d -> new RequestTutorialQuestionMark(r.readD());
 					case 0x7e -> new RequestTutorialClientEvent(r.readD());
+					case 0x7f -> new RequestPetition(r.remaining() >= 2 ? r.readS() : "", r.remaining() >= 4 ? r.readD() : 1);
+					case 0x80 -> new RequestPetitionCancel();
+					case 0x81 -> new RequestGmList();
 					case 0x82 -> r.remaining() >= 4 ? new RequestJoinAlly(r.readD()) : new Unknown(op, -1);
 					case 0x83 -> r.remaining() >= 4 ? new RequestAnswerJoinAlly(r.readD()) : new Unknown(op, -1);
+					case 0x84 -> new AllyLeave();
+					case 0x85 -> new AllyDismiss(r.remaining() >= 2 ? r.readS() : "");
+					case 0x86 -> new RequestDismissAlly();
+					case 0x87 -> readSetAllyCrest(r);
+					case 0x88 -> r.remaining() >= 4 ? new RequestAllyCrest(r.readD()) : new Unknown(op, -1);
+					case 0x89 -> new RequestChangePetName(r.remaining() >= 2 ? r.readS() : "");
+					case 0x8a -> r.remaining() >= 4 ? new RequestPetUseItem(r.readD()) : new Unknown(op, -1);
+					case 0x8b -> r.remaining() >= 8 ? new RequestGiveItemToPet(r.readD(), r.readD()) : new Unknown(op, -1);
+					case 0x8c -> r.remaining() >= 8 ? new RequestGetItemFromPet(r.readD(), r.readD(), r.remaining() >= 4 ? r.readD() : 0) : new Unknown(op, -1);
+					case 0x8e -> new RequestAllyInfo();
+					case 0x8f -> r.remaining() >= 4 ? new RequestPetGetItem(r.readD()) : new Unknown(op, -1);
 					case 0x90 -> new RequestPrivateStoreManageBuy();
 					case 0x91 -> readSetPrivateStoreListBuy(r);
 					case 0x93 -> new RequestPrivateStoreQuitBuy();
 					case 0x94 -> new SetPrivateStoreMsgBuy(r.remaining() >= 2 ? r.readS() : "");
 					case 0x96 -> readRequestPrivateStoreSell(r);
 					case 0x9d -> new RequestSkillCoolTime();
+					case 0x9e -> r.remaining() >= 4 ? new RequestPackageSendableItemList(r.readD()) : new Unknown(op, -1);
+					case 0x9f -> readPackageSend(r);
 					case 0x5e -> new RequestFriendInvite(r.readS());
 					case 0x5f -> new RequestAnswerFriendInvite(r.readD());
 					case 0x60 -> new RequestFriendList();
@@ -636,9 +905,19 @@ public sealed interface GameClientPacket {
 					case 0x09 -> new Logout();
 					case 0x46 -> new RequestRestart();
 					case 0xaa -> new RequestUserCommand(r.readD());
+					case 0xab, 0xb4 -> new SnoopQuit(r.remaining() >= 4 ? r.readD() : 0);
 					case 0xac -> new RequestRecipeBookOpen(r.remaining() >= 4 ? r.readD() == 0 : true);
+					case 0xad -> r.remaining() >= 4 ? new RequestRecipeBookDestroy(r.readD()) : new Unknown(op, -1);
 					case 0xae -> r.remaining() >= 4 ? new RequestRecipeItemMakeInfo(r.readD()) : new Unknown(op, -1);
 					case 0xaf -> r.remaining() >= 4 ? new RequestRecipeItemMakeSelf(r.readD()) : new Unknown(op, -1);
+					case 0xb0 -> new RequestRecipeShopManageList();
+					case 0xb1 -> new RequestRecipeShopMessageSet(r.remaining() >= 2 ? r.readS() : "");
+					case 0xb2 -> readRecipeShopListSet(r);
+					case 0xb3 -> new RequestRecipeShopManageQuit();
+					case 0xb5 -> r.remaining() >= 8 ? new RequestRecipeShopMakeInfo(r.readD(), r.readD()) : new Unknown(op, -1);
+					case 0xb6 -> r.remaining() >= 8 ? new RequestRecipeShopMakeItem(r.readD(), r.readD(), r.remaining() >= 4 ? r.readD() : 0) : new Unknown(op, -1);
+					case 0xb7 -> new RequestRecipeShopManagePrev();
+					case 0xb8 -> new ObserverReturn();
 					case 0xa0 -> readBlock(r);
 					case 0xa2 -> r.remaining() >= 4 ? new RequestSiegeAttackerList(r.readD()) : new Unknown(op, -1);
 					case 0xa3 -> r.remaining() >= 4 ? new RequestSiegeDefenderList(r.readD()) : new Unknown(op, -1);
@@ -660,9 +939,15 @@ public sealed interface GameClientPacket {
 					}
 					case 0xc1 -> readMakeMacro(r);
 					case 0xc2 -> new RequestDeleteMacro(r.readD());
+					case 0xc3 -> readBuyProcure(r);
+					case 0xc4 -> readBuySeed(r);
 					case 0xc5 -> r.remaining() >= 8 ? new DlgAnswer(r.readD(), r.readD(), r.remaining() >= 4 ? r.readD() : 0) : new Unknown(op, -1);
+					case 0xc6 -> readPreviewItem(r);
 					case 0xc7 -> r.remaining() >= 1 ? new RequestSSQStatus(r.readC()) : new Unknown(op, -1);
+					case 0xca -> readGameGuardReply(r);
+					case 0xcc -> new RequestSendFriendMsg(r.remaining() >= 2 ? r.readS() : "", r.remaining() >= 2 ? r.readS() : "");
 					case 0xcd -> new RequestShowMiniMap();
+					case 0xcf -> new RequestRecordInfo();
 					case 0xd0 -> extended(r);
 					default -> new Unknown(op, -1);
 				};
@@ -804,20 +1089,42 @@ public sealed interface GameClientPacket {
 		}
 		int sub = r.readH();
 		return switch (sub) {
-			case 0x04 -> r.remaining() >= 2 ? new RequestChangePartyLeader(r.readS()) : new Unknown(0xd0, sub);
+			case 0x01 -> r.remaining() >= 4 ? new RequestOustFromPartyRoom(r.readD()) : new Unknown(0xd0, sub);
+			case 0x02 -> r.remaining() >= 8 ? new RequestDismissPartyRoom(r.readD(), r.readD()) : new RequestDismissPartyRoom(r.remaining() >= 4 ? r.readD() : 0, 0);
+			case 0x03 -> r.remaining() >= 8 ? new RequestWithdrawPartyRoom(r.readD(), r.readD()) : new RequestWithdrawPartyRoom(r.remaining() >= 4 ? r.readD() : 0, 0);
+			case 0x04, 0xee -> r.remaining() >= 2 ? new RequestChangePartyLeader(r.readS()) : new Unknown(0xd0, sub);
 			case 0x08 -> new RequestManorList();
 			case 0x05 -> r.remaining() >= 8 ? new RequestAutoSoulShot(r.readD(), r.readD()) : new Unknown(0xd0, sub);
 			case 0x06 -> r.remaining() >= 8 ? new RequestExEnchantSkillInfo(r.readD(), r.readD()) : new Unknown(0xd0, sub);
 			case 0x07 -> r.remaining() >= 8 ? new RequestExEnchantSkill(r.readD(), r.readD()) : new Unknown(0xd0, sub);
+			case 0x09 -> readProcureCropList(r);
+			case 0x0a -> readSetSeed(r);
+			case 0x0b -> readSetCrop(r);
+			case 0x0c -> new RequestWriteHeroWords(r.remaining() >= 2 ? r.readS() : "");
+			case 0x0d -> new RequestExAskJoinMPCC(r.remaining() >= 2 ? r.readS() : "");
+			case 0x0e -> new RequestExAcceptJoinMPCC(r.remaining() >= 4 ? r.readD() : 0);
+			case 0x0f -> new RequestExOustFromMPCC(r.remaining() >= 2 ? r.readS() : "");
 			case 0x10 -> r.remaining() >= 4 ? new RequestExPledgeCrestLarge(r.readD()) : new Unknown(0xd0, sub);
 			case 0x11 -> readSetPledgeCrestLarge(r);
+			case 0x12 -> new RequestOlympiadObserverEnd();
+			case 0x13 -> new RequestOlympiadMatchList();
+			case 0x14 -> new RequestAskJoinPartyRoom(r.remaining() >= 2 ? r.readS() : "");
+			case 0x15 -> new AnswerJoinPartyRoom(r.remaining() >= 4 ? r.readD() : 0);
+			case 0x16 -> r.remaining() >= 16 ? new RequestListPartyMatchingWaitingRoom(r.readD(), r.readD(), r.readD(), r.readD()) : new RequestListPartyMatchingWaitingRoom(1, 1, 80, 0);
+			case 0x17 -> new RequestExitPartyMatchingWaitingRoom();
+			case 0x18 -> r.remaining() >= 4 ? new RequestGetBossRecord(r.readD()) : new RequestGetBossRecord(0);
+			case 0x19 -> r.remaining() >= 8 ? new RequestPledgeSetAcademyMaster(r.readD(), r.readS(), r.remaining() >= 2 ? r.readS() : "") : new Unknown(0xd0, sub);
 			case 0x1a -> new RequestPledgePowerGradeList();
 			case 0x1b -> r.remaining() >= 6 ? new RequestPledgeMemberPowerInfo(r.readD(), r.readS()) : new Unknown(0xd0, sub);
 			case 0x1c -> r.remaining() >= 6 ? new RequestPledgeSetMemberPowerGrade(r.readS(), r.remaining() >= 4 ? r.readD() : 0) : new Unknown(0xd0, sub);
 			case 0x1d -> r.remaining() >= 6 ? new RequestPledgeMemberInfo(r.readD(), r.readS()) : new Unknown(0xd0, sub);
 			case 0x1e -> r.remaining() >= 8 ? new RequestPledgeWarList(r.readD(), r.readD()) : new RequestPledgeWarList(0, 0);
+			case 0x1f -> new RequestExFishRanking();
+			case 0x20 -> new RequestPCCafeCouponUse(r.remaining() >= 2 ? r.readS() : "");
 			case 0x22, 0x45 -> new RequestCursedWeaponList();
 			case 0x23, 0x46 -> new RequestCursedWeaponLocation();
+			case 0x24 -> readPledgeReorganizeMember(r);
+			case 0x26 -> new RequestExMPCCShowPartyMembersInfo(r.remaining() >= 4 ? r.readD() : 0);
 			case 0x27 -> r.remaining() >= 6 ? new RequestDuelStart(r.readS(), r.remaining() >= 4 ? r.readD() : 0) : new Unknown(0xd0, sub);
 			case 0x28 -> r.remaining() >= 12 ? new RequestDuelAnswerStart(r.readD(), r.readD(), r.readD()) : new Unknown(0xd0, sub);
 			case 0x29 -> r.remaining() >= 4 ? new RequestConfirmTargetItem(r.readD()) : new Unknown(0xd0, sub);
@@ -826,10 +1133,177 @@ public sealed interface GameClientPacket {
 			case 0x2c -> r.remaining() >= 16 ? new RequestRefine(r.readD(), r.readD(), r.readD(), r.readD()) : new Unknown(0xd0, sub);
 			case 0x2d -> r.remaining() >= 4 ? new RequestConfirmCancelItem(r.readD()) : new Unknown(0xd0, sub);
 			case 0x2e -> r.remaining() >= 4 ? new RequestRefineCancel(r.readD()) : new Unknown(0xd0, sub);
+			case 0x2f -> r.remaining() >= 21 ? new RequestExMagicSkillUseGround(r.readD(), r.readD(), r.readD(), r.readD(), r.readD() != 0, r.readC() != 0) : new Unknown(0xd0, sub);
 			case 0x30 -> new RequestDuelSurrender();
-			case 0x18 -> r.remaining() >= 4 ? new RequestGetBossRecord(r.readD()) : new RequestGetBossRecord(0);
 			default -> new Unknown(0xd0, sub);
 		};
+	}
+
+	private static GameGuardReply readGameGuardReply(PacketReader r) {
+		int dx = r.remaining() >= 4 ? r.readD() : 0;
+		int dy = r.remaining() >= 4 ? r.readD() : 0;
+		int dz = r.remaining() >= 4 ? r.readD() : 0;
+		int dw = r.remaining() >= 4 ? r.readD() : 0;
+		return new GameGuardReply(dx, dy, dz, dw);
+	}
+
+	private static GameClientPacket readReplyPledgeWar(PacketReader r, boolean start) {
+		String reqName = "";
+		if (r.remaining() > 4) {
+			reqName = r.readS();
+		}
+		int answer = r.remaining() >= 4 ? r.readD() : 0;
+		return start ? new RequestReplyStartPledgeWar(reqName, answer) : new RequestReplyStopPledgeWar(reqName, answer);
+	}
+
+	private static RequestSetAllyCrest readSetAllyCrest(PacketReader r) {
+		if (r.remaining() < 4) {
+			return new RequestSetAllyCrest(new byte[0]);
+		}
+		int length = r.readD();
+		if (length <= 0 || length > 192 || r.remaining() < length) {
+			return new RequestSetAllyCrest(new byte[0]);
+		}
+		return new RequestSetAllyCrest(r.readB(length));
+	}
+
+	private static RequestPackageSend readPackageSend(PacketReader r) {
+		if (r.remaining() < 8) {
+			return new RequestPackageSend(0, java.util.List.of());
+		}
+		int playerObjId = r.readD();
+		int count = r.readD();
+		if (count <= 0 || count > 100 || r.remaining() < count * 8) {
+			return new RequestPackageSend(playerObjId, java.util.List.of());
+		}
+		java.util.List<WareHouseItemRequest> items = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			items.add(new WareHouseItemRequest(r.readD(), r.readD()));
+		}
+		return new RequestPackageSend(playerObjId, items);
+	}
+
+	private static RequestRecipeShopListSet readRecipeShopListSet(PacketReader r) {
+		if (r.remaining() < 4) {
+			return new RequestRecipeShopListSet(java.util.List.of());
+		}
+		int count = r.readD();
+		if (count <= 0 || count > 100 || r.remaining() < count * 8) {
+			return new RequestRecipeShopListSet(java.util.List.of());
+		}
+		java.util.List<ManufactureRecipeRequest> items = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			items.add(new ManufactureRecipeRequest(r.readD(), r.readD()));
+		}
+		return new RequestRecipeShopListSet(items);
+	}
+
+	private static RequestBuyProcure readBuyProcure(PacketReader r) {
+		if (r.remaining() < 8) {
+			return new RequestBuyProcure(0, java.util.List.of());
+		}
+		int listId = r.readD();
+		int count = r.readD();
+		if (count <= 0 || count > 100 || r.remaining() < count * 12) {
+			return new RequestBuyProcure(listId, java.util.List.of());
+		}
+		java.util.List<ItemRequest> items = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			r.readD(); // service
+			items.add(new ItemRequest(r.readD(), r.readD()));
+		}
+		return new RequestBuyProcure(listId, items);
+	}
+
+	private static RequestBuySeed readBuySeed(PacketReader r) {
+		if (r.remaining() < 8) {
+			return new RequestBuySeed(0, java.util.List.of());
+		}
+		int manorId = r.readD();
+		int count = r.readD();
+		if (count <= 0 || count > 100 || r.remaining() < count * 8) {
+			return new RequestBuySeed(manorId, java.util.List.of());
+		}
+		java.util.List<ItemRequest> seeds = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			seeds.add(new ItemRequest(r.readD(), r.readD()));
+		}
+		return new RequestBuySeed(manorId, seeds);
+	}
+
+	private static RequestPreviewItem readPreviewItem(PacketReader r) {
+		if (r.remaining() < 12) {
+			return new RequestPreviewItem(0, 0, java.util.List.of());
+		}
+		int unk = r.readD();
+		int listId = r.readD();
+		int count = r.readD();
+		if (count <= 0 || count > 100 || r.remaining() < count * 4) {
+			return new RequestPreviewItem(unk, listId, java.util.List.of());
+		}
+		java.util.List<Integer> items = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			items.add(r.readD());
+		}
+		return new RequestPreviewItem(unk, listId, items);
+	}
+
+	private static RequestProcureCropList readProcureCropList(PacketReader r) {
+		if (r.remaining() < 4) {
+			return new RequestProcureCropList(java.util.List.of());
+		}
+		int count = r.readD();
+		if (count <= 0 || count > 100 || r.remaining() < count * 16) {
+			return new RequestProcureCropList(java.util.List.of());
+		}
+		java.util.List<ProcureCropRequest> items = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			items.add(new ProcureCropRequest(r.readD(), r.readD(), r.readD(), r.readD()));
+		}
+		return new RequestProcureCropList(items);
+	}
+
+	private static RequestSetSeed readSetSeed(PacketReader r) {
+		if (r.remaining() < 8) {
+			return new RequestSetSeed(0, java.util.List.of());
+		}
+		int manorId = r.readD();
+		int count = r.readD();
+		if (count <= 0 || count > 500 || r.remaining() < count * 12) {
+			return new RequestSetSeed(manorId, java.util.List.of());
+		}
+		java.util.List<SeedSettingRequest> seeds = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			seeds.add(new SeedSettingRequest(r.readD(), r.readD(), r.readD()));
+		}
+		return new RequestSetSeed(manorId, seeds);
+	}
+
+	private static RequestSetCrop readSetCrop(PacketReader r) {
+		if (r.remaining() < 8) {
+			return new RequestSetCrop(0, java.util.List.of());
+		}
+		int manorId = r.readD();
+		int count = r.readD();
+		if (count <= 0 || count > 500 || r.remaining() < count * 13) {
+			return new RequestSetCrop(manorId, java.util.List.of());
+		}
+		java.util.List<CropSettingRequest> crops = new java.util.ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			crops.add(new CropSettingRequest(r.readD(), r.readD(), r.readD(), r.readC()));
+		}
+		return new RequestSetCrop(manorId, crops);
+	}
+
+	private static RequestPledgeReorganizeMember readPledgeReorganizeMember(PacketReader r) {
+		if (r.remaining() < 4) {
+			return new RequestPledgeReorganizeMember(0, "", 0, "");
+		}
+		int isMemberSelected = r.readD();
+		String memberName = r.remaining() >= 2 ? r.readS() : "";
+		int newPledgeType = r.remaining() >= 4 ? r.readD() : 0;
+		String selectedMember = r.remaining() >= 2 ? r.readS() : "";
+		return new RequestPledgeReorganizeMember(isMemberSelected, memberName, newPledgeType, selectedMember);
 	}
 
 	private static GameClientPacket readSetPledgeCrestLarge(PacketReader r) {
