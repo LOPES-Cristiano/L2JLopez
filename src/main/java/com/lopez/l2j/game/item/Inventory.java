@@ -209,6 +209,9 @@ public final class Inventory {
 		}
 		switch (item.template().bodyPart()) {
 			case SLOT_LR_HAND -> {
+				if (paperdoll[CHEST] != null && paperdoll[CHEST].template().bodyPart() == SLOT_ALLDRESS) {
+					set(CHEST, null, changed);
+				}
 				set(LHAND, null, changed);
 				set(RHAND, null, changed);
 				set(RHAND, item, changed);
@@ -220,9 +223,14 @@ public final class Inventory {
 				}
 			}
 			case SLOT_L_HAND -> {
-				if (!item.template().isArrow() && paperdoll[LRHAND] != null) {
-					set(LRHAND, null, changed);
-					set(RHAND, null, changed);
+				if (!item.template().isArrow()) {
+					if (paperdoll[LRHAND] != null) {
+						set(LRHAND, null, changed);
+						set(RHAND, null, changed);
+					}
+					if (paperdoll[CHEST] != null && paperdoll[CHEST].template().bodyPart() == SLOT_ALLDRESS) {
+						set(CHEST, null, changed);
+					}
 				}
 				set(LHAND, item, changed);
 			}
@@ -230,6 +238,9 @@ public final class Inventory {
 				if (paperdoll[LRHAND] != null) {
 					set(LRHAND, null, changed);
 					set(LHAND, null, changed);
+				}
+				if (paperdoll[CHEST] != null && paperdoll[CHEST].template().bodyPart() == SLOT_ALLDRESS) {
+					set(CHEST, null, changed);
 				}
 				set(RHAND, item, changed);
 			}
@@ -240,16 +251,42 @@ public final class Inventory {
 				set(LEGS, null, changed);
 				set(CHEST, item, changed);
 			}
-			case SLOT_CHEST, SLOT_ALLDRESS -> set(CHEST, item, changed);
+			case SLOT_CHEST -> set(CHEST, item, changed);
+			case SLOT_ALLDRESS -> {
+				set(LEGS, null, changed);
+				set(LHAND, null, changed);
+				set(RHAND, null, changed);
+				set(LRHAND, null, changed);
+				set(HEAD, null, changed);
+				set(FEET, null, changed);
+				set(GLOVES, null, changed);
+				set(CHEST, item, changed);
+			}
 			case SLOT_LEGS -> {
-				if (paperdoll[CHEST] != null && paperdoll[CHEST].template().bodyPart() == SLOT_FULL_ARMOR) {
+				if (paperdoll[CHEST] != null && (paperdoll[CHEST].template().bodyPart() == SLOT_FULL_ARMOR
+						|| paperdoll[CHEST].template().bodyPart() == SLOT_ALLDRESS)) {
 					set(CHEST, null, changed);
 				}
 				set(LEGS, item, changed);
 			}
-			case SLOT_FEET -> set(FEET, item, changed);
-			case SLOT_GLOVES -> set(GLOVES, item, changed);
-			case SLOT_HEAD -> set(HEAD, item, changed);
+			case SLOT_FEET -> {
+				if (paperdoll[CHEST] != null && paperdoll[CHEST].template().bodyPart() == SLOT_ALLDRESS) {
+					set(CHEST, null, changed);
+				}
+				set(FEET, item, changed);
+			}
+			case SLOT_GLOVES -> {
+				if (paperdoll[CHEST] != null && paperdoll[CHEST].template().bodyPart() == SLOT_ALLDRESS) {
+					set(CHEST, null, changed);
+				}
+				set(GLOVES, item, changed);
+			}
+			case SLOT_HEAD -> {
+				if (paperdoll[CHEST] != null && paperdoll[CHEST].template().bodyPart() == SLOT_ALLDRESS) {
+					set(CHEST, null, changed);
+				}
+				set(HEAD, item, changed);
+			}
 			case SLOT_HAIR -> {
 				set(HAIRALL, null, changed);
 				set(HAIR, item, changed);
@@ -287,13 +324,42 @@ public final class Inventory {
 		return changed;
 	}
 
+	/** Resolve o item equipado que ocupa a mascara de bodyPart informada (incluindo slots compostos como fullarmor/alldress/hairall/lrhand). */
+	public ItemInstance resolveEquippedByBodyPart(int bodyPart) {
+		int slot = paperdollIndex(bodyPart);
+		if (slot < 0) {
+			return null;
+		}
+		ItemInstance item = paperdoll[slot];
+		if (item == null) {
+			if (bodyPart == SLOT_LR_EAR) {
+				item = paperdoll[REAR];
+			} else if (bodyPart == SLOT_LR_FINGER) {
+				item = paperdoll[RFINGER];
+			} else if (bodyPart == SLOT_LEGS && paperdoll[CHEST] != null
+					&& (paperdoll[CHEST].template().bodyPart() == SLOT_FULL_ARMOR
+							|| paperdoll[CHEST].template().bodyPart() == SLOT_ALLDRESS)) {
+				item = paperdoll[CHEST];
+			} else if ((bodyPart == SLOT_FEET || bodyPart == SLOT_GLOVES || bodyPart == SLOT_HEAD
+					|| bodyPart == SLOT_R_HAND || bodyPart == SLOT_L_HAND || bodyPart == SLOT_LR_HAND)
+					&& paperdoll[CHEST] != null && paperdoll[CHEST].template().bodyPart() == SLOT_ALLDRESS) {
+				item = paperdoll[CHEST];
+			} else if (bodyPart == SLOT_L_HAND && paperdoll[LRHAND] != null) {
+				item = paperdoll[LRHAND];
+			} else if ((bodyPart == SLOT_HAIR || bodyPart == SLOT_FACE) && paperdoll[HAIRALL] != null) {
+				item = paperdoll[HAIRALL];
+			}
+		}
+		return item;
+	}
+
 	/** RequestUnEquipItem: o cliente manda a mascara do body part. */
 	public Set<ItemInstance> unequipBodyPart(int bodyPart) {
-		int slot = paperdollIndex(bodyPart);
-		if (slot < 0 || paperdoll[slot] == null) {
+		ItemInstance item = resolveEquippedByBodyPart(bodyPart);
+		if (item == null) {
 			return new LinkedHashSet<>();
 		}
-		return unequip(paperdoll[slot]);
+		return unequip(item);
 	}
 
 	private int pair(int first, int second, ItemInstance newItem) {
@@ -303,11 +369,11 @@ public final class Inventory {
 		if (paperdoll[second] == null) {
 			return second;
 		}
-		// Se ja possui o mesmo item equipado em um dos slots, substitui ele
-		if (paperdoll[first].itemId() == newItem.itemId()) {
+		// Se ja possui o mesmo item equipado em um dos slots, substitui o outro slot
+		if (paperdoll[second].itemId() == newItem.itemId()) {
 			return first;
 		}
-		if (paperdoll[second].itemId() == newItem.itemId()) {
+		if (paperdoll[first].itemId() == newItem.itemId()) {
 			return second;
 		}
 		return first;
