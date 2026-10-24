@@ -28,10 +28,15 @@ public final class LoginCrypt {
 		this.random = random;
 	}
 
-	/** Gera a chave Blowfish de sessao (16 bytes aleatorios; o protocolo envia um 0x00 depois). */
+	/**
+	 * Gera a chave Blowfish de sessao (16 bytes nao-nulos; o protocolo envia um 0x00 depois como
+	 * terminador C-string no pacote Init, entao nenhum byte da chave pode ser 0x00).
+	 */
 	public static byte[] newSessionKey(SecureRandom random) {
 		byte[] key = new byte[16];
-		random.nextBytes(key);
+		for (int i = 0; i < key.length; i++) {
+			key[i] = (byte) (random.nextInt(255) + 1);
+		}
 		return key;
 	}
 
