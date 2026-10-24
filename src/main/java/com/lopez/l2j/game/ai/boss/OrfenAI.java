@@ -55,9 +55,7 @@ public class OrfenAI extends RaidBossAI {
 					double dist = Math.hypot(ch.x() - npc.x(), ch.y() - npc.y());
 					if (dist > 300.0 && dist < 1200.0 && ThreadLocalRandom.current().nextInt(100) < 25) {
 						// Puxa o jogador para a frente da Orfen
-						ch.x(npc.x() + 50);
-						ch.y(npc.y() + 50);
-						ch.z(npc.z());
+						world.teleportPlayer(ch, npc.x() + 50, npc.y() + 50, npc.z(), ch.instanceId());
 					}
 				}
 			});

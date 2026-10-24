@@ -6,8 +6,12 @@ import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.npc.NpcTemplate;
 import com.lopez.l2j.game.npc.NpcTemplateTable;
+import com.lopez.l2j.game.npc.minion.MinionEntry;
+import com.lopez.l2j.game.npc.minion.MinionTable;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
+import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
+import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
 import jakarta.annotation.PostConstruct;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -71,11 +75,21 @@ public class RaidBossSpawnManager {
 	private final GameWorld world;
 	private final ObjectIdFactory objectIds;
 	private final GrandBossManager grandBossManager;
+	private final MinionTable minionTable;
 
 	private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
 		Thread t = Thread.ofVirtual().name("RaidBossScheduler").unstarted(r);
 		return t;
 	});
+
+	public RaidBossSpawnManager(
+			JdbcClient jdbc,
+			NpcTemplateTable templates,
+			GameWorld world,
+			ObjectIdFactory objectIds,
+			GrandBossManager grandBossManager) {
+		this(jdbc, templates, world, objectIds, grandBossManager, null);
+	}
 
 	@Autowired
 	public RaidBossSpawnManager(
@@ -83,12 +97,14 @@ public class RaidBossSpawnManager {
 			@Autowired(required = false) NpcTemplateTable templates,
 			@Autowired(required = false) GameWorld world,
 			@Autowired(required = false) ObjectIdFactory objectIds,
-			@Autowired(required = false) GrandBossManager grandBossManager) {
+			@Autowired(required = false) GrandBossManager grandBossManager,
+			@Autowired(required = false) MinionTable minionTable) {
 		this.jdbc = jdbc;
 		this.templates = templates;
 		this.world = world;
 		this.objectIds = objectIds;
 		this.grandBossManager = grandBossManager;
+		this.minionTable = minionTable;
 	}
 
 	@PostConstruct
@@ -183,6 +199,9 @@ public class RaidBossSpawnManager {
 
 		activeBosses.put(bossId, boss);
 		world.addNpc(boss);
+		world.broadcastAround(boss.x(), boss.y(), GameWorld.VISIBILITY_RADIUS, new NpcInfo(boss));
+
+		int spawnedMinions = spawnMinionsForBoss(boss);
 
 		// Atualiza registro e zera respawnTime no banco
 		RaidBossRecord updated = new RaidBossRecord(
@@ -198,9 +217,70 @@ public class RaidBossSpawnManager {
 					"Raid Boss " + template.name() + " has spawned in the world!"), p -> true);
 		}
 
-		log.info("RaidBoss {} (ID {}) renasceu em ({}, {}, {})! Status ALIVE",
-				template.name(), bossId, rec.locX(), rec.locY(), rec.locZ());
+		log.info("RaidBoss {} (ID {}) renasceu em ({}, {}, {}) com {} minions! Status ALIVE",
+				template.name(), bossId, rec.locX(), rec.locY(), rec.locZ(), spawnedMinions);
 		return Optional.of(boss);
+	}
+
+	public int spawnMinionsForBoss(NpcInstance boss) {
+		if (minionTable == null || boss == null || templates == null || world == null || objectIds == null) {
+			return 0;
+		}
+		if (!minionTable.hasMinions(boss.npcId())) {
+			return 0;
+		}
+		// Remove minions antigos remanescentes caso existam
+		despawnMinions(boss);
+
+		int spawned = 0;
+		var entries = minionTable.getMinionsForBoss(boss.npcId());
+		for (MinionEntry entry : entries) {
+			int count = entry.amountMin() == entry.amountMax()
+					? entry.amountMin()
+					: ThreadLocalRandom.current().nextInt(entry.amountMin(), entry.amountMax() + 1);
+			for (int i = 0; i < count; i++) {
+				NpcTemplate minionTemplate = templates.get(entry.minionId())
+						.orElseGet(() -> NpcTemplate.fallback(entry.minionId(), "Minion " + entry.minionId(), "L2Minion"));
+				double angle = ThreadLocalRandom.current().nextDouble(0, 2 * Math.PI);
+				int dist = ThreadLocalRandom.current().nextInt(40, 100);
+				int mx = boss.x() + (int) (Math.cos(angle) * dist);
+				int my = boss.y() + (int) (Math.sin(angle) * dist);
+				int mz = boss.z();
+				int mHeading = boss.heading();
+
+				NpcInstance minion = new NpcInstance(objectIds.nextId(), minionTemplate, mx, my, mz, mHeading);
+				minion.masterObjectId(boss.objectId());
+				minion.raidMinion(true);
+				minion.pAtkMul(Math.max(0.1, Config.RAID_BOSS_P_ATK_MODIFIER * Config.RATE_RAID_ATTACK));
+				minion.mAtkMul(Math.max(0.1, Config.RAID_BOSS_M_ATK_MODIFIER * Config.RATE_RAID_ATTACK));
+				minion.pDefMul(Math.max(0.1, Config.RAID_BOSS_P_DEF_MODIFIER * Config.RATE_RAID_DEFENSE));
+				minion.mDefMul(Math.max(0.1, Config.RAID_BOSS_M_DEF_MODIFIER * Config.RATE_RAID_DEFENSE));
+				minion.maxHpMul(Math.max(0.1, Config.RAID_BOSS_MAX_HP_MODIFIER * Config.RATE_RAID_REGEN));
+				minion.currentHp(minion.maxHp());
+				minion.currentMp(minionTemplate.maxMp() * Math.max(0.1, Config.RAID_BOSS_MAX_MP_MODIFIER));
+
+				boss.minions().add(minion);
+				world.addNpc(minion);
+				world.broadcastAround(minion.x(), minion.y(), GameWorld.VISIBILITY_RADIUS, new NpcInfo(minion));
+				spawned++;
+			}
+		}
+		return spawned;
+	}
+
+	private void despawnMinions(NpcInstance boss) {
+		if (boss == null || !boss.hasMinions()) {
+			return;
+		}
+		for (NpcInstance minion : boss.minions()) {
+			if (minion != null && world != null) {
+				minion.dead(true);
+				minion.currentHp(0);
+				world.broadcastAround(minion.x(), minion.y(), GameWorld.VISIBILITY_RADIUS, new DeleteObject(minion.objectId()));
+				world.removeNpc(minion);
+			}
+		}
+		boss.minions().clear();
 	}
 
 	public synchronized void onBossKilled(NpcInstance npc, PlayerCharacter killer) {
@@ -215,6 +295,7 @@ public class RaidBossSpawnManager {
 		}
 
 		activeBosses.remove(bossId);
+		despawnMinions(npc);
 
 		// Calculo do proximo renascimento com randomizador e multiplicadores
 		long delaySec = calculateRespawnDelaySec(rec);

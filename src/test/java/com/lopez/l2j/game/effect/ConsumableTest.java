@@ -149,4 +149,57 @@ class ConsumableTest {
 		assertEquals(2, refreshedList.get(0).level());
 		assertEquals(1204, refreshedList.get(1).skillId());
 	}
+
+	@Test
+	void fifoEvictionDoesNotEvictNewShortNpcBuffsWhenLongBuffsExistAndSongsSeparate() {
+		int prevMax = com.lopez.l2j.config.Config.MAX_BUFFS_AMOUNT;
+		try {
+			com.lopez.l2j.config.Config.MAX_BUFFS_AMOUNT = 20;
+			PlayerEffects effects = new PlayerEffects();
+			long now = System.currentTimeMillis();
+			long thirtyThreeHours = 33L * 3600_000L;
+			long fourHours = 4L * 3600_000L;
+
+			// 16 efeitos antigos com duração maior (ex: 33h do multiplicador AltBufferTime=100)
+			for (int i = 1; i <= 16; i++) {
+				effects.put(new ActiveBuff(9000 + i, 1, "old_long_" + i, now + thirtyThreeHours, 0, 1.0, 1.0, 0), 0);
+			}
+			// 12 Songs/Dances separados
+			int[] songsAndDances = { 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275 };
+			for (int sd : songsAndDances) {
+				effects.put(new ActiveBuff(sd, 1, "sd_" + sd, now + fourHours, 0, 1.0, 1.0, 0), 0);
+			}
+
+			// Agora aplica 10 buffs normais do NPC Buffer (4h de duração cada)
+			int[] npcBuffs = { 1068, 1040, 1204, 1086, 1077, 1242, 1240, 1045, 1048, 1036 };
+			for (int buffId : npcBuffs) {
+				effects.put(new ActiveBuff(buffId, 3, "npc_buff_" + buffId, now + fourHours, 0, 1.0, 1.0, 0), 0);
+			}
+
+			// Todos os 10 buffs recém-aplicados do NPC Buffer e todas as 12 Songs/Dances devem permanecer ativos!
+			for (int buffId : npcBuffs) {
+				assertTrue(effects.hasSkill(buffId), "Buff recente do NPC Buffer nao pode ser substituido: " + buffId);
+			}
+			for (int sd : songsAndDances) {
+				assertTrue(effects.hasSkill(sd), "Song/Dance deve coexistir normalmente: " + sd);
+			}
+			// Os 6 efeitos mais antigos (9001..9006) devem ter sido removidos por FIFO
+			for (int i = 1; i <= 6; i++) {
+				org.junit.jupiter.api.Assertions.assertFalse(effects.hasSkill(9000 + i));
+			}
+		} finally {
+			com.lopez.l2j.config.Config.MAX_BUFFS_AMOUNT = prevMax;
+		}
+	}
+
+	@Test
+	void resolveStackOrderHandlesFractionalXmlValuesProperly() {
+		// Focus (1077) tem stackOrder 0.2, 0.25, 0.3 no XML
+		assertTrue(PlayerEffects.resolveStackOrder(0.2, 1) < PlayerEffects.resolveStackOrder(0.25, 2));
+		assertTrue(PlayerEffects.resolveStackOrder(0.25, 2) < PlayerEffects.resolveStackOrder(0.3, 3));
+		// Might (1068) tem stackOrder 1.08, 1.12, 1.15 no XML; Greater Might (1388) tem stackOrder 1, 2, 3 -> 100, 200, 300 -> 300 >= 115
+		assertTrue(PlayerEffects.resolveStackOrder(1.08, 1) < PlayerEffects.resolveStackOrder(1.12, 2));
+		assertTrue(PlayerEffects.resolveStackOrder(1.12, 2) < PlayerEffects.resolveStackOrder(1.15, 3));
+		assertTrue(PlayerEffects.resolveStackOrder(3.0, 3) > PlayerEffects.resolveStackOrder(1.15, 3));
+	}
 }

@@ -1675,6 +1675,8 @@ public final class PlayerCharacter implements Creature {
 
 	public int clanPrivs() { return clanPrivs; }
 	public void clanPrivs(int clanPrivs) { this.clanPrivs = clanPrivs; }
+	public int clanPrivileges() { return clanPrivs; }
+	public void clanPrivileges(int clanPrivs) { this.clanPrivs = clanPrivs; }
 
 	public int apprentice() { return apprentice; }
 	public void apprentice(int apprentice) { this.apprentice = apprentice; }

@@ -400,6 +400,26 @@ public class ActionPacketHandler {
 		if (ctx.doors() != null) {
 			var doorOpt = ctx.doors().door(p.objectId());
 			if (doorOpt != null) {
+				if (session.targetObjectId() == doorOpt.doorId() && !doorOpt.isOpen() && doorOpt.currentHp() > 0) {
+					int pAtk = 150 + active.level() * 15;
+					int pDef = Math.max(1, doorOpt.pDef());
+					int dmg = Math.max(1, (int) Math.round((70.0 * pAtk) / pDef));
+					doorOpt.currentHp(Math.max(0, doorOpt.currentHp() - dmg));
+					var atk = new com.lopez.l2j.network.game.packet.GameServerPacket.Attack(
+							active.objectId(), doorOpt.doorId(), dmg, 0, active.x(), active.y(), active.z());
+					session.send(atk);
+					ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, atk, false);
+					var su = StatusUpdate.hp(doorOpt.doorId(), doorOpt.currentHp(), doorOpt.maxHp());
+					session.send(su);
+					ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, su, false);
+					if (doorOpt.currentHp() <= 0) {
+						doorOpt.openDoor();
+						var dsu = new com.lopez.l2j.network.game.packet.GameServerPacket.DoorStatusUpdate(doorOpt);
+						session.send(dsu);
+						ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, dsu, false);
+					}
+					return;
+				}
 				session.targetObjectId(doorOpt.doorId());
 				session.send(new MyTargetSelected(doorOpt.doorId(), 0));
 				session.send(StatusUpdate.hp(doorOpt.doorId(), (int) doorOpt.currentHp(), doorOpt.maxHp()));
@@ -447,6 +467,35 @@ public class ActionPacketHandler {
 			if (targetSession.activeChar() != null && !targetSession.activeChar().isDead()) {
 				session.targetObjectId(targetSession.character().objectId());
 				session.startAutoAttack(targetSession, true);
+				return;
+			}
+		}
+		if (ctx.doors() != null) {
+			var doorOpt = ctx.doors().door(p.objectId());
+			if (doorOpt != null && !doorOpt.isOpen() && doorOpt.currentHp() > 0) {
+				session.targetObjectId(doorOpt.doorId());
+				int pAtk = 150 + active.level() * 15;
+				int pDef = Math.max(1, doorOpt.pDef());
+				int dmg = Math.max(1, (int) Math.round((70.0 * pAtk) / pDef));
+				doorOpt.currentHp(Math.max(0, doorOpt.currentHp() - dmg));
+				var atk = new com.lopez.l2j.network.game.packet.GameServerPacket.Attack(
+						active.objectId(), doorOpt.doorId(), dmg, 0, active.x(), active.y(), active.z());
+				session.send(atk);
+				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, atk, false);
+				var su = StatusUpdate.hp(doorOpt.doorId(), doorOpt.currentHp(), doorOpt.maxHp());
+				session.send(su);
+				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, su, false);
+				if (doorOpt.currentHp() <= 0) {
+					doorOpt.openDoor();
+					var dsu = new com.lopez.l2j.network.game.packet.GameServerPacket.DoorStatusUpdate(doorOpt);
+					session.send(dsu);
+					ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, dsu, false);
+				}
+				return;
+			}
+		}
+		if (false) { if (false) {
+				if (false) return;
 				return;
 			}
 		}

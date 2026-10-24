@@ -50,8 +50,22 @@ public record ItemTemplate(
 		boolean sellable,
 		boolean dropable,
 		boolean destroyable,
-		boolean tradeable
+		boolean tradeable,
+		List<com.lopez.l2j.game.skill.StatFunc> statFuncs
 ) {
+
+	public ItemTemplate(
+			int id, int displayId, String name, Kind kind, String subType, int type1, int type2, int bodyPart,
+			int weight, boolean stackable, String crystalType, int price, int pAtk, int mAtk, int pDef, int mDef,
+			int atkSpeed, int critical, int hitModify, int avoidModify, int shieldDef, int mpBonus, int soulshots,
+			int spiritshots, int rndDam, List<ItemSkillHolder> itemSkills, ItemSkillHolder enchant4Skill,
+			ItemSkillHolder onCritSkill, ItemSkillHolder onCastSkill, boolean sellable, boolean dropable,
+			boolean destroyable, boolean tradeable) {
+		this(id, displayId, name, kind, subType, type1, type2, bodyPart, weight, stackable, crystalType, price, pAtk,
+				mAtk, pDef, mDef, atkSpeed, critical, hitModify, avoidModify, shieldDef, mpBonus, soulshots,
+				spiritshots, rndDam, itemSkills, enchant4Skill, onCritSkill, onCastSkill, sellable, dropable,
+				destroyable, tradeable, List.of());
+	}
 
 	public enum Kind {
 		WEAPON, ARMOR, ETC
@@ -112,6 +126,14 @@ public record ItemTemplate(
 		subType = subType == null ? "none" : subType.toLowerCase(Locale.ROOT);
 		crystalType = crystalType == null ? "none" : crystalType.toLowerCase(Locale.ROOT);
 		itemSkills = itemSkills == null ? List.of() : List.copyOf(itemSkills);
+		statFuncs = statFuncs == null ? List.of() : List.copyOf(statFuncs);
+	}
+
+	public ItemTemplate withStatFuncs(List<com.lopez.l2j.game.skill.StatFunc> funcs) {
+		return new ItemTemplate(id, displayId, name, kind, subType, type1, type2, bodyPart, weight, stackable,
+				crystalType, price, pAtk, mAtk, pDef, mDef, atkSpeed, critical, hitModify, avoidModify, shieldDef,
+				mpBonus, soulshots, spiritshots, rndDam, itemSkills, enchant4Skill, onCritSkill, onCastSkill,
+				sellable, dropable, destroyable, tradeable, funcs);
 	}
 
 	/** Item que vai para o paperdoll de um jogador (itens de pet e etc comuns ficam de fora). */

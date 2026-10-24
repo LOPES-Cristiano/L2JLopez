@@ -3588,6 +3588,50 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			case GameClientPacket.RequestAcquireSkillInfo p -> onAcquireSkillInfo(p);
 
+			case GameClientPacket.RequestAcquireSkill p -> onAcquireSkill(p);
+
+			case GameClientPacket.RequestJoinPledge p -> partyClanHandler.handleJoinPledge(p);
+
+			case GameClientPacket.RequestAnswerJoinPledge p -> partyClanHandler.handleAnswerJoinPledge(p);
+
+			case GameClientPacket.RequestWithdrawalPledge p -> partyClanHandler.handleWithdrawalPledge();
+
+			case GameClientPacket.RequestOustPledgeMember p -> partyClanHandler.handleOustPledgeMember(p);
+
+			case GameClientPacket.RequestGiveNickName p -> partyClanHandler.handleGiveNickName(p);
+
+			case GameClientPacket.RequestExPledgeCrestLarge p -> partyClanHandler.handleExPledgeCrestLarge(p);
+
+			case GameClientPacket.RequestExSetPledgeCrestLarge p -> partyClanHandler.handleExSetPledgeCrestLarge(p);
+
+			case GameClientPacket.RequestPledgePowerGradeList p -> partyClanHandler.handlePledgePowerGradeList();
+
+			case GameClientPacket.RequestPledgeMemberPowerInfo p -> partyClanHandler.handlePledgeMemberPowerInfo(p);
+
+			case GameClientPacket.RequestPledgeSetMemberPowerGrade p -> partyClanHandler.handlePledgeSetMemberPowerGrade(p);
+
+			case GameClientPacket.RequestPledgeMemberInfo p -> partyClanHandler.handlePledgeMemberInfo(p);
+
+			case GameClientPacket.RequestPledgeWarList p -> partyClanHandler.handlePledgeWarList(p);
+
+			case GameClientPacket.RequestReplySurrenderPledgeWar p -> partyClanHandler.handleReplySurrenderPledgeWar(p);
+
+			case GameClientPacket.RequestChangePartyLeader p -> partyClanHandler.handleChangePartyLeader(p);
+
+			case GameClientPacket.RequestQuestAbort p -> onQuestAbort(p);
+
+			case GameClientPacket.RequestCrystallizeItem p -> onCrystallizeItem(p);
+
+			case GameClientPacket.RequestSkillCoolTime p -> onSkillCoolTime();
+
+			case GameClientPacket.DlgAnswer p -> onDlgAnswer(p);
+
+			case GameClientPacket.RequestDuelStart p -> onDuelStart(p);
+
+			case GameClientPacket.RequestDuelAnswerStart p -> onDuelAnswerStart(p);
+
+			case GameClientPacket.RequestDuelSurrender p -> onDuelSurrender();
+
 			case RequestQuestList p -> {
 
 				if (ctx.questManager() != null) {
@@ -7318,7 +7362,36 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		pendingRevive = true;
 
-		int[] townLoc = findNearestTown(active.x(), active.y());
+		int[] townLoc = null;
+		int pt = p.requestedPointType();
+		if (pt == 1 && active.clanId() > 0) { // Clan Hall
+			var clan = ctx.clans() != null ? ctx.clans().byClanId(active.clanId()).orElse(null) : null;
+			int chId = clan != null ? clan.clanHallId() : 0;
+			if (chId <= 0 && ctx.clanHalls() != null) {
+				chId = ctx.clanHalls().getClanHallByOwner(active.clanId()).map(com.lopez.l2j.game.clan.clanhall.ClanHallRecord::id).orElse(0);
+			}
+			if (chId > 0) {
+				townLoc = resolveClanHallCoordinates(chId);
+			}
+		} else if (pt == 2 && active.clanId() > 0) { // Castle / Fortress
+			var clan = ctx.clans() != null ? ctx.clans().byClanId(active.clanId()).orElse(null) : null;
+			int castleId = clan != null ? clan.castleId() : 0;
+			if (castleId > 0) {
+				townLoc = CASTLE_INNER_COORDINATES.get(castleId);
+			}
+		} else if (pt == 3 && active.clanId() > 0 && ctx.sieges() != null) { // Siege HQ Flag
+			for (var n : ctx.world().npcs()) {
+				if (n.npcId() == 35062 && !n.isDead()) {
+					townLoc = new int[] { n.x(), n.y(), n.z() };
+					break;
+				}
+			}
+		} else if (pt == 4 && active.isGm()) { // Fixed resurrect (GM / Festival)
+			townLoc = new int[] { active.x(), active.y(), active.z() };
+		}
+		if (townLoc == null) {
+			townLoc = findNearestTown(active.x(), active.y());
+		}
 
 		teleportToLocation(townLoc[0], townLoc[1], townLoc[2]);
 
@@ -7464,9 +7537,17 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				active.x(), active.y(), active.z(), active.x(), active.y(), active.z());
 
+		var msl = new GameServerPacket.MagicSkillLaunched(active.objectId(), skillId, level,
+
+				List.of(active.objectId()));
+
 		send(msu);
 
+		send(msl);
+
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msu, false);
+
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msl, false);
 
 	}
 
@@ -7712,7 +7793,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		PlayerCharacter owner = active;
 
-		for (var s : saved) {
+		var seenSkills = new java.util.HashSet<Integer>(); for (var s : saved) { if (!seenSkills.add(s.skillId())) continue;
 
 			long remainingMs = s.systime() == com.lopez.l2j.game.effect.PlayerEffects.PERMANENT
 
@@ -7780,7 +7861,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 						String name = e.name();
 
-						boolean isDebuff = sk.isDebuff() || sk.isOffensive();
+						boolean isHotSpringsBuff = sk.id() >= 4551 && sk.id() <= 4554 && sk.level() <= 4; boolean isDebuff = !sk.isToggle() && !isHotSpringsBuff && (sk.isDebuff() || sk.isOffensive() || name.equalsIgnoreCase("Debuff"));
 
 						boolean isInvincible = name.equalsIgnoreCase("Invincible");
 
@@ -7808,17 +7889,25 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 						}
 
-						long end = System.currentTimeMillis() + duration;
+						long end = (sk.isToggle() || remainingMs == com.lopez.l2j.game.effect.PlayerEffects.PERMANENT) ? com.lopez.l2j.game.effect.PlayerEffects.PERMANENT : System.currentTimeMillis() + duration;
 
-						int stackOrder = e.stackOrder() > 0 ? (int) Math.round(e.stackOrder()) : sk.level();
+						int stackOrder = com.lopez.l2j.game.effect.PlayerEffects.resolveStackOrder(e.stackOrder(), sk.level());
 
-						var buff = ActiveBuff.ofSkill(sk.id(), sk.level(), stack, stackOrder, end, e.funcs(), isDebuff);
+						int abnMask = e.abnormalMask();
 
-						owner.effects().put(buff, com.lopez.l2j.game.effect.PlayerEffects.getExtraBuffSlots(owner));
+						var buff = ActiveBuff.ofSkill(sk.id(), sk.level(), stack, stackOrder, end, e.funcs(), isDebuff, abnMask);
+
+						if (!owner.effects().put(buff, com.lopez.l2j.game.effect.PlayerEffects.getExtraBuffSlots(owner))) continue;
 
 						if (isInvincible) {
 
 							owner.invul(true);
+
+						}
+
+						if (abnMask != 0) {
+
+							owner.startAbnormalEffect(abnMask);
 
 						}
 
@@ -7850,6 +7939,30 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 								}
 
+								if (abnMask != 0) {
+
+									boolean stillHasMask = false;
+
+									for (var b : owner.effects().active()) {
+
+										if ((b.abnormalMask() & abnMask) != 0) {
+
+											stillHasMask = true;
+
+											break;
+
+										}
+
+									}
+
+									if (!stillHasMask) {
+
+										owner.stopAbnormalEffect(abnMask);
+
+									}
+
+								}
+
 								send(SystemMessage.of(SystemMessage.EFFECT_S1_DISAPPEARED,
 
 										new SystemMessage.SkillName(sk.id(), sk.level())));
@@ -7874,7 +7987,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			var buff = new ActiveBuff(s.skillId(), s.level(), "saved_" + s.skillId(),
 
-					System.currentTimeMillis() + remainingMs, 0, 1.0, 1.0, 0);
+					remainingMs == com.lopez.l2j.game.effect.PlayerEffects.PERMANENT ? com.lopez.l2j.game.effect.PlayerEffects.PERMANENT : System.currentTimeMillis() + remainingMs, 0, 1.0, 1.0, 0);
 
 			owner.effects().put(buff, com.lopez.l2j.game.effect.PlayerEffects.getExtraBuffSlots(owner));
 
@@ -8054,13 +8167,28 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 						: active.objectId());
 
-		var msu = new MagicSkillUse(active.objectId(), targetId, sk.id(), sk.level(), 0, 0, active.x(), active.y(),
+		int tx = npc != null ? npc.x()
+				: (targetPlayer != null && targetPlayer.active != null ? targetPlayer.active.x() : active.x());
+		int ty = npc != null ? npc.y()
+				: (targetPlayer != null && targetPlayer.active != null ? targetPlayer.active.y() : active.y());
+		int tz = npc != null ? npc.z()
+				: (targetPlayer != null && targetPlayer.active != null ? targetPlayer.active.z() : active.z());
 
-				active.z(), active.x(), active.y(), active.z());
+		var msu = new MagicSkillUse(active.objectId(), targetId, sk.displayId(), sk.level(), 0, 0, active.x(), active.y(),
+
+				active.z(), tx, ty, tz);
+
+		var msl = new GameServerPacket.MagicSkillLaunched(active.objectId(), sk.displayId(), sk.level(),
+
+				List.of(targetId));
 
 		send(msu);
 
+		send(msl);
+
 		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msu, false);
+
+		ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msl, false);
 
 		send(SystemMessage.of(SystemMessage.USE_S1, new SystemMessage.SkillName(sk.id(), sk.level())));
 
@@ -8962,53 +9090,215 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-
-
-	private void onAcquireSkillInfo(GameClientPacket.RequestAcquireSkillInfo p) {
-
+	public void showFishingSkillList(NpcInstance npc) {
 		var svc = ctx.skillService();
-
-		if (!inWorld || svc == null || p.skillType() != 0) {
-
+		if (svc == null || active == null) {
+			send(new ActionFailed());
 			return;
-
 		}
-
-		var learn = svc.learnable(active, p.skillId(), p.level()).orElse(null);
-
-		if (learn == null) {
-
+		if (npc != null) {
+			lastTrainerObjectId = npc.objectId();
+		}
+		boolean isDwarf = active.race() == 4;
+		var list = svc.trees().availableFishingSkills(active.level(), isDwarf, active.skills());
+		if (list.isEmpty()) {
+			send(SystemMessage.id(SystemMessage.NO_MORE_SKILLS_TO_LEARN));
+			send(new GameServerPacket.AcquireSkillDone());
+			send(new ActionFailed());
 			return;
-
 		}
-
-		List<GameServerPacket.AcquireSkillInfo.Requirement> reqs = new ArrayList<>();
-
-		int book = svc.requiredBook(p.skillId(), p.level());
-
-		if (book > 0) {
-
-			reqs.add(new GameServerPacket.AcquireSkillInfo.Requirement(99, book, 1, 50));
-
+		List<GameServerPacket.AcquireSkillList.Entry> entries = new ArrayList<>();
+		for (var s : list) {
+			entries.add(new GameServerPacket.AcquireSkillList.Entry(s.id(), s.level(), s.level(), 0, 1));
 		}
-
-		send(new GameServerPacket.AcquireSkillInfo(p.skillId(), p.level(), learn.sp(), 0, reqs));
-
+		send(new GameServerPacket.AcquireSkillList(1, entries));
+		send(new ActionFailed());
 	}
 
-
-
-	private void onAcquireSkill(GameClientPacket.RequestAcquireSkill p) {
-
+	public void showClanSkillList(NpcInstance npc) {
 		var svc = ctx.skillService();
-
-		if (!inWorld || svc == null || p.skillType() != 0) {
-
+		if (svc == null || active == null || active.clanId() <= 0 || ctx.clans() == null) {
+			send(new ActionFailed());
 			return;
+		}
+		var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
+		if (clan == null || !clan.isLeader(active.objectId())) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas o lider do cla pode aprender habilidades de cla."));
+			send(new ActionFailed());
+			return;
+		}
+		if (npc != null) {
+			lastTrainerObjectId = npc.objectId();
+		}
+		var list = svc.trees().availablePledgeSkills(clan.level(), clan.skills());
+		if (list.isEmpty()) {
+			send(SystemMessage.id(SystemMessage.NO_MORE_SKILLS_TO_LEARN));
+			send(new GameServerPacket.AcquireSkillDone());
+			send(new ActionFailed());
+			return;
+		}
+		List<GameServerPacket.AcquireSkillList.Entry> entries = new ArrayList<>();
+		for (var s : list) {
+			entries.add(new GameServerPacket.AcquireSkillList.Entry(s.id(), s.level(), s.level(), s.repCost(), s.itemId() > 0 ? 1 : 0));
+		}
+		send(new GameServerPacket.AcquireSkillList(2, entries));
+		send(new ActionFailed());
+	}
 
+	private void onAcquireSkillInfo(GameClientPacket.RequestAcquireSkillInfo p) {
+		var svc = ctx.skillService();
+		if (!inWorld || svc == null || active == null) {
+			return;
+		}
+		if (p.skillType() == 1) {
+			var fLearn = svc.trees().getFishingSkill(p.skillId(), p.level()).orElse(null);
+			if (fLearn == null) {
+				return;
+			}
+			List<GameServerPacket.AcquireSkillInfo.Requirement> reqs = new ArrayList<>();
+			if (fLearn.costId() > 0 && fLearn.costCount() > 0) {
+				reqs.add(new GameServerPacket.AcquireSkillInfo.Requirement(4, fLearn.costId(), fLearn.costCount(), 0));
+			}
+			send(new GameServerPacket.AcquireSkillInfo(p.skillId(), p.level(), 0, 1, reqs));
+			return;
+		}
+		if (p.skillType() == 2) {
+			var pLearn = svc.trees().getPledgeSkill(p.skillId(), p.level()).orElse(null);
+			if (pLearn == null) {
+				return;
+			}
+			List<GameServerPacket.AcquireSkillInfo.Requirement> reqs = new ArrayList<>();
+			if (pLearn.itemId() > 0) {
+				reqs.add(new GameServerPacket.AcquireSkillInfo.Requirement(2, pLearn.itemId(), 1, 50));
+			}
+			send(new GameServerPacket.AcquireSkillInfo(p.skillId(), p.level(), pLearn.repCost(), 2, reqs));
+			return;
+		}
+		if (p.skillType() != 0) {
+			return;
+		}
+		var learn = svc.learnable(active, p.skillId(), p.level()).orElse(null);
+		if (learn == null) {
+			return;
+		}
+		List<GameServerPacket.AcquireSkillInfo.Requirement> reqs = new ArrayList<>();
+		int book = svc.requiredBook(p.skillId(), p.level());
+		if (book > 0) {
+			reqs.add(new GameServerPacket.AcquireSkillInfo.Requirement(99, book, 1, 50));
+		}
+		send(new GameServerPacket.AcquireSkillInfo(p.skillId(), p.level(), learn.sp(), 0, reqs));
+	}
+
+	private void onAcquireSkill(GameClientPacket.RequestAcquireSkill p) { NpcInstance trainer = null;
+		var svc = ctx.skillService();
+		if (!inWorld || svc == null || active == null) {
+			return;
+		}
+		if (false) {
+			trainer = ctx.world().npc(lastTrainerObjectId).orElse(null);
+		}
+		trainer = ctx.world().npc(lastTrainerObjectId).orElse(null);
+		if (p.skillType() == 1) {
+			var fLearn = svc.trees().getFishingSkill(p.skillId(), p.level()).orElse(null);
+			if (fLearn == null || active.level() < fLearn.minLevel()) {
+				return;
+			}
+			if (fLearn.costId() > 0 && fLearn.costCount() > 0) {
+				if (!consumeItem(fLearn.costId(), fLearn.costCount())) {
+					send(SystemMessage.id(SystemMessage.ITEM_MISSING_TO_LEARN_SKILL));
+					return;
+				}
+			}
+			svc.addSkill(active, p.skillId(), p.level());
+			send(SystemMessage.of(SystemMessage.LEARNED_SKILL_S1, new SystemMessage.SkillName(p.skillId(), p.level())));
+			sendSkillList();
+			send(ExStorageMaxCount.of(active));
+			updateSkillShortcuts(p.skillId(), p.level());
+			ctx.characters().save(active, true);
+			if (trainer != null) {
+				showFishingSkillList(trainer);
+			}
+			return;
+		}
+		if (p.skillType() == 2) {
+			partyClanHandler.handleLearnClanSkill(p.skillId(), p.level());
+			if (trainer != null) {
+				showClanSkillList(trainer);
+			}
+			return;
+		}
+		if (p.skillType() != 0) {
+			return;
+		}
+		if (p.skillType() == 1) {
+			var fLearn = svc.trees().getFishingSkill(p.skillId(), p.level()).orElse(null);
+			if (fLearn == null || active.level() < fLearn.minLevel()) {
+				return;
+			}
+			if (fLearn.costId() > 0 && fLearn.costCount() > 0) {
+				if (!consumeItem(fLearn.costId(), fLearn.costCount())) {
+					send(SystemMessage.id(SystemMessage.ITEM_MISSING_TO_LEARN_SKILL));
+					return;
+				}
+			}
+			svc.addSkill(active, p.skillId(), p.level());
+			send(SystemMessage.of(SystemMessage.LEARNED_SKILL_S1, new SystemMessage.SkillName(p.skillId(), p.level())));
+			sendSkillList();
+			send(ExStorageMaxCount.of(active));
+			updateSkillShortcuts(p.skillId(), p.level());
+			ctx.characters().save(active, true);
+			if (trainer != null) {
+				showFishingSkillList(trainer);
+			}
+			return;
+		}
+		if (p.skillType() == 2) {
+			partyClanHandler.handleLearnClanSkill(p.skillId(), p.level());
+			if (trainer != null) {
+				showClanSkillList(trainer);
+			}
+			return;
+		}
+		if (p.skillType() != 0) {
+			return;
 		}
 
-		var trainer = ctx.world().npc(lastTrainerObjectId).orElse(null);
+		if (false) {
+			trainer = ctx.world().npc(lastTrainerObjectId).orElse(null);
+		}
+		trainer = ctx.world().npc(lastTrainerObjectId).orElse(null);
+		if (p.skillType() == 1) {
+			var fLearn = svc.trees().getFishingSkill(p.skillId(), p.level()).orElse(null);
+			if (fLearn == null || active.level() < fLearn.minLevel()) {
+				return;
+			}
+			if (fLearn.costId() > 0 && fLearn.costCount() > 0) {
+				if (!consumeItem(fLearn.costId(), fLearn.costCount())) {
+					send(SystemMessage.id(SystemMessage.ITEM_MISSING_TO_LEARN_SKILL));
+					return;
+				}
+			}
+			svc.addSkill(active, p.skillId(), p.level());
+			send(SystemMessage.of(SystemMessage.LEARNED_SKILL_S1, new SystemMessage.SkillName(p.skillId(), p.level())));
+			sendSkillList();
+			send(ExStorageMaxCount.of(active));
+			updateSkillShortcuts(p.skillId(), p.level());
+			ctx.characters().save(active, true);
+			if (trainer != null) {
+				showFishingSkillList(trainer);
+			}
+			return;
+		}
+		if (p.skillType() == 2) {
+			partyClanHandler.handleLearnClanSkill(p.skillId(), p.level());
+			if (trainer != null) {
+				showClanSkillList(trainer);
+			}
+			return;
+		}
+		if (p.skillType() != 0) {
+			return;
+		}
 
 		if (trainer == null
 
@@ -9526,16 +9816,43 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			Map.entry(7134, new int[] { 43799, -47727, -798 }),
 
-			Map.entry(7135, new int[] { 87331, -142842, -1317 }));
+			Map.entry(7135, new int[] { 87331, -142842, -1317 }),
+
+			Map.entry(7618, new int[] { 149864, -81062, -5618 }),
+
+			Map.entry(7619, new int[] { 108275, -53785, -2524 }));
 
 
 
 	public boolean isScrollOfEscape(int itemId) {
 
-		return itemId == 736 || itemId == 1538 || itemId == 3958 || itemId == 5858 || itemId == 5859
-
+		return itemId == 736 || itemId == 1538 || itemId == 1829 || itemId == 1830
+				|| itemId == 3958 || itemId == 5858 || itemId == 5859 || itemId == 9156
 				|| TOWN_SCROLL_COORDINATES.containsKey(itemId);
 
+	}
+
+	public static int[] resolveScrollOfEscapeSkill(int itemId) {
+		return switch (itemId) {
+			case 736 -> new int[] { 2013, 1, 20000 };
+			case 1538, 3958 -> new int[] { 2036, 1, 200 };
+			case 9156 -> new int[] { 2036, 2, 200 };
+			case 1829 -> new int[] { 2040, 1, 20000 };
+			case 5858 -> new int[] { 2177, 1, 200 };
+			case 1830 -> new int[] { 2041, 1, 20000 };
+			case 5859 -> new int[] { 2178, 1, 200 };
+			case 7618 -> new int[] { 2213, 20, 20000 };
+			case 7619 -> new int[] { 2213, 21, 20000 };
+			default -> {
+				if (itemId >= 7117 && itemId <= 7135) {
+					yield new int[] { 2213, itemId - 7117 + 1, 20000 };
+				}
+				if (itemId >= 7554 && itemId <= 7559) {
+					yield new int[] { 2214, itemId - 7554 + 1, 20000 };
+				}
+				yield new int[] { 2013, 1, 20000 };
+			}
+		};
 	}
 
 
@@ -9638,7 +9955,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 
 
-		if (itemId == 5858) {
+		if (itemId == 1829 || itemId == 5858) {
 
 			var clan = (active.clanId() > 0 && ctx.clans() != null)
 
@@ -9672,7 +9989,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			dest = resolveClanHallCoordinates(clanHallId);
 
-		} else if (itemId == 5859) {
+		} else if (itemId == 1830 || itemId == 5859) {
 
 			var clan = (active.clanId() > 0 && ctx.clans() != null)
 
@@ -9724,7 +10041,10 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 
 
-		int hitTime = (itemId == 1538 || itemId == 3958 || itemId == 5858 || itemId == 5859) ? 200 : 20000;
+		int[] soeSkill = resolveScrollOfEscapeSkill(itemId);
+		int escapeSkillId = soeSkill[0];
+		int escapeSkillLvl = soeSkill[1];
+		int hitTime = soeSkill[2];
 
 		if (!consumeItem(itemId, 1)) {
 
@@ -9748,7 +10068,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 
 
-		var msu = new MagicSkillUse(active.objectId(), active.objectId(), 2014, 1, hitTime, 0,
+		var msu = new MagicSkillUse(active.objectId(), active.objectId(), escapeSkillId, escapeSkillLvl, hitTime, 0,
 
 				active.x(), active.y(), active.z(), active.x(), active.y(), active.z());
 
@@ -9771,6 +10091,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 				return;
 
 			}
+
+			var msl = new GameServerPacket.MagicSkillLaunched(active.objectId(), escapeSkillId, escapeSkillLvl,
+					List.of(active.objectId()));
+			send(msl);
+			ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msl, false);
 
 			teleportToLocation(targetLoc[0], targetLoc[1], targetLoc[2]);
 
@@ -10056,7 +10381,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				}
 
-				int hitTime = 30_000; // 30 segundos
+				boolean isGm = active.isGm();
+				int unstuckSkillId = isGm ? 2100 : 2099;
+				int hitTime = isGm ? 1_000 : 30_000;
 
 				send(new GameServerPacket.SetupGauge(GameServerPacket.SetupGauge.BLUE, hitTime));
 
@@ -10066,7 +10393,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, stop, false);
 
-				var msu = new MagicSkillUse(active.objectId(), active.objectId(), 2099, 1, hitTime, 0,
+				var msu = new MagicSkillUse(active.objectId(), active.objectId(), unstuckSkillId, 1, hitTime, 0,
 
 						active.x(), active.y(), active.z(), active.x(), active.y(), active.z());
 
@@ -10074,9 +10401,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msu, false);
 
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
-
-						"Transporting to the nearest village in 30 seconds..."));
+				if (!isGm) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Transporting to the nearest village in 30 seconds..."));
+				}
 
 
 
@@ -10091,6 +10418,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 						return;
 
 					}
+
+					var msl = new GameServerPacket.MagicSkillLaunched(active.objectId(), unstuckSkillId, 1,
+							List.of(active.objectId()));
+					send(msl);
+					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, msl, false);
 
 					int[] dest = findNearestTown(active.x(), active.y());
 
@@ -10136,6 +10468,126 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				}
 
+			}
+
+			case 61 -> { // /mount
+				if (active.isDead() || casting || active.sitting()) {
+					send(new ActionFailed());
+					return;
+				}
+				if (active.mountType() == 0) {
+					active.mountType(1);
+					active.mountNpcId(12526); // Wind Strider
+					var ride = new GameServerPacket.Ride(active.objectId(), 1, 1, 12526);
+					send(ride);
+					if (ctx.world() != null) {
+						ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, ride, false);
+					}
+					sendUserInfoAndBroadcastCharInfo();
+				}
+			}
+
+			case 62 -> { // /dismount
+				if (active.mountType() > 0) {
+					int oldType = active.mountType();
+					int oldNpc = active.mountNpcId();
+					active.mountType(0);
+					active.mountNpcId(0);
+					var dismount = new GameServerPacket.Ride(active.objectId(), 0, oldType, oldNpc);
+					send(dismount);
+					if (ctx.world() != null) {
+						ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, dismount, false);
+					}
+					sendUserInfoAndBroadcastCharInfo();
+				}
+			}
+
+			case 81 -> { // /partyinfo
+				if (party == null) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao esta em uma Party."));
+				} else {
+					String lootRule = switch (party.itemDistribution()) {
+						case com.lopez.l2j.game.party.Party.ITEM_RANDOM -> "Random";
+						case com.lopez.l2j.game.party.Party.ITEM_RANDOM_SPOIL -> "Random including Spoil";
+						case com.lopez.l2j.game.party.Party.ITEM_ORDER -> "By Turn";
+						case com.lopez.l2j.game.party.Party.ITEM_ORDER_SPOIL -> "By Turn including Spoil";
+						default -> "Finders Keepers";
+					};
+					String leaderName = party.members().stream()
+							.filter(s -> s.character() != null && s.character().objectId() == party.leaderObjectId())
+							.map(s -> s.character().name())
+							.findFirst().orElse("Unknown");
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							String.format("Party Leader: %s | Loot: %s | Members: %d/9", leaderName, lootRule, party.size())));
+				}
+			}
+
+			case 88, 89, 90 -> { // /attacklist (88), /underattacklist (89), /warlist (90)
+				if (active.clanId() <= 0 || ctx.clans() == null) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pertence a um cla."));
+					return;
+				}
+				var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
+				if (clan == null) {
+					return;
+				}
+				StringBuilder sb = new StringBuilder();
+				if (commandId == 88) {
+					sb.append("=== Attack List === ");
+					for (int cid : clan.enemyClanIds()) {
+						if (!clan.isAttackerClan(cid)) {
+							ctx.clans().byClanId(cid).ifPresent(c -> sb.append(c.name()).append(", "));
+						}
+					}
+				} else if (commandId == 89) {
+					sb.append("=== Under Attack List === ");
+					for (int cid : clan.attackerClanIds()) {
+						if (!clan.isEnemyClan(cid)) {
+							ctx.clans().byClanId(cid).ifPresent(c -> sb.append(c.name()).append(", "));
+						}
+					}
+				} else {
+					sb.append("=== Mutual War List === ");
+					for (int cid : clan.enemyClanIds()) {
+						if (clan.isAttackerClan(cid)) {
+							ctx.clans().byClanId(cid).ifPresent(c -> sb.append(c.name()).append(", "));
+						}
+					}
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", sb.toString()));
+			}
+
+			case 92, 93, 96, 97 -> { // Command Channel (/channelcreate, /channeldelete, /channelleave, /channelinfo)
+				if (party == null) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce precisa estar em uma party para usar o Command Channel."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Command Channel Party Status: " + party.size() + " membros ativos."));
+				}
+			}
+
+			case 99, 100 -> { // /clanpenalty & /siegestatus
+				long nowMs = System.currentTimeMillis();
+				boolean hasPen = false;
+				StringBuilder html = new StringBuilder("<html><body><font color=\"LEVEL\">Clan Penalty & Siege Status</font><br>");
+				if (active.clanJoinExpiryTime() > nowMs) {
+					html.append("Penalidade de entrada em cla ativa.<br>");
+					hasPen = true;
+				}
+				if (active.clanCreateExpiryTime() > nowMs) {
+					html.append("Penalidade de criacao de cla ativa.<br>");
+					hasPen = true;
+				}
+				if (!hasPen) {
+					html.append("Nenhuma penalidade de cla ativa.<br>");
+				}
+				html.append("</body></html>");
+				send(new NpcHtmlMessage(0, html.toString()));
+			}
+
+			case 114 -> { // /instancezone
+				int instId = active.instanceId();
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						instId > 0 ? ("Instancia atual: #" + instId) : "Voce nao esta em nenhuma instancia ativa."));
 			}
 
 			default -> log.debug("UserCommand {} nao tratado", commandId);
@@ -11458,6 +11910,165 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		send(SystemMessage.id(SystemMessage.AUGMENTATION_HAS_BEEN_SUCCESSFULLY_REMOVED_FROM_YOUR_S1));
 
+	}
+
+	private int pendingDuelChallengerId;
+
+	private void onQuestAbort(GameClientPacket.RequestQuestAbort p) {
+		if (!inWorld || active == null || ctx.questManager() == null) {
+			return;
+		}
+		var quest = ctx.questManager().getQuest(p.questId());
+		if (quest != null) {
+			var qs = getQuestState(quest.getName());
+			if (qs != null) {
+				qs.exitQuest(true);
+				questStates.remove(quest.getName().toLowerCase(java.util.Locale.ROOT));
+				ctx.questManager().deleteQuestState(qs);
+				ctx.questManager().sendQuestList(this);
+			}
+		}
+	}
+
+	private void onCrystallizeItem(GameClientPacket.RequestCrystallizeItem p) {
+		if (!inWorld || active == null || active.isDead() || active.isStoreOpen() || ctx.inventories() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		int crystSkillLvl = active.skillLevel(248); // Crystallize
+		if (crystSkillLvl <= 0 && !active.isGm()) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce precisa da habilidade Crystallize para cristalizar itens."));
+			send(new ActionFailed());
+			return;
+		}
+		var item = active.inventory().byObjectId(p.objectId()).orElse(null);
+		if (item == null || item.template() == null || p.count() <= 0 || item.count() < p.count()) {
+			send(new ActionFailed());
+			return;
+		}
+		int grade = item.template().crystalGrade();
+		if (grade <= 0 || (crystSkillLvl < grade && !active.isGm())) {
+			send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(item.itemId())));
+			send(new ActionFailed());
+			return;
+		}
+		int crystalItemId = switch (grade) {
+			case 1 -> 1458; // Crystal: D-Grade
+			case 2 -> 1459; // Crystal: C-Grade
+			case 3 -> 1460; // Crystal: B-Grade
+			case 4 -> 1461; // Crystal: A-Grade
+			case 5 -> 1462; // Crystal: S-Grade
+			default -> 0;
+		};
+		if (crystalItemId == 0) {
+			send(new ActionFailed());
+			return;
+		}
+		int crystalCount = Math.max(1, item.template().price() / switch (grade) {
+			case 1 -> 650;
+			case 2 -> 3000;
+			case 3 -> 10000;
+			case 4 -> 25000;
+			default -> 50000;
+		});
+		if (item.isEquipped()) {
+			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), item.objectId()));
+		}
+		var destroyed = ctx.inventories().destroyItem(active.inventory(), item.objectId(), 1, "Crystallize");
+		var added = ctx.inventories().addItem(active.inventory(), crystalItemId, crystalCount, "Crystallize");
+		List<ItemInfo> updates = new ArrayList<>();
+		if (destroyed != null) {
+			updates.add(ItemInfo.of(destroyed.item(), destroyed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+		}
+		if (added != null) {
+			updates.add(ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+		}
+		send(new InventoryUpdate(updates));
+		refreshWeightAndPenalties();
+		sendUserInfoAndBroadcastCharInfo();
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Item cristalizado: +" + crystalCount + " cristais obtidos."));
+	}
+
+	private void onSkillCoolTime() {
+		if (!inWorld || active == null) {
+			return;
+		}
+		long now = System.currentTimeMillis();
+		List<GameServerPacket.SkillCoolTime.CoolTimeEntry> entries = new ArrayList<>();
+		for (var e : consumableReuse.entrySet()) {
+			long remMs = e.getValue() - now;
+			if (remMs > 1000L) {
+				int remSec = (int) (remMs / 1000L);
+				entries.add(new GameServerPacket.SkillCoolTime.CoolTimeEntry(e.getKey(), 1, remSec, remSec));
+			}
+		}
+		send(new GameServerPacket.SkillCoolTime(entries));
+	}
+
+	private void onDlgAnswer(GameClientPacket.DlgAnswer p) {
+		if (!inWorld || active == null) {
+			return;
+		}
+		if (p.messageId() == 1510 && p.answer() == 1 && active.isDead()) { // Resurrection confirmation
+			active.currentHp(active.maxHp() * 0.7);
+			var rev = new Revive(active.objectId());
+			send(rev);
+			if (ctx.world() != null) {
+				ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, rev, false);
+			}
+			sendVitals();
+			sendUserInfoAndBroadcastCharInfo();
+		} else if (p.messageId() == 1842 && p.answer() == 1) { // Engage / Wedding confirmation
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Confirmacao aceita."));
+		}
+	}
+
+	private void onDuelStart(GameClientPacket.RequestDuelStart p) {
+		if (!inWorld || active == null || active.isDead() || active.isInCombat() || ctx.world() == null || p.player() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var targetOpt = ctx.world().byName(p.player().trim());
+		if (targetOpt.isEmpty() || !(targetOpt.get() instanceof GameSession targetGs) || targetGs.activeChar() == null || targetGs == this) {
+			send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+			return;
+		}
+		targetGs.pendingDuelChallengerId = active.objectId();
+		targetGs.send(new GameServerPacket.ExDuelAskStart(active.name(), p.partyDuel()));
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Desafio de duelo enviado para " + targetGs.activeChar().name() + "."));
+	}
+
+	private void onDuelAnswerStart(GameClientPacket.RequestDuelAnswerStart p) {
+		int challengerId = this.pendingDuelChallengerId;
+		this.pendingDuelChallengerId = 0;
+		if (!inWorld || active == null || challengerId == 0 || ctx.world() == null) {
+			return;
+		}
+		var challengerOpt = ctx.world().player(challengerId);
+		if (challengerOpt.isEmpty() || !(challengerOpt.get() instanceof GameSession challengerGs) || challengerGs.activeChar() == null) {
+			return;
+		}
+		if (p.response() != 1) {
+			challengerGs.send(new CreatureSay(0, CreatureSay.ALL, "SYS", active.name() + " recusou seu desafio de duelo."));
+			return;
+		}
+		active.team(2);
+		challengerGs.activeChar().team(1);
+		send(new GameServerPacket.ExDuelReady(p.partyDuel()));
+		challengerGs.send(new GameServerPacket.ExDuelReady(p.partyDuel()));
+		send(new GameServerPacket.ExDuelStart(p.partyDuel()));
+		challengerGs.send(new GameServerPacket.ExDuelStart(p.partyDuel()));
+		sendUserInfoAndBroadcastCharInfo();
+		challengerGs.sendUserInfoAndBroadcastCharInfo();
+	}
+
+	private void onDuelSurrender() {
+		if (!inWorld || active == null) {
+			return;
+		}
+		active.team(0);
+		send(new GameServerPacket.ExDuelEnd(0));
+		sendUserInfoAndBroadcastCharInfo();
 	}
 
 }

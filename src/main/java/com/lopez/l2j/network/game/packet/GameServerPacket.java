@@ -288,16 +288,19 @@ public sealed interface GameServerPacket {
 			w.writeD(c.hairStyle()).writeD(c.hairColor()).writeD(c.face()).writeD(c.isGm() ? 1 : 0);
 			w.writeS(c.title());
 			w.writeD(c.clanId()).writeD(clanCrestId).writeD(allyId).writeD(allyCrestId);
-			w.writeD(0); // relation
-			w.writeC(0).writeC(c.privateStoreType()).writeC(t.canCraft() ? 1 : 0); // mount, private store, dwarven craft
+			int relation = c.isClanLeader() ? 0x40 : 0;
+			w.writeD(relation); // relation (0x40 = clan leader)
+			int mountType = c.mountNpcId() == 12621 ? 2 : (c.mountNpcId() > 0 ? 1 : 0);
+			w.writeC(mountType).writeC(c.privateStoreType()).writeC((t != null && t.canCraft()) || c.canCraft() ? 1 : 0); // mount, private store, dwarven craft
 			w.writeD(c.pkKills()).writeD(c.pvpKills());
 			w.writeH(0); // cubics
 			w.writeC(0);
 			w.writeD(c.abnormalEffect()); // abnormal effect
 			w.writeC(0);
-			w.writeD(0); // clan privileges
+			int privs = c.isClanLeader() ? 0x7ffffe : c.clanPrivs();
+			w.writeD(privs); // clan privileges
 			w.writeH(c.recomLeft()).writeH(c.recomHave()); // recom left/have
-			w.writeD(0);
+			w.writeD(c.mountNpcId() > 0 ? c.mountNpcId() + 1000000 : 0); // mount npc id
 			w.writeH(c != null ? c.maxInventorySlots() : INVENTORY_LIMIT);
 			w.writeD(c.classId()).writeD(0);
 			w.writeD(c.maxCp()).writeD((int) c.currentCp());
@@ -312,12 +315,13 @@ public sealed interface GameServerPacket {
 			}
 			w.writeC(enchantEffect); // enchant effect (weapon glow: 0=none, 4-15=blue, 16+=red)
 			w.writeC(c.team()); // team
-			w.writeD(0); // large clan crest
+			int largeCrestId = (c.getClan() != null) ? c.getClan().largeCrestId() : 0;
+			w.writeD(largeCrestId); // large clan crest
 			w.writeC(c.isNoble() ? 1 : 0).writeC(c.isHero() ? 1 : 0); // noble, hero
-			w.writeC(0).writeD(0).writeD(0).writeD(0); // fishing
+			w.writeC(c.isFishing() ? 1 : 0).writeD(c.fishX()).writeD(c.fishY()).writeD(c.fishZ()); // fishing
 			w.writeD(c.isGm() ? 0x00FFFF : (c.nameColor() != 0 ? c.nameColor() : NAME_COLOR));
 			w.writeC(c.running() ? 1 : 0);
-			w.writeD(0).writeD(0); // pledge class (x2)
+			w.writeD(c.pledgeRank()).writeD(c.subPledge()); // pledge class, pledge type
 			w.writeD(c.isGm() ? 0x00FF77 : (c.titleColor() != 0 ? c.titleColor() : TITLE_COLOR));
 			w.writeD(0); // cursed weapon level
 			return w.toByteArray();
@@ -1613,16 +1617,17 @@ public sealed interface GameServerPacket {
 			w.writeC(c.sitting() ? 0 : 1);
 			w.writeC(c.running() ? 1 : 0);
 			w.writeC(c.isInCombat() ? 1 : 0); // isInCombat: 1 combate / 0 normal
-			w.writeC(0);
-			w.writeC(0);
-			w.writeC(0);
+			w.writeC(c.isDead() ? 1 : 0); // isAlikeDead
+			w.writeC(0); // invisible
+			int mountType = c.mountNpcId() == 12621 ? 2 : (c.mountNpcId() > 0 ? 1 : 0);
+			w.writeC(mountType);
 			w.writeC(c.privateStoreType());
 
-			w.writeH(0);
+			w.writeH(0); // cubics
 			w.writeC(0);
 			w.writeD(c.abnormalEffect()); // abnormal effect
-			w.writeC(0);
-			w.writeH(0);
+			w.writeC(c.recomLeft());
+			w.writeH(c.recomHave());
 			w.writeD(c.classId());
 			w.writeD(c.maxCp()).writeD((int) c.currentCp());
 			int charEnchantEffect = 0;
@@ -1634,14 +1639,15 @@ public sealed interface GameServerPacket {
 					charEnchantEffect = Math.min(127, Math.max(0, rw.enchant()));
 				}
 			}
-			w.writeC(charEnchantEffect); // enchant effect (weapon glow: 0=none, 4-15=blue, 16+=red)
+			w.writeC(c.isMounted() ? 0 : charEnchantEffect); // enchant effect (weapon glow: 0=none, 4-15=blue, 16+=red)
 			w.writeC(c.team()); // team
-			w.writeD(0);
-			w.writeC(0).writeC(0);
-			w.writeC(0).writeD(0).writeD(0).writeD(0);
+			int largeCrestId = (c.getClan() != null) ? c.getClan().largeCrestId() : 0;
+			w.writeD(largeCrestId);
+			w.writeC(c.isNoble() ? 1 : 0).writeC(c.isHero() ? 1 : 0);
+			w.writeC(c.isFishing() ? 1 : 0).writeD(c.fishX()).writeD(c.fishY()).writeD(c.fishZ());
 			w.writeD(c.isGm() ? 0x00FFFF : (c.nameColor() != 0 ? c.nameColor() : 0xFFFFFF));
-			w.writeD(0x00);
-			w.writeD(0).writeD(0);
+			w.writeD(c.heading());
+			w.writeD(c.pledgeRank()).writeD(c.subPledge());
 			w.writeD(c.isGm() ? 0x00FF77 : (c.titleColor() != 0 ? c.titleColor() : 0xFFFF77));
 			w.writeD(0x00);
 			return w.toByteArray();
@@ -1825,13 +1831,28 @@ public sealed interface GameServerPacket {
 	}
 
 	/** 0x06 Die: objeto morreu. */
-	record Die(int charObjId, boolean toVillage, boolean toClanHall, boolean toCastle, boolean sweepable) implements GameServerPacket {
+	record Die(int charObjId, boolean toVillage, boolean toClanHall, boolean toCastle, boolean toSiegeHQ, boolean sweepable, boolean fixedRes) implements GameServerPacket {
 		public Die(int charObjId, boolean toVillage) {
-			this(charObjId, toVillage, false, false, false);
+			this(charObjId, toVillage, false, false, false, false, false);
 		}
 
 		public Die(int charObjId, boolean toVillage, boolean toClanHall, boolean toCastle) {
-			this(charObjId, toVillage, toClanHall, toCastle, false);
+			this(charObjId, toVillage, toClanHall, toCastle, false, false, false);
+		}
+
+		public Die(int charObjId, boolean toVillage, boolean toClanHall, boolean toCastle, boolean sweepable) {
+			this(charObjId, toVillage, toClanHall, toCastle, false, sweepable, false);
+		}
+
+		public static Die forPlayer(PlayerCharacter p) {
+			if (p == null) {
+				return new Die(0, true);
+			}
+			var clan = p.getClan();
+			boolean hasHideout = clan != null && clan.hideoutId() > 0;
+			boolean hasCastle = clan != null && (clan.castleId() > 0 || clan.fortId() > 0);
+			boolean fixed = p.isGm();
+			return new Die(p.objectId(), true, hasHideout, hasCastle, false, false, fixed);
 		}
 
 		@Override
@@ -1841,9 +1862,9 @@ public sealed interface GameServerPacket {
 			w.writeD(toVillage ? 1 : 0);
 			w.writeD(toClanHall ? 1 : 0); // clanhall
 			w.writeD(toCastle ? 1 : 0); // castle
-			w.writeD(0); // flag
+			w.writeD(toSiegeHQ ? 1 : 0); // flag
 			w.writeD(sweepable ? 1 : 0); // sweepable (blue glow)
-			w.writeD(0); // fixedres
+			w.writeD(fixedRes ? 1 : 0); // fixedres
 			return w.toByteArray();
 		}
 	}
@@ -2217,7 +2238,9 @@ public sealed interface GameServerPacket {
 				w.writeH(item.customType2());
 				w.writeH(0);
 				w.writeD(item.objectId());
-				w.writeQ(0);
+				int aug = item.augmentation() != null ? item.augmentation().attributes() : 0;
+				w.writeD(aug & 0x0000FFFF);
+				w.writeD(aug >> 16);
 			}
 			return w.toByteArray();
 		}
@@ -2240,7 +2263,9 @@ public sealed interface GameServerPacket {
 				w.writeH(item.customType2());
 				w.writeH(0);
 				w.writeD(item.objectId());
-				w.writeQ(0);
+				int aug = item.augmentation() != null ? item.augmentation().attributes() : 0;
+				w.writeD(aug & 0x0000FFFF);
+				w.writeD(aug >> 16);
 			}
 			return w.toByteArray();
 		}
@@ -3505,5 +3530,238 @@ public sealed interface GameServerPacket {
 					.toByteArray();
 		}
 	}
+
+	/** 0xed ConfirmDlg: caixa de confirmacao retail (ressurreicao=1510, summon friend=1842, casamento=1983). */
+	record ConfirmDlg(int messageId, String requestorName, int time, int requesterId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xed)
+					.writeD(messageId)
+					.writeD(1)
+					.writeD(0) // TYPE_TEXT
+					.writeS(requestorName != null ? requestorName : "")
+					.writeD(time)
+					.writeD(requesterId)
+					.toByteArray();
+		}
+	}
+
+	/** 0x86 Ride: animacao de montar/desmontar em Strider ou Wyvern. */
+	record Ride(int objectId, int mounted, int rideType, int rideClassId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x86)
+					.writeD(objectId)
+					.writeD(mounted)
+					.writeD(rideType)
+					.writeD(rideClassId > 0 ? rideClassId + 1000000 : 0)
+					.toByteArray();
+		}
+	}
+
+	/** 0xc1 SkillCoolTime: envia tempos de recarga restantes das skills para o cliente. */
+	record SkillCoolTime(List<CoolTimeEntry> entries) implements GameServerPacket {
+		public record CoolTimeEntry(int skillId, int level, int reuseSeconds, int remainingSeconds) {}
+
+		public SkillCoolTime() {
+			this(List.of());
+		}
+
+		@Override
+		public byte[] encode() {
+			PacketWriter w = new PacketWriter().writeC(0xc1).writeD(entries != null ? entries.size() : 0);
+			if (entries != null) {
+				for (var e : entries) {
+					w.writeD(e.skillId()).writeD(e.level()).writeD(e.reuseSeconds()).writeD(e.remainingSeconds());
+				}
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0x32 AskJoinPledge: convite para entrar em cla. */
+	record AskJoinPledge(int requestorObjId, String pledgeName) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x32).writeD(requestorObjId).writeS(pledgeName != null ? pledgeName : "").toByteArray();
+		}
+	}
+
+	/** 0x33 JoinPledge: confirmacao de entrada no cla. */
+	record JoinPledge(int clanId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x33).writeD(clanId).toByteArray();
+		}
+	}
+
+	/** 0x30 ManagePledgePower: exibe a mascara de privilegios de um rank/membro do cla. */
+	record ManagePledgePower(int clanId, int action, int rank, int privs) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0x30).writeD(rank).writeD(action).writeD(privs).toByteArray();
+		}
+	}
+
+	/** 0xfe:0x28 ExPledgeCrestLarge: envia os bytes do brasao grande (large crest) do cla. */
+	record ExPledgeCrestLarge(int crestId, byte[] data) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			var w = new PacketWriter().writeC(0xfe).writeH(0x28)
+					.writeD(0x00)
+					.writeD(crestId)
+					.writeD(data != null ? data.length : 0);
+			if (data != null && data.length > 0) {
+				w.writeB(data);
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xfe:0x3b PledgePowerGradeList: lista de ranks de privilegio do cla. */
+	record PledgePowerGradeList(Map<Integer, Integer> rankCounts) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			var w = new PacketWriter().writeC(0xfe).writeH(0x3b);
+			w.writeD(9);
+			for (int i = 1; i <= 9; i++) {
+				w.writeD(i);
+				w.writeD(rankCounts != null ? rankCounts.getOrDefault(i, 0) : 0);
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xfe:0x3c PledgeReceivePowerInfo: privilegios de um membro do cla. */
+	record PledgeReceivePowerInfo(int powerGrade, String memberName, int privs) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x3c)
+					.writeD(powerGrade)
+					.writeS(memberName != null ? memberName : "")
+					.writeD(privs)
+					.toByteArray();
+		}
+	}
+
+	/** 0xfe:0x3d PledgeReceiveMemberInfo: detalhes de um membro do cla na janela Alt+N. */
+	record PledgeReceiveMemberInfo(int pledgeType, String name, String title, int powerGrade, String clanOrSubName, String apprenticeOrSponsorName) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x3d)
+					.writeD(pledgeType)
+					.writeS(name != null ? name : "")
+					.writeS(title != null ? title : "")
+					.writeD(powerGrade)
+					.writeS(clanOrSubName != null ? clanOrSubName : "")
+					.writeS(apprenticeOrSponsorName != null ? apprenticeOrSponsorName : "")
+					.toByteArray();
+		}
+	}
+
+	/** 0xfe:0x3e PledgeReceiveWarList: lista de guerras do cla na janela Alt+N. */
+	record PledgeReceiveWarList(int tab, List<WarEntry> wars) implements GameServerPacket {
+		public record WarEntry(String clanName, int state, int memberCount) {}
+
+		@Override
+		public byte[] encode() {
+			var w = new PacketWriter().writeC(0xfe).writeH(0x3e)
+					.writeD(tab)
+					.writeD(0x00)
+					.writeD(wars != null ? wars.size() : 0);
+			if (wars != null) {
+				for (var war : wars) {
+					w.writeS(war.clanName());
+					w.writeD(war.state());
+					w.writeD(war.memberCount());
+				}
+			}
+			return w.toByteArray();
+		}
+	}
+
+	/** 0xce RelationChanged: atualiza relacao de PvP/Guerra/Cerco sobre outro personagem. */
+	record RelationChanged(int objId, int relation, boolean autoAttackable, int karma, int pvpFlag) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xce)
+					.writeD(objId)
+					.writeD(relation)
+					.writeD(autoAttackable ? 1 : 0)
+					.writeD(karma)
+					.writeD(pvpFlag)
+					.toByteArray();
+		}
+	}
+
+	/** 0xfe:0x4b ExDuelAskStart: pergunta ao alvo se aceita o duelo. */
+	record ExDuelAskStart(String requestorName, int partyDuel) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x4b).writeS(requestorName != null ? requestorName : "").writeD(partyDuel).toByteArray();
+		}
+	}
+
+	/** 0xfe:0x4c ExDuelReady: prepara os jogadores para inicio do duelo. */
+	record ExDuelReady(int partyDuel) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x4c).writeD(partyDuel).toByteArray();
+		}
+	}
+
+	/** 0xfe:0x4d ExDuelStart: inicia a luta do duelo no cliente. */
+	record ExDuelStart(int partyDuel) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x4d).writeD(partyDuel).toByteArray();
+		}
+	}
+
+	/** 0xfe:0x4e ExDuelEnd: encerra o duelo no cliente. */
+	record ExDuelEnd(int partyDuel) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x4e).writeD(partyDuel).toByteArray();
+		}
+	}
+
+	/** 0xdc ShowCalc: abre a calculadora in-game do cliente. */
+	record ShowCalc(int calculatorId) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xdc).writeD(calculatorId).toByteArray();
+		}
+	}
+
+	/** 0xd4 Dice: animacao de rolar dados no chao. */
+	record Dice(int charObjId, int itemId, int number, int x, int y, int z) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xd4)
+					.writeD(charObjId)
+					.writeD(itemId)
+					.writeD(number)
+					.writeD(x)
+					.writeD(y)
+					.writeD(z)
+					.toByteArray();
+		}
+	}
+}
+/*
+					.writeD(y)
+					.writeD(z)
+					.toByteArray();
+		}
+	}
+					.toByteArray();
+		}
+	}
+}
+/*
+		}
+	}
 }
 
+*/

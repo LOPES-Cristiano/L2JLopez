@@ -45,6 +45,12 @@ public class SkillTreeTable {
 		}
 	}
 
+	public record FishingSkillLearn(int id, int level, String name, int sp, int minLevel, int costId, int costCount, boolean isForDwarf) {
+	}
+
+	public record PledgeSkillLearn(int id, int level, String name, int clanLvl, int repCost, int itemId) {
+	}
+
 	private record ClassTree(int parentId, List<SkillLearn> skills) {
 	}
 
@@ -53,6 +59,8 @@ public class SkillTreeTable {
 	private final Map<Integer, Integer> spellbookBySkill = new HashMap<>();
 	private final List<EnchantSkillLearn> enchantSkills = new ArrayList<>();
 	private final Map<Long, EnchantSkillLearn> enchantBySkillAndLevel = new HashMap<>();
+	private final List<FishingSkillLearn> fishingSkills = new ArrayList<>();
+	private final List<PledgeSkillLearn> pledgeSkills = new ArrayList<>();
 
 	@Autowired
 	public SkillTreeTable(@Value("${l2.datapack.xml-dir:data/xml}") String xmlDir) {
@@ -64,8 +72,10 @@ public class SkillTreeTable {
 		parse(dir.resolve("skill_learn.xml"), this::readLearn);
 		parse(dir.resolve("skill_spellbooks.xml"), this::readSpellbooks);
 		parse(dir.resolve("enchant_skill_tree.xml"), this::readEnchant);
-		log.info("SkillTreeTable: {} classes, {} treinadores, {} livros, {} skills encantaveis", trees.size(),
-				classesByTrainer.size(), spellbookBySkill.size(), enchantSkills.size());
+		parse(dir.resolve("fishing_skill_tree.xml"), this::readFishing);
+		parse(dir.resolve("pledge_skill_tree.xml"), this::readPledge);
+		log.info("SkillTreeTable: {} classes, {} treinadores, {} livros, {} skills encantaveis, {} fishing, {} pledge", trees.size(),
+				classesByTrainer.size(), spellbookBySkill.size(), enchantSkills.size(), fishingSkills.size(), pledgeSkills.size());
 	}
 
 	private static final Map<Integer, List<Integer>> FALLBACK_PROGRESSIONS = Map.ofEntries(
@@ -328,5 +338,76 @@ public class SkillTreeTable {
 				enchantBySkillAndLevel.put(((long) id << 32) | (long) lvl, es);
 			}
 		}
+	}
+
+	private void readFishing(Element root) {
+		for (Element e : SkillCondition.children(root)) {
+			if (!e.getTagName().equalsIgnoreCase("SkillTree")) {
+				continue;
+			}
+			int id = Integer.parseInt(e.getAttribute("skill_id").trim());
+			int lvl = Integer.parseInt(e.getAttribute("level").trim());
+			String name = e.getAttribute("name");
+			int sp = Integer.parseInt(e.getAttribute("sp").trim());
+			int minLvl = Integer.parseInt(e.getAttribute("min_level").trim());
+			int costId = Integer.parseInt(e.getAttribute("costid").trim());
+			int cost = Integer.parseInt(e.getAttribute("cost").trim());
+			boolean isDwarf = "1".equals(e.getAttribute("isfordwarf").trim());
+			fishingSkills.add(new FishingSkillLearn(id, lvl, name, sp, minLvl, costId, cost, isDwarf));
+		}
+	}
+
+	private void readPledge(Element root) {
+		for (Element e : SkillCondition.children(root)) {
+			if (!e.getTagName().equalsIgnoreCase("PledgeSkill")) {
+				continue;
+			}
+			int id = Integer.parseInt(e.getAttribute("skill_id").trim());
+			int lvl = Integer.parseInt(e.getAttribute("level").trim());
+			String name = e.getAttribute("name");
+			int clanLvl = Integer.parseInt(e.getAttribute("clan_lvl").trim());
+			int repCost = Integer.parseInt(e.getAttribute("repCost").trim());
+			int itemId = Integer.parseInt(e.getAttribute("itemId").trim());
+			pledgeSkills.add(new PledgeSkillLearn(id, lvl, name, clanLvl, repCost, itemId));
+		}
+	}
+
+	public List<FishingSkillLearn> availableFishingSkills(int playerLevel, boolean isDwarf, Map<Integer, Integer> known) {
+		List<FishingSkillLearn> out = new ArrayList<>();
+		for (FishingSkillLearn s : fishingSkills) {
+			if (s.minLevel() > playerLevel) {
+				continue;
+			}
+			if (s.isForDwarf() && !isDwarf) {
+				continue;
+			}
+			Integer current = known.get(s.id());
+			if (current == null ? s.level() == 1 : current == s.level() - 1) {
+				out.add(s);
+			}
+		}
+		return out;
+	}
+
+	public java.util.Optional<FishingSkillLearn> getFishingSkill(int id, int level) {
+		return fishingSkills.stream().filter(s -> s.id() == id && s.level() == level).findFirst();
+	}
+
+	public List<PledgeSkillLearn> availablePledgeSkills(int clanLevel, Map<Integer, Integer> knownClanSkills) {
+		List<PledgeSkillLearn> out = new ArrayList<>();
+		for (PledgeSkillLearn s : pledgeSkills) {
+			if (s.clanLvl() > clanLevel) {
+				continue;
+			}
+			Integer current = knownClanSkills.get(s.id());
+			if (current == null ? s.level() == 1 : current == s.level() - 1) {
+				out.add(s);
+			}
+		}
+		return out;
+	}
+
+	public java.util.Optional<PledgeSkillLearn> getPledgeSkill(int id, int level) {
+		return pledgeSkills.stream().filter(s -> s.id() == id && s.level() == level).findFirst();
 	}
 }

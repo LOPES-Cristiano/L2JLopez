@@ -198,4 +198,40 @@ class SchemeBufferServiceTest {
 		assertNotNull(html);
 		assertTrue(html.contains("Editor de Esquema"), "HTML deve conter o titulo do Editor de Esquema");
 	}
+
+	@Test
+	@DisplayName("Buff bloqueado por stackOrder superior nao cria entrada fantasma em normalBuffs")
+	void testBlockedBuffDoesNotCreatePhantomFallbackEntry() {
+		when(inventory.destroyItemByItemId(eq(SchemeBufferService.ADENA_ID), anyInt())).thenReturn(true);
+
+		var statFunc = new com.lopez.l2j.game.skill.StatFunc(
+				"pAtk", com.lopez.l2j.game.skill.StatFunc.Op.MUL, 0x30, 1.15);
+		var greaterEffect = new com.lopez.l2j.game.skill.SkillTemplate.EffectTemplate(
+				"Buff", 1, 1200, 0, "pAtk", 3.0, List.of(statFunc));
+		var lesserEffect = new com.lopez.l2j.game.skill.SkillTemplate.EffectTemplate(
+				"Buff", 1, 1200, 0, "pAtk", 1.15, List.of(statFunc));
+		var greaterMight = new com.lopez.l2j.game.skill.SkillTemplate(
+				1388, 3, "Greater Might", com.lopez.l2j.game.skill.SkillTemplate.OperateType.ACTIVE,
+				"BUFF", "TARGET_ONE", true, 0, 0, 0, 0.0, 0, 0, 0, 0, 0, 0, 0.0, false, 0, 0,
+				List.of(statFunc), List.of(greaterEffect), null, null);
+		var might = new com.lopez.l2j.game.skill.SkillTemplate(
+				1068, 3, "Might", com.lopez.l2j.game.skill.SkillTemplate.OperateType.ACTIVE,
+				"BUFF", "TARGET_ONE", true, 0, 0, 0, 0.0, 0, 0, 0, 0, 0, 0, 0.0, false, 0, 0,
+				List.of(statFunc), List.of(lesserEffect), null, null);
+
+		com.lopez.l2j.game.skill.SkillTable table = mock(com.lopez.l2j.game.skill.SkillTable.class);
+		when(table.maxLevel(1388)).thenReturn(3);
+		when(table.maxLevel(1068)).thenReturn(3);
+		when(skillService.table()).thenReturn(table);
+		when(skillService.skill(1388, 3)).thenReturn(Optional.of(greaterMight));
+		when(skillService.skill(1068, 3)).thenReturn(Optional.of(might));
+
+		bufferService.saveScheme(player.objectId(), 1, List.of(1388, 1068));
+		when(variablesService.getVariable(eq(player.objectId()), eq("buff_scheme_1"), any())).thenReturn("1388,1068");
+
+		assertTrue(bufferService.applyScheme(player, session, 1, false));
+		assertEquals(1, player.effects().activeBuffs().size(), "Nao deve criar buff fantasma skill_1068 quando bloqueado por Greater Might");
+		assertTrue(player.effects().hasSkill(1388));
+		assertFalse(player.effects().hasSkill(1068));
+	}
 }

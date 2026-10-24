@@ -126,6 +126,7 @@ public class Clan {
 		return Config.REMOVE_CASTLE_CIRCULAR;
 	}
 	public int getHasHideout() { return clanHallId; }
+	public int hideoutId() { return clanHallId; }
 	public ClanMember getLeader() { return leader(); }
 	public void level(int level) { this.level = level; }
 	public int castleId() { return castleId; }
@@ -135,6 +136,7 @@ public class Clan {
 	public int crestId() { return crestId; }
 	public void crestId(int crestId) { this.crestId = crestId; }
 	public int crestLargeId() { return crestLargeId; }
+	public int largeCrestId() { return crestLargeId; }
 	public void crestLargeId(int crestLargeId) { this.crestLargeId = crestLargeId; }
 	public int allyId() { return allyId; }
 	public void allyId(int allyId) { this.allyId = allyId; }

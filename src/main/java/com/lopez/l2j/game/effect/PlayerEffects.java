@@ -27,42 +27,53 @@ public final class PlayerEffects {
 	 */
 	public record ActiveBuff(int skillId, int level, String stackType, int stackOrder, long endTimeMillis,
 			int runSpdAdd, double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd, List<StatFunc> funcs,
-			boolean isDebuff) {
+			boolean isDebuff, int abnormalMask) {
+
+		public ActiveBuff(int skillId, int level, String stackType, int stackOrder, long endTimeMillis,
+				int runSpdAdd, double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd, List<StatFunc> funcs,
+				boolean isDebuff) {
+			this(skillId, level, stackType, stackOrder, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, funcs, isDebuff, 0);
+		}
 
 		public ActiveBuff(int skillId, int level, String stackType, long endTimeMillis, int runSpdAdd,
 				double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd, List<StatFunc> funcs, boolean isDebuff) {
-			this(skillId, level, stackType, level, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, funcs, isDebuff);
+			this(skillId, level, stackType, level, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, funcs, isDebuff, 0);
 		}
 
 		public ActiveBuff(int skillId, int level, String stackType, long endTimeMillis, int runSpdAdd,
 				double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd, List<StatFunc> funcs) {
-			this(skillId, level, stackType, level, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, funcs, false);
+			this(skillId, level, stackType, level, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, funcs, false, 0);
 		}
 
 		public ActiveBuff(int skillId, int level, String stackType, long endTimeMillis, int runSpdAdd,
 				double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd) {
-			this(skillId, level, stackType, level, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, List.of(), false);
+			this(skillId, level, stackType, level, endTimeMillis, runSpdAdd, pAtkSpdMul, mAtkSpdMul, accuracyAdd, List.of(), false, 0);
 		}
 
 		/** Buff de skill: so funcoes de stat. */
 		public static ActiveBuff ofSkill(int skillId, int level, String stackType, long endTimeMillis,
 				List<StatFunc> funcs) {
-			return new ActiveBuff(skillId, level, stackType, level, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), false);
+			return new ActiveBuff(skillId, level, stackType, level, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), false, 0);
 		}
 
 		public static ActiveBuff ofSkill(int skillId, int level, String stackType, long endTimeMillis,
 				List<StatFunc> funcs, boolean isDebuff) {
-			return new ActiveBuff(skillId, level, stackType, level, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), isDebuff);
+			return new ActiveBuff(skillId, level, stackType, level, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), isDebuff, 0);
 		}
 
-	public static ActiveBuff ofSkill(int skillId, int level, String stackType, int stackOrder, long endTimeMillis,
+		public static ActiveBuff ofSkill(int skillId, int level, String stackType, int stackOrder, long endTimeMillis,
 				List<StatFunc> funcs) {
-			return new ActiveBuff(skillId, level, stackType, stackOrder, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), false);
+			return new ActiveBuff(skillId, level, stackType, stackOrder, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), false, 0);
 		}
 
 		public static ActiveBuff ofSkill(int skillId, int level, String stackType, int stackOrder, long endTimeMillis,
 				List<StatFunc> funcs, boolean isDebuff) {
-			return new ActiveBuff(skillId, level, stackType, stackOrder, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), isDebuff);
+			return new ActiveBuff(skillId, level, stackType, stackOrder, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), isDebuff, 0);
+		}
+
+		public static ActiveBuff ofSkill(int skillId, int level, String stackType, int stackOrder, long endTimeMillis,
+				List<StatFunc> funcs, boolean isDebuff, int abnormalMask) {
+			return new ActiveBuff(skillId, level, stackType, stackOrder, endTimeMillis, 0, 1.0, 1.0, 0, List.copyOf(funcs), isDebuff, abnormalMask);
 		}
 
 		public boolean isPermanent() {
@@ -94,6 +105,22 @@ public final class PlayerEffects {
 		return ch != null && ch.skills() != null ? Math.max(0, Math.min(4, ch.skills().getOrDefault(1405, 0))) : 0;
 	}
 
+	/**
+	 * Converte o stackOrder do XML (que pode ser fracionario como 0.2..0.3 no Focus ou 1.08..1.35 em Might/Shield/Acumen/Haste)
+	 * para uma escala inteira preservando precisao de duas casas decimais, evitando que Math.round transforme 0.3 em 0
+	 * ou 1.08..1.35 em 1 (abaixo do proprio level do skill).
+	 */
+	public static int resolveStackOrder(double xmlStackOrder, int skillLevel) {
+		if (xmlStackOrder <= 0) {
+			return Math.max(1, skillLevel);
+		}
+		if (Math.abs(xmlStackOrder - Math.rint(xmlStackOrder)) > 1e-6) {
+			return Math.max(1, (int) Math.round(xmlStackOrder * 100.0));
+		}
+		int rounded = (int) Math.round(xmlStackOrder);
+		return rounded < 10 ? rounded * 100 : rounded;
+	}
+
 	private final Map<String, ActiveBuff> byStack = new java.util.LinkedHashMap<>();
 	private int extraBuffSlots = 0;
 
@@ -119,6 +146,22 @@ public final class PlayerEffects {
 		}
 		this.extraBuffSlots = Math.max(0, extraSlots);
 		long now = System.currentTimeMillis();
+		byStack.values().removeIf(b -> !b.isPermanent() && b.endTimeMillis() <= now);
+		String fallbackKey1 = "skill_" + buff.skillId();
+		String fallbackKey2 = "saved_" + buff.skillId();
+		if (!buff.stackType().equals(fallbackKey1)) {
+			byStack.remove(fallbackKey1);
+		}
+		if (!buff.stackType().equals(fallbackKey2)) {
+			byStack.remove(fallbackKey2);
+		}
+		if (buff.stackType().equals(fallbackKey1) || buff.stackType().equals(fallbackKey2)) {
+			for (ActiveBuff b : byStack.values()) {
+				if (b.skillId() == buff.skillId() && !b.stackType().equals(buff.stackType())) {
+					return false;
+				}
+			}
+		}
 		ActiveBuff existing = byStack.get(buff.stackType());
 		if (existing != null && existing.remainingMillis(now) > 0) {
 			if (Config.CANCEL_LESSER_EFFECT && !buff.isPermanent() && !existing.isPermanent()
@@ -159,14 +202,8 @@ public final class PlayerEffects {
 	}
 
 	private void evictOldest(List<ActiveBuff> candidates) {
-		ActiveBuff oldest = null;
-		for (ActiveBuff b : candidates) {
-			if (oldest == null || b.endTimeMillis() < oldest.endTimeMillis()) {
-				oldest = b;
-			}
-		}
-		if (oldest != null) {
-			remove(oldest);
+		if (!candidates.isEmpty()) {
+			remove(candidates.get(0));
 		}
 	}
 

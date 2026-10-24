@@ -331,22 +331,34 @@ public record PlayerStats(
 				effectiveStr, effectiveDex, effectiveCon, effectiveInt, effectiveWit, effectiveMen);
 	}
 
-	/** Passivas + buffs de skill + sets de armadura + augmentacao + Boss Dolls na mochila do jogador. */
+	/** Passivas + buffs de skill + sets de armadura + augmentacao + Boss Dolls + XML stats dos itens equipados. */
 	public static List<StatFunc> allFuncs(PlayerCharacter player) {
 		var passive = player.passiveFuncs();
 		var buffs = player.effects().funcs();
 		var sets = player.armorSetFuncs();
 		var aug = player.augmentationFuncs();
 		var dolls = com.lopez.l2j.game.pve.DollService.getInstance().getActiveStatFuncs(player);
-		if (buffs.isEmpty() && sets.isEmpty() && aug.isEmpty() && dolls.isEmpty()) {
+		List<StatFunc> equipFuncs = List.of();
+		if (player.inventory() != null) {
+			for (var item : player.inventory().equipped()) {
+				if (item.template() != null && !item.template().statFuncs().isEmpty()) {
+					if (equipFuncs.isEmpty()) {
+						equipFuncs = new ArrayList<>();
+					}
+					equipFuncs.addAll(item.template().statFuncs());
+				}
+			}
+		}
+		if (buffs.isEmpty() && sets.isEmpty() && aug.isEmpty() && dolls.isEmpty() && equipFuncs.isEmpty()) {
 			return passive;
 		}
-		List<StatFunc> all = new ArrayList<>(passive.size() + buffs.size() + sets.size() + aug.size() + dolls.size());
+		List<StatFunc> all = new ArrayList<>(passive.size() + buffs.size() + sets.size() + aug.size() + dolls.size() + equipFuncs.size());
 		all.addAll(passive);
 		all.addAll(buffs);
 		all.addAll(sets);
 		all.addAll(aug);
 		all.addAll(dolls);
+		all.addAll(equipFuncs);
 		return all;
 	}
 

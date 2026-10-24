@@ -153,6 +153,30 @@ public final class PlayerCombatHandler {
 			if (frintSvc != null) frintSvc.onScarletDefeated();
 		}
 
+		if (ctx.fourSepulchers() != null) {
+			var fs = ctx.fourSepulchers();
+			for (int sepId = 1; sepId <= 4; sepId++) {
+				var mausoleum = fs.getMausoleum(sepId);
+				if (mausoleum != null && mausoleum.isInUse() && mausoleum.players().contains(active.objectId())) {
+					if (killedNpcId == mausoleum.bossId()) {
+						fs.defeatShadowOfHalisha(sepId, active);
+						session.send(new CreatureSay(0, CreatureSay.PARTY, "FourSepulchers",
+								"Shadow of Halisha derrotada! Voce recebeu o Calice do Sepulcro!"));
+					} else if (mausoleum.spawnedMonsters().contains(npc)) {
+						boolean allDead = mausoleum.spawnedMonsters().stream().allMatch(m -> m == npc || m.isDead());
+						if (allDead) {
+							fs.clearRoom(sepId, active);
+							session.send(new CreatureSay(0, CreatureSay.PARTY, "FourSepulchers",
+									"Sala limpa! Chapel Key entregue e grupo avancou para a Sala " + mausoleum.stage() + "/5."));
+						}
+					}
+					break;
+				}
+			}
+		}
+		if (false) {
+		}
+
 		// Integração com Dungeons Instanciadas (Onda C9)
 		int instId = active.instanceId();
 		if (instId > 0) {

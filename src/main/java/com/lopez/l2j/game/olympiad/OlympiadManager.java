@@ -307,6 +307,11 @@ public class OlympiadManager {
 		return false;
 	}
 
+	public int getQueueSize(OlympiadMode mode) {
+		List<PlayerCharacter> q = modeQueues.get(mode);
+		return q != null ? q.size() : 0;
+	}
+
 	/**
 	 * Executa matchmaking automatico para a modalidade solicitada caso haja participantes suficientes.
 	 * Retorna o instanceId da arena criada ou -1 se nao houver par elegivel.

@@ -4,6 +4,7 @@ import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.ObjectIdFactory;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
+import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
 import jakarta.annotation.PostConstruct;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -123,10 +124,19 @@ public class SpawnService {
 		return templates.get(npcId).map(template -> {
 			int objectId = objectIds.nextId();
 			NpcInstance npc = new NpcInstance(objectId, template, x, y, correctZ(template, x, y, z), heading);
-			if (championService != null) {
+			if (template.isRaidBoss() || template.isGrandBoss()) {
+				npc.pAtkMul(Math.max(0.1, Config.RAID_BOSS_P_ATK_MODIFIER * Config.RATE_RAID_ATTACK));
+				npc.mAtkMul(Math.max(0.1, Config.RAID_BOSS_M_ATK_MODIFIER * Config.RATE_RAID_ATTACK));
+				npc.pDefMul(Math.max(0.1, Config.RAID_BOSS_P_DEF_MODIFIER * Config.RATE_RAID_DEFENSE));
+				npc.mDefMul(Math.max(0.1, Config.RAID_BOSS_M_DEF_MODIFIER * Config.RATE_RAID_DEFENSE));
+				npc.maxHpMul(Math.max(0.1, Config.RAID_BOSS_MAX_HP_MODIFIER * Config.RATE_RAID_REGEN));
+				npc.currentHp(npc.maxHp());
+				npc.currentMp(template.maxMp() * Math.max(0.1, Config.RAID_BOSS_MAX_MP_MODIFIER));
+			} else if (championService != null) {
 				championService.tryRollChampion(npc);
 			}
 			world.addNpc(npc);
+			world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, new NpcInfo(npc));
 			if (minionTable != null && minionTable.hasMinions(npcId)) {
 				spawnMinionsForMaster(npc);
 			}
@@ -365,9 +375,17 @@ public class SpawnService {
 				minion.masterObjectId(master.objectId());
 				if (master.template() != null && (master.template().isRaidBoss() || master.template().isGrandBoss())) {
 					minion.raidMinion(true);
+					minion.pAtkMul(Math.max(0.1, Config.RAID_BOSS_P_ATK_MODIFIER * Config.RATE_RAID_ATTACK));
+					minion.mAtkMul(Math.max(0.1, Config.RAID_BOSS_M_ATK_MODIFIER * Config.RATE_RAID_ATTACK));
+					minion.pDefMul(Math.max(0.1, Config.RAID_BOSS_P_DEF_MODIFIER * Config.RATE_RAID_DEFENSE));
+					minion.mDefMul(Math.max(0.1, Config.RAID_BOSS_M_DEF_MODIFIER * Config.RATE_RAID_DEFENSE));
+					minion.maxHpMul(Math.max(0.1, Config.RAID_BOSS_MAX_HP_MODIFIER * Config.RATE_RAID_REGEN));
+					minion.currentHp(minion.maxHp());
+					minion.currentMp(minionTemplate.maxMp() * Math.max(0.1, Config.RAID_BOSS_MAX_MP_MODIFIER));
 				}
 				master.minions().add(minion);
 				world.addNpc(minion);
+				world.broadcastAround(minion.x(), minion.y(), GameWorld.VISIBILITY_RADIUS, new NpcInfo(minion));
 				spawned++;
 			}
 		}

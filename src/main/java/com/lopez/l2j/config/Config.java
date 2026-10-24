@@ -2211,7 +2211,7 @@ public final class Config {
 		AUTO_LOOT_HERBS = ConfigLoader.getBoolean("AutoLootHerbs", false);
 		AUTO_LOOT_ADENA = ConfigLoader.getBoolean("AutoLootAdena", true);
 
-		MAX_BUFFS_AMOUNT = ConfigLoader.getInt("MaxBuffsAmount", 20);
+		MAX_BUFFS_AMOUNT = ConfigLoader.getInt("MaxBuffAmount", ConfigLoader.getInt("MaxBuffsAmount", 20));
 		MAX_DANCES_AMOUNT = ConfigLoader.getInt("MaxDancesAmount", 12);
 
 		// Alt Game
@@ -3145,7 +3145,8 @@ public final class Config {
 		ENABLE_MODIFY_SKILL_DURATION = ConfigLoader.getBoolean("EnableModifySkillDuration", true);
 		String skillDur = ConfigLoader.getProperty("SkillDurationList", "");
 		SKILL_DURATION_LIST = parseSkillDurationList(skillDur);
-		MAX_BUFF_AMOUNT = ConfigLoader.getInt("MaxBuffAmount", 50);
+		MAX_BUFF_AMOUNT = ConfigLoader.getInt("MaxBuffAmount", ConfigLoader.getInt("MaxBuffsAmount", 50));
+		MAX_BUFFS_AMOUNT = MAX_BUFF_AMOUNT;
 		CANCEL_LESSER_EFFECT = ConfigLoader.getBoolean("CancelLesserEffect", true);
 		STORE_SKILL_COOLTIME = ConfigLoader.getBoolean("StoreSkillCooltime", true);
 		GRADE_PENALTY = ConfigLoader.getBoolean("GradePenalty", true);

@@ -226,12 +226,21 @@ public class SkillTable {
 		SkillTemplate[] out = new SkillTemplate[levels];
 		for (int lvl = 1; lvl <= levels; lvl++) {
 			var r = new Resolver(tables, lvl);
+			String parsedSkillType = r.str(sets.get("skillType"), "NOTDONE").toUpperCase(Locale.ROOT);
+			boolean isDebuffFlag = r.bool(sets.get("isDebuff"), false);
+			if (isDebuffFlag && "NOTDONE".equalsIgnoreCase(parsedSkillType)) {
+				parsedSkillType = "DEBUFF";
+			}
+			boolean isDebuffSkill = isDebuffFlag || "DEBUFF".equalsIgnoreCase(parsedSkillType)
+					|| "POISON".equalsIgnoreCase(parsedSkillType) || "BLEED".equalsIgnoreCase(parsedSkillType)
+					|| "WEAKNESS".equalsIgnoreCase(parsedSkillType) || "DOT".equalsIgnoreCase(parsedSkillType)
+					|| "MDOT".equalsIgnoreCase(parsedSkillType) || "AGGDEBUFF".equalsIgnoreCase(parsedSkillType);
 			List<StatFunc> funcs = new ArrayList<>();
 			List<EffectTemplate> effects = new ArrayList<>();
 			if (forElement != null) {
 				for (Element f : SkillCondition.children(forElement)) {
 					if (f.getTagName().equals("effect")) {
-						effects.add(parseEffect(id, f, r));
+						effects.add(parseEffect(id, f, r, isDebuffSkill));
 					} else {
 						StatFunc func = parseFunc(f, r);
 						if (func != null) {
@@ -246,8 +255,11 @@ public class SkillTable {
 				case "OP_TOGGLE" -> OperateType.TOGGLE;
 				default -> OperateType.ACTIVE;
 			};
-			out[lvl - 1] = new SkillTemplate(id, lvl, name, operate,
-					r.str(sets.get("skillType"), "NOTDONE").toUpperCase(Locale.ROOT),
+			int displayId = r.integer(sets.get("displayId"), id);
+			boolean staticHitTime = r.bool(sets.get("staticHitTime"), false);
+			boolean staticReuse = r.bool(sets.get("staticReuse"), false);
+			out[lvl - 1] = new SkillTemplate(id, lvl, displayId <= 0 ? id : displayId, name, operate,
+					parsedSkillType,
 					r.str(sets.get("target"), "TARGET_SELF").toUpperCase(Locale.ROOT),
 					r.bool(sets.get("isMagic")), r.integer(sets.get("mpConsume"), 0),
 					r.integer(sets.get("mpInitialConsume"), 0), r.integer(sets.get("hpConsume"), 0),
@@ -262,6 +274,7 @@ public class SkillTable {
 					sets.containsKey("continueAfterMax")
 							? r.bool(sets.get("continueAfterMax"), false)
 							: (r.integer(sets.get("giveCharges"), 0) > 0 && !"TARGET_SELF".equalsIgnoreCase(r.str(sets.get("target"), "TARGET_SELF"))),
+					staticHitTime, staticReuse,
 					List.copyOf(funcs), List.copyOf(effects), castCond,
 					condMsg);
 		}
@@ -316,10 +329,12 @@ public class SkillTable {
 
 					List<StatFunc> funcs = new ArrayList<>();
 					List<EffectTemplate> effects = new ArrayList<>();
+					String skillType = routeSets.containsKey("skillType") ? r.str(routeSets.get("skillType"), base.skillType()).toUpperCase(Locale.ROOT) : base.skillType();
+					boolean routeDebuff = base.isDebuff() || "DEBUFF".equalsIgnoreCase(skillType);
 					if (routeFor != null) {
 						for (Element f : SkillCondition.children(routeFor)) {
 							if (f.getTagName().equals("effect")) {
-								effects.add(parseEffect(id, f, r));
+								effects.add(parseEffect(id, f, r, routeDebuff));
 							} else {
 								StatFunc func = parseFunc(f, r);
 								if (func != null) {
@@ -329,7 +344,6 @@ public class SkillTable {
 						}
 					}
 
-					String skillType = routeSets.containsKey("skillType") ? r.str(routeSets.get("skillType"), base.skillType()).toUpperCase(Locale.ROOT) : base.skillType();
 					String target = routeSets.containsKey("target") ? r.str(routeSets.get("target"), base.target()).toUpperCase(Locale.ROOT) : base.target();
 					boolean magic = routeSets.containsKey("isMagic") ? r.bool(routeSets.get("isMagic")) : base.magic();
 					int mpConsume = routeSets.containsKey("mpConsume") ? r.integer(routeSets.get("mpConsume"), base.mpConsume()) : base.mpConsume();
@@ -344,13 +358,18 @@ public class SkillTable {
 					int magicLvl = routeSets.containsKey("magicLvl") ? r.integer(routeSets.get("magicLvl"), base.magicLevel()) : base.magicLevel();
 					double absorb = routeSets.containsKey("absorbPart") ? r.number(routeSets.get("absorbPart"), base.absorbPart()) : base.absorbPart();
 
-					SkillTemplate st = new SkillTemplate(id, lvl, name, base.operateType(),
+					int displayId = routeSets.containsKey("displayId") ? r.integer(routeSets.get("displayId"), base.displayId()) : base.displayId();
+					boolean staticHitTime = routeSets.containsKey("staticHitTime") ? r.bool(routeSets.get("staticHitTime"), base.staticHitTime()) : base.staticHitTime();
+					boolean staticReuse = routeSets.containsKey("staticReuse") ? r.bool(routeSets.get("staticReuse"), base.staticReuse()) : base.staticReuse();
+
+					SkillTemplate st = new SkillTemplate(id, lvl, displayId <= 0 ? id : displayId, name, base.operateType(),
 							skillType, target, magic, mpConsume, mpInitial, hpConsume, power,
 							castRange, skillRadius, hitTime, coolTime, reuseDelay, magicLvl,
 							absorb, base.nextActionAttack(),
 							base.itemConsumeId(), base.itemConsumeCount(),
 							base.giveCharges(), base.maxCharges(), base.needCharges(), base.consumeCharges(),
 							base.continueAfterMax(),
+							staticHitTime, staticReuse,
 							funcs.isEmpty() && routeFor == forElement ? base.funcs() : List.copyOf(funcs),
 							effects.isEmpty() && routeFor == forElement ? base.effects() : List.copyOf(effects),
 							rCastCond, rCondMsg);
@@ -360,7 +379,7 @@ public class SkillTable {
 		}
 	}
 
-	private static EffectTemplate parseEffect(int skillId, Element e, Resolver r) {
+	private static EffectTemplate parseEffect(int skillId, Element e, Resolver r, boolean isDebuffSkill) {
 		List<StatFunc> funcs = new ArrayList<>();
 		for (Element f : SkillCondition.children(e)) {
 			StatFunc func = parseFunc(f, r);
@@ -370,10 +389,30 @@ public class SkillTable {
 		}
 		String stack = r.str(e.getAttribute("stackType"), "none");
 		int baseTime = r.integer(e.getAttribute("time"), 0);
-		int effectiveTime = resolveBuffDurationSeconds(skillId, baseTime);
-		return new EffectTemplate(e.getAttribute("name"), r.integer(e.getAttribute("count"), 1),
+		String effectName = e.getAttribute("name");
+		boolean isHotSpringsBuff = skillId >= 4551 && skillId <= 4554;
+		boolean skipBuffMultiplier = !isHotSpringsBuff && (isDebuffSkill
+				|| "Debuff".equalsIgnoreCase(effectName)
+				|| "DamOverTime".equalsIgnoreCase(effectName)
+				|| "ManaDamOverTime".equalsIgnoreCase(effectName)
+				|| "Poison".equalsIgnoreCase(effectName)
+				|| "Bleed".equalsIgnoreCase(effectName)
+				|| "Fear".equalsIgnoreCase(effectName)
+				|| "Stun".equalsIgnoreCase(effectName)
+				|| "Sleep".equalsIgnoreCase(effectName)
+				|| "Root".equalsIgnoreCase(effectName)
+				|| "Paralyze".equalsIgnoreCase(effectName)
+				|| "Mute".equalsIgnoreCase(effectName)
+				|| "SilenceMagicPhysical".equalsIgnoreCase(effectName)
+				|| "PhysicalMute".equalsIgnoreCase(effectName)
+				|| "Petrification".equalsIgnoreCase(effectName));
+		int effectiveTime = skipBuffMultiplier ? baseTime : resolveBuffDurationSeconds(skillId, baseTime);
+		String abnormalAttr = r.str(e.getAttribute("abnormal"), null);
+		int abnormalMask = AbnormalEffect.parseMask(abnormalAttr, effectName);
+		return new EffectTemplate(effectName, r.integer(e.getAttribute("count"), 1),
 				effectiveTime, r.number(e.getAttribute("val"), 0),
-				stack.isBlank() ? "none" : stack, r.number(e.getAttribute("stackOrder"), 0), List.copyOf(funcs));
+				stack.isBlank() ? "none" : stack, r.number(e.getAttribute("stackOrder"), 0),
+				abnormalMask, List.copyOf(funcs));
 	}
 
 	/**

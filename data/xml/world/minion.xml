@@ -920,4 +920,15 @@
 		amount_max="2" />
 	<minion boss_id="29037" minion_id="29039" amount_min="2"
 		amount_max="2" />
+	<minion boss_id="29001" minion_id="29002" amount_min="6" amount_max="6" />
+	<minion boss_id="29001" minion_id="29003" amount_min="8" amount_max="8" />
+	<minion boss_id="29001" minion_id="29004" amount_min="1" amount_max="1" />
+	<minion boss_id="29006" minion_id="29007" amount_min="4" amount_max="4" />
+	<minion boss_id="29006" minion_id="29008" amount_min="2" amount_max="2" />
+	<minion boss_id="29006" minion_id="29011" amount_min="2" amount_max="2" />
+	<minion boss_id="29020" minion_id="29021" amount_min="5" amount_max="5" />
+	<minion boss_id="29022" minion_id="29023" amount_min="2" amount_max="2" />
+	<minion boss_id="29022" minion_id="29024" amount_min="2" amount_max="2" />
+	<minion boss_id="29022" minion_id="29026" amount_min="2" amount_max="2" />
+	<minion boss_id="29022" minion_id="29027" amount_min="2" amount_max="2" />
 </list>

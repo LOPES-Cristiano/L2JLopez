@@ -529,6 +529,387 @@ public class PartyClanPacketHandler {
 			if (updated) {
 				session.send(new PledgeShowInfoUpdate(clan));
 			}
+		} else {
+			int privs = clan.getRankPrivilege(p.rank());
+			session.send(new GameServerPacket.ManagePledgePower(active.clanId(), p.action(), p.rank(), privs));
+		}
+	}
+
+	private int pendingClanInviterId;
+	private int pendingClanPledgeType;
+
+	public void handleJoinPledge(GameClientPacket.RequestJoinPledge p) {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (ctx == null || ctx.clans() == null || ctx.world() == null || active == null || active.clanId() <= 0) {
+			session.send(new ActionFailed());
+			return;
+		}
+		var clanOpt = ctx.clans().byClanId(active.clanId());
+		if (clanOpt.isEmpty()) {
+			session.send(new ActionFailed());
+			return;
+		}
+		var clan = clanOpt.get();
+		boolean canJoin = clan.isLeader(active.objectId())
+				|| (ctx.clanPrivileges() != null && ctx.clanPrivileges().hasPrivilege(active, com.lopez.l2j.game.clan.Clan.CP_CL_JOIN_CLAN));
+		if (!canJoin) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao possui privilegio para convidar membros ao cla."));
+			session.send(new ActionFailed());
+			return;
+		}
+		var targetOpt = ctx.world().player(p.targetId());
+		if (targetOpt.isEmpty() || !(targetOpt.get() instanceof GameSession targetSession) || targetSession.activeChar() == null) {
+			session.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+			return;
+		}
+		PlayerCharacter target = targetSession.activeChar();
+		if (target.clanId() != 0) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", target.name() + " ja pertence a um cla."));
+			return;
+		}
+		if (target.hasClanJoinPenalty()) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", target.name() + " possui penalidade ativa para ingressar em cla."));
+			return;
+		}
+		if (clan.hasCharPenalty()) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Seu cla possui penalidade ativa para recrutar novos membros."));
+			return;
+		}
+		if (p.pledgeType() == com.lopez.l2j.game.clan.Clan.SUBUNIT_ACADEMY && (target.level() >= 40 || target.classId() >= 20)) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas personagens abaixo do nivel 40 sem 2a classe podem entrar na Academia."));
+			return;
+		}
+		targetSession.partyClanHandler().pendingClanInviterId = active.objectId();
+		targetSession.partyClanHandler().pendingClanPledgeType = p.pledgeType();
+		targetSession.send(new GameServerPacket.AskJoinPledge(active.objectId(), clan.name()));
+	}
+
+	public void handleAnswerJoinPledge(GameClientPacket.RequestAnswerJoinPledge p) {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		int inviterId = this.pendingClanInviterId;
+		int pledgeType = this.pendingClanPledgeType;
+		this.pendingClanInviterId = 0;
+		this.pendingClanPledgeType = 0;
+		if (ctx == null || ctx.clans() == null || ctx.world() == null || active == null || inviterId == 0) {
+			return;
+		}
+		var inviterOpt = ctx.world().player(inviterId);
+		if (inviterOpt.isEmpty() || !(inviterOpt.get() instanceof GameSession inviterSession) || inviterSession.activeChar() == null) {
+			return;
+		}
+		if (p.answer() == 0) {
+			inviterSession.send(new CreatureSay(0, CreatureSay.ALL, "SYS", active.name() + " recusou o convite para o cla."));
+			return;
+		}
+		var clanOpt = ctx.clans().byClanId(inviterSession.activeChar().clanId());
+		if (clanOpt.isEmpty()) {
+			return;
+		}
+		var clan = clanOpt.get();
+		if (ctx.clans().addClanMember(clan, active)) {
+			var member = clan.getMember(active.objectId());
+			if (member != null) {
+				member.pledgeType(pledgeType);
+				member.setOnline(true);
+				active.subPledge(pledgeType);
+				active.pledgeRank(member.powerGrade());
+			}
+			if (ctx.clanSkills() != null) {
+				ctx.clanSkills().applyClanSkillsToPlayer(active);
+			}
+			session.send(new GameServerPacket.JoinPledge(clan.clanId()));
+			session.send(new PledgeShowInfoUpdate(clan));
+			session.send(new PledgeShowMemberListAll(clan, pledgeType));
+			clan.broadcastToOnlineMembers(ctx.world(), new PledgeShowMemberListUpdate(active.name(), active.level(), active.classId(), true));
+			session.sendSkillList();
+			session.sendUserInfoAndBroadcastCharInfo();
+		}
+	}
+
+	public void handleWithdrawalPledge() {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (ctx == null || ctx.clans() == null || active == null || active.clanId() <= 0) {
+			session.send(new ActionFailed());
+			return;
+		}
+		var clanOpt = ctx.clans().byClanId(active.clanId());
+		if (clanOpt.isEmpty()) {
+			return;
+		}
+		var clan = clanOpt.get();
+		if (clan.isLeader(active.objectId())) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O lider nao pode abandonar o cla diretamente."));
+			return;
+		}
+		if (ctx.clans().removeClanMember(clan, active, false)) {
+			if (ctx.clanSkills() != null) {
+				ctx.clanSkills().removeClanSkillsFromPlayer(active);
+			}
+			active.title("");
+			active.clanPrivileges(0);
+			active.pledgeRank(0);
+			active.subPledge(0);
+			session.sendSkillList();
+			session.sendUserInfoAndBroadcastCharInfo();
+			clan.broadcastToOnlineMembers(ctx.world(), new PledgeShowInfoUpdate(clan));
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce saiu do cla " + clan.name() + "."));
+		}
+	}
+
+	public void handleOustPledgeMember(GameClientPacket.RequestOustPledgeMember p) {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (ctx == null || ctx.clans() == null || active == null || active.clanId() <= 0 || p.target() == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		var clanOpt = ctx.clans().byClanId(active.clanId());
+		if (clanOpt.isEmpty()) {
+			return;
+		}
+		var clan = clanOpt.get();
+		boolean canDismiss = clan.isLeader(active.objectId())
+				|| (ctx.clanPrivileges() != null && ctx.clanPrivileges().hasPrivilege(active, com.lopez.l2j.game.clan.Clan.CP_CL_DISMISS));
+		if (!canDismiss) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao possui privilegio para expulsar membros do cla."));
+			return;
+		}
+		com.lopez.l2j.game.clan.ClanMember targetMember = null;
+		for (var m : clan.members()) {
+			if (m.name().equalsIgnoreCase(p.target().trim())) {
+				targetMember = m;
+				break;
+			}
+		}
+		if (targetMember == null || clan.isLeader(targetMember.objectId())) {
+			return;
+		}
+		var targetOnlineOpt = ctx.world() != null ? ctx.world().player(targetMember.objectId()) : java.util.Optional.<com.lopez.l2j.game.world.GameWorld.OnlinePlayer>empty();
+		final com.lopez.l2j.game.clan.ClanMember foundMember = targetMember;
+		PlayerCharacter targetChar = targetOnlineOpt.map(com.lopez.l2j.game.world.GameWorld.OnlinePlayer::character).orElseGet(() -> { var pc = new PlayerCharacter(foundMember.objectId(), foundMember.name()); pc.clanId(clan.clanId()); return pc; }); /*
+				.orElseGet(() -> new PlayerCharacter(targetMember.objectId(), "", targetMember.name(), 0, 0, targetMember.classId(),
+						targetMember.level(), 0, 0, 100, 100, 100, 100, 100, 100, 0, 0, 0, false, 0, 0, 0, 0, 0, 0, 0,
+						targetMember.title(), clan.clanId(), null, null)); */
+		if (ctx.clans().removeClanMember(clan, targetChar, true)) {
+			if (targetOnlineOpt.isPresent() && targetOnlineOpt.get() instanceof GameSession targetGs) {
+				if (ctx.clanSkills() != null) {
+					ctx.clanSkills().removeClanSkillsFromPlayer(targetChar);
+				}
+				targetChar.title("");
+				targetChar.clanPrivileges(0);
+				targetChar.pledgeRank(0);
+				targetChar.subPledge(0);
+				targetGs.sendSkillList();
+				targetGs.sendUserInfoAndBroadcastCharInfo();
+				targetGs.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce foi expulso do cla " + clan.name() + "."));
+			}
+			session.send(new PledgeShowMemberListAll(clan, 0));
+			clan.broadcastToOnlineMembers(ctx.world(), new PledgeShowInfoUpdate(clan));
+		}
+	}
+
+	public void handleGiveNickName(GameClientPacket.RequestGiveNickName p) {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (ctx == null || ctx.clans() == null || active == null || active.clanId() <= 0 || p.target() == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		var clanOpt = ctx.clans().byClanId(active.clanId());
+		if (clanOpt.isEmpty()) {
+			return;
+		}
+		var clan = clanOpt.get();
+		if (clan.level() < 3) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O cla precisa estar no nivel 3 ou superior para conceder titulos."));
+			return;
+		}
+		boolean canGiveTitle = clan.isLeader(active.objectId())
+				|| (ctx.clanPrivileges() != null && ctx.clanPrivileges().hasPrivilege(active, com.lopez.l2j.game.clan.Clan.CP_CL_GIVE_TITLE));
+		if (!canGiveTitle) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao possui privilegio para alterar titulos."));
+			return;
+		}
+		String title = p.title() != null ? p.title().trim() : "";
+		if (title.length() > 16) {
+			title = title.substring(0, 16);
+		}
+		for (var m : clan.members()) {
+			if (m.name().equalsIgnoreCase(p.target().trim())) {
+				m.title(title);
+				if (ctx.world() != null) {
+					String finalTitle = title;
+					ctx.world().player(m.objectId()).ifPresent(op -> {
+						if (op.character() != null) {
+							op.character().title(finalTitle);
+							if (ctx.characters() != null) {
+								ctx.characters().save(op.character(), true);
+							}
+						}
+						op.sendUserInfoAndBroadcastCharInfo();
+					});
+				}
+				session.send(new PledgeShowMemberListAll(clan, 0));
+				return;
+			}
+		}
+	}
+
+	public void handleExPledgeCrestLarge(GameClientPacket.RequestExPledgeCrestLarge p) {
+		var ctx = session.context();
+		if (p.crestId() == 0 || ctx == null || ctx.crests() == null) {
+			return;
+		}
+		byte[] data = ctx.crests().getPledgeCrestLarge(p.crestId());
+		if (data != null) {
+			session.send(new GameServerPacket.ExPledgeCrestLarge(p.crestId(), data));
+		}
+	}
+
+	public void handleExSetPledgeCrestLarge(GameClientPacket.RequestExSetPledgeCrestLarge p) {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (ctx == null || ctx.clans() == null || ctx.crests() == null || active == null || active.clanId() <= 0) {
+			return;
+		}
+		var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
+		boolean hasPriv = clan != null && (clan.isLeader(active.objectId())
+				|| (ctx.clanPrivileges() != null && ctx.clanPrivileges().hasPrivilege(active, com.lopez.l2j.game.clan.Clan.CP_CL_REGISTER_CREST)));
+		if (clan == null || !hasPriv) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao possui privilegio para registrar insignia grande."));
+			return;
+		}
+		if (clan.castleId() <= 0 && clan.clanHallId() <= 0) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas clas com Castelo ou Clan Hall podem registrar insignia grande."));
+			return;
+		}
+		int crestId = ctx.crests().savePledgeCrestLarge(p.data());
+		ctx.clans().updateCrestLarge(clan.clanId(), crestId);
+		session.send(new PledgeShowInfoUpdate(clan));
+		session.sendUserInfoAndBroadcastCharInfo();
+	}
+
+	public void handlePledgePowerGradeList() {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (ctx == null || ctx.clans() == null || active == null || active.clanId() <= 0) {
+			return;
+		}
+		var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
+		if (clan == null) {
+			return;
+		}
+		int[] counts = new int[10];
+		for (var m : clan.members()) {
+			int g = m.powerGrade();
+			if (g >= 1 && g <= 9) {
+				counts[g]++;
+			}
+		}
+		java.util.Map<Integer, Integer> grades = new java.util.HashMap<>(9); for (int i = 1; i <= 9; i++) grades.put(i, counts[i]); session.send(new GameServerPacket.PledgePowerGradeList(grades)); /*
+		for (int i = 1; i <= 9; i++) {
+			grades.add(new GameServerPacket.PledgePowerGradeList.GradeInfo(i, counts[i]));
+		}
+		*/
+	}
+
+	public void handlePledgeMemberPowerInfo(GameClientPacket.RequestPledgeMemberPowerInfo p) {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (ctx == null || ctx.clans() == null || active == null || active.clanId() <= 0 || p.player() == null) {
+			return;
+		}
+		var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
+		if (clan == null) {
+			return;
+		}
+		for (var m : clan.members()) {
+			if (m.name().equalsIgnoreCase(p.player().trim())) {
+				int privs = clan.isLeader(m.objectId()) ? com.lopez.l2j.game.clan.Clan.CP_ALL : clan.getRankPrivilege(m.powerGrade());
+				session.send(new GameServerPacket.PledgeReceivePowerInfo(m.powerGrade(), m.name(), privs));
+				return;
+			}
+		}
+	}
+
+	public void handlePledgeSetMemberPowerGrade(GameClientPacket.RequestPledgeSetMemberPowerGrade p) {
+		if (handleMemberPowerGrade(p.member(), p.powerGrade())) {
+			handlePledgeMemberPowerInfo(new GameClientPacket.RequestPledgeMemberPowerInfo(0, p.member()));
+			handlePledgePowerGradeList();
+		}
+	}
+
+	public void handlePledgeMemberInfo(GameClientPacket.RequestPledgeMemberInfo p) {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (ctx == null || ctx.clans() == null || active == null || active.clanId() <= 0 || p.player() == null) {
+			return;
+		}
+		var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
+		if (clan == null) {
+			return;
+		}
+		for (var m : clan.members()) {
+			if (m.name().equalsIgnoreCase(p.player().trim())) {
+				String subName = clan.name();
+				var sub = clan.getSubPledge(m.pledgeType());
+				if (sub != null && sub.name() != null) {
+					subName = sub.name();
+				}
+				String appName = "";
+				if (m.apprentice() > 0) {
+					var app = clan.getMember(m.apprentice());
+					if (app != null) appName = app.name();
+				} else if (m.sponsor() > 0) {
+					var sp = clan.getMember(m.sponsor());
+					if (sp != null) appName = sp.name();
+				}
+				session.send(new GameServerPacket.PledgeReceiveMemberInfo(m.pledgeType(), m.name(), m.title(), m.powerGrade(), subName, appName));
+				return;
+			}
+		}
+	}
+
+	public void handlePledgeWarList(GameClientPacket.RequestPledgeWarList p) {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (ctx == null || ctx.clans() == null || active == null || active.clanId() <= 0) {
+			return;
+		}
+		var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
+		if (clan == null) {
+			return;
+		}
+		java.util.Set<Integer> warIds = p.tab() == 0 ? clan.enemyClanIds() : clan.attackerClanIds();
+		List<GameServerPacket.PledgeReceiveWarList.WarEntry> entries = new java.util.ArrayList<>();
+		for (int cid : warIds) {
+			ctx.clans().byClanId(cid).ifPresent(enemy -> {
+				entries.add(new GameServerPacket.PledgeReceiveWarList.WarEntry(enemy.name(), p.tab(), enemy.members().size()));
+			});
+		}
+		session.send(new GameServerPacket.PledgeReceiveWarList(p.tab(), entries));
+	}
+
+	public void handleReplySurrenderPledgeWar(GameClientPacket.RequestReplySurrenderPledgeWar p) {
+		if (p.answer() == 1 && p.reqName() != null && !p.reqName().isBlank()) {
+			handleStopPledgeWar(new GameClientPacket.RequestStopPledgeWar(p.reqName()));
+		}
+	}
+
+	public void handleChangePartyLeader(GameClientPacket.RequestChangePartyLeader p) {
+		PlayerCharacter active = session.activeChar();
+		Party party = session.party();
+		if (active == null || party == null || !party.isLeader(active.objectId()) || p.name() == null) {
+			return;
+		}
+		for (var m : party.members()) {
+			if (m.character() != null && m.character().name().equalsIgnoreCase(p.name().trim())) {
+				party.changeLeader(m.character().objectId());
+				return;
+			}
 		}
 	}
 

@@ -365,7 +365,7 @@ public class SkillHandlerRegistry {
 			if (clan == null || ctx.world() == null) {
 				return true;
 			}
-			active.startAbnormalEffect(0x04000000); // Magic Circle / Clan Gate visual
+			active.startAbnormalEffect(com.lopez.l2j.game.skill.AbnormalEffect.MAGIC_CIRCLE); // Magic Circle / Clan Gate visual
 			caster.sendUserInfoAndBroadcastCharInfo();
 			CreatureSay gateNotice = new CreatureSay(0, CreatureSay.CLAN, active.name(),
 					"Clan Gate aberto! Membros elegiveis do cla estao sendo invocados.");
@@ -386,7 +386,7 @@ public class SkillHandlerRegistry {
 			}
 			GameSession.autoAttackScheduler().schedule(() -> {
 				if (caster.inWorld() && caster.active() == active) {
-					active.stopAbnormalEffect(0x04000000);
+					active.stopAbnormalEffect(com.lopez.l2j.game.skill.AbnormalEffect.MAGIC_CIRCLE);
 					caster.sendUserInfoAndBroadcastCharInfo();
 				}
 			}, 120_000L, java.util.concurrent.TimeUnit.MILLISECONDS);

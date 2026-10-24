@@ -581,6 +581,21 @@ public class ClanTable {
 		}
 	}
 
+	public void updateCrestLarge(int clanId, int crestLargeId) {
+		Clan clan = byClanId.get(clanId);
+		if (clan != null) {
+			clan.crestLargeId(crestLargeId);
+			if (jdbc != null) {
+				try {
+					jdbc.sql("UPDATE clan_data SET crest_large_id = :crest WHERE clan_id = :id")
+							.param("crest", crestLargeId)
+							.param("id", clanId)
+							.update();
+				} catch (Exception ignored) {}
+			}
+		}
+	}
+
 	private void loadClans() {
 		if (jdbc == null) {
 			return;

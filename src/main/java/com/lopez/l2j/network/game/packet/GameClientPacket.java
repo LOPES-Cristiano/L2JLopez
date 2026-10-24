@@ -225,12 +225,96 @@ public sealed interface GameClientPacket {
 	record RequestPledgeInfo(int clanId) implements GameClientPacket {
 	}
 
-	/** 0x53 - solicitacao de lista de membros do cla. */
+	/** 0x3c - solicitacao de lista de membros do cla. */
 	record RequestPledgeMemberList() implements GameClientPacket {
 	}
 
-	/** 0x52 - upload de novo brasao de cla. */
+	/** 0x52 - resposta a pedido de rendicao de guerra de cla. */
+	record RequestReplySurrenderPledgeWar(String reqName, int answer) implements GameClientPacket {
+	}
+
+	/** 0x53 - upload de novo brasao de cla. */
 	record RequestSetPledgeCrest(byte[] data) implements GameClientPacket {
+	}
+
+	/** 0x24 - convidar jogador para o cla. */
+	record RequestJoinPledge(int targetId, int pledgeType) implements GameClientPacket {
+	}
+
+	/** 0x25 - responder convite de cla (1=aceitar, 0=recusar). */
+	record RequestAnswerJoinPledge(int answer) implements GameClientPacket {
+	}
+
+	/** 0x26 - sair do cla. */
+	record RequestWithdrawalPledge() implements GameClientPacket {
+	}
+
+	/** 0x27 - expulsar membro do cla. */
+	record RequestOustPledgeMember(String target) implements GameClientPacket {
+	}
+
+	/** 0x55 - definir titulo (nickname) de membro do cla. */
+	record RequestGiveNickName(String target, String title) implements GameClientPacket {
+	}
+
+	/** 0x64 - abortar quest na janela de quests (Alt+U). */
+	record RequestQuestAbort(int questId) implements GameClientPacket {
+	}
+
+	/** 0x72 - cristalizar item (Dwarven Crystallize). */
+	record RequestCrystallizeItem(int objectId, int count) implements GameClientPacket {
+	}
+
+	/** 0x9d - solicitar tempo de recarga das skills (SkillCoolTime). */
+	record RequestSkillCoolTime() implements GameClientPacket {
+	}
+
+	/** 0xc5 - resposta a janela ConfirmDlg (ressurreicao, summon friend, casamento, porta). */
+	record DlgAnswer(int messageId, int answer, int requesterId) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x04 - transferir lideranca da party. */
+	record RequestChangePartyLeader(String name) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x10 - solicitar brasao grande (large crest) do cla. */
+	record RequestExPledgeCrestLarge(int crestId) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x11 - enviar brasao grande (large crest) do cla. */
+	record RequestExSetPledgeCrestLarge(byte[] data) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x1a - solicitar lista de ranks de privilegio do cla. */
+	record RequestPledgePowerGradeList() implements GameClientPacket {
+	}
+
+	/** 0xd0:0x1b - solicitar privilegios de um membro especifico do cla. */
+	record RequestPledgeMemberPowerInfo(int unk1, String player) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x1c - definir rank de privilegio de um membro do cla. */
+	record RequestPledgeSetMemberPowerGrade(String member, int powerGrade) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x1d - solicitar informacoes de um membro do cla. */
+	record RequestPledgeMemberInfo(int unk1, String player) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x1e - solicitar lista de guerras do cla na janela de cla. */
+	record RequestPledgeWarList(int unk1, int tab) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x27 - solicitar duelo 1v1 ou em party. */
+	record RequestDuelStart(String player, int partyDuel) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x28 - responder pedido de duelo. */
+	record RequestDuelAnswerStart(int partyDuel, int unk1, int response) implements GameClientPacket {
+	}
+
+	/** 0xd0:0x30 - render-se em duelo. */
+	record RequestDuelSurrender() implements GameClientPacket {
 	}
 
 	/** 0xba - solicitacao de lista de tatuagens disponiveis no Symbol Maker. */
@@ -472,6 +556,10 @@ public sealed interface GameClientPacket {
 					case 0x1b -> new RequestSocialAction(r.readD());
 					case 0x1e -> readSellItem(r);
 					case 0x1f -> readBuyItem(r);
+					case 0x24 -> r.remaining() >= 4 ? new RequestJoinPledge(r.readD(), r.remaining() >= 4 ? r.readD() : 0) : new Unknown(op, -1);
+					case 0x25 -> r.remaining() >= 4 ? new RequestAnswerJoinPledge(r.readD()) : new Unknown(op, -1);
+					case 0x26 -> new RequestWithdrawalPledge();
+					case 0x27 -> r.remaining() >= 2 ? new RequestOustPledgeMember(r.readS()) : new Unknown(op, -1);
 					case 0x29 -> new RequestJoinParty(r.readS(), r.readD());
 					case 0x2a -> new RequestAnswerJoinParty(r.readD());
 					case 0x2b -> new RequestWithDrawalParty();
@@ -481,6 +569,7 @@ public sealed interface GameClientPacket {
 					case 0x33 -> new RequestShortCutReg(r.readD(), r.readD(), r.readD(), r.readD());
 					case 0x35 -> new RequestShortCutDel(r.readD());
 					case 0x37 -> new RequestTargetCancel();
+					case 0x3c -> new RequestPledgeMemberList();
 					case 0x44 -> r.remaining() >= 4 ? new AnswerTradeRequest(r.readD()) : new Unknown(op, -1);
 					case 0x45 -> new RequestActionUse(r.readD(), r.readD() == 1, r.readC() == 1);
 					case 0x4d -> r.remaining() >= 2 ? new RequestStartPledgeWar(r.readS()) : new Unknown(op, -1);
@@ -492,12 +581,25 @@ public sealed interface GameClientPacket {
 					case 0x31 -> readWareHouseList(r, true);
 					case 0x32 -> readWareHouseList(r, false);
 					case 0x3f -> new RequestSkillList();
-					case 0x52 -> readSetPledgeCrest(r);
-					case 0x53 -> new RequestPledgeMemberList();
+					case 0x52 -> {
+						if (r.remaining() >= 6) {
+							var peekReader = new PacketReader(body);
+							peekReader.readC();
+							int peekLen = peekReader.readD();
+							if (peekLen > 0 && peekLen <= 2176 && r.remaining() == 4 + peekLen) {
+								yield readSetPledgeCrest(r);
+							}
+							yield new RequestReplySurrenderPledgeWar(r.readS(), r.remaining() >= 4 ? r.readD() : 0);
+						}
+						yield new RequestSetPledgeCrest(new byte[0]);
+					}
+					case 0x53 -> r.remaining() >= 4 ? readSetPledgeCrest(r) : new RequestPledgeMemberList();
+					case 0x55 -> r.remaining() >= 4 ? new RequestGiveNickName(r.readS(), r.remaining() >= 2 ? r.readS() : "") : new Unknown(op, -1);
 					case 0x57 -> new RequestShowBoard(r.remaining() >= 4 ? r.readD() : 101);
 					case 0x58 -> r.remaining() >= 4 ? new RequestEnchantItem(r.readD()) : new Unknown(op, -1);
 					case 0x59 -> r.remaining() >= 8 ? new RequestDestroyItem(r.readD(), r.readD()) : new Unknown(op, -1);
 					case 0x5b -> new SendBypassBuildCmd(r.readS());
+					case 0x64 -> r.remaining() >= 4 ? new RequestQuestAbort(r.readD()) : new Unknown(op, -1);
 					case 0x66 -> new RequestPledgeInfo(r.readD());
 					case 0x68 -> new RequestPledgeCrest(r.readD());
 					case 0x6b -> new RequestAcquireSkillInfo(r.readD(), r.readD(), r.readD());
@@ -508,6 +610,7 @@ public sealed interface GameClientPacket {
 						int cmd = r.remaining() >= 4 ? r.readD() : 1;
 						yield new RequestGMCommand(target, cmd);
 					}
+					case 0x72 -> r.remaining() >= 8 ? new RequestCrystallizeItem(r.readD(), r.readD()) : new Unknown(op, -1);
 					case 0x73 -> new RequestPrivateStoreManageSell();
 					case 0x74 -> readSetPrivateStoreListSell(r);
 					case 0x76 -> new RequestPrivateStoreQuitSell();
@@ -524,6 +627,7 @@ public sealed interface GameClientPacket {
 					case 0x93 -> new RequestPrivateStoreQuitBuy();
 					case 0x94 -> new SetPrivateStoreMsgBuy(r.remaining() >= 2 ? r.readS() : "");
 					case 0x96 -> readRequestPrivateStoreSell(r);
+					case 0x9d -> new RequestSkillCoolTime();
 					case 0x5e -> new RequestFriendInvite(r.readS());
 					case 0x5f -> new RequestAnswerFriendInvite(r.readD());
 					case 0x60 -> new RequestFriendList();
@@ -556,6 +660,7 @@ public sealed interface GameClientPacket {
 					}
 					case 0xc1 -> readMakeMacro(r);
 					case 0xc2 -> new RequestDeleteMacro(r.readD());
+					case 0xc5 -> r.remaining() >= 8 ? new DlgAnswer(r.readD(), r.readD(), r.remaining() >= 4 ? r.readD() : 0) : new Unknown(op, -1);
 					case 0xc7 -> r.remaining() >= 1 ? new RequestSSQStatus(r.readC()) : new Unknown(op, -1);
 					case 0xcd -> new RequestShowMiniMap();
 					case 0xd0 -> extended(r);
@@ -699,21 +804,43 @@ public sealed interface GameClientPacket {
 		}
 		int sub = r.readH();
 		return switch (sub) {
+			case 0x04 -> r.remaining() >= 2 ? new RequestChangePartyLeader(r.readS()) : new Unknown(0xd0, sub);
 			case 0x08 -> new RequestManorList();
 			case 0x05 -> r.remaining() >= 8 ? new RequestAutoSoulShot(r.readD(), r.readD()) : new Unknown(0xd0, sub);
 			case 0x06 -> r.remaining() >= 8 ? new RequestExEnchantSkillInfo(r.readD(), r.readD()) : new Unknown(0xd0, sub);
 			case 0x07 -> r.remaining() >= 8 ? new RequestExEnchantSkill(r.readD(), r.readD()) : new Unknown(0xd0, sub);
+			case 0x10 -> r.remaining() >= 4 ? new RequestExPledgeCrestLarge(r.readD()) : new Unknown(0xd0, sub);
+			case 0x11 -> readSetPledgeCrestLarge(r);
+			case 0x1a -> new RequestPledgePowerGradeList();
+			case 0x1b -> r.remaining() >= 6 ? new RequestPledgeMemberPowerInfo(r.readD(), r.readS()) : new Unknown(0xd0, sub);
+			case 0x1c -> r.remaining() >= 6 ? new RequestPledgeSetMemberPowerGrade(r.readS(), r.remaining() >= 4 ? r.readD() : 0) : new Unknown(0xd0, sub);
+			case 0x1d -> r.remaining() >= 6 ? new RequestPledgeMemberInfo(r.readD(), r.readS()) : new Unknown(0xd0, sub);
+			case 0x1e -> r.remaining() >= 8 ? new RequestPledgeWarList(r.readD(), r.readD()) : new RequestPledgeWarList(0, 0);
+			case 0x22, 0x45 -> new RequestCursedWeaponList();
+			case 0x23, 0x46 -> new RequestCursedWeaponLocation();
+			case 0x27 -> r.remaining() >= 6 ? new RequestDuelStart(r.readS(), r.remaining() >= 4 ? r.readD() : 0) : new Unknown(0xd0, sub);
+			case 0x28 -> r.remaining() >= 12 ? new RequestDuelAnswerStart(r.readD(), r.readD(), r.readD()) : new Unknown(0xd0, sub);
 			case 0x29 -> r.remaining() >= 4 ? new RequestConfirmTargetItem(r.readD()) : new Unknown(0xd0, sub);
 			case 0x2a -> r.remaining() >= 8 ? new RequestConfirmRefinerItem(r.readD(), r.readD()) : new Unknown(0xd0, sub);
 			case 0x2b -> r.remaining() >= 16 ? new RequestConfirmGemStone(r.readD(), r.readD(), r.readD(), r.readD()) : new Unknown(0xd0, sub);
 			case 0x2c -> r.remaining() >= 16 ? new RequestRefine(r.readD(), r.readD(), r.readD(), r.readD()) : new Unknown(0xd0, sub);
 			case 0x2d -> r.remaining() >= 4 ? new RequestConfirmCancelItem(r.readD()) : new Unknown(0xd0, sub);
 			case 0x2e -> r.remaining() >= 4 ? new RequestRefineCancel(r.readD()) : new Unknown(0xd0, sub);
+			case 0x30 -> new RequestDuelSurrender();
 			case 0x18 -> r.remaining() >= 4 ? new RequestGetBossRecord(r.readD()) : new RequestGetBossRecord(0);
-			case 0x45 -> new RequestCursedWeaponList();
-			case 0x46 -> new RequestCursedWeaponLocation();
 			default -> new Unknown(0xd0, sub);
 		};
+	}
+
+	private static GameClientPacket readSetPledgeCrestLarge(PacketReader r) {
+		if (r.remaining() < 4) {
+			return new RequestExSetPledgeCrestLarge(new byte[0]);
+		}
+		int length = r.readD();
+		if (length <= 0 || length > 2176 || r.remaining() < length) {
+			return new RequestExSetPledgeCrestLarge(new byte[0]);
+		}
+		return new RequestExSetPledgeCrestLarge(r.readB(length));
 	}
 
 	private static Say2 say2(PacketReader r) {

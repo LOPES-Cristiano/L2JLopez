@@ -173,6 +173,10 @@ public class ChatPacketHandler {
 				});
 			}
 			case CreatureSay.HERO -> {
+				if (!active.isHero() && !active.isGm()) {
+					session.send(new ActionFailed());
+					return;
+				}
 				if (!active.isGm()) {
 					if (com.lopez.l2j.config.Config.HERO_CHAT_REUSE_DELAY > 0) {
 						if (now - lastHeroTime < com.lopez.l2j.config.Config.HERO_CHAT_REUSE_DELAY * 1000L) {
@@ -184,6 +188,14 @@ public class ChatPacketHandler {
 				}
 				ctx.world().broadcast(
 						new CreatureSay(active.objectId(), CreatureSay.HERO, active.name(), text), x -> true);
+			}
+			case 14, 15, 16 -> {
+				Party party = session.party();
+				if (party != null) {
+					party.broadcast(new CreatureSay(active.objectId(), channel, active.name(), text));
+				} else {
+					session.send(new ActionFailed());
+				}
 			}
 			case CreatureSay.PARTY -> {
 				Party party = session.party();

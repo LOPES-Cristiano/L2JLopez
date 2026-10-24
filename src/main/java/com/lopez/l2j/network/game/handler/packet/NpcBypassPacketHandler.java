@@ -648,6 +648,13 @@ public class NpcBypassPacketHandler {
 
 			int[] loc = com.lopez.l2j.game.sevensigns.SevenSignsManager.FESTIVAL_ARENA_LOCS[tier];
 			teleportToCoordinates(loc[0], loc[1], loc[2]);
+			if (ctx().spawns() != null) {
+				int baseMobId = 18009 + (tier * 10);
+				int[][] offsets = {{-150, -150}, {150, -150}, {-150, 150}, {150, 150}, {0, -200}, {0, 200}};
+				for (int i = 0; i < offsets.length; i++) {
+					ctx().spawns().spawn(baseMobId + (i % 6), loc[0] + offsets[i][0], loc[1] + offsets[i][1], loc[2], 0, false);
+				}
+			}
 			send(new CreatureSay(0, CreatureSay.ALL, "Festival", "Sua equipe entrou no Festival of Darkness! Derrote os monstros e fale com a Bruxa ao terminar."));
 			return;
 		}
@@ -1881,11 +1888,47 @@ public class NpcBypassPacketHandler {
 			}
 			return;
 		}
-		if (cmd.equals("open_doors") || cmd.startsWith("open_doors")) {
+		if (cmd.startsWith("scripts_services.villagemasters.Ally:CheckCreateAlly")) {
+			int targetObjId = session.targetObjectId() > 0 ? session.targetObjectId() : this.lastInteractedNpcObjId;
+			var npc = targetObjId > 0 && ctx().world() != null ? ctx().world().npc(targetObjId).orElse(null) : null;
+			handleVillageMasterLink(npc, "villagemaster/ally-02.htm");
+			return;
+		}
+		if (cmd.startsWith("scripts_services.villagemasters.Ally:CheckDissolveAlly")) {
+			int targetObjId = session.targetObjectId() > 0 ? session.targetObjectId() : this.lastInteractedNpcObjId;
+			var npc = targetObjId > 0 && ctx().world() != null ? ctx().world().npc(targetObjId).orElse(null) : null;
+			handleVillageMasterLink(npc, "villagemaster/ally-03.htm");
+			return;
+		}
+		if (cmd.startsWith("scripts_services.petevolve.exchange:exch_")) {
+			int num = GameSession.parseIntSafe(cmd.substring("scripts_services.petevolve.exchange:exch_".length()).trim(), 1);
+			handlePetExchangeTicket(num);
+			return;
+		}
+		if (cmd.startsWith("scripts_services.petevolve.") || cmd.startsWith("evolve_pet_")) {
+			handlePetEvolveBypass(null, cmd);
+			return;
+		}
+		if (cmd.startsWith("_mrsl")) {
+			int targetObjId = session.targetObjectId() > 0 ? session.targetObjectId() : this.lastInteractedNpcObjId;
+			var npc = targetObjId > 0 && ctx().world() != null ? ctx().world().npc(targetObjId).orElse(null) : null;
+			if (cmd.startsWith("_mrsl03_") && ctx().monsterRace() != null && active() != null) {
+				int payout = ctx().monsterRace().runRaceAndSettlePlayer(active());
+				if (payout > 0) {
+					send(ItemList.of(active().inventory().items(), false));
+					send(new CreatureSay(0, CreatureSay.ALL, "Monster Race", "Parabens! Voce recebeu " + payout + " Adena de premio!"));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "Monster Race", "Nenhum premio a receber nesta corrida."));
+				}
+			}
+			if (npc != null) showNpcHtml(npc, 0);
+			return;
+		}
+		if (cmd.equals("open_doors") || cmd.startsWith("open_doors") || cmd.startsWith("open_near_doors")) {
 			handleDoorControl(true);
 			return;
 		}
-		if (cmd.equals("close_doors") || cmd.startsWith("close_doors")) {
+		if (cmd.equals("close_doors") || cmd.startsWith("close_doors") || cmd.startsWith("close_near_doors")) {
 			handleDoorControl(false);
 			return;
 		}
@@ -1911,6 +1954,20 @@ public class NpcBypassPacketHandler {
 		}
 		if (cmd.equals("dissolve_clan") || cmd.startsWith("dissolve_clan ")) {
 			session.dissolveClan();
+			return;
+		}
+		if (cmd.equals("learn_clan_skills") || cmd.startsWith("learn_clan_skills")) {
+			int targetObjId = session.targetObjectId() > 0 ? session.targetObjectId() : this.lastInteractedNpcObjId;
+			var npc = targetObjId > 0 && ctx().world() != null ? ctx().world().npc(targetObjId).orElse(null) : null;
+			session.showClanSkillList(npc);
+			return;
+		}
+		if (cmd.startsWith("create_ally ")) {
+			handleCreateAlly(null, cmd.substring("create_ally ".length()).trim());
+			return;
+		}
+		if (cmd.equals("dissolve_ally") || cmd.startsWith("dissolve_ally")) {
+			handleDissolveAlly(null);
 			return;
 		}
 		if (cmd.startsWith("1stClass")) {
@@ -2124,9 +2181,14 @@ public class NpcBypassPacketHandler {
 						} else if (actionLower.startsWith("enchantskilllist") || actionLower.startsWith("skillenchantlist")) {
 							session.showEnchantSkillList(npc);
 							return;
-						} else if (actionLower.startsWith("skilllist") || actionLower.startsWith("fishskilllist")
-								|| actionLower.startsWith("fishingskilllist")) {
+						} else if (actionLower.startsWith("fishskilllist") || actionLower.startsWith("fishingskilllist")) {
+							session.showFishingSkillList(npc);
+							return;
+						} else if (actionLower.startsWith("skilllist")) {
 							session.showSkillList(npc);
+							return;
+						} else if (actionLower.startsWith("learn_clan_skills")) {
+							session.showClanSkillList(npc);
 							return;
 						} else if (actionLower.startsWith("cprecovery")) {
 							if (active() != null) {
@@ -2185,18 +2247,26 @@ public class NpcBypassPacketHandler {
 							return;
 						} else if (actionLower.startsWith("exitrift")) {
 							if (active() != null) {
-								teleportToCoordinates(-114790, -180576, -6781);
+								if (ctx().dimensionalRift() != null && ctx().dimensionalRift().isInRift(active().objectId())) {
+									ctx().dimensionalRift().leaveRift(active(), null);
+								} else {
+									teleportToCoordinates(-114790, -180576, -6781);
+								}
 							}
 							return;
 						} else if (actionLower.startsWith("changeriftroom")) {
 							if (active() != null) {
-								send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "The Dimensional Rift space is shifting..."));
+								if (ctx().dimensionalRift() != null && ctx().dimensionalRift().manualJump(active(), null)) {
+									send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "The Dimensional Rift space has shifted!"));
+								} else {
+									send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "The Dimensional Rift space cannot be shifted right now."));
+								}
 							}
 							return;
-						} else if (actionLower.startsWith("open_doors")) {
+						} else if (actionLower.startsWith("open_doors") || actionLower.startsWith("open_near_doors")) {
 							handleDoorControl(true);
 							return;
-						} else if (actionLower.startsWith("close_doors")) {
+						} else if (actionLower.startsWith("close_doors") || actionLower.startsWith("close_near_doors")) {
 							handleDoorControl(false);
 							return;
 						} else if (actionLower.equals("draw") || actionLower.startsWith("draw")) {
@@ -2294,6 +2364,24 @@ public class NpcBypassPacketHandler {
 									.toList();
 							send(new WareHouseDepositList(1, (int) active().inventory().adena(), depositable));
 							return;
+						} else if (actionLower.startsWith("withdrawsortedc")) {
+							if (ctx().warehouse() == null) {
+								send(new ActionFailed());
+								return;
+							}
+							var stored = new ArrayList<>(ctx().warehouse().getWarehouseItems(active().objectId()));
+							stored.sort(Comparator.comparingInt(ItemInstance::itemId));
+							send(new WareHouseWithdrawalList(2, (int) active().inventory().adena(), stored));
+							return;
+						} else if (actionLower.startsWith("withdrawsortedp") || actionLower.startsWith("withdrawsorted")) {
+							if (ctx().warehouse() == null) {
+								send(new ActionFailed());
+								return;
+							}
+							var stored = new ArrayList<>(ctx().warehouse().getWarehouseItems(active().objectId()));
+							stored.sort(Comparator.comparingInt(ItemInstance::itemId));
+							send(new WareHouseWithdrawalList(1, (int) active().inventory().adena(), stored));
+							return;
 						} else if (actionLower.startsWith("withdrawp") || actionLower.startsWith("withdraw")) {
 							if (ctx().warehouse() == null) {
 								send(new ActionFailed());
@@ -2303,21 +2391,7 @@ public class NpcBypassPacketHandler {
 							send(new WareHouseWithdrawalList(1, (int) active().inventory().adena(), stored));
 							return;
 						} else if (actionLower.startsWith("territorystatus")) {
-							if (ctx().htmls() != null) {
-								String tHtml = ctx().htmls().getHtml("territorystatus.htm");
-								if (tHtml != null) {
-									String rendered = ctx().htmls()
-											.render(tHtml, npc.objectId(), npc.name(), active().name())
-											.replace("%castlename%", "Giran")
-											.replace("%territory%", "Giran")
-											.replace("%clanleadername%", "Lord")
-											.replace("%clanname%", "Ruling Clan")
-											.replace("%taxpercent%", "0");
-									send(new NpcHtmlMessage(npc.objectId(), rendered));
-									return;
-								}
-							}
-							showNpcHtml(npc, 0);
+							handleTerritoryStatus(npc);
 							return;
 						} else if (actionLower.startsWith("augment")) {
 							if (action.contains("2")) {
@@ -2325,6 +2399,15 @@ public class NpcBypassPacketHandler {
 							} else {
 								send(new ExShowVariationMakeWindow());
 							}
+							return;
+						} else if (actionLower.startsWith("create_clan_check")) {
+							handleVillageMasterLink(npc, "villagemaster/clan-02.htm");
+							return;
+						} else if (actionLower.startsWith("disband_clan_check")) {
+							handleVillageMasterLink(npc, "villagemaster/clan-04.htm");
+							return;
+						} else if (actionLower.startsWith("restore_clan_check")) {
+							handleVillageMasterLink(npc, "villagemaster/clan-05.htm");
 							return;
 						} else if (actionLower.startsWith("create_clan")) {
 							String cName = action.length() > 11 ? action.substring(11).trim() : "";
@@ -2335,8 +2418,72 @@ public class NpcBypassPacketHandler {
 						} else if (actionLower.startsWith("increase_clan_level")) {
 							session.increaseClanLevel();
 							return;
-						} else if (actionLower.startsWith("dissolve_clan")) {
+						} else if (actionLower.startsWith("dissolve_clan") || actionLower.startsWith("disband_clan")) {
 							session.dissolveClan();
+							return;
+						} else if (actionLower.startsWith("recover_clan") || actionLower.startsWith("restore_clan")) {
+							handleRecoverClan(npc);
+							return;
+						} else if (actionLower.startsWith("change_clan_leader") || actionLower.startsWith("assign_new_clan_leader")) {
+							String newLeaderName = action.contains(" ") ? action.substring(action.indexOf(' ') + 1).trim() : "";
+							handleChangeClanLeader(npc, newLeaderName);
+							return;
+						} else if (actionLower.startsWith("cancel_clan_leader_change")) {
+							handleCancelClanLeaderChange(npc);
+							return;
+						} else if (actionLower.startsWith("create_academy")) {
+							String subName = action.length() > 14 ? action.substring(14).trim() : "Academy";
+							session.partyClanHandler().handleCreateSubPledge(com.lopez.l2j.game.clan.Clan.SUBUNIT_ACADEMY, subName, "");
+							return;
+						} else if (actionLower.startsWith("create_royal")) {
+							handleCreateRoyalOrKnight(action.length() > 12 ? action.substring(12).trim() : "", true);
+							return;
+						} else if (actionLower.startsWith("create_knight")) {
+							handleCreateRoyalOrKnight(action.length() > 13 ? action.substring(13).trim() : "", false);
+							return;
+						} else if (actionLower.startsWith("assign_subpl_leader") || actionLower.startsWith("rename_pledge")) {
+							handleAssignSubPledgeLeader(action);
+							return;
+						} else if (actionLower.startsWith("create_ally")) {
+							String allyName = action.length() > 11 ? action.substring(11).trim() : "";
+							handleCreateAlly(npc, allyName);
+							return;
+						} else if (actionLower.startsWith("dissolve_ally")) {
+							handleDissolveAlly(npc);
+							return;
+						} else if (actionLower.startsWith("raidinfo")) {
+							String rArg = action.length() > 8 ? action.substring(8).trim() : "20";
+							handleRaidInfo(npc, rArg);
+							return;
+						} else if (actionLower.startsWith("npcfind_byid")) {
+							String fArg = action.length() > 12 ? action.substring(12).trim() : "";
+							handleNpcFindById(npc, fArg);
+							return;
+						} else if (actionLower.startsWith("evolve")) {
+							handlePetEvolveBypass(npc, action);
+							return;
+						} else if (actionLower.startsWith("ridewyvern")) {
+							handleRideWyvern(npc);
+							return;
+						} else if (actionLower.startsWith("hire")) {
+							handleHireMercenary(npc, action.length() > 4 ? action.substring(4).trim() : "");
+							return;
+						} else if (actionLower.startsWith("fishingchampionship") || actionLower.startsWith("fishingreward")) {
+							handleFishingChampionshipBypass(npc, actionLower);
+							return;
+						} else if (actionLower.startsWith("buyticket") || actionLower.startsWith("showodds")
+								|| actionLower.startsWith("showinfo") || actionLower.startsWith("calculatewin")
+								|| actionLower.startsWith("viewhistory")) {
+							handleMonsterRaceNpcBypass(npc, action);
+							return;
+						} else if (actionLower.startsWith("functions") || actionLower.startsWith("manage_functions")
+								|| actionLower.startsWith("manage_vault") || actionLower.startsWith("manage")
+								|| actionLower.startsWith("tax_setup") || actionLower.startsWith("tax_set")
+								|| actionLower.startsWith("siege_change") || actionLower.startsWith("list_siege_clans")
+								|| actionLower.startsWith("doors_update") || actionLower.startsWith("traps_update")
+								|| actionLower.startsWith("door") || actionLower.startsWith("list_back")
+								|| actionLower.startsWith("products") || actionLower.startsWith("banish_foreigner_show")) {
+							handleResidenceManagerBypass(npc, action);
 							return;
 						} else if (actionLower.startsWith("getbuff")) {
 							handleBufferGetBuff(npc, action.substring(7).trim());
@@ -2523,6 +2670,11 @@ public class NpcBypassPacketHandler {
 			session.showMultiSell(npc, 200);
 			return true;
 		} else if (lower.equals("exchange") || lower.startsWith("exchange ")) {
+			String arg = action.length() > 8 ? action.substring(8).trim() : "";
+			if ("1".equals(arg) || "2".equals(arg) || "3".equals(arg)) {
+				handlePetExchangeTicket(Integer.parseInt(arg));
+				return true;
+			}
 			session.showMultiSell(npc, 3);
 			return true;
 		} else if (lower.startsWith("multisell")) {
@@ -2594,9 +2746,12 @@ public class NpcBypassPacketHandler {
 			int cz = npc != null ? npc.z() : active().z();
 			var anim = new MagicSkillUse(npcObjId, active().objectId(), skillId, skillLvl, 500, 0,
 					cx, cy, cz, active().x(), active().y(), active().z());
+			var msl = new GameServerPacket.MagicSkillLaunched(npcObjId, skillId, skillLvl, List.of(active().objectId()));
 			send(anim);
+			send(msl);
 			if (ctx().world() != null) {
 				ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, anim, false);
+				ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msl, false);
 			}
 
 			if (returnHtml != null && !returnHtml.isBlank() && ctx().htmls() != null) {
@@ -2636,7 +2791,9 @@ public class NpcBypassPacketHandler {
 			int cz = npc.z();
 			var anim = new MagicSkillUse(npc.objectId(), active().objectId(), 1068, 3, 500, 0,
 					cx, cy, cz, active().x(), active().y(), active().z());
+			var msl = new GameServerPacket.MagicSkillLaunched(npc.objectId(), 1068, 3, List.of(active().objectId()));
 			send(anim);
+			send(msl);
 			showNpcHtml(npc, 0);
 		}
 	}
@@ -2734,6 +2891,7 @@ public class NpcBypassPacketHandler {
 		int cz = npc != null ? npc.z() : active().z();
 		send(new MagicSkillUse(npcObjId, active().objectId(), 1012, 1, 0, 0,
 				cx, cy, cz, active().x(), active().y(), active().z()));
+		send(new GameServerPacket.MagicSkillLaunched(npcObjId, 1012, 1, List.of(active().objectId())));
 		if (npc != null) {
 			showNpcHtml(npc, 0);
 		}
@@ -2756,6 +2914,7 @@ public class NpcBypassPacketHandler {
 		int cz = npc != null ? npc.z() : active().z();
 		send(new MagicSkillUse(npcObjId, active().objectId(), 1056, 1, 0, 0,
 				cx, cy, cz, active().x(), active().y(), active().z()));
+		send(new GameServerPacket.MagicSkillLaunched(npcObjId, 1056, 1, List.of(active().objectId())));
 		if (npc != null) {
 			showNpcHtml(npc, 0);
 		}
@@ -2783,11 +2942,14 @@ public class NpcBypassPacketHandler {
 				int cx = npc != null ? npc.x() : active().x();
 				int cy = npc != null ? npc.y() : active().y();
 				int cz = npc != null ? npc.z() : active().z();
-				var anim = new MagicSkillUse(npcObjId, active().objectId(), sk.id(), sk.level(), 500, 0,
+				var anim = new MagicSkillUse(npcObjId, active().objectId(), sk.displayId(), sk.level(), 500, 0,
 						cx, cy, cz, active().x(), active().y(), active().z());
+				var msl = new GameServerPacket.MagicSkillLaunched(npcObjId, sk.displayId(), sk.level(), List.of(active().objectId()));
 				send(anim);
+				send(msl);
 				if (ctx().world() != null) {
 					ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, anim, false);
+					ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msl, false);
 				}
 			}
 			if (ctx().htmls() != null && npc != null) {
@@ -2878,18 +3040,62 @@ public class NpcBypassPacketHandler {
 	private void handleOlympiadNoble(NpcInstance npc, String val) {
 		if (active() == null) return;
 		int v = 1;
-		try { v = Integer.parseInt(val); } catch (Exception ignored) {}
+		try { v = Integer.parseInt(val.split("\\s+")[0]); } catch (Exception ignored) {}
 		String npcName = npc != null ? npc.name() : "Olympiad Manager";
+		var oly = ctx().olympiad();
 		switch (v) {
-			case 1 -> send(new CreatureSay(0, CreatureSay.ALL, npcName, "Sua inscricao nas Grandes Olimpiadas foi cancelada."));
-			case 2 -> send(new CreatureSay(0, CreatureSay.ALL, npcName, "Fila de espera atual: 0 participantes sem classe, 0 com classe."));
+			case 1 -> {
+				boolean unreg = oly != null && oly.unregisterFromQueue(active().objectId());
+				send(new CreatureSay(0, CreatureSay.ALL, npcName,
+						unreg ? "Sua inscricao nas Grandes Olimpiadas foi cancelada." : "Voce nao estava inscrito na fila das Olimpiadas."));
+			}
+			case 2 -> {
+				int nonClassed = oly != null ? oly.getQueueSize(com.lopez.l2j.game.olympiad.OlympiadMode.CLASS_FREE) : 0;
+				int classed = oly != null ? oly.getQueueSize(com.lopez.l2j.game.olympiad.OlympiadMode.CLASS_BASED) : 0;
+				send(new CreatureSay(0, CreatureSay.ALL, npcName,
+						"Fila de espera atual: " + nonClassed + " participantes sem classe, " + classed + " com classe."));
+			}
 			case 3 -> {
-				var noble = ctx().olympiad() != null ? ctx().olympiad().getNoble(active().objectId()) : java.util.Optional.<com.lopez.l2j.game.olympiad.OlympiadNoble>empty();
+				var noble = oly != null ? oly.getNoble(active().objectId()) : java.util.Optional.<com.lopez.l2j.game.olympiad.OlympiadNoble>empty();
 				int pts = noble.map(com.lopez.l2j.game.olympiad.OlympiadNoble::points).orElse(18);
 				send(new CreatureSay(0, CreatureSay.ALL, npcName, "Seus pontos atuais de Nobreza nas Olimpiadas: " + pts));
 			}
-			case 4 -> send(new CreatureSay(0, CreatureSay.ALL, npcName, "Voce foi registrado nas batalhas sem restricao de classe."));
-			case 5 -> send(new CreatureSay(0, CreatureSay.ALL, npcName, "Voce foi registrado nas batalhas baseadas em classe."));
+			case 4 -> {
+				var res = oly != null
+						? oly.registerForQueue(active(), com.lopez.l2j.game.olympiad.OlympiadMode.CLASS_FREE, session.clientIp())
+						: true;
+				send(new CreatureSay(0, CreatureSay.ALL, npcName,
+						res
+								? "Voce foi registrado nas batalhas sem restricao de classe."
+								: "Nao foi possivel registrar nas Olimpiadas."));
+			}
+			case 5 -> {
+				var res = oly != null
+						? oly.registerForQueue(active(), com.lopez.l2j.game.olympiad.OlympiadMode.CLASS_BASED, session.clientIp())
+						: true;
+				send(new CreatureSay(0, CreatureSay.ALL, npcName,
+						res
+								? "Voce foi registrado nas batalhas baseadas em classe."
+								: "Nao foi possivel registrar nas Olimpiadas."));
+			}
+			case 6 -> {
+				var noble = oly != null ? oly.getNoble(active().objectId()) : java.util.Optional.<com.lopez.l2j.game.olympiad.OlympiadNoble>empty();
+				int pts = noble.map(com.lopez.l2j.game.olympiad.OlympiadNoble::points).orElse(0);
+				int passes = pts >= 50 ? pts * 1000 : 0;
+				if (passes > 0 && ctx().inventories() != null) {
+					ctx().inventories().addItem(active().inventory(), 6651, passes, "OlympiadGatePass");
+					send(ItemList.of(active().inventory().items(), false));
+					send(new CreatureSay(0, CreatureSay.ALL, npcName, "Voce trocou seus pontos por " + passes + " Noblesse Gate Pass!"));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, npcName, "Voce precisa de pelo menos 50 pontos para receber Noblesse Gate Passes."));
+				}
+			}
+			case 7 -> {
+				if (npc != null) {
+					session.showMultiSell(npc, 102);
+					return;
+				}
+			}
 			default -> send(new CreatureSay(0, CreatureSay.ALL, npcName, "Operacao concluida."));
 		}
 		if (npc != null) {
@@ -2938,12 +3144,29 @@ public class NpcBypassPacketHandler {
 
 	private void handleCastleReport(NpcInstance npc) {
 		if (ctx().htmls() == null || active() == null || npc == null) return;
+		int castleId = getNpcCastleId(npc);
+		var castle = ctx().castles() != null ? ctx().castles().getCastleById(castleId).orElse(null) : null;
+		String castleName = castle != null ? castle.name() : "Giran";
+		long treasury = castle != null ? castle.treasury() : 0L;
+		int tax = castle != null ? castle.taxPercent() : 0;
+		String clanName = "None";
+		String leaderName = "None";
+		if (castle != null && castle.ownerClanId() > 0 && ctx().clans() != null) {
+			var c = ctx().clans().byClanId(castle.ownerClanId()).orElse(null);
+			if (c != null) {
+				clanName = c.name();
+				leaderName = c.leaderName();
+			}
+		}
 		String htm = ctx().htmls().getHtml("chamberlain/chamberlain-report.htm");
 		if (htm != null) {
-			String rendered = ctx().htmls().render(htm, npc.objectId(), npc.name(), active().name())
-					.replace("%tax_income%", "0")
-					.replace("%current_tax%", "0")
-					.replace("%castle_income%", "0");
+			String rendered = ctx().htmls().render(htm, npc.objectId(), npc.name(), active().name(), castleId, npc.npcId())
+					.replace("%castlename%", castleName)
+					.replace("%clanname%", clanName)
+					.replace("%clanleadername%", leaderName)
+					.replace("%tax_income%", String.valueOf(treasury))
+					.replace("%current_tax%", String.valueOf(tax))
+					.replace("%castle_income%", String.valueOf(treasury));
 			send(new NpcHtmlMessage(npc.objectId(), rendered));
 		} else {
 			showNpcHtml(npc, 0);
@@ -2952,10 +3175,672 @@ public class NpcBypassPacketHandler {
 
 	private void handleBanishForeigner(NpcInstance npc) {
 		if (active() == null) return;
+		if (ctx().world() != null && npc != null) {
+			int ownerClanId = active().clanId();
+			int castleId = getNpcCastleId(npc);
+			if (ctx().castles() != null) {
+				var c = ctx().castles().getCastleById(castleId).orElse(null);
+				if (c != null && c.ownerClanId() > 0) {
+					ownerClanId = c.ownerClanId();
+				}
+			}
+					int[] townCoords = ctx().mapRegions() != null
+							? ctx().mapRegions().getRestartCoordinates(npc.x(), npc.y(), npc.z(), 0)
+							: new int[]{83400, 147943, -3404};
+					for (var p : ctx().world().findPlayersAround(npc.x(), npc.y(), 2000, npc.instanceId())) {
+						var ch = p.character();
+						if (ch != null && !ch.isGm() && ch.objectId() != active().objectId() && (ownerClanId <= 0 || ch.clanId() != ownerClanId)) {
+							ctx().world().teleportPlayer(ch, townCoords[0], townCoords[1], townCoords[2], 0);
+						}
+					}
+					if (false) {
+						for (var p : ctx().world().findPlayersAround(npc.x(), npc.y(), 2000, npc.instanceId())) { /*
+					? ctx().mapRegions().getNearestTownCoordinates(npc.x(), npc.y())
+					: new int[]{83400, 147943, -3404};
+			for (var p : ctx().world().playersAround(npc.x(), npc.y(), 2000, npc.instanceId())) {
+				var ch = p.character();
+				if (ch != null && !ch.isGm() && ch.objectId() != active().objectId() && (ownerClanId <= 0 || ch.clanId() != ownerClanId)) {
+					ctx().world().teleportPlayer(ch, townCoords[0], townCoords[1], townCoords[2], 0);
+				}
+			}
+				var ch = p.character();
+				if (ch != null && !ch.isGm() && ch.objectId() != active().objectId() && (ownerClanId <= 0 || ch.clanId() != ownerClanId)) {
+					ctx().world().teleportPlayer(ch, townCoords[0], townCoords[1], townCoords[2], 0);
+				} */
+				var ch = p.character();
+				if (ch != null && !ch.isGm() && ch.objectId() != active().objectId() && (ownerClanId <= 0 || ch.clanId() != ownerClanId)) {
+					ctx().world().teleportPlayer(ch, townCoords[0], townCoords[1], townCoords[2], 0);
+				}
+			}
+		}
+		}
 		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Chamberlain", "Todos os nao-membros do cla foram banidos para fora do castelo."));
 		if (npc != null) {
 			showNpcHtml(npc, 0);
 		}
+	}
+
+	private void handleTerritoryStatus(NpcInstance npc) {
+		if (npc == null || active() == null) return;
+		int castleId = getNpcCastleId(npc);
+		var castle = ctx().castles() != null ? ctx().castles().getCastleById(castleId).orElse(null) : null;
+		String castleName = castle != null ? castle.name() : "Giran";
+		int tax = castle != null ? castle.taxPercent() : 0;
+		String clanName = "None";
+		String leaderName = "None";
+		if (castle != null && castle.ownerClanId() > 0 && ctx().clans() != null) {
+			var ownerClan = ctx().clans().byClanId(castle.ownerClanId()).orElse(null);
+			if (ownerClan != null) {
+				clanName = ownerClan.name();
+				leaderName = ownerClan.leaderName() != null && !ownerClan.leaderName().isBlank() ? ownerClan.leaderName() : "Lord";
+			}
+		}
+		if (ctx().htmls() != null) {
+			String tHtml = ctx().htmls().getHtml("territorystatus.htm");
+			if (tHtml == null && "None".equals(clanName)) {
+				tHtml = ctx().htmls().getHtml("territorynoclan.htm");
+			}
+			if (tHtml != null) {
+				String rendered = ctx().htmls()
+						.render(tHtml, npc.objectId(), npc.name(), active().name(), castleId, npc.npcId())
+						.replace("%castlename%", castleName)
+						.replace("%territory%", castleName)
+						.replace("%clanleadername%", leaderName)
+						.replace("%clanname%", clanName)
+						.replace("%taxpercent%", String.valueOf(tax));
+				send(new NpcHtmlMessage(npc.objectId(), rendered));
+				return;
+			}
+		}
+		String fallback = "<html><body><font color=\"LEVEL\">[Territory Status]</font><br><br>"
+				+ "Territory: " + castleName + " Castle<br>"
+				+ "Ruling Clan: " + clanName + "<br>"
+				+ "Lord: " + leaderName + "<br>"
+				+ "Tax Rate: " + tax + "%</body></html>";
+		send(new NpcHtmlMessage(npc.objectId(), fallback));
+	}
+
+	private void handleVillageMasterLink(NpcInstance npc, String path) {
+		int npcObjId = npc != null ? npc.objectId() : 0;
+		String npcName = npc != null ? npc.name() : "Village Master";
+		if (ctx().htmls() != null) {
+			String htm = ctx().htmls().getHtml(path);
+			if (htm == null) htm = ctx().htmls().getIndexedHtml(path);
+			if (htm != null) {
+				send(new NpcHtmlMessage(npcObjId, ctx().htmls().render(htm, npcObjId, npcName, active() != null ? active().name() : "Player")));
+				return;
+			}
+		}
+		if (npc != null) showNpcHtml(npc, 0);
+	}
+
+	private void handleRecoverClan(NpcInstance npc) {
+		if (active() == null || active().clanId() <= 0 || ctx().clans() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var clan = ctx().clans().byClanId(active().clanId()).orElse(null);
+		if (clan == null || !clan.isLeader(active().objectId())) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas o lider do cla pode restaurar o cla."));
+			return;
+		}
+		clan.dissolvingExpiryTime(0L);
+		send(new PledgeShowInfoUpdate(clan));
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O pedido de dissolucao do cla foi cancelado com sucesso!"));
+		if (npc != null) showNpcHtml(npc, 0);
+	}
+
+	private void handleChangeClanLeader(NpcInstance npc, String newLeaderName) {
+		if (active() == null || active().clanId() <= 0 || ctx().clans() == null || newLeaderName == null || newLeaderName.isBlank()) {
+			send(new ActionFailed());
+			return;
+		}
+		var clan = ctx().clans().byClanId(active().clanId()).orElse(null);
+		if (clan == null || !clan.isLeader(active().objectId())) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas o lider do cla pode transferir a lideranca."));
+			return;
+		}
+		com.lopez.l2j.game.clan.ClanMember target = null;
+		for (var m : clan.members()) {
+			if (m.name() != null && m.name().equalsIgnoreCase(newLeaderName.trim())) {
+				target = m;
+				break;
+			}
+		}
+		if (target == null) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Membro '" + newLeaderName + "' nao encontrado no cla."));
+			return;
+		}
+		if (ctx().clans().requestLeaderChange(clan, target.objectId())) {
+			clan.broadcastToOnlineMembers(ctx().world(), new PledgeShowInfoUpdate(clan));
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Transferencia de lideranca para " + target.name() + " registrada com sucesso!"));
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel transferir a lideranca do cla."));
+		}
+		if (npc != null) showNpcHtml(npc, 0);
+	}
+
+	private void handleCancelClanLeaderChange(NpcInstance npc) {
+		if (active() == null || active().clanId() <= 0 || ctx().clans() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var clan = ctx().clans().byClanId(active().clanId()).orElse(null);
+		if (clan != null && clan.isLeader(active().objectId())) {
+			clan.newLeaderId(0);
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Transferencia de lideranca cancelada."));
+		}
+		if (npc != null) showNpcHtml(npc, 0);
+	}
+
+	private void handleCreateRoyalOrKnight(String args, boolean isRoyal) {
+		if (active() == null || active().clanId() <= 0 || ctx().clans() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var clan = ctx().clans().byClanId(active().clanId()).orElse(null);
+		if (clan == null) {
+			send(new ActionFailed());
+			return;
+		}
+		String[] tokens = args.trim().split("\\s+");
+		String subName = tokens.length >= 2 ? tokens[1] : (tokens.length == 1 && !tokens[0].isEmpty() ? tokens[0] : (isRoyal ? "RoyalGuard" : "OrderOfKnights"));
+		String leaderName = tokens.length >= 2 ? tokens[0] : active().name();
+		int pledgeType;
+		if (isRoyal) {
+			pledgeType = clan.getSubPledge(com.lopez.l2j.game.clan.Clan.SUBUNIT_ROYAL1) == null
+					? com.lopez.l2j.game.clan.Clan.SUBUNIT_ROYAL1
+					: com.lopez.l2j.game.clan.Clan.SUBUNIT_ROYAL2;
+		} else {
+			if (clan.getSubPledge(com.lopez.l2j.game.clan.Clan.SUBUNIT_KNIGHT1) == null) pledgeType = com.lopez.l2j.game.clan.Clan.SUBUNIT_KNIGHT1;
+			else if (clan.getSubPledge(com.lopez.l2j.game.clan.Clan.SUBUNIT_KNIGHT2) == null) pledgeType = com.lopez.l2j.game.clan.Clan.SUBUNIT_KNIGHT2;
+			else if (clan.getSubPledge(com.lopez.l2j.game.clan.Clan.SUBUNIT_KNIGHT3) == null) pledgeType = com.lopez.l2j.game.clan.Clan.SUBUNIT_KNIGHT3;
+			else pledgeType = com.lopez.l2j.game.clan.Clan.SUBUNIT_KNIGHT4;
+		}
+		if (session.partyClanHandler().handleCreateSubPledge(pledgeType, subName, leaderName)) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sub-unidade '" + subName + "' criada com sucesso!"));
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel criar a sub-unidade. Verifique nivel do cla, reputacao e lider."));
+		}
+	}
+
+	private void handleAssignSubPledgeLeader(String action) {
+		if (active() == null || active().clanId() <= 0 || ctx().clans() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var clan = ctx().clans().byClanId(active().clanId()).orElse(null);
+		if (clan == null || !clan.isLeader(active().objectId())) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas o lider do cla pode alterar sub-unidades."));
+			return;
+		}
+		String[] tokens = action.trim().split("\\s+");
+		if (tokens.length < 3) {
+			send(new ActionFailed());
+			return;
+		}
+		String first = tokens[1];
+		String second = tokens[2];
+		for (var sp : clan.subPledges().values()) {
+			if (sp.name() != null && (sp.name().equalsIgnoreCase(second) || sp.name().equalsIgnoreCase(first))) {
+				String targetLeaderName = sp.name().equalsIgnoreCase(second) ? first : second;
+				for (var m : clan.members()) {
+					if (m.name() != null && m.name().equalsIgnoreCase(targetLeaderName)) {
+						clan.addSubPledge(sp.type(), sp.name(), m.objectId());
+						send(new PledgeShowInfoUpdate(clan));
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Novo lider da unidade '" + sp.name() + "' definido: " + m.name()));
+						return;
+					}
+				}
+			}
+		}
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sub-unidade ou membro nao encontrado."));
+	}
+
+	private void handleCreateAlly(NpcInstance npc, String allyName) {
+		if (active() == null || ctx().alliances() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var res = ctx().alliances().createAlliance(active(), allyName);
+		if (res == com.lopez.l2j.game.clan.alliance.AllianceService.CreateResult.SUCCESS) {
+			if (ctx().clans() != null) {
+				ctx().clans().byClanId(active().clanId()).ifPresent(c -> send(new PledgeShowInfoUpdate(c)));
+			}
+			session.sendUserInfoAndBroadcastCharInfo();
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Alianca '" + allyName + "' criada com sucesso!"));
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel criar a alianca: " + res.name()));
+		}
+		if (npc != null) showNpcHtml(npc, 0);
+	}
+
+	private void handleDissolveAlly(NpcInstance npc) {
+		if (active() == null || ctx().alliances() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var res = ctx().alliances().dissolveAlliance(active());
+		if (res == com.lopez.l2j.game.clan.alliance.AllianceService.DissolveResult.SUCCESS) {
+			if (ctx().clans() != null) {
+				ctx().clans().byClanId(active().clanId()).ifPresent(c -> send(new PledgeShowInfoUpdate(c)));
+			}
+			session.sendUserInfoAndBroadcastCharInfo();
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Alianca dissolvida com sucesso."));
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel dissolver a alianca: " + res.name()));
+		}
+		if (npc != null) showNpcHtml(npc, 0);
+	}
+
+	private void handleRaidInfo(NpcInstance npc, String levelArg) {
+		int npcObjId = npc != null ? npc.objectId() : 0;
+		String npcName = npc != null ? npc.name() : "Adventure Guildsman";
+		String cleanLvl = levelArg.isBlank() ? "20" : levelArg.split("\\s+")[0].trim();
+		if ("0".equals(cleanLvl) || "info".equalsIgnoreCase(cleanLvl)) {
+			handleVillageMasterLink(npc, "adventurer_guildsman/raid_info/info.htm");
+			return;
+		}
+		String path = "adventurer_guildsman/raid_info/level" + cleanLvl + ".htm";
+		if (ctx().htmls() != null) {
+			String htm = ctx().htmls().getHtml(path);
+			if (htm != null) {
+				send(new NpcHtmlMessage(npcObjId, ctx().htmls().render(htm, npcObjId, npcName, active() != null ? active().name() : "Player")));
+				return;
+			}
+		}
+		handleVillageMasterLink(npc, "adventurer_guildsman/raid_info/info.htm");
+	}
+
+	private void handleNpcFindById(NpcInstance npc, String bossIdArg) {
+		if (active() == null || ctx().world() == null) return;
+		int bossId = GameSession.parseIntSafe(bossIdArg, 0);
+		if (bossId <= 0) return;
+		for (NpcInstance candidate : ctx().world().npcs()) {
+			if (candidate.npcId() == bossId && !candidate.isDead()) {
+				send(new RadarControl(2, 2, candidate.x(), candidate.y(), candidate.z()));
+				send(new RadarControl(0, 1, candidate.x(), candidate.y(), candidate.z()));
+				send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Guildsman",
+						candidate.name() + " foi localizado no mapa! Verifique seu radar."));
+				return;
+			}
+		}
+		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Guildsman",
+				"Este Raid Boss nao esta vivo ou disponivel no mundo no momento."));
+	}
+
+	private void handlePetExchangeTicket(int type) {
+		if (active() == null || ctx().inventories() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		int ticketId = switch (type) {
+			case 1 -> 7583; // Buffalo
+			case 2 -> 7584; // Cougar
+			case 3 -> 7585; // Kookaburra
+			default -> 7583;
+		};
+		int collarId = switch (type) {
+			case 1 -> 6648; // Baby Buffalo Panpipe
+			case 2 -> 6649; // Baby Cougar Chime
+			case 3 -> 6650; // Baby Kookaburra Ocarina
+			default -> 6648;
+		};
+		if (session.consumeItem(ticketId, 1)) {
+			ctx().inventories().addItem(active().inventory(), collarId, 1, "PetExchangeTicket");
+			send(ItemList.of(active().inventory().items(), false));
+			send(new CreatureSay(0, CreatureSay.ALL, "Pet Manager", "Parabens! Voce trocou seu bilhete por um Baby Pet!"));
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, "Pet Manager", "Voce nao possui o Pet Exchange Ticket necessario."));
+		}
+	}
+
+	private void handlePetEvolveBypass(NpcInstance npc, String action) {
+		if (active() == null || active().inventory() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		var evolveService = new com.lopez.l2j.game.pet.PetEvolveService();
+		var summon = active() != null ? active().activeSummon() : null;
+		int petLvl = summon != null ? summon.level() : Math.max(55, active().level());
+		int[] candidates = {2375, 3500, 3501, 3502, 6648, 6649, 6650};
+		for (int itemId : candidates) {
+			if (active().inventory().byItemId(itemId).isPresent()) {
+				var res = evolveService.evolvePet(active(), itemId, petLvl);
+				if (res.success()) {
+					if (ctx().inventories() != null) {
+						active().inventory().byItemId(res.evolvedItemId()).ifPresent(active().inventory()::remove);
+						ctx().inventories().addItem(active().inventory(), res.evolvedItemId(), 1, "PetEvolve");
+					}
+					send(ItemList.of(active().inventory().items(), false));
+					send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Pet Manager", res.message()));
+					return;
+				}
+			}
+		}
+		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Pet Manager",
+				"Voce precisa ter um Wolf, Hatchling ou Baby Pet (Lv. 55+) no inventario para evoluir."));
+	}
+
+	private void handleRideWyvern(NpcInstance npc) {
+		if (active() == null) return;
+		var clan = (ctx().clans() != null && active().clanId() > 0) ? ctx().clans().byClanId(active().clanId()).orElse(null) : null;
+		boolean isLord = active().isGm() || (clan != null && clan.isLeader(active().objectId()) && (clan.castleId() > 0 || clan.clanHallId() > 0 || clan.fortId() > 0));
+		if (!isLord) {
+			send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Wyvern Manager",
+					"Apenas o Lorde de um Castelo, Fortaleza ou Clan Hall conquistado pode montar um Wyvern."));
+			return;
+		}
+		if (!active().isGm() && !session.consumeItem(1460, 10)) {
+			send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Wyvern Manager",
+					"Voce precisa de 10 Crystals: B-Grade para alimentar o Wyvern."));
+			return;
+		}
+		active().mountType(2);
+		active().mountNpcId(12621);
+		var ridePkt = new GameServerPacket.Ride(active().objectId(), 1, 2, 12621);
+		send(ridePkt);
+		if (ctx().world() != null) {
+			ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, ridePkt, false);
+		}
+		session.sendUserInfoAndBroadcastCharInfo();
+		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Wyvern Manager", "Voce montou em um Wyvern!"));
+	}
+
+	private void handleHireMercenary(NpcInstance npc, String arg) {
+		if (active() == null || npc == null) return;
+		int listId = GameSession.parseIntSafe(arg, npc.npcId() * 10 + 1);
+		session.showBuyList(npc, listId);
+	}
+
+	private void handleFishingChampionshipBypass(NpcInstance npc, String actionLower) {
+		if (active() == null) return;
+		if (actionLower.contains("reward") && ctx().fishingChampionship() != null) {
+			int reward = ctx().fishingChampionship().claimReward(active());
+			if (reward > 0) {
+				send(ItemList.of(active().inventory().items(), false));
+				send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Fisherman",
+						"Parabens! Voce recebeu " + reward + " Adena do Campeonato de Pesca!"));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Fisherman",
+						"Voce nao possui recompensas pendentes no Campeonato de Pesca."));
+			}
+			return;
+		}
+		int npcObjId = npc != null ? npc.objectId() : 0;
+		StringBuilder sb = new StringBuilder("<html><title>Fishing King Championship</title><body>");
+		sb.append("Fishing Guild Member:<br>Confira os maiores peixes pescados nesta semana:<br><br>");
+		sb.append("<table width=270 border=0 bgcolor=\"111111\"><tr><td width=50>Rank</td><td width=130>Fisherman</td><td width=90>Length</td></tr></table>");
+		sb.append("<table width=270 border=0>");
+		var top = ctx().fishingChampionship() != null ? ctx().fishingChampionship().getTopFishers(5) : List.<com.lopez.l2j.game.fishing.FishingChampionshipService.FisherScore>of();
+		for (int i = 0; i < 5; i++) {
+			String fisher = i < top.size() ? top.get(i).playerName() : "None";
+			String len = i < top.size() ? String.format(java.util.Locale.US, "%.2f", top.get(i).fishLength()) : "0.00";
+			sb.append("<tr><td width=50>#").append(i + 1).append("</td><td width=130>").append(fisher).append("</td><td width=90>").append(len).append("</td></tr>");
+		}
+		sb.append("</table><br><center><a action=\"bypass -h npc_").append(npcObjId).append("_fishingReward\">Claim Prize</a></center></body></html>");
+		send(new NpcHtmlMessage(npcObjId, sb.toString()));
+	}
+
+	private int selectedMonsterRaceLane = 1;
+	private int selectedMonsterRaceBet = 100;
+	private static final int[] MONSTER_RACE_BET_PRICES = {100, 500, 1000, 5000, 10000, 20000, 50000, 100000};
+
+	private void handleMonsterRaceNpcBypass(NpcInstance npc, String action) {
+		if (active() == null || npc == null) return;
+		String lower = action.toLowerCase(java.util.Locale.ROOT);
+		int raceId = ctx().monsterRace() != null ? ctx().monsterRace().getCurrentRaceId() : 1;
+		if (lower.startsWith("showodds")) {
+			showNpcHtml(npc, 2);
+			return;
+		}
+		if (lower.startsWith("showinfo")) {
+			showNpcHtml(npc, 6);
+			return;
+		}
+		if (lower.startsWith("calculatewin")) {
+			if (ctx().monsterRace() != null) {
+				int payout = ctx().monsterRace().runRaceAndSettlePlayer(active());
+				if (payout > 0) {
+					send(ItemList.of(active().inventory().items(), false));
+					send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Parabens! Voce ganhou " + payout + " Adena na Monster Race!"));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Corrida finalizada! 1o Lugar: Raia " + ctx().monsterRace().getFirstPlace()));
+				}
+			}
+			showNpcHtml(npc, 7);
+			return;
+		}
+		if (lower.startsWith("viewhistory")) {
+			showNpcHtml(npc, 9);
+			return;
+		}
+		if (lower.startsWith("buyticket")) {
+			int val = action.length() > 9 ? GameSession.parseIntSafe(action.substring(9).trim(), 0) : 0;
+			if (val == 0) {
+				String htm = ctx().htmls() != null ? ctx().htmls().getHtml("default/" + npc.npcId() + "-2.htm") : null;
+				if (htm != null) {
+					String rendered = ctx().htmls().render(htm, npc.objectId(), npc.name(), active().name())
+							.replace("1race", String.valueOf(raceId))
+							.replace("No1", "Lane " + selectedMonsterRaceLane);
+					send(new NpcHtmlMessage(npc.objectId(), rendered));
+					return;
+				}
+				showNpcHtml(npc, 2);
+				return;
+			}
+			if (val >= 1 && val <= 8) {
+				selectedMonsterRaceLane = val;
+				String htm = ctx().htmls() != null ? ctx().htmls().getHtml("default/" + npc.npcId() + "-2.htm") : null;
+				if (htm != null) {
+					String rendered = ctx().htmls().render(htm, npc.objectId(), npc.name(), active().name())
+							.replace("1race", String.valueOf(raceId))
+							.replace("No1", "Lane " + selectedMonsterRaceLane);
+					send(new NpcHtmlMessage(npc.objectId(), rendered));
+					return;
+				}
+			}
+			if (val == 10 || (val >= 11 && val <= 18)) {
+				if (val >= 11 && val <= 18) {
+					selectedMonsterRaceBet = MONSTER_RACE_BET_PRICES[val - 11];
+				}
+				String htm = ctx().htmls() != null ? ctx().htmls().getHtml("default/" + npc.npcId() + "-3.htm") : null;
+				if (htm != null) {
+					String rendered = ctx().htmls().render(htm, npc.objectId(), npc.name(), active().name())
+							.replace("1race", String.valueOf(raceId))
+							.replace("0place", String.valueOf(selectedMonsterRaceLane))
+							.replace("0adena", String.valueOf(selectedMonsterRaceBet));
+					send(new NpcHtmlMessage(npc.objectId(), rendered));
+					return;
+				}
+			}
+			if (val == 20) {
+				int tax = Math.max(0, selectedMonsterRaceBet / 10);
+				int total = selectedMonsterRaceBet;
+				String htm = ctx().htmls() != null ? ctx().htmls().getHtml("default/" + npc.npcId() + "-4.htm") : null;
+				if (htm != null) {
+					String rendered = ctx().htmls().render(htm, npc.objectId(), npc.name(), active().name())
+							.replace("1race", String.valueOf(raceId))
+							.replace("0place", String.valueOf(selectedMonsterRaceLane))
+							.replace("0adena", String.valueOf(selectedMonsterRaceBet))
+							.replace("0tax", String.valueOf(tax))
+							.replace("0total", String.valueOf(total));
+					send(new NpcHtmlMessage(npc.objectId(), rendered));
+					return;
+				}
+			}
+			if (val == 21) {
+				if (ctx().monsterRace() != null && ctx().monsterRace().placeBet(active(), selectedMonsterRaceLane, selectedMonsterRaceBet)) {
+					send(ItemList.of(active().inventory().items(), false));
+					send(new CreatureSay(0, CreatureSay.ALL, npc.name(),
+							"Bilhete adquirido para a Raia " + selectedMonsterRaceLane + " (" + selectedMonsterRaceBet + " Adena)!"));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Adena insuficiente para comprar o bilhete."));
+				}
+				showNpcHtml(npc, 0);
+				return;
+			}
+			showNpcHtml(npc, 2);
+		}
+	}
+
+	private void handleResidenceManagerBypass(NpcInstance npc, String action) {
+		if (active() == null || npc == null) return;
+		String lower = action.toLowerCase(java.util.Locale.ROOT);
+		int castleId = getNpcCastleId(npc);
+		var castle = ctx().castles() != null ? ctx().castles().getCastleById(castleId).orElse(null) : null;
+		String npcType = npc.template() != null && npc.template().type() != null ? npc.template().type().toLowerCase(java.util.Locale.ROOT) : "";
+		boolean isClanHall = npcType.contains("clanhall") || npcType.contains("agit");
+		boolean isFort = npcType.contains("fort");
+		String baseDir = isClanHall ? "clanHallManager/" : (isFort ? "fortress/" : "chamberlain/");
+
+		if (lower.startsWith("list_back")) {
+			String mainFile = isClanHall ? "clanHallManager/chamberlain.htm" : (isFort ? "fortress/foreman.htm" : "chamberlain/chamberlain.htm");
+			handleVillageMasterLink(npc, mainFile);
+			return;
+		}
+		if (lower.startsWith("door")) {
+			if (lower.contains("open")) {
+				handleDoorControl(true);
+				return;
+			}
+			if (lower.contains("close")) {
+				handleDoorControl(false);
+				return;
+			}
+			handleVillageMasterLink(npc, baseDir + "door.htm");
+			return;
+		}
+		if (lower.startsWith("banish_foreigner_show")) {
+			handleBanishForeigner(npc);
+			return;
+		}
+		if (lower.startsWith("tax_setup") || lower.startsWith("tax_set")) {
+			String[] parts = action.trim().split("\\s+");
+			if (parts.length >= 2 && castle != null && ctx().castles() != null) {
+				int newTax = GameSession.parseIntSafe(parts[1], castle.taxPercent());
+				ctx().castles().setTaxPercent(castleId, newTax);
+				send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Taxa de imposto ajustada para " + castle.taxPercent() + "%."));
+			}
+			if (ctx().htmls() != null) {
+				String htm = ctx().htmls().getHtml("chamberlain/chamberlain-tax.htm");
+				if (htm != null) {
+					int tax = castle != null ? castle.taxPercent() : 0;
+					String rendered = ctx().htmls().render(htm, npc.objectId(), npc.name(), active().name(), castleId, npc.npcId())
+							.replace("%tax%", String.valueOf(tax))
+							.replace("%tax_rate%", String.valueOf(tax));
+					send(new NpcHtmlMessage(npc.objectId(), rendered));
+					return;
+				}
+			}
+			showNpcHtml(npc, 0);
+			return;
+		}
+		if (lower.startsWith("manage_vault")) {
+			String[] parts = action.trim().split("\\s+");
+			if (parts.length >= 2) {
+				String sub = parts[1].toLowerCase(java.util.Locale.ROOT);
+				long amount = parts.length >= 3 ? GameSession.parseIntSafe(parts[2], 0) : 0;
+				if ("withdraw".equals(sub) && castle != null && amount > 0) {
+					if (castle.treasury() >= amount && ctx().inventories() != null) {
+						castle.treasury(castle.treasury() - amount);
+						ctx().inventories().addItem(active().inventory(), 57, (int) amount, "CastleVaultWithdraw");
+						send(ItemList.of(active().inventory().items(), false));
+						send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Retirado " + amount + " Adena do cofre do castelo."));
+					} else {
+						send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Saldo insuficiente no cofre do castelo."));
+					}
+				} else if ("deposit".equals(sub) && castle != null && amount > 0) {
+					if (session.consumeItem(57, (int) amount) && ctx().castles() != null) {
+						ctx().castles().addToTreasury(castleId, amount);
+						send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Depositado " + amount + " Adena no cofre do castelo."));
+					} else {
+						send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Adena insuficiente."));
+					}
+				}
+			}
+			if (isClanHall || isFort) {
+				if (ctx().warehouse() != null) {
+					var stored = ctx().warehouse().getWarehouseItems(active().objectId());
+					send(new WareHouseWithdrawalList(2, (int) active().inventory().adena(), stored));
+					return;
+				}
+			}
+			if (ctx().htmls() != null) {
+				String htm = ctx().htmls().getHtml("chamberlain/chamberlain-vault.htm");
+				if (htm != null) {
+					long treasury = castle != null ? castle.treasury() : 0L;
+					String rendered = ctx().htmls().render(htm, npc.objectId(), npc.name(), active().name(), castleId, npc.npcId())
+							.replace("%tax_income%", String.valueOf(treasury));
+					send(new NpcHtmlMessage(npc.objectId(), rendered));
+					return;
+				}
+			}
+			showNpcHtml(npc, 0);
+			return;
+		}
+		if (lower.startsWith("functions")) {
+			String arg = action.length() > 9 ? action.substring(9).trim().toLowerCase(java.util.Locale.ROOT) : "";
+			if (arg.startsWith("tele")) {
+				String teleHtm = ctx().htmls() != null ? ctx().htmls().getHtml(baseDir + "tele.htm") : null;
+				if (teleHtm != null) {
+					send(new NpcHtmlMessage(npc.objectId(), ctx().htmls().render(teleHtm, npc.objectId(), npc.name(), active().name(), castleId, npc.npcId())));
+					return;
+				}
+				showNpcHtml(npc, 1);
+				return;
+			}
+			if (arg.startsWith("support")) {
+				String supHtm = ctx().htmls() != null ? ctx().htmls().getHtml(baseDir + "support.htm") : null;
+				if (supHtm == null && ctx().htmls() != null) supHtm = ctx().htmls().getHtml(baseDir + "support1.htm");
+				if (supHtm != null) {
+					send(new NpcHtmlMessage(npc.objectId(), ctx().htmls().render(supHtm, npc.objectId(), npc.name(), active().name(), castleId, npc.npcId())
+							.replace("%mp%", String.valueOf((int) npc.currentMp()))));
+					return;
+				}
+				handleBufferRestore(npc);
+				return;
+			}
+			if (arg.startsWith("item_creation")) {
+				session.showBuyList(npc, 1);
+				return;
+			}
+			String funcFile = isClanHall ? "clanHallManager/functions.htm" : "chamberlain/chamberlain-functions.htm";
+			if (ctx().htmls() != null) {
+				String htm = ctx().htmls().getHtml(funcFile);
+				if (htm != null) {
+					String rendered = ctx().htmls().render(htm, npc.objectId(), npc.name(), active().name(), castleId, npc.npcId())
+							.replace("%hp_regen%", "100")
+							.replace("%mp_regen%", "100")
+							.replace("%xp_regen%", "100");
+					send(new NpcHtmlMessage(npc.objectId(), rendered));
+					return;
+				}
+			}
+			showNpcHtml(npc, 0);
+			return;
+		}
+		if (lower.startsWith("manage_functions") || lower.startsWith("manage")) {
+			String manageFile = isClanHall ? "clanHallManager/manage.htm" : (isFort ? "fortress/manage.htm" : "chamberlain/chamberlain-manage.htm");
+			handleVillageMasterLink(npc, manageFile);
+			return;
+		}
+		if (lower.startsWith("list_siege_clans") || lower.startsWith("siege_change")) {
+			send(new GameServerPacket.SiegeInfo(castleId, castle != null ? castle.ownerClanId() : 0,
+					castle != null ? castle.name() : "Castle", "Clan", "Leader",
+					castle != null ? (int) (castle.siegeDate() / 1000L) : 0));
+			return;
+		}
+		if (lower.startsWith("products")) {
+			String prodHtm = ctx().htmls() != null ? ctx().htmls().getHtml("chamberlain/chamberlain-products.htm") : null;
+			if (prodHtm != null) {
+				send(new NpcHtmlMessage(npc.objectId(), ctx().htmls().render(prodHtm, npc.objectId(), npc.name(), active().name(), castleId, npc.npcId())));
+				return;
+			}
+			session.showBuyList(npc, 1);
+			return;
+		}
+		showNpcHtml(npc, 0);
 	}
 
 	private void handleRankingList(NpcInstance npc, String action) {
@@ -3428,6 +4313,54 @@ public class NpcBypassPacketHandler {
 		String[] parts = questArg.split("\\s+");
 		String qName = parts[0];
 		String event = questArg.length() > qName.length() ? questArg.substring(qName.length()).trim() : null;
+		if ("9000_clan".equalsIgnoreCase(qName)) {
+			if (event == null || event.isBlank() || "9000-01.htm".equalsIgnoreCase(event)) {
+				handleVillageMasterLink(npc, "villagemaster/clan-01.htm");
+			} else if ("9000-02.htm".equalsIgnoreCase(event)) {
+				handleVillageMasterLink(npc, "villagemaster/clan-02.htm");
+			} else if ("9000-03.htm".equalsIgnoreCase(event)) {
+				handleVillageMasterLink(npc, "villagemaster/clan-03.htm");
+			} else if ("9000-04.htm".equalsIgnoreCase(event)) {
+				handleVillageMasterLink(npc, "villagemaster/clan-04.htm");
+			} else if ("9000-05.htm".equalsIgnoreCase(event)) {
+				handleVillageMasterLink(npc, "villagemaster/clan-05.htm");
+			} else if ("9000-06.htm".equalsIgnoreCase(event)) {
+				handleVillageMasterLink(npc, "villagemaster/pl_master.htm");
+			} else if ("9000-07.htm".equalsIgnoreCase(event)) {
+				handleVillageMasterLink(npc, "villagemaster/pl_transfer_master.htm");
+			} else if ("9000-12.htm".equalsIgnoreCase(event)) {
+				handleVillageMasterLink(npc, "villagemaster/clan-12.htm");
+			} else if ("9000-13.htm".equalsIgnoreCase(event)) {
+				handleVillageMasterLink(npc, "villagemaster/clan-13.htm");
+			} else if ("9000-14.htm".equalsIgnoreCase(event)) {
+				handleVillageMasterLink(npc, "villagemaster/clan-14.htm");
+			} else if ("9000-15.htm".equalsIgnoreCase(event)) {
+				handleVillageMasterLink(npc, "villagemaster/clan-15.htm");
+			} else {
+				handleVillageMasterLink(npc, "villagemaster/" + event);
+			}
+			return;
+		}
+		if ("9001_alliance".equalsIgnoreCase(qName)) {
+			if (event == null || event.isBlank() || "9001-01.htm".equalsIgnoreCase(event)) {
+				handleVillageMasterLink(npc, "villagemaster/ally-01.htm");
+			} else if ("9001-02.htm".equalsIgnoreCase(event)) {
+				handleVillageMasterLink(npc, "villagemaster/ally-02.htm");
+			} else if ("9001-03.htm".equalsIgnoreCase(event)) {
+				handleVillageMasterLink(npc, "villagemaster/ally-03.htm");
+			} else {
+				handleVillageMasterLink(npc, "villagemaster/" + event);
+			}
+			return;
+		}
+		if ("8000_RaidbossInfo".equalsIgnoreCase(qName)) {
+			handleRaidInfo(npc, event != null ? event : "0");
+			return;
+		}
+		if ("4000_ShadowWeapons".equalsIgnoreCase(qName)) {
+			session.showMultiSell(npc, 200);
+			return;
+		}
 		var q = ctx().questManager() != null ? ctx().questManager().getQuest(qName) : null;
 		if (q != null) {
 			QuestState qs = session.getQuestState(q.getName());
@@ -3598,8 +4531,11 @@ public class NpcBypassPacketHandler {
 				send(new PlaySound("ItemSound.quest_fanfare_2"));
 				var msuSub = new MagicSkillUse(active().objectId(), active().objectId(), 4339, 1, 0, 0,
 						active().x(), active().y(), active().z(), active().x(), active().y(), active().z());
+				var mslSub = new GameServerPacket.MagicSkillLaunched(active().objectId(), 4339, 1, List.of(active().objectId()));
 				send(msuSub);
+				send(mslSub);
 				ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msuSub, false);
+				ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, mslSub, false);
 				send(new SocialAction(active().objectId(), 3));
 				ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
 						new SocialAction(active().objectId(), 3), false);
@@ -3784,8 +4720,11 @@ public class NpcBypassPacketHandler {
 
 		var msuSwitch = new MagicSkillUse(active().objectId(), active().objectId(), 4383, 1, 0, 0,
 				active().x(), active().y(), active().z(), active().x(), active().y(), active().z());
+		var mslSwitch = new GameServerPacket.MagicSkillLaunched(active().objectId(), 4383, 1, List.of(active().objectId()));
 		send(msuSwitch);
+		send(mslSwitch);
 		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msuSwitch, false);
+		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, mslSwitch, false);
 
 		session.refreshWeightAndPenalties();
 		session.sendSkillList();
@@ -3986,8 +4925,11 @@ public class NpcBypassPacketHandler {
 		send(new PlaySound("ItemSound.quest_fanfare_2"));
 		var msuClass = new MagicSkillUse(active().objectId(), active().objectId(), 4339, 1, 0, 0,
 				active().x(), active().y(), active().z(), active().x(), active().y(), active().z());
+		var mslClass = new GameServerPacket.MagicSkillLaunched(active().objectId(), 4339, 1, List.of(active().objectId()));
 		send(msuClass);
+		send(mslClass);
 		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msuClass, false);
+		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, mslClass, false);
 		send(new SocialAction(active().objectId(), 3));
 		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
 				new SocialAction(active().objectId(), 3), false);
@@ -4508,6 +5450,7 @@ public class NpcBypassPacketHandler {
 		int cz = npc != null ? npc.z() : active().z();
 		send(new MagicSkillUse(npcObjId, active().objectId(), 5182, 1, 1000, 0,
 				cx, cy, cz, active().x(), active().y(), active().z()));
+		send(new GameServerPacket.MagicSkillLaunched(npcObjId, 5182, 1, List.of(active().objectId())));
 	}
 
 	private void handleNewbieSupportMagic(NpcInstance npc) {
@@ -4567,6 +5510,7 @@ public class NpcBypassPacketHandler {
 		int cz = npc != null ? npc.z() : active().z();
 		send(new MagicSkillUse(npcObjId, active().objectId(), 1204, 1, 1000, 0,
 				cx, cy, cz, active().x(), active().y(), active().z()));
+		send(new GameServerPacket.MagicSkillLaunched(npcObjId, 1204, 1, List.of(active().objectId())));
 		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Newbie Guide",
 				"May the blessings of the Einhasad protect your path."));
 	}

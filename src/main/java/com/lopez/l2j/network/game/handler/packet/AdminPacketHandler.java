@@ -1377,7 +1377,15 @@ public class AdminPacketHandler {
 			case "mobinst" -> showAdminHtml("mobgrouphelp.htm");
 			case "stats" -> showAdminHtml("menus/server.htm");
 			case "fullfood" -> {
+				var target = getTargetPlayerOrActive();
+				var sum = target != null ? target.activeSummon() : null;
+				if (sum != null) {
+					sum.currentFed(sum.maxFed());
+					send(new PetStatusUpdate(sum));
+				}
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Comida do pet/invocacao totalmente restaurada (100%)."));
+			}
+			case "_unused_fullfood" -> {
 			}
 			case "nokarma", "clearkarma" -> {
 				var p = getTargetPlayerOrActive();
@@ -2346,8 +2354,8 @@ public class AdminPacketHandler {
 				ctx.world().broadcastAround(targetPlayer, GameWorld.VISIBILITY_RADIUS,
 						new CharInfo(targetChar, ctx.characters().template(targetChar)), false);
 			}
-			case "atmosphere", "atmosphere_menu" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Atmosfera alterada: " + args));
-			case "earthquake", "earthquake_menu" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Terremoto ativado."));
+			case "atmosphere_menu" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Atmosfera alterada: " + args));
+			case "earthquake_menu" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Terremoto ativado."));
 			case "kick", "kick_menu" -> {
 				String targetName = !args.isBlank() && !args.startsWith("$") ? args.trim().split("\\s+")[0] : null;
 				if (targetName == null && targetObjectId != 0 && targetObjectId != active.objectId()) {
@@ -3009,9 +3017,33 @@ public class AdminPacketHandler {
 			case "server_all" -> handleAdminCommand("forall");
 			case "oly_save" -> handleAdminCommand("saveolymp");
 			case "add_hero" -> handleAdminCommand("manualhero " + args);
-			case "oly_start" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Olimpiadas iniciadas."));
-			case "oly_stop" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Olimpiadas pausadas."));
-			case "add_oly_points" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pontos de Olimpiada adicionados: " + args));
+			case "_unused_oly_start" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Olimpiadas iniciadas."));
+			case "_unused_oly_stop" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Olimpiadas pausadas."));
+			case "oly_start" -> {
+				if (ctx.olympiad() != null) {
+					ctx.olympiad().period(com.lopez.l2j.game.olympiad.OlympiadManager.PERIOD_COMPETITION);
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Olimpiadas iniciadas (Periodo de Competicao ativo)."));
+			}
+			case "oly_stop" -> {
+				if (ctx.olympiad() != null) {
+					ctx.olympiad().period(com.lopez.l2j.game.olympiad.OlympiadManager.PERIOD_VALIDATION);
+					ctx.olympiad().save();
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Olimpiadas pausadas (Periodo de Validacao/Salvamento)."));
+			}
+			case "add_oly_points" -> {
+				var target = getTargetPlayerOrActive();
+				int pts = GameSession.parseIntSafe(args.trim().split("\\s+")[0], 10);
+				if (target != null && ctx.olympiad() != null) {
+					var noble = ctx.olympiad().registerNoble(target.objectId(), target.name(), target.classId());
+					noble.points(Math.max(0, noble.points() + pts));
+					ctx.olympiad().save();
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pontos de Olimpiada de " + target.name() + " alterados em " + pts + " (Total: " + noble.points() + ")."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pontos de Olimpiada adicionados: " + args));
+				}
+			}
 			case "fix_noble_name" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nome de nobre sincronizado."));
 			case "add_announcement" -> {
 				if (!args.isBlank() && !args.startsWith("$") && ctx.announcements() != null) {
@@ -3413,8 +3445,65 @@ public class AdminPacketHandler {
 					showAdminCastlesHtml("");
 				}
 			}
-			case "startsiege" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Siege iniciada: " + args));
-			case "endsiege" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Siege finalizada: " + args));
+			case "startsiege" -> {
+				if (ctx.sieges() != null && ctx.castles() != null) {
+					String token = args.trim().isEmpty() ? "Giran" : args.trim().split("\\s+")[0];
+					int castleId = GameSession.parseIntSafe(token, -1);
+					var castle = castleId > 0 ? ctx.castles().getCastleById(castleId).orElse(null) : ctx.castles().byName(token).orElse(null);
+					if (castle != null) {
+						ctx.sieges().startSiege(castle.id());
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Siege iniciada no Castelo " + castle.name() + " (ID " + castle.id() + ")."));
+					} else {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Castelo nao encontrado: " + args));
+					}
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Siege iniciada: " + args));
+				}
+			}
+			case "endsiege" -> {
+				if (ctx.sieges() != null && ctx.castles() != null) {
+					String token = args.trim().isEmpty() ? "Giran" : args.trim().split("\\s+")[0];
+					int castleId = GameSession.parseIntSafe(token, -1);
+					var castle = castleId > 0 ? ctx.castles().getCastleById(castleId).orElse(null) : ctx.castles().byName(token).orElse(null);
+					if (castle != null) {
+						ctx.sieges().endSiege(castle.id(), castle.ownerClanId());
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Siege finalizada no Castelo " + castle.name() + " (ID " + castle.id() + ")."));
+					} else {
+						send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Castelo nao encontrado: " + args));
+					}
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Siege finalizada: " + args));
+				}
+			}
+			case "full_food" -> {
+				var target = getTargetPlayerOrActive();
+				var sum = target != null ? target.activeSummon() : null;
+				if (sum != null) {
+					sum.currentFed(sum.maxFed());
+					send(new PetStatusUpdate(sum));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Fome do pet/summon " + sum.name() + " restaurada para 100%."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nenhum pet ativo no alvo."));
+				}
+			}
+			case "earthquake" -> {
+				String[] eqParts = args.trim().split("\\s+");
+				int intensity = eqParts.length >= 1 ? GameSession.parseIntSafe(eqParts[0], 30) : 30;
+				int duration = eqParts.length >= 2 ? GameSession.parseIntSafe(eqParts[1], 5) : 5;
+				var eq = new Earthquake(active.x(), active.y(), active.z(), intensity, duration);
+				send(eq);
+				if (ctx.world() != null) {
+					ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, eq, false);
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Earthquake disparado (intensidade=" + intensity + ", duracao=" + duration + ")."));
+			}
+			case "atmosphere" -> {
+				if (ctx.sevenSigns() != null) {
+					ctx.sevenSigns().broadcastSky();
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Atmosfera do mundo atualizada."));
+			}
+			case "_unused_endsiege" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Siege finalizada: " + args));
 			case "mammon_find" -> {
 				String param = args.trim().toLowerCase(java.util.Locale.ROOT);
 				boolean isBlacksmith = param.equals("1") || param.contains("black") || param.contains("bs");

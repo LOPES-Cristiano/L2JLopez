@@ -10,13 +10,27 @@ import java.util.Set;
  * @param effects efeitos do {@code <for>} (buffs, debuffs, curas ao longo do tempo...)
  * @param castCondition condicao de uso ({@code <cond>}), null = sem restricao conhecida
  */
-public record SkillTemplate(int id, int level, String name, OperateType operateType, String skillType,
+public record SkillTemplate(int id, int level, int displayId, String name, OperateType operateType, String skillType,
 		String target, boolean magic, int mpConsume, int mpInitialConsume, int hpConsume, double power,
 		int castRange, int skillRadius, int hitTime, int coolTime, int reuseDelay, int magicLevel,
 		double absorbPart, boolean nextActionAttack, int itemConsumeId, int itemConsumeCount,
 		int giveCharges, int maxCharges, int needCharges, boolean consumeCharges, boolean continueAfterMax,
+		boolean staticHitTime, boolean staticReuse,
 		List<StatFunc> funcs, List<EffectTemplate> effects,
 		SkillCondition castCondition, String condMsg) {
+
+	public SkillTemplate(int id, int level, String name, OperateType operateType, String skillType,
+			String target, boolean magic, int mpConsume, int mpInitialConsume, int hpConsume, double power,
+			int castRange, int skillRadius, int hitTime, int coolTime, int reuseDelay, int magicLevel,
+			double absorbPart, boolean nextActionAttack, int itemConsumeId, int itemConsumeCount,
+			int giveCharges, int maxCharges, int needCharges, boolean consumeCharges, boolean continueAfterMax,
+			List<StatFunc> funcs, List<EffectTemplate> effects,
+			SkillCondition castCondition, String condMsg) {
+		this(id, level, id, name, operateType, skillType, target, magic, mpConsume, mpInitialConsume, hpConsume, power,
+				castRange, skillRadius, hitTime, coolTime, reuseDelay, magicLevel, absorbPart, nextActionAttack,
+				itemConsumeId, itemConsumeCount, giveCharges, maxCharges, needCharges, consumeCharges, continueAfterMax,
+				false, false, funcs, effects, castCondition, condMsg);
+	}
 
 	public SkillTemplate(int id, int level, String name, OperateType operateType, String skillType,
 			String target, boolean magic, int mpConsume, int mpInitialConsume, int hpConsume, double power,
@@ -25,10 +39,10 @@ public record SkillTemplate(int id, int level, String name, OperateType operateT
 			int giveCharges, int maxCharges, int needCharges, boolean consumeCharges,
 			List<StatFunc> funcs, List<EffectTemplate> effects,
 			SkillCondition castCondition, String condMsg) {
-		this(id, level, name, operateType, skillType, target, magic, mpConsume, mpInitialConsume, hpConsume, power,
+		this(id, level, id, name, operateType, skillType, target, magic, mpConsume, mpInitialConsume, hpConsume, power,
 				castRange, skillRadius, hitTime, coolTime, reuseDelay, magicLevel, absorbPart, nextActionAttack,
 				itemConsumeId, itemConsumeCount, giveCharges, maxCharges, needCharges, consumeCharges, false,
-				funcs, effects, castCondition, condMsg);
+				false, false, funcs, effects, castCondition, condMsg);
 	}
 
 	public SkillTemplate(int id, int level, String name, OperateType operateType, String skillType,
@@ -37,9 +51,9 @@ public record SkillTemplate(int id, int level, String name, OperateType operateT
 			double absorbPart, boolean nextActionAttack, int itemConsumeId, int itemConsumeCount,
 			List<StatFunc> funcs, List<EffectTemplate> effects,
 			SkillCondition castCondition, String condMsg) {
-		this(id, level, name, operateType, skillType, target, magic, mpConsume, mpInitialConsume, hpConsume, power,
+		this(id, level, id, name, operateType, skillType, target, magic, mpConsume, mpInitialConsume, hpConsume, power,
 				castRange, skillRadius, hitTime, coolTime, reuseDelay, magicLevel, absorbPart, nextActionAttack,
-				itemConsumeId, itemConsumeCount, 0, 0, 0, true, false, funcs, effects, castCondition, condMsg);
+				itemConsumeId, itemConsumeCount, 0, 0, 0, true, false, false, false, funcs, effects, castCondition, condMsg);
 	}
 
 	public SkillTemplate(int id, int level, String name, OperateType operateType, String skillType,
@@ -47,9 +61,9 @@ public record SkillTemplate(int id, int level, String name, OperateType operateT
 			int castRange, int skillRadius, int hitTime, int coolTime, int reuseDelay, int magicLevel,
 			double absorbPart, boolean nextActionAttack, List<StatFunc> funcs, List<EffectTemplate> effects,
 			SkillCondition castCondition, String condMsg) {
-		this(id, level, name, operateType, skillType, target, magic, mpConsume, mpInitialConsume, hpConsume, power,
+		this(id, level, id, name, operateType, skillType, target, magic, mpConsume, mpInitialConsume, hpConsume, power,
 				castRange, skillRadius, hitTime, coolTime, reuseDelay, magicLevel, absorbPart, nextActionAttack,
-				0, 0, 0, 0, 0, true, false, funcs, effects, castCondition, condMsg);
+				0, 0, 0, 0, 0, true, false, false, false, funcs, effects, castCondition, condMsg);
 	}
 
 	public enum OperateType {
@@ -59,12 +73,19 @@ public record SkillTemplate(int id, int level, String name, OperateType operateT
 	/**
 	 * Efeito de um skill ({@code <effect name="Buff" count="1" time="1200" ...>}).
 	 *
-	 * @param count  numero de ciclos
-	 * @param period duracao de cada ciclo em segundos (duracao total = count * period)
-	 * @param val    valor por tick (HealOverTime etc.)
+	 * @param count        numero de ciclos
+	 * @param period       duracao de cada ciclo em segundos (duracao total = count * period)
+	 * @param val          valor por tick (HealOverTime etc.)
+	 * @param abnormalMask bitmask visual do protocolo Interlude (AbnormalEffect)
 	 */
 	public record EffectTemplate(String name, int count, int period, double val, String stackType,
-			double stackOrder, List<StatFunc> funcs) {
+			double stackOrder, int abnormalMask, List<StatFunc> funcs) {
+
+		public EffectTemplate(String name, int count, int period, double val, String stackType,
+				double stackOrder, List<StatFunc> funcs) {
+			this(name, count, period, val, stackType, stackOrder,
+					AbnormalEffect.parseMask(null, name), funcs);
+		}
 
 		public long durationMs() {
 			return (long) Math.max(1, count) * Math.max(0, period) * 1000L;

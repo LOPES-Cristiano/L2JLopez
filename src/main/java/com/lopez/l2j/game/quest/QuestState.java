@@ -622,6 +622,10 @@ public class QuestState {
 		return total;
 	}
 
+	public NpcInstance addSpawn(int npcId, int x, int y, int z, int heading, boolean randomOffset, int despawnDelay) {
+		return addSpawn(npcId, x, y, z, despawnDelay);
+	}
+
 	public NpcInstance addSpawn(int npcId, int x, int y, int z, int heading, int randomOffset, int despawnDelay) {
 		return addSpawn(npcId, x, y, z, despawnDelay);
 	}

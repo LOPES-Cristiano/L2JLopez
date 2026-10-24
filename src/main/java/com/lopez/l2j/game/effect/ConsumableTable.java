@@ -124,36 +124,36 @@ public final class ConsumableTable {
 			shot(1467, 2154, "s"),
 			// Spiritshots
 			spiritShot(5790, 2061, "none"), // Beginner's Spiritshot
-			spiritShot(2509, 2155, "none"), // Spiritshot: No Grade
-			spiritShot(2510, 2156, "d"),
-			spiritShot(2511, 2157, "c"),
-			spiritShot(2512, 2158, "b"),
-			spiritShot(2513, 2159, "a"),
+			spiritShot(2509, 2047, "none"), // Spiritshot: No Grade
+			spiritShot(2510, 2155, "d"),
+			spiritShot(2511, 2156, "c"),
+			spiritShot(2512, 2157, "b"),
+			spiritShot(2513, 2158, "a"),
 			spiritShot(2514, 2159, "s"),
 			// Blessed Spiritshots
-			blessedSpiritShot(3947, 2160, "none"), // Blessed Spiritshot: No Grade
-			blessedSpiritShot(3948, 2161, "d"),
-			blessedSpiritShot(3949, 2162, "c"),
-			blessedSpiritShot(3950, 2163, "b"),
-			blessedSpiritShot(3951, 2164, "a"),
+			blessedSpiritShot(3947, 2061, "none"), // Blessed Spiritshot: No Grade
+			blessedSpiritShot(3948, 2160, "d"),
+			blessedSpiritShot(3949, 2161, "c"),
+			blessedSpiritShot(3950, 2162, "b"),
+			blessedSpiritShot(3951, 2163, "a"),
 			blessedSpiritShot(3952, 2164, "s"),
 			// Mystery Potion (CharChangePotions/MysteryPotion do L2JDream)
 			Map.entry(5234, new Consumable(5234, Type.MYSTERY, 2103, 1, 0, 1, BUFF_20_MIN, 0, null, null)),
-			// Facelifting Potion A-C
-			look(5235, Type.FACE, 0), look(5236, Type.FACE, 1), look(5237, Type.FACE, 2),
-			// Dye Potion A-D
-			look(5238, Type.HAIR_COLOR, 0), look(5239, Type.HAIR_COLOR, 1), look(5240, Type.HAIR_COLOR, 2),
-			look(5241, Type.HAIR_COLOR, 3),
-			// Hair Style Change Potion A-G
-			look(5242, Type.HAIR_STYLE, 0), look(5243, Type.HAIR_STYLE, 1), look(5244, Type.HAIR_STYLE, 2),
-			look(5245, Type.HAIR_STYLE, 3), look(5246, Type.HAIR_STYLE, 4), look(5247, Type.HAIR_STYLE, 5),
-			look(5248, Type.HAIR_STYLE, 6),
+			// Facelifting Potion A-C (skills 2122-2124)
+			look(5235, Type.FACE, 2122, 0), look(5236, Type.FACE, 2123, 1), look(5237, Type.FACE, 2124, 2),
+			// Dye Potion A-D (skills 2125-2128)
+			look(5238, Type.HAIR_COLOR, 2125, 0), look(5239, Type.HAIR_COLOR, 2126, 1), look(5240, Type.HAIR_COLOR, 2127, 2),
+			look(5241, Type.HAIR_COLOR, 2128, 3),
+			// Hair Style Change Potion A-G (skills 2129-2135)
+			look(5242, Type.HAIR_STYLE, 2129, 0), look(5243, Type.HAIR_STYLE, 2130, 1), look(5244, Type.HAIR_STYLE, 2131, 2),
+			look(5245, Type.HAIR_STYLE, 2132, 3), look(5246, Type.HAIR_STYLE, 2133, 4), look(5247, Type.HAIR_STYLE, 2134, 5),
+			look(5248, Type.HAIR_STYLE, 2135, 6),
 			// Remedios
 			remedy(1831, 2042), // Antidote
 			remedy(1832, 2043), // Advanced Antidote
-			remedy(1833, 34), // Bandage
+			remedy(1833, 2044), // Bandage
 			remedy(1834, 2045), // Emergency Dressing
-			remedy(3889, 2042)); // Potion of Recovery
+			remedy(3889, 2060)); // Potion of Recovery
 
 	private ConsumableTable() {
 	}
@@ -244,9 +244,9 @@ public final class ConsumableTable {
 		return Map.entry(itemId, new Consumable(itemId, Type.BLESSED_SPIRITSHOT, skillId, 1, 0, 0, 0, 0, null, grade));
 	}
 
-	/** Pocoes de aparencia: todas usam a animacao do skill 2003 (como no L2JDream). */
-	private static Map.Entry<Integer, Consumable> look(int itemId, Type type, int value) {
-		return Map.entry(itemId, new Consumable(itemId, type, 2003, 1, value, 0, 0, 0, null, null));
+	/** Pocoes de aparencia (skills 2122-2135 do data/xml/stats/skills/2100-2199.xml). */
+	private static Map.Entry<Integer, Consumable> look(int itemId, Type type, int skillId, int value) {
+		return Map.entry(itemId, new Consumable(itemId, type, skillId, 1, value, 0, 0, 0, null, null));
 	}
 
 	private static Map.Entry<Integer, Consumable> remedy(int itemId, int skillId) {

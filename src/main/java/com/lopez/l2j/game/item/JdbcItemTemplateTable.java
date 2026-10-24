@@ -74,6 +74,7 @@ class JdbcItemTemplateTable implements ItemTemplateTable {
 		int custom = load(byId, "custom_etcitem", true, JdbcItemTemplateTable::etc)
 				+ load(byId, "custom_armor", true, JdbcItemTemplateTable::armor)
 				+ load(byId, "custom_weapon", true, JdbcItemTemplateTable::weapon);
+		int xmlLoaded = loadXmlItemStats(byId);
 		List<CreationItem> creation = new ArrayList<>();
 		try {
 			creation.addAll(jdbc.sql("SELECT classId, itemId, amount, equipped FROM char_creation_items")
@@ -83,9 +84,86 @@ class JdbcItemTemplateTable implements ItemTemplateTable {
 		} catch (RuntimeException e) {
 			log.warn("char_creation_items indisponivel: {}", e.getMessage());
 		}
-		log.info("ItemTable: {} etc, {} armaduras, {} armas, {} custom, {} itens iniciais em {} ms", etc, armor, weapon,
-				custom, creation.size(), (System.nanoTime() - start) / 1_000_000);
+		log.info("ItemTable: {} etc, {} armaduras, {} armas, {} custom, {} xml stats, {} itens iniciais em {} ms", etc, armor, weapon,
+				custom, xmlLoaded, creation.size(), (System.nanoTime() - start) / 1_000_000);
 		return new Data(Map.copyOf(byId), List.copyOf(creation));
+	}
+
+	private int loadXmlItemStats(Map<Integer, ItemTemplate> byId) {
+		int count = 0;
+		String[] folders = { "data/xml/stats/armor", "data/xml/stats/weapon", "data/xml/stats/etcitem" };
+		javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+		for (String folder : folders) {
+			java.nio.file.Path dir = java.nio.file.Path.of(folder);
+			if (!java.nio.file.Files.isDirectory(dir)) {
+				continue;
+			}
+			try (var stream = java.nio.file.Files.list(dir)) {
+				for (java.nio.file.Path xmlFile : stream.filter(p -> p.toString().endsWith(".xml")).toList()) {
+					try {
+						org.w3c.dom.Document doc = dbf.newDocumentBuilder().parse(xmlFile.toFile());
+						org.w3c.dom.NodeList items = doc.getElementsByTagName("item");
+						for (int i = 0; i < items.getLength(); i++) {
+							if (!(items.item(i) instanceof org.w3c.dom.Element itemEl)) {
+								continue;
+							}
+							String idStr = itemEl.getAttribute("id");
+							if (idStr.isBlank()) {
+								continue;
+							}
+							int itemId = Integer.parseInt(idStr.trim());
+							ItemTemplate existing = byId.get(itemId);
+							if (existing == null) {
+								continue;
+							}
+							List<com.lopez.l2j.game.skill.StatFunc> funcs = new ArrayList<>();
+							org.w3c.dom.NodeList forList = itemEl.getElementsByTagName("for");
+							for (int f = 0; f < forList.getLength(); f++) {
+								org.w3c.dom.Node forNode = forList.item(f);
+								org.w3c.dom.NodeList children = forNode.getChildNodes();
+								for (int c = 0; c < children.getLength(); c++) {
+									if (!(children.item(c) instanceof org.w3c.dom.Element opEl)) {
+										continue;
+									}
+									String tag = opEl.getTagName();
+									var op = com.lopez.l2j.game.skill.StatFunc.Op.parse(tag);
+									if (op == null || op == com.lopez.l2j.game.skill.StatFunc.Op.SET) {
+										continue;
+									}
+									String stat = opEl.getAttribute("stat");
+									String valStr = opEl.getAttribute("val");
+									String orderStr = opEl.getAttribute("order");
+									if (stat.isBlank() || valStr.isBlank()) {
+										continue;
+									}
+									// Base pDef/mDef/pAtk/mAtk/accCombat/rEvas at order 0x10 are already in SQL columns
+									int order = 0x30;
+									if (!orderStr.isBlank()) {
+										order = Integer.decode(orderStr.trim());
+									}
+									if (op == com.lopez.l2j.game.skill.StatFunc.Op.ADD && order == 0x10
+											&& ("pDef".equalsIgnoreCase(stat) || "mDef".equalsIgnoreCase(stat)
+													|| "pAtk".equalsIgnoreCase(stat) || "mAtk".equalsIgnoreCase(stat)
+													|| "accCombat".equalsIgnoreCase(stat) || "rEvas".equalsIgnoreCase(stat)
+													|| "sDef".equalsIgnoreCase(stat))) {
+										continue;
+									}
+									double val = Double.parseDouble(valStr.trim());
+									funcs.add(new com.lopez.l2j.game.skill.StatFunc(stat.trim(), op, order, val));
+								}
+							}
+							if (!funcs.isEmpty()) {
+								byId.put(itemId, existing.withStatFuncs(funcs));
+								count++;
+							}
+						}
+					} catch (Exception ignored) {
+					}
+				}
+			} catch (Exception ignored) {
+			}
+		}
+		return count;
 	}
 
 	@FunctionalInterface

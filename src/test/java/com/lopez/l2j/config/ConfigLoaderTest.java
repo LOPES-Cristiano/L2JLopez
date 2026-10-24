@@ -46,7 +46,7 @@ class ConfigLoaderTest {
 		assertEquals(1.0f, Config.RATE_PARTY_XP, 0.001);
 		assertEquals(100.0f, Config.RATE_DROP_ADENA, 0.001);
 		assertEquals(100.0f, Config.RATE_DROP_ITEMS, 0.001);
-		assertEquals(1.0f, Config.RATE_DROP_SPOIL, 0.001);
+		assertEquals(100.0f, Config.RATE_DROP_SPOIL, 0.001);
 	}
 
 	@Test

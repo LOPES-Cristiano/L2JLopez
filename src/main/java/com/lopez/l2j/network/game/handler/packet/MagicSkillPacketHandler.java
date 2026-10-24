@@ -2283,6 +2283,10 @@ public class MagicSkillPacketHandler {
 		int revivedHp = Math.max(1, (int) Math.round(active().maxHp() * (hpPercent / 100.0)));
 		active().currentHp(revivedHp);
 		active().currentCp(0.0);
+		if (power > 0 && active().level() > 1) {
+			long restoredExp = Math.round(active().level() * 120L * (Math.min(100.0, power) / 100.0));
+			active().addExpAndSp(restoredExp, 0);
+		}
 
 		var revive = new Revive(active().objectId());
 		send(revive);

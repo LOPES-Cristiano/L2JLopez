@@ -1,6 +1,7 @@
 package com.lopez.l2j.network.game.handler.packet;
 
 import com.lopez.l2j.config.Config;
+import com.lopez.l2j.game.effect.PlayerEffects;
 import com.lopez.l2j.game.effect.PlayerEffects.ActiveBuff;
 import com.lopez.l2j.game.effect.ConsumableTable;
 import com.lopez.l2j.game.effect.ConsumableTable.Consumable;
@@ -181,6 +182,10 @@ public class ItemPacketHandler {
 			}
 			if (item.itemId() == 1661) {
 				useThiefKey(item);
+				return;
+			}
+			if (handleSpecialMiscellaneousItem(active, item)) {
+				session.send(new ActionFailed());
 				return;
 			}
 			if (Config.NOBLESSE_ITEM_ID > 0 && item.itemId() == Config.NOBLESSE_ITEM_ID) {
@@ -494,7 +499,7 @@ public class ItemPacketHandler {
 		if (!session.inWorld() || active == null || active.isDead()) {
 			return;
 		}
-		if (!ConsumableTable.isShot(p.itemId())) {
+		if (!ConsumableTable.isShot(p.itemId()) && !isBeastShot(p.itemId())) {
 			session.send(new ExAutoSoulShot(p.itemId(), 0));
 			return;
 		}
@@ -506,7 +511,9 @@ public class ItemPacketHandler {
 			session.autoSoulShots().add(p.itemId());
 			session.send(new ExAutoSoulShot(p.itemId(), 1));
 			session.send(SystemMessage.of(SystemMessage.USE_OF_S1_WILL_BE_AUTO, name));
-			if (ConsumableTable.isSoulshot(p.itemId())) {
+			if (isBeastShot(p.itemId())) {
+				chargeBeastShot(p.itemId(), false);
+			} else if (ConsumableTable.isSoulshot(p.itemId())) {
 				chargeSoulShot(p.itemId(), false);
 			} else {
 				chargeSpiritShot(p.itemId(), false, ConsumableTable.isBlessedSpiritshot(p.itemId()));
@@ -1401,7 +1408,9 @@ public class ItemPacketHandler {
 
 	public void rechargeAutoSoulShots() {
 		for (int itemId : session.autoSoulShots()) {
-			if (ConsumableTable.isSoulshot(itemId)) {
+			if (isBeastShot(itemId)) {
+				chargeBeastShot(itemId, true);
+			} else if (ConsumableTable.isSoulshot(itemId)) {
 				if (!session.soulshotCharged() && chargeSoulShot(itemId, true)) {
 					// soulshot carregado
 				}
@@ -1528,6 +1537,159 @@ public class ItemPacketHandler {
 		}
 
 		session.castSkill(sk, true);
+	}
+
+	public static boolean isBeastShot(int itemId) {
+		return itemId == 6645 || itemId == 6646 || itemId == 6647;
+	}
+
+	public boolean chargeBeastShot(int itemId, boolean quiet) {
+		PlayerCharacter active = session.activeChar();
+		if (active == null || active.activeSummon() == null || active.activeSummon().isDead()) {
+			if (!quiet) {
+				session.send(SystemMessage.id(SystemMessage.CANNOT_USE_SOULSHOTS));
+			}
+			return false;
+		}
+		var sum = active.activeSummon();
+		if (itemId == 6645) {
+			if (sum.soulshotCharged()) return true;
+			if (!consumeItem(itemId, 1)) {
+				if (session.autoSoulShots().remove(itemId)) {
+					session.send(new ExAutoSoulShot(itemId, 0));
+					session.send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, new SystemMessage.ItemName(itemId)));
+				}
+				return false;
+			}
+			sum.soulshotCharged(true);
+			session.broadcastSelfSkill(2033, 1);
+			return true;
+		}
+		if (itemId == 6646 || itemId == 6647) {
+			if (sum.spiritshotCharged() > 0) return true;
+			if (!consumeItem(itemId, 1)) {
+				if (session.autoSoulShots().remove(itemId)) {
+					session.send(new ExAutoSoulShot(itemId, 0));
+					session.send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, new SystemMessage.ItemName(itemId)));
+				}
+				return false;
+			}
+			sum.spiritshotCharged(itemId == 6647 ? 2 : 1);
+			session.broadcastSelfSkill(itemId == 6647 ? 2009 : 2008, 1);
+			return true;
+		}
+		return false;
+	}
+
+	private boolean handleSpecialMiscellaneousItem(PlayerCharacter active, ItemInstance item) {
+		int itemId = item.itemId();
+		var ctx = session.context();
+		// Beast SoulShot / SpiritShot (6645-6647)
+		if (isBeastShot(itemId)) {
+			chargeBeastShot(itemId, false);
+			return true;
+		}
+		// FishShots (6535-6540)
+		if (itemId >= 6535 && itemId <= 6540) {
+			if (consumeItem(itemId, 1)) {
+				int skillId = 2181 + (itemId - 6535);
+				session.broadcastSelfSkill(skillId, 1);
+				session.send(SystemMessage.id(SystemMessage.ENABLED_SOULSHOT));
+			}
+			return true;
+		}
+		// PetFood (2515 Wolf, 4038 Hatchling, 5168/5169 Strider, 6316 Wyvern, 7582 Baby, 9668 Great Wolf)
+		if (itemId == 2515 || itemId == 4038 || itemId == 5168 || itemId == 5169 || itemId == 6316 || itemId == 7582 || itemId == 9668) {
+			var sum = active.activeSummon();
+			if (sum != null && !sum.isDead()) {
+				if (consumeItem(itemId, 1)) {
+					sum.currentFed(Math.min(sum.maxFed(), sum.currentFed() + 250));
+					session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.PetStatusUpdate(sum));
+				}
+			} else if (active.isMounted()) {
+				consumeItem(itemId, 1);
+			}
+			return true;
+		}
+		// Calculator (4393)
+		if (itemId == 4393) {
+			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.ShowCalc(4393));
+			return true;
+		}
+		// Rolling Dice (4625-4628)
+		if (itemId >= 4625 && itemId <= 4628) {
+			int number = java.util.concurrent.ThreadLocalRandom.current().nextInt(1, 7);
+			var dice = new com.lopez.l2j.network.game.packet.GameServerPacket.Dice(
+					active.objectId(), itemId, number, active.x() - 30, active.y() - 30, active.z());
+			session.send(dice);
+			if (ctx != null && ctx.world() != null) {
+				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, dice, false);
+			}
+			session.send(SystemMessage.of(834, new SystemMessage.Text(active.name()), new SystemMessage.Number(number)));
+			return true;
+		}
+		// Pagan / Chapel Keys (8056, 8273, 8274, 8275, 7260)
+		if (itemId == 8056 || itemId == 8273 || itemId == 8274 || itemId == 8275 || itemId == 7260) {
+			if (ctx != null && ctx.doors() != null && session.targetObjectId() != 0) {
+				var door = ctx.doors().door(session.targetObjectId());
+				if (door != null && consumeItem(itemId, 1)) {
+					ctx.doors().openDoor(door.doorId());
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Porta destrancada com sucesso."));
+					return true;
+				}
+			}
+			session.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+			return true;
+		}
+		// Fireworks & Crystal Carols (6403, 6406, 6407, 4410-4417, 5562-5566)
+		if (itemId == 6403 || itemId == 6406 || itemId == 6407 || (itemId >= 4410 && itemId <= 4417) || (itemId >= 5562 && itemId <= 5566)) {
+			if (consumeItem(itemId, 1)) {
+				int skillId = switch (itemId) {
+					case 6403 -> 2023;
+					case 6406 -> 2024;
+					case 6407 -> 2025;
+					default -> 2073;
+				};
+				session.broadcastSelfSkill(skillId, 1);
+			}
+			return true;
+		}
+		// Herbs (8600-8614)
+		if (itemId >= 8600 && itemId <= 8614) {
+			if (consumeItem(itemId, 1)) {
+				switch (itemId) {
+					case 8600 -> active.currentHp(active.currentHp() + active.maxHp() * 0.15);
+					case 8601 -> active.currentHp(active.currentHp() + active.maxHp() * 0.30);
+					case 8602 -> active.currentHp(active.maxHp());
+					case 8603 -> active.currentMp(active.currentMp() + active.maxMp() * 0.12);
+					case 8604 -> active.currentMp(active.currentMp() + active.maxMp() * 0.25);
+					case 8605 -> active.currentMp(active.maxMp());
+					default -> {
+						active.currentHp(active.currentHp() + active.maxHp() * 0.10);
+						active.currentMp(active.currentMp() + active.maxMp() * 0.10);
+					}
+				}
+				session.broadcastSelfSkill(2278, 1);
+				session.sendVitals();
+			}
+			return true;
+		}
+		// Hot Springs Remedies (8030-8033)
+		if (itemId >= 8030 && itemId <= 8033) {
+			if (consumeItem(itemId, 1)) {
+				int debuffSkillId = switch (itemId) {
+					case 8030 -> 4551; // Rheumatism
+					case 8031 -> 4552; // Cholera
+					case 8032 -> 4553; // Flu
+					default -> 4554;   // Malaria
+				};
+				active.effects().removeSkill(debuffSkillId);
+				session.refreshBuffs();
+				session.sendMagicEffectIcons();
+			}
+			return true;
+		}
+		return false;
 	}
 
 	private void useNoblesseItem(ItemInstance item) {

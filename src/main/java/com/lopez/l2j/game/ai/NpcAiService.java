@@ -304,9 +304,9 @@ public class NpcAiService {
 	 */
 	public void scheduleDecayAndRespawn(NpcInstance npc) {
 		stopCombat(npc);
-		// Apenas Raid Boss despawna seus lacaios ao morrer (regra retail / L2JDream)
+		// Apenas Raid Boss ou Grand Boss despawna seus lacaios ao morrer (regra retail / L2JDream)
 		// Monstros comuns com lacaios mantem seus lacaios vivos lutando individualmente!
-		if (npc.hasMinions() && npc.template() != null && npc.template().isRaidBoss()) {
+		if (npc.hasMinions() && npc.template() != null && (npc.template().isRaidBoss() || npc.template().isGrandBoss())) {
 			onMasterDied(npc);
 		}
 
@@ -506,7 +506,8 @@ public class NpcAiService {
 	private void checkAggroAroundPlayers() {
 		for (var player : world.players()) {
 			var character = player.character();
-			if (character == null || character.isDead() || character.isGm()) {
+			if (character == null || character.isDead() || character.isGm()
+					|| (character.effects() != null && (character.effects().hasSkill(221) || character.effects().hasSkill(60)))) {
 				continue;
 			}
 			boolean inPeaceZone = zones != null && zones.isInsidePeace(player.x(), player.y(), player.z());
@@ -699,7 +700,7 @@ public class NpcAiService {
 		}
 		// Apenas Raid Boss ou Grand Boss limpa/despawna lacaios ao morrer (Retail L2 / L2JDream)
 		// Monstros comuns com lacaios (ex: Ketra Prophet) mantem seus lacaios vivos lutando individualmente!
-		if (master.template() != null && master.template().isRaidBoss()) {
+		if (master.template() != null && (master.template().isRaidBoss() || master.template().isGrandBoss())) {
 			for (NpcInstance minion : master.minions()) {
 				if (minion != null && !minion.isDead()) {
 					stopCombat(minion);

@@ -51,9 +51,7 @@ public class ZakenAI extends RaidBossAI {
 					if (ch != null && !ch.isDead()) {
 						int idx = ThreadLocalRandom.current().nextInt(ZakenService.SHIP_ROOMS.length);
 						int[] room = ZakenService.SHIP_ROOMS[idx];
-						ch.x(room[0]);
-						ch.y(room[1]);
-						ch.z(room[2]);
+						world.teleportPlayer(ch, room[0], room[1], room[2], ch.instanceId());
 					}
 				});
 			}

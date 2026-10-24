@@ -25,6 +25,7 @@ public class CrestCache {
 	private final Path crestDir;
 	private final ObjectIdFactory idFactory;
 	private final Map<Integer, byte[]> pledgeCrests = new ConcurrentHashMap<>();
+	private final Map<Integer, byte[]> pledgeCrestsLarge = new ConcurrentHashMap<>();
 	private final Map<Integer, byte[]> allyCrests = new ConcurrentHashMap<>();
 
 	@Autowired
@@ -42,6 +43,10 @@ public class CrestCache {
 		return pledgeCrests.get(crestId);
 	}
 
+	public byte[] getPledgeCrestLarge(int crestId) {
+		return pledgeCrestsLarge.get(crestId);
+	}
+
 	public byte[] getAllyCrest(int crestId) {
 		return allyCrests.get(crestId);
 	}
@@ -53,6 +58,16 @@ public class CrestCache {
 		int crestId = idFactory.nextId();
 		pledgeCrests.put(crestId, data);
 		saveToFile("crest_" + crestId + ".bmp", data);
+		return crestId;
+	}
+
+	public int savePledgeCrestLarge(byte[] data) {
+		if (data == null || data.length == 0 || data.length > 2176) {
+			return 0;
+		}
+		int crestId = idFactory.nextId();
+		pledgeCrestsLarge.put(crestId, data);
+		saveToFile("crest_large_" + crestId + ".bmp", data);
 		return crestId;
 	}
 
@@ -69,6 +84,11 @@ public class CrestCache {
 	public void removePledgeCrest(int crestId) {
 		pledgeCrests.remove(crestId);
 		deleteFile("crest_" + crestId + ".bmp");
+	}
+
+	public void removePledgeCrestLarge(int crestId) {
+		pledgeCrestsLarge.remove(crestId);
+		deleteFile("crest_large_" + crestId + ".bmp");
 	}
 
 	public void removeAllyCrest(int crestId) {
@@ -98,7 +118,12 @@ public class CrestCache {
 		try (var stream = Files.list(crestDir)) {
 			for (Path p : stream.filter(Files::isRegularFile).toList()) {
 				String fname = p.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
-				if (fname.startsWith("crest_") && fname.endsWith(".bmp")) {
+				if (fname.startsWith("crest_large_") && fname.endsWith(".bmp")) {
+					try {
+						int id = Integer.parseInt(fname.substring(12, fname.length() - 4));
+						pledgeCrestsLarge.put(id, Files.readAllBytes(p));
+					} catch (Exception ignored) {}
+				} else if (fname.startsWith("crest_") && fname.endsWith(".bmp")) {
 					try {
 						int id = Integer.parseInt(fname.substring(6, fname.length() - 4));
 						pledgeCrests.put(id, Files.readAllBytes(p));
