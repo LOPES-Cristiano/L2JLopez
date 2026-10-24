@@ -440,12 +440,12 @@ public class ItemPacketHandler {
 				session.send(SystemMessage.of(SystemMessage.S1_S2_SUCCESSFULLY_ENCHANTED,
 						new SystemMessage.Number(target.enchant()), new SystemMessage.ItemName(target.itemId())));
 			}
-			session.send(new InventoryUpdate(List.of(ItemInfo.of(target, ItemInfo.MODIFIED))));
 			if (target.isEquipped()) {
 				updateArmorSetBonus();
 				updateEquippedItemSkills();
 				session.sendUserInfoAndBroadcastCharInfo();
 			}
+			session.send(new InventoryUpdate(List.of(ItemInfo.of(target, ItemInfo.MODIFIED))));
 			session.broadcastAppearance();
 		} else {
 			int failEnchant = EnchantTableService.calculateFailureEnchant(scrollInfo, target);
@@ -454,12 +454,12 @@ public class ItemPacketHandler {
 				ctx.inventories().saveItem(target);
 				session.send(SystemMessage.id(SystemMessage.BLESSED_ENCHANT_FAILED));
 				session.send(EnchantResult.BLESSED_FAIL);
-				session.send(new InventoryUpdate(List.of(ItemInfo.of(target, ItemInfo.MODIFIED))));
 				if (target.isEquipped()) {
 					updateArmorSetBonus();
 					updateEquippedItemSkills();
 					session.sendUserInfoAndBroadcastCharInfo();
 				}
+				session.send(new InventoryUpdate(List.of(ItemInfo.of(target, ItemInfo.MODIFIED))));
 				session.broadcastAppearance();
 			} else {
 				int oldEnchant = target.enchant();
@@ -722,9 +722,12 @@ public class ItemPacketHandler {
 		updateArmorSetBonus();
 		updateEquippedItemSkills();
 		updateAugmentationBonus();
-		session.send(InventoryUpdate.modified(r.changed()));
-		session.sendUserInfoAndBroadcastCharInfo();
 		var t = ctx != null && ctx.characters() != null ? ctx.characters().template(active) : null;
+		if (t != null) {
+			session.recalcMaxVitals(t);
+		}
+		session.sendUserInfoAndBroadcastCharInfo();
+		session.send(InventoryUpdate.modified(r.changed()));
 		if (t != null) {
 			var stats = PlayerStats.calculate(active, t);
 			if (stats.gradePenalty() > 0) {
