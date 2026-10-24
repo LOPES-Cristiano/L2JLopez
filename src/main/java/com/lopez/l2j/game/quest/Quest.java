@@ -46,6 +46,14 @@ public abstract class Quest {
 		return name;
 	}
 
+	/**
+	 * Indica se a quest e visivel na janela de quests (Alt+U) e nos marcadores do mapa.
+	 * Quests internas de tutorial (201-206 e 255) nao possuem entradas no questname-e.dat para a lista.
+	 */
+	public boolean isVisible() {
+		return questId > 0 && questId < 1000 && questId != 255 && (questId < 201 || questId > 206);
+	}
+
 	public String getDescr() {
 		if (descr == null || descr.isBlank() || descr.equals(name)) {
 			String official = QuestMessage.getTitleById(questId);
