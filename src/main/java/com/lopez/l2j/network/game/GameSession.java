@@ -115,6 +115,7 @@ import com.lopez.l2j.network.game.handler.packet.HennaPacketHandler;
 import com.lopez.l2j.network.game.handler.packet.SocialPacketHandler;
 
 import com.lopez.l2j.network.game.handler.packet.CommandPacketHandler;
+import com.lopez.l2j.network.game.handler.packet.ExtendedProtocolPacketHandler;
 
 import com.lopez.l2j.network.game.handler.packet.PartyClanPacketHandler;
 
@@ -131,6 +132,8 @@ import com.lopez.l2j.network.game.packet.GameClientPacket.UseItem;
 import com.lopez.l2j.network.game.packet.GameClientPacket.ValidatePosition;
 
 import com.lopez.l2j.network.game.packet.GameServerPacket;
+import com.lopez.l2j.network.game.packet.GameServerPacket.AuthLoginFail;
+import com.lopez.l2j.network.game.packet.GameServerPacket.CharDeleteFail;
 
 import com.lopez.l2j.network.game.packet.GameServerPacket.ActionFailed;
 
@@ -2678,6 +2681,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	private final CommandPacketHandler commandHandler;
 
+	private final ExtendedProtocolPacketHandler extendedProtocolHandler;
+
 	public GameSession(Context ctx, byte[] cryptKey, String ip, Consumer<GameServerPacket> sink) {
 
 		this(ctx, cryptKey, ip, sink, null);
@@ -2719,6 +2724,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		this.socialHandler = new SocialPacketHandler(this);
 
 		this.commandHandler = new CommandPacketHandler(this);
+
+		this.extendedProtocolHandler = new ExtendedProtocolPacketHandler(this);
 
 	}
 
@@ -3015,6 +3022,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	public TradeStorePacketHandler tradeStoreHandler() {
 
 		return tradeStoreHandler;
+
+	}
+
+	public ExtendedProtocolPacketHandler extendedProtocolHandler() {
+
+		return extendedProtocolHandler;
 
 	}
 
@@ -3565,6 +3578,156 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			case GameClientPacket.RequestRefineCancel p -> onRefineCancel(p);
 
+			case GameClientPacket.RequestChangeMoveType p -> extendedProtocolHandler.handleChangeMoveType(p);
+
+			case GameClientPacket.RequestChangeWaitType p -> extendedProtocolHandler.handleChangeWaitType(p);
+
+			case GameClientPacket.RequestLinkHtml p -> extendedProtocolHandler.handleLinkHtml(p);
+
+			case GameClientPacket.CannotMoveAnymore p -> extendedProtocolHandler.handleCannotMoveAnymore(p);
+
+			case GameClientPacket.MoveWithDelta p -> extendedProtocolHandler.handleMoveWithDelta(p);
+
+			case GameClientPacket.RequestGetOnVehicle p -> extendedProtocolHandler.handleGetOnVehicle(p);
+
+			case GameClientPacket.RequestGetOffVehicle p -> extendedProtocolHandler.handleGetOffVehicle(p);
+
+			case GameClientPacket.RequestSiegeInfo p -> extendedProtocolHandler.handleSiegeInfo(p);
+
+			case GameClientPacket.StartRotating p -> extendedProtocolHandler.handleStartRotating(p);
+
+			case GameClientPacket.FinishRotating p -> extendedProtocolHandler.handleFinishRotating(p);
+
+			case GameClientPacket.RequestReplyStartPledgeWar p -> extendedProtocolHandler.handleReplyStartPledgeWar(p);
+
+			case GameClientPacket.RequestReplyStopPledgeWar p -> extendedProtocolHandler.handleReplyStopPledgeWar(p);
+
+			case GameClientPacket.RequestSurrenderPledgeWar p -> extendedProtocolHandler.handleSurrenderPledgeWar(p);
+
+			case GameClientPacket.RequestMoveToLocationInVehicle p -> extendedProtocolHandler.handleMoveToLocationInVehicle(p);
+
+			case GameClientPacket.CannotMoveAnymoreInVehicle p -> extendedProtocolHandler.handleCannotMoveAnymoreInVehicle(p);
+
+			case GameClientPacket.RequestPledgeExtendedInfo p -> extendedProtocolHandler.handlePledgeExtendedInfo(p);
+
+			case GameClientPacket.RequestSurrenderPersonally p -> extendedProtocolHandler.handleSurrenderPersonally(p);
+
+			case GameClientPacket.RequestPartyMatchConfig p -> extendedProtocolHandler.handlePartyMatchConfig(p);
+
+			case GameClientPacket.RequestPartyMatchList p -> extendedProtocolHandler.handlePartyMatchList(p);
+
+			case GameClientPacket.RequestPartyMatchDetail p -> extendedProtocolHandler.handlePartyMatchDetail(p);
+
+			case GameClientPacket.RequestPrivateStoreManageCancel p -> extendedProtocolHandler.handlePrivateStoreManageCancel(p);
+
+			case GameClientPacket.RequestPetition p -> extendedProtocolHandler.handlePetition(p);
+
+			case GameClientPacket.RequestPetitionCancel p -> extendedProtocolHandler.handlePetitionCancel(p);
+
+			case GameClientPacket.RequestGmList p -> extendedProtocolHandler.handleGmList(p);
+
+			case GameClientPacket.AllyLeave p -> extendedProtocolHandler.handleAllyLeave(p);
+
+			case GameClientPacket.AllyDismiss p -> extendedProtocolHandler.handleAllyDismiss(p);
+
+			case GameClientPacket.RequestDismissAlly p -> extendedProtocolHandler.handleDismissAlly(p);
+
+			case GameClientPacket.RequestSetAllyCrest p -> extendedProtocolHandler.handleSetAllyCrest(p);
+
+			case GameClientPacket.RequestAllyCrest p -> extendedProtocolHandler.handleAllyCrest(p);
+
+			case GameClientPacket.RequestChangePetName p -> extendedProtocolHandler.handleChangePetName(p);
+
+			case GameClientPacket.RequestPetUseItem p -> extendedProtocolHandler.handlePetUseItem(p);
+
+			case GameClientPacket.RequestGiveItemToPet p -> extendedProtocolHandler.handleGiveItemToPet(p);
+
+			case GameClientPacket.RequestGetItemFromPet p -> extendedProtocolHandler.handleGetItemFromPet(p);
+
+			case GameClientPacket.RequestAllyInfo p -> extendedProtocolHandler.handleAllyInfo(p);
+
+			case GameClientPacket.RequestPetGetItem p -> extendedProtocolHandler.handlePetGetItem(p);
+
+			case GameClientPacket.RequestPackageSendableItemList p -> extendedProtocolHandler.handlePackageSendableItemList(p);
+
+			case GameClientPacket.RequestPackageSend p -> extendedProtocolHandler.handlePackageSend(p);
+
+			case GameClientPacket.SnoopQuit p -> extendedProtocolHandler.handleSnoopQuit(p);
+
+			case GameClientPacket.RequestRecipeBookDestroy p -> extendedProtocolHandler.handleRecipeBookDestroy(p);
+
+			case GameClientPacket.RequestRecipeShopManageList p -> extendedProtocolHandler.handleRecipeShopManageList(p);
+
+			case GameClientPacket.RequestRecipeShopMessageSet p -> extendedProtocolHandler.handleRecipeShopMessageSet(p);
+
+			case GameClientPacket.RequestRecipeShopListSet p -> extendedProtocolHandler.handleRecipeShopListSet(p);
+
+			case GameClientPacket.RequestRecipeShopManageQuit p -> extendedProtocolHandler.handleRecipeShopManageQuit(p);
+
+			case GameClientPacket.RequestRecipeShopMakeInfo p -> extendedProtocolHandler.handleRecipeShopMakeInfo(p);
+
+			case GameClientPacket.RequestRecipeShopMakeItem p -> extendedProtocolHandler.handleRecipeShopMakeItem(p);
+
+			case GameClientPacket.RequestRecipeShopManagePrev p -> extendedProtocolHandler.handleRecipeShopManagePrev(p);
+
+			case GameClientPacket.ObserverReturn p -> extendedProtocolHandler.handleObserverReturn(p);
+
+			case GameClientPacket.RequestBuyProcure p -> extendedProtocolHandler.handleBuyProcure(p);
+
+			case GameClientPacket.RequestBuySeed p -> extendedProtocolHandler.handleBuySeed(p);
+
+			case GameClientPacket.RequestPreviewItem p -> extendedProtocolHandler.handlePreviewItem(p);
+
+			case GameClientPacket.GameGuardReply p -> extendedProtocolHandler.handleGameGuardReply(p);
+
+			case GameClientPacket.RequestSendFriendMsg p -> socialHandler.handleSendFriendMsg(p);
+
+			case GameClientPacket.RequestRecordInfo p -> extendedProtocolHandler.handleRecordInfo(p);
+
+			case GameClientPacket.RequestOustFromPartyRoom p -> extendedProtocolHandler.handleOustFromPartyRoom(p);
+
+			case GameClientPacket.RequestDismissPartyRoom p -> extendedProtocolHandler.handleDismissPartyRoom(p);
+
+			case GameClientPacket.RequestWithdrawPartyRoom p -> extendedProtocolHandler.handleWithdrawPartyRoom(p);
+
+			case GameClientPacket.RequestProcureCropList p -> extendedProtocolHandler.handleProcureCropList(p);
+
+			case GameClientPacket.RequestSetSeed p -> extendedProtocolHandler.handleSetSeed(p);
+
+			case GameClientPacket.RequestSetCrop p -> extendedProtocolHandler.handleSetCrop(p);
+
+			case GameClientPacket.RequestWriteHeroWords p -> extendedProtocolHandler.handleWriteHeroWords(p);
+
+			case GameClientPacket.RequestExAskJoinMPCC p -> extendedProtocolHandler.handleExAskJoinMPCC(p);
+
+			case GameClientPacket.RequestExAcceptJoinMPCC p -> extendedProtocolHandler.handleExAcceptJoinMPCC(p);
+
+			case GameClientPacket.RequestExOustFromMPCC p -> extendedProtocolHandler.handleExOustFromMPCC(p);
+
+			case GameClientPacket.RequestOlympiadObserverEnd p -> extendedProtocolHandler.handleOlympiadObserverEnd(p);
+
+			case GameClientPacket.RequestOlympiadMatchList p -> extendedProtocolHandler.handleOlympiadMatchList(p);
+
+			case GameClientPacket.RequestAskJoinPartyRoom p -> extendedProtocolHandler.handleAskJoinPartyRoom(p);
+
+			case GameClientPacket.AnswerJoinPartyRoom p -> extendedProtocolHandler.handleAnswerJoinPartyRoom(p);
+
+			case GameClientPacket.RequestListPartyMatchingWaitingRoom p -> extendedProtocolHandler.handleListPartyMatchingWaitingRoom(p);
+
+			case GameClientPacket.RequestExitPartyMatchingWaitingRoom p -> extendedProtocolHandler.handleExitPartyMatchingWaitingRoom(p);
+
+			case GameClientPacket.RequestPledgeSetAcademyMaster p -> extendedProtocolHandler.handlePledgeSetAcademyMaster(p);
+
+			case GameClientPacket.RequestExFishRanking p -> extendedProtocolHandler.handleExFishRanking(p);
+
+			case GameClientPacket.RequestPCCafeCouponUse p -> extendedProtocolHandler.handlePCCafeCouponUse(p);
+
+			case GameClientPacket.RequestPledgeReorganizeMember p -> extendedProtocolHandler.handlePledgeReorganizeMember(p);
+
+			case GameClientPacket.RequestExMPCCShowPartyMembersInfo p -> extendedProtocolHandler.handleExMPCCShowPartyMembersInfo(p);
+
+			case GameClientPacket.RequestExMagicSkillUseGround p -> extendedProtocolHandler.handleMagicSkillUseGround(p);
+
 			case Unknown p -> log.debug("Opcode ignorado 0x{}{} no estado {}", Integer.toHexString(p.opcode()),
 
 					p.subOpcode() >= 0 ? ":" + Integer.toHexString(p.subOpcode()) : "", state);
@@ -3653,6 +3816,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			log.warn("AuthLogin recusado para {} de {}: chave de sessao invalida ou expirada", p.account(), ip);
 
+			send(new AuthLoginFail(1));
+
 			close(null);
 
 			return;
@@ -3731,7 +3896,23 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		if (c == null) {
 
+			send(new CharDeleteFail(CharDeleteFail.REASON_DELETION_FAILED));
+
 			return;
+
+		}
+
+		if (c.clanId() > 0 && ctx.clans() != null) {
+
+			var clanOpt = ctx.clans().byClanId(c.clanId());
+
+			if (clanOpt.isPresent() && clanOpt.get().isLeader(c.objectId())) {
+
+				send(new CharDeleteFail(CharDeleteFail.REASON_CLAN_LEADERS_MAY_NOT_BE_DELETED));
+
+				return;
+
+			}
 
 		}
 
@@ -3935,22 +4116,6 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-		send(ItemList.of(active.inventory().items(), false));
-
-		List<ShortCut> charShortcuts = ctx.shortcuts() != null
-
-				? ctx.shortcuts().findByCharId(active.objectId(), active.classIndex())
-
-				: List.of();
-
-		if (charShortcuts.isEmpty() && wasNewCharacter && ctx.shortcuts() != null && active != null) {
-
-			charShortcuts = initDefaultNewbieShortCuts(active);
-
-		}
-
-		send(new ShortCutInit(charShortcuts));
-
 		loadMacros();
 
 		loadHennasForCurrentSubclass();
@@ -4052,6 +4217,22 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			send(com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate.forPlayer(active));
 
 		}
+
+		send(ItemList.of(active.inventory().items(), false));
+
+		List<ShortCut> charShortcuts = ctx.shortcuts() != null
+
+				? ctx.shortcuts().findByCharId(active.objectId(), active.classIndex())
+
+				: List.of();
+
+		if (charShortcuts.isEmpty() && wasNewCharacter && ctx.shortcuts() != null && active != null) {
+
+			charShortcuts = initDefaultNewbieShortCuts(active);
+
+		}
+
+		send(new ShortCutInit(charShortcuts));
 
 		send(new ChangeMoveType(active.objectId(), active.running()));
 
