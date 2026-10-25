@@ -13,6 +13,7 @@ import com.lopez.l2j.game.npc.NpcTemplateTable;
 import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,11 +21,17 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Servico responsavel pelo gerenciamento do Dimensional Rift (Item 88).
@@ -93,6 +100,16 @@ public class DimensionalRiftService {
     private final Map<Integer, Integer> playerToLeaderMap = new ConcurrentHashMap<>();
     // Monstros spawnados por sessao (PartyLeaderId -> lista de NpcInstance)
     private final Map<Integer, List<NpcInstance>> spawnedMonstersByLeader = new ConcurrentHashMap<>();
+    // Tarefas de salto automatico por sessao (PartyLeaderId -> ScheduledFuture)
+    private final Map<Integer, ScheduledFuture<?>> autoJumpTasks = new ConcurrentHashMap<>();
+    // Cache das referencias de PlayerCharacter da party para saltos automaticos
+    private final Map<Integer, List<PlayerCharacter>> partyMembersByLeader = new ConcurrentHashMap<>();
+
+    private final ScheduledExecutorService autoJumpScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "DimensionalRift-AutoJump");
+        t.setDaemon(true);
+        return t;
+    });
 
     public DimensionalRiftService() {
     }
@@ -124,6 +141,15 @@ public class DimensionalRiftService {
         this.inventoryService = inventoryService;
         this.gameWorld = gameWorld;
         this.npcTemplateData = npcTemplateData;
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        for (ScheduledFuture<?> f : autoJumpTasks.values()) {
+            f.cancel(false);
+        }
+        autoJumpTasks.clear();
+        autoJumpScheduler.shutdownNow();
     }
 
     public void setInventoryService(InventoryService inventoryService) {
@@ -164,6 +190,50 @@ public class DimensionalRiftService {
             delayMillis = Math.round(delayMillis * Config.BOSS_ROOM_TIME_MULTIPLY);
         }
         return delayMillis;
+    }
+
+    /**
+     * Retorna o conjunto de salas atualmente ocupadas por sessoes ativas (para evitar colisao de parties).
+     */
+    public Set<Integer> getOccupiedRooms() {
+        Set<Integer> occupied = new HashSet<>();
+        for (RiftSession s : activeSessions.values()) {
+            if (!s.isCompleted() && s.getCurrentRoom() > 0) {
+                occupied.add(s.getCurrentRoom());
+            }
+        }
+        return occupied;
+    }
+
+    private int chooseInitialRoom() {
+        Set<Integer> occupied = getOccupiedRooms();
+        List<Integer> freeRooms = new ArrayList<>();
+        for (int r = 1; r <= 8; r++) {
+            if (!occupied.contains(r)) {
+                freeRooms.add(r);
+            }
+        }
+        if (!freeRooms.isEmpty()) {
+            return freeRooms.get(random.nextInt(freeRooms.size()));
+        }
+        return 1 + random.nextInt(8);
+    }
+
+    private void scheduleAutoJump(int leaderId, boolean isBossRoom) {
+        cancelAutoJump(leaderId);
+        long delayMs = computeAutoJumpDelayMillis(isBossRoom);
+        ScheduledFuture<?> future = autoJumpScheduler.schedule(() -> {
+            List<PlayerCharacter> cachedMembers = partyMembersByLeader.get(leaderId);
+            autoAdvanceRoom(leaderId, cachedMembers);
+        }, delayMs, TimeUnit.MILLISECONDS);
+        autoJumpTasks.put(leaderId, future);
+    }
+
+    private void cancelAutoJump(int leaderId) {
+        ScheduledFuture<?> prev = autoJumpTasks.remove(leaderId);
+        if (prev != null) {
+            prev.cancel(false);
+        }
     }
 
     /**
@@ -211,15 +281,16 @@ public class DimensionalRiftService {
             consumeFragments(member, cost);
         }
 
-        // 3. Criacao da sessao e escolha da sala inicial (1 a 8)
+        // 3. Criacao da sessao e escolha da sala inicial desocupada (1 a 8)
         List<Integer> memberIds = members.stream().map(PlayerCharacter::objectId).toList();
         RiftSession session = new RiftSession(leaderId, tier, memberIds);
-        int initialRoom = 1 + random.nextInt(8); // Salas 1 a 8 inicialmente
+        int initialRoom = chooseInitialRoom();
         session.setCurrentRoom(initialRoom);
         session.getCompletedRooms().add(initialRoom);
         session.incrementJumps();
 
         activeSessions.put(leaderId, session);
+        partyMembersByLeader.put(leaderId, new CopyOnWriteArrayList<>(members));
         for (PlayerCharacter member : members) {
             playerToLeaderMap.put(member.objectId(), leaderId);
         }
@@ -230,6 +301,7 @@ public class DimensionalRiftService {
             teleportMember(member, coords[0], coords[1], coords[2]);
         }
         spawnRoomMonsters(session, coords[0], coords[1], coords[2]);
+        scheduleAutoJump(leaderId, session.isBossRoom());
 
         log.info("Party de {} entrou no Dimensional Rift [{}] - Sala inicial: {}",
                 leader.name(), tier.getName(), initialRoom);
@@ -263,11 +335,16 @@ public class DimensionalRiftService {
         // Remove os monstros restantes da sala anterior antes de trocar de sala
         despawnRoomMonsters(leaderId);
 
-        // Seleciona proxima sala nao visitada
+        // Seleciona proxima sala nao visitada (preferindo salas nao ocupadas por outras parties)
+        Set<Integer> occupied = getOccupiedRooms();
+        List<Integer> availableUnoccupied = new ArrayList<>();
         List<Integer> availableRooms = new ArrayList<>();
         for (int r = 1; r <= 8; r++) {
             if (!session.getCompletedRooms().contains(r)) {
                 availableRooms.add(r);
+                if (!occupied.contains(r)) {
+                    availableUnoccupied.add(r);
+                }
             }
         }
 
@@ -276,6 +353,9 @@ public class DimensionalRiftService {
         if (session.getJumpsCount() == (maxJumps - 1) && !session.getCompletedRooms().contains(9)) {
             nextRoom = 9;
             session.setBossRoom(true);
+        } else if (!availableUnoccupied.isEmpty()) {
+            nextRoom = availableUnoccupied.get(random.nextInt(availableUnoccupied.size()));
+            session.setBossRoom(false);
         } else if (!availableRooms.isEmpty()) {
             nextRoom = availableRooms.get(random.nextInt(availableRooms.size()));
             session.setBossRoom(false);
@@ -289,8 +369,9 @@ public class DimensionalRiftService {
         session.incrementJumps();
 
         int[] coords = ROOM_COORDINATES.get(nextRoom);
-        if (members != null) {
-            for (PlayerCharacter member : members) {
+        List<PlayerCharacter> effectiveMembers = members != null ? members : partyMembersByLeader.get(leaderId);
+        if (effectiveMembers != null) {
+            for (PlayerCharacter member : effectiveMembers) {
                 teleportMember(member, coords[0], coords[1], coords[2]);
             }
         } else if (gameWorld != null) {
@@ -303,6 +384,7 @@ public class DimensionalRiftService {
         }
 
         spawnRoomMonsters(session, coords[0], coords[1], coords[2]);
+        scheduleAutoJump(leaderId, session.isBossRoom());
 
         log.info("Dimensional Rift: Party de leaderId {} saltou para Sala {} (Salto {}/{})",
                 leaderId, nextRoom, session.getJumpsCount(), maxJumps);
@@ -341,8 +423,9 @@ public class DimensionalRiftService {
 
         // Recompensa a party com Ancient Adena proporcional ao Tier
         int rewardAmount = session.getTier().getId() * 25000;
-        if (members != null) {
-            for (PlayerCharacter member : members) {
+        List<PlayerCharacter> effectiveMembers = members != null ? members : partyMembersByLeader.get(leaderId);
+        if (effectiveMembers != null) {
+            for (PlayerCharacter member : effectiveMembers) {
                 deliverItem(member, ANCIENT_ADENA_ID, rewardAmount);
             }
         } else if (gameWorld != null) {
@@ -381,7 +464,9 @@ public class DimensionalRiftService {
      * Encerra a expedicao, remove monstros restantes e teletransporta todos de volta a Waiting Room.
      */
     public synchronized void exitRift(int leaderId, List<PlayerCharacter> members) {
+        cancelAutoJump(leaderId);
         despawnRoomMonsters(leaderId);
+        List<PlayerCharacter> cachedMembers = partyMembersByLeader.remove(leaderId);
 
         RiftSession session = activeSessions.remove(leaderId);
         if (session != null) {
@@ -391,8 +476,9 @@ public class DimensionalRiftService {
             }
         }
 
-        if (members != null) {
-            for (PlayerCharacter member : members) {
+        List<PlayerCharacter> effectiveMembers = members != null ? members : cachedMembers;
+        if (effectiveMembers != null) {
+            for (PlayerCharacter member : effectiveMembers) {
                 teleportMember(member, WAITING_ROOM_X, WAITING_ROOM_Y, WAITING_ROOM_Z);
             }
         } else if (session != null && gameWorld != null) {
