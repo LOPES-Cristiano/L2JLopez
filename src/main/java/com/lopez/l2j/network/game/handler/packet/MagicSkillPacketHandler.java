@@ -109,10 +109,23 @@ public class MagicSkillPacketHandler {
 		if (baseMp <= 0 || active() == null || sk == null) {
 			return Math.max(0, baseMp);
 		}
-		String rateStat = sk.isDanceOrSong() ? "DanceMpConsumeRate"
-				: (sk.magic() ? "MagicalMpConsumeRate" : "PhysicalMpConsumeRate");
+		double effectiveBase = baseMp;
+		// #128: Custo adicional progressivo de MP para Dances e Songs por danca/musica ja ativa
+		if (sk.isDanceOrSong() && baseMp == sk.mpConsume() && active().effects() != null) {
+			long activeDanceCount = active().effects().active().stream()
+					.filter(b -> !b.isDebuff() && !b.isPermanent() && PlayerEffects.isDanceOrSong(b.skillId()))
+					.count();
+			if (activeDanceCount > 0) {
+				effectiveBase += activeDanceCount * 30.0;
+			}
+		}
+		String rateStat = sk.isDanceOrSong()
+				? com.lopez.l2j.game.stats.Stat.DANCE_MP_CONSUME_RATE.getValue()
+				: (sk.magic()
+						? com.lopez.l2j.game.stats.Stat.MAGICAL_MP_CONSUME_RATE.getValue()
+						: com.lopez.l2j.game.stats.Stat.PHYSICAL_MP_CONSUME_RATE.getValue());
 		double rate = PlayerStats.applyStat(active(), rateStat, 1.0);
-		return Math.max(0, (int) Math.round(baseMp * rate));
+		return Math.max(0, (int) Math.round(effectiveBase * rate));
 	}
 
 	public void castSkill(SkillTemplate sk, boolean mayMove) {
@@ -150,7 +163,7 @@ public class MagicSkillPacketHandler {
 			int have = active().inventory().byItemId(sk.itemConsumeId()).map(ItemInstance::count).orElse(0);
 			if (have < sk.itemConsumeCount()) {
 				send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.SkillName(sk.id(), sk.level())));
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Itens insuficientes para usar esta habilidade."));
+				send(SystemMessage.id(351)); // NOT_ENOUGH_ITEMS (#096)
 				send(new ActionFailed());
 				return;
 			}
@@ -193,14 +206,32 @@ public class MagicSkillPacketHandler {
 		boolean isAreaSweep = "TARGET_AREA_CORPSE_MOB".equalsIgnoreCase(sk.target())
 				|| sk.id() == 444
 				|| ("SWEEP".equalsIgnoreCase(sk.skillType()) && sk.isAreaAroundSelf());
+		boolean isHarvest = "HARVEST".equalsIgnoreCase(sk.skillType()) || sk.id() == 2098;
 		boolean isSweep = isAreaSweep
-				|| "TARGET_CORPSE_MOB".equalsIgnoreCase(sk.target())
 				|| "SWEEP".equalsIgnoreCase(sk.skillType())
 				|| sk.id() == 42;
-		boolean isResurrect = !isSweep && ("RESURRECT".equalsIgnoreCase(sk.skillType()) || sk.target().startsWith("TARGET_CORPSE_"));
+		boolean isCorpseMobSkill = !isSweep && !isHarvest
+				&& ("TARGET_CORPSE_MOB".equalsIgnoreCase(sk.target())
+						|| sk.id() == 1129 || sk.id() == 1154 || sk.id() == 1334);
+		boolean isResurrect = !isSweep && !isHarvest && !isCorpseMobSkill
+				&& ("RESURRECT".equalsIgnoreCase(sk.skillType()) || sk.target().startsWith("TARGET_CORPSE_"));
 		boolean isUnlock = "UNLOCK".equalsIgnoreCase(sk.skillType())
 				|| "DELUXE_KEY_UNLOCK".equalsIgnoreCase(sk.skillType())
 				|| "TARGET_UNLOCKABLE".equalsIgnoreCase(sk.target());
+		boolean isSiegeAssault = "STRSIEGEASSAULT".equalsIgnoreCase(sk.skillType()) || sk.id() == 325;
+		boolean isEraseOrBetray = "ERASE".equalsIgnoreCase(sk.skillType()) || "BETRAY".equalsIgnoreCase(sk.skillType())
+				|| sk.id() == 1395 || sk.id() == 1380;
+		boolean isMobUtilitySkill = "SOW".equalsIgnoreCase(sk.skillType())
+				|| "DRAIN_SOUL".equalsIgnoreCase(sk.skillType())
+				|| "BEAST_FEED".equalsIgnoreCase(sk.skillType())
+				|| "CONFUSION".equalsIgnoreCase(sk.skillType())
+				|| "CONFUSE_MOB_ONLY".equalsIgnoreCase(sk.skillType())
+				|| "AGGREMOVE".equalsIgnoreCase(sk.skillType())
+				|| "AGGREDUCE".equalsIgnoreCase(sk.skillType())
+				|| "AGGREDUCE_CHAR".equalsIgnoreCase(sk.skillType())
+				|| "AGGDEBUFF".equalsIgnoreCase(sk.skillType())
+				|| "AGGDAMAGE".equalsIgnoreCase(sk.skillType())
+				|| sk.id() == 2097 || sk.id() == 2099 || sk.id() == 2188 || sk.id() == 2189;
 		boolean isSummonTargetOnly = "TARGET_SUMMON".equalsIgnoreCase(sk.target())
 				|| "TARGET_PET".equalsIgnoreCase(sk.target());
 		boolean isHealSkill = "HEAL".equalsIgnoreCase(sk.skillType())
@@ -250,6 +281,13 @@ public class MagicSkillPacketHandler {
 					return;
 				}
 			}
+		} else if (isHarvest || isCorpseMobSkill) {
+			npcTarget = ctx().world().npc(session.targetObjectId()).filter(n -> n.isAttackable() && n.isDead()).orElse(null);
+			if (npcTarget == null) {
+				send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+				send(new ActionFailed());
+				return;
+			}
 		} else if (isUnlock) {
 			npcTarget = ctx().world().npc(session.targetObjectId()).filter(n -> !n.isDead() && GameSession.isChestNpc(n)).orElse(null);
 			if (npcTarget == null && ctx().doors() != null) {
@@ -265,6 +303,44 @@ public class MagicSkillPacketHandler {
 				send(new ActionFailed());
 				return;
 			}
+		} else if (isSiegeAssault) {
+			if (ctx().doors() != null) {
+				doorTarget = ctx().doors().door(session.targetObjectId());
+			}
+			if (doorTarget == null) {
+				npcTarget = ctx().world().npc(session.targetObjectId()).filter(n -> n.isAttackable() && !n.isDead()).orElse(null);
+			}
+			if (doorTarget == null && npcTarget == null) {
+				send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+				send(new ActionFailed());
+				return;
+			}
+		} else if (isEraseOrBetray) {
+			summonTarget = ctx().world().summon(session.targetObjectId()).filter(s -> !s.isDead()).orElse(null);
+			if (summonTarget != null) {
+				var ownerSess = ctx().world().player(summonTarget.ownerId()).orElse(null);
+				if (ownerSess instanceof GameSession gs) {
+					playerTarget = gs;
+				}
+			} else {
+				var other = ctx().world().player(session.targetObjectId()).orElse(null);
+				if (other instanceof GameSession gs && gs.active() != null && gs.active().activeSummon() != null
+						&& !gs.active().activeSummon().isDead()) {
+					playerTarget = gs;
+					summonTarget = gs.active().activeSummon();
+				} else {
+					send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+					send(new ActionFailed());
+					return;
+				}
+			}
+		} else if (isMobUtilitySkill) {
+			npcTarget = ctx().world().npc(session.targetObjectId()).filter(n -> n.isAttackable() && !n.isDead()).orElse(null);
+			if (npcTarget == null) {
+				send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+				send(new ActionFailed());
+				return;
+			}
 		} else if (sk.isOffensive()) {
 			if (!sk.isAreaAroundSelf()) {
 				npcTarget = ctx().world().npc(session.targetObjectId()).filter(n -> n.isAttackable() && !n.isDead()).orElse(null);
@@ -273,9 +349,20 @@ public class MagicSkillPacketHandler {
 					if (other instanceof GameSession gs && gs.active() != null && !gs.active().isDead() && gs != session) {
 						playerTarget = gs;
 					} else {
-						send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
-						send(new ActionFailed());
-						return;
+						var sumOpt = ctx().world().summon(session.targetObjectId()).filter(s -> !s.isDead());
+						if (sumOpt.isPresent()) {
+							summonTarget = sumOpt.get();
+							var ownerSess = ctx().world().player(summonTarget.ownerId()).orElse(null);
+							if (ownerSess instanceof GameSession gs && gs != session) {
+								playerTarget = gs;
+							}
+						} else if (ctx().doors() != null && ctx().doors().door(session.targetObjectId()) != null) {
+							doorTarget = ctx().doors().door(session.targetObjectId());
+						} else {
+							send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+							send(new ActionFailed());
+							return;
+						}
 					}
 				}
 			}
@@ -326,11 +413,15 @@ public class MagicSkillPacketHandler {
 			playerTarget = session;
 		}
 
-		// Verificacao de Zona de Paz para habilidades ofensivas (aplica-se a PvP contra outros jogadores, nao a monstros)
+		// #096: Verificacao de Zona de Paz para habilidades ofensivas com SystemMessage oficial (84 / 85)
 		if (sk.isOffensive() && ctx().zones() != null && playerTarget != null && playerTarget != session) {
-			if (ctx().zones().isInsidePeace(active().x(), active().y(), active().z())
-					|| ctx().zones().isInsidePeace(playerTarget.x(), playerTarget.y(), playerTarget.z())) {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pode usar habilidades ofensivas em zona de paz."));
+			if (ctx().zones().isInsidePeace(active().x(), active().y(), active().z())) {
+				send(SystemMessage.id(SystemMessage.YOU_MAY_NOT_ATTACK_IN_A_PEACEFUL_ZONE));
+				send(new ActionFailed());
+				return;
+			}
+			if (ctx().zones().isInsidePeace(playerTarget.x(), playerTarget.y(), playerTarget.z())) {
+				send(SystemMessage.id(SystemMessage.YOU_MAY_NOT_ATTACK_THIS_TARGET_IN_A_PEACEFUL_ZONE));
 				send(new ActionFailed());
 				return;
 			}
@@ -340,16 +431,26 @@ public class MagicSkillPacketHandler {
 		if (!sk.isOffensive() && ctx().zones() != null && playerTarget != null && playerTarget != session) {
 			if (ctx().zones().isInsidePeace(active().x(), active().y(), active().z())
 					&& (playerTarget.active().pvpFlag() > 0 || playerTarget.active().karma() > 0)) {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pode dar suporte a jogadores em combate a partir de uma zona de paz."));
+				send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
 				send(new ActionFailed());
 				return;
 			}
 		}
 
-		// Validacao de condicoes da skill levando o alvo em consideracao (ex: <target undead="true" />)
+		// #184: Validacao de todas as condicoes da skill (castCondition e conditions) antes do cast
 		Object resolvedTarget = npcTarget != null ? npcTarget
-				: (summonTarget != null ? summonTarget : (playerTarget != null ? playerTarget.active() : null));
-		if (sk.castCondition() != null && !sk.castCondition().test(active(), resolvedTarget)) {
+				: (summonTarget != null ? summonTarget
+				: (doorTarget != null ? doorTarget : (playerTarget != null ? playerTarget.active() : null)));
+		boolean condOk = (sk.castCondition() == null || sk.castCondition().test(active(), resolvedTarget));
+		if (condOk && sk.conditions() != null) {
+			for (var cond : sk.conditions()) {
+				if (cond != null && !cond.test(active(), resolvedTarget)) {
+					condOk = false;
+					break;
+				}
+			}
+		}
+		if (!condOk) {
 			if (sk.condMsg() != null && !sk.condMsg().isBlank()) {
 				try {
 					int msgId = Integer.parseInt(sk.condMsg().trim());
@@ -358,7 +459,7 @@ public class MagicSkillPacketHandler {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", sk.condMsg()));
 				}
 			} else {
-				send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+				send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.SkillName(sk.id(), sk.level())));
 			}
 			send(new ActionFailed());
 			return;
@@ -455,12 +556,30 @@ public class MagicSkillPacketHandler {
 		}
 		int minHit = (active().isGm() || active().gmSpeed() > 0) ? 10 : Config.getInt("MinimumHitTime", 330);
 		int hitTime = sk.hitTime() > 0 ? Math.max(minHit, (int) (sk.hitTime() * speedFactor)) : 0;
-		int reuse = (int) (sk.reuseDelay() * speedFactor);
-		double reuseRate = sk.magic()
-				? PlayerStats.applyStat(active(), "mReuse", 1.0)
-				: PlayerStats.applyStat(active(), "pReuse", 1.0);
-		if (reuseRate > 0.0 && reuseRate != 1.0) {
-			reuse = (int) Math.round(reuse * reuseRate);
+		// #128: Calculo de reuseDelay com Formulas.calcSkillReuseDelay e suporte a staticReuse e musicReuse/atkReuse
+		int reuse;
+		if (sk.staticReuse()) {
+			reuse = sk.reuseDelay();
+		} else {
+			reuse = com.lopez.l2j.game.combat.Formulas.calcSkillReuseDelay(
+					sk.reuseDelay(),
+					sk.isPotion(),
+					sk.magic(),
+					active().isOlympiadMode(),
+					stats.pAtkSpd(),
+					stats.mAtkSpd());
+			String reuseStat = sk.isDanceOrSong()
+					? com.lopez.l2j.game.stats.Stat.MUSIC_REUSE_RATE.getValue()
+					: (sk.magic()
+							? com.lopez.l2j.game.stats.Stat.M_REUSE.getValue()
+							: com.lopez.l2j.game.stats.Stat.P_REUSE.getValue());
+			double reuseRate = PlayerStats.applyStat(active(), reuseStat, 1.0);
+			if (!sk.magic() && !sk.isDanceOrSong()) {
+				reuseRate *= PlayerStats.applyStat(active(), com.lopez.l2j.game.stats.Stat.ATK_REUSE.getValue(), 1.0);
+			}
+			if (reuseRate > 0.0 && reuseRate != 1.0) {
+				reuse = (int) Math.round(reuse * reuseRate);
+			}
 		}
 		active().currentMp(Math.max(0, active().currentMp() - effMpInitial));
 		if (reuse > 0) {
@@ -553,7 +672,20 @@ public class MagicSkillPacketHandler {
 		}
 		var t = ctx() != null && ctx().characters() != null ? ctx().characters().template(active()) : null;
 
-		if (sk.id() == 1312) { // Fishing
+		// #135: SkillMastery proc - zera o reuse imediatamente se ativar
+		if (sk.reuseDelay() > 0 && !sk.isPotion() && com.lopez.l2j.game.combat.Formulas.calcSkillMastery(active(), t, active().isMage())) {
+			skillReuse.remove(sk.id());
+			send(SystemMessage.id(1399)); // Skill Mastery activated
+		}
+
+		// #186: EnemyCharge / Warp / Rush / Blink (484, 628, 1448 ou efeito EnemyCharge/Warp)
+		if (sk.id() == 484 || sk.id() == 628 || sk.id() == 1448
+				|| sk.effects().stream().anyMatch(e -> "enemycharge".equalsIgnoreCase(e.name()) || "warp".equalsIgnoreCase(e.name()))) {
+			handleEnemyChargeOrWarp(sk, mainNpc, targetPlayer);
+		}
+
+		if (sk.id() == 1312 || "FISHING".equalsIgnoreCase(sk.skillType())) { // Fishing
+			broadcastLaunched(sk, List.of(active().objectId()));
 			if (ctx().fishing() != null) {
 				int d = 150;
 				double angle = Math.toRadians(active().heading() * (360.0 / 65536.0));
@@ -564,23 +696,118 @@ public class MagicSkillPacketHandler {
 			}
 			return;
 		}
-		if (sk.id() == 1313) { // Pumping
+		if (sk.id() == 1313 || "PUMPING".equalsIgnoreCase(sk.skillType())) { // Pumping
+			broadcastLaunched(sk, List.of(active().objectId()));
 			if (ctx().fishing() != null) {
 				ctx().fishing().handlePumping(active(), sk.level(), (int) sk.power(), session::send);
 			}
 			return;
 		}
-		if (sk.id() == 1314) { // Reeling
+		if (sk.id() == 1314 || "REELING".equalsIgnoreCase(sk.skillType())) { // Reeling
+			broadcastLaunched(sk, List.of(active().objectId()));
 			if (ctx().fishing() != null) {
 				ctx().fishing().handleReeling(active(), sk.level(), (int) sk.power(), session::send);
 			}
 			return;
 		}
 
+		// #149: DWARVEN_CRAFT (172, 1321) e COMMON_CRAFT (1322) -> RecipeBookItemList
+		if ("DWARVEN_CRAFT".equalsIgnoreCase(sk.skillType()) || "COMMON_CRAFT".equalsIgnoreCase(sk.skillType())
+				|| sk.id() == 172 || sk.id() == 1321 || sk.id() == 1322) {
+			boolean isDwarven = !"COMMON_CRAFT".equalsIgnoreCase(sk.skillType()) && sk.id() != 1322;
+			broadcastLaunched(sk, List.of(active().objectId()));
+			List<Integer> recipes = com.lopez.l2j.game.recipe.RecipeService.getInstance()
+					.getRecipeBook(active().objectId(), isDwarven);
+			send(new GameServerPacket.RecipeBookItemList(isDwarven, active().maxMp(), recipes));
+			session.sendVitals();
+			return;
+		}
+
+		// #150: SOW (2097) e HARVEST (2098)
+		if ("SOW".equalsIgnoreCase(sk.skillType()) || sk.id() == 2097) {
+			handleSow(mainNpc, sk);
+			session.sendVitals();
+			return;
+		}
+		if ("HARVEST".equalsIgnoreCase(sk.skillType()) || sk.id() == 2098) {
+			handleHarvest(mainNpc, sk);
+			session.sendVitals();
+			return;
+		}
+
+		// #151: SIGNET e SIGNET_CASTTIME (454-460, 1419-1428)
+		if ("SIGNET".equalsIgnoreCase(sk.skillType()) || "SIGNET_CASTTIME".equalsIgnoreCase(sk.skillType())
+				|| (sk.id() >= 454 && sk.id() <= 460) || (sk.id() >= 1419 && sk.id() <= 1428)) {
+			handleSignet(sk, t, sps, bss);
+			session.sendVitals();
+			return;
+		}
+
+		// #152: FUSION e BUFF_CHARGER (Battle Force 426, Spell Force 427)
+		if ("FUSION".equalsIgnoreCase(sk.skillType()) || "BUFF_CHARGER".equalsIgnoreCase(sk.skillType())
+				|| sk.id() == 426 || sk.id() == 427) {
+			handleFusionSkill(sk, targetPlayer);
+			session.sendVitals();
+			return;
+		}
+
+		// #153: STRSIEGEASSAULT (Strider Siege Assault 325)
+		if ("STRSIEGEASSAULT".equalsIgnoreCase(sk.skillType()) || sk.id() == 325) {
+			handleStriderSiegeAssault(sk, doorTarget, mainNpc);
+			session.sendVitals();
+			return;
+		}
+
+		// #154 & #155: ERASE (1395) e BETRAY (1380)
+		if ("ERASE".equalsIgnoreCase(sk.skillType()) || sk.id() == 1395) {
+			handleEraseSkill(sk, targetPlayer, sps, bss);
+			session.sendVitals();
+			return;
+		}
+		if ("BETRAY".equalsIgnoreCase(sk.skillType()) || sk.id() == 1380) {
+			handleBetraySkill(sk, targetPlayer, sps, bss);
+			session.sendVitals();
+			return;
+		}
+
+		// #156 & #157: CONFUSION, CONFUSE_MOB_ONLY, SHIFT_TARGET
+		if ("CONFUSION".equalsIgnoreCase(sk.skillType()) || "CONFUSE_MOB_ONLY".equalsIgnoreCase(sk.skillType())
+				|| sk.id() == 11 || sk.id() == 12) {
+			handleConfusionSkill(sk, mainNpc, targetPlayer, sps, bss);
+			session.sendVitals();
+			return;
+		}
+		if ("SHIFT_TARGET".equalsIgnoreCase(sk.skillType())) {
+			handleShiftTargetSkill(sk, targetPlayer);
+			session.sendVitals();
+			return;
+		}
+
+		// #158: DRAIN_SOUL (Absorb Soul 2099 / 2096)
+		if ("DRAIN_SOUL".equalsIgnoreCase(sk.skillType()) || sk.id() == 2099 || sk.id() == 2096) {
+			handleDrainSoul(sk, mainNpc);
+			session.sendVitals();
+			return;
+		}
+
+		// #159: BEAST_FEED (Golden Spice 2188, Crystal Spice 2189)
+		if ("BEAST_FEED".equalsIgnoreCase(sk.skillType()) || sk.id() == 2188 || sk.id() == 2189) {
+			handleBeastFeed(sk, mainNpc);
+			session.sendVitals();
+			return;
+		}
+
+		// #161: EXTRACTABLE e EXTRACTABLE_FISH
+		if ("EXTRACTABLE".equalsIgnoreCase(sk.skillType()) || "EXTRACTABLE_FISH".equalsIgnoreCase(sk.skillType())) {
+			handleExtractableSkill(sk);
+			session.sendVitals();
+			return;
+		}
+
 		boolean isAreaSweep = "TARGET_AREA_CORPSE_MOB".equalsIgnoreCase(sk.target())
 				|| sk.id() == 444
 				|| ("SWEEP".equalsIgnoreCase(sk.skillType()) && sk.isAreaAroundSelf());
-		if (isAreaSweep || "TARGET_CORPSE_MOB".equalsIgnoreCase(sk.target()) || "SWEEP".equalsIgnoreCase(sk.skillType()) || sk.id() == 42) {
+		if (isAreaSweep || "SWEEP".equalsIgnoreCase(sk.skillType()) || sk.id() == 42) {
 			if (ctx().drops() != null) {
 				List<NpcInstance> corpsesToSweep = new ArrayList<>();
 				if (isAreaSweep) {
@@ -639,8 +866,10 @@ public class MagicSkillPacketHandler {
 				|| "TARGET_UNLOCKABLE".equalsIgnoreCase(sk.target());
 		if (isUnlock) {
 			if (doorTarget != null) {
+				broadcastLaunched(sk, List.of(doorTarget.objectId()));
 				handleUnlockDoor(doorTarget, sk);
 			} else if (mainNpc != null) {
+				broadcastLaunched(sk, List.of(mainNpc.objectId()));
 				handleUnlockChest(mainNpc, sk);
 			}
 			session.sendVitals();
@@ -654,6 +883,11 @@ public class MagicSkillPacketHandler {
 			skillRegistry = com.lopez.l2j.game.skill.handler.SkillHandlerRegistry.getInstance();
 		}
 		if (skillRegistry != null && skillRegistry.dispatchSpecialSkill(session, sk, mainNpc, doorTarget, targetPlayer, false, sps, bss)) {
+			int launchTargetId = mainNpc != null ? mainNpc.objectId()
+					: (doorTarget != null ? doorTarget.objectId()
+					: (targetPlayer != null ? targetPlayer.objectId() : active().objectId()));
+			broadcastLaunched(sk, List.of(launchTargetId));
+			send(ItemList.of(active().inventory().items(), false));
 			session.sendVitals();
 			return;
 		}
@@ -766,6 +1000,7 @@ public class MagicSkillPacketHandler {
 			}
 		}
 		if (targetSummon != null) {
+			broadcastLaunched(sk, List.of(targetSummon.objectId()));
 			handlePositiveSkillOnSummon(sk, targetSummon, t, sps, bss);
 			if (active() != null) {
 				if (sk.needCharges() > 0 && sk.consumeCharges()) {
@@ -901,6 +1136,447 @@ public class MagicSkillPacketHandler {
 		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, launched, false);
 	}
 
+	// =========================================================================
+	// #150..#161, #186 - Handlers dedicados de SkillTypes especiais
+	// =========================================================================
+
+	private static final Map<Integer, ItemPacketHandler.SeededMonsterState> SKILL_SEEDED_MONSTERS = new ConcurrentHashMap<>();
+
+	private void handleEnemyChargeOrWarp(SkillTemplate sk, NpcInstance mainNpc, GameSession targetPlayer) {
+		if (active() == null) {
+			return;
+		}
+		int origX = active().x();
+		int origY = active().y();
+		int origZ = active().z();
+		int destX = origX;
+		int destY = origY;
+		int destZ = origZ;
+		int flyType = 2; // FLY_CHARGE
+
+		if (mainNpc != null) {
+			double dx = mainNpc.x() - origX;
+			double dy = mainNpc.y() - origY;
+			double dist = Math.hypot(dx, dy);
+			if (dist > 40.0) {
+				double ratio = (dist - 35.0) / dist;
+				destX = origX + (int) Math.round(dx * ratio);
+				destY = origY + (int) Math.round(dy * ratio);
+				destZ = mainNpc.z();
+			}
+		} else if (targetPlayer != null && targetPlayer != session && targetPlayer.active() != null) {
+			double dx = targetPlayer.x() - origX;
+			double dy = targetPlayer.y() - origY;
+			double dist = Math.hypot(dx, dy);
+			if (dist > 40.0) {
+				double ratio = (dist - 35.0) / dist;
+				destX = origX + (int) Math.round(dx * ratio);
+				destY = origY + (int) Math.round(dy * ratio);
+				destZ = targetPlayer.z();
+			}
+		} else {
+			// Warp (628) / Blink (1448) direcional
+			flyType = 4; // FLY_WARP_FORWARD
+			double angle = active().heading() * Math.PI / 32768.0;
+			int range = sk.castRange() > 0 ? sk.castRange() : 400;
+			if (sk.id() == 1448) {
+				angle += Math.PI;
+				flyType = 3; // FLY_WARP_BACK
+			}
+			destX = origX + (int) Math.round(Math.cos(angle) * range);
+			destY = origY + (int) Math.round(Math.sin(angle) * range);
+		}
+		try {
+			int[] checked = com.lopez.l2j.game.geodata.GeoEngine.getInstance()
+					.moveCheck(origX, origY, origZ, destX, destY, destZ).toArray();
+			destX = checked[0];
+			destY = checked[1];
+			destZ = checked[2];
+		} catch (Exception ignored) {
+		}
+		active().moveTo(destX, destY, destZ);
+		var fly = new GameServerPacket.FlyToLocation(active().objectId(), destX, destY, destZ, origX, origY, origZ, flyType);
+		send(fly);
+		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, fly, false);
+		var valLoc = new ValidateLocation(active().objectId(), destX, destY, destZ, active().heading());
+		send(valLoc);
+		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, valLoc, false);
+	}
+
+	public void handleSow(NpcInstance mainNpc, SkillTemplate sk) {
+		if (mainNpc == null || mainNpc.isDead() || !mainNpc.isAttackable()) {
+			send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+			return;
+		}
+		var existingSeed = ItemPacketHandler.getSeededMonsterState(mainNpc.objectId());
+		if (existingSeed == null) {
+			existingSeed = SKILL_SEEDED_MONSTERS.get(mainNpc.objectId());
+		}
+		if (existingSeed != null) {
+			send(SystemMessage.id(890)); // THE_SEED_WAS_NOT_SOWN
+			return;
+		}
+		broadcastLaunched(sk, List.of(mainNpc.objectId()));
+		int mobLvl = mainNpc.template() != null ? mainNpc.template().level() : active().level();
+		int seedId = sk.itemConsumeId() > 0 ? sk.itemConsumeId() : 5016;
+		int seedLvl = mobLvl;
+		int cropId = seedId + 52;
+		var manor = (ctx() != null && ctx().manor() != null)
+				? ctx().manor()
+				: com.lopez.l2j.game.manor.CastleManorManager.getInstance();
+		if (seedId > 0 && manor != null) {
+			var seedTpl = manor.getSeed(seedId).orElse(null);
+			if (seedTpl != null) {
+				if (seedTpl.level() > 0) {
+					seedLvl = seedTpl.level();
+				}
+				if (seedTpl.cropId() > 0) {
+					cropId = seedTpl.cropId();
+				}
+			}
+		}
+		int diff = Math.abs(mobLvl - seedLvl);
+		int chance = 90 - Math.max(0, diff - 5) * 5;
+		chance = Math.clamp(chance, 5, 99);
+		if (ThreadLocalRandom.current().nextInt(100) < chance) {
+			SKILL_SEEDED_MONSTERS.put(mainNpc.objectId(),
+					new ItemPacketHandler.SeededMonsterState(seedId, cropId, active().objectId(), false));
+			send(SystemMessage.id(889)); // THE_SEED_WAS_SUCCESSFULLY_SOWN
+		} else {
+			send(SystemMessage.id(890)); // THE_SEED_WAS_NOT_SOWN
+		}
+		if (ctx().npcAi() != null) {
+			ctx().npcAi().startCombat(mainNpc, active().objectId());
+		}
+	}
+
+	public void handleHarvest(NpcInstance mainNpc, SkillTemplate sk) {
+		if (mainNpc == null || !mainNpc.isDead() || !mainNpc.isAttackable()) {
+			send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+			return;
+		}
+		var seeded = ItemPacketHandler.getSeededMonsterState(mainNpc.objectId());
+		boolean fromSkillMap = false;
+		if (seeded == null) {
+			seeded = SKILL_SEEDED_MONSTERS.get(mainNpc.objectId());
+			fromSkillMap = true;
+		}
+		if (seeded == null || seeded.harvested()) {
+			send(SystemMessage.id(892)); // THE_HARVEST_FAILED_BECAUSE_THE_SEED_WAS_NOT_SOWN
+			return;
+		}
+		int seederId = seeded.seederPlayerId();
+		boolean allowed = seederId == 0 || seederId == active().objectId()
+				|| (session.party() != null && session.party().contains(seederId));
+		if (!allowed) {
+			send(SystemMessage.id(891)); // YOU_ARE_NOT_AUTHORIZED_TO_HARVEST
+			return;
+		}
+		broadcastLaunched(sk, List.of(mainNpc.objectId()));
+		if (fromSkillMap) {
+			SKILL_SEEDED_MONSTERS.put(mainNpc.objectId(),
+					new ItemPacketHandler.SeededMonsterState(seeded.seedItemId(), seeded.cropItemId(), seederId, true));
+		}
+		int mobLvl = mainNpc.template() != null ? mainNpc.template().level() : active().level();
+		int diff = Math.abs(mobLvl - active().level());
+		int chance = Math.clamp(90 - Math.max(0, diff - 5) * 5, 10, 99);
+		if (ThreadLocalRandom.current().nextInt(100) < chance) {
+			int cropId = seeded.cropItemId() > 0 ? seeded.cropItemId() : 5088;
+			int count = com.lopez.l2j.game.manor.CastleManorManager
+					.calculateManorCropDropCount(1 + ThreadLocalRandom.current().nextInt(3));
+			if (ctx().inventories() != null) {
+				ctx().inventories().addItem(active().inventory(), cropId, count, "ManorHarvest");
+			} else {
+				active().inventory().addItem(cropId, count);
+			}
+			send(ItemList.of(active().inventory().items(), false));
+			send(SystemMessage.of(SystemMessage.EARNED_S2_S1_S,
+					new SystemMessage.ItemName(cropId), new SystemMessage.Number(count)));
+		} else {
+			send(SystemMessage.id(893)); // THE_HARVEST_HAS_FAILED
+		}
+	}
+
+	public void handleSignet(SkillTemplate sk, CharTemplate t, boolean sps, boolean bss) {
+		if (active() == null || ctx() == null || ctx().world() == null) {
+			return;
+		}
+		broadcastLaunched(sk, List.of(active().objectId()));
+		int cx = active().x();
+		int cy = active().y();
+		int instId = active().instanceId();
+		int radius = sk.skillRadius() > 0 ? sk.skillRadius() : 180;
+		int pulses = com.lopez.l2j.game.combat.Formulas.calcSignetPulseCount(16, 2);
+		boolean offensiveSignet = sk.id() >= 1419 && sk.id() <= 1424 || sk.id() == 455;
+		PlayerCharacter owner = active();
+		int[] rem = { pulses };
+		AtomicReference<ScheduledFuture<?>> ref = new AtomicReference<>();
+		ScheduledFuture<?> task = GameSession.autoAttackScheduler().scheduleAtFixedRate(() -> {
+			if (active() != owner || !session.inWorld() || owner.isDead() || rem[0]-- <= 0) {
+				var f = ref.get();
+				if (f != null) {
+					f.cancel(false);
+				}
+				return;
+			}
+			if (offensiveSignet) {
+				for (NpcInstance n : ctx().world().findNpcsAround(cx, cy, radius, instId)) {
+					if (n != null && n.isAttackable() && !n.isDead()) {
+						applyOffensive(sk, n, t, false, sps, bss);
+					}
+				}
+				for (var p : ctx().world().findPlayersAround(cx, cy, radius, instId)) {
+					if (p instanceof GameSession gs && session.canAttackInPvP(gs) && gs.active() != null && !gs.active().isDead()) {
+						if (sk.id() == 1424) { // Anti-Summoning Field
+							var sum = gs.active().activeSummon();
+							if (sum != null && !sum.isPet()) {
+								sum.unsummon();
+							}
+						} else if (sk.id() == 455) { // Symbol of Noise - cancela Dances/Songs
+							gs.active().effects().active().stream()
+									.filter(b -> PlayerEffects.isDanceOrSong(b.skillId()))
+									.forEach(b -> gs.active().effects().remove(b));
+							gs.refreshBuffs();
+						} else {
+							applyOffensivePlayer(sk, gs, t, false, sps, bss);
+						}
+					}
+				}
+			} else {
+				List<GameSession> allies = new ArrayList<>();
+				allies.add(session);
+				if (session.party() != null) {
+					for (GameSession m : session.party().members()) {
+						if (m != null && m != session && m.active() != null && !m.active().isDead()
+								&& Math.hypot(m.active().x() - cx, m.active().y() - cy) <= radius) {
+							allies.add(m);
+						}
+					}
+				}
+				for (GameSession ally : allies) {
+					if (sk.id() == 1425) { // Purification Field
+						ally.magicSkillHandler().handleNegateDebuffs(sk);
+					} else if (sk.id() == 1426) { // Miracle
+						ally.magicSkillHandler().healHp(ally.active().maxHp() * 0.50, false);
+						ally.sendVitals();
+					} else if (sk.id() == 1427) { // Flames of Invincibility
+						ally.applySkillEffects(sk, false, 15_000L);
+					} else if (sk.id() == 1428) { // Mass Recharge
+						ally.active().currentMp(Math.min(ally.active().maxMp(), ally.active().currentMp() + 400));
+						ally.sendVitals();
+					} else {
+						ally.applySkillEffects(sk, false, 5_000L);
+					}
+				}
+			}
+		}, 1000L, 2000L, TimeUnit.MILLISECONDS);
+		ref.set(task);
+	}
+
+	public void handleFusionSkill(SkillTemplate sk, GameSession targetPlayer) {
+		GameSession tgt = targetPlayer != null && targetPlayer.active() != null ? targetPlayer : session;
+		broadcastLaunched(sk, List.of(tgt.active().objectId()));
+		int forceSkillId = sk.id() == 426 ? 5104 : 5105; // Battle Force (5104) / Spell Force (5105)
+		String stackType = sk.id() == 426 ? "battle_force" : "spell_force";
+		int curStage = tgt.active().effects().getSkillLevel(forceSkillId);
+		int nextStage = com.lopez.l2j.game.combat.Formulas.calcFusionNextStage(curStage, 3);
+		String statName = sk.id() == 426 ? "pAtk" : "mAtk";
+		double bonusMul = 1.0 + (0.05 * nextStage);
+		long end = System.currentTimeMillis() + 15_000L;
+		var forceBuff = ActiveBuff.ofSkill(
+				forceSkillId,
+				nextStage,
+				stackType,
+				nextStage,
+				end,
+				List.of(new StatFunc(statName, StatFunc.Op.MUL, 0x30, bonusMul)),
+				false,
+				0,
+				"EffectForce",
+				0.0,
+				15);
+		tgt.active().effects().put(forceBuff, PlayerEffects.getExtraBuffSlots(tgt.active()));
+		tgt.refreshBuffs();
+		tgt.saveBuffs();
+	}
+
+	public void handleStriderSiegeAssault(SkillTemplate sk, DoorInstance doorTarget, NpcInstance mainNpc) {
+		if (!active().isMounted()) {
+			send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.SkillName(sk.id(), sk.level())));
+			return;
+		}
+		if (doorTarget != null) {
+			broadcastLaunched(sk, List.of(doorTarget.objectId()));
+			var t = ctx().characters() != null ? ctx().characters().template(active()) : null;
+			int pAtk = t != null ? PlayerStats.calculate(active(), t).pAtk() : 500;
+			int dmg = Math.max(500, (int) Math.round((pAtk + sk.power()) * 0.5));
+			doorTarget.currentHp(Math.max(0, doorTarget.currentHp() - dmg));
+			if (doorTarget.currentHp() <= 0) {
+				doorTarget.openDoor();
+			}
+			send(SystemMessage.of(SystemMessage.YOU_DID_S1_DMG, new SystemMessage.Number(dmg)));
+			var status = new GameServerPacket.DoorStatusUpdate(doorTarget);
+			send(status);
+			ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, status, false);
+		} else if (mainNpc != null && !mainNpc.isDead()) {
+			broadcastLaunched(sk, List.of(mainNpc.objectId()));
+			var t = ctx().characters() != null ? ctx().characters().template(active()) : null;
+			applyOffensive(sk, mainNpc, t, false, false, false);
+		}
+	}
+
+	public void handleEraseSkill(SkillTemplate sk, GameSession targetPlayer, boolean sps, boolean bss) {
+		com.lopez.l2j.game.summon.SummonInstance targetSummon = null;
+		if (targetPlayer != null && targetPlayer.active() != null) {
+			targetSummon = targetPlayer.active().activeSummon();
+		}
+		if (targetSummon == null && ctx().world() != null) {
+			targetSummon = ctx().world().summon(session.targetObjectId()).orElse(null);
+		}
+		if (targetSummon == null || targetSummon.isDead() || targetSummon.isPet() || targetSummon.isSiegeSummon()) {
+			send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+			return;
+		}
+		broadcastLaunched(sk, List.of(targetSummon.objectId()));
+		int magicLvl = sk.magicLevel() > 0 ? sk.magicLevel() : active().level();
+		if (com.lopez.l2j.game.combat.Formulas.calcSkillSuccess(
+				active(), targetSummon, 60.0, magicLvl, 1, "MEN", "derangement", sps, bss, false)) {
+			targetSummon.unsummon();
+			if (targetPlayer != null && targetPlayer.active() != null && targetPlayer.active().activeSummon() == targetSummon) {
+				targetPlayer.active().activeSummon(null);
+			}
+		} else {
+			send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
+					new SystemMessage.Text(targetSummon.name()),
+					new SystemMessage.SkillName(sk.id(), sk.level())));
+		}
+	}
+
+	public void handleBetraySkill(SkillTemplate sk, GameSession targetPlayer, boolean sps, boolean bss) {
+		com.lopez.l2j.game.summon.SummonInstance targetSummon = null;
+		if (targetPlayer != null && targetPlayer.active() != null) {
+			targetSummon = targetPlayer.active().activeSummon();
+		}
+		if (targetSummon == null && ctx().world() != null) {
+			targetSummon = ctx().world().summon(session.targetObjectId()).orElse(null);
+		}
+		if (targetSummon == null || targetSummon.isDead() || !targetSummon.isServitor()) {
+			send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+			return;
+		}
+		broadcastLaunched(sk, List.of(targetSummon.objectId()));
+		int magicLvl = sk.magicLevel() > 0 ? sk.magicLevel() : active().level();
+		if (com.lopez.l2j.game.combat.Formulas.calcSkillSuccess(
+				active(), targetSummon, 60.0, magicLvl, 1, "MEN", "betray", sps, bss, false)) {
+			targetSummon.betray(System.currentTimeMillis() + 30_000L);
+			targetSummon.targetObjectId(targetSummon.ownerId());
+		} else {
+			send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
+					new SystemMessage.Text(targetSummon.name()),
+					new SystemMessage.SkillName(sk.id(), sk.level())));
+		}
+	}
+
+	public void handleConfusionSkill(SkillTemplate sk, NpcInstance mainNpc, GameSession targetPlayer, boolean sps, boolean bss) {
+		if (mainNpc != null && !mainNpc.isDead()) {
+			broadcastLaunched(sk, List.of(mainNpc.objectId()));
+			var unsel = new GameServerPacket.TargetUnselected(mainNpc.objectId(), mainNpc.x(), mainNpc.y(), mainNpc.z());
+			send(unsel);
+			ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, unsel, false);
+			if (sk.id() == 11 || "AGGREMOVE".equalsIgnoreCase(sk.skillType())) {
+				mainNpc.stopHating(active().objectId());
+				mainNpc.targetPlayerId(0);
+				mainNpc.abortAttack();
+				mainNpc.abortCast();
+			} else {
+				// Switch (12) / Confusion: randomiza o alvo do monstro entre criaturas na lista de aggro ou ao redor
+				List<Integer> candidates = new ArrayList<>(mainNpc.aggroList().keySet());
+				candidates.remove(Integer.valueOf(active().objectId()));
+				if (!candidates.isEmpty()) {
+					int nextTarget = candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
+					mainNpc.targetPlayerId(nextTarget);
+					mainNpc.addDamageHate(nextTarget, 0, Math.max(500, mainNpc.getHate(active().objectId()) + 200));
+				} else {
+					mainNpc.reduceHate(active().objectId(), Math.max(100, mainNpc.getHate(active().objectId()) / 2));
+				}
+			}
+		} else if (targetPlayer != null && targetPlayer != session && targetPlayer.active() != null) {
+			broadcastLaunched(sk, List.of(targetPlayer.objectId()));
+			var unsel = new GameServerPacket.TargetUnselected(
+					targetPlayer.objectId(), targetPlayer.x(), targetPlayer.y(), targetPlayer.z());
+			targetPlayer.send(unsel);
+			ctx().world().broadcastAround(targetPlayer, GameWorld.VISIBILITY_RADIUS, unsel, false);
+			targetPlayer.clearTarget();
+			targetPlayer.stopAutoAttack();
+			targetPlayer.cancelCast();
+		}
+	}
+
+	public void handleShiftTargetSkill(SkillTemplate sk, GameSession targetPlayer) {
+		if (targetPlayer == null || targetPlayer.active() == null || ctx() == null || ctx().world() == null) {
+			return;
+		}
+		int newTargetId = targetPlayer.active().objectId();
+		broadcastLaunched(sk, List.of(newTargetId));
+		int radius = sk.skillRadius() > 0 ? sk.skillRadius() : 600;
+		for (NpcInstance npc : ctx().world().findNpcsAround(active().x(), active().y(), radius, active().instanceId())) {
+			if (npc != null && npc.isAttackable() && !npc.isDead()) {
+				long myHate = Math.max(200L, npc.getHate(active().objectId()));
+				npc.addDamageHate(newTargetId, 0, myHate);
+				npc.stopHating(active().objectId());
+				npc.targetPlayerId(newTargetId);
+			}
+		}
+	}
+
+	public void handleDrainSoul(SkillTemplate sk, NpcInstance mainNpc) {
+		if (mainNpc == null || mainNpc.isDead() || !mainNpc.isAttackable()) {
+			send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+			return;
+		}
+		broadcastLaunched(sk, List.of(mainNpc.objectId()));
+		if (ctx().npcAi() != null) {
+			ctx().npcAi().startCombat(mainNpc, active().objectId());
+		}
+	}
+
+	public void handleBeastFeed(SkillTemplate sk, NpcInstance mainNpc) {
+		if (mainNpc == null || mainNpc.isDead() || !mainNpc.isAttackable()) {
+			send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+			return;
+		}
+		broadcastLaunched(sk, List.of(mainNpc.objectId()));
+		mainNpc.currentHp(mainNpc.maxHp());
+		var su = StatusUpdate.hp(mainNpc.objectId(), (int) mainNpc.currentHp(), (int) mainNpc.maxHp());
+		send(su);
+		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, su, false);
+		if (ctx().npcAi() != null) {
+			ctx().npcAi().startCombat(mainNpc, active().objectId());
+		}
+	}
+
+	public void handleExtractableSkill(SkillTemplate sk) {
+		broadcastLaunched(sk, List.of(active().objectId()));
+		if (sk.itemConsumeId() > 0 && ctx().extractableItems() != null
+				&& ctx().extractableItems().isExtractable(sk.itemConsumeId())) {
+			ctx().extractableItems().getExtractableItem(sk.itemConsumeId()).ifPresent(exItem -> {
+				if (!exItem.products().isEmpty() && !exItem.products().get(0).items().isEmpty()) {
+					var firstReward = exItem.products().get(0).items().get(0);
+					int prodId = firstReward.itemId();
+					int prodCount = Math.max(1, firstReward.count());
+					if (ctx().inventories() != null) {
+						ctx().inventories().addItem(active().inventory(), prodId, prodCount, "ExtractableSkill");
+					} else {
+						active().inventory().addItem(prodId, prodCount);
+					}
+					send(ItemList.of(active().inventory().items(), false));
+					send(SystemMessage.of(SystemMessage.EARNED_S2_S1_S,
+							new SystemMessage.ItemName(prodId), new SystemMessage.Number(prodCount)));
+				}
+			});
+		}
+	}
+
 	public void handleUnlockDoor(DoorInstance door, SkillTemplate sk) {
 		if (door == null) {
 			return;
@@ -913,8 +1589,11 @@ public class MagicSkillPacketHandler {
 			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "A porta ja esta aberta."));
 			return;
 		}
-		int chance = (int) Math.max(10, Math.min(100, sk.power() > 0 ? sk.power() : 50));
-		if (ThreadLocalRandom.current().nextInt(100) < chance) {
+		// #160: Calculo oficial de Unlock de portas via Formulas.calculateUnlockChance
+		boolean unlocked = sk.power() > 0
+				? (ThreadLocalRandom.current().nextInt(100) < (int) Math.max(10, Math.min(100, sk.power())))
+				: com.lopez.l2j.game.combat.Formulas.calculateUnlockChance(sk.level(), 1, false, 1);
+		if (unlocked) {
 			door.openDoor();
 			var update = new GameServerPacket.DoorStatusUpdate(door);
 			send(update);
@@ -949,7 +1628,8 @@ public class MagicSkillPacketHandler {
 		}
 
 		int neededGrade = GameSession.getRequiredChestKeyGrade(chestLevel);
-		int chance = 50;
+		boolean defaultUnlock = com.lopez.l2j.game.combat.Formulas.calculateUnlockChance(sk.level(), chestLevel, true, neededGrade);
+		int chance = defaultUnlock ? 85 : 15;
 		if ("DELUXE_KEY_UNLOCK".equalsIgnoreCase(sk.skillType()) || sk.id() == 2229) {
 			int keyGrade = sk.level();
 			if (keyGrade >= neededGrade) {
@@ -967,7 +1647,7 @@ public class MagicSkillPacketHandler {
 		} else if (sk.id() == 27) { // Unlock skill
 			int magicLvl = sk.magicLevel() > 0 ? sk.magicLevel() : active().level();
 			int lvlDiff = chestLevel - magicLvl;
-			int baseChance = (int) (sk.power() > 0 ? sk.power() : 50);
+			int baseChance = (int) (sk.power() > 0 ? sk.power() : chance);
 			if (lvlDiff > 5) {
 				baseChance -= (lvlDiff - 5) * 10;
 			}
@@ -1172,14 +1852,26 @@ public class MagicSkillPacketHandler {
 					if (ctx().npcAi() != null) {
 						ctx().npcAi().startCombat(npc, active().objectId());
 					}
-				} else if (name.equals("removetarget") || "AGGREMOVE".equalsIgnoreCase(sk.skillType()) || "AGGREDUCE".equalsIgnoreCase(sk.skillType()) || "SWITCH".equalsIgnoreCase(sk.skillType())) {
+				} else if (name.equals("bluff") || name.equals("removetarget") || "AGGREMOVE".equalsIgnoreCase(sk.skillType()) || "AGGREDUCE".equalsIgnoreCase(sk.skillType()) || "SWITCH".equalsIgnoreCase(sk.skillType())) {
 					npc.targetPlayerId(0);
 					npc.abortAttack();
 					npc.abortCast();
-					if (sk.id() == 358) { // Bluff
-						npc.heading(active().heading());
+					var unsel = new GameServerPacket.TargetUnselected(npc.objectId(), npc.x(), npc.y(), npc.z());
+					send(unsel);
+					ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, unsel, false);
+					if (sk.id() == 358 || name.equals("bluff")) { // #171: Bluff - StartRotation + StopRotation 180 graus + Stun
+						int newHeading = PlayerEffects.computeBluffHeading(active().heading());
+						var startRot = new GameServerPacket.StartRotation(npc.objectId(), npc.heading(), 1, 65535);
+						var stopRot = new GameServerPacket.StopRotation(npc.objectId(), newHeading, 65535);
+						npc.heading(newHeading);
+						send(startRot);
+						send(stopRot);
+						ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, startRot, false);
+						ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, stopRot, false);
 						ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
 								new ValidateLocation(npc.objectId(), npc.x(), npc.y(), npc.z(), npc.heading()), false);
+						long stunUntil = System.currentTimeMillis() + Math.max(3000L, e.durationMs());
+						npc.disable(stunUntil, false);
 					}
 				} else if (name.equals("damovertime") || name.equals("manadamovertime") || name.equals("poison")
 						|| name.equals("bleed")) {
@@ -1392,7 +2084,8 @@ public class MagicSkillPacketHandler {
 				ctx().world().broadcastAround(targetSession, GameWorld.VISIBILITY_RADIUS, su, false);
 			}
 		} else if (sk.isCpDamage()) {
-			int cpDam = (int) Math.round(targetActive.currentCp() * Math.max(0.0, 1.0 - sk.power()));
+			// #129: CPDAM via Formulas.calcCpDam
+			int cpDam = com.lopez.l2j.game.combat.Formulas.calcCpDam(targetActive.currentCp(), sk.power());
 			if (cpDam > 0) {
 				targetActive.currentCp(Math.max(0, targetActive.currentCp() - cpDam));
 				send(SystemMessage.of(SystemMessage.YOU_DID_S1_DMG, new SystemMessage.Number(cpDam)));
@@ -1426,50 +2119,53 @@ public class MagicSkillPacketHandler {
 
 		// Debuffs & DoTs em jogadores
 		if (!targetActive.isDead()) {
+			// #174: Touch of Death (Skill 342)
+			if (sk.id() == 342 || sk.effects().stream().anyMatch(e -> "touchofdeath".equalsIgnoreCase(e.name()))) {
+				int effMagicLvl = sk.magicLevel() > 0 ? sk.magicLevel() : active().level();
+				targetActive.effects().applyTouchOfDeath(targetActive, effMagicLvl, sk.power() > 0 ? sk.power() : 25.0);
+				targetSession.refreshBuffs();
+				targetSession.saveBuffs();
+				targetSession.sendVitals();
+			}
+			// #136: CANCEL (Skill 1056) com probabilidade individual por buff (Formulas.calcCancelSuccess)
 			if ("CANCEL".equalsIgnoreCase(sk.skillType()) || sk.id() == 1056) {
-				double cancelVuln = Math.max(0.0, Math.min(2.0, PlayerStats.applyStat(targetActive, "cancelVuln", 1.0)));
-				int maxCancel = (int) Math.round(5 * cancelVuln);
-				if (maxCancel > 0) {
-					var cancelRestore = com.lopez.l2j.game.service.CancelRestoreService.getInstance();
-					if (cancelRestore != null) {
-						cancelRestore.applyCancelWithRestore(targetSession, maxCancel);
-					} else {
-						var activeBuffs = new java.util.ArrayList<>(targetActive.effects().active());
-						if (!activeBuffs.isEmpty()) {
-							java.util.Collections.shuffle(activeBuffs);
-							int count = Math.min(maxCancel, activeBuffs.size());
-						for (int i = 0; i < count; i++) {
-							targetActive.effects().remove(activeBuffs.get(i));
-						}
-							targetSession.sendMagicEffectIcons();
-						}
-					}
+				int effMagicLvl = sk.magicLevel() > 0 ? sk.magicLevel() : active().level();
+				double cancelVuln = PlayerStats.applyStat(targetActive, "cancelVuln", 0.0);
+				double cancelProf = PlayerStats.applyStat(active(), "cancelProf", 0.0);
+				List<ActiveBuff> canceled = targetActive.effects().cancelBuffsWithDetails(
+						5, effMagicLvl, targetActive.level(), 25.0, cancelProf, cancelVuln);
+				if (!canceled.isEmpty()) {
+					targetSession.refreshBuffs();
+					targetSession.saveBuffs();
+					targetSession.sendMagicEffectIcons();
 				} else {
 					send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
 							new SystemMessage.Text(targetActive.name()),
 							new SystemMessage.SkillName(sk.id(), sk.level())));
 				}
 			}
+			// #137: WARRIOR_BANE (1344, 1350)
 			if ("WARRIOR_BANE".equalsIgnoreCase(sk.skillType()) || sk.id() == 1344 || sk.id() == 1350) {
-				var warriorSkillIds = java.util.Set.of(1086, 4402, 1204, 4322, 1286, 275, 268, 264, 304);
-				var warriorStacks = java.util.Set.of("attack_time_down", "speed_up", "patkspd", "runspd", "run_spd", "haste", "greater_haste");
-				var warriorStats = java.util.Set.of("pAtkSpd", "runSpd");
-				boolean removed = targetActive.effects().removeBuffsByIdsOrStackOrStats(warriorSkillIds, warriorStacks, warriorStats);
+				boolean removed = targetActive.effects().removeWarriorBaneBuffs();
 				if (removed) {
 					targetSession.refreshBuffs();
 					targetSession.saveBuffs();
-					targetSession.send(new CreatureSay(0, CreatureSay.ALL, "Combate", "Buffs de velocidade fisica foram cancelados!"));
+				} else {
+					send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
+							new SystemMessage.Text(targetActive.name()),
+							new SystemMessage.SkillName(sk.id(), sk.level())));
 				}
 			}
+			// #137: MAGE_BANE (1345, 1351)
 			if ("MAGE_BANE".equalsIgnoreCase(sk.skillType()) || sk.id() == 1345 || sk.id() == 1351) {
-				var mageSkillIds = java.util.Set.of(1085, 4400, 1059, 4401, 1006, 276, 1303, 1078);
-				var mageStacks = java.util.Set.of("casting_time_down", "ma_up", "matkspd", "matk", "m_atk", "acumen", "empower", "greater_empower", "wisdom");
-				var mageStats = java.util.Set.of("mAtkSpd", "mAtk");
-				boolean removed = targetActive.effects().removeBuffsByIdsOrStackOrStats(mageSkillIds, mageStacks, mageStats);
+				boolean removed = targetActive.effects().removeMageBaneBuffs();
 				if (removed) {
 					targetSession.refreshBuffs();
 					targetSession.saveBuffs();
-					targetSession.send(new CreatureSay(0, CreatureSay.ALL, "Combate", "Buffs de poder magico e conjuracao foram cancelados!"));
+				} else {
+					send(SystemMessage.of(SystemMessage.S1_WAS_UNAFFECTED_BY_S2,
+							new SystemMessage.Text(targetActive.name()),
+							new SystemMessage.SkillName(sk.id(), sk.level())));
 				}
 			}
 			if ("STEAL_BUFF".equalsIgnoreCase(sk.skillType()) || sk.id() == 1440) {
@@ -1576,6 +2272,9 @@ public class MagicSkillPacketHandler {
 						continue;
 					}
 					long until = System.currentTimeMillis() + Math.max(1000, e.durationMs());
+					if (name.equals("fear")) {
+						targetActive.effects().startFear(Math.max(1000L, e.durationMs()), active().x(), active().y());
+					}
 					targetSession.applyControlEffect(sk.id(), sk.level(), name, until);
 					targetSession.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT,
 							new SystemMessage.SkillName(sk.id(), sk.level())));
@@ -1584,14 +2283,27 @@ public class MagicSkillPacketHandler {
 					if (targetSession.isAutoAttacking()) {
 						targetSession.schedulePlayerAutoAttack(session);
 					}
-				} else if (name.equals("removetarget") || "AGGREMOVE".equalsIgnoreCase(sk.skillType()) || "AGGREDUCE".equalsIgnoreCase(sk.skillType()) || "SWITCH".equalsIgnoreCase(sk.skillType())) {
+				} else if (name.equals("bluff") || name.equals("removetarget") || "AGGREMOVE".equalsIgnoreCase(sk.skillType()) || "AGGREDUCE".equalsIgnoreCase(sk.skillType()) || "SWITCH".equalsIgnoreCase(sk.skillType())) {
+					var unsel = new GameServerPacket.TargetUnselected(
+							targetActive.objectId(), targetActive.x(), targetActive.y(), targetActive.z());
+					targetSession.send(unsel);
+					ctx().world().broadcastAround(targetSession, GameWorld.VISIBILITY_RADIUS, unsel, false);
 					targetSession.clearTarget();
 					targetSession.stopAutoAttack();
 					targetSession.cancelCast();
-					if (sk.id() == 358) { // Bluff
-						targetActive.heading(active().heading());
-						var valLoc = new ValidateLocation(targetActive.objectId(), targetActive.x(), targetActive.y(), targetActive.z(), active().heading());
+					if (sk.id() == 358 || name.equals("bluff")) { // #171: Bluff - StartRotation + StopRotation 180 graus + Stun
+						int newHeading = PlayerEffects.computeBluffHeading(active().heading());
+						var startRot = new GameServerPacket.StartRotation(targetActive.objectId(), targetActive.heading(), 1, 65535);
+						var stopRot = new GameServerPacket.StopRotation(targetActive.objectId(), newHeading, 65535);
+						targetActive.heading(newHeading);
+						targetSession.send(startRot);
+						targetSession.send(stopRot);
+						ctx().world().broadcastAround(targetSession, GameWorld.VISIBILITY_RADIUS, startRot, false);
+						ctx().world().broadcastAround(targetSession, GameWorld.VISIBILITY_RADIUS, stopRot, false);
+						var valLoc = new ValidateLocation(targetActive.objectId(), targetActive.x(), targetActive.y(), targetActive.z(), newHeading);
 						ctx().world().broadcastAround(targetSession, GameWorld.VISIBILITY_RADIUS, valLoc, true);
+						long stunUntil = System.currentTimeMillis() + Math.max(3000L, e.durationMs());
+						targetSession.applyControlEffect(sk.id(), sk.level(), "stun", stunUntil);
 					}
 				} else if (name.equals("damovertime") || name.equals("manadamovertime") || name.equals("poison")
 						|| name.equals("bleed")) {
@@ -1688,13 +2400,41 @@ public class MagicSkillPacketHandler {
 				active().disable(until, false);
 				session.stopAutoAttack();
 				cancelCast();
-				abnormalMask = 0x0020;
+				abnormalMask = 0x0020 | PlayerEffects.ABNORMAL_FEAR;
+				long fearDur = Math.max(1000L, until - System.currentTimeMillis());
+				if (!active().effects().isAfraid()) {
+					active().effects().startFear(fearDur, active().x(), active().y());
+				}
+				// #172: Fear movement - afasta o jogador das coordenadas do conjurador a cada tick
+				PlayerCharacter fearedChar = active();
+				int ticks = (int) Math.max(1L, fearDur / 2000L);
+				int[] remTicks = { ticks };
+				AtomicReference<ScheduledFuture<?>> fearRef = new AtomicReference<>();
+				ScheduledFuture<?> fearTask = GameSession.autoAttackScheduler().scheduleAtFixedRate(() -> {
+					if (active() != fearedChar || !session.inWorld() || fearedChar.isDead()
+							|| !fearedChar.effects().isAfraid() || remTicks[0]-- <= 0) {
+						var f = fearRef.get();
+						if (f != null) {
+							f.cancel(false);
+						}
+						return;
+					}
+					int ox = fearedChar.x();
+					int oy = fearedChar.y();
+					int oz = fearedChar.z();
+					int[] dest = fearedChar.effects().computeFearDestination(fearedChar);
+					fearedChar.moveTo(dest[0], dest[1], dest[2]);
+					var move = new MoveToLocation(fearedChar.objectId(), dest[0], dest[1], dest[2], ox, oy, oz);
+					send(move);
+					ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, move, false);
+				}, 500L, 2000L, TimeUnit.MILLISECONDS);
+				fearRef.set(fearTask);
 			}
 		}
 		ActiveBuff buff = null;
 		if (skillId > 0) {
 			String stack = "control_" + skillId + "_" + effectName;
-			buff = ActiveBuff.ofSkill(skillId, skillLevel, stack, skillLevel, until, List.of(), true);
+			buff = ActiveBuff.ofSkill(skillId, skillLevel, stack, skillLevel, until, List.of(), true, abnormalMask, effectName, 0.0, 0);
 			active().effects().put(buff, PlayerEffects.getExtraBuffSlots(active()));
 		}
 		if (abnormalMask != 0) {
@@ -1706,6 +2446,9 @@ public class MagicSkillPacketHandler {
 		long delay = Math.max(100, until - System.currentTimeMillis());
 		GameSession.autoAttackScheduler().schedule(() -> {
 			if (active() != null) {
+				if ("fear".equals(effectName)) {
+					active().effects().stopFear();
+				}
 				if (finalMask != 0) {
 					active().stopAbnormalEffect(finalMask);
 					session.broadcastAppearance();
@@ -1756,34 +2499,32 @@ public class MagicSkillPacketHandler {
 		active().currentHp(0);
 		active().currentCp(0);
 
-		// Limpa buffs ao morrer (regra retail Interlude):
-		// Se LeaveBuffsOnDie = False, preserva os buffs.
+		// #166, #167, #168: Salvation / PhoenixBless (1410/438), NoblesseBless (1323), CharmOfLuck (2168) e CharmOfCourage (5041)
 		boolean preserveBuffs = !Config.LEAVE_BUFFS_ON_DIE;
-		boolean hasNoblesse = active().effects().hasSkill(1323);
-		if (preserveBuffs) {
+		boolean hasSalvation = active().effects().consumeSalvation();
+		boolean hasNoblesse = !hasSalvation && active().effects().consumeNoblesseBless();
+		boolean hasCharmOfLuck = active().effects().consumeCharmOfLuck();
+		boolean hasCharmOfCourage = active().isInSiege() && active().effects().consumeCharmOfCourage();
+
+		if (preserveBuffs || hasSalvation || hasNoblesse) {
 			active().effects().clearDebuffs();
 			session.saveBuffs();
-		} else if (hasNoblesse) {
-			active().effects().clearDebuffs();
-			active().effects().removeSkill(1323);
-			session.saveBuffs();
+			session.sendMagicEffectIcons();
 		} else {
 			active().effects().clear();
 			if (ctx() != null && ctx().buffRepository() != null) {
 				ctx().buffRepository().deleteBuffs(active().objectId());
 			}
-		}
-		if (preserveBuffs || hasNoblesse) {
-			session.sendMagicEffectIcons();
-		} else {
 			send(new MagicEffectIcons(List.of()));
 		}
+
 		var tTemplate = ctx().characters().template(active());
 		if (ctx().skillService() != null) {
 			recalcMaxVitals(tTemplate);
 		}
 
-		if (active().level() >= 10 && !active().skills().containsKey(SkillService.SKILL_LUCKY)) {
+		if (active().level() >= 10 && !active().skills().containsKey(SkillService.SKILL_LUCKY)
+				&& !hasSalvation && !hasCharmOfLuck && !hasCharmOfCourage) {
 			long expForCurLevel = com.lopez.l2j.game.model.ExperienceTable.expForLevel(active().level());
 			long expForNextLevel = com.lopez.l2j.game.model.ExperienceTable.expForLevel(active().level() + 1);
 			long expDiff = Math.max(1, expForNextLevel - expForCurLevel);
@@ -1821,6 +2562,11 @@ public class MagicSkillPacketHandler {
 		send(die);
 		var dieObserver = new Die(active().objectId(), false);
 		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, dieObserver, false);
+
+		// #166: Salvation / Soul of the Phoenix oferece ConfirmDlg (1510) para ressurreicao imediata com 100% EXP
+		if (hasSalvation) {
+			send(new GameServerPacket.ConfirmDlg(1510, active().name(), 15000, active().objectId()));
+		}
 
 		if (killer != null && ctx() != null && ctx().world() != null) {
 			ctx().world().player(killer.objectId()).ifPresentOrElse(op -> {
@@ -2069,6 +2815,12 @@ public class MagicSkillPacketHandler {
 		if (active() == null) {
 			return;
 		}
+		// #162: Bloqueia curas/CP/MP externas em alvos petrificados/invulneraveis (Medusa / Celestial Shield)
+		if (active().invul() && caster != null && caster != session && !sk.isBuff() && !sk.isDanceOrSong()
+				&& !"RESURRECT".equalsIgnoreCase(sk.skillType())) {
+			caster.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+			return;
+		}
 		if (sk.id() == 1013 || "MANARECHARGE".equalsIgnoreCase(sk.skillType())) {
 			if (caster == session || active().skills().containsKey(1013)) {
 				if (caster != null) {
@@ -2186,7 +2938,7 @@ public class MagicSkillPacketHandler {
 	}
 
 	public void handleBalanceLife(SkillTemplate sk, List<GameSession> targets) {
-		if (targets == null || targets.isEmpty()) {
+		if (targets == null || targets.isEmpty() || active() == null) {
 			return;
 		}
 		double totalCurHp = 0;
@@ -2194,14 +2946,20 @@ public class MagicSkillPacketHandler {
 		List<GameSession> validMembers = new ArrayList<>();
 		List<com.lopez.l2j.game.summon.SummonInstance> validSummons = new ArrayList<>();
 		for (GameSession s : targets) {
-			if (s != null && s.active() != null && !s.active().isDead()) {
+			// #163: Balance Life exclui mortos, petrificados/invul e membros fora de 1000 de alcance
+			if (s != null && s.active() != null && !s.active().isDead() && !s.active().invul()) {
+				double mdx = active().x() - s.active().x();
+				double mdy = active().y() - s.active().y();
+				if (mdx * mdx + mdy * mdy > 1000.0 * 1000.0) {
+					continue;
+				}
 				totalCurHp += s.active().currentHp();
 				totalMaxHp += s.active().maxHp();
 				validMembers.add(s);
 				var sum = s.active().activeSummon();
 				if (sum != null && !sum.isDead()) {
-					double sdx = s.active().x() - sum.x();
-					double sdy = s.active().y() - sum.y();
+					double sdx = active().x() - sum.x();
+					double sdy = active().y() - sum.y();
 					if (sdx * sdx + sdy * sdy <= 1000.0 * 1000.0) {
 						totalCurHp += sum.currentHp();
 						totalMaxHp += sum.maxHp();
@@ -2278,13 +3036,21 @@ public class MagicSkillPacketHandler {
 			return;
 		}
 		active().sitting(false);
+		var t = ctx() != null && ctx().characters() != null ? ctx().characters().template(active()) : null;
+		int wit = t != null
+				? (int) Math.round(PlayerStats.applyStat(active(), "WIT", t.wit() + active().hennaWIT() + active().augWIT()))
+				: 20;
 		double power = sk.power();
-		double hpPercent = power > 0 ? Math.min(100.0, power) : 20.0;
+		// #137: Ressurreicao escalada por WIT (Formulas.calculateSkillResurrectRestorePercent)
+		double effRestorePct = power > 0
+				? com.lopez.l2j.game.combat.Formulas.calculateSkillResurrectRestorePercent(power, wit)
+				: 0.0;
+		double hpPercent = effRestorePct > 0 ? Math.min(100.0, effRestorePct) : 20.0;
 		int revivedHp = Math.max(1, (int) Math.round(active().maxHp() * (hpPercent / 100.0)));
 		active().currentHp(revivedHp);
 		active().currentCp(0.0);
-		if (power > 0 && active().level() > 1) {
-			long restoredExp = Math.round(active().level() * 120L * (Math.min(100.0, power) / 100.0));
+		if (effRestorePct > 0 && active().level() > 1) {
+			long restoredExp = Math.round(active().level() * 120L * (Math.min(100.0, effRestorePct) / 100.0));
 			active().addExpAndSp(restoredExp, 0);
 		}
 
@@ -2292,7 +3058,6 @@ public class MagicSkillPacketHandler {
 		send(revive);
 		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, revive, false);
 
-		var t = ctx() != null && ctx().characters() != null ? ctx().characters().template(active()) : null;
 		send(new UserInfo(active(), t));
 		session.sendVitals();
 		send(SystemMessage.of(SystemMessage.S1_HP_RESTORED, new SystemMessage.Number(revivedHp)));
@@ -2332,9 +3097,41 @@ public class MagicSkillPacketHandler {
 		applySkillEffects(sk, toggle, remainingMs, false);
 	}
 
+	private static boolean isSpecialStateEffectName(String name) {
+		if (name == null || name.isEmpty()) {
+			return false;
+		}
+		String lower = name.toLowerCase(Locale.ROOT);
+		return lower.equals("phoenixbless") || lower.equals("salvation")
+				|| lower.equals("noblessebless") || lower.equals("charmofcourage")
+				|| lower.equals("charmofluck") || lower.equals("luckycharm")
+				|| lower.equals("silentmove") || lower.equals("chameleonrest")
+				|| lower.equals("fakedeath") || lower.equals("relax")
+				|| lower.equals("immobilebuff") || lower.equals("immobilepetbuff")
+				|| lower.equals("immobileuntilattacked") || lower.equals("blockbuff")
+				|| lower.equals("blockdebuff") || lower.equals("chanceskilltrigger")
+				|| lower.equals("protectionblessing");
+	}
+
 	public void applySkillEffects(SkillTemplate sk, boolean toggle, long remainingMs, boolean forceDebuff) {
 		boolean any = false;
 		PlayerCharacter owner = active();
+		if (owner == null) {
+			return;
+		}
+		var ct = ctx() != null && ctx().characters() != null ? ctx().characters().template(owner) : null;
+		// #135: SkillMastery dobra a duracao de buffs normais
+		boolean doubleBuffDuration = !toggle && !forceDebuff && !sk.isDebuff() && !sk.isOffensive()
+				&& remainingMs <= 0 && !sk.isPotion()
+				&& com.lopez.l2j.game.combat.Formulas.calcSkillMastery(owner, ct, owner.isMage());
+
+		// #175: Registra ChanceSkillTrigger se a skill possuir triggeredId configurado
+		if (sk.triggeredId() > 0) {
+			int actChance = (int) Math.round(sk.effectPower() > 0 ? sk.effectPower() : 30.0);
+			owner.effects().registerChanceTrigger(
+					sk.id(), sk.triggeredId(), Math.max(1, sk.triggeredLevel()), sk.chanceType(), actChance);
+		}
+
 		for (var e : sk.effects()) {
 			String name = e.name();
 			if (name.equalsIgnoreCase("HealOverTime") || name.equalsIgnoreCase("ManaHealOverTime")
@@ -2350,15 +3147,16 @@ public class MagicSkillPacketHandler {
 			}
 			boolean isDebuff = forceDebuff || (!toggle && (sk.isDebuff() || sk.isOffensive() || name.equalsIgnoreCase("Debuff")));
 			boolean isInvincible = name.equalsIgnoreCase("Invincible");
+			boolean isSpecialState = isSpecialStateEffectName(name);
 			boolean isBuffOrDebuff = toggle || name.equalsIgnoreCase("Buff") || name.equalsIgnoreCase("Debuff")
-					|| sk.isBuff() || isDebuff || isInvincible;
+					|| sk.isBuff() || isDebuff || isInvincible || isSpecialState;
 			if (e.funcs().isEmpty() && !isBuffOrDebuff) {
-				continue; // efeito sem stats (Stun, Fear, etc.) ainda nao tem motor no jogador
+				continue;
 			}
 			String stack = e.stackType() == null || e.stackType().equalsIgnoreCase("none")
 					? "skill_" + sk.id() + "_" + name
 					: e.stackType();
-			int stackOrder = e.stackOrder() > 0 ? (int) Math.round(e.stackOrder()) : sk.level();
+			int stackOrder = PlayerEffects.resolveStackOrder(e.stackOrder(), sk.level());
 			long duration = remainingMs > 0 ? remainingMs : e.durationMs();
 			if (duration <= 0 && !toggle) {
 				duration = 30_000L;
@@ -2367,18 +3165,32 @@ public class MagicSkillPacketHandler {
 					&& Config.SKILL_DURATION_LIST.containsKey(sk.id())) {
 				duration = Config.SKILL_DURATION_LIST.get(sk.id()) * 1000L;
 			}
+			if (doubleBuffDuration && !isDebuff && !toggle) {
+				duration *= 2L;
+			}
 			long end = toggle ? com.lopez.l2j.game.effect.PlayerEffects.PERMANENT
 					: System.currentTimeMillis() + duration;
-			var buff = ActiveBuff.ofSkill(sk.id(), sk.level(), stack, stackOrder, end, e.funcs(), isDebuff);
-			owner.effects().put(buff, PlayerEffects.getExtraBuffSlots(owner));
+			var buff = ActiveBuff.ofSkill(
+					sk.id(), sk.level(), stack, stackOrder, end, e.funcs(), isDebuff, 0, name, e.val(), e.period());
+			if (!owner.effects().put(buff, PlayerEffects.getExtraBuffSlots(owner))) {
+				continue;
+			}
 			if (isInvincible) {
 				owner.invul(true);
 			}
 			any = true;
-			if (toggle && (name.equalsIgnoreCase("DamOverTime") || name.equalsIgnoreCase("ManaDamOverTime")
-					|| name.equalsIgnoreCase("MpConsumePerLevel") || name.equalsIgnoreCase("Relax")) && e.val() > 0) {
+			boolean isPeriodicToggle = toggle && (name.equalsIgnoreCase("DamOverTime")
+					|| name.equalsIgnoreCase("ManaDamOverTime")
+					|| name.equalsIgnoreCase("MpConsumePerLevel")
+					|| name.equalsIgnoreCase("Relax")
+					|| name.equalsIgnoreCase("SilentMove")
+					|| name.equalsIgnoreCase("ChameleonRest")
+					|| name.equalsIgnoreCase("FakeDeath"))
+					&& (e.val() > 0 || sk.id() == 60 || sk.id() == 221 || sk.id() == 226 || sk.id() == 296);
+			if (isPeriodicToggle) {
 				startToggleDrainTask(sk, e, owner);
 			} else if (!toggle) {
+				final long finalDuration = duration;
 				GameSession.autoAttackScheduler().schedule(() -> {
 					if (owner.effects().remove(buff) && active() == owner && session.inWorld()) {
 						if (isInvincible) {
@@ -2398,7 +3210,7 @@ public class MagicSkillPacketHandler {
 						session.refreshBuffs();
 						session.saveBuffs();
 					}
-				}, duration, TimeUnit.MILLISECONDS);
+				}, finalDuration, TimeUnit.MILLISECONDS);
 			}
 		}
 		if (any) {
@@ -2416,13 +3228,30 @@ public class MagicSkillPacketHandler {
 		}
 		String kind = e.name().toLowerCase(java.util.Locale.ROOT);
 		boolean hpDrain = kind.equals("damovertime");
+		boolean isRelax = sk.id() == 226 || kind.equals("relax");
+		boolean isFakeDeath = sk.id() == 60 || kind.equals("fakedeath");
 		long period = (e.period() > 0 ? e.period() : 3) * 1000L;
-		double drainVal = e.val();
+		double drainVal = e.val() > 0 ? e.val() : (isFakeDeath ? 10.0 : 5.0);
 		AtomicReference<ScheduledFuture<?>> self = new AtomicReference<>();
 		ScheduledFuture<?> task = GameSession.autoAttackScheduler().scheduleAtFixedRate(() -> {
 			if (active() != owner || !session.inWorld() || owner.isDead() || !owner.effects().hasSkill(sk.id())) {
 				session.stopHot(taskKey, self.get());
 				return;
+			}
+			// #169: Relax cancela se o jogador levantar; nao drena MP se HP ja estiver cheio
+			if (isRelax) {
+				if (!owner.isSitting()) {
+					owner.effects().removeSkill(sk.id());
+					session.stopHot(taskKey, self.get());
+					send(SystemMessage.of(SystemMessage.EFFECT_S1_DISAPPEARED,
+							new SystemMessage.SkillName(sk.id(), sk.level())));
+					session.refreshBuffs();
+					session.saveBuffs();
+					return;
+				}
+				if (owner.currentHp() >= owner.maxHp()) {
+					return;
+				}
 			}
 			if (hpDrain) {
 				if (owner.currentHp() <= drainVal + 1.0) {
@@ -2441,6 +3270,13 @@ public class MagicSkillPacketHandler {
 				if (owner.currentMp() < drainVal) {
 					owner.effects().removeSkill(sk.id());
 					session.stopHot(taskKey, self.get());
+					if (isFakeDeath) {
+						var stopFd = new GameServerPacket.ChangeWaitType(
+								owner.objectId(), 3,
+								owner.x(), owner.y(), owner.z());
+						send(stopFd);
+						ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, stopFd, false);
+					}
 					send(SystemMessage.id(SystemMessage.SKILL_REMOVED_DUE_LACK_MP));
 					send(SystemMessage.of(SystemMessage.EFFECT_S1_DISAPPEARED,
 							new SystemMessage.SkillName(sk.id(), sk.level())));
@@ -2450,6 +3286,9 @@ public class MagicSkillPacketHandler {
 					return;
 				}
 				owner.currentMp(Math.max(0, owner.currentMp() - drainVal));
+				if (isRelax) {
+					owner.currentHp(Math.min(owner.maxHp(), owner.currentHp() + (5.0 * Math.max(1, sk.level()))));
+				}
 			}
 			session.sendVitals();
 		}, period, period, TimeUnit.MILLISECONDS);
@@ -2577,6 +3416,12 @@ public class MagicSkillPacketHandler {
 			active().effects().removeSkill(sk.id());
 			if (sk.id() == 7029) {
 				active().gmSpeed(0);
+			} else if (sk.id() == 60) { // #169: Fake Death desligado -> WAIT_STOP_FAKEDEATH
+				var stopFd = new GameServerPacket.ChangeWaitType(
+						active().objectId(), 3,
+						active().x(), active().y(), active().z());
+				send(stopFd);
+				ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, stopFd, false);
 			}
 			send(SystemMessage.of(SystemMessage.EFFECT_S1_DISAPPEARED,
 					new SystemMessage.SkillName(sk.id(), sk.level())));
@@ -2594,6 +3439,25 @@ public class MagicSkillPacketHandler {
 				active().x(), active().y(), active().z(), active().x(), active().y(), active().z());
 		send(msu);
 		ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msu, false);
+		if (sk.id() == 60) { // #169: Fake Death ligado -> WAIT_START_FAKEDEATH + para aggro dos monstros
+			session.stopAutoAttack();
+			cancelCast();
+			var startFd = new GameServerPacket.ChangeWaitType(
+					active().objectId(), 2,
+					active().x(), active().y(), active().z());
+			send(startFd);
+			ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, startFd, false);
+			if (ctx() != null && ctx().npcAi() != null) {
+				ctx().npcAi().stopCombatForPlayer(active().objectId());
+			}
+		} else if (sk.id() == 226 && !active().isSitting()) { // #169: Relax senta o personagem automaticamente
+			active().sitting(true);
+			var sitPkt = new GameServerPacket.ChangeWaitType(
+					active().objectId(), 0,
+					active().x(), active().y(), active().z());
+			send(sitPkt);
+			ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, sitPkt, false);
+		}
 		applySkillEffects(sk, true);
 		if (sk.id() == 7029) {
 			active().gmSpeed(sk.level());
