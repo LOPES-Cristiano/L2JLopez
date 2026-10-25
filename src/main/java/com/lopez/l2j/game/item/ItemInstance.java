@@ -13,6 +13,10 @@ public final class ItemInstance {
 		VOID, INVENTORY, PAPERDOLL, WAREHOUSE, CLANWH, PET, PET_EQUIP, LEASE, FREIGHT
 	}
 
+	public static final Location LOC_INVENTORY = Location.INVENTORY;
+	public static final Location LOC_PAPERDOLL = Location.PAPERDOLL;
+	public static final Location LOC_WAREHOUSE = Location.WAREHOUSE;
+
 	private final int objectId;
 	private final ItemTemplate template;
 	private int ownerId;
@@ -32,6 +36,20 @@ public final class ItemInstance {
 		this.count = Math.max(1, count);
 	}
 
+	public ItemInstance(int objectId, ItemTemplate template, int ownerId, int count, int enchant,
+			Location location, int locationData, int customType1, int customType2, int mana, int augmentationId) {
+		this(objectId, template, ownerId, count);
+		this.enchant = enchant;
+		this.location = location != null ? location : Location.INVENTORY;
+		this.locationData = locationData;
+		this.customType1 = customType1;
+		this.customType2 = customType2;
+		this.mana = mana;
+		if (augmentationId != 0) {
+			this.augmentation = new Augmentation(augmentationId, 0, 0);
+		}
+	}
+
 	public int objectId() { return objectId; }
 	public ItemTemplate template() { return template; }
 	public int itemId() { return template.id(); }
@@ -41,8 +59,11 @@ public final class ItemInstance {
 	public void count(int value) { this.count = value; }
 	public int enchant() { return enchant; }
 	public void enchant(int value) { this.enchant = value; }
+	public int enchantLevel() { return enchant; }
+	public void enchantLevel(int value) { this.enchant = value; }
 	public Location location() { return location; }
 	public int locationData() { return locationData; }
+	public int paperdollSlot() { return locationData; }
 	public int customType1() { return customType1; }
 	public void customType1(int value) { this.customType1 = value; }
 	public int customType2() { return customType2; }
@@ -51,6 +72,7 @@ public final class ItemInstance {
 	public void mana(int value) { this.mana = value; }
 	public Augmentation augmentation() { return augmentation; }
 	public void augmentation(Augmentation value) { this.augmentation = value; }
+	public int augmentationId() { return augmentation != null ? augmentation.attributes() : 0; }
 	public boolean isAugmented() { return augmentation != null; }
 
 	public void location(Location location, int data) {
@@ -60,6 +82,14 @@ public final class ItemInstance {
 
 	public boolean isEquipped() {
 		return location == Location.PAPERDOLL || location == Location.PET_EQUIP;
+	}
+
+	public void equipped(boolean eq) {
+		if (eq) {
+			this.location = Location.PAPERDOLL;
+		} else if (this.location == Location.PAPERDOLL) {
+			this.location = Location.INVENTORY;
+		}
 	}
 
 	@Override
