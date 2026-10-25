@@ -25,6 +25,7 @@ public class Quest247PossessorOfAPreciousSoul4 extends Quest {
 	// Itens
 	public static final int CARADINE_LETTER = 7679;
 	public static final int NOBLESS_TIARA = 7694;
+	public static final int[] NOBLESSE_SKILLS = { 325, 326, 327, 1323, 1324, 1325, 1326, 1327 };
 
 	@Autowired
 	public Quest247PossessorOfAPreciousSoul4(QuestManager questManager) {
@@ -62,6 +63,13 @@ public class Quest247PossessorOfAPreciousSoul4 extends Quest {
 		} else if ("31745-05.htm".equalsIgnoreCase(event)) {
 			if (player != null) {
 				player.setNoble(true);
+				for (int skillId : NOBLESSE_SKILLS) {
+					player.skills().put(skillId, 1);
+				}
+				if (qs.getPlayer() != null) {
+					qs.getPlayer().sendSkillList();
+					qs.getPlayer().sendUserInfoAndBroadcastCharInfo();
+				}
 			}
 			qs.giveItems(NOBLESS_TIARA, 1);
 			qs.addExpAndSp(93836, 0);
