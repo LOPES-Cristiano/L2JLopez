@@ -25,17 +25,26 @@ public class PlayerPreferencesService {
         private boolean blockBuffs = false;
         private boolean blockParty = false;
         private boolean blockExp = false;
+        private boolean blockPm = false;
 
         public boolean isAutoLoot() { return autoLoot; }
         public void setAutoLoot(boolean autoLoot) { this.autoLoot = autoLoot; }
         public boolean isTradeRefusal() { return tradeRefusal; }
         public void setTradeRefusal(boolean tradeRefusal) { this.tradeRefusal = tradeRefusal; }
+        public boolean isBlockTrade() { return tradeRefusal; }
+        public void setBlockTrade(boolean blockTrade) { this.tradeRefusal = blockTrade; }
+        public boolean isBlockPm() { return blockPm; }
+        public void setBlockPm(boolean blockPm) { this.blockPm = blockPm; }
         public boolean isBlockBuffs() { return blockBuffs; }
         public void setBlockBuffs(boolean blockBuffs) { this.blockBuffs = blockBuffs; }
         public boolean isBlockParty() { return blockParty; }
         public void setBlockParty(boolean blockParty) { this.blockParty = blockParty; }
         public boolean isBlockExp() { return blockExp; }
         public void setBlockExp(boolean blockExp) { this.blockExp = blockExp; }
+    }
+
+    public void savePreferences(Preferences prefs) {
+        // Preferences are persisted in memory and via characterVariables on toggle
     }
 
     private final CharacterVariablesService characterVariables;
