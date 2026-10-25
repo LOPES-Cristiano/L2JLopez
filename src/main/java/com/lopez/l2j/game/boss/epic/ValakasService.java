@@ -11,6 +11,8 @@ import com.lopez.l2j.game.npc.NpcTemplate;
 import com.lopez.l2j.game.npc.NpcTemplateTable;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
+import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
+import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
 import jakarta.annotation.PostConstruct;
 import java.util.Collections;
 import java.util.List;
@@ -142,9 +144,9 @@ public class ValakasService {
 		playersInside.add(player.objectId());
 
 		if (status == BossStatus.NOTSPAWN) {
-			status = BossStatus.ALIVE;
+			status = BossStatus.WAITING;
 			if (grandBossManager != null) {
-				grandBossManager.setStatus(GrandBossManager.VALAKAS, BossStatus.ALIVE);
+				grandBossManager.setStatus(GrandBossManager.VALAKAS, BossStatus.WAITING);
 			}
 			int arrivalMinutes = Config.VALAKAS_ARRIVED_TIME;
 			log.info("Valakas: Primeiro jogador ({}) entrou no covil. Valakas surgira em {} minuto(s)!",
@@ -173,7 +175,7 @@ public class ValakasService {
 		}
 
 		if (world != null) {
-			var npcInfo = new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(activeValakas);
+			var npcInfo = new NpcInfo(activeValakas);
 			var quake = new com.lopez.l2j.network.game.packet.GameServerPacket.Earthquake(LAIR_X, LAIR_Y, LAIR_Z, 25, 10);
 			var cam = new com.lopez.l2j.network.game.packet.GameServerPacket.SpecialCamera(activeValakas.objectId(), 1800, 180, -1, 1500, 15000);
 			for (int pid : playersInside) {
@@ -183,6 +185,7 @@ public class ValakasService {
 					op.send(cam);
 				});
 			}
+			world.broadcastAround(LAIR_X, LAIR_Y, GameWorld.VISIBILITY_RADIUS, npcInfo);
 			world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Fire Dragon",
 					"Valakas has awakened in a fiery storm!"), p -> true);
 		}
@@ -208,6 +211,12 @@ public class ValakasService {
 
 	public synchronized void putValakasToSleep() {
 		if (status != BossStatus.ALIVE) {
+			return;
+		}
+		if (activeValakas != null && !activeValakas.isDead() && activeValakas.inCombat()
+				&& (System.currentTimeMillis() - activeValakas.lastAttackTime() < 5 * 60_000L)) {
+			activityTimeoutTask = scheduler.schedule(this::putValakasToSleep,
+					Math.max(1, Config.VALAKAS_ACTIVE_TIME) * 60L, TimeUnit.SECONDS);
 			return;
 		}
 		clearLair();
@@ -251,26 +260,36 @@ public class ValakasService {
 		int objId = objectIds.nextId();
 		exitCube = new NpcInstance(objId, cubeTpl, LAIR_X, LAIR_Y, LAIR_Z, 0);
 		world.addNpc(exitCube);
+		world.broadcastAround(LAIR_X, LAIR_Y, GameWorld.VISIBILITY_RADIUS, new NpcInfo(exitCube));
 
 		scheduler.schedule(this::clearLair, 15L * 60L, TimeUnit.SECONDS);
 	}
 
 	public void clearLair() {
 		if (exitCube != null) {
-			world.removeNpc(exitCube);
+			if (world != null) {
+				world.broadcastAround(exitCube.x(), exitCube.y(), GameWorld.VISIBILITY_RADIUS, new DeleteObject(exitCube.objectId()));
+				world.removeNpc(exitCube);
+			}
 			exitCube = null;
 		}
 		if (activeValakas != null) {
-			world.removeNpc(activeValakas);
+			if (world != null) {
+				world.broadcastAround(activeValakas.x(), activeValakas.y(), GameWorld.VISIBILITY_RADIUS,
+						new DeleteObject(activeValakas.objectId()));
+				world.removeNpc(activeValakas);
+			}
 			activeValakas = null;
 		}
 		for (int playerId : playersInside) {
-			world.player(playerId).ifPresent(p -> {
-				PlayerCharacter pc = p.character();
-				if (pc != null) {
-					world.teleportPlayer(pc, EXIT_X, EXIT_Y, EXIT_Z);
-				}
-			});
+			if (world != null) {
+				world.player(playerId).ifPresent(p -> {
+					PlayerCharacter pc = p.character();
+					if (pc != null) {
+						world.teleportPlayer(pc, EXIT_X, EXIT_Y, EXIT_Z);
+					}
+				});
+			}
 		}
 		playersInside.clear();
 	}
