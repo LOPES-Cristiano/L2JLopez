@@ -6,10 +6,9 @@ import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.network.game.GameSession;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
@@ -19,10 +18,11 @@ import org.springframework.stereotype.Service;
 
 /**
  * Servico Unificado de Eventos PvP com Rotacao de Arenas e Isolamento por Instancia.
- * Coordena os 3 eventos retail/custom de destaque:
+ * Coordena os 4 eventos retail/custom de destaque:
  * 1. TVT (Team vs Team - Mata-Mata em Equipes)
  * 2. CTF (Capture The Flag - Captura da Bandeira Inimiga)
  * 3. DEATHMATCH (Todos contra Todos)
+ * 4. LAST_MAN_STANDING (Sobrevivencia Battle Royale - 1 Vida)
  *
  * Politica estrita: Zero Coins de Doacao (Sem 9300).
  * Recompensas concedidas exclusivamente em Adena Oficial (57) e Festival Adena (6673).
@@ -35,11 +35,13 @@ public class PvPEventService {
 	// Itens Retail Oficiais
 	public static final int REWARD_ADENA_ID = 57;
 	public static final int REWARD_FESTIVAL_ADENA_ID = 6673;
+	public static final double ARENA_BOUNDARY_RADIUS = 3500.0;
 
 	public enum EventType {
 		TVT("Team vs Team"),
 		CTF("Capture the Flag"),
-		DEATHMATCH("Deathmatch");
+		DEATHMATCH("Deathmatch"),
+		LAST_MAN_STANDING("Last Man Standing");
 
 		private final String displayName;
 
@@ -119,6 +121,14 @@ public class PvPEventService {
 		public ArenaLocation teamBSpawn() {
 			return teamBSpawn;
 		}
+
+		public int centerX() {
+			return (teamASpawn.x() + teamBSpawn.x()) / 2;
+		}
+
+		public int centerY() {
+			return (teamASpawn.y() + teamBSpawn.y()) / 2;
+		}
 	}
 
 	public static class Participant {
@@ -131,6 +141,7 @@ public class PvPEventService {
 		private Team team = Team.NONE;
 		private int kills = 0;
 		private int flagsCaptured = 0;
+		private boolean eliminated = false;
 		private int origX;
 		private int origY;
 		private int origZ;
@@ -162,6 +173,8 @@ public class PvPEventService {
 		public void addKill() { this.kills++; }
 		public int flagsCaptured() { return flagsCaptured; }
 		public void addFlagCapture() { this.flagsCaptured++; }
+		public boolean eliminated() { return eliminated; }
+		public void setEliminated(boolean eliminated) { this.eliminated = eliminated; }
 		public int origX() { return origX; }
 		public int origY() { return origY; }
 		public int origZ() { return origZ; }
@@ -177,6 +190,7 @@ public class PvPEventService {
 	private int activeInstanceId = 0;
 
 	private final Map<Integer, Participant> participants = new ConcurrentHashMap<>();
+	private final Set<Integer> aliveSurvivors = ConcurrentHashMap.newKeySet();
 	private final List<Arena> arenaRotation = List.of(Arena.COLISEUM, Arena.GLUDIO, Arena.GIRAN, Arena.FANTASY_ISLE);
 	private int arenaIndex = 0;
 
@@ -234,6 +248,7 @@ public class PvPEventService {
 		this.currentArena = arenaRotation.get(arenaIndex % arenaRotation.size());
 		this.arenaIndex++;
 		this.participants.clear();
+		this.aliveSurvivors.clear();
 		this.blueScore = 0;
 		this.redScore = 0;
 		this.state = EventState.REGISTRATION;
@@ -301,6 +316,7 @@ public class PvPEventService {
 
 		this.state = EventState.STARTING;
 		this.activeInstanceId = instanceSequence.incrementAndGet();
+		this.aliveSurvivors.clear();
 
 		// Divide equipes se for TVT ou CTF
 		List<Participant> list = new ArrayList<>(participants.values());
@@ -315,6 +331,8 @@ public class PvPEventService {
 
 		// Teleporta para arena na instancia dedicada e limpa buffs
 		for (Participant p : list) {
+			p.setEliminated(false);
+			aliveSurvivors.add(p.charId());
 			if (p.session() != null && p.session().activeChar() != null) {
 				PlayerCharacter ch = p.session().activeChar();
 				ch.instanceId(activeInstanceId);
@@ -336,6 +354,53 @@ public class PvPEventService {
 		return true;
 	}
 
+	/**
+	 * Verifica se algum participante fugiu do raio da arena ou mudou de instancia,
+	 * desclassificando-o em LMS ou puxando-o de volta nos demais modos.
+	 */
+	public synchronized void checkArenaBounds() {
+		if (state != EventState.RUNNING) {
+			return;
+		}
+		int cx = currentArena.centerX();
+		int cy = currentArena.centerY();
+		for (Participant p : participants.values()) {
+			if (p.eliminated() || p.session() == null || p.session().activeChar() == null) {
+				continue;
+			}
+			PlayerCharacter ch = p.session().activeChar();
+			double dist = Math.hypot(ch.x() - cx, ch.y() - cy);
+			if (ch.instanceId() != activeInstanceId || dist > ARENA_BOUNDARY_RADIUS) {
+				if (currentType == EventType.LAST_MAN_STANDING) {
+					eliminateFromLms(p);
+				} else {
+					ArenaLocation loc = (p.team() == Team.RED) ? currentArena.teamBSpawn() : currentArena.teamASpawn();
+					ch.instanceId(activeInstanceId);
+					ch.x(loc.x());
+					ch.y(loc.y());
+					ch.z(loc.z());
+				}
+			}
+		}
+	}
+
+	private void eliminateFromLms(Participant victim) {
+		victim.setEliminated(true);
+		aliveSurvivors.remove(victim.charId());
+		if (victim.session() != null && victim.session().activeChar() != null) {
+			PlayerCharacter ch = victim.session().activeChar();
+			ch.instanceId(victim.origInstanceId());
+			ch.x(victim.origX());
+			ch.y(victim.origY());
+			ch.z(victim.origZ());
+			ch.currentHp(ch.maxHp());
+			ch.currentCp(ch.maxCp());
+		}
+		if (aliveSurvivors.size() <= 1 && state == EventState.RUNNING) {
+			finishEvent();
+		}
+	}
+
 	public synchronized void onKill(int killerId, int victimId) {
 		if (state != EventState.RUNNING) {
 			return;
@@ -355,6 +420,8 @@ public class PvPEventService {
 			} else if (killer.team() == Team.RED) {
 				redScore++;
 			}
+		} else if (currentType == EventType.LAST_MAN_STANDING) {
+			eliminateFromLms(victim);
 		}
 
 		log.info("PvPEvent: {} abateu {} (Score: Blue={}, Red={})",
@@ -408,6 +475,8 @@ public class PvPEventService {
 			if (currentType == EventType.DEATHMATCH) {
 				int maxKills = participants.values().stream().mapToInt(Participant::kills).max().orElse(0);
 				isWinner = p.kills() == maxKills && maxKills > 0;
+			} else if (currentType == EventType.LAST_MAN_STANDING) {
+				isWinner = aliveSurvivors.contains(p.charId()) && !p.eliminated();
 			} else {
 				isWinner = p.team() == winningTeam && winningTeam != Team.NONE;
 			}
@@ -462,6 +531,7 @@ public class PvPEventService {
 			}
 		}
 		participants.clear();
+		aliveSurvivors.clear();
 		this.state = EventState.IDLE;
 		this.activeInstanceId = 0;
 		log.info("Evento PvP cancelado e participantes restaurados");
@@ -474,7 +544,7 @@ public class PvPEventService {
 		return switch (currentType) {
 			case TVT -> EventType.CTF;
 			case CTF -> EventType.DEATHMATCH;
-			case DEATHMATCH -> EventType.TVT;
+			case DEATHMATCH, LAST_MAN_STANDING -> EventType.TVT;
 		};
 	}
 }
