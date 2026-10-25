@@ -119,6 +119,19 @@ public class GrandBossManager {
 		scheduleOrSpawnAll();
 	}
 
+	@jakarta.annotation.PreDestroy
+	public synchronized void shutdown() {
+		scheduler.shutdownNow();
+		for (GrandBossInfo info : bosses.values()) {
+			persistDb(info);
+		}
+	}
+
+	public static boolean isLairDormantBoss(int bossId) {
+		return bossId == ANTHARAS || bossId == VALAKAS || bossId == BAIUM
+				|| bossId == FRINTEZZA || bossId == SAILREN;
+	}
+
 	public boolean isGrandBoss(int npcId) {
 		return bosses.containsKey(npcId);
 	}
@@ -178,11 +191,30 @@ public class GrandBossManager {
 
 		log.info("GrandBoss {} foi morto! Respawn agendado para {} ({} ms, status INTERVAL)",
 				info.name(), info.getNextRespawnFormatted(), delay);
-		respawnTasks.put(bossId, scheduler.schedule(() -> spawnBoss(bossId), delay, TimeUnit.MILLISECONDS));
+		respawnTasks.put(bossId, scheduler.schedule(() -> makeBossReadyOrSpawn(bossId), delay, TimeUnit.MILLISECONDS));
 	}
 
 	public void notifyBossKilled(int bossId) {
 		onBossKilled(bossId);
+	}
+
+	public synchronized void makeBossReadyOrSpawn(int bossId) {
+		GrandBossInfo info = bosses.get(bossId);
+		if (info == null || !isBossEnabled(bossId)) {
+			return;
+		}
+		var prevTask = respawnTasks.remove(bossId);
+		if (prevTask != null) {
+			prevTask.cancel(false);
+		}
+		if (isLairDormantBoss(bossId)) {
+			info.status(BossStatus.NOTSPAWN);
+			info.respawnTime(0);
+			persistDb(info);
+			log.info("GrandBoss de covil {} (ID {}) pronto para entrada (status NOTSPAWN/DORMANT).", info.name(), bossId);
+		} else {
+			spawnBoss(bossId);
+		}
 	}
 
 	public synchronized void spawnBoss(int bossId) {
@@ -203,7 +235,28 @@ public class GrandBossManager {
 		info.respawnTime(0);
 		persistDb(info);
 
-		if (spawnService != null) {
+		BossManager bm = BossManager.getInstance();
+		boolean delegated = false;
+		if (bm != null) {
+			if (bossId == QUEEN_ANT && bm.queenAntService() != null) {
+				bm.queenAntService().spawnQueenAnt();
+				delegated = true;
+			} else if (bossId == CORE && bm.coreAndOrfenService() != null) {
+				bm.coreAndOrfenService().spawnCore();
+				delegated = true;
+			} else if (bossId == ORFEN && bm.coreAndOrfenService() != null) {
+				bm.coreAndOrfenService().spawnOrfen();
+				delegated = true;
+			} else if (bossId == ZAKEN && bm.zakenService() != null) {
+				bm.zakenService().spawnZaken();
+				delegated = true;
+			} else if (bossId == VAN_HALTER && bm.vanHalterService() != null) {
+				bm.vanHalterService().spawnVanHalter();
+				delegated = true;
+			}
+		}
+
+		if (!delegated && spawnService != null) {
 			spawnService.spawn(bossId, info.locX(), info.locY(), info.locZ(), info.heading());
 		}
 		log.info("GrandBoss {} (ID {}) renasceu em ({}, {}, {})! Status ALIVE",
@@ -219,13 +272,13 @@ public class GrandBossManager {
 			if (info.status() == BossStatus.INTERVAL || info.status() == BossStatus.DEAD) {
 				long interval = info.getIntervalMillis();
 				if (interval <= 0) {
-					spawnBoss(info.bossId());
+					makeBossReadyOrSpawn(info.bossId());
 				} else {
 					log.info("GrandBoss {} em INTERVAL, agendando renascimento em {} ms", info.name(), interval);
-					respawnTasks.put(info.bossId(), scheduler.schedule(() -> spawnBoss(info.bossId()), interval, TimeUnit.MILLISECONDS));
+					respawnTasks.put(info.bossId(), scheduler.schedule(() -> makeBossReadyOrSpawn(info.bossId()), interval, TimeUnit.MILLISECONDS));
 				}
 			} else if (info.status() == BossStatus.ALIVE || info.status() == BossStatus.NOTSPAWN) {
-				spawnBoss(info.bossId());
+				makeBossReadyOrSpawn(info.bossId());
 			}
 		}
 	}
@@ -300,7 +353,7 @@ public class GrandBossManager {
 					.param("state", info.status().id())
 					.update();
 		} catch (Exception ex) {
-			log.error("Erro ao persistir grandboss {}", info.bossId(), ex);
+			log.debug("Nao foi possivel persistir grandboss {} no banco: {}", info.bossId(), ex.getMessage());
 		}
 	}
 }
