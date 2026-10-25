@@ -51,7 +51,20 @@ public class OlympiadGameService {
 
 	private final Map<OlympiadMode, List<OlympiadParticipant>> queues = new ConcurrentHashMap<>();
 	private final Map<Integer, OlympiadMatch> activeMatches = new ConcurrentHashMap<>();
+	private final Map<Integer, java.util.concurrent.ScheduledFuture<?>> matchTimers = new ConcurrentHashMap<>();
+	private final java.util.concurrent.ScheduledExecutorService matchScheduler =
+			java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+				Thread t = new Thread(r, "Olympiad-Match-Scheduler");
+				t.setDaemon(true);
+				return t;
+			});
 	private final AtomicInteger matchIdCounter = new AtomicInteger(1000);
+
+	// Skills permitidas pelo Olympiad Host (NPC 31688) (#419)
+	public static final Set<Integer> ALLOWED_OLY_HOST_BUFFS = Set.of(
+			1086, 1204, 1059, 1085, 1078, 1068, 1240, 1077, 1242, 1062, 1040, 1035, 1045, 1048,
+			4357, 4342, 4356, 4355, 4351, 4345, 4358, 4359, 4360, 4352, 4344, 4349, 4347, 4348
+	);
 
 	@Autowired
 	public OlympiadGameService(OlympiadManager olympiadManager) {
@@ -470,8 +483,21 @@ public class OlympiadGameService {
 			if (p.session() != null && p.session().activeChar() != null) {
 				PlayerCharacter ch = p.session().activeChar();
 				ch.olympiadMode(true);
+				p.remainingBuffs(5);
 				// Retail Interlude: strip outside buffs
 				ch.effects().clear();
+				// Desequipa itens restritos e Hero Weapons se o jogador nao for Heroi (#418)
+				if (ch.inventory() != null) {
+					Set<Integer> restricted = getRestrictedItemIds();
+					for (var item : new ArrayList<>(ch.inventory().items())) {
+						if (item != null && item.isEquipped()) {
+							if (restricted.contains(item.itemId())
+									|| OlympiadManager.HERO_WEAPON_IDS.contains(item.itemId())) {
+								ch.inventory().unequip(item);
+							}
+						}
+					}
+				}
 				// Full heal if enabled
 				if (Config.ALT_OLY_HEAL_ON_TELEPORT || Config.ALT_OLY_HEAL_ON_FIGHT_START) {
 					ch.currentHp(ch.maxHp());
@@ -480,6 +506,89 @@ public class OlympiadGameService {
 				}
 			}
 		}
+
+		// Agenda a conclusao automatica da luta ao expirar o tempo regulamentar (360s) (#415)
+		long durationMs = getBattleDurationMs();
+		if (durationMs > 0) {
+			var future = matchScheduler.schedule(() -> {
+				if (activeMatches.containsKey(match.matchId())) {
+					concludeMatch(match.matchId());
+				}
+			}, durationMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+			matchTimers.put(match.matchId(), future);
+		}
+	}
+
+	/**
+	 * Concede um dos 5 buffs gratuitos do Olympiad Host (NPC 31688) durante a preparacao (#419).
+	 */
+	public boolean requestOlympiadHostBuff(int matchId, int charId, int skillId, int skillLevel) {
+		OlympiadMatch match = activeMatches.get(matchId);
+		if (match == null || !ALLOWED_OLY_HOST_BUFFS.contains(skillId)) {
+			return false;
+		}
+		OlympiadParticipant participant = findParticipant(match, charId);
+		if (participant == null || participant.remainingBuffs() <= 0) {
+			return false;
+		}
+		participant.remainingBuffs(participant.remainingBuffs() - 1);
+		if (participant.session() != null && participant.session().activeChar() != null) {
+			participant.session().activeChar().effects().addBuff(skillId, Math.max(1, skillLevel), 1_200_000L);
+		}
+		return true;
+	}
+
+	/**
+	 * Registra dano em combate nas Olimpiadas e impede morte real (clamp HP >= 1),
+	 * encerrando imediatamente a partida quando o HP de um oponente cairia a <= 0 (#416, #417).
+	 */
+	public boolean recordCombatDamage(int matchId, int attackerCharId, int victimCharId, double damage) {
+		OlympiadMatch match = activeMatches.get(matchId);
+		if (match == null || damage <= 0) {
+			return false;
+		}
+		OlympiadParticipant attacker = findParticipant(match, attackerCharId);
+		OlympiadParticipant victim = findParticipant(match, victimCharId);
+		if (attacker != null) {
+			attacker.addDamage(damage);
+		}
+		if (victim != null && victim.session() != null && victim.session().activeChar() != null) {
+			PlayerCharacter vChar = victim.session().activeChar();
+			if (vChar.currentHp() - damage <= 1.0) {
+				vChar.currentHp(1.0);
+				victim.setDead(true);
+				if (match.isTeamADefeated() || match.isTeamBDefeated()) {
+					concludeMatch(matchId);
+				}
+				return true;
+			}
+			vChar.currentHp(vChar.currentHp() - damage);
+		}
+		return false;
+	}
+
+	/**
+	 * Trata desconexao ou abandono de arena aplicando derrota por W.O. e penalidade de pontos (#421).
+	 */
+	public void onPlayerDisconnect(int charId) {
+		unregister(charId);
+		for (OlympiadMatch match : new ArrayList<>(activeMatches.values())) {
+			OlympiadParticipant p = findParticipant(match, charId);
+			if (p != null) {
+				p.setDead(true);
+				concludeMatch(match.matchId());
+			}
+		}
+	}
+
+	private OlympiadParticipant findParticipant(OlympiadMatch match, int charId) {
+		for (OlympiadParticipant p : match.teamA()) {
+			if (p.charId() == charId) return p;
+		}
+		for (OlympiadParticipant p : match.teamB()) {
+			if (p.charId() == charId) return p;
+		}
+		return null;
 	}
 
 	/**
@@ -487,6 +596,10 @@ public class OlympiadGameService {
 	 * e restaura os participantes as coordenadas originais.
 	 */
 	public OlympiadMatch.MatchResult concludeMatch(int matchId) {
+		var timer = matchTimers.remove(matchId);
+		if (timer != null) {
+			timer.cancel(false);
+		}
 		OlympiadMatch match = activeMatches.remove(matchId);
 		if (match == null) {
 			return null;
@@ -506,6 +619,15 @@ public class OlympiadGameService {
 
 		int rewardItemId = match.battleRewardItemId() > 0 ? match.battleRewardItemId() : Config.ALT_OLY_REWARD_ITEM;
 		int rewardItemCount = match.battleRewardItemCount();
+		if (rewardItemId > 0 && rewardItemCount > 0) {
+			List<OlympiadParticipant> winners = result == OlympiadMatch.MatchResult.TEAM_A_WIN ? match.teamA()
+					: (result == OlympiadMatch.MatchResult.TEAM_B_WIN ? match.teamB() : List.of());
+			for (OlympiadParticipant wp : winners) {
+				if (wp.session() != null && wp.session().activeChar() != null && wp.session().activeChar().inventory() != null) {
+					wp.session().activeChar().inventory().addItem(rewardItemId, rewardItemCount);
+				}
+			}
+		}
 
 		if (olympiadManager != null) {
 			if (match.mode() == OlympiadMode.CLASS_FREE || match.mode() == OlympiadMode.CLASS_BASED) {
@@ -514,11 +636,11 @@ public class OlympiadGameService {
 					int p2Id = match.teamB().get(0).charId();
 
 					if (result == OlympiadMatch.MatchResult.TEAM_A_WIN) {
-						olympiadManager.recordMatch(p1Id, p2Id, false);
+						olympiadManager.recordMatch(p1Id, p2Id, false, match.mode());
 					} else if (result == OlympiadMatch.MatchResult.TEAM_B_WIN) {
-						olympiadManager.recordMatch(p2Id, p1Id, false);
+						olympiadManager.recordMatch(p2Id, p1Id, false, match.mode());
 					} else {
-						olympiadManager.recordMatch(p1Id, p2Id, true);
+						olympiadManager.recordMatch(p1Id, p2Id, true, match.mode());
 					}
 				}
 			} else if (match.mode() == OlympiadMode.TEAM_BASED) {
@@ -527,11 +649,11 @@ public class OlympiadGameService {
 					int pA = match.teamA().get(i).charId();
 					int pB = match.teamB().get(i).charId();
 					if (result == OlympiadMatch.MatchResult.TEAM_A_WIN) {
-						olympiadManager.recordMatch(pA, pB, false);
+						olympiadManager.recordMatch(pA, pB, false, match.mode());
 					} else if (result == OlympiadMatch.MatchResult.TEAM_B_WIN) {
-						olympiadManager.recordMatch(pB, pA, false);
+						olympiadManager.recordMatch(pB, pA, false, match.mode());
 					} else {
-						olympiadManager.recordMatch(pA, pB, true);
+						olympiadManager.recordMatch(pA, pB, true, match.mode());
 					}
 				}
 			}
