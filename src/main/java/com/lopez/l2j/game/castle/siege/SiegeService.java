@@ -48,6 +48,7 @@ public class SiegeService {
 
 	private final Map<Integer, SiegeRecord> sieges = new ConcurrentHashMap<>();
 	private final Map<Integer, List<NpcInstance>> siegeNpcsByCastle = new ConcurrentHashMap<>();
+	private final Map<Integer, Map<Integer, List<NpcInstance>>> clanFlagsByCastle = new ConcurrentHashMap<>();
 	private final Map<Integer, List<SiegeSpawn>> controlTowerSpawns = new ConcurrentHashMap<>();
 	private final Map<Integer, List<SiegeSpawn>> artefactSpawns = new ConcurrentHashMap<>();
 	private final Map<Integer, List<SiegeSpawn>> flameTowerSpawns = new ConcurrentHashMap<>();
@@ -121,6 +122,91 @@ public class SiegeService {
 			return false;
 		}
 		return currentFlags < getMaxFlagsPerClan();
+	}
+
+	/**
+	 * Spawna um Siege Headquarters (NPC ID 35062) para o cla atacante no cerco (#390).
+	 */
+	public NpcInstance spawnSiegeFlag(int castleId, Clan clan, int x, int y, int z, boolean advanced) {
+		if (clan == null) {
+			return null;
+		}
+		Map<Integer, List<NpcInstance>> byClan = clanFlagsByCastle.computeIfAbsent(castleId, k -> new ConcurrentHashMap<>());
+		List<NpcInstance> flags = byClan.computeIfAbsent(clan.clanId(), k -> new CopyOnWriteArrayList<>());
+		if (!canPlaceFlag(castleId, clan.clanId(), flags.size())) {
+			return null;
+		}
+		int maxHp = advanced ? 100_000 : 50_000;
+		NpcTemplate tpl = new NpcTemplate(
+				HOLY_ARTIFACT_NPC_ID, HOLY_ARTIFACT_NPC_ID,
+				clan.name() + " Headquarters", true, clan.name(),
+				false, 18.0, 40.0, 70, "male", "L2SiegeFlag", 0, maxHp, 0, 500,
+				0, 500, 500, 0, 0, 0, 0, 0, 0, 0, 0, false
+		);
+		NpcInstance flag = new NpcInstance(siegeNpcIdSeq.incrementAndGet(), tpl, x, y, z, 0);
+		flags.add(flag);
+		GameWorld world = GameWorld.getInstance();
+		if (world != null) {
+			world.addNpc(flag);
+			world.broadcast(NpcInfo.of(flag), p -> p.character() != null
+					&& Math.hypot(p.character().x() - flag.x(), p.character().y() - flag.y()) <= GameWorld.VISIBILITY_RADIUS);
+		}
+		return flag;
+	}
+
+	public List<NpcInstance> getClanFlags(int castleId, int clanId) {
+		Map<Integer, List<NpcInstance>> byClan = clanFlagsByCastle.get(castleId);
+		if (byClan == null) {
+			return Collections.emptyList();
+		}
+		return byClan.getOrDefault(clanId, Collections.emptyList());
+	}
+
+	/**
+	 * Registra a destruicao de uma Control Tower durante o cerco, reduzindo o contador ativo e
+	 * aumentando o tempo de respawn dos defensores caso todas sejam destruidas (#387).
+	 */
+	public void onControlTowerDestroyed(int castleId) {
+		SiegeRecord siege = sieges.get(castleId);
+		if (siege != null && siege.status() == SiegeStatus.IN_PROGRESS) {
+			siege.controlTowersActive(siege.controlTowersActive() - 1);
+			log.info("Cerco ao Castelo {}: Control Tower destruida (restantes: {})", castleId, siege.controlTowersActive());
+		}
+	}
+
+	/**
+	 * Registra a destruicao de uma Flame Tower durante o cerco, desativando as zonas de armadilha associadas (#388).
+	 */
+	public void onFlameTowerDestroyed(int castleId, int towerIndex) {
+		SiegeRecord siege = sieges.get(castleId);
+		if (siege != null && siege.status() == SiegeStatus.IN_PROGRESS) {
+			siege.flameTowersActive(siege.flameTowersActive() - 1);
+			List<SiegeSpawn> fts = flameTowerSpawns.getOrDefault(castleId, Collections.emptyList());
+			if (towerIndex >= 0 && towerIndex < fts.size()) {
+				siege.disabledTrapZones().addAll(fts.get(towerIndex).zoneList());
+			}
+			log.info("Cerco ao Castelo {}: Flame Tower #{} destruida (restantes: {})", castleId, towerIndex, siege.flameTowersActive());
+		}
+	}
+
+	/**
+	 * Registra a gravacao de um Holy Artifact especifico (indice 0..N-1).
+	 * Em castelos com multiplos artefatos (ex: Goddard, Schuttgart, Aden, Rune), exige que todos sejam gravados pelo cla para acionar midVictory (#389).
+	 */
+	public boolean engraveArtifact(int castleId, int clanId, int artifactIndex) {
+		SiegeRecord siege = sieges.get(castleId);
+		if (siege == null || siege.status() != SiegeStatus.IN_PROGRESS || !isAttacker(castleId, clanId)) {
+			return false;
+		}
+		List<SiegeSpawn> arts = artefactSpawns.getOrDefault(castleId, Collections.emptyList());
+		int requiredCount = Math.max(1, arts.size());
+		var engraved = siege.engravedArtefactsByClan().computeIfAbsent(clanId, k -> ConcurrentHashMap.newKeySet());
+		engraved.add(Math.max(0, artifactIndex));
+		if (engraved.size() >= requiredCount) {
+			siege.engravedArtefactsByClan().clear();
+			return midVictory(castleId, clanId);
+		}
+		return true;
 	}
 
 	public long getAttackerRespawnDelayMillis() {
@@ -505,6 +591,18 @@ public class SiegeService {
 	}
 
 	private void despawnSiegeStructures(int castleId) {
+		Map<Integer, List<NpcInstance>> byClan = clanFlagsByCastle.remove(castleId);
+		if (byClan != null) {
+			GameWorld w = GameWorld.getInstance();
+			for (List<NpcInstance> flags : byClan.values()) {
+				for (NpcInstance f : flags) {
+					if (w != null) {
+						w.removeNpc(f);
+						w.broadcast(new DeleteObject(f.objectId()), p -> true);
+					}
+				}
+			}
+		}
 		List<NpcInstance> list = siegeNpcsByCastle.remove(castleId);
 		if (list == null || list.isEmpty()) {
 			return;
