@@ -107,4 +107,16 @@ public record CharTemplate(
 		double cpmin = cpAdd * lvl + cpmod;
 		return (int) Math.round(cpBase + (cpmax + cpmin) / 2.0);
 	}
+
+	public int maxHpForLevel(int level) {
+		return calculateMaxHp(level);
+	}
+
+	public int maxMpForLevel(int level) {
+		return calculateMaxMp(level);
+	}
+
+	public int maxCpForLevel(int level) {
+		return calculateMaxCp(level);
+	}
 }
