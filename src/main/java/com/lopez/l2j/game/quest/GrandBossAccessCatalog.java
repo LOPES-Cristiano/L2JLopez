@@ -53,7 +53,9 @@ public final class GrandBossAccessCatalog {
 		return Optional.ofNullable(BOSSES.get(bossName.toUpperCase()));
 	}
 
+	public static final int FLOATING_STONE_ID = 7267;
+
 	public static boolean isBossAccessItem(int itemId) {
-		return BOSSES.values().stream().anyMatch(b -> b.accessItemId() == itemId);
+		return itemId == FLOATING_STONE_ID || BOSSES.values().stream().anyMatch(b -> b.accessItemId() == itemId);
 	}
 }
