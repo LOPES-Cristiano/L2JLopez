@@ -8,12 +8,28 @@ package com.lopez.l2j.game.augmentation;
  */
 public record Augmentation(int attributes, int skillId, int skillLevel) {
 
+	public Augmentation(int itemObjectId, int attributes, int skillId, int skillLevel) {
+		this(attributes, skillId, skillLevel);
+	}
+
 	public int stat12() {
 		return 0x0000FFFF & attributes;
 	}
 
 	public int stat34() {
 		return attributes >> 16;
+	}
+
+	public int augmentationId() {
+		return attributes;
+	}
+
+	public int effect1Id() {
+		return stat12();
+	}
+
+	public int effect2Id() {
+		return stat34();
 	}
 
 	public boolean hasSkill() {
