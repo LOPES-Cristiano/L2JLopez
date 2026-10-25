@@ -201,9 +201,16 @@ public class BaiumService {
 					.orElseGet(() -> NpcTemplate.fallback(BAIUM_NPC_ID, "Baium", "L2GrandBoss"));
 			int objId = objectIds.nextId();
 			activeBaium = new NpcInstance(objId, baiumTpl, FLOOR14_X, FLOOR14_Y, FLOOR14_Z, BAIUM_HEADING);
+			if (player != null) {
+				activeBaium.targetPlayerId(player.objectId());
+				activeBaium.addDamageHate(player.objectId(), 0, 100);
+				activeBaium.inCombat(true);
+			}
 			world.addNpc(activeBaium);
 
 			world.broadcast(NpcInfo.of(activeBaium), p -> playersInside.contains(p.objectId()));
+			world.broadcast(new com.lopez.l2j.network.game.packet.GameServerPacket.SocialAction(activeBaium.objectId(), 2),
+					p -> playersInside.contains(p.objectId()));
 			world.broadcast(new Earthquake(FLOOR14_X, FLOOR14_Y, FLOOR14_Z, 40, 10), p -> playersInside.contains(p.objectId()));
 			world.broadcast(new SpecialCamera(activeBaium.objectId(), 200, 180, 30, 3000, 10000, 0, 0, 1, 0),
 					p -> playersInside.contains(p.objectId()));
@@ -253,7 +260,8 @@ public class BaiumService {
 			return;
 		}
 		for (NpcInstance angel : archangels) {
-			if (world != null) {
+			if (world != null && angel != null) {
+				world.broadcastAround(angel.x(), angel.y(), GameWorld.VISIBILITY_RADIUS, new DeleteObject(angel.objectId()));
 				world.removeNpc(angel);
 			}
 		}
@@ -310,6 +318,7 @@ public class BaiumService {
 				.orElseGet(() -> NpcTemplate.fallback(BAIUM_STATUE, "Baium", "L2Npc"));
 		baiumStatue = new NpcInstance(objectIds.nextId(), statueTpl, FLOOR14_X, FLOOR14_Y, FLOOR14_Z, BAIUM_HEADING);
 		world.addNpc(baiumStatue);
+		world.broadcastAround(FLOOR14_X, FLOOR14_Y, GameWorld.VISIBILITY_RADIUS, NpcInfo.of(baiumStatue));
 	}
 
 	private void spawnExitCube() {
@@ -328,10 +337,12 @@ public class BaiumService {
 
 	public void clearFloor() {
 		if (exitCube != null && world != null) {
+			world.broadcastAround(exitCube.x(), exitCube.y(), GameWorld.VISIBILITY_RADIUS, new DeleteObject(exitCube.objectId()));
 			world.removeNpc(exitCube);
 			exitCube = null;
 		}
 		if (activeBaium != null && world != null) {
+			world.broadcastAround(activeBaium.x(), activeBaium.y(), GameWorld.VISIBILITY_RADIUS, new DeleteObject(activeBaium.objectId()));
 			world.removeNpc(activeBaium);
 			activeBaium = null;
 		}
