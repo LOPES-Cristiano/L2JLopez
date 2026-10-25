@@ -59,6 +59,12 @@ public class Quest611AllianceWithVarkaSilenos extends Quest {
 	private static final Set<Integer> KETRA_CAPTAINS = Set.of(
 			21339, 21340, 21341, 21342, 21345, 21346, 21347, 21348, 21349
 	);
+	// Aliados Varka (quebra de aliança ao matar)
+	private static final Set<Integer> VARKA_ALLIES = Set.of(
+			21350, 21351, 21353, 21354, 21355, 21357, 21358, 21360, 21361, 21362,
+			21364, 21365, 21366, 21368, 21369, 21370, 21371, 21372, 21373, 21374, 21375,
+			25309, 25312, 25315, 25316
+	);
 
 	public Quest611AllianceWithVarkaSilenos() {
 		this(null);
@@ -78,6 +84,9 @@ public class Quest611AllianceWithVarkaSilenos extends Quest {
 			addKillId(mobId);
 		}
 		for (int mobId : KETRA_CAPTAINS) {
+			addKillId(mobId);
+		}
+		for (int mobId : VARKA_ALLIES) {
 			addKillId(mobId);
 		}
 
@@ -297,6 +306,19 @@ public class Quest611AllianceWithVarkaSilenos extends Quest {
 
 		int npcId = npc.getNpcId();
 		int cond = qs.getCond();
+
+		if (VARKA_ALLIES.contains(npcId)) {
+			qs.takeItems(MARK_VARKA_1, -1);
+			qs.takeItems(MARK_VARKA_2, -1);
+			qs.takeItems(MARK_VARKA_3, -1);
+			qs.takeItems(MARK_VARKA_4, -1);
+			qs.takeItems(MARK_VARKA_5, -1);
+			qs.takeItems(KETRA_BADGE_SOLDIER, -1);
+			qs.takeItems(KETRA_BADGE_OFFICER, -1);
+			qs.takeItems(KETRA_BADGE_CAPTAIN, -1);
+			qs.exitQuest(true);
+			return null;
+		}
 
 		if (cond >= 1 && KETRA_SOLDIERS.contains(npcId)) {
 			qs.giveItems(KETRA_BADGE_SOLDIER, 1);
