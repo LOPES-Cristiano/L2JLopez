@@ -96,6 +96,16 @@ public abstract class SagaMasterQuest extends Quest {
 		if (!pc.isSubClassActive() && pc.baseClassId() == this.prevClass) {
 			pc.baseClassId(this.classId);
 		}
+		if (qs.getPlayer() != null) {
+			if (qs.getPlayer().context() != null && qs.getPlayer().context().characters() != null) {
+				try {
+					qs.getPlayer().context().characters().save(pc);
+				} catch (Exception ignored) {
+				}
+			}
+			qs.getPlayer().sendSkillList();
+			qs.getPlayer().sendUserInfoAndBroadcastCharInfo();
+		}
 		qs.playSound(QuestState.SOUND_FANFARE);
 	}
 
