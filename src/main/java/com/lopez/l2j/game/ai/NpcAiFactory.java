@@ -50,13 +50,16 @@ public class NpcAiFactory {
 			return new com.lopez.l2j.game.ai.boss.ZakenAI(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler, zones);
 		}
 		if (npcId == 29062) {
-			return new com.lopez.l2j.game.ai.boss.RaidBossAI(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler, zones);
+			return new com.lopez.l2j.game.ai.boss.VanHalterAI(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler, zones);
 		}
 		if (npc.template().isRaidBoss() || npc.template().isGrandBoss()) {
 			return new com.lopez.l2j.game.ai.boss.RaidBossAI(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler, zones);
 		}
 
-		// 1. Guardas de Vilas e Castelos
+		// 1. Guardas de Cerco (Castelos e Fortalezas) e Guardas de Vilas
+		if ("L2SiegeGuard".equalsIgnoreCase(type) || "L2FortSiegeGuard".equalsIgnoreCase(type) || "L2Defender".equalsIgnoreCase(type)) {
+			return new SiegeGuardAI(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler, zones);
+		}
 		if ("L2Guard".equalsIgnoreCase(type) || name.contains("guard") || name.contains("sentry")) {
 			return new GuardAI(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler, zones);
 		}
