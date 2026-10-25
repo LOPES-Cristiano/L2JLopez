@@ -115,6 +115,7 @@ public class TvtEventService {
     public static final int TVT_INSTANCE_ID = 9101;
     public static final int ZARICHE_ID = 8190;
     public static final int AKAMANAH_ID = 8689;
+    private static final int[] COLISEUM_DOORS = { 24190001, 24190002, 24190003, 24190004 };
 
     private volatile EventState state = EventState.INACTIVE;
     private int minLevel = Config.TVT_MIN_LEVEL;
@@ -207,6 +208,27 @@ public class TvtEventService {
         }
     }
 
+    private void announce(String msg) {
+        var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+        if (world != null) {
+            var pkt = new com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay(
+                    0, com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay.ANNOUNCEMENT, "TvT", msg);
+            world.broadcast(pkt);
+        }
+    }
+
+    private void toggleColiseumDoors(boolean close) {
+        var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+        if (world == null) {
+            return;
+        }
+        for (int doorId : COLISEUM_DOORS) {
+            world.doorById(doorId).ifPresent(door -> {
+                door.open(!close);
+            });
+        }
+    }
+
     public synchronized void openRegistration() {
         openRegistration(Config.TVT_MIN_LEVEL, Config.TVT_MAX_LEVEL);
     }
@@ -220,6 +242,7 @@ public class TvtEventService {
         this.teamScores.put(TeamType.BLUE, 0);
         this.teamScores.put(TeamType.RED, 0);
         this.state = EventState.REGISTRATION;
+        announce("Registro para Team vs Team (TvT) aberto para niveis " + minLevel + "-" + maxLevel + "! Digite .tvtjoin");
         log.info("TvT: Registro aberto para niveis {} a {} (tempo de inscricao: {} min).", minLevel, maxLevel, Config.TVT_JOIN_TIME);
     }
 
@@ -269,6 +292,21 @@ public class TvtEventService {
         return participants.remove(player.getObjectId()) != null;
     }
 
+    public synchronized void onDisconnect(int playerId) {
+        Participant removed = participants.remove(playerId);
+        if (removed != null && removed.getPlayer() != null) {
+            PlayerCharacter pc = removed.getPlayer();
+            pc.team(0);
+            if (state == EventState.RUNNING) {
+                int retX = (Config.TVT_ORIGINAL_POSITION || removed.getOrigX() != 0 || removed.getOrigY() != 0) ? removed.getOrigX() : 83400;
+                int retY = (Config.TVT_ORIGINAL_POSITION || removed.getOrigX() != 0 || removed.getOrigY() != 0) ? removed.getOrigY() : 147943;
+                int retZ = (Config.TVT_ORIGINAL_POSITION || removed.getOrigX() != 0 || removed.getOrigY() != 0) ? removed.getOrigZ() : -3404;
+                pc.teleport(retX, retY, retZ);
+                pc.instanceId(0);
+            }
+        }
+    }
+
     public synchronized boolean startFight() {
         if (state != EventState.REGISTRATION) {
             return false;
@@ -281,6 +319,9 @@ public class TvtEventService {
         }
 
         this.coliseumDoorsClosed = Config.TVT_CLOSE_COLISEUM_DOORS;
+        if (this.coliseumDoorsClosed) {
+            toggleColiseumDoors(true);
+        }
 
         // Divide and balance teams by level
         List<Participant> list = new ArrayList<>(participants.values());
@@ -299,6 +340,10 @@ public class TvtEventService {
             }
             PlayerCharacter pc = p.getPlayer();
             if (pc != null) {
+                if (pc.getParty() != null) {
+                    pc.getParty().removePartyMember(pc.objectId());
+                    pc.setParty(null);
+                }
                 if (Config.TVT_AURA) {
                     pc.team(p.getTeam() == TeamType.BLUE ? 1 : 2);
                 } else {
@@ -328,6 +373,7 @@ public class TvtEventService {
         teamScores.put(TeamType.BLUE, 0);
         teamScores.put(TeamType.RED, 0);
         state = EventState.RUNNING;
+        announce("Batalha TvT iniciada! Time Azul (" + blueCount + ") vs Time Vermelho (" + redCount + ").");
         log.info("TvT: Batalha iniciada! Azul: {} players, Vermelho: {} players (duracao: {} min, portas fechadas: {}).",
                 blueCount, redCount, Config.TVT_EVENT_TIME, coliseumDoorsClosed);
         return true;
@@ -435,7 +481,11 @@ public class TvtEventService {
             winner = null; // Tie
         }
 
+        if (this.coliseumDoorsClosed) {
+            toggleColiseumDoors(false);
+        }
         this.coliseumDoorsClosed = false;
+
         var world = com.lopez.l2j.game.world.GameWorld.getInstance();
         for (Participant p : participants.values()) {
             PlayerCharacter pc = p.getPlayer();
@@ -445,16 +495,19 @@ public class TvtEventService {
             pc.currentMp(pc.maxMp());
             pc.currentCp(pc.maxCp());
             boolean eligibleForReward = Config.TVT_PRICE_NO_KILLS || p.getKills() > 0;
-            if (winner != null && p.getTeam() == winner && eligibleForReward && rewardItemCount > 0 && pc.inventory() != null) {
+            boolean isWinner = (winner != null && p.getTeam() == winner);
+            boolean isTieRewarded = (winner == null && blueScore > 0 && Config.TVT_REWARD_TEAM_TIE);
+            if ((isWinner || isTieRewarded) && eligibleForReward && rewardItemCount > 0 && pc.inventory() != null) {
+                int countToGrant = isTieRewarded ? Math.max(1, rewardItemCount / 2) : rewardItemCount;
                 if (inventoryService != null) {
-                    var added = inventoryService.addItem(pc.inventory(), rewardItemId, rewardItemCount, "TvTReward");
+                    var added = inventoryService.addItem(pc.inventory(), rewardItemId, countToGrant, "TvTReward");
                     if (added != null && added.item() != null && world != null) {
                         world.sendPacket(pc.objectId(), new com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate(List.of(
                                 com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.of(added.item(),
                                         added.created() ? com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.ADDED : com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED))));
                     }
                 } else {
-                    pc.inventory().byItemId(rewardItemId).ifPresent(it -> it.count(it.count() + rewardItemCount));
+                    pc.inventory().addItem(rewardItemId, countToGrant);
                 }
             }
             int retX = (Config.TVT_ORIGINAL_POSITION || p.getOrigX() != 0 || p.getOrigY() != 0) ? p.getOrigX() : 83400;
@@ -471,6 +524,7 @@ public class TvtEventService {
         }
 
         state = EventState.INACTIVE;
+        announce("TvT encerrado! Azul " + blueScore + " x " + redScore + " Vermelho. Vencedor: " + (winner != null ? winner.getTeamName() : "Empate"));
         log.info("TvT: Encerrado! Azul: {}, Vermelho: {}. Vencedor: {}", blueScore, redScore, winner);
         return winner;
     }
@@ -498,9 +552,18 @@ public class TvtEventService {
     // Getters and setters
     public EventState getState() { return state; }
     public boolean isParticipant(int objectId) { return participants.containsKey(objectId); }
+    public boolean isPlayerInEvent(int objectId) { return isParticipant(objectId); }
     public Participant getParticipant(int objectId) { return participants.get(objectId); }
     public Map<Integer, Participant> getParticipants() { return Collections.unmodifiableMap(participants); }
     public int getTeamScore(TeamType team) { return teamScores.getOrDefault(team, 0); }
+    public int getBlueCount() {
+        return (int) participants.values().stream().filter(p -> p.getTeam() == TeamType.BLUE).count();
+    }
+    public int getRedCount() {
+        return (int) participants.values().stream().filter(p -> p.getTeam() == TeamType.RED).count();
+    }
+    public int getBlueKills() { return getTeamScore(TeamType.BLUE); }
+    public int getRedKills() { return getTeamScore(TeamType.RED); }
     public int getMinLevel() { return minLevel; }
     public int getMaxLevel() { return maxLevel; }
     public int getMinPlayers() { return minPlayers; }
