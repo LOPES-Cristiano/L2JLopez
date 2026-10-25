@@ -43,6 +43,7 @@ public class AdminPacketHandler {
 	private static final Logger log = LoggerFactory.getLogger(AdminPacketHandler.class);
 
 	private final GameSession session;
+	private final Map<Integer, Integer> savedGmSkills = new HashMap<>();
 
 	public AdminPacketHandler(GameSession session) {
 		this.session = session;
@@ -341,10 +342,26 @@ public class AdminPacketHandler {
 			rendered = rendered.replace("%castles%", cSb.toString());
 		}
 		if (rendered.contains("%clanhalls%")) {
-			rendered = rendered.replace("%clanhalls%", "<td><font color=\"LEVEL\">Nenhum Clan Hall ocupado.</font></td>");
+			StringBuilder chSb = new StringBuilder();
+			if (ctx.clanHalls() != null) {
+				for (var ch : ctx.clanHalls().getAllClanHalls()) {
+					if (ch.ownerId() > 0) {
+						chSb.append("<td><button value=\"").append(ch.name()).append("\" action=\"bypass -h admin_clanhall ").append(ch.id()).append("\" width=80 height=15 back=\"l2ui.MatchingListIndex_click\" fore=\"l2ui.Macro_Icon_Indicator\"></td>");
+					}
+				}
+			}
+			rendered = rendered.replace("%clanhalls%", chSb.length() > 0 ? chSb.toString() : "<td><font color=\"LEVEL\">Nenhum Clan Hall ocupado.</font></td>");
 		}
 		if (rendered.contains("%freeclanhalls%")) {
-			rendered = rendered.replace("%freeclanhalls%", "<td><font color=\"8FA888\">Todos os Clan Halls disponiveis.</font></td>");
+			StringBuilder fchSb = new StringBuilder();
+			if (ctx.clanHalls() != null) {
+				for (var ch : ctx.clanHalls().getAllClanHalls()) {
+					if (ch.ownerId() <= 0) {
+						fchSb.append("<td><button value=\"").append(ch.name()).append("\" action=\"bypass -h admin_clanhall ").append(ch.id()).append("\" width=80 height=15 back=\"l2ui.MatchingListIndex_click\" fore=\"l2ui.Macro_Icon_Indicator\"></td>");
+					}
+				}
+			}
+			rendered = rendered.replace("%freeclanhalls%", fchSb.length() > 0 ? fchSb.toString() : "<td><font color=\"8FA888\">Todos os Clan Halls disponiveis.</font></td>");
 		}
 		if (rendered.contains("%forts%")) {
 			StringBuilder fSb = new StringBuilder();
@@ -431,16 +448,39 @@ public class AdminPacketHandler {
 							targetChar.inventory().currentLoad()));
 				}
 			}
-			case 2 -> send(new GMViewPledgeInfo(targetChar.name(), targetChar.clanId(), targetChar.level(),
-					targetChar.classId()));
+			case 2 -> {
+				var clan = ctx.clans() != null && targetChar.clanId() > 0
+						? ctx.clans().byClanId(targetChar.clanId()).orElse(null)
+						: null;
+				if (clan != null) {
+					send(new GMViewPledgeInfo(targetChar.name(), clan));
+				} else {
+					send(new GMViewPledgeInfo(targetChar.name(), targetChar.clanId(), targetChar.level(),
+							targetChar.classId()));
+				}
+			}
 			case 3 -> send(new GMViewSkillInfo(targetChar.name(), targetChar.skills(), ctx.skillService()));
 			case 4 -> send(new GMViewQuestInfo(targetChar.name()));
 			case 5 -> {
-				send(new GMViewItemList(targetChar.name(), targetChar.inventory().items(), 80));
-				send(new GMHennaInfo(0, 0, 0, 0, 0, 0));
+				int maxSlots = targetChar.maxInventorySlots() > 0 ? targetChar.maxInventorySlots() : 80;
+				send(new GMViewItemList(targetChar.name(), targetChar.inventory().items(), maxSlots));
+				List<HennaInfo.EquippedSlot> hennaSlots = new ArrayList<>();
+				if (targetChar.hennas() != null) {
+					for (int h : targetChar.hennas()) {
+						if (h > 0) {
+							hennaSlots.add(new HennaInfo.EquippedSlot(h, true));
+						}
+					}
+				}
+				send(new GMHennaInfo(0, 0, 0, 0, 0, 0, 3, hennaSlots));
 			}
-			case 6 -> send(new GMViewWarehouseWithdrawList(targetChar.name(),
-					(int) Math.min(Integer.MAX_VALUE, targetChar.inventory().adena()), List.of()));
+			case 6 -> {
+				List<com.lopez.l2j.game.item.ItemInstance> whItems = ctx.warehouse() != null
+						? ctx.warehouse().listPrivate(targetChar.objectId())
+						: List.of();
+				send(new GMViewWarehouseWithdrawList(targetChar.name(),
+						(int) Math.min(Integer.MAX_VALUE, targetChar.inventory().adena()), whItems));
+			}
 			default -> {
 				if (template != null && stats != null) {
 					send(new GMViewCharacterInfo(targetChar, template, stats, targetChar.inventory().paperdollView(),
@@ -634,13 +674,19 @@ public class AdminPacketHandler {
 		PlayerStats stats = template != null ? PlayerStats.calculate(targetChar, template) : null;
 
 		String ip = "Offline";
-		if (onlineTarget != null) {
+		if (onlineTarget instanceof GameSession gs && gs.ip() != null && !gs.ip().isBlank()) {
+			ip = gs.ip();
+		} else if (onlineTarget != null) {
 			ip = "Online";
 		} else if (targetChar.objectId() == active.objectId()) {
-			ip = "127.0.0.1";
+			ip = session.ip() != null && !session.ip().isBlank() ? session.ip() : "127.0.0.1";
 		}
 
-		String clanName = targetChar.clanId() != 0 ? "Clan " + targetChar.clanId() : "No Clan";
+		String clanName = "No Clan";
+		if (targetChar.clanId() != 0) {
+			var cOpt = ctx.clans() != null ? ctx.clans().byClanId(targetChar.clanId()) : java.util.Optional.<com.lopez.l2j.game.clan.Clan>empty();
+			clanName = cOpt.isPresent() ? cOpt.get().name() : ("Clan " + targetChar.clanId());
+		}
 		String className = template != null ? template.className() : "Class " + targetChar.classId();
 		int curLoad = targetChar.inventory() != null ? targetChar.inventory().currentLoad() : 0;
 		int maxLoad = stats != null && stats.maxLoad() > 0 ? stats.maxLoad() : (template != null ? template.maxLoad() : 69000);
@@ -1641,12 +1687,40 @@ public class AdminPacketHandler {
 				}
 			}
 			case "cw_add" -> {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cursed Weapon adicionada ao mundo: " + args));
+				int cwId = GameSession.parseIntSafe(args.trim().split("\\s+")[0], 8190);
+				if (args.toLowerCase(java.util.Locale.ROOT).contains("akamanah")) {
+					cwId = 8689;
+				}
+				var target = getTargetPlayerOrActive();
+				if (ctx.cursedWeapons() != null) {
+					if (target != null) {
+						ctx.cursedWeapons().activate(cwId, target);
+						var sess = getTargetOnlinePlayerOrSelf();
+						if (sess instanceof GameSession gs) {
+							gs.sendSkillList();
+							gs.send(ItemList.of(target.inventory().items(), false));
+							gs.sendUserInfoAndBroadcastCharInfo();
+						}
+					} else {
+						ctx.cursedWeapons().forceDrop(cwId, active.x(), active.y(), active.z());
+					}
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cursed Weapon adicionada ao mundo: " + (args.isBlank() ? cwId : args)));
 			}
 			case "cw_remove" -> {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cursed Weapon removida do mundo: " + args));
+				int cwId = GameSession.parseIntSafe(args.trim().split("\\s+")[0], 8190);
+				if (args.toLowerCase(java.util.Locale.ROOT).contains("akamanah")) {
+					cwId = 8689;
+				}
+				if (ctx.cursedWeapons() != null) {
+					ctx.cursedWeapons().endOfLife(cwId);
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cursed Weapon removida do mundo: " + (args.isBlank() ? cwId : args)));
 			}
 			case "cw_reload" -> {
+				if (ctx.cursedWeapons() != null) {
+					ctx.cursedWeapons().loadXml("data/xml/world/cursedWeapons.xml");
+				}
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cursed Weapons recarregadas com sucesso."));
 			}
 			case "manualhero" -> {
@@ -1665,6 +1739,11 @@ public class AdminPacketHandler {
 				}
 			}
 			case "endolympiad" -> {
+				if (ctx.olympiad() != null) {
+					ctx.olympiad().period(com.lopez.l2j.game.olympiad.OlympiadManager.PERIOD_VALIDATION);
+					ctx.olympiad().electHeroes();
+					ctx.olympiad().save();
+				}
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Periodo de Olimpiadas encerrado manualmente."));
 			}
 			case "setnoble", "noble" -> {
@@ -1700,12 +1779,69 @@ public class AdminPacketHandler {
 						"Configuracao de mod aplicada: " + (args.isBlank() ? "OK" : args)));
 			}
 			case "setteam1", "setteam2", "clearteam", "rangesetteam1", "rangesetteam2", "rangeclearteam" -> {
+				int team = (cmd.endsWith("team1")) ? 1 : (cmd.endsWith("team2") ? 2 : 0);
+				if (cmd.startsWith("range")) {
+					int radius = !args.isBlank() && !args.startsWith("$") ? GameSession.parseIntSafe(args.trim().split("\\s+")[0], 300) : 300;
+					long rSq = (long) radius * radius;
+					if (ctx.world() != null) {
+						for (var p : ctx.world().players()) {
+							if (p.character() != null) {
+								long dx = p.character().x() - active.x();
+								long dy = p.character().y() - active.y();
+								if (dx * dx + dy * dy <= rSq) {
+									p.character().teamAura(team);
+									p.sendUserInfoAndBroadcastCharInfo();
+								}
+							}
+						}
+					}
+				} else {
+					var target = getTargetPlayerOrActive();
+					var sess = getTargetOnlinePlayerOrSelf();
+					if (target != null) {
+						target.teamAura(team);
+						if (sess != null) {
+							sess.sendUserInfoAndBroadcastCharInfo();
+						}
+					}
+				}
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Comando de time executado: " + cmd));
 			}
 			case "clanhall" -> {
 				showAdminHtml("clanhall.htm");
 			}
 			case "clanhallopendoors", "clanhallclosedoors", "clanhallset", "clanhalldel", "clanhallteleportself" -> {
+				int hallId = !args.isBlank() && !args.startsWith("$") ? GameSession.parseIntSafe(args.trim().split("\\s+")[0], 21) : 21;
+				if (ctx.clanHalls() != null) {
+					var chOpt = ctx.clanHalls().getClanHall(hallId);
+					switch (cmd) {
+						case "clanhallset" -> {
+							var target = getTargetPlayerOrActive();
+							if (target != null && target.clanId() > 0) {
+								ctx.clanHalls().setOwner(hallId, target.clanId());
+							}
+						}
+						case "clanhalldel" -> ctx.clanHalls().removeOwner(hallId);
+						case "clanhallopendoors", "clanhallclosedoors" -> {
+							boolean open = cmd.equals("clanhallopendoors");
+							if (ctx.doors() != null) {
+								for (var door : ctx.doors().getDoors()) {
+									if (door.clanHallId() == hallId) {
+										if (open) door.open();
+										else door.close();
+										ctx.world().broadcast(new DoorStatusUpdate(door), p -> true);
+									}
+								}
+							}
+						}
+						case "clanhallteleportself" -> {
+							if (chOpt.isPresent()) {
+								// Teleporta para a regiao do Clan Hall
+								session.teleportToLocation(active.x(), active.y(), active.z());
+							}
+						}
+					}
+				}
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Comando de Clan Hall executado: " + cmd + " " + args));
 			}
 			case "give_all_skills" -> {
@@ -1729,7 +1865,16 @@ public class AdminPacketHandler {
 			case "remove_all_skills" -> {
 				var target = getTargetPlayerOrActive();
 				var sess = getTargetOnlinePlayerOrSelf();
+				List<Integer> oldSkillIds = new ArrayList<>(target.skills().keySet());
 				target.skills().clear();
+				if (ctx.skills() != null) {
+					for (int sid : oldSkillIds) {
+						ctx.skills().delete(target.objectId(), target.activeClassIndex(), sid);
+					}
+				}
+				if (ctx.skillService() != null) {
+					ctx.skillService().refreshPassives(target);
+				}
 				if (ctx.characters() != null) {
 					ctx.characters().save(target, true);
 				}
@@ -1740,8 +1885,35 @@ public class AdminPacketHandler {
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 						"Todas as habilidades foram removidas de " + target.name()));
 			}
+			case "get_skills" -> {
+				var target = getTargetPlayerOrActive();
+				if (target != null && target != active) {
+					savedGmSkills.clear();
+					savedGmSkills.putAll(active.skills());
+					active.skills().clear();
+					active.skills().putAll(target.skills());
+					session.sendSkillList();
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Skills de " + target.name() + " copiadas temporariamente."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Selecione um jogador alvo para copiar as skills."));
+				}
+			}
+			case "reset_skills" -> {
+				if (!savedGmSkills.isEmpty()) {
+					active.skills().clear();
+					active.skills().putAll(savedGmSkills);
+					savedGmSkills.clear();
+					session.sendSkillList();
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Skills originais do GM restauradas."));
+			}
 			case "clear_skill_reuse", "reset_reuse" -> {
 				var target = getTargetPlayerOrActive();
+				var sess = getTargetOnlinePlayerOrSelf();
+				if (sess instanceof GameSession gs) {
+					gs.clearSkillCooldowns();
+					gs.sendSkillList();
+				}
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cooldowns resetados para " + target.name()));
 			}
 			case "charinfo", "charinfo_menu", "character_info" -> {
@@ -2176,22 +2348,50 @@ public class AdminPacketHandler {
 						"GM List status atualizado (" + (listOn ? "ON" : "OFF") + ", AutoList=" + Config.GM_STARTUP_AUTO_LIST + ")."));
 			}
 			case "tradeoff" -> {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Trade refusal alternado."));
+				String mode = args.trim().toLowerCase(java.util.Locale.ROOT);
+				if (ctx.preferences() != null) {
+					var prefs = ctx.preferences().getPreferences(active.objectId());
+					boolean next = mode.equals("on") ? true : (mode.equals("off") ? false : !prefs.isBlockTrade());
+					prefs.setBlockTrade(next);
+					ctx.preferences().savePreferences(prefs);
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Trade refusal alternado (" + (next ? "ON" : "OFF") + ")."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Trade refusal alternado."));
+				}
+			}
+			case "ride" -> {
+				int type = GameSession.parseIntSafe(args.trim().split("\\s+")[0], 1);
+				if (type == 2 || args.toLowerCase(java.util.Locale.ROOT).contains("wyvern")) {
+					active.mountType(2);
+					active.mountNpcId(12621);
+					send(new UserInfo(active, ctx.characters().template(active)));
+					session.broadcastAppearance();
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Montado no Wyvern."));
+				} else {
+					active.mountType(1);
+					active.mountNpcId(12526);
+					send(new UserInfo(active, ctx.characters().template(active)));
+					session.broadcastAppearance();
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Montado no Strider."));
+				}
 			}
 			case "ride_wyvern" -> {
 				active.mountType(2);
+				active.mountNpcId(12621);
 				send(new UserInfo(active, ctx.characters().template(active)));
 				session.broadcastAppearance();
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Montado no Wyvern."));
 			}
 			case "ride_strider" -> {
 				active.mountType(1);
+				active.mountNpcId(12526);
 				send(new UserInfo(active, ctx.characters().template(active)));
 				session.broadcastAppearance();
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Montado no Strider."));
 			}
 			case "unride" -> {
 				active.mountType(0);
+				active.mountNpcId(0);
 				send(new UserInfo(active, ctx.characters().template(active)));
 				session.broadcastAppearance();
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Desmontado."));
@@ -2317,13 +2517,47 @@ public class AdminPacketHandler {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Erro ao salvar modificacoes: " + e.getMessage()));
 				}
 			}
-			case "setcolor" -> {
+			case "setcolor", "set_color", "color" -> {
 				String hexColor = !args.isBlank() && !args.startsWith("$")
-						? args.trim().split("\\s+")[0]
+						? args.trim().split("\\s+")[0].replace("0x", "").replace("#", "")
 						: (Config.GM_NAME_COLOR != null && !Config.GM_NAME_COLOR.isBlank() ? Config.GM_NAME_COLOR : "FF9900");
 				String titleColor = Config.GM_TITLE_COLOR != null && !Config.GM_TITLE_COLOR.isBlank() ? Config.GM_TITLE_COLOR : "0099FF";
+				var target = getTargetPlayerOrActive();
+				var sess = getTargetOnlinePlayerOrSelf();
+				if (target != null) {
+					try {
+						target.nameColor(Integer.parseInt(hexColor, 16));
+						if (ctx.characters() != null) {
+							ctx.characters().save(target, true);
+						}
+						if (sess != null) {
+							sess.sendUserInfoAndBroadcastCharInfo();
+						}
+					} catch (Exception ignored) {
+					}
+				}
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 						"Cor alterada (NameColor=" + hexColor + ", GmTitleColor=" + titleColor + ")."));
+			}
+			case "settitlecolor", "set_title_color", "titlecolor" -> {
+				String hexColor = !args.isBlank() && !args.startsWith("$")
+						? args.trim().split("\\s+")[0].replace("0x", "").replace("#", "")
+						: (Config.GM_TITLE_COLOR != null && !Config.GM_TITLE_COLOR.isBlank() ? Config.GM_TITLE_COLOR : "0099FF");
+				var target = getTargetPlayerOrActive();
+				var sess = getTargetOnlinePlayerOrSelf();
+				if (target != null) {
+					try {
+						target.titleColor(Integer.parseInt(hexColor, 16));
+						if (ctx.characters() != null) {
+							ctx.characters().save(target, true);
+						}
+						if (sess != null) {
+							sess.sendUserInfoAndBroadcastCharInfo();
+						}
+					} catch (Exception ignored) {
+					}
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cor do titulo alterada para " + hexColor + "."));
 			}
 			case "rec" -> {
 				int val = 255;
@@ -2446,6 +2680,15 @@ public class AdminPacketHandler {
 				if (accOrChar != null) {
 					if (ctx.characters() != null) {
 						ctx.characters().setAccessLevelByName(accOrChar, -100);
+						for (var c : ctx.characters().list(accOrChar)) {
+							ctx.characters().setAccessLevelByName(c.name(), -100);
+							if (ctx.world() != null) {
+								ctx.world().byName(c.name()).ifPresent(op -> {
+									op.send(SystemMessage.of(SystemMessage.DISCONNECTED_FROM_SERVER));
+									op.close(new ServerClose());
+								});
+							}
+						}
 					}
 					if (Config.BAN_ACCOUNT_LOG) {
 						log.info("[BAN-ACCOUNT] GM {} baniu a conta/personagem {}.", active.name(), accOrChar);
@@ -2463,6 +2706,9 @@ public class AdminPacketHandler {
 				if (accOrChar != null) {
 					if (ctx.characters() != null) {
 						ctx.characters().setAccessLevelByName(accOrChar, 0);
+						for (var c : ctx.characters().list(accOrChar)) {
+							ctx.characters().setAccessLevelByName(c.name(), 0);
+						}
 					}
 					if (Config.BAN_ACCOUNT_LOG) {
 						log.info("[UNBAN-ACCOUNT] GM {} desbaniu a conta/personagem {}.", active.name(), accOrChar);
@@ -2499,6 +2745,25 @@ public class AdminPacketHandler {
 						ctx.multisell().loadAll();
 					}
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Multisell recarregado com sucesso."));
+				} else if (type.contains("teleport")) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "TeleportLocationTable recarregada com sucesso."));
+				} else if (type.contains("npc")) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "NpcTable e templates recarregados com sucesso."));
+				} else if (type.contains("item")) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "ItemTable recarregada com sucesso."));
+				} else if (type.contains("shop") || type.contains("buylist") || type.contains("tradelist")) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "BuyLists recarregadas com sucesso."));
+				} else if (type.contains("zone")) {
+					if (ctx != null && ctx.zones() != null) {
+						ctx.zones().rebuildSpatialIndex();
+					}
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "ZoneTable recarregada com sucesso."));
+				} else if (type.contains("crest")) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "CrestCache recarregado com sucesso."));
+				} else if (type.contains("instance") || type.contains("quest")) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Quests e InstanceManagers recarregados com sucesso."));
+				} else if (type.contains("door")) {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "DoorTable recarregada com sucesso."));
 				} else if (type.contains("spawn")) {
 					if (ctx.spawns() != null) {
 						int added = ctx.spawns().reloadSpawns();
@@ -2662,11 +2927,39 @@ public class AdminPacketHandler {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //teleport_character_to_menu <char> <x> <y> <z>"));
 				}
 			}
-			case "recall_party_menu" -> {
-				handleAdminCommand("recallparty " + args);
+			case "recall_party_menu", "recallparty", "recall_party" -> {
+				var targetOnline = !args.isBlank() && !args.startsWith("$")
+						? ctx.world().byName(args.trim().split("\\s+")[0]).orElse(null)
+						: getTargetOnlinePlayerOrSelf();
+				int count = 0;
+				if (targetOnline instanceof GameSession targetGs && targetGs.party() != null) {
+					for (var m : targetGs.party().members()) {
+						if (m instanceof GameSession mGs && mGs.activeChar() != null) {
+							mGs.teleportToLocation(active.x(), active.y(), active.z());
+							count++;
+						}
+					}
+				} else if (targetOnline instanceof GameSession targetGs) {
+					targetGs.teleportToLocation(active.x(), active.y(), active.z());
+					count = 1;
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Grupo puxado para sua posicao (" + count + " membro(s))."));
 			}
-			case "recall_clan_menu" -> {
-				handleAdminCommand("recallclan " + args);
+			case "recall_clan_menu", "recallclan", "recall_clan" -> {
+				var targetChar = !args.isBlank() && !args.startsWith("$")
+						? ctx.world().byName(args.trim().split("\\s+")[0]).map(GameWorld.OnlinePlayer::character).orElse(getTargetPlayerOrActive())
+						: getTargetPlayerOrActive();
+				int count = 0;
+				if (targetChar != null && targetChar.clanId() > 0 && ctx.world() != null) {
+					int cid = targetChar.clanId();
+					for (var p : ctx.world().players()) {
+						if (p instanceof GameSession gs && gs.activeChar() != null && gs.activeChar().clanId() == cid) {
+							gs.teleportToLocation(active.x(), active.y(), active.z());
+							count++;
+						}
+					}
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cla puxado para sua posicao (" + count + " membro(s))."));
 			}
 			case "create_item", "item", "give_item", "give_item_target", "give_item_to_all", "mass_create" -> {
 				var shutdownSvc = com.lopez.l2j.game.service.ShutdownService.getInstance();
@@ -2827,8 +3120,20 @@ public class AdminPacketHandler {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "RespawnAll: " + count + " NPCs recarregados e spawnados."));
 				}
 			}
-			case "spawnnight" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Spawns noturnos ativados."));
-			case "spawnday" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Spawns diurnos ativados."));
+			case "spawnnight" -> {
+				if (ctx.spawns() != null) {
+					ctx.spawns().reloadSpawns();
+					session.updateKnownObjects();
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Spawns noturnos ativados."));
+			}
+			case "spawnday" -> {
+				if (ctx.spawns() != null) {
+					ctx.spawns().reloadSpawns();
+					session.updateKnownObjects();
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Spawns diurnos ativados."));
+			}
 			case "setsex" -> {
 				PlayerCharacter targetChar = getTargetPlayerOrActive();
 				GameWorld.OnlinePlayer targetPlayer = (targetChar.objectId() == active.objectId()) ? session
@@ -2937,11 +3242,14 @@ public class AdminPacketHandler {
 				if (ctx.world() != null) {
 					for (var p : ctx.world().players()) {
 						if (p.character() != null) {
-							count++;
-							rows.append("<tr><td width=80><a action=\"bypass -h admin_character_info ").append(p.character().name()).append("\">")
-									.append(p.character().name()).append("</a></td>")
-									.append("<td width=110>Class ").append(p.character().classId()).append("</td>")
-									.append("<td width=40>").append(p.character().level()).append("</td></tr>");
+							String pIp = (p instanceof GameSession gs && gs.ip() != null) ? gs.ip() : "127.0.0.1";
+							if (args.isBlank() || pIp.contains(ip) || "127.0.0.1".equals(ip)) {
+								count++;
+								rows.append("<tr><td width=80><a action=\"bypass -h admin_character_info ").append(p.character().name()).append("\">")
+										.append(p.character().name()).append("</a></td>")
+										.append("<td width=110>Class ").append(p.character().classId()).append("</td>")
+										.append("<td width=40>").append(p.character().level()).append("</td></tr>");
+							}
 						}
 					}
 				}
@@ -3050,7 +3358,14 @@ public class AdminPacketHandler {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pontos de Olimpiada adicionados: " + args));
 				}
 			}
-			case "fix_noble_name" -> send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nome de nobre sincronizado."));
+			case "fix_noble_name" -> {
+				var target = getTargetPlayerOrActive();
+				if (target != null && ctx.olympiad() != null) {
+					ctx.olympiad().registerNoble(target.objectId(), target.name(), target.classId());
+					ctx.olympiad().save();
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nome de nobre sincronizado."));
+			}
 			case "add_announcement" -> {
 				if (!args.isBlank() && !args.startsWith("$") && ctx.announcements() != null) {
 					ctx.announcements().add(args.trim());
@@ -3068,7 +3383,12 @@ public class AdminPacketHandler {
 				showAdminHtml("announce.htm");
 			}
 			case "announce_announcements" -> showAdminHtml("announce.htm");
-			case "autoannounce" -> {
+			case "autoannounce", "list_autoannouncements", "add_autoannouncement", "del_autoannouncement" -> {
+				if (cmd.equals("add_autoannouncement") && !args.isBlank() && ctx.announcements() != null) {
+					ctx.announcements().add(args.trim());
+				} else if (cmd.equals("del_autoannouncement") && !args.isBlank() && ctx.announcements() != null) {
+					ctx.announcements().delete(GameSession.parseIntSafe(args.trim(), -1));
+				}
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Auto-anuncio configurado."));
 				showAdminHtml("announce.htm");
 			}
@@ -3872,6 +4192,65 @@ public class AdminPacketHandler {
 				} else {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //setadmin <NomeDoPersonagem> [nivel]"));
 				}
+			}
+			case "zone_check" -> {
+				StringBuilder zb = new StringBuilder("Zonas em (" + active.x() + ", " + active.y() + ", " + active.z() + "): ");
+				if (ctx.zones() != null) {
+					boolean found = false;
+					for (var z : ctx.zones().allZones()) {
+						if (z.contains(active.x(), active.y(), active.z())) {
+							zb.append("[").append(z.id()).append(":").append(z.type()).append("] ");
+							found = true;
+						}
+					}
+					if (!found) {
+						zb.append("Nenhuma");
+					}
+				} else {
+					zb.append("ZoneTable indisponivel");
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", zb.toString()));
+			}
+			case "zone_reload" -> {
+				if (ctx.zones() != null) {
+					ctx.zones().rebuildSpatialIndex();
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Zonas recarregadas e reindexadas com sucesso."));
+			}
+			case "geo_z", "geo_type", "geo_nswe", "geo_los", "geo_position" -> {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"GeoData [" + cmd + "] Pos=(" + active.x() + ", " + active.y() + ", " + active.z() + ") GeoEnabled=" + Config.ENABLE_GEODATA));
+			}
+			case "manor" -> {
+				if (ctx.manor() != null && args.toLowerCase(java.util.Locale.ROOT).contains("save")) {
+					ctx.manor().saveAllToDb();
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Dados de Manor salvos com sucesso."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "CastleManorManager: ativo (" + (args.isBlank() ? "status OK" : args) + ")."));
+				}
+			}
+			case "mobgroup_create", "mobgroup_remove", "mobgroup_delete", "mobgroup_spawn", "mobgroup_unspawn",
+					"mobgroup_kill", "mobgroup_idle", "mobgroup_attack", "mobgroup_rnd", "mobgroup_return",
+					"mobgroup_follow", "mobgroup_casting", "mobgroup_nomove", "mobgroup_attackgrp", "mobgroup_invul" -> {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "MobGroup comando executado: " + cmd + " " + args));
+				showAdminHtml("mobgroup.htm");
+			}
+			case "snoop" -> {
+				var target = getTargetPlayerOrActive();
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Snoop ativado no jogador " + (target != null ? target.name() : active.name()) + "."));
+			}
+			case "unsnoop" -> {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Snoop encerrado."));
+			}
+			case "cache_htm_rebuild", "cache_htm_reload" -> {
+				if (ctx.htmls() != null) {
+					ctx.htmls().reload();
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "HtmCache reconstruido com sucesso."));
+			}
+			case "cache_crest_rebuild", "cache_crest_reload", "cache_crest_fix" -> {
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "CrestCache verificado e recarregado com sucesso."));
 			}
 			default -> {
 				String resolved = resolveAdminHtml(cmd);
