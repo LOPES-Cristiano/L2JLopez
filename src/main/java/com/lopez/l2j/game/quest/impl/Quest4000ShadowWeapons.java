@@ -5,11 +5,14 @@ import com.lopez.l2j.game.quest.Quest;
 import com.lopez.l2j.game.quest.QuestManager;
 import com.lopez.l2j.game.quest.QuestState;
 import com.lopez.l2j.network.game.GameSession;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 /**
  * Quest4000ShadowWeapons: Troca de Shadow Weapon Exchange Coupons (D e C) por armas shadow temporárias.
  * Retail ID 4000.
  */
+@Component
 public class Quest4000ShadowWeapons extends Quest {
 
 	public static final int QUEST_ID = 4000;
@@ -34,7 +37,8 @@ public class Quest4000ShadowWeapons extends Quest {
 		this(null);
 	}
 
-	public Quest4000ShadowWeapons(QuestManager questManager) {
+	@Autowired
+	public Quest4000ShadowWeapons(@Autowired(required = false) QuestManager questManager) {
 		super(QUEST_ID, QUEST_NAME, "Custom");
 		for (int npcId : NPCS) {
 			addStartNpc(npcId);
