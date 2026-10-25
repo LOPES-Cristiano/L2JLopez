@@ -3,6 +3,7 @@ package com.lopez.l2j.game.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -14,10 +15,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Servico de Senha Numerica / Passkey para Armazem (Protected Warehouse).
+ * Servico de Senha Numerica / Passkey para Armazem (Protected Warehouse) - #510.
  * Repatriado do acervo L2JDream V2 / L2jFrozen.
  * Protege o armazem particular e de cla contra acesso indevido com hash seguro (SHA-256 + salt)
- * persistido em character_variables e bloqueio contra forca bruta (lockout apos tentativas falhas).
+ * persistido na tabela `passkey` (V102) e em `character_variables`, com bloqueio contra forca bruta.
  */
 @Service
 public class WarehousePasskeyService {
@@ -44,22 +45,64 @@ public class WarehousePasskeyService {
 	}
 
 	private final CharacterVariablesService characterVariables;
+	private JdbcClient jdbc;
 	private final Map<Integer, String> passkeyHashes = new ConcurrentHashMap<>();
 	private final Set<Integer> unlockedSessions = ConcurrentHashMap.newKeySet();
 	private final Map<Integer, FailedAttemptData> failedAttempts = new ConcurrentHashMap<>();
 
 	public WarehousePasskeyService() {
-		this(null);
+		this(null, null);
+	}
+
+	public WarehousePasskeyService(CharacterVariablesService characterVariables) {
+		this(characterVariables, null);
 	}
 
 	@Autowired(required = false)
-	public WarehousePasskeyService(CharacterVariablesService characterVariables) {
+	public WarehousePasskeyService(
+			@Autowired(required = false) CharacterVariablesService characterVariables,
+			@Autowired(required = false) JdbcClient jdbc) {
 		this.characterVariables = characterVariables;
+		this.jdbc = jdbc;
 		instance = this;
+		loadAllFromPasskeyTable();
 	}
 
 	public static WarehousePasskeyService getInstance() {
 		return instance;
+	}
+
+	private void loadAllFromPasskeyTable() {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			var rows = jdbc.sql("SELECT charId, passkey FROM passkey").query().listOfRows();
+			for (var r : rows) {
+				int charId = ((Number) r.get("charId")).intValue();
+				String pk = (String) r.get("passkey");
+				if (pk != null && !pk.isBlank()) {
+					passkeyHashes.put(charId, pk);
+				}
+			}
+		} catch (Exception e) {
+			log.debug("WarehousePasskeyService loadAllFromPasskeyTable: {}", e.getMessage());
+		}
+	}
+
+	private void saveToPasskeyTable(int playerId, String hashed) {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("DELETE FROM passkey WHERE charId = :id").param("id", playerId).update();
+			jdbc.sql("INSERT INTO passkey (charId, passkey, answ1, answ2) VALUES (:id, :pk, '', '')")
+					.param("id", playerId)
+					.param("pk", hashed)
+					.update();
+		} catch (Exception e) {
+			log.debug("WarehousePasskeyService saveToPasskeyTable: {}", e.getMessage());
+		}
 	}
 
 	private String resolveStoredHash(int playerId) {
@@ -75,7 +118,26 @@ public class WarehousePasskeyService {
 				return upperHash;
 			}
 		}
-		return passkeyHashes.get(playerId);
+		String mem = passkeyHashes.get(playerId);
+		if (mem != null && !mem.isBlank()) {
+			return mem;
+		}
+		if (jdbc != null) {
+			try {
+				var rows = jdbc.sql("SELECT passkey FROM passkey WHERE charId = :id")
+						.param("id", playerId)
+						.query().listOfRows();
+				if (!rows.isEmpty()) {
+					String dbHash = (String) rows.get(0).get("passkey");
+					if (dbHash != null && !dbHash.isBlank()) {
+						passkeyHashes.put(playerId, dbHash);
+						return dbHash;
+					}
+				}
+			} catch (Exception ignored) {
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -116,6 +178,7 @@ public class WarehousePasskeyService {
 			characterVariables.set(playerId, VAR_NAME, hashed);
 			characterVariables.set(playerId, VAR_PASSKEY_HASH, hashed);
 		}
+		saveToPasskeyTable(playerId, hashed);
 		unlockedSessions.add(playerId);
 		failedAttempts.remove(playerId);
 		log.info("Passkey configurada com sucesso para player {}", playerId);
