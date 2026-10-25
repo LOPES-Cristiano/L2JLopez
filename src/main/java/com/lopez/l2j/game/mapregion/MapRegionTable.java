@@ -96,6 +96,18 @@ public class MapRegionTable {
 		return restartPoints.get(id);
 	}
 
+	public int getClosestTownId(int x, int y) {
+		for (RegionArea area : regions) {
+			if (area.polygon().contains(x, y)) {
+				Integer rId = area.restartByRace().get(0);
+				if (rId != null) {
+					return rId;
+				}
+			}
+		}
+		return 0;
+	}
+
 	/**
 	 * Localiza as coordenadas de renascimento de acordo com a posicao atual, raca e status caotico (PK).
 	 */
