@@ -71,7 +71,14 @@ public class ValakasAI extends RaidBossAI {
 	private void applyBuff(int skillId, int level) {
 		if (skillTable != null) {
 			skillTable.get(skillId, level).ifPresent(sk -> {
+				npc.applySkillBuff(sk);
 				npc.currentHp(Math.min(npc.maxHp(), npc.currentHp() + (npc.maxHp() * 0.05)));
+				if (world != null) {
+					var msu = new com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse(
+							npc.objectId(), npc.objectId(), skillId, level, 1500, 3000,
+							npc.x(), npc.y(), npc.z(), npc.x(), npc.y(), npc.z());
+					world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, msu);
+				}
 			});
 		}
 	}
@@ -89,9 +96,9 @@ public class ValakasAI extends RaidBossAI {
 		int skillId;
 
 		if (hpPhase <= 1) {
-			skillId = roll < 30 ? SKILL_BREATH_LOW : (roll < 60 ? SKILL_TAIL_STOMP : (roll < 85 ? SKILL_METEOR : SKILL_FEAR));
+			skillId = roll < 25 ? SKILL_BREATH_LOW : (roll < 45 ? SKILL_TREMPLE_LEFT : (roll < 65 ? SKILL_TAIL_STOMP : (roll < 85 ? SKILL_METEOR : SKILL_FEAR)));
 		} else if (hpPhase <= 3) {
-			skillId = roll < 20 ? SKILL_BREATH_LOW : (roll < 40 ? SKILL_BREATH_HIGH : (roll < 60 ? SKILL_TAIL_LASH : (roll < 80 ? SKILL_METEOR : SKILL_FEAR)));
+			skillId = roll < 20 ? SKILL_BREATH_LOW : (roll < 35 ? SKILL_BREATH_HIGH : (roll < 50 ? SKILL_TREMPLE_RIGHT : (roll < 65 ? SKILL_TAIL_LASH : (roll < 85 ? SKILL_METEOR : SKILL_FEAR))));
 		} else {
 			// Phase 4: Enraged! Meteor e sopros em alta frequencia
 			skillId = roll < 35 ? SKILL_METEOR : (roll < 60 ? SKILL_BREATH_HIGH : (roll < 80 ? SKILL_TAIL_LASH : SKILL_FEAR));
