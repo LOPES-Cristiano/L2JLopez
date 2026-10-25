@@ -82,6 +82,10 @@ public class CursedWeapon {
 		return playerId;
 	}
 
+	public int ownerId() {
+		return playerId;
+	}
+
 	public void playerId(int playerId) {
 		this.playerId = playerId;
 	}
