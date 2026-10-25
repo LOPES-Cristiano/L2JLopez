@@ -1,15 +1,24 @@
 package com.lopez.l2j.network.game.handler.packet;
 
+import com.lopez.l2j.config.Config;
+import com.lopez.l2j.game.castle.CastleManager;
+import com.lopez.l2j.game.manor.CastleManorManager;
+import com.lopez.l2j.game.manor.CropProcure;
+import com.lopez.l2j.game.manor.SeedProduction;
+import com.lopez.l2j.game.manor.SeedTemplate;
 import com.lopez.l2j.game.clan.Clan;
 import com.lopez.l2j.game.clan.ClanMember;
 import com.lopez.l2j.game.clan.alliance.AllianceService;
+import com.lopez.l2j.game.augmentation.AugmentationService;
 import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.item.ItemTemplate;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.party.Party;
+import com.lopez.l2j.game.pet.PetService;
 import com.lopez.l2j.game.recipe.RecipeEntry;
 import com.lopez.l2j.game.recipe.RecipeService;
+import com.lopez.l2j.game.cursed.CursedWeaponsManager;
 import com.lopez.l2j.game.service.PetitionService;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.GameEngineContext;
@@ -700,8 +709,13 @@ public class ExtendedProtocolPacketHandler {
 		if (active == null || p.name() == null || ctx() == null || ctx().world() == null) {
 			return;
 		}
+		Party requestorParty = session.party();
 		ctx().world().byName(p.name().trim()).ifPresent(target -> {
 			if (target instanceof GameSession ts) {
+				if (requestorParty != null && ts.party() != null && ts.party() == requestorParty) {
+					send(new ActionFailed());
+					return;
+				}
 				ts.extendedProtocolHandler().pendingMpccInviter = active.name();
 			}
 			target.send(new ExAskJoinMPCC(active.name()));
@@ -716,13 +730,39 @@ public class ExtendedProtocolPacketHandler {
 			return;
 		}
 		String leaderName = inviter != null ? inviter : active.name();
+		Party targetParty = session.party();
+		Party inviterParty = null;
+		if (inviter != null && ctx() != null && ctx().world() != null) {
+			var inviterOpt = ctx().world().byName(inviter);
+			if (inviterOpt.isPresent() && inviterOpt.get() instanceof GameSession is) {
+				inviterParty = is.party();
+			}
+		}
+		if (inviterParty != null && targetParty != null && inviterParty != targetParty) {
+			Party.CommandChannel cc = inviterParty.commandChannel();
+			if (cc == null) {
+				cc = new Party.CommandChannel(inviterParty);
+			}
+			cc.addParty(targetParty);
+			return;
+		}
 		send(new ExOpenMPCC());
 		List<MpccPartyEntry> parties = List.of(new MpccPartyEntry(active.name(), active.objectId(),
-				session.party() != null ? session.party().members().size() : 1));
+				targetParty != null ? targetParty.members().size() : 1));
 		send(new ExMultiPartyCommandChannelInfo(leaderName, 0, parties.get(0).memberCount(), parties));
 	}
 
 	public void handleExOustFromMPCC(RequestExOustFromMPCC p) {
+		Party party = session.party();
+		if (party != null && party.commandChannel() != null && p.name() != null) {
+			Party.CommandChannel cc = party.commandChannel();
+			for (Party pt : cc.parties()) {
+				if (pt.leader() != null && pt.leader().name().equalsIgnoreCase(p.name().trim())) {
+					cc.removeParty(pt);
+					return;
+				}
+			}
+		}
 		send(new ExCloseMPCC());
 		if (p.name() != null && ctx() != null && ctx().world() != null) {
 			ctx().world().byName(p.name().trim()).ifPresent(target -> target.send(new ExCloseMPCC()));
@@ -732,8 +772,17 @@ public class ExtendedProtocolPacketHandler {
 	public void handleExMPCCShowPartyMembersInfo(RequestExMPCCShowPartyMembersInfo p) {
 		List<MpccPartyMemberEntry> members = new ArrayList<>();
 		Party party = session.party();
-		if (party != null) {
-			for (var m : party.members()) {
+		Party targetParty = party;
+		if (party != null && party.commandChannel() != null) {
+			for (Party pt : party.commandChannel().parties()) {
+				if (pt.leader() != null && pt.leader().objectId() == p.partyLeaderId()) {
+					targetParty = pt;
+					break;
+				}
+			}
+		}
+		if (targetParty != null) {
+			for (var m : targetParty.members()) {
 				if (m.character() != null) {
 					members.add(new MpccPartyMemberEntry(m.name(), m.objectId(), m.character().classId()));
 				}
@@ -763,7 +812,7 @@ public class ExtendedProtocolPacketHandler {
 	}
 
 	// =========================================================================
-	// 4. Dwarven Manufacture, Recipe Book, Freight, Manor & Shop Preview
+	// 4. Dwarven Manufacture, Recipe Book, Freight, Manor, Augmentation & Preview
 	// =========================================================================
 
 	public void handlePrivateStoreManageCancel(RequestPrivateStoreManageCancel p) {
@@ -776,6 +825,20 @@ public class ExtendedProtocolPacketHandler {
 			return;
 		}
 		recipeBook.remove(Integer.valueOf(p.recipeId()));
+		RecipeService rs = (ctx() != null && ctx().recipes() != null)
+				? ctx().recipes()
+				: (GameEngineContext.getBean(RecipeService.class) != null ? GameEngineContext.getBean(RecipeService.class) : RecipeService.getInstance());
+		boolean isDwarven = true;
+		if (rs != null) {
+			var recipeOpt = rs.getRecipe(p.recipeId());
+			if (recipeOpt.isPresent()) {
+				isDwarven = recipeOpt.get().isDwarvenRecipe();
+			}
+			rs.unregisterRecipe(active.objectId(), p.recipeId());
+			List<Integer> updated = new ArrayList<>(rs.getRecipeBook(active.objectId(), isDwarven));
+			send(new RecipeBookItemList(isDwarven, active.maxMp(), updated));
+			return;
+		}
 		send(new RecipeBookItemList(true, active.maxMp(), new ArrayList<>(recipeBook)));
 	}
 
@@ -784,7 +847,18 @@ public class ExtendedProtocolPacketHandler {
 		if (active == null) {
 			return;
 		}
-		send(new RecipeShopManageList(active.objectId(), (int) active.inventory().adena(), true, new ArrayList<>(recipeBook), manufactureList));
+		RecipeService rs = (ctx() != null && ctx().recipes() != null)
+				? ctx().recipes()
+				: (GameEngineContext.getBean(RecipeService.class) != null ? GameEngineContext.getBean(RecipeService.class) : RecipeService.getInstance());
+		List<Integer> book = new ArrayList<>(recipeBook);
+		if (rs != null) {
+			for (Integer rId : rs.getRecipeBook(active.objectId(), true)) {
+				if (!book.contains(rId)) {
+					book.add(rId);
+				}
+			}
+		}
+		send(new RecipeShopManageList(active.objectId(), (int) active.inventory().adena(), true, book, manufactureList));
 	}
 
 	public void handleRecipeShopMessageSet(RequestRecipeShopMessageSet p) {
@@ -793,6 +867,9 @@ public class ExtendedProtocolPacketHandler {
 			return;
 		}
 		manufactureMessage = p.name() != null ? p.name() : "";
+		if (manufactureMessage.length() > 29) {
+			manufactureMessage = manufactureMessage.substring(0, 29);
+		}
 		active.storeTitle(manufactureMessage);
 		send(new RecipeShopMsg(active.objectId(), manufactureMessage));
 	}
@@ -805,7 +882,9 @@ public class ExtendedProtocolPacketHandler {
 		manufactureList.clear();
 		if (p.items() != null) {
 			for (var it : p.items()) {
-				manufactureList.add(new ManufactureRecipeEntry(it.recipeId(), it.cost()));
+				if (it.cost() >= 0) {
+					manufactureList.add(new ManufactureRecipeEntry(it.recipeId(), it.cost()));
+				}
 			}
 		}
 		if (manufactureList.isEmpty()) {
@@ -813,7 +892,7 @@ public class ExtendedProtocolPacketHandler {
 			return;
 		}
 		active.sitting(true);
-		active.privateStoreType(5);
+		active.privateStoreType(PlayerCharacter.STORE_TYPE_MANUFACTURE);
 		session.sendUserInfoAndBroadcastCharInfo();
 		var msgPkt = new RecipeShopMsg(active.objectId(), manufactureMessage);
 		send(msgPkt);
@@ -837,13 +916,31 @@ public class ExtendedProtocolPacketHandler {
 		if (active == null) {
 			return;
 		}
-		send(new RecipeShopItemInfo(p.playerObjectId(), p.recipeId(), (int) active.currentMp(), active.maxMp(), -1));
+		int curMp = (int) active.currentMp();
+		int maxMp = active.maxMp();
+		if (ctx() != null && ctx().world() != null) {
+			var crafterOpt = ctx().world().byId(p.playerObjectId());
+			if (crafterOpt.isPresent() && crafterOpt.get().character() != null) {
+				curMp = (int) crafterOpt.get().character().currentMp();
+				maxMp = crafterOpt.get().character().maxMp();
+			}
+		}
+		send(new RecipeShopItemInfo(p.playerObjectId(), p.recipeId(), curMp, maxMp, -1));
 	}
 
 	public void handleRecipeShopMakeItem(RequestRecipeShopMakeItem p) {
 		PlayerCharacter active = active();
 		if (active == null) {
 			return;
+		}
+		if (ctx() != null && ctx().world() != null && p.playerObjectId() != active.objectId()) {
+			var crafterOpt = ctx().world().byId(p.playerObjectId());
+			if (crafterOpt.isPresent() && crafterOpt.get() instanceof GameSession gs
+					&& gs.character() != null
+					&& gs.character().privateStoreType() == PlayerCharacter.STORE_TYPE_MANUFACTURE) {
+				session.tradeStoreHandler().handleRecipeShopMakeItem(p);
+				return;
+			}
 		}
 		RecipeService rs = GameEngineContext.getBean(RecipeService.class);
 		if (rs == null) {
@@ -868,11 +965,16 @@ public class ExtendedProtocolPacketHandler {
 			return;
 		}
 		Map<Integer, String> chars = new LinkedHashMap<>();
-		chars.put(p.playerObjectId(), "AccountChar");
+		if (ctx() != null && ctx().warehouse() != null && session.account() != null) {
+			chars.putAll(ctx().warehouse().getAccountCharactersForFreight(session.account(), active.objectId()));
+		}
+		if (chars.isEmpty()) {
+			chars.put(p.playerObjectId(), "AccountChar");
+		}
 		send(new PackageToList(chars));
 		List<WarehouseItem> items = new ArrayList<>();
 		for (ItemInstance it : active.inventory().items()) {
-			if (!it.isEquipped() && it.itemId() != ItemTemplate.ADENA_ID) {
+			if (!it.isEquipped() && it.itemId() != ItemTemplate.ADENA_ID && (it.template() == null || it.template().freightable())) {
 				int t1 = it.template() != null ? it.template().type1() : 0;
 				int t2 = it.template() != null ? it.template().type2() : 0;
 				int bp = it.template() != null ? it.template().bodyPart() : 0;
@@ -888,7 +990,27 @@ public class ExtendedProtocolPacketHandler {
 			send(new ActionFailed());
 			return;
 		}
+		if (ctx() != null && ctx().warehouse() != null) {
+			int targetCharId = p.playerObjectId() > 0 ? p.playerObjectId() : active.objectId();
+			for (var wItem : p.items()) {
+				if (wItem.count() <= 0) {
+					continue;
+				}
+				ctx().warehouse().depositFreightItem(active.inventory(), targetCharId, wItem.objectId(), wItem.count());
+			}
+			send(ItemList.of(active.inventory().items(), false));
+			session.sendStatusUpdate();
+			send(SystemMessage.id(282)); // Deposited in warehouse.
+			return;
+		}
 		session.onWareHouseDeposit(new SendWareHouseDepositList(p.items()));
+	}
+
+	public void handleManorList(RequestManorList p) {
+		List<String> manors = List.of(
+				"gludio", "dion", "giran", "oren", "aden",
+				"innadril", "goddard", "rune", "schuttgart");
+		send(new ExSendManorList(manors));
 	}
 
 	public void handleBuyProcure(RequestBuyProcure p) {
@@ -896,11 +1018,51 @@ public class ExtendedProtocolPacketHandler {
 		if (active == null) {
 			return;
 		}
+		CastleManorManager manor = ctx() != null ? ctx().manor() : null;
 		List<ProcureSellEntry> list = new ArrayList<>();
+		List<ItemInfo> changes = new ArrayList<>();
 		if (p.items() != null) {
 			for (var it : p.items()) {
-				list.add(new ProcureSellEntry(4, it.itemId(), it.itemId(), it.count(), 5));
+				if (it.count() <= 0) {
+					continue;
+				}
+				int rewardItemId = 1864;
+				int rewardCount = it.count();
+				if (manor != null) {
+					SeedTemplate st = manor.getSeedByCrop(it.itemId()).orElse(null);
+					if (st != null) {
+						rewardItemId = st.reward1();
+					}
+					CropProcure cp = manor.getCropProcure(p.manorId() > 0 ? p.manorId() : 1, it.itemId(), CastleManorManager.PERIOD_CURRENT).orElse(null);
+					if (cp != null && st != null) {
+						rewardItemId = cp.reward() == 2 ? st.reward2() : st.reward1();
+					}
+				}
+				var invCropOpt = active.inventory().byItemId(it.itemId());
+				int cropObjId = invCropOpt.map(ItemInstance::objectId).orElse(0);
+				if (invCropOpt.isPresent() && ctx() != null && ctx().inventories() != null) {
+					ItemInstance cropItem = invCropOpt.get();
+					int actualCount = Math.min(it.count(), cropItem.count());
+					if (actualCount > 0 && (manor == null || manor.sellCrop(p.manorId() > 0 ? p.manorId() : 1, it.itemId(), actualCount) >= 0)) {
+						if (ctx().inventories().destroyItem(active.inventory(), cropItem.objectId(), actualCount, "SellProcureCrop") != null) {
+							ItemInstance remaining = active.inventory().byObjectId(cropItem.objectId()).orElse(null);
+							if (remaining != null) {
+								changes.add(ItemInfo.of(remaining, ItemInfo.MODIFIED));
+							} else {
+								changes.add(ItemInfo.of(cropItem, ItemInfo.REMOVED));
+							}
+							var rewardRes = ctx().inventories().addItem(active.inventory(), rewardItemId, actualCount, "ProcureReward");
+							if (rewardRes != null && rewardRes.item() != null) {
+								changes.add(ItemInfo.of(rewardRes.item(), ItemInfo.MODIFIED));
+							}
+						}
+					}
+				}
+				list.add(new ProcureSellEntry(4, cropObjId, it.itemId(), rewardCount, 5));
 			}
+		}
+		if (!changes.isEmpty()) {
+			send(new InventoryUpdate(changes));
 		}
 		send(new SellListProcure((int) active.inventory().adena(), list));
 	}
@@ -910,14 +1072,91 @@ public class ExtendedProtocolPacketHandler {
 		if (active == null) {
 			return;
 		}
+		CastleManorManager manor = ctx() != null ? ctx().manor() : null;
+		CastleManager castles = ctx() != null ? ctx().castles() : null;
 		List<SeedBuyEntry> seeds = new ArrayList<>();
+		List<ItemInfo> changes = new ArrayList<>();
+		long totalCost = 0L;
+
 		if (p.seeds() != null) {
+			// 1. Validate quantities & prices first (ZERO DOAÇÕES - must pay Adena)
 			for (var s : p.seeds()) {
-				seeds.add(new SeedBuyEntry(s.itemId(), s.count(), 100));
-				if (ctx() != null && ctx().inventories() != null && s.count() > 0) {
-					ctx().inventories().addItem(active.inventory(), s.itemId(), s.count(), "BuySeed");
+				if (s.count() <= 0) {
+					send(new ActionFailed());
+					return;
+				}
+				int unitPrice = 100;
+				if (manor != null) {
+					SeedProduction sp = manor.getSeedProduction(p.manorId(), s.itemId(), CastleManorManager.PERIOD_CURRENT).orElse(null);
+					if (sp != null) {
+						if (sp.amount() < s.count()) {
+							send(SystemMessage.id(348)); // Incorrect item count.
+							send(new ActionFailed());
+							return;
+						}
+						unitPrice = Math.max(1, sp.price());
+					} else {
+						SeedTemplate st = manor.getSeed(s.itemId()).orElse(null);
+						if (st != null) {
+							unitPrice = Math.max(1, st.seedDefaultPrice());
+						}
+					}
+				}
+				totalCost = Math.addExact(totalCost, (long) unitPrice * s.count());
+			}
+
+			if (totalCost > active.inventory().adena() || totalCost > Integer.MAX_VALUE) {
+				send(SystemMessage.id(279)); // You do not have enough adena.
+				send(new ActionFailed());
+				return;
+			}
+
+			// 2. Deduct Adena upfront
+			if (totalCost > 0 && ctx() != null && ctx().inventories() != null) {
+				ItemInstance adena = active.inventory().byItemId(ItemTemplate.ADENA_ID).orElse(null);
+				if (adena == null || ctx().inventories().destroyItem(active.inventory(), adena.objectId(), (int) totalCost, "BuySeed") == null) {
+					send(SystemMessage.id(279));
+					send(new ActionFailed());
+					return;
+				}
+				ItemInstance remAdena = active.inventory().byItemId(ItemTemplate.ADENA_ID).orElse(null);
+				if (remAdena != null) {
+					changes.add(ItemInfo.of(remAdena, ItemInfo.MODIFIED));
+				} else {
+					changes.add(ItemInfo.of(adena, ItemInfo.REMOVED));
+				}
+				if (castles != null && p.manorId() > 0) {
+					castles.addToTreasury(p.manorId(), totalCost);
 				}
 			}
+
+			// 3. Deliver seeds and decrement Manor stock
+			for (var s : p.seeds()) {
+				int unitPrice = 100;
+				if (manor != null) {
+					SeedProduction sp = manor.getSeedProduction(p.manorId(), s.itemId(), CastleManorManager.PERIOD_CURRENT).orElse(null);
+					if (sp != null) {
+						unitPrice = Math.max(1, sp.price());
+						manor.buySeed(p.manorId(), s.itemId(), s.count());
+					} else {
+						SeedTemplate st = manor.getSeed(s.itemId()).orElse(null);
+						if (st != null) {
+							unitPrice = Math.max(1, st.seedDefaultPrice());
+						}
+					}
+				}
+				seeds.add(new SeedBuyEntry(s.itemId(), s.count(), unitPrice));
+				if (ctx() != null && ctx().inventories() != null && s.count() > 0) {
+					var addedRes = ctx().inventories().addItem(active.inventory(), s.itemId(), s.count(), "BuySeed");
+					if (addedRes != null && addedRes.item() != null) {
+						changes.add(ItemInfo.of(addedRes.item(), ItemInfo.MODIFIED));
+					}
+				}
+			}
+		}
+		if (!changes.isEmpty()) {
+			send(new InventoryUpdate(changes));
+			session.sendStatusUpdate();
 		}
 		send(new BuyListSeed((int) active.inventory().adena(), p.manorId(), seeds));
 	}
@@ -929,15 +1168,56 @@ public class ExtendedProtocolPacketHandler {
 		}
 		int[] paperdoll = new int[17];
 		List<ShopPreviewProduct> products = new ArrayList<>();
+		int count = p.items() != null ? Math.min(p.items().size(), 17) : 0;
+		long totalWearCost = (long) count * Math.max(0, Config.WEAR_PRICE);
+		if (totalWearCost > 0 && ctx() != null && ctx().inventories() != null && active.inventory().adena() >= totalWearCost) {
+			ItemInstance adena = active.inventory().byItemId(ItemTemplate.ADENA_ID).orElse(null);
+			if (adena != null) {
+				ctx().inventories().destroyItem(active.inventory(), adena.objectId(), (int) totalWearCost, "WearPreview");
+			}
+		}
 		if (p.items() != null) {
 			for (int i = 0; i < p.items().size() && i < 17; i++) {
 				int itemId = p.items().get(i);
-				paperdoll[i] = itemId;
-				products.add(new ShopPreviewProduct(itemId, 0, 1, 10));
+				int bodyPart = 0;
+				int type2 = 0;
+				if (ctx() != null && ctx().items() != null) {
+					ItemTemplate tpl = ctx().items().get(itemId).orElse(null);
+					if (tpl != null) {
+						bodyPart = tpl.bodyPart();
+						type2 = tpl.type2();
+					}
+				}
+				int slot = mapBodyPartToPreviewSlot(bodyPart, i);
+				paperdoll[slot] = itemId;
+				products.add(new ShopPreviewProduct(itemId, type2, bodyPart, Config.WEAR_PRICE));
 			}
 		}
 		send(new ShopPreviewList(p.listId(), (int) active.inventory().adena(), products));
 		send(new ShopPreviewInfo(paperdoll));
+	}
+
+	private static int mapBodyPartToPreviewSlot(int bodyPart, int fallbackIndex) {
+		return switch (bodyPart) {
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_UNDERWEAR -> 0;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_R_EAR -> 1;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_L_EAR -> 2;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_NECK -> 3;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_R_FINGER -> 4;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_L_FINGER -> 5;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_HEAD -> 6;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_R_HAND -> 7;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_L_HAND -> 8;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_GLOVES -> 9;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_CHEST, com.lopez.l2j.game.item.ItemSlots.SLOT_FULL_ARMOR, com.lopez.l2j.game.item.ItemSlots.SLOT_ALLDRESS -> 10;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_LEGS -> 11;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_FEET -> 12;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_BACK -> 13;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_LR_HAND -> 14;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_HAIR -> 15;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_FACE, com.lopez.l2j.game.item.ItemSlots.SLOT_HAIRALL -> 16;
+			default -> Math.max(0, Math.min(16, fallbackIndex));
+		};
 	}
 
 	public void handleProcureCropList(RequestProcureCropList p) {
@@ -945,41 +1225,273 @@ public class ExtendedProtocolPacketHandler {
 		if (active == null) {
 			return;
 		}
+		CastleManorManager manor = ctx() != null ? ctx().manor() : null;
 		List<SellCropEntry> crops = new ArrayList<>();
 		List<CropProcureDetailEntry> details = new ArrayList<>();
+		List<ItemInfo> changes = new ArrayList<>();
 		if (p.items() != null) {
 			for (var c : p.items()) {
-				crops.add(new SellCropEntry(c.objectId(), c.itemId(), 1, 1864, 1865, c.manorId(), c.count(), 100, 1, c.count()));
-				details.add(new CropProcureDetailEntry(c.manorId(), c.count(), 100, 1));
+				int seedLevel = 1;
+				int reward1 = 1864;
+				int reward2 = 1865;
+				int price = 100;
+				int rewardType = 1;
+				if (manor != null) {
+					SeedTemplate st = manor.getSeedByCrop(c.itemId()).orElse(null);
+					if (st != null) {
+						seedLevel = st.level();
+						reward1 = st.reward1();
+						reward2 = st.reward2();
+						price = st.cropDefaultPrice();
+					}
+					CropProcure cp = manor.getCropProcure(c.manorId(), c.itemId(), CastleManorManager.PERIOD_CURRENT).orElse(null);
+					if (cp != null) {
+						price = cp.price();
+						rewardType = cp.reward();
+					}
+				}
+				var invCropOpt = active.inventory().byObjectId(c.objectId());
+				if (invCropOpt.isPresent() && c.count() > 0 && ctx() != null && ctx().inventories() != null) {
+					ItemInstance invCrop = invCropOpt.get();
+					int sellCount = Math.min(c.count(), invCrop.count());
+					if (sellCount > 0 && (manor == null || manor.sellCrop(c.manorId(), c.itemId(), sellCount) >= 0)) {
+						if (ctx().inventories().destroyItem(active.inventory(), invCrop.objectId(), sellCount, "ProcureCrop") != null) {
+							ItemInstance rem = active.inventory().byObjectId(invCrop.objectId()).orElse(null);
+							if (rem != null) {
+								changes.add(ItemInfo.of(rem, ItemInfo.MODIFIED));
+							} else {
+								changes.add(ItemInfo.of(invCrop, ItemInfo.REMOVED));
+							}
+							int rewardItemId = rewardType == 2 ? reward2 : reward1;
+							var rewardRes = ctx().inventories().addItem(active.inventory(), rewardItemId, sellCount, "ProcureCropReward");
+							if (rewardRes != null && rewardRes.item() != null) {
+								changes.add(ItemInfo.of(rewardRes.item(), ItemInfo.MODIFIED));
+							}
+						}
+					}
+				}
+				crops.add(new SellCropEntry(c.objectId(), c.itemId(), seedLevel, reward1, reward2, c.manorId(), c.count(), price, rewardType, c.count()));
+				details.add(new CropProcureDetailEntry(c.manorId(), c.count(), price, rewardType));
 			}
+		}
+		if (!changes.isEmpty()) {
+			send(new InventoryUpdate(changes));
 		}
 		send(new ExShowSellCropList(1, crops));
 		send(new ExShowProcureCropDetail(crops.isEmpty() ? 0 : crops.get(0).cropId(), details));
 	}
 
 	public void handleSetSeed(RequestSetSeed p) {
+		CastleManorManager manor = ctx() != null ? ctx().manor() : null;
 		List<SeedInfoEntry> seeds = new ArrayList<>();
+		List<SeedProduction> nextPeriod = new ArrayList<>();
 		if (p.seeds() != null) {
 			for (var s : p.seeds()) {
-				seeds.add(new SeedInfoEntry(s.itemId(), s.sales(), s.sales(), s.price(), 1, 1864, 1865));
+				int level = 1;
+				int r1 = 1864;
+				int r2 = 1865;
+				if (manor != null) {
+					SeedTemplate st = manor.getSeed(s.itemId()).orElse(null);
+					if (st != null) {
+						level = st.level();
+						r1 = st.reward1();
+						r2 = st.reward2();
+					}
+				}
+				seeds.add(new SeedInfoEntry(s.itemId(), s.sales(), s.sales(), s.price(), level, r1, r2));
+				if (s.sales() >= 0 && s.price() >= 0) {
+					nextPeriod.add(new SeedProduction(s.itemId(), s.sales(), s.sales(), s.price()));
+				}
 			}
+		}
+		if (manor != null && p.manorId() > 0 && !nextPeriod.isEmpty()) {
+			manor.setSeedProduction(p.manorId(), nextPeriod, CastleManorManager.PERIOD_NEXT);
 		}
 		send(new ExShowSeedSetting(p.manorId(), seeds));
 		send(new ExShowSeedInfo(p.manorId(), seeds));
 	}
 
 	public void handleSetCrop(RequestSetCrop p) {
+		CastleManorManager manor = ctx() != null ? ctx().manor() : null;
 		List<CropInfoEntry> crops = new ArrayList<>();
 		List<ManorDefaultEntry> defaults = new ArrayList<>();
+		List<CropProcure> nextPeriod = new ArrayList<>();
 		if (p.crops() != null) {
 			for (var c : p.crops()) {
-				crops.add(new CropInfoEntry(c.itemId(), c.sales(), c.sales(), c.price(), c.type(), 1, 1864, 1865));
-				defaults.add(new ManorDefaultEntry(c.itemId(), 1, 10, c.price(), 1864, 1865));
+				int level = 1;
+				int r1 = 1864;
+				int r2 = 1865;
+				int defSeedPrice = 10;
+				if (manor != null) {
+					SeedTemplate st = manor.getSeedByCrop(c.itemId()).orElse(null);
+					if (st != null) {
+						level = st.level();
+						r1 = st.reward1();
+						r2 = st.reward2();
+						defSeedPrice = st.seedDefaultPrice();
+					}
+				}
+				crops.add(new CropInfoEntry(c.itemId(), c.sales(), c.sales(), c.price(), c.type(), level, r1, r2));
+				defaults.add(new ManorDefaultEntry(c.itemId(), level, defSeedPrice, c.price(), r1, r2));
+				if (c.sales() >= 0 && c.price() >= 0) {
+					nextPeriod.add(new CropProcure(c.itemId(), c.sales(), c.sales(), c.price(), c.type()));
+				}
 			}
+		}
+		if (manor != null && p.manorId() > 0 && !nextPeriod.isEmpty()) {
+			manor.setCropProcure(p.manorId(), nextPeriod, CastleManorManager.PERIOD_NEXT);
 		}
 		send(new ExShowCropSetting(p.manorId(), crops));
 		send(new ExShowCropInfo(p.manorId(), crops));
 		send(new ExShowManorDefaultInfo(defaults));
+	}
+
+	// =========================================================================
+	// 4B. Augmentation (Refinery & Cancel) (#067-#070, #279)
+	// =========================================================================
+
+	public void handleConfirmTargetItem(RequestConfirmTargetItem p) {
+		PlayerCharacter active = active();
+		if (active == null) {
+			return;
+		}
+		ItemInstance item = active.inventory().byObjectId(p.itemObjId()).orElse(null);
+		if (item == null || !AugmentationService.isValidAugmentTarget(item) || item.isAugmented()) {
+			send(SystemMessage.id(1959)); // This is not a suitable item.
+			send(new ActionFailed());
+			return;
+		}
+		send(new ExPutItemResultForVariationMake(p.itemObjId()));
+	}
+
+	public void handleConfirmRefinerItem(RequestConfirmRefinerItem p) {
+		PlayerCharacter active = active();
+		if (active == null) {
+			return;
+		}
+		ItemInstance targetItem = active.inventory().byObjectId(p.targetItemObjId()).orElse(null);
+		ItemInstance refinerItem = active.inventory().byObjectId(p.refinerItemObjId()).orElse(null);
+		if (targetItem == null || refinerItem == null || !AugmentationService.isLifeStone(refinerItem.itemId())
+				|| !AugmentationService.isValidLifeStoneForPlayer(refinerItem.itemId(), active.level())) {
+			send(SystemMessage.id(1959));
+			send(new ActionFailed());
+			return;
+		}
+		int gemStoneId = AugmentationService.getRequiredGemstoneId(targetItem);
+		int gemStoneCount = AugmentationService.getRequiredGemstoneCount(targetItem);
+		send(new ExPutIntensiveResultForVariationMake(p.refinerItemObjId(), refinerItem.itemId(), gemStoneId, gemStoneCount));
+	}
+
+	public void handleConfirmGemStone(RequestConfirmGemStone p) {
+		PlayerCharacter active = active();
+		if (active == null) {
+			return;
+		}
+		ItemInstance targetItem = active.inventory().byObjectId(p.targetItemObjId()).orElse(null);
+		ItemInstance gemStone = active.inventory().byObjectId(p.gemstoneItemObjId()).orElse(null);
+		int reqGemId = AugmentationService.getRequiredGemstoneId(targetItem);
+		int reqGemCount = AugmentationService.getRequiredGemstoneCount(targetItem);
+		if (targetItem == null || gemStone == null || gemStone.itemId() != reqGemId || p.gemstoneCount() < reqGemCount) {
+			send(SystemMessage.id(1960)); // Gemstone quantity is incorrect.
+			send(new ActionFailed());
+			return;
+		}
+		send(new ExPutCommissionResultForVariationMake(p.gemstoneItemObjId(), p.gemstoneCount()));
+	}
+
+	public void handleRefine(RequestRefine p) {
+		PlayerCharacter active = active();
+		if (active == null) {
+			return;
+		}
+		AugmentationService augSvc = ctx() != null ? ctx().augmentations() : null;
+		if (augSvc == null) {
+			send(new ExVariationResult(0, 0, 0));
+			return;
+		}
+		ItemInstance targetItem = active.inventory().byObjectId(p.targetItemObjId()).orElse(null);
+		ItemInstance refinerItem = active.inventory().byObjectId(p.refinerItemObjId()).orElse(null);
+		ItemInstance gemStone = active.inventory().byObjectId(p.gemstoneItemObjId()).orElse(null);
+		int reqGemId = AugmentationService.getRequiredGemstoneId(targetItem);
+		int reqGemCount = AugmentationService.getRequiredGemstoneCount(targetItem);
+		if (targetItem == null || refinerItem == null || gemStone == null
+				|| !AugmentationService.isValidAugmentTarget(targetItem)
+				|| targetItem.isAugmented()
+				|| !AugmentationService.isLifeStone(refinerItem.itemId())
+				|| !AugmentationService.isValidLifeStoneForPlayer(refinerItem.itemId(), active.level())
+				|| gemStone.itemId() != reqGemId
+				|| gemStone.count() < reqGemCount
+				|| p.gemstoneCount() < reqGemCount) {
+			send(new ExVariationResult(0, 0, 0));
+			return;
+		}
+		if (ctx().inventories() != null) {
+			if (ctx().inventories().destroyItem(active.inventory(), refinerItem.objectId(), 1, "AugmentLifeStone") == null
+					|| ctx().inventories().destroyItem(active.inventory(), gemStone.objectId(), reqGemCount, "AugmentGemStone") == null) {
+				send(new ExVariationResult(0, 0, 0));
+				return;
+			}
+		}
+		var aug = augSvc.augmentItem(targetItem, refinerItem.itemId());
+		if (aug == null) {
+			send(new ExVariationResult(0, 0, 0));
+			return;
+		}
+		int stat12 = aug.effect1Id();
+		int stat34 = aug.effect2Id();
+		send(new ExVariationResult(stat12, stat34, 1));
+		send(new InventoryUpdate(List.of(ItemInfo.of(targetItem, ItemInfo.MODIFIED))));
+		session.sendStatusUpdate();
+	}
+
+	public void handleConfirmCancelItem(RequestConfirmCancelItem p) {
+		PlayerCharacter active = active();
+		if (active == null) {
+			return;
+		}
+		ItemInstance item = active.inventory().byObjectId(p.itemObjId()).orElse(null);
+		if (item == null || !item.isAugmented()) {
+			send(SystemMessage.id(1964)); // Augmentation removal can only be done on an augmented item.
+			send(new ActionFailed());
+			return;
+		}
+		long price = AugmentationService.getCancelFee(item);
+		int augId = item.augmentation() != null ? item.augmentation().augmentationId() : 0;
+		send(new ExPutItemResultForVariationCancel(item.objectId(), item.itemId(), augId & 0xFFFF, (augId >> 16) & 0xFFFF, price));
+	}
+
+	public void handleRefineCancel(RequestRefineCancel p) {
+		PlayerCharacter active = active();
+		if (active == null) {
+			return;
+		}
+		AugmentationService augSvc = ctx() != null ? ctx().augmentations() : null;
+		ItemInstance item = active.inventory().byObjectId(p.itemObjId()).orElse(null);
+		if (augSvc == null || item == null || !item.isAugmented()) {
+			send(new ExVariationCancelResult(0, 0));
+			return;
+		}
+		long fee = AugmentationService.getCancelFee(item);
+		if (active.inventory().adena() < fee) {
+			send(SystemMessage.id(279)); // You do not have enough adena.
+			send(new ExVariationCancelResult(0, 0));
+			return;
+		}
+		if (fee > 0 && ctx() != null && ctx().inventories() != null) {
+			ItemInstance adena = active.inventory().byItemId(ItemTemplate.ADENA_ID).orElse(null);
+			if (adena == null || ctx().inventories().destroyItem(active.inventory(), adena.objectId(), (int) fee, "AugmentCancelFee") == null) {
+				send(new ExVariationCancelResult(0, 0));
+				return;
+			}
+		}
+		if (item.isEquipped() && item.augmentation() != null && item.augmentation().skillId() > 0) {
+			active.removeSkill(item.augmentation().skillId());
+			session.sendSkillList();
+		}
+		augSvc.removeAugmentation(item);
+		send(new ExVariationCancelResult(1, 1));
+		send(new InventoryUpdate(List.of(ItemInfo.of(item, ItemInfo.MODIFIED))));
+		session.sendUserInfoAndBroadcastCharInfo();
 	}
 
 	// =========================================================================
@@ -992,6 +1504,7 @@ public class ExtendedProtocolPacketHandler {
 			return;
 		}
 		var summon = active.activeSummon();
+		PetService.getInstance().changePetName(active, summon, p.name(), this::send);
 		if (summon != null && p.name() != null && !p.name().isBlank()) {
 			summon.name(p.name().trim());
 			send(new PetInfo(summon, 1));
@@ -1004,6 +1517,7 @@ public class ExtendedProtocolPacketHandler {
 		if (active == null) {
 			return;
 		}
+		PetService.getInstance().usePetItem(active, active.activeSummon(), p.objectId(), this::send);
 		var itemOpt = active.inventory().byObjectId(p.objectId());
 		List<PetInventoryItem> items = new ArrayList<>();
 		itemOpt.ifPresent(it -> items.add(new PetInventoryItem(2, 0, it.objectId(), it.itemId(), it.count(), 0, 0, it.isEquipped(), 0, it.enchant(), 0)));
@@ -1018,23 +1532,67 @@ public class ExtendedProtocolPacketHandler {
 		List<PetInventoryItem> items = new ArrayList<>();
 		active.inventory().byObjectId(p.objectId()).ifPresent(it ->
 				items.add(new PetInventoryItem(1, 0, it.objectId(), it.itemId(), Math.min(it.count(), p.amount()), 0, 0, false, 0, it.enchant(), 0)));
+		PetService.getInstance().transferItemToPet(active, active.activeSummon(), p.objectId(), p.amount(), this::send);
 		send(new PetItemList(items));
 		send(new PetInventoryUpdate(items));
 	}
 
 	public void handleGetItemFromPet(RequestGetItemFromPet p) {
+		PlayerCharacter active = active();
+		if (active != null) {
+			PetService.getInstance().transferItemFromPet(active, active.activeSummon(), p.objectId(), p.amount(), this::send);
+		}
 		List<PetInventoryItem> items = List.of(new PetInventoryItem(3, 0, p.objectId(), 0, p.amount(), 0, 0, false, 0, 0, 0));
 		send(new PetInventoryUpdate(items));
 	}
 
 	public void handlePetGetItem(RequestPetGetItem p) {
+		PlayerCharacter active = active();
+		if (active != null && active.activeSummon() != null && ctx() != null && ctx().groundItems() != null) {
+			var gi = ctx().groundItems().byObjectId(p.objectId()).orElse(null);
+			if (gi != null) {
+				PetService.getInstance().petPickUpItem(active, active.activeSummon(), gi, ctx().groundItems(), this::send);
+			}
+		}
 		session.actionHandler().tryPickupGroundItem(p.objectId());
 		send(new PetInventoryUpdate(List.of()));
 	}
 
 	// =========================================================================
-	// 6. Peticoes, GMList, Snoop, Olimpiadas, Hero, Pesca, PC Cafe e Utilitarios
+	// 6. Peticoes, GMList, Snoop, Olimpiadas, Hero, Cursed Weapons, Pesca & PC Cafe
 	// =========================================================================
+
+	public void handleCursedWeaponList(RequestCursedWeaponList p) {
+		List<Integer> ids = new ArrayList<>();
+		if (ctx() != null && ctx().cursedWeapons() != null) {
+			ids.addAll(ctx().cursedWeapons().getCursedWeaponIds());
+		} else {
+			ids.add(CursedWeaponsManager.ZARICHE);
+			ids.add(CursedWeaponsManager.AKAMANAH);
+		}
+		send(new ExCursedWeaponList(ids));
+	}
+
+	public void handleCursedWeaponLocation(RequestCursedWeaponLocation p) {
+		List<CursedWeaponLocationInfo> locs = new ArrayList<>();
+		if (ctx() != null && ctx().cursedWeapons() != null) {
+			for (var cw : ctx().cursedWeapons().getActiveCursedWeapons()) {
+				int x = cw.x();
+				int y = cw.y();
+				int z = cw.z();
+				if (cw.ownerId() > 0 && ctx().world() != null) {
+					var ownerOpt = ctx().world().byId(cw.ownerId());
+					if (ownerOpt.isPresent()) {
+						x = ownerOpt.get().x();
+						y = ownerOpt.get().y();
+						z = ownerOpt.get().z();
+					}
+				}
+				locs.add(new CursedWeaponLocationInfo(cw.itemId(), 1, x, y, z));
+			}
+		}
+		send(new ExCursedWeaponLocation(locs));
+	}
 
 	public void handlePetition(RequestPetition p) {
 		PlayerCharacter active = active();
@@ -1108,6 +1666,9 @@ public class ExtendedProtocolPacketHandler {
 		int ry = observing ? obsReturnY : active.y();
 		int rz = observing ? obsReturnZ : active.z();
 		observing = false;
+		if (ctx() != null && ctx().olympiad() != null && active.inObserverMode()) {
+			ctx().olympiad().leaveSpectatorMode(active);
+		}
 		send(new ObservationReturn(rx, ry, rz));
 		send(new NormalCamera());
 		send(new CameraMode(0));
@@ -1115,6 +1676,7 @@ public class ExtendedProtocolPacketHandler {
 
 	public void handleOlympiadObserverEnd(RequestOlympiadObserverEnd p) {
 		send(new ExOlympiadMatchEnd());
+		send(new ExOlympiadMode(0));
 		handleObserverReturn(new ObserverReturn());
 	}
 
@@ -1125,13 +1687,31 @@ public class ExtendedProtocolPacketHandler {
 					(int) active.currentHp(), active.maxHp(), (int) active.currentCp(), active.maxCp()));
 			send(new ExOlympiadSpelledInfo(active.objectId(), List.of()));
 		}
-		send(new NpcHtmlMessage(0, "<html><body>Olympiad Matches</body></html>"));
+		String html = "<html><body>Olympiad Matches</body></html>";
+		if (ctx() != null && ctx().olympiad() != null) {
+			var matches = ctx().olympiad().getActiveMatches();
+			if (matches != null && !matches.isEmpty()) {
+				StringBuilder sb = new StringBuilder("<html><body><center>Grand Olympiad Games</center><br><table width=270>");
+				for (var entry : matches.entrySet()) {
+					var m = entry.getValue();
+					sb.append("<tr><td><a action=\"bypass -h _olympiad_observe_").append(entry.getKey()).append("\">Arena ")
+							.append(entry.getKey() + 1).append("</a></td><td>")
+							.append(m.playerOneName()).append(" vs ").append(m.playerTwoName()).append("</td></tr>");
+				}
+				sb.append("</table></body></html>");
+				html = sb.toString();
+			}
+		}
+		send(new NpcHtmlMessage(0, html));
 	}
 
 	public void handleWriteHeroWords(RequestWriteHeroWords p) {
 		PlayerCharacter active = active();
 		if (active == null) {
 			return;
+		}
+		if (ctx() != null && ctx().olympiad() != null && active.isHero()) {
+			ctx().olympiad().setHeroMessage(active.objectId(), p.heroWords() != null ? p.heroWords() : "");
 		}
 		List<HeroListEntry> heroes = List.of(new HeroListEntry(active.name(), active.classId(), "", 0, "", 0, 1));
 		send(new ExHeroList(heroes));
