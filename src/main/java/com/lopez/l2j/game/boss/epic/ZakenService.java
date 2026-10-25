@@ -143,6 +143,10 @@ public class ZakenService {
 		if (isDoorOpenHour(gameHour) && !doorsOpen) {
 			openDoorForMidnight();
 		}
+		if (gameHour >= 0 && gameHour < 6 && activeZaken != null && !activeZaken.isDead()) {
+			double maxHp = activeZaken.maxHp();
+			activeZaken.currentHp(Math.min(maxHp, activeZaken.currentHp() + maxHp * 0.05));
+		}
 	}
 
 	public synchronized void openDoorForMidnight() {
@@ -181,6 +185,8 @@ public class ZakenService {
 				.orElseGet(() -> NpcTemplate.fallback(ZAKEN, "Zaken", "L2GrandBoss"));
 		activeZaken = new NpcInstance(objectIds.nextId(), tpl, SHIP_X, SHIP_Y, SHIP_Z, 0);
 		world.addNpc(activeZaken);
+		world.broadcastAround(SHIP_X, SHIP_Y, GameWorld.VISIBILITY_RADIUS,
+				new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(activeZaken));
 
 		status = BossStatus.ALIVE;
 		if (grandBossManager != null) {
