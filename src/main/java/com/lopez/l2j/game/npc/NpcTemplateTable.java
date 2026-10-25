@@ -10,6 +10,10 @@ public interface NpcTemplateTable {
 
 	Optional<NpcTemplate> get(int npcId);
 
+	default NpcTemplate getOrFallback(int npcId) {
+		return get(npcId).orElseGet(() -> NpcTemplate.simple(npcId, "NPC " + npcId, "", 70));
+	}
+
 	int size();
 
 	default Collection<NpcTemplate> all() {
