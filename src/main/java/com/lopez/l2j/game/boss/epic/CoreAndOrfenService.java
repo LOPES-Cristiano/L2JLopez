@@ -89,6 +89,8 @@ public class CoreAndOrfenService {
 		NpcTemplate tpl = templates.get(CORE).orElseGet(() -> NpcTemplate.fallback(CORE, "Core", "L2GrandBoss"));
 		activeCore = new NpcInstance(objectIds.nextId(), tpl, CORE_X, CORE_Y, CORE_Z, 0);
 		world.addNpc(activeCore);
+		world.broadcastAround(CORE_X, CORE_Y, GameWorld.VISIBILITY_RADIUS,
+				new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(activeCore));
 
 		// Spawna guardas Susceptors (retail: 4)
 		int guards = Config.CORE_NUMBER_OF_GUARDS;
@@ -101,6 +103,8 @@ public class CoreAndOrfenService {
 			g.masterObjectId(activeCore.objectId());
 			activeCore.minions().add(g);
 			world.addNpc(g);
+			world.broadcastAround(gx, gy, GameWorld.VISIBILITY_RADIUS,
+					new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(g));
 		}
 
 		coreStatus = BossStatus.ALIVE;
@@ -127,6 +131,8 @@ public class CoreAndOrfenService {
 		NpcTemplate tpl = templates.get(ORFEN).orElseGet(() -> NpcTemplate.fallback(ORFEN, "Orfen", "L2GrandBoss"));
 		activeOrfen = new NpcInstance(objectIds.nextId(), tpl, ORFEN_X, ORFEN_Y, ORFEN_Z, 0);
 		world.addNpc(activeOrfen);
+		world.broadcastAround(ORFEN_X, ORFEN_Y, GameWorld.VISIBILITY_RADIUS,
+				new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(activeOrfen));
 		orfenInNest = false;
 
 		// Spawna lacaios Riba Iren
@@ -139,6 +145,8 @@ public class CoreAndOrfenService {
 			m.masterObjectId(activeOrfen.objectId());
 			activeOrfen.minions().add(m);
 			world.addNpc(m);
+			world.broadcastAround(mx, my, GameWorld.VISIBILITY_RADIUS,
+					new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(m));
 		}
 
 		orfenStatus = BossStatus.ALIVE;
@@ -156,6 +164,11 @@ public class CoreAndOrfenService {
 			int fromY = activeOrfen.y();
 			activeOrfen.moveTo(ORFEN_NEST_X, ORFEN_NEST_Y, ORFEN_NEST_Z, 0);
 			world.updateNpcPosition(activeOrfen, fromX, fromY);
+			var telePkt = new com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation(
+					activeOrfen.objectId(), ORFEN_NEST_X, ORFEN_NEST_Y, ORFEN_NEST_Z, 0);
+			world.broadcastAround(fromX, fromY, GameWorld.VISIBILITY_RADIUS, telePkt);
+			world.broadcastAround(ORFEN_NEST_X, ORFEN_NEST_Y, GameWorld.VISIBILITY_RADIUS,
+					new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(activeOrfen));
 			world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Orfen",
 					"Orfen has retreated to her inner nest to recover!"), p -> true);
 			log.info("Orfen recuou para o ninho interno para recuperar forcas.");
