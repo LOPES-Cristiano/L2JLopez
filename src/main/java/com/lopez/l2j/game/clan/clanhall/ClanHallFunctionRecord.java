@@ -19,4 +19,7 @@ public record ClanHallFunctionRecord(
 	public static final int FUNC_DECO_CURTAINS = 6;
 	public static final int FUNC_ITEM_CREATE = 7;
 	public static final int FUNC_DECO_FRONTPLATEFORM = 8;
+
+	public int fee() { return lease; }
+	public long rateMillis() { return rate; }
 }
