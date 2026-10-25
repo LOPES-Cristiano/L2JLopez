@@ -90,6 +90,41 @@ public final class ConsumableTable {
 			skillScroll(3933, 2057, 1), // Scroll of Might
 			skillScroll(3934, 2058, 1), // Scroll of Wind Walk
 			skillScroll(3935, 2059, 1), // Scroll of Shield
+			// Event/Clan Hall Buff Scrolls (9146-9155 -> Skills 2050-2059)
+			skillScroll(9146, 2050, 1), // Scroll of Guidance (Event)
+			skillScroll(9147, 2051, 1), // Scroll of Death Whisper (Event)
+			skillScroll(9148, 2052, 1), // Scroll of Focus (Event)
+			skillScroll(9149, 2053, 1), // Scroll of Acumen (Event)
+			skillScroll(9150, 2054, 1), // Scroll of Haste (Event)
+			skillScroll(9151, 2055, 1), // Scroll of Agility (Event)
+			skillScroll(9152, 2056, 1), // Scroll of Empower (Event)
+			skillScroll(9153, 2057, 1), // Scroll of Might (Event)
+			skillScroll(9154, 2058, 1), // Scroll of Wind Walk (Event)
+			skillScroll(9155, 2059, 1), // Scroll of Shield (Event)
+			// L2Day Blessed Scroll of Escape & SP Scrolls (5593-5595, 9898)
+			skillScroll(3958, 2036, 1), // L2Day - Blessed Scroll of Escape
+			Map.entry(5593, new Consumable(5593, Type.SKILL_SCROLL, 2167, 1, 500, 0, 0, 3000, null, null)), // SP Scroll: Low Grade
+			Map.entry(5594, new Consumable(5594, Type.SKILL_SCROLL, 2167, 2, 5000, 0, 0, 3000, null, null)), // SP Scroll: Medium Grade
+			Map.entry(5595, new Consumable(5595, Type.SKILL_SCROLL, 2167, 3, 100000, 0, 0, 3000, null, null)), // SP Scroll: High Grade
+			Map.entry(9898, new Consumable(9898, Type.SKILL_SCROLL, 2167, 1, 500, 0, 0, 3000, null, null)), // SP Scroll (Event)
+			// Elemental Resistance Potions (9997-10002 -> Skills 2335-2340)
+			skillScroll(9997, 2335, 1), // Fire Potion
+			skillScroll(9998, 2336, 1), // Water Potion
+			skillScroll(9999, 2337, 1), // Wind Potion
+			skillScroll(10000, 2338, 1), // Earth Potion
+			skillScroll(10001, 2339, 1), // Holy Potion
+			skillScroll(10002, 2340, 1), // Dark Potion
+			// Fisherman's Potions (8193-8201 -> Skill 2274 lvls 1..9) & Recovery Potion (8202 -> Skill 2275)
+			skillScroll(8193, 2274, 1), // Fisherman's Potion - Green
+			skillScroll(8194, 2274, 2), // Fisherman's Potion - Jade
+			skillScroll(8195, 2274, 3), // Fisherman's Potion - Blue
+			skillScroll(8196, 2274, 4), // Fisherman's Potion - Yellow
+			skillScroll(8197, 2274, 5), // Fisherman's Potion - Orange
+			skillScroll(8198, 2274, 6), // Fisherman's Potion - Purple
+			skillScroll(8199, 2274, 7), // Fisherman's Potion - Red
+			skillScroll(8200, 2274, 8), // Fisherman's Potion - White
+			skillScroll(8201, 2274, 9), // Fisherman's Potion - Black
+			skillScroll(8202, 2275, 1), // Fisherman's Recovery Potion / Green Colored Fish Scale
 			// Elixir of Life (ELIXIR_HP, skill 2287 lvls 1..6)
 			elixir(8622, Type.ELIXIR_HP, 2287, 1, 250, "none"),
 			elixir(8623, Type.ELIXIR_HP, 2287, 2, 500, "d"),
@@ -114,6 +149,8 @@ public final class ConsumableTable {
 			// Scrolls of Resurrection
 			resurrectScroll(737, 2014, 1, 20, 5000), // Scroll of Resurrection
 			resurrectScroll(3936, 2049, 1, 100, 5000), // Blessed Scroll of Resurrection
+			resurrectScroll(3959, 2062, 1, 100, 5000), // L2Day - Blessed Scroll of Resurrection
+			resurrectScroll(6387, 2179, 1, 100, 5000), // Blessed Scroll of Resurrection: Pets
 			// Soulshots (skill = animacao da carga por grade)
 			shot(5789, 2039, "none"), // Beginner's Soulshot
 			shot(1835, 2039, "none"), // Soulshot: No Grade
@@ -153,7 +190,8 @@ public final class ConsumableTable {
 			remedy(1832, 2043), // Advanced Antidote
 			remedy(1833, 2044), // Bandage
 			remedy(1834, 2045), // Emergency Dressing
-			remedy(3889, 2060)); // Potion of Recovery
+			remedy(3889, 2060), // Potion of Recovery
+			remedy(6037, 2170)); // Scroll of Waking
 
 	private ConsumableTable() {
 	}
