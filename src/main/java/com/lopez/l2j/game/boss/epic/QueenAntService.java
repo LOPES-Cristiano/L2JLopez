@@ -88,12 +88,16 @@ public class QueenAntService {
 				.orElseGet(() -> NpcTemplate.fallback(QUEEN_ANT, "Queen Ant", "L2GrandBoss"));
 		activeQueenAnt = new NpcInstance(objectIds.nextId(), qaTpl, NEST_X, NEST_Y, NEST_Z, 0);
 		world.addNpc(activeQueenAnt);
+		world.broadcastAround(NEST_X, NEST_Y, GameWorld.VISIBILITY_RADIUS,
+				new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(activeQueenAnt));
 
 		// Spawna Larva
 		NpcTemplate larvaTpl = templates.get(QUEEN_ANT_LARVA)
 				.orElseGet(() -> NpcTemplate.fallback(QUEEN_ANT_LARVA, "Larva", "L2Monster"));
 		activeLarva = new NpcInstance(objectIds.nextId(), larvaTpl, NEST_X - 100, NEST_Y + 50, NEST_Z, 0);
 		world.addNpc(activeLarva);
+		world.broadcastAround(activeLarva.x(), activeLarva.y(), GameWorld.VISIBILITY_RADIUS,
+				new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(activeLarva));
 
 		// Spawna Enfermeiras (retail: 6)
 		nurses.clear();
@@ -109,6 +113,8 @@ public class QueenAntService {
 			activeQueenAnt.minions().add(nurse);
 			nurses.add(nurse);
 			world.addNpc(nurse);
+			world.broadcastAround(nx, ny, GameWorld.VISIBILITY_RADIUS,
+					new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(nurse));
 		}
 
 		// Spawna Guardas Reais (retail: 8)
@@ -125,6 +131,8 @@ public class QueenAntService {
 			activeQueenAnt.minions().add(guard);
 			guards.add(guard);
 			world.addNpc(guard);
+			world.broadcastAround(gx, gy, GameWorld.VISIBILITY_RADIUS,
+					new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(guard));
 		}
 
 		status = BossStatus.ALIVE;
@@ -145,14 +153,24 @@ public class QueenAntService {
 
 		// Despawna minions
 		for (NpcInstance n : nurses) {
-			if (world != null) world.removeNpc(n);
+			if (world != null && n != null) {
+				world.broadcastAround(n.x(), n.y(), GameWorld.VISIBILITY_RADIUS,
+						new com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject(n.objectId()));
+				world.removeNpc(n);
+			}
 		}
 		nurses.clear();
 		for (NpcInstance g : guards) {
-			if (world != null) world.removeNpc(g);
+			if (world != null && g != null) {
+				world.broadcastAround(g.x(), g.y(), GameWorld.VISIBILITY_RADIUS,
+						new com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject(g.objectId()));
+				world.removeNpc(g);
+			}
 		}
 		guards.clear();
 		if (activeLarva != null && world != null) {
+			world.broadcastAround(activeLarva.x(), activeLarva.y(), GameWorld.VISIBILITY_RADIUS,
+					new com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject(activeLarva.objectId()));
 			world.removeNpc(activeLarva);
 			activeLarva = null;
 		}
