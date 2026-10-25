@@ -86,10 +86,22 @@ public sealed interface GameServerPacket {
 				int deleteSeconds = c.deleteTime() > 0 ? (int) Math.max(0, (c.deleteTime() - now) / 1000) : 0;
 				w.writeD(deleteSeconds).writeD(c.classId()).writeD(i == activeIndex ? 0x01 : 0x00);
 				int enchant = 0;
+				int augId = 0;
 				if (i < paperdolls.size() && paperdolls.get(i) != null) {
 					enchant = Math.min(127, Math.max(0, paperdolls.get(i).enchant(ItemSlots.RHAND)));
 				}
-				w.writeC(enchant).writeD(0x00); // enchant effect, augmentation
+				if (c.inventory() != null) {
+					var rw = c.inventory().paperdoll(ItemSlots.RHAND);
+					if (rw != null && rw.augmentation() != null) {
+						augId = rw.augmentation().attributes();
+					} else {
+						var lrw = c.inventory().paperdoll(ItemSlots.LRHAND);
+						if (lrw != null && lrw.augmentation() != null) {
+							augId = lrw.augmentation().attributes();
+						}
+					}
+				}
+				w.writeC(enchant).writeD(augId); // enchant effect, augmentation
 			}
 			return w.toByteArray();
 		}
@@ -101,11 +113,109 @@ public sealed interface GameServerPacket {
 	 */
 	private static void writePaperdoll(PacketWriter w, Paperdoll p, int twoHandSlot) {
 		for (int slot : ItemSlots.VISIBLE_ORDER) {
-			w.writeD(p.objectId(slot == ItemSlots.LRHAND ? twoHandSlot : slot));
+			w.writeD(p != null ? p.objectId(slot == ItemSlots.LRHAND ? twoHandSlot : slot) : 0);
 		}
 		for (int slot : ItemSlots.VISIBLE_ORDER) {
-			w.writeD(p.itemId(slot == ItemSlots.LRHAND ? twoHandSlot : slot));
+			w.writeD(p != null ? p.itemId(slot == ItemSlots.LRHAND ? twoHandSlot : slot) : 0);
 		}
+	}
+
+	private static void writePaperdollAugmentations(PacketWriter w, PlayerCharacter c) {
+		for (int i = 0; i < 14; i++) {
+			w.writeH(0x00);
+		}
+		int rhandAug = 0;
+		int lrhandAug = 0;
+		var inv = c != null ? c.inventory() : null;
+		if (inv != null) {
+			var rw = inv.paperdoll(ItemSlots.RHAND);
+			if (rw != null && rw.augmentation() != null) {
+				rhandAug = rw.augmentation().attributes();
+			}
+			var lrw = inv.paperdoll(ItemSlots.LRHAND);
+			if (lrw != null && lrw.augmentation() != null) {
+				lrhandAug = lrw.augmentation().attributes();
+			} else if (rhandAug != 0 && rw != null && rw.template() != null && rw.template().bodyPart() == ItemSlots.LRHAND) {
+				lrhandAug = rhandAug;
+			}
+		}
+		w.writeD(rhandAug); // augmentation RHAND
+		for (int i = 0; i < 12; i++) {
+			w.writeH(0x00);
+		}
+		w.writeD(lrhandAug); // augmentation LRHAND
+		for (int i = 0; i < 4; i++) {
+			w.writeH(0x00);
+		}
+	}
+
+	private static List<Integer> resolvePlayerCubics(PlayerCharacter c) {
+		if (c == null) {
+			return List.of();
+		}
+		for (String methodName : new String[] { "cubicIds", "getCubicIds", "cubics", "getCubics" }) {
+			try {
+				var m = c.getClass().getMethod(methodName);
+				Object val = m.invoke(c);
+				if (val instanceof Collection<?> col) {
+					List<Integer> out = new ArrayList<>(col.size());
+					for (Object elem : col) {
+						if (elem instanceof Number n) {
+							out.add(n.intValue());
+						} else if (elem != null) {
+							int id = invokeInt(elem, "id", invokeInt(elem, "cubicId", 0));
+							if (id > 0) {
+								out.add(id);
+							}
+						}
+					}
+					return out;
+				} else if (val instanceof Map<?, ?> map) {
+					List<Integer> out = new ArrayList<>(map.size());
+					for (Object key : map.keySet()) {
+						if (key instanceof Number n) {
+							out.add(n.intValue());
+						}
+					}
+					return out;
+				}
+			} catch (Exception ignored) {
+			}
+		}
+		return List.of();
+	}
+
+	private static int invokeInt(Object target, String methodName, int defaultValue) {
+		if (target == null) {
+			return defaultValue;
+		}
+		try {
+			var m = target.getClass().getMethod(methodName);
+			Object v = m.invoke(target);
+			if (v instanceof Number n) {
+				return n.intValue();
+			}
+			if (v instanceof Boolean b) {
+				return b ? 1 : 0;
+			}
+		} catch (Exception ignored) {
+		}
+		return defaultValue;
+	}
+
+	private static long invokeLong(Object target, String methodName, long defaultValue) {
+		if (target == null) {
+			return defaultValue;
+		}
+		try {
+			var m = target.getClass().getMethod(methodName);
+			Object v = m.invoke(target);
+			if (v instanceof Number n) {
+				return n.longValue();
+			}
+		} catch (Exception ignored) {
+		}
+		return defaultValue;
 	}
 
 	/** 0x17 NewCharacterSuccess (CharTemplates): classes oferecidas na criacao. */
@@ -162,8 +272,12 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	/** 0x24 CharDeleteFail (1 = membro de clan, 2 = lider de clan). */
+	/** 0x24 CharDeleteFail (1 = falha geral, 2 = membro de clan, 3 = lider de clan). */
 	record CharDeleteFail(int reason) implements GameServerPacket {
+		public static final int REASON_DELETION_FAILED = 0x01;
+		public static final int REASON_YOU_MAY_NOT_DELETE_CLAN_MEMBER = 0x02;
+		public static final int REASON_CLAN_LEADERS_MAY_NOT_BE_DELETED = 0x03;
+
 		@Override
 		public byte[] encode() {
 			return new PacketWriter().writeC(0x24).writeD(reason).toByteArray();
@@ -205,23 +319,40 @@ public sealed interface GameServerPacket {
 
 	/** 0x04 UserInfo: estado completo do proprio personagem (o cliente so "entra" no mundo apos recebe-lo). */
 	record UserInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll, int currentLoad, PlayerStats stats,
-			int clanCrestId, int allyId, int allyCrestId)
+			int clanCrestId, int allyId, int allyCrestId, List<Integer> cubics)
 			implements GameServerPacket {
 		static final int WALK_SPEED = 80;
 		static final int INVENTORY_LIMIT = 80;
 		static final int NAME_COLOR = 0xFFFFFF;
 		static final int TITLE_COLOR = 0xFFFF77;
 
+		public UserInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll, int currentLoad, PlayerStats stats,
+				int clanCrestId, int allyId, int allyCrestId) {
+			this(c, t, paperdoll, currentLoad, stats, clanCrestId, allyId, allyCrestId, resolvePlayerCubics(c));
+		}
+
 		public UserInfo(PlayerCharacter c, CharTemplate t) {
-			this(c, t, c.inventory().paperdollView(), c.inventory().currentLoad(), PlayerStats.calculate(c, t), 0, 0, 0);
+			this(c, t, c.inventory().paperdollView(), c.inventory().currentLoad(), PlayerStats.calculate(c, t),
+					c.getClan() != null ? c.getClan().crestId() : 0,
+					c.getClan() != null ? c.getClan().allyId() : 0,
+					c.getClan() != null ? c.getClan().allyCrestId() : 0,
+					resolvePlayerCubics(c));
 		}
 
 		public UserInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll, int currentLoad) {
-			this(c, t, paperdoll, currentLoad, PlayerStats.calculate(c, t), 0, 0, 0);
+			this(c, t, paperdoll, currentLoad, PlayerStats.calculate(c, t),
+					c.getClan() != null ? c.getClan().crestId() : 0,
+					c.getClan() != null ? c.getClan().allyId() : 0,
+					c.getClan() != null ? c.getClan().allyCrestId() : 0,
+					resolvePlayerCubics(c));
 		}
 
 		public UserInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll, int currentLoad, PlayerStats stats) {
-			this(c, t, paperdoll, currentLoad, stats, 0, 0, 0);
+			this(c, t, paperdoll, currentLoad, stats,
+					c.getClan() != null ? c.getClan().crestId() : 0,
+					c.getClan() != null ? c.getClan().allyId() : 0,
+					c.getClan() != null ? c.getClan().allyCrestId() : 0,
+					resolvePlayerCubics(c));
 		}
 
 		@Override
@@ -248,26 +379,7 @@ public sealed interface GameServerPacket {
 			w.writeD(c.sp()).writeD(currentLoad).writeD(maxLoad);
 			w.writeD(0x28); // valor fixo do legado (posicao 0x28 do paperdoll)
 			writePaperdoll(w, paperdoll, ItemSlots.RHAND);
-			for (int i = 0; i < 14; i++) {
-				w.writeH(0x00);
-			}
-			int rhandAug = 0;
-			int lrhandAug = 0;
-			var inv = c.inventory();
-			if (inv != null) {
-				var rw = inv.paperdoll(ItemSlots.RHAND);
-				if (rw != null && rw.augmentation() != null) rhandAug = rw.augmentation().attributes();
-				var lrw = inv.paperdoll(ItemSlots.LRHAND);
-				if (lrw != null && lrw.augmentation() != null) lrhandAug = lrw.augmentation().attributes();
-			}
-			w.writeD(rhandAug); // augmentation RHAND
-			for (int i = 0; i < 12; i++) {
-				w.writeH(0x00);
-			}
-			w.writeD(lrhandAug); // augmentation LRHAND
-			for (int i = 0; i < 4; i++) {
-				w.writeH(0x00);
-			}
+			writePaperdollAugmentations(w, c);
 			w.writeD(stats.pAtk()).writeD(stats.pAtkSpd()).writeD(stats.pDef()).writeD(stats.evasion()).writeD(stats.accuracy())
 					.writeD(stats.critical()).writeD(stats.mAtk());
 			w.writeD(stats.mAtkSpd()).writeD(stats.pAtkSpd());
@@ -280,21 +392,38 @@ public sealed interface GameServerPacket {
 			int walk = Math.max(1, (int) Math.round(80.0 * moveMultiplier));
 			int swimRun = Math.max(1, (int) Math.round(run * 0.7));
 			int swimWalk = Math.max(1, (int) Math.round(walk * 0.7));
+			boolean isFlying = c.mountNpcId() == 12621;
+			int flyRun = isFlying ? run : 0;
+			int flyWalk = isFlying ? walk : 0;
 
-			w.writeD(run).writeD(walk).writeD(swimRun).writeD(swimWalk).writeD(run).writeD(walk);
-			w.writeD(0).writeD(0); // fly speeds
+			w.writeD(run).writeD(walk).writeD(swimRun).writeD(swimWalk).writeD(0).writeD(0);
+			w.writeD(flyRun).writeD(flyWalk); // fly speeds
 			w.writeF(moveMultiplier).writeF(atkSpeedMultiplier); // move / attack speed multipliers
 			w.writeF(t.collisionRadius(c.female())).writeF(t.collisionHeight(c.female()));
 			w.writeD(c.hairStyle()).writeD(c.hairColor()).writeD(c.face()).writeD(c.isGm() ? 1 : 0);
 			w.writeS(c.title());
-			w.writeD(c.clanId()).writeD(clanCrestId).writeD(allyId).writeD(allyCrestId);
+			var clan = c.getClan();
+			int effClanCrest = clanCrestId != 0 ? clanCrestId : (clan != null ? clan.crestId() : 0);
+			int effAllyId = allyId != 0 ? allyId : (clan != null ? clan.allyId() : 0);
+			int effAllyCrest = allyCrestId != 0 ? allyCrestId : (clan != null ? clan.allyCrestId() : 0);
+			w.writeD(c.clanId()).writeD(effClanCrest).writeD(effAllyId).writeD(effAllyCrest);
 			int relation = c.isClanLeader() ? 0x40 : 0;
-			w.writeD(relation); // relation (0x40 = clan leader)
+			int siegeState = invokeInt(c, "siegeState", 0);
+			if (siegeState == 1) {
+				relation |= 0x180;
+			} else if (siegeState == 2) {
+				relation |= 0x80;
+			}
+			w.writeD(relation); // relation (0x40 = clan leader, siege flags)
 			int mountType = c.mountNpcId() == 12621 ? 2 : (c.mountNpcId() > 0 ? 1 : 0);
 			w.writeC(mountType).writeC(c.privateStoreType()).writeC((t != null && t.canCraft()) || c.canCraft() ? 1 : 0); // mount, private store, dwarven craft
 			w.writeD(c.pkKills()).writeD(c.pvpKills());
-			w.writeH(0); // cubics
-			w.writeC(0);
+			List<Integer> activeCubics = (cubics != null && !cubics.isEmpty()) ? cubics : resolvePlayerCubics(c);
+			w.writeH(activeCubics.size()); // cubics
+			for (int cubicId : activeCubics) {
+				w.writeH(cubicId);
+			}
+			w.writeC(invokeInt(c, "partyMatchRoom", 0) > 0 ? 1 : 0);
 			w.writeD(c.abnormalEffect()); // abnormal effect
 			w.writeC(0);
 			int privs = c.isClanLeader() ? 0x7ffffe : c.clanPrivs();
@@ -313,9 +442,9 @@ public sealed interface GameServerPacket {
 					enchantEffect = Math.min(127, Math.max(0, rw.enchant()));
 				}
 			}
-			w.writeC(enchantEffect); // enchant effect (weapon glow: 0=none, 4-15=blue, 16+=red)
+			w.writeC(c.isMounted() ? 0 : enchantEffect); // enchant effect (weapon glow: 0=none, 4-15=blue, 16+=red)
 			w.writeC(c.team()); // team
-			int largeCrestId = (c.getClan() != null) ? c.getClan().largeCrestId() : 0;
+			int largeCrestId = (clan != null) ? clan.largeCrestId() : 0;
 			w.writeD(largeCrestId); // large clan crest
 			w.writeC(c.isNoble() ? 1 : 0).writeC(c.isHero() ? 1 : 0); // noble, hero
 			w.writeC(c.isFishing() ? 1 : 0).writeD(c.fishX()).writeD(c.fishY()).writeD(c.fishZ()); // fishing
@@ -323,7 +452,7 @@ public sealed interface GameServerPacket {
 			w.writeC(c.running() ? 1 : 0);
 			w.writeD(c.pledgeRank()).writeD(c.subPledge()); // pledge class, pledge type
 			w.writeD(c.isGm() ? 0x00FF77 : (c.titleColor() != 0 ? c.titleColor() : TITLE_COLOR));
-			w.writeD(0); // cursed weapon level
+			w.writeD(invokeInt(c, "cursedWeaponLevel", 0)); // cursed weapon level
 			return w.toByteArray();
 		}
 	}
@@ -433,6 +562,7 @@ public sealed interface GameServerPacket {
 		public static final int WEIGHT_LIMIT_EXCEEDED = 422;
 		public static final int EQUIPMENT_S1_S2_REMOVED = 1064;
 		public static final int TARGET_TOO_FAR = 22;
+		public static final int TOO_FAR_FROM_NPC = 548;
 		public static final int NOT_ENOUGH_MP = 24;
 		public static final int NOT_ENOUGH_HP = 23;
 		public static final int CASTING_INTERRUPTED = 27;
@@ -494,6 +624,13 @@ public sealed interface GameServerPacket {
 		public static final int PARTY_DISPERSED = 203;
 		public static final int NOT_ENOUGH_ARROWS = 726;
 		public static final int S1_SUCCESSFULLY_ENCHANTED = 62;
+		public static final int NOT_AUTHORIZED_TO_BESTOW_RIGHTS = 794;
+		public static final int YOU_ARE_NOT_AUTHORIZED_TO_DO_THAT = 794;
+		public static final int RECIPES_CANT_BE_REGISTERED = 840;
+		public static final int S1_ADDED = 851;
+		public static final int CANT_CRAFT_DURING_COMBAT = 1126;
+		public static final int EARNED_ITEM_S1 = 54;
+		public static final int YOU_HAVE_EXCEEDED_QUANTITY_THAT_CAN_BE_INPUTTED = 1036;
 		public static final int S1_S2_SUCCESSFULLY_ENCHANTED = 63;
 		public static final int ENCHANTMENT_FAILED_S1_EVAPORATED = 64;
 		public static final int ENCHANTMENT_FAILED_S1_S2_EVAPORATED = 65;
@@ -671,9 +808,13 @@ public sealed interface GameServerPacket {
 	}
 
 	/** 0x45 ShortCutInit: atalhos da barra rapida do jogador. */
-	record ShortCutInit(List<com.lopez.l2j.game.shortcut.ShortCut> shortcuts) implements GameServerPacket {
+	record ShortCutInit(List<com.lopez.l2j.game.shortcut.ShortCut> shortcuts, PlayerCharacter player) implements GameServerPacket {
 		public ShortCutInit() {
-			this(List.of());
+			this(List.of(), null);
+		}
+
+		public ShortCutInit(List<com.lopez.l2j.game.shortcut.ShortCut> shortcuts) {
+			this(shortcuts, null);
 		}
 
 		public ShortCutInit {
@@ -688,23 +829,33 @@ public sealed interface GameServerPacket {
 				w.writeD(sc.globalSlot());
 				switch (sc.type()) {
 					case 1 -> {
+						int sharedGroup = invokeInt(sc, "sharedReuseGroup", -1);
+						int curReuse = invokeInt(sc, "remainingReuse", 0);
+						int maxReuse = invokeInt(sc, "reuseDelay", 0);
+						int augId = invokeInt(sc, "augmentationId", 0);
+						if (augId == 0 && player != null && player.inventory() != null) {
+							var item = player.inventory().getByObjectId(sc.id());
+							if (item != null && item.augmentation() != null) {
+								augId = item.augmentation().attributes();
+							}
+						}
 						w.writeD(sc.id());
-						w.writeD(0x01);
-						w.writeD(-1);
-						w.writeD(0x00);
-						w.writeD(0x00);
-						w.writeH(0x00);
-						w.writeH(0x00);
+						w.writeD(sc.characterType() > 0 ? sc.characterType() : 0x01);
+						w.writeD(sharedGroup);
+						w.writeD(curReuse);
+						w.writeD(maxReuse);
+						w.writeH(augId & 0xFFFF);
+						w.writeH(augId >>> 16);
 					}
 					case 2 -> {
 						w.writeD(sc.id());
 						w.writeD(sc.level());
 						w.writeC(0x00);
-						w.writeD(0x01);
+						w.writeD(sc.characterType() > 0 ? sc.characterType() : 0x01);
 					}
 					default -> {
 						w.writeD(sc.id());
-						w.writeD(0x01);
+						w.writeD(sc.characterType() > 0 ? sc.characterType() : 0x01);
 					}
 				}
 			}
@@ -713,7 +864,11 @@ public sealed interface GameServerPacket {
 	}
 
 	/** 0x44 ShortCutRegister: confirmacao de registro de atalho. */
-	record ShortCutRegister(com.lopez.l2j.game.shortcut.ShortCut shortcut) implements GameServerPacket {
+	record ShortCutRegister(com.lopez.l2j.game.shortcut.ShortCut shortcut, PlayerCharacter player) implements GameServerPacket {
+		public ShortCutRegister(com.lopez.l2j.game.shortcut.ShortCut shortcut) {
+			this(shortcut, null);
+		}
+
 		@Override
 		public byte[] encode() {
 			PacketWriter w = new PacketWriter().writeC(0x44);
@@ -721,12 +876,22 @@ public sealed interface GameServerPacket {
 			w.writeD(shortcut.globalSlot());
 			switch (shortcut.type()) {
 				case 1 -> {
+					int sharedGroup = invokeInt(shortcut, "sharedReuseGroup", -1);
+					int curReuse = invokeInt(shortcut, "remainingReuse", 0);
+					int maxReuse = invokeInt(shortcut, "reuseDelay", 0);
+					int augId = invokeInt(shortcut, "augmentationId", 0);
+					if (augId == 0 && player != null && player.inventory() != null) {
+						var item = player.inventory().getByObjectId(shortcut.id());
+						if (item != null && item.augmentation() != null) {
+							augId = item.augmentation().attributes();
+						}
+					}
 					w.writeD(shortcut.id());
 					w.writeD(shortcut.characterType());
-					w.writeD(-1);
-					w.writeD(0x00);
-					w.writeD(0x00);
-					w.writeD(0x00);
+					w.writeD(sharedGroup);
+					w.writeD(curReuse);
+					w.writeD(maxReuse);
+					w.writeD(augId);
 				}
 				case 2 -> {
 					w.writeD(shortcut.id());
@@ -748,6 +913,9 @@ public sealed interface GameServerPacket {
 			int x, int y, int z, int targetX, int targetY, int targetZ) implements GameServerPacket {
 		public MagicSkillUse(int charObjId, int targetObjId, int skillId, int skillLevel, int hitTime, int reuseDelay) {
 			this(charObjId, targetObjId, skillId, skillLevel, hitTime, reuseDelay, 0, 0, 0, 0, 0, 0);
+		}
+		public MagicSkillUse(int charObjId, int targetObjId, int skillId, int skillLevel, int hitTime, int reuseDelay, int x, int y, int z) {
+			this(charObjId, targetObjId, skillId, skillLevel, hitTime, reuseDelay, x, y, z, x, y, z);
 		}
 		@Override
 		public byte[] encode() {
@@ -970,12 +1138,7 @@ public sealed interface GameServerPacket {
 							.writeD(1);
 				}
 			} else {
-				w.writeD(1)
-						.writeD(0)
-						.writeD(0)
-						.writeD(0)
-						.writeD(0)
-						.writeD(0);
+				w.writeD(0);
 			}
 			return w.toByteArray();
 		}
@@ -1084,8 +1247,13 @@ public sealed interface GameServerPacket {
 		}
 
 		public EtcStatusUpdate(com.lopez.l2j.game.model.PlayerCharacter c, com.lopez.l2j.game.model.PlayerStats stats) {
-			this(c != null ? c.charges() : 0, stats != null ? stats.weightPenalty() : 0, 0, 0,
-					stats != null ? stats.gradePenalty() : 0, 0, 0);
+			this(c != null ? c.charges() : 0,
+					stats != null ? stats.weightPenalty() : 0,
+					(c != null && (c.isBlockingAll() || invokeInt(c, "messageRefusal", 0) != 0)) ? 1 : 0,
+					invokeInt(c, "inDangerArea", invokeInt(c, "dangerZone", 0)),
+					stats != null ? stats.gradePenalty() : 0,
+					invokeInt(c, "charmOfCourage", 0),
+					invokeInt(c, "deathPenaltyBuffLevel", invokeInt(c, "deathPenalty", 0)));
 		}
 
 		@Override
@@ -1132,7 +1300,11 @@ public sealed interface GameServerPacket {
 	}
 
 	/** Registro de amigo para exibicao na lista de contatos. */
-	record FriendItem(int charId, String name, boolean online, int friendId) {}
+	record FriendItem(int charId, String name, boolean online, int friendId) {
+		public String friendName() {
+			return name;
+		}
+	}
 
 	/** 0xfa FriendList: lista de amigos do jogador. */
 	record FriendList(java.util.List<FriendItem> friends) implements GameServerPacket {
@@ -1317,8 +1489,10 @@ public sealed interface GameServerPacket {
 			w.writeD(npc.runSpd()).writeD(npc.walkSpd()); // swim run/walk
 			w.writeD(npc.runSpd()).writeD(npc.walkSpd()); // fl run/walk
 			w.writeD(npc.runSpd()).writeD(npc.walkSpd()); // fly run/walk
-			w.writeF(1.1);
-			w.writeF(t.pAtkSpd() / 277.478340719);
+			double moveMult = t.runSpd() > 0 ? (double) npc.runSpd() / t.runSpd() : 1.1;
+			double atkMult = t.pAtkSpd() > 0 ? (double) npc.pAtkSpd() / t.pAtkSpd() : (npc.pAtkSpd() / 277.478340719);
+			w.writeF(moveMult > 0 ? moveMult : 1.1);
+			w.writeF(atkMult > 0 ? atkMult : 1.0);
 			w.writeF(t.collisionRadius()).writeF(t.collisionHeight());
 			w.writeD(t.rhand()).writeD(t.armor()).writeD(t.lhand());
 			w.writeC(1); // name above char
@@ -1403,6 +1577,10 @@ public sealed interface GameServerPacket {
 
 	/** 0xB1 PetInfo: status completo do Pet/Servitor para o dono. */
 	record PetInfo(com.lopez.l2j.game.summon.SummonInstance summon, int val) implements GameServerPacket {
+		public PetInfo(com.lopez.l2j.game.summon.SummonInstance summon) {
+			this(summon, 0);
+		}
+
 		@Override
 		public byte[] encode() {
 			var t = summon.template();
@@ -1418,7 +1596,8 @@ public sealed interface GameServerPacket {
 			w.writeD(summon.runSpd()).writeD(summon.walkSpd());
 			w.writeD(summon.runSpd()).writeD(summon.walkSpd());
 			w.writeD(summon.runSpd()).writeD(summon.walkSpd());
-			w.writeF(1.1);
+			double moveMult = (t != null && t.runSpd() > 0) ? (double) summon.runSpd() / t.runSpd() : 1.1;
+			w.writeF(moveMult > 0 ? moveMult : 1.1);
 			w.writeF(summon.pAtkSpd() / 277.478340719);
 			w.writeF(t.collisionRadius() > 0 ? t.collisionRadius() : 9.0);
 			w.writeF(t.collisionHeight() > 0 ? t.collisionHeight() : 22.0);
@@ -1442,10 +1621,12 @@ public sealed interface GameServerPacket {
 			w.writeD(summon.sp());
 			w.writeD(summon.level());
 			w.writeQ(summon.exp());
-			w.writeQ(0L); // exp this level
-			w.writeQ(1000L); // exp next level
-			w.writeD(0); // curLoad
-			w.writeD(0); // maxLoad
+			long expThisLvl = invokeLong(summon, "expForThisLevel", invokeLong(summon, "getExpForThisLevel", 0L));
+			long expNextLvl = invokeLong(summon, "expForNextLevel", invokeLong(summon, "getExpForNextLevel", Math.max(1000L, summon.exp() + 1000L)));
+			w.writeQ(expThisLvl); // exp this level
+			w.writeQ(expNextLvl); // exp next level
+			w.writeD(invokeInt(summon, "currentLoad", 0)); // curLoad
+			w.writeD(invokeInt(summon, "maxLoad", summon.isPet() ? 54500 : 0)); // maxLoad
 			w.writeD(summon.pAtk());
 			w.writeD(summon.pDef());
 			w.writeD(summon.mAtk());
@@ -1457,12 +1638,14 @@ public sealed interface GameServerPacket {
 			w.writeD(summon.pAtkSpd());
 			w.writeD(summon.mAtkSpd());
 			w.writeD(summon.abnormalEffect());
-			w.writeH(0); // mountable
+			int npcId = summon.idTemplate();
+			int mountable = invokeInt(summon, "isMountable", (npcId == 12526 || npcId == 12527 || npcId == 12528 || npcId == 12621) ? 1 : 0);
+			w.writeH(mountable); // mountable
 			w.writeC(0);
 			w.writeH(0);
 			w.writeC(summon.owner() != null ? summon.owner().team() : 0);
-			w.writeD(1); // soulshots per hit
-			w.writeD(1); // spiritshots per hit
+			w.writeD(invokeInt(summon, "soulShotsPerHit", 1)); // soulshots per hit
+			w.writeD(invokeInt(summon, "spiritShotsPerHit", 1)); // spiritshots per hit
 			return w.toByteArray();
 		}
 	}
@@ -1484,8 +1667,10 @@ public sealed interface GameServerPacket {
 			w.writeD(summon.maxMp());
 			w.writeD(summon.level());
 			w.writeQ(summon.exp());
-			w.writeQ(0L);
-			w.writeQ(1000L);
+			long expThisLvl = invokeLong(summon, "expForThisLevel", invokeLong(summon, "getExpForThisLevel", 0L));
+			long expNextLvl = invokeLong(summon, "expForNextLevel", invokeLong(summon, "getExpForNextLevel", Math.max(1000L, summon.exp() + 1000L)));
+			w.writeQ(expThisLvl);
+			w.writeQ(expNextLvl);
 			return w.toByteArray();
 		}
 	}
@@ -1507,17 +1692,33 @@ public sealed interface GameServerPacket {
 	}
 
 	/** 0x03 CharInfo: visualizacao de outro jogador no mundo. */
-	record CharInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll, int clanCrestId, int allyId, int allyCrestId) implements GameServerPacket {
+	record CharInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll, int clanCrestId, int allyId, int allyCrestId, List<Integer> cubics) implements GameServerPacket {
+		public CharInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll, int clanCrestId, int allyId, int allyCrestId) {
+			this(c, t, paperdoll, clanCrestId, allyId, allyCrestId, resolvePlayerCubics(c));
+		}
+
 		public CharInfo(PlayerCharacter c) {
-			this(c, null, c.inventory() != null ? c.inventory().paperdollView() : null, 0, 0, 0);
+			this(c, null, c.inventory() != null ? c.inventory().paperdollView() : null,
+					c.getClan() != null ? c.getClan().crestId() : 0,
+					c.getClan() != null ? c.getClan().allyId() : 0,
+					c.getClan() != null ? c.getClan().allyCrestId() : 0,
+					resolvePlayerCubics(c));
 		}
 
 		public CharInfo(PlayerCharacter c, CharTemplate t) {
-			this(c, t, c.inventory() != null ? c.inventory().paperdollView() : null, 0, 0, 0);
+			this(c, t, c.inventory() != null ? c.inventory().paperdollView() : null,
+					c.getClan() != null ? c.getClan().crestId() : 0,
+					c.getClan() != null ? c.getClan().allyId() : 0,
+					c.getClan() != null ? c.getClan().allyCrestId() : 0,
+					resolvePlayerCubics(c));
 		}
 
 		public CharInfo(PlayerCharacter c, CharTemplate t, Paperdoll paperdoll) {
-			this(c, t, paperdoll, 0, 0, 0);
+			this(c, t, paperdoll,
+					c.getClan() != null ? c.getClan().crestId() : 0,
+					c.getClan() != null ? c.getClan().allyId() : 0,
+					c.getClan() != null ? c.getClan().allyCrestId() : 0,
+					resolvePlayerCubics(c));
 		}
 
 		@Override
@@ -1534,6 +1735,13 @@ public sealed interface GameServerPacket {
 			int hairall = paperdoll != null ? paperdoll.itemId(ItemSlots.HAIRALL) : 0;
 			int head = paperdoll != null ? paperdoll.itemId(ItemSlots.HEAD) : 0;
 			int rhand = paperdoll != null ? paperdoll.itemId(ItemSlots.RHAND) : 0;
+			int lrhand = paperdoll != null ? paperdoll.itemId(ItemSlots.LRHAND) : 0;
+			if (rhand == 0 && lrhand > 0) {
+				rhand = lrhand;
+			}
+			if (lrhand == 0 && rhand > 0) {
+				lrhand = rhand;
+			}
 			int lhand = paperdoll != null ? paperdoll.itemId(ItemSlots.LHAND) : 0;
 			int gloves = paperdoll != null ? paperdoll.itemId(ItemSlots.GLOVES) : 0;
 			int chest = paperdoll != null ? paperdoll.itemId(ItemSlots.CHEST) : 0;
@@ -1554,7 +1762,10 @@ public sealed interface GameServerPacket {
 				}
 				if (c.dressMeWeapon() != null && c.dressMeWeapon().weapon() != null) {
 					var wVisual = c.dressMeWeapon().weapon();
-					if (wVisual.rhand() > 0) rhand = wVisual.rhand();
+					if (wVisual.rhand() > 0) {
+						rhand = wVisual.rhand();
+						lrhand = wVisual.rhand();
+					}
 					if (wVisual.lhand() > 0) lhand = wVisual.lhand();
 				}
 			}
@@ -1568,7 +1779,7 @@ public sealed interface GameServerPacket {
 			w.writeD(legs);
 			w.writeD(feet);
 			w.writeD(back);
-			w.writeD(rhand);
+			w.writeD(lrhand);
 			w.writeD(hair);
 			w.writeD(face);
 
@@ -1579,7 +1790,11 @@ public sealed interface GameServerPacket {
 				var rw = c.inventory().paperdoll(ItemSlots.RHAND);
 				if (rw != null && rw.augmentation() != null) rhandAug = rw.augmentation().attributes();
 				var lrw = c.inventory().paperdoll(ItemSlots.LRHAND);
-				if (lrw != null && lrw.augmentation() != null) lrhandAug = lrw.augmentation().attributes();
+				if (lrw != null && lrw.augmentation() != null) {
+					lrhandAug = lrw.augmentation().attributes();
+				} else if (rhandAug != 0) {
+					lrhandAug = rhandAug;
+				}
 			}
 			for (int i = 0; i < 4; i++) w.writeH(0x00);
 			w.writeD(rhandAug);
@@ -1600,27 +1815,38 @@ public sealed interface GameServerPacket {
 			int walk = Math.max(1, (int) Math.round(80.0 * moveMultiplier));
 			int swimRun = Math.max(1, (int) Math.round(run * 0.7));
 			int swimWalk = Math.max(1, (int) Math.round(walk * 0.7));
+			boolean isFlying = c.mountNpcId() == 12621;
+			int flyRun = isFlying ? run : 0;
+			int flyWalk = isFlying ? walk : 0;
 
-			w.writeD(run).writeD(walk).writeD(swimRun).writeD(swimWalk).writeD(run).writeD(walk).writeD(0).writeD(0);
+			w.writeD(run).writeD(walk).writeD(swimRun).writeD(swimWalk).writeD(run).writeD(walk).writeD(flyRun).writeD(flyWalk);
 			w.writeF(moveMultiplier).writeF(atkSpeedMultiplier);
 			w.writeF(t != null ? t.collisionRadius(c.female()) : 9.0).writeF(t != null ? t.collisionHeight(c.female()) : 23.0);
 
 			w.writeD(c.hairStyle()).writeD(c.hairColor()).writeD(c.face());
 			w.writeS(c.title());
-			w.writeD(c.clanId()).writeD(clanCrestId).writeD(allyId).writeD(allyCrestId);
+			var clan = c.getClan();
+			int effClanCrest = clanCrestId != 0 ? clanCrestId : (clan != null ? clan.crestId() : 0);
+			int effAllyId = allyId != 0 ? allyId : (clan != null ? clan.allyId() : 0);
+			int effAllyCrest = allyCrestId != 0 ? allyCrestId : (clan != null ? clan.allyCrestId() : 0);
+			w.writeD(c.clanId()).writeD(effClanCrest).writeD(effAllyId).writeD(effAllyCrest);
 
 			w.writeD(0);
 			w.writeC(c.sitting() ? 0 : 1);
 			w.writeC(c.running() ? 1 : 0);
 			w.writeC(c.isInCombat() ? 1 : 0); // isInCombat: 1 combate / 0 normal
 			w.writeC(c.isDead() ? 1 : 0); // isAlikeDead
-			w.writeC(0); // invisible
+			w.writeC(c.invis() ? 1 : 0); // invisible
 			int mountType = c.mountNpcId() == 12621 ? 2 : (c.mountNpcId() > 0 ? 1 : 0);
 			w.writeC(mountType);
 			w.writeC(c.privateStoreType());
 
-			w.writeH(0); // cubics
-			w.writeC(0);
+			List<Integer> activeCubics = (cubics != null && !cubics.isEmpty()) ? cubics : resolvePlayerCubics(c);
+			w.writeH(activeCubics.size()); // cubics
+			for (int cubicId : activeCubics) {
+				w.writeH(cubicId);
+			}
+			w.writeC(invokeInt(c, "partyMatchRoom", 0) > 0 ? 1 : 0);
 			w.writeD(c.abnormalEffect()); // abnormal effect
 			w.writeC(c.recomLeft());
 			w.writeH(c.recomHave());
@@ -1637,7 +1863,7 @@ public sealed interface GameServerPacket {
 			}
 			w.writeC(c.isMounted() ? 0 : charEnchantEffect); // enchant effect (weapon glow: 0=none, 4-15=blue, 16+=red)
 			w.writeC(c.team()); // team
-			int largeCrestId = (c.getClan() != null) ? c.getClan().largeCrestId() : 0;
+			int largeCrestId = (clan != null) ? clan.largeCrestId() : 0;
 			w.writeD(largeCrestId);
 			w.writeC(c.isNoble() ? 1 : 0).writeC(c.isHero() ? 1 : 0);
 			w.writeC(c.isFishing() ? 1 : 0).writeD(c.fishX()).writeD(c.fishY()).writeD(c.fishZ());
@@ -1645,7 +1871,7 @@ public sealed interface GameServerPacket {
 			w.writeD(c.heading());
 			w.writeD(c.pledgeRank()).writeD(c.subPledge());
 			w.writeD(c.isGm() ? 0x00FF77 : (c.titleColor() != 0 ? c.titleColor() : 0xFFFF77));
-			w.writeD(0x00);
+			w.writeD(invokeInt(c, "cursedWeaponLevel", 0));
 			return w.toByteArray();
 		}
 	}
@@ -1733,12 +1959,18 @@ public sealed interface GameServerPacket {
 	}
 
 	/** 0x05 Attack: animacao de ataque e dano aplicado ao alvo. */
-	record Attack(int attackerObjId, int targetObjId, int damage, int flags, int x, int y, int z)
+	record Attack(int attackerObjId, int targetObjId, int damage, int flags, int x, int y, int z, List<Hit> extraHits)
 			implements GameServerPacket {
+		public record Hit(int targetObjId, int damage, int flags) {}
+
 		public static final int HITFLAG_USESS = 0x10;
 		public static final int HITFLAG_CRIT = 0x20;
 		public static final int HITFLAG_SHLD = 0x40;
 		public static final int HITFLAG_MISS = 0x80;
+
+		public Attack(int attackerObjId, int targetObjId, int damage, int flags, int x, int y, int z) {
+			this(attackerObjId, targetObjId, damage, flags, x, y, z, List.of());
+		}
 
 		@Override
 		public byte[] encode() {
@@ -1750,7 +1982,15 @@ public sealed interface GameServerPacket {
 			w.writeD(x);
 			w.writeD(y);
 			w.writeD(z);
-			w.writeH(0); // hits extras = 0
+			int extraCount = extraHits != null ? extraHits.size() : 0;
+			w.writeH(extraCount);
+			if (extraHits != null) {
+				for (Hit h : extraHits) {
+					w.writeD(h.targetObjId());
+					w.writeD(h.damage());
+					w.writeC(h.flags());
+				}
+			}
 			return w.toByteArray();
 		}
 	}
@@ -2033,14 +2273,17 @@ public sealed interface GameServerPacket {
 
 	/** 0xfe:0x17 ExEnchantSkillList: lista de skills que podem ser encantados no trainer. */
 	record ExEnchantSkillList(List<SkillEntry> skills) implements GameServerPacket {
-		public record SkillEntry(int id, int nextLevel, int sp, int exp) {
+		public record SkillEntry(int id, int nextLevel, int sp, long exp) {
+			public SkillEntry(int id, int nextLevel, int sp, int exp) {
+				this(id, nextLevel, sp, (long) exp);
+			}
 		}
 
 		@Override
 		public byte[] encode() {
 			var w = new PacketWriter().writeC(0xfe).writeH(0x17).writeD(skills.size());
 			for (var s : skills) {
-				w.writeD(s.id()).writeD(s.nextLevel()).writeD(s.sp()).writeD(s.exp());
+				w.writeD(s.id()).writeD(s.nextLevel()).writeD(s.sp()).writeQ(s.exp());
 			}
 			return w.toByteArray();
 		}
@@ -2306,6 +2549,17 @@ public sealed interface GameServerPacket {
 			w.writeD(currentLoad).writeD(maxLoad);
 			w.writeD(0x28); // paperdoll start offset
 			writePaperdoll(w, paperdoll, ItemSlots.RHAND);
+			for (int slot : ItemSlots.VISIBLE_ORDER) {
+				int effSlot = (slot == ItemSlots.LRHAND) ? ItemSlots.RHAND : slot;
+				int augId = 0;
+				if (c.inventory() != null) {
+					var it = c.inventory().paperdoll(effSlot);
+					if (it != null && it.augmentation() != null) {
+						augId = it.augmentation().attributes();
+					}
+				}
+				w.writeD(augId);
+			}
 			w.writeD(stats.pAtk());
 			w.writeD(stats.pAtkSpd());
 			w.writeD(stats.pDef());
@@ -2340,20 +2594,62 @@ public sealed interface GameServerPacket {
 	}
 
 	/** 0x90 GMViewPledgeInfo: informacoes de clan para o GM. */
-	record GMViewPledgeInfo(String charName, int clanId, int level, int classId) implements GameServerPacket {
+	record GMViewPledgeInfo(String charName, int clanId, int level, int classId, com.lopez.l2j.game.clan.Clan clan) implements GameServerPacket {
+		public GMViewPledgeInfo(String charName, int clanId, int level, int classId) {
+			this(charName, clanId, level, classId, null);
+		}
+
+		public GMViewPledgeInfo(String charName, com.lopez.l2j.game.clan.Clan clan) {
+			this(charName, clan != null ? clan.clanId() : 0, clan != null ? clan.level() : 0, 0, clan);
+		}
+
 		@Override
 		public byte[] encode() {
 			PacketWriter w = new PacketWriter().writeC(0x90);
-			w.writeS(charName);
+			w.writeS(charName != null ? charName : "");
+			if (clan != null) {
+				int hideoutOrFort = clan.hideoutId() > 0 ? clan.hideoutId() : clan.fortId();
+				int atWar = invokeInt(clan, "isAtWar", invokeInt(clan, "atWar", 0));
+				w.writeD(clan.clanId());
+				w.writeD(0x00);
+				w.writeS(clan.name() != null ? clan.name() : "");
+				w.writeS(clan.leaderName() != null ? clan.leaderName() : "");
+				w.writeD(clan.crestId());
+				w.writeD(clan.level());
+				w.writeD(clan.castleId());
+				w.writeD(hideoutOrFort);
+				w.writeD(clan.rank());
+				w.writeD(clan.reputationScore());
+				w.writeD(0);
+				w.writeD(0);
+				w.writeD(clan.allyId());
+				w.writeS(clan.allyName() != null ? clan.allyName() : "");
+				w.writeD(clan.allyCrestId());
+				w.writeD(atWar);
+				var members = clan.members();
+				w.writeD(members != null ? members.size() : 0);
+				if (members != null) {
+					for (var m : members) {
+						w.writeS(m.name() != null ? m.name() : "");
+						w.writeD(m.level());
+						w.writeD(m.classId());
+						w.writeD(invokeInt(m, "sex", 0));
+						w.writeD(invokeInt(m, "race", 0));
+						w.writeD(m.isOnline() ? m.objectId() : 0);
+						w.writeD(invokeInt(m, "hasSponsor", 0));
+					}
+				}
+				return w.toByteArray();
+			}
 			w.writeD(clanId);
+			w.writeD(0x00);
 			w.writeS(clanId != 0 ? "Clan " + clanId : "");
-			w.writeS(charName);
-			w.writeD(0).writeD(0).writeD(0).writeD(0).writeD(0);
-			w.writeD(level);
-			w.writeD(0).writeD(0).writeD(0);
+			w.writeS(charName != null ? charName : "");
+			w.writeD(0).writeD(level).writeD(0).writeD(0).writeD(0);
+			w.writeD(0).writeD(0).writeD(0).writeD(0);
 			w.writeS("").writeD(0).writeD(0);
 			w.writeD(1); // 1 member
-			w.writeS(charName).writeD(level).writeD(classId).writeD(0).writeD(0).writeD(1);
+			w.writeS(charName != null ? charName : "").writeD(level).writeD(classId).writeD(0).writeD(0).writeD(1).writeD(0);
 			return w.toByteArray();
 		}
 	}
@@ -2381,10 +2677,23 @@ public sealed interface GameServerPacket {
 	}
 
 	/** 0x93 GMViewQuestInfo: lista de quests para o GM. */
-	record GMViewQuestInfo(String charName) implements GameServerPacket {
+	record GMViewQuestInfo(String charName, List<QuestList.QuestEntry> quests) implements GameServerPacket {
+		public GMViewQuestInfo(String charName) {
+			this(charName, List.of());
+		}
+
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0x93).writeS(charName).writeH(0).toByteArray();
+			PacketWriter w = new PacketWriter().writeC(0x93).writeS(charName != null ? charName : "");
+			int size = quests != null ? quests.size() : 0;
+			w.writeH(size);
+			if (quests != null) {
+				for (var q : quests) {
+					w.writeD(q.questId()).writeD(q.cond());
+				}
+			}
+			w.writeH(0); // quest items count
+			return w.toByteArray();
 		}
 	}
 
@@ -2410,19 +2719,34 @@ public sealed interface GameServerPacket {
 				w.writeD(t.bodyPart());
 				w.writeH(item.enchant());
 				w.writeH(item.customType2());
+				int augId = item.augmentation() != null ? item.augmentation().attributes() : 0;
+				w.writeD(augId);
+				w.writeD(item.mana());
 			}
 			return w.toByteArray();
 		}
 	}
 
 	/** 0xea GMHennaInfo: dyes/simbolos para a tela de inventario do GM. */
-	record GMHennaInfo(int intel, int str, int con, int men, int dex, int wit) implements GameServerPacket {
+	record GMHennaInfo(int intel, int str, int con, int men, int dex, int wit, int maxSlots, List<HennaInfo.EquippedSlot> slots)
+			implements GameServerPacket {
+		public GMHennaInfo(int intel, int str, int con, int men, int dex, int wit) {
+			this(intel, str, con, men, dex, wit, 3, List.of());
+		}
+
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xea)
+			PacketWriter w = new PacketWriter().writeC(0xea)
 					.writeC(intel).writeC(str).writeC(con).writeC(men).writeC(dex).writeC(wit)
-					.writeD(0)
-					.toByteArray();
+					.writeD(maxSlots);
+			int size = slots != null ? slots.size() : 0;
+			w.writeD(size);
+			if (slots != null) {
+				for (var s : slots) {
+					w.writeD(s.symbolId()).writeD(s.activeForClass() ? 1 : 0);
+				}
+			}
+			return w.toByteArray();
 		}
 	}
 
@@ -2442,12 +2766,17 @@ public sealed interface GameServerPacket {
 				w.writeD(t.displayId());
 				w.writeD(item.count());
 				w.writeH(t.type2());
-				w.writeH(0);
-				w.writeD(t.bodyPart());
-				w.writeH(item.enchant());
-				w.writeH(0);
-				w.writeH(0);
-				w.writeD(item.objectId());
+				w.writeH(item.customType1());
+				if (t.bodyPart() != 0) {
+					w.writeD(t.bodyPart());
+					w.writeH(item.enchant());
+					w.writeH(0);
+					w.writeH(0);
+					w.writeD(item.objectId());
+					int aug = item.augmentation() != null ? item.augmentation().attributes() : 0;
+					w.writeD(aug & 0x0000FFFF);
+					w.writeD(aug >>> 16);
+				}
 			}
 			return w.toByteArray();
 		}
@@ -2523,12 +2852,14 @@ public sealed interface GameServerPacket {
 	record PledgeShowInfoUpdate(com.lopez.l2j.game.clan.Clan clan) implements GameServerPacket {
 		@Override
 		public byte[] encode() {
+			int hideoutOrFort = clan.hideoutId() > 0 ? clan.hideoutId() : clan.fortId();
+			int atWar = invokeInt(clan, "isAtWar", invokeInt(clan, "atWar", 0));
 			return new PacketWriter().writeC(0x88)
 					.writeD(clan.clanId())
 					.writeD(clan.crestId())
 					.writeD(clan.level())
 					.writeD(clan.castleId())
-					.writeD(clan.fortId())
+					.writeD(hideoutOrFort)
 					.writeD(clan.rank())
 					.writeD(clan.reputationScore())
 					.writeD(0)
@@ -2536,24 +2867,31 @@ public sealed interface GameServerPacket {
 					.writeD(clan.allyId())
 					.writeS(clan.allyName() != null ? clan.allyName() : "")
 					.writeD(clan.allyCrestId())
-					.writeD(0)
+					.writeD(atWar)
 					.toByteArray();
 		}
 	}
 
 	/** 0x53 PledgeShowMemberListAll: lista completa de membros do cla */
 	record PledgeShowMemberListAll(com.lopez.l2j.game.clan.Clan clan, int subPledge) implements GameServerPacket {
+		public PledgeShowMemberListAll(com.lopez.l2j.game.clan.Clan clan) {
+			this(clan, 0);
+		}
+
 		@Override
 		public byte[] encode() {
+			int hideoutOrFort = clan.hideoutId() > 0 ? clan.hideoutId() : clan.fortId();
+			int atWar = invokeInt(clan, "isAtWar", invokeInt(clan, "atWar", 0));
 			var w = new PacketWriter().writeC(0x53)
-					.writeD(subPledge)
+					.writeD(subPledge == 0 ? 0 : 1)
 					.writeD(clan.clanId())
+					.writeD(subPledge)
 					.writeS(clan.name())
 					.writeS(clan.leaderName() != null ? clan.leaderName() : "")
 					.writeD(clan.crestId())
 					.writeD(clan.level())
 					.writeD(clan.castleId())
-					.writeD(clan.fortId())
+					.writeD(hideoutOrFort)
 					.writeD(clan.rank())
 					.writeD(clan.reputationScore())
 					.writeD(0)
@@ -2561,24 +2899,31 @@ public sealed interface GameServerPacket {
 					.writeD(clan.allyId())
 					.writeS(clan.allyName() != null ? clan.allyName() : "")
 					.writeD(clan.allyCrestId())
-					.writeD(0)
+					.writeD(atWar)
 					.writeD(clan.membersCount());
 
 			for (var m : clan.members()) {
+				int memberPledgeType = invokeInt(m, "pledgeType", subPledge);
+				int hasSponsor = invokeInt(m, "hasSponsor", invokeInt(m, "sponsor", 0) != 0 ? 1 : 0);
 				w.writeS(m.name())
 				 .writeD(m.level())
 				 .writeD(m.classId())
-				 .writeD(0)
-				 .writeD(0)
-				 .writeD(m.isOnline() ? 1 : 0)
-				 .writeD(0);
+				 .writeD(invokeInt(m, "sex", 0))
+				 .writeD(invokeInt(m, "race", 0))
+				 .writeD(m.isOnline() ? (m.objectId() != 0 ? m.objectId() : 1) : 0)
+				 .writeD(hasSponsor != 0 ? hasSponsor : memberPledgeType);
 			}
 			return w.toByteArray();
 		}
 	}
 
 	/** 0x54 PledgeShowMemberListUpdate: atualiza um unico membro na lista */
-	record PledgeShowMemberListUpdate(String charName, int level, int classId, boolean online) implements GameServerPacket {
+	record PledgeShowMemberListUpdate(String charName, int level, int classId, boolean online, int objectId, int pledgeType, int hasSponsor)
+			implements GameServerPacket {
+		public PledgeShowMemberListUpdate(String charName, int level, int classId, boolean online) {
+			this(charName, level, classId, online, 0, 0, 0);
+		}
+
 		@Override
 		public byte[] encode() {
 			return new PacketWriter().writeC(0x54)
@@ -2586,9 +2931,10 @@ public sealed interface GameServerPacket {
 					.writeD(level)
 					.writeD(classId)
 					.writeD(0)
-					.writeD(0)
-					.writeD(online ? 1 : 0)
-					.writeD(0)
+					.writeD(objectId)
+					.writeD(online ? (objectId != 0 ? objectId : 1) : 0)
+					.writeD(pledgeType)
+					.writeD(hasSponsor)
 					.toByteArray();
 		}
 	}
@@ -2893,7 +3239,12 @@ public sealed interface GameServerPacket {
 	}
 
 	/** Item listado a venda na loja de um jogador. */
-	record PrivateStoreItem(int objectId, int itemId, int count, int price, int bodyPart, int enchant) {}
+	record PrivateStoreItem(int objectId, int itemId, int count, int price, int bodyPart, int enchant,
+			int type2, int customType1, int augment, int storePrice) {
+		public PrivateStoreItem(int objectId, int itemId, int count, int price, int bodyPart, int enchant) {
+			this(objectId, itemId, count, price, bodyPart, enchant, 0, 0, 0, price);
+		}
+	}
 
 	/** 0x9c PrivateStoreMsgSell: titulo da loja pessoal de venda sobre a cabeca do personagem. */
 	record PrivateStoreMsgSell(int objectId, String storeMsg) implements GameServerPacket {
@@ -2909,17 +3260,16 @@ public sealed interface GameServerPacket {
 		public byte[] encode() {
 			PacketWriter w = new PacketWriter().writeC(0x9b).writeD(sellerId).writeD(packageSale ? 1 : 0).writeD(buyerAdena).writeD(items.size());
 			for (var item : items) {
-				w.writeD(0); // type2
+				w.writeD(item.type2()); // type2
 				w.writeD(item.objectId());
 				w.writeD(item.itemId());
 				w.writeD(item.count());
 				w.writeH(0);
-				w.writeH(item.bodyPart());
 				w.writeH(item.enchant());
-				w.writeD(0); // customType1
-				w.writeD(0); // augment
+				w.writeH(item.customType1());
+				w.writeD(item.bodyPart());
 				w.writeD(item.price()); // price
-				w.writeD(0); // storePrice
+				w.writeD(item.storePrice() > 0 ? item.storePrice() : item.price()); // storePrice
 			}
 			return w.toByteArray();
 		}
@@ -2932,30 +3282,28 @@ public sealed interface GameServerPacket {
 			PacketWriter w = new PacketWriter().writeC(0x9a).writeD(sellerId).writeD(packageSale ? 1 : 0).writeD(sellerAdena);
 			w.writeD(available.size());
 			for (var item : available) {
-				w.writeD(0); // type2
+				w.writeD(item.type2()); // type2
 				w.writeD(item.objectId());
 				w.writeD(item.itemId());
 				w.writeD(item.count());
 				w.writeH(0);
-				w.writeH(item.bodyPart());
 				w.writeH(item.enchant());
-				w.writeD(0);
-				w.writeD(0);
+				w.writeH(item.customType1());
+				w.writeD(item.bodyPart());
 				w.writeD(item.price());
 			}
 			w.writeD(current.size());
 			for (var item : current) {
-				w.writeD(0);
+				w.writeD(item.type2());
 				w.writeD(item.objectId());
 				w.writeD(item.itemId());
 				w.writeD(item.count());
 				w.writeH(0);
-				w.writeH(item.bodyPart());
 				w.writeH(item.enchant());
-				w.writeD(0);
-				w.writeD(0);
+				w.writeH(item.customType1());
+				w.writeD(item.bodyPart());
 				w.writeD(item.price());
-				w.writeD(0);
+				w.writeD(item.storePrice() > 0 ? item.storePrice() : item.price());
 			}
 			return w.toByteArray();
 		}
@@ -3033,6 +3381,10 @@ public sealed interface GameServerPacket {
 
 	/** 0xfe:0x57 ExVariationCancelResult: resultado da remocao de augmentacao (1=sucesso). */
 	record ExVariationCancelResult(int result) implements GameServerPacket {
+		public ExVariationCancelResult(int unk, int result) {
+			this(result);
+		}
+
 		@Override
 		public byte[] encode() {
 			return new PacketWriter().writeC(0xfe).writeH(0x57)
@@ -3269,6 +3621,10 @@ public sealed interface GameServerPacket {
 
 	/** 0x20 TradeOwnAdd: adiciona item na propria metade da janela de troca. */
 	record TradeOwnAdd(ItemInstance item, int count) implements GameServerPacket {
+		public TradeOwnAdd(ItemInstance item) {
+			this(item, item != null ? item.count() : 0);
+		}
+
 		@Override
 		public byte[] encode() {
 			var t = item.template();
@@ -3289,6 +3645,10 @@ public sealed interface GameServerPacket {
 
 	/** 0x21 TradeOtherAdd: adiciona item na metade do parceiro da janela de troca. */
 	record TradeOtherAdd(ItemInstance item, int count) implements GameServerPacket {
+		public TradeOtherAdd(ItemInstance item) {
+			this(item, item != null ? item.count() : 0);
+		}
+
 		@Override
 		public byte[] encode() {
 			var t = item.template();
@@ -3406,19 +3766,25 @@ public sealed interface GameServerPacket {
 	}
 
 	/** 0xc9 SiegeInfo: exibe informacoes da Siege do castelo. */
-	record SiegeInfo(int castleId, int ownerClanId, String castleName, String ownerName, String leaderName, int siegeTimeSeconds) implements GameServerPacket {
+	record SiegeInfo(int castleId, int ownerClanId, String castleName, String ownerName, String leaderName,
+			int allyId, String allyName, String allyLeaderName, int siegeTimeSeconds, boolean isOwnerLeader) implements GameServerPacket {
+		public SiegeInfo(int castleId, int ownerClanId, String castleName, String ownerName, String leaderName, int siegeTimeSeconds) {
+			this(castleId, ownerClanId, castleName, ownerName, leaderName, 0, "", "", siegeTimeSeconds, false);
+		}
+
 		@Override
 		public byte[] encode() {
 			PacketWriter w = new PacketWriter().writeC(0xc9);
 			w.writeD(castleId);
-			w.writeD(ownerClanId > 0 ? 1 : 0);
+			w.writeD(isOwnerLeader ? 1 : (ownerClanId > 0 ? 1 : 0));
 			w.writeD(ownerClanId);
 			w.writeS(castleName != null ? castleName : "Castle");
 			if (ownerClanId > 0) {
 				w.writeS(ownerName != null ? ownerName : "");
 				w.writeS(leaderName != null ? leaderName : "");
-				w.writeD(0);
-				w.writeS("");
+				w.writeD(allyId);
+				w.writeS(allyName != null ? allyName : "");
+				w.writeS(allyLeaderName != null ? allyLeaderName : "");
 			}
 			w.writeD((int) (System.currentTimeMillis() / 1000L));
 			w.writeD(siegeTimeSeconds);
@@ -3428,7 +3794,13 @@ public sealed interface GameServerPacket {
 	}
 
 	/** 0xca SiegeAttackerList: lista de clas atacantes registrados na Siege. */
-	record SiegeAttackerList(int castleId, List<Integer> clanIds, List<String> clanNames, List<String> leaderNames) implements GameServerPacket {
+	record SiegeAttackerList(int castleId, List<Integer> clanIds, List<String> clanNames, List<String> leaderNames,
+			List<Integer> crestIds, List<Integer> allyIds, List<String> allyNames, List<String> allyLeaderNames, List<Integer> allyCrestIds)
+			implements GameServerPacket {
+		public SiegeAttackerList(int castleId, List<Integer> clanIds, List<String> clanNames, List<String> leaderNames) {
+			this(castleId, clanIds, clanNames, leaderNames, List.of(), List.of(), List.of(), List.of(), List.of());
+		}
+
 		@Override
 		public byte[] encode() {
 			int size = clanIds != null ? clanIds.size() : 0;
@@ -3437,19 +3809,25 @@ public sealed interface GameServerPacket {
 				w.writeD(clanIds.get(i));
 				w.writeS(clanNames != null && i < clanNames.size() ? clanNames.get(i) : "");
 				w.writeS(leaderNames != null && i < leaderNames.size() ? leaderNames.get(i) : "");
+				w.writeD(crestIds != null && i < crestIds.size() ? crestIds.get(i) : 0);
 				w.writeD(0);
-				w.writeD(0);
-				w.writeD(0);
-				w.writeS("");
-				w.writeS("");
-				w.writeD(0);
+				w.writeD(allyIds != null && i < allyIds.size() ? allyIds.get(i) : 0);
+				w.writeS(allyNames != null && i < allyNames.size() ? allyNames.get(i) : "");
+				w.writeS(allyLeaderNames != null && i < allyLeaderNames.size() ? allyLeaderNames.get(i) : "");
+				w.writeD(allyCrestIds != null && i < allyCrestIds.size() ? allyCrestIds.get(i) : 0);
 			}
 			return w.toByteArray();
 		}
 	}
 
 	/** 0xcb SiegeDefenderList: lista de clas defensores registrados na Siege. */
-	record SiegeDefenderList(int castleId, List<Integer> clanIds, List<String> clanNames, List<String> leaderNames) implements GameServerPacket {
+	record SiegeDefenderList(int castleId, List<Integer> clanIds, List<String> clanNames, List<String> leaderNames,
+			List<Integer> crestIds, List<Integer> types, List<Integer> allyIds, List<String> allyNames, List<String> allyLeaderNames, List<Integer> allyCrestIds)
+			implements GameServerPacket {
+		public SiegeDefenderList(int castleId, List<Integer> clanIds, List<String> clanNames, List<String> leaderNames) {
+			this(castleId, clanIds, clanNames, leaderNames, List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+		}
+
 		@Override
 		public byte[] encode() {
 			int size = clanIds != null ? clanIds.size() : 0;
@@ -3458,39 +3836,49 @@ public sealed interface GameServerPacket {
 				w.writeD(clanIds.get(i));
 				w.writeS(clanNames != null && i < clanNames.size() ? clanNames.get(i) : "");
 				w.writeS(leaderNames != null && i < leaderNames.size() ? leaderNames.get(i) : "");
+				w.writeD(crestIds != null && i < crestIds.size() ? crestIds.get(i) : 0);
 				w.writeD(0);
-				w.writeD(0);
-				w.writeD(1); // approved defender
-				w.writeD(0);
-				w.writeS("");
-				w.writeS("");
-				w.writeD(0);
+				w.writeD(types != null && i < types.size() ? types.get(i) : 1); // 1=owner, 2=waiting, 3=approved, 4=rejected
+				w.writeD(allyIds != null && i < allyIds.size() ? allyIds.get(i) : 0);
+				w.writeS(allyNames != null && i < allyNames.size() ? allyNames.get(i) : "");
+				w.writeS(allyLeaderNames != null && i < allyLeaderNames.size() ? allyLeaderNames.get(i) : "");
+				w.writeD(allyCrestIds != null && i < allyCrestIds.size() ? allyCrestIds.get(i) : 0);
 			}
 			return w.toByteArray();
 		}
 	}
 
 	/** 0xc4 Earthquake: efeito de terremoto de camera no cliente (Grand Bosses). */
-	record Earthquake(int x, int y, int z, int intensity, int duration) implements GameServerPacket {
+	record Earthquake(int x, int y, int z, int intensity, int duration, int isNpc) implements GameServerPacket {
+		public Earthquake(int x, int y, int z, int intensity, int duration) {
+			this(x, y, z, intensity, duration, 0);
+		}
+
+		public Earthquake(int x, int y, int z, int intensity) {
+			this(x, y, z, intensity, 10, 0);
+		}
+
 		@Override
 		public byte[] encode() {
 			return new PacketWriter().writeC(0xc4)
 					.writeD(x).writeD(y).writeD(z)
-					.writeD(intensity).writeD(duration).writeD(0)
+					.writeD(intensity).writeD(duration).writeD(isNpc)
 					.toByteArray();
 		}
 	}
 
 	/** 0xc7 SpecialCamera: cutscene cinematografica de Grand Boss (Antharas, Valakas, Baium, Frintezza). */
-	record SpecialCamera(int id, int dist, int yaw, int pitch, int time, int duration) implements GameServerPacket {
-		public SpecialCamera(int id, int dist, int yaw, int pitch, int time, int duration, int turn, int rise, int widescreen, int unk) {
-			this(id, dist, yaw, pitch, time, duration);
+	record SpecialCamera(int id, int dist, int yaw, int pitch, int time, int duration, int turn, int rise, int widescreen, int unk)
+			implements GameServerPacket {
+		public SpecialCamera(int id, int dist, int yaw, int pitch, int time, int duration) {
+			this(id, dist, yaw, pitch, time, duration, 0, 0, 1, 0);
 		}
 
 		@Override
 		public byte[] encode() {
 			return new PacketWriter().writeC(0xc7)
 					.writeD(id).writeD(dist).writeD(yaw).writeD(pitch).writeD(time).writeD(duration)
+					.writeD(turn).writeD(rise).writeD(widescreen).writeD(unk)
 					.toByteArray();
 		}
 	}
@@ -3525,8 +3913,25 @@ public sealed interface GameServerPacket {
 
 	/** 0xfe:0x38 ExShowScreenMessage: exibe mensagem grande na tela do cliente. */
 	record ExShowScreenMessage(int type, int sysMessageId, int position, int unk1, int size, int unk2, int unk3, boolean showEffect, int time, boolean fade, String text) implements GameServerPacket {
+		public static final int TOP_LEFT = 1;
+		public static final int TOP_CENTER = 2;
+		public static final int TOP_RIGHT = 3;
+		public static final int MIDDLE_LEFT = 4;
+		public static final int MIDDLE_CENTER = 5;
+		public static final int MIDDLE_RIGHT = 6;
+		public static final int BOTTOM_CENTER = 7;
+		public static final int BOTTOM_RIGHT = 8;
+
 		public ExShowScreenMessage(String text, int time) {
-			this(1, -1, 2, 0, 0, 0, 0, false, time, false, text);
+			this(1, -1, TOP_CENTER, 0, 0, 0, 0, false, time, false, text);
+		}
+
+		public ExShowScreenMessage(String text, int time, int position, boolean showEffect) {
+			this(1, -1, position, 0, 0, 0, 0, showEffect, time, false, text);
+		}
+
+		public ExShowScreenMessage(int type, int sysMessageId, int position, boolean showEffect, int time, boolean fade, String text) {
+			this(type, sysMessageId, position, 0, 0, 0, 0, showEffect, time, fade, text);
 		}
 
 		@Override
@@ -3540,17 +3945,39 @@ public sealed interface GameServerPacket {
 	}
 
 	/** 0xed ConfirmDlg: caixa de confirmacao retail (ressurreicao=1510, summon friend=1842, casamento=1983). */
-	record ConfirmDlg(int messageId, String requestorName, int time, int requesterId) implements GameServerPacket {
+	record ConfirmDlg(int messageId, String requestorName, int time, int requesterId, List<SystemMessage.Param> params) implements GameServerPacket {
+		public ConfirmDlg(int messageId, String requestorName, int time, int requesterId) {
+			this(messageId, requestorName, time, requesterId,
+					List.of(new SystemMessage.Text(requestorName != null ? requestorName : "")));
+		}
+
+		public ConfirmDlg(int messageId, String requestorName) {
+			this(messageId, requestorName, 15000, 0);
+		}
+
+		public ConfirmDlg(int messageId, int time, int requesterId, List<SystemMessage.Param> params) {
+			this(messageId, "", time, requesterId, params != null ? List.copyOf(params) : List.of());
+		}
+
 		@Override
 		public byte[] encode() {
-			return new PacketWriter().writeC(0xed)
-					.writeD(messageId)
-					.writeD(1)
-					.writeD(0) // TYPE_TEXT
-					.writeS(requestorName != null ? requestorName : "")
-					.writeD(time)
-					.writeD(requesterId)
-					.toByteArray();
+			PacketWriter w = new PacketWriter().writeC(0xed).writeD(messageId);
+			List<SystemMessage.Param> effParams = (params != null && !params.isEmpty())
+					? params
+					: List.of(new SystemMessage.Text(requestorName != null ? requestorName : ""));
+			w.writeD(effParams.size());
+			for (SystemMessage.Param p : effParams) {
+				switch (p) {
+					case SystemMessage.Text t -> w.writeD(0).writeS(t.value() != null ? t.value() : "");
+					case SystemMessage.Number n -> w.writeD(1).writeD(n.value());
+					case SystemMessage.NpcName n -> w.writeD(2).writeD(1_000_000 + n.npcId());
+					case SystemMessage.ItemName i -> w.writeD(3).writeD(i.itemId());
+					case SystemMessage.SkillName s -> w.writeD(4).writeD(s.skillId()).writeD(s.level());
+				}
+			}
+			w.writeD(time);
+			w.writeD(requesterId);
+			return w.toByteArray();
 		}
 	}
 
@@ -3690,6 +4117,19 @@ public sealed interface GameServerPacket {
 
 	/** 0xce RelationChanged: atualiza relacao de PvP/Guerra/Cerco sobre outro personagem. */
 	record RelationChanged(int objId, int relation, boolean autoAttackable, int karma, int pvpFlag) implements GameServerPacket {
+		public static final int RELATION_PVP_FLAG = 0x00002;
+		public static final int RELATION_HAS_KARMA = 0x00004;
+		public static final int RELATION_LEADER = 0x00080;
+		public static final int RELATION_INSIEGE = 0x00200;
+		public static final int RELATION_ATTACKER = 0x00400;
+		public static final int RELATION_ALLY = 0x00800;
+		public static final int RELATION_ENEMY = 0x01000;
+		public static final int RELATION_MUTUAL_WAR = 0x08000;
+		public static final int RELATION_1SIDED_WAR = 0x10000;
+		public static final int RELATION_HAS_PARTY = 0x00008;
+		public static final int RELATION_PARTYLEADER = 0x00010;
+		public static final int RELATION_CLAN_MEMBER = 0x00040;
+
 		@Override
 		public byte[] encode() {
 			return new PacketWriter().writeC(0xce)
@@ -4323,7 +4763,12 @@ public sealed interface GameServerPacket {
 		}
 	}
 
-	record WarehouseItem(int type1, int objectId, int itemId, int count, int type2, int bodyPart, int enchantLevel) {}
+	record WarehouseItem(int type1, int objectId, int itemId, int count, int type2, int bodyPart, int enchantLevel,
+			int customType1, int customType2, int augmentationId) {
+		public WarehouseItem(int type1, int objectId, int itemId, int count, int type2, int bodyPart, int enchantLevel) {
+			this(type1, objectId, itemId, count, type2, bodyPart, enchantLevel, 0, 0, 0);
+		}
+	}
 
 	/** 0xC3 PackageSendableList: lista de itens enviaveis via Freight para outro personagem da conta. */
 	record PackageSendableList(int playerObjId, int adena, List<WarehouseItem> items) implements GameServerPacket {
@@ -4341,12 +4786,14 @@ public sealed interface GameServerPacket {
 					 .writeD(it.itemId())
 					 .writeD(it.count())
 					 .writeH(it.type2())
-					 .writeH(0x00)
+					 .writeH(it.customType1())
 					 .writeD(it.bodyPart())
 					 .writeH(it.enchantLevel())
+					 .writeH(it.customType2())
 					 .writeH(0x00)
-					 .writeH(0x00)
-					 .writeD(it.objectId());
+					 .writeD(it.objectId())
+					 .writeD(it.augmentationId() & 0x0000FFFF)
+					 .writeD(it.augmentationId() >>> 16);
 				}
 			}
 			return w.toByteArray();
@@ -4506,14 +4953,43 @@ public sealed interface GameServerPacket {
 		}
 	}
 
+	/** Corredor da Monster Race Track. */
+	record MonRaceRunner(int objectId, int npcId, String name, int x, int y, int z, int destX, int destY, int destZ,
+			double collisionHeight, double collisionRadius, int[] speeds) {
+	}
+
 	/** 0xDD MonRaceInfo: informacoes dos corredores da Monster Race Track. */
-	record MonRaceInfo(int unknown1, int unknown2) implements GameServerPacket {
+	record MonRaceInfo(int unknown1, int unknown2, List<MonRaceRunner> runners) implements GameServerPacket {
+		public MonRaceInfo(int unknown1, int unknown2) {
+			this(unknown1, unknown2, List.of());
+		}
+
 		@Override
 		public byte[] encode() {
+			int size = runners != null ? runners.size() : 0;
 			PacketWriter w = new PacketWriter().writeC(0xdd)
 					.writeD(unknown1)
 					.writeD(unknown2)
-					.writeD(0);
+					.writeD(size);
+			if (runners != null) {
+				for (int i = 0; i < size; i++) {
+					MonRaceRunner r = runners.get(i);
+					w.writeD(r.objectId())
+					 .writeD(r.npcId() + 1000000)
+					 .writeD(r.x()).writeD(r.y()).writeD(r.z())
+					 .writeD(r.destX()).writeD(r.destY()).writeD(r.destZ())
+					 .writeF(r.collisionHeight()).writeF(r.collisionRadius())
+					 .writeD(120);
+					for (int j = 0; j < 20; j++) {
+						if (unknown1 == 0) {
+							w.writeC(r.speeds() != null && j < r.speeds().length ? r.speeds()[j] : 0);
+						} else {
+							w.writeC(0);
+						}
+					}
+					w.writeD(0);
+				}
+			}
 			return w.toByteArray();
 		}
 	}
@@ -4528,6 +5004,7 @@ public sealed interface GameServerPacket {
 					.writeD(z)
 					.writeC(0x00)
 					.writeC(0xc0)
+					.writeC(0x00)
 					.writeC(0x00)
 					.toByteArray();
 		}
@@ -4584,16 +5061,24 @@ public sealed interface GameServerPacket {
 	}
 
 	/** Colheita disponivel para venda no Manor. */
-	record ProcureSellEntry(int type1, int objectId, int itemId, int count, int type2) {}
+	record ProcureSellEntry(int type1, int objectId, int itemId, int count, int type2, int price) {
+		public ProcureSellEntry(int type1, int objectId, int itemId, int count, int type2) {
+			this(type1, objectId, itemId, count, type2, 0);
+		}
+	}
 
 	/** 0xE9 SellListProcure: lista de colheitas para entrega no Manor. */
-	record SellListProcure(int money, List<ProcureSellEntry> sellList) implements GameServerPacket {
+	record SellListProcure(int money, int castleId, List<ProcureSellEntry> sellList) implements GameServerPacket {
+		public SellListProcure(int money, List<ProcureSellEntry> sellList) {
+			this(money, 0, sellList);
+		}
+
 		@Override
 		public byte[] encode() {
 			int size = sellList != null ? sellList.size() : 0;
 			PacketWriter w = new PacketWriter().writeC(0xe9)
 					.writeD(money)
-					.writeD(0x00)
+					.writeD(castleId)
 					.writeH(size);
 			if (sellList != null) {
 				for (ProcureSellEntry it : sellList) {
@@ -4603,7 +5088,7 @@ public sealed interface GameServerPacket {
 					 .writeD(it.count())
 					 .writeH(it.type2())
 					 .writeH(0x00)
-					 .writeD(0x00);
+					 .writeD(it.price());
 				}
 			}
 			return w.toByteArray();
@@ -5450,6 +5935,65 @@ public sealed interface GameServerPacket {
 		@Override
 		public byte[] encode() {
 			return new PacketWriter().writeC(0xfe).writeH(0x8b).toByteArray();
+		}
+	}
+
+	/** 0xFB L2Friend: adiciona ou remove um amigo individualmente na interface. */
+	record L2Friend(boolean add, int friendObjId, String friendName, boolean isOnline) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfb)
+					.writeD(add ? 1 : 3)
+					.writeD(friendObjId)
+					.writeS(friendName != null ? friendName : "")
+					.writeD(isOnline ? 1 : 0)
+					.writeD(isOnline ? friendObjId : 0)
+					.toByteArray();
+		}
+	}
+
+	/** 0xFD FriendRecvMsg: mensagem privada na janela de amigos (alias de L2FriendSay). */
+	record FriendRecvMsg(String sender, String receiver, String message) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfd)
+					.writeD(0)
+					.writeS(receiver != null ? receiver : "")
+					.writeS(sender != null ? sender : "")
+					.writeS(message != null ? message : "")
+					.toByteArray();
+		}
+	}
+
+	/** 0xFE:0x01 ExRegenMax: taxa e duracao de regeneracao de pocao (alias de ExRegMax). */
+	record ExRegenMax(int count, int time, double max) implements GameServerPacket {
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x01)
+					.writeD(1)
+					.writeD(count)
+					.writeD(time)
+					.writeF(max)
+					.toByteArray();
+		}
+	}
+
+	/** 0xFE:0x44 ExCaptureOrc: pacote especial de captura Orc (alias de ExOrcMove). */
+	record ExCaptureOrc() implements GameServerPacket {
+		private static final byte[] STATIC_DATA = new byte[] {
+				(byte) 0xE4, (byte) 0xAB, (byte) 0x8E, (byte) 0xC5, (byte) 0xE9, (byte) 0xF9, (byte) 0x86, (byte) 0x7B,
+				(byte) 0x9E, (byte) 0x5D, (byte) 0x83, (byte) 0x14, (byte) 0x05, (byte) 0xD4, (byte) 0x48, (byte) 0x01,
+				(byte) 0xCD, (byte) 0xA2, (byte) 0x8D, (byte) 0x90, (byte) 0x62, (byte) 0x8C, (byte) 0xDA, (byte) 0x32,
+				(byte) 0x7B, (byte) 0x1B, (byte) 0x87, (byte) 0x6D, (byte) 0x08, (byte) 0xC4, (byte) 0xE1, (byte) 0x56,
+				(byte) 0x9B, (byte) 0x3B, (byte) 0xC3, (byte) 0x40, (byte) 0xDF, (byte) 0xE8, (byte) 0xD7, (byte) 0xE1,
+				(byte) 0x98, (byte) 0x38, (byte) 0x1C, (byte) 0xA5, (byte) 0x8E, (byte) 0x45, (byte) 0x3F, (byte) 0xF2,
+				(byte) 0x5E, (byte) 0x1C, (byte) 0x59, (byte) 0x8E, (byte) 0x74, (byte) 0x01, (byte) 0x9E, (byte) 0xC2,
+				(byte) 0x00, (byte) 0x95, (byte) 0xB0, (byte) 0x1D, (byte) 0x87, (byte) 0xED, (byte) 0x9C, (byte) 0x8A
+		};
+
+		@Override
+		public byte[] encode() {
+			return new PacketWriter().writeC(0xfe).writeH(0x44).writeB(STATIC_DATA).toByteArray();
 		}
 	}
 }
