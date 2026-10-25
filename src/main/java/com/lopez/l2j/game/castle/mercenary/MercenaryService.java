@@ -275,13 +275,35 @@ public class MercenaryService {
 	}
 
 	/**
-	 * Converte o ID do item de bilhete de mercenario para o respectivo template de NPC de guarda.
+	 * Converte o ID do item de bilhete de mercenario para o respectivo template de NPC de guarda (#391).
 	 */
 	public int resolveNpcIdFromTicket(int ticketItemId) {
-		// No Interlude, bilhetes variam de 3960-3972 (Gludio), 4400-4415 (Dion), etc.
-		// Mapeamento padrao de template de guarda de cerco
-		if (ticketItemId >= 3960 && ticketItemId <= 3975) {
-			return 35010 + (ticketItemId - 3960);
+		if (ticketItemId >= 3960 && ticketItemId <= 3972) {
+			return 35010 + (ticketItemId - 3960); // Gludio
+		}
+		if (ticketItemId >= 3973 && ticketItemId <= 3985) {
+			return 35020 + (ticketItemId - 3973); // Dion
+		}
+		if (ticketItemId >= 3986 && ticketItemId <= 3998) {
+			return 35030 + (ticketItemId - 3986); // Giran
+		}
+		if (ticketItemId >= 3999 && ticketItemId <= 4011) {
+			return 35040 + (ticketItemId - 3999); // Oren
+		}
+		if (ticketItemId >= 4012 && ticketItemId <= 4026) {
+			return 35050 + (ticketItemId - 4012); // Aden
+		}
+		if (ticketItemId >= 5205 && ticketItemId <= 5217) {
+			return 35065 + (ticketItemId - 5205); // Innadril
+		}
+		if (ticketItemId >= 6019 && ticketItemId <= 6032) {
+			return 35080 + (ticketItemId - 6019); // Goddard
+		}
+		if (ticketItemId >= 6301 && ticketItemId <= 6312) {
+			return 35095 + (ticketItemId - 6301); // Rune
+		}
+		if (ticketItemId >= 7998 && ticketItemId <= 8029) {
+			return 35500 + (ticketItemId - 7998); // Schuttgart / Dawn / Dusk Mercenaries
 		}
 		return 35010; // Fallback padrao: Siege Guard
 	}
