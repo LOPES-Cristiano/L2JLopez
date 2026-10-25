@@ -52,6 +52,20 @@ public final class PathFind {
 		}
 	}
 
+	private static final class SearchBuffers {
+		final PriorityQueue<Node> openSet = new PriorityQueue<>();
+		final Map<Long, Double> bestG = new HashMap<>();
+		final Set<Long> closedSet = new HashSet<>();
+
+		void clear() {
+			openSet.clear();
+			bestG.clear();
+			closedSet.clear();
+		}
+	}
+
+	private static final ThreadLocal<SearchBuffers> BUFFERS = ThreadLocal.withInitial(SearchBuffers::new);
+
 	/**
 	 * Executa busca A* entre a origem e o destino, retornando a lista de waypoints [x, y, z].
 	 */
@@ -95,9 +109,12 @@ public final class PathFind {
 			configuredMaxSteps = Math.max(configuredMaxSteps, DEFAULT_MAX_ITERATIONS * 2);
 		}
 		int limit = maxIterations > 0 ? maxIterations : Math.max(DEFAULT_MAX_ITERATIONS, configuredMaxSteps);
-		PriorityQueue<Node> openSet = new PriorityQueue<>();
-		Map<Long, Double> bestG = new HashMap<>();
-		Set<Long> closedSet = new HashSet<>();
+
+		SearchBuffers bufs = BUFFERS.get();
+		bufs.clear();
+		PriorityQueue<Node> openSet = bufs.openSet;
+		Map<Long, Double> bestG = bufs.bestG;
+		Set<Long> closedSet = bufs.closedSet;
 
 		Node startNode = new Node(startGx, startGy, startZ, 0.0, heuristic(startGx, startGy, targetGx, targetGy), null);
 		openSet.add(startNode);
@@ -144,13 +161,15 @@ public final class PathFind {
 
 				int nextWorldX = (nx << 4) + 8;
 				int nextWorldY = (ny << 4) + 8;
-				short nextZ = engine.getHeight(nextWorldX, nextWorldY, current.z);
+				int packed = engine.getHeightAndNSWE(nextWorldX, nextWorldY, current.z);
+				short nextZ = GeoEngine.unpackHeight(packed);
+				byte nextNswe = GeoEngine.unpackNSWE(packed);
 
 				if (!canStep(engine, curWorldX, curWorldY, current.z, nextWorldX, nextWorldY, nextZ)) {
 					continue;
 				}
 
-				// Para movimento diagonal, evita cortar quinas de paredes/portas
+				// Para movimento diagonal, evita cortar quinas de paredes/portas (2-way L-corner verification)
 				if (dir >= 4) {
 					int side1X = ((current.gx + DX[dir]) << 4) + 8;
 					int side1Y = (current.gy << 4) + 8;
@@ -159,12 +178,18 @@ public final class PathFind {
 					int side2Y = ((current.gy + DY[dir]) << 4) + 8;
 					short side2Z = engine.getHeight(side2X, side2Y, current.z);
 					if (!canStep(engine, curWorldX, curWorldY, current.z, side1X, side1Y, side1Z)
-							|| !canStep(engine, curWorldX, curWorldY, current.z, side2X, side2Y, side2Z)) {
+							|| !canStep(engine, curWorldX, curWorldY, current.z, side2X, side2Y, side2Z)
+							|| !canStep(engine, side1X, side1Y, side1Z, nextWorldX, nextWorldY, nextZ)
+							|| !canStep(engine, side2X, side2Y, side2Z, nextWorldX, nextWorldY, nextZ)) {
 						continue;
 					}
 				}
 
 				double stepCost = (dir >= 4) ? 1.41421356 : 1.0;
+				// Penalidade adicional para celulas encostadas em paredes ou com desnivel acentuado
+				if (nextNswe != GeoEngine.NSWE_ALL || Math.abs(nextZ - current.z) > 16) {
+					stepCost += 0.5;
+				}
 				double tentativeG = current.g + stepCost;
 				Double existingG = bestG.get(nKey);
 				if (existingG == null || tentativeG < existingG) {
@@ -179,7 +204,45 @@ public final class PathFind {
 			return Collections.emptyList();
 		}
 
-		return reconstructWaypoints(reached, targetX, targetY, targetZ);
+		List<int[]> rawWaypoints = reconstructWaypoints(reached, targetX, targetY, targetZ);
+		return cleanPath(engine, startX, startY, startZ, rawWaypoints);
+	}
+
+	/**
+	 * Pos-processamento String-Pulling (cleanPath): simplifica segmentos intermediarios redundantes
+	 * verificando linha direta livre via moveCheck/canMoveToTarget, mantendo os pontos de contorno de obstaculos.
+	 */
+	public static List<int[]> cleanPath(GeoEngine engine, int startX, int startY, int startZ, List<int[]> waypoints) {
+		if (waypoints == null || waypoints.size() <= 2 || engine == null || !engine.isEnabled()) {
+			return waypoints;
+		}
+		List<int[]> cleaned = new ArrayList<>(waypoints.size());
+		int curX = startX;
+		int curY = startY;
+		int curZ = startZ;
+		int idx = 0;
+
+		while (idx < waypoints.size()) {
+			int bestIdx = idx;
+			for (int lookahead = waypoints.size() - 1; lookahead > idx; lookahead--) {
+				// Preserva ao menos 1 ponto intermediario se estivermos saindo da origem (pois linha direta global falhou)
+				if (curX == startX && curY == startY && lookahead == waypoints.size() - 1 && cleaned.isEmpty()) {
+					continue;
+				}
+				int[] candidate = waypoints.get(lookahead);
+				if (engine.canMoveToTarget(curX, curY, curZ, candidate[0], candidate[1], candidate[2])) {
+					bestIdx = lookahead;
+					break;
+				}
+			}
+			int[] chosen = waypoints.get(bestIdx);
+			cleaned.add(chosen);
+			curX = chosen[0];
+			curY = chosen[1];
+			curZ = chosen[2];
+			idx = bestIdx + 1;
+		}
+		return cleaned;
 	}
 
 	private static boolean canStep(GeoEngine engine, int x1, int y1, int z1, int x2, int y2, int z2) {
