@@ -57,11 +57,18 @@ public class ClanWarService {
 
 	private final ClanTable clanTable;
 	private final JdbcClient jdbc;
+	private GameWorld world;
+
+	public ClanWarService(ClanTable clanTable, JdbcClient jdbc) {
+		this(clanTable, jdbc, null);
+	}
 
 	@Autowired
-	public ClanWarService(ClanTable clanTable, @Autowired(required = false) JdbcClient jdbc) {
+	public ClanWarService(ClanTable clanTable, @Autowired(required = false) JdbcClient jdbc,
+			@Autowired(required = false) GameWorld world) {
 		this.clanTable = clanTable;
 		this.jdbc = jdbc;
+		this.world = world;
 	}
 
 	/**
@@ -148,6 +155,7 @@ public class ClanWarService {
 		log.info("Guerra declarada: Cla '{}' (ID {}) -> Cla '{}' (ID {}) (Mutual: {})",
 				playerClan.name(), playerClan.clanId(), targetClan.name(), targetClan.clanId(),
 				isMutualWar(playerClan.clanId(), targetClan.clanId()));
+		broadcastWarRelationUpdates(playerClan, targetClan, true);
 		return DeclareResult.SUCCESS;
 	}
 
@@ -214,7 +222,40 @@ public class ClanWarService {
 
 		log.info("Guerra interrompida: Cla '{}' parou guerra com '{}'. Penalidade ate {}",
 				playerClan.name(), targetClan.name(), penaltyExpiry);
+		broadcastWarRelationUpdates(playerClan, targetClan, false);
 		return StopResult.SUCCESS;
+	}
+
+	private void broadcastWarRelationUpdates(Clan clan1, Clan clan2, boolean declared) {
+		GameWorld activeWorld = this.world != null ? this.world : GameWorld.getInstance();
+		if (activeWorld == null || clan1 == null || clan2 == null) {
+			return;
+		}
+		var msg1 = com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage.sendString(
+				declared ? ("Clan war has been declared against " + clan2.name() + ".")
+						: ("Clan war against " + clan2.name() + " has ended."));
+		var msg2 = com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage.sendString(
+				declared ? (clan1.name() + " has declared a Clan War against your clan.")
+						: (clan1.name() + " has withdrawn the Clan War declaration."));
+		clan1.broadcastToOnlineMembers(activeWorld, msg1);
+		clan1.broadcastToOnlineMembers(activeWorld, new com.lopez.l2j.network.game.packet.GameServerPacket.PledgeShowInfoUpdate(clan1));
+		clan2.broadcastToOnlineMembers(activeWorld, msg2);
+		clan2.broadcastToOnlineMembers(activeWorld, new com.lopez.l2j.network.game.packet.GameServerPacket.PledgeShowInfoUpdate(clan2));
+
+		for (var m : clan1.members()) {
+			activeWorld.player(m.objectId()).ifPresent(op -> {
+				if (op instanceof com.lopez.l2j.network.game.GameSession gs) {
+					gs.sendUserInfoAndBroadcastCharInfo();
+				}
+			});
+		}
+		for (var m : clan2.members()) {
+			activeWorld.player(m.objectId()).ifPresent(op -> {
+				if (op instanceof com.lopez.l2j.network.game.GameSession gs) {
+					gs.sendUserInfoAndBroadcastCharInfo();
+				}
+			});
+		}
 	}
 
 	/**
