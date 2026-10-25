@@ -507,6 +507,51 @@ public class SevenSignsManager implements AutoCloseable {
 		return true;
 	}
 
+	/**
+	 * Inscreve um jogador nos Sete Selos validando período de competição, subclasse, posse de castelo pelo clã
+	 * e cobrança de Certificate of Approval (6388) ou taxa de 50.000 Adena para Lords of Dawn (#404).
+	 */
+	public synchronized boolean registerPlayerWithValidation(com.lopez.l2j.game.model.PlayerCharacter player, int cabal, int seal) {
+		if (player == null || activePeriod != PERIOD_COMPETITION) {
+			return false;
+		}
+		if (cabal != CABAL_DAWN && cabal != CABAL_DUSK) {
+			return false;
+		}
+		boolean hasClanCastle = false;
+		if (player.clanId() > 0) {
+			var clanTable = com.lopez.l2j.game.clan.ClanTable.getInstance();
+			if (clanTable != null) {
+				var clan = clanTable.getClan(player.clanId());
+				if (clan != null && clan.hasCastle()) {
+					hasClanCastle = true;
+				}
+			}
+		}
+		if (cabal == CABAL_DUSK && hasClanCastle && !isCastleAllowedForDusk()) {
+			return false;
+		}
+		if (cabal == CABAL_DAWN && player.level() >= 40 && !hasClanCastle) {
+			var inv = player.inventory();
+			if (inv == null) {
+				return false;
+			}
+			if (inv.getItemCount(CERTIFICATE_OF_APPROVAL_ID) >= 1) {
+				inv.destroyItemByItemId(CERTIFICATE_OF_APPROVAL_ID, 1);
+			} else {
+				int fee = getJoinDawnAdenaFee();
+				if (fee > 0) {
+					if (inv.getItemCount(57) < fee) {
+						return false;
+					}
+					inv.destroyItemByItemId(57, fee);
+					addAccumulatedBonus(0, fee / 5);
+				}
+			}
+		}
+		return registerPlayer(player.objectId(), cabal, seal);
+	}
+
 	public synchronized int contributeStones(int charId, int blue, int green, int red) {
 		PlayerData existing = players.get(charId);
 		if (existing == null || existing.cabal() == CABAL_NULL) {
@@ -692,9 +737,6 @@ public class SevenSignsManager implements AutoCloseable {
 						if (dawnPercent >= 10) newOwner = CABAL_DAWN;
 					} else if (winningCabal == CABAL_DUSK) {
 						if (duskPercent >= 35) newOwner = CABAL_DUSK;
-						else if (dawnPercent >= 10) newOwner = CABAL_DAWN;
-					} else { // tie
-						if (dawnPercent >= 10) newOwner = CABAL_DAWN;
 					}
 				}
 				case CABAL_DUSK -> {
@@ -702,9 +744,6 @@ public class SevenSignsManager implements AutoCloseable {
 						if (duskPercent >= 10) newOwner = CABAL_DUSK;
 					} else if (winningCabal == CABAL_DAWN) {
 						if (dawnPercent >= 35) newOwner = CABAL_DAWN;
-						else if (duskPercent >= 10) newOwner = CABAL_DUSK;
-					} else { // tie
-						if (duskPercent >= 10) newOwner = CABAL_DUSK;
 					}
 				}
 			}
@@ -849,22 +888,52 @@ public class SevenSignsManager implements AutoCloseable {
 		log.info("SevenSignsManager: Mammons realocados. Blacksmith ({}): {}, Merchant ({}): {}",
 				blacksmithId, bLoc.dungeonName(), merchantId, mLoc.dungeonName());
 		if (world != null) {
-			for (var npc : world.npcs()) {
+			boolean foundBlacksmith = false;
+			boolean foundMerchant = false;
+			for (var npc : new ArrayList<>(world.npcs())) {
 				if (npc.npcId() == MAMMON_BLACKSMITH_ID || npc.npcId() == blacksmithId) {
+					if (!isMammonBlacksmithActive()) {
+						world.removeNpc(npc);
+						continue;
+					}
+					foundBlacksmith = true;
 					int oldX = npc.x();
 					int oldY = npc.y();
 					npc.x(bLoc.x());
 					npc.y(bLoc.y());
 					npc.z(bLoc.z());
 					world.updateNpcPosition(npc, oldX, oldY);
+					world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS,
+							new GameServerPacket.CreatureSay(npc.objectId(), GameServerPacket.CreatureSay.SHOUT,
+									"Blacksmith of Mammon", "I have arrived in " + bLoc.dungeonName() + "!"));
 				} else if (npc.npcId() == MAMMON_MERCHANT_ID || npc.npcId() == merchantId) {
+					if (!isMammonMerchantActive()) {
+						world.removeNpc(npc);
+						continue;
+					}
+					foundMerchant = true;
 					int oldX = npc.x();
 					int oldY = npc.y();
 					npc.x(mLoc.x());
 					npc.y(mLoc.y());
 					npc.z(mLoc.z());
 					world.updateNpcPosition(npc, oldX, oldY);
+					world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS,
+							new GameServerPacket.CreatureSay(npc.objectId(), GameServerPacket.CreatureSay.SHOUT,
+									"Merchant of Mammon", "I have arrived in " + mLoc.dungeonName() + "!"));
 				}
+			}
+			if (isMammonBlacksmithActive() && !foundBlacksmith) {
+				var tpl = (npcTemplates != null ? npcTemplates.get(blacksmithId) : Optional.<com.lopez.l2j.game.npc.NpcTemplate>empty())
+						.orElseGet(() -> com.lopez.l2j.game.npc.NpcTemplate.fallback(blacksmithId, "Blacksmith of Mammon", "L2Merchant"));
+				var bs = new com.lopez.l2j.game.npc.NpcInstance(blacksmithId, tpl, bLoc.x(), bLoc.y(), bLoc.z(), 0);
+				world.addNpc(bs);
+			}
+			if (isMammonMerchantActive() && !foundMerchant) {
+				var tpl = (npcTemplates != null ? npcTemplates.get(merchantId) : Optional.<com.lopez.l2j.game.npc.NpcTemplate>empty())
+						.orElseGet(() -> com.lopez.l2j.game.npc.NpcTemplate.fallback(merchantId, "Merchant of Mammon", "L2Merchant"));
+				var mc = new com.lopez.l2j.game.npc.NpcInstance(merchantId, tpl, mLoc.x(), mLoc.y(), mLoc.z(), 0);
+				world.addNpc(mc);
 			}
 		}
 	}
@@ -997,10 +1066,105 @@ public class SevenSignsManager implements AutoCloseable {
 				var members = getHighestScoreMembers(winningCabal, i);
 				if (!members.isEmpty()) {
 					int share = accumulatedBonuses[i] / members.size();
+					if (share > 0 && world != null) {
+						for (String memberName : members) {
+							for (var online : world.allPlayers()) {
+								if (online.character() != null && online.character().name().equalsIgnoreCase(memberName.trim())) {
+									if (online.character().inventory() != null) {
+										online.character().inventory().addItem(ANCIENT_ADENA_ID, share);
+									}
+								}
+							}
+						}
+					}
 					log.info("SevenSignsManager: Distribuindo premio do Festival tier {}: {} AA para {} membros",
 							i, share, members.size());
 					accumulatedBonuses[i] = 0;
 				}
+			}
+		}
+	}
+
+	/**
+	 * Inicia uma instancia do Festival of Darkness para uma party, validando periodo de competicao,
+	 * numero minimo de membros, cabala e faixa de nivel, teleportando a party e spawnando as ondas de monstros (#410).
+	 */
+	public synchronized boolean startFestivalInstance(com.lopez.l2j.game.party.Party party, int cabal, int festivalId) {
+		if (party == null || activePeriod != PERIOD_COMPETITION) {
+			return false;
+		}
+		if (festivalId < 0 || festivalId >= FESTIVAL_COUNT) {
+			return false;
+		}
+		var chars = party.characters();
+		if (chars.size() < getFestivalMinPlayers()) {
+			return false;
+		}
+		int maxLvl = FESTIVAL_MAX_LEVELS[festivalId];
+		for (var ch : chars) {
+			if (ch.level() > maxLvl || getPlayerCabal(ch.objectId()) != cabal) {
+				return false;
+			}
+		}
+		int[] loc = FESTIVAL_ARENA_LOCS[festivalId];
+		if (world != null) {
+			for (var s : party.members()) {
+				world.teleportPlayer(s, loc[0], loc[1], loc[2]);
+			}
+			int baseMobId = 18009 + (festivalId * 10);
+			for (int w = 0; w < 4; w++) {
+				int mobId = baseMobId + w;
+				var tpl = (npcTemplates != null ? npcTemplates.get(mobId) : Optional.<com.lopez.l2j.game.npc.NpcTemplate>empty())
+						.orElseGet(() -> com.lopez.l2j.game.npc.NpcTemplate.fallback(mobId, "Festival Monster", "L2FestivalMonster"));
+				var mob = new com.lopez.l2j.game.npc.NpcInstance(mobId * 100 + w, tpl, loc[0] + (w * 80), loc[1] + (w * 80), loc[2], 0);
+				world.addNpc(mob);
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Registra as Blood Offerings (Item ID 5901) coletadas pelo lider da party no Festival of Darkness,
+	 * gravando a lista completa de membros da party (#411).
+	 */
+	public synchronized int submitFestivalBloodOfferings(com.lopez.l2j.game.model.PlayerCharacter leader,
+			com.lopez.l2j.game.party.Party party, int festivalId) {
+		if (leader == null || leader.inventory() == null || festivalId < 0 || festivalId >= FESTIVAL_COUNT) {
+			return 0;
+		}
+		int cabal = getPlayerCabal(leader.objectId());
+		if (cabal == CABAL_NULL) {
+			return 0;
+		}
+		int count = leader.inventory().getItemCount(BLOOD_OFFERING_ID);
+		if (count <= 0) {
+			return 0;
+		}
+		leader.inventory().destroyItemByItemId(BLOOD_OFFERING_ID, count);
+		List<String> memberNames = (party != null && !party.characters().isEmpty())
+				? party.characters().stream().map(com.lopez.l2j.game.model.PlayerCharacter::name).toList()
+				: List.of(leader.name());
+		addFestivalScore(cabal, festivalId, count, memberNames);
+		return count;
+	}
+
+	/**
+	 * Aplica os buffs/debuffs periodicos de Orator of Revelations (31094) e Preacher of Doom (31093)
+	 * quando o Selo da Gnose (Seal of Gnosis) esta ativo no periodo de validacao (#407).
+	 */
+	public void pulseOratorAndPreacherAuras() {
+		if (world == null || activePeriod != PERIOD_SEAL_VALIDATION || gnosisOwner == CABAL_NULL) {
+			return;
+		}
+		for (var p : world.allPlayers()) {
+			var ch = p.character();
+			if (ch == null) continue;
+			int pCabal = getPlayerCabal(ch.objectId());
+			if (pCabal == CABAL_NULL) continue;
+			if (pCabal == gnosisOwner) {
+				ch.skills().put(4364, 1); // Orator Blessing
+			} else {
+				ch.skills().put(4361, 1); // Preacher Curse
 			}
 		}
 	}
@@ -1061,12 +1225,18 @@ public class SevenSignsManager implements AutoCloseable {
 			for (var p : world.allPlayers()) {
 				var ch = p.character();
 				if (ch != null) {
+					ch.skills().remove(SKILL_STRIFE_DAWN_BUFF);
+					ch.skills().remove(SKILL_STRIFE_DUSK_CURSE);
 					int cabal = getPlayerCabal(p.objectId());
 					if (cabal == strifeOwner) {
+						ch.skills().put(SKILL_STRIFE_DAWN_BUFF, 1);
+						ch.skills().remove(SKILL_STRIFE_DUSK_CURSE);
 						int newCp = (int) Math.round(ch.maxCp() * 1.10);
 						ch.maxCp(newCp);
 						ch.currentCp(Math.min(ch.currentCp(), newCp));
 					} else if (cabal != CABAL_NULL) {
+						ch.skills().put(SKILL_STRIFE_DUSK_CURSE, 1);
+						ch.skills().remove(SKILL_STRIFE_DAWN_BUFF);
 						int newCp = (int) Math.round(ch.maxCp() * 0.90);
 						ch.maxCp(newCp);
 						ch.currentCp(Math.min(ch.currentCp(), newCp));
@@ -1082,6 +1252,8 @@ public class SevenSignsManager implements AutoCloseable {
 			for (var p : world.allPlayers()) {
 				var ch = p.character();
 				if (ch != null) {
+					ch.skills().remove(SKILL_STRIFE_DAWN_BUFF);
+					ch.skills().remove(SKILL_STRIFE_DUSK_CURSE);
 					int cabal = getPlayerCabal(p.objectId());
 					if (cabal == strifeOwner) {
 						int restored = (int) Math.round(ch.maxCp() / 1.10);
@@ -1152,8 +1324,8 @@ public class SevenSignsManager implements AutoCloseable {
 				log.info("SevenSignsManager: Ejetando jogador {} de dungeon 7s para cidade", p.name());
 				p.send(new GameServerPacket.CreatureSay(0, GameServerPacket.CreatureSay.ALL, "SYS",
 						"Voce foi movido para a cidade pois nao pertence a cabala vitoriosa."));
-				// Teleporta para a cidade mais proxima (ex: Giran 83400, 147943, -3404)
-				p.send(new GameServerPacket.TeleportToLocation(p.objectId(), 83400, 147943, -3404));
+				// Teleporta para a cidade mais proxima atualizando coordenadas no servidor (#409)
+				world.teleportPlayer(p, 83400, 147943, -3404);
 			}
 		}
 	}
@@ -1540,5 +1712,9 @@ public class SevenSignsManager implements AutoCloseable {
 
 	public double getDuskGatesMdefMultiplier() {
 		return Config.ALT_DUSK_GATES_MDEF_MULT;
+	}
+
+	public boolean isFestivalParticipant(int playerId) {
+		return false;
 	}
 }
