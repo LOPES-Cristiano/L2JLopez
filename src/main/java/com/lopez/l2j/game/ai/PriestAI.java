@@ -93,33 +93,42 @@ public class PriestAI extends MysticAI {
 			}
 		}
 
-		// Checa NPCs aliados proximos (< 600u) na mesma instanceId
+		// Checa NPCs aliados proximos (< 600u) na mesma instanceId (mesma faccao ou mesmo npcId)
 		var nearby = world.findNpcsAround(npc.x(), npc.y(), 600);
 		String myFaction = (npc.template() != null) ? npc.template().factionId() : null;
-		boolean hasFaction = myFaction != null && !myFaction.isBlank();
+		boolean hasFaction = myFaction != null && !myFaction.isBlank() && !"null".equalsIgnoreCase(myFaction);
 
-		if (hasFaction) {
-			for (NpcInstance ally : nearby) {
-				if (ally == npc || ally.isDead() || ally.instanceId() != npc.instanceId()) continue;
-				if (ally.template() != null && myFaction.equalsIgnoreCase(ally.template().factionId())) {
-					int allyMaxHp = ally.maxHp() > 0 ? (int) ally.maxHp() : ally.template().maxHp();
-					if (allyMaxHp > 0 && ally.currentHp() < (allyMaxHp * 0.5)) {
-						return ally;
-					}
+		for (NpcInstance ally : nearby) {
+			if (ally == null || ally == npc || ally.isDead() || ally.instanceId() != npc.instanceId()) {
+				continue;
+			}
+			if (Math.abs(ally.z() - npc.z()) > 200 || !canSeeAlly(ally)) {
+				continue;
+			}
+			boolean isFactionAlly = hasFaction && ally.template() != null && myFaction.equalsIgnoreCase(ally.template().factionId());
+			boolean isSameClanOrId = !hasFaction && ally.npcId() == npc.npcId();
+			if (isFactionAlly || isSameClanOrId) {
+				int allyMaxHp = ally.maxHp() > 0 ? (int) ally.maxHp() : (ally.template() != null ? ally.template().maxHp() : 0);
+				if (allyMaxHp > 0 && ally.currentHp() < (allyMaxHp * 0.5)) {
+					return ally;
 				}
 			}
 		}
 
-		// Fallback: qualquer monstro/NPC aliado proximo na mesma instanceId com HP < 50%
-		for (NpcInstance ally : nearby) {
-			if (ally == npc || ally.isDead() || ally.instanceId() != npc.instanceId()) continue;
-			int allyMaxHp = ally.maxHp() > 0 ? (int) ally.maxHp() : (ally.template() != null ? ally.template().maxHp() : 0);
-			if (allyMaxHp > 0 && ally.currentHp() < (allyMaxHp * 0.5)) {
-				return ally;
-			}
-		}
-
 		return null;
+	}
+
+	private boolean canSeeAlly(NpcInstance ally) {
+		if (ally == null) {
+			return false;
+		}
+		if (ally == npc) {
+			return true;
+		}
+		if (combatService != null && combatService.geoEngine() != null && combatService.geoEngine().isEnabled()) {
+			return combatService.canSeeTarget(npc.x(), npc.y(), npc.z(), ally.x(), ally.y(), ally.z());
+		}
+		return Math.abs(ally.z() - npc.z()) <= 200;
 	}
 
 	private SkillTemplate findHealSkill() {
