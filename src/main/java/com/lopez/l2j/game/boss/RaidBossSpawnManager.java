@@ -111,6 +111,38 @@ public class RaidBossSpawnManager {
 	public void init() {
 		loadFromDb();
 		scheduleOrSpawnAll();
+		scheduler.scheduleAtFixedRate(this::maintainBossesAndMinions, 60, 60, TimeUnit.SECONDS);
+	}
+
+	@jakarta.annotation.PreDestroy
+	public synchronized void shutdown() {
+		for (Integer bossId : activeBosses.keySet()) {
+			updateBossStatusInDb(bossId, true);
+		}
+		scheduler.shutdownNow();
+	}
+
+	public synchronized void maintainBossesAndMinions() {
+		for (var entry : activeBosses.entrySet()) {
+			int bossId = entry.getKey();
+			NpcInstance boss = entry.getValue();
+			if (boss == null || boss.isDead()) {
+				continue;
+			}
+			updateBossStatusInDb(bossId, false);
+			if (!boss.inCombat() && minionTable != null && minionTable.hasMinions(bossId)) {
+				boolean anyDeadOrMissing = false;
+				for (NpcInstance m : boss.minions()) {
+					if (m == null || m.isDead()) {
+						anyDeadOrMissing = true;
+						break;
+					}
+				}
+				if (anyDeadOrMissing) {
+					spawnMinionsForBoss(boss);
+				}
+			}
+		}
 	}
 
 	public synchronized void loadFromDb() {
@@ -339,6 +371,10 @@ public class RaidBossSpawnManager {
 	}
 
 	public synchronized void updateBossStatusInDb(int bossId) {
+		updateBossStatusInDb(bossId, Config.FORCE_UPDATE_RAID_BOSS_ON_DB);
+	}
+
+	public synchronized void updateBossStatusInDb(int bossId, boolean forcePersist) {
 		NpcInstance boss = activeBosses.get(bossId);
 		RaidBossRecord rec = storedInfo.get(bossId);
 		if (boss != null && rec != null) {
@@ -347,7 +383,7 @@ public class RaidBossSpawnManager {
 					rec.minDelaySec(), rec.maxDelaySec(), rec.respawnTime(), boss.currentHp(), boss.currentMp(), rec.broadcastSpawn()
 			);
 			storedInfo.put(bossId, updated);
-			if (Config.FORCE_UPDATE_RAID_BOSS_ON_DB) {
+			if (forcePersist) {
 				persistDb(updated);
 			}
 		}
