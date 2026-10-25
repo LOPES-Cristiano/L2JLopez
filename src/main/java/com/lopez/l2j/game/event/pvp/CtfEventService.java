@@ -143,8 +143,10 @@ public class CtfEventService {
     }
 
     public static final int CTF_INSTANCE_ID = 9102;
+    public static final int CTF_FLAG_ITEM_ID = 6718; // Combat Flag
     public static final int ZARICHE_ID = 8190;
     public static final int AKAMANAH_ID = 8689;
+    private static final int[] COLISEUM_DOORS = { 24190001, 24190002, 24190003, 24190004 };
 
     private volatile EventState state = EventState.INACTIVE;
     private int minLevel = Config.CTF_MIN_LEVEL;
@@ -242,6 +244,16 @@ public class CtfEventService {
         }
     }
 
+    private void toggleColiseumDoors(boolean close) {
+        var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+        if (world == null) {
+            return;
+        }
+        for (int doorId : COLISEUM_DOORS) {
+            world.doorById(doorId).ifPresent(door -> door.open(!close));
+        }
+    }
+
     private void resetFlags() {
         flagStatuses.put(TeamType.BLUE, FlagStatus.IN_BASE);
         flagStatuses.put(TeamType.RED, FlagStatus.IN_BASE);
@@ -312,6 +324,27 @@ public class CtfEventService {
         return participants.remove(player.getObjectId()) != null;
     }
 
+    public synchronized void onDisconnect(int playerId) {
+        if (state == EventState.RUNNING) {
+            for (Map.Entry<TeamType, Integer> entry : flagCarriers.entrySet()) {
+                if (entry.getValue() == playerId) {
+                    TeamType flagTeam = entry.getKey();
+                    flagStatuses.put(flagTeam, FlagStatus.IN_BASE);
+                    flagCarriers.remove(flagTeam);
+                    log.info("CTF: Portador {} desconectou; bandeira {} retornada a base!", playerId, flagTeam.getTeamName());
+                }
+            }
+        }
+        Participant removed = participants.remove(playerId);
+        if (removed != null && removed.getPlayer() != null) {
+            PlayerCharacter pc = removed.getPlayer();
+            pc.team(0);
+            if (pc.inventory() != null) {
+                pc.inventory().destroyItemByItemId(CTF_FLAG_ITEM_ID, 1);
+            }
+        }
+    }
+
     public synchronized boolean startFight() {
         if (state != EventState.REGISTRATION) {
             return false;
@@ -324,6 +357,9 @@ public class CtfEventService {
         }
 
         this.coliseumDoorsClosed = Config.CTF_CLOSE_COLISEUM_DOORS;
+        if (this.coliseumDoorsClosed) {
+            toggleColiseumDoors(true);
+        }
         int targetInstanceId = Config.CTF_IN_INSTANCE ? CTF_INSTANCE_ID : 0;
 
         List<Participant> list = new ArrayList<>(participants.values());
@@ -342,6 +378,10 @@ public class CtfEventService {
             }
             PlayerCharacter pc = p.getPlayer();
             if (pc != null) {
+                if (pc.getParty() != null) {
+                    pc.getParty().removePartyMember(pc.objectId());
+                    pc.setParty(null);
+                }
                 if (Config.CTF_AURA) {
                     pc.team(p.getTeam() == TeamType.BLUE ? 1 : 2);
                 } else {
@@ -470,6 +510,13 @@ public class CtfEventService {
         if (status == FlagStatus.IN_BASE || status == FlagStatus.DROPPED) {
             flagStatuses.put(enemyTeam, FlagStatus.CARRIED);
             flagCarriers.put(enemyTeam, playerId);
+            PlayerCharacter pc = p.getPlayer();
+            if (pc != null && pc.inventory() != null) {
+                var flagItem = pc.inventory().addItem(CTF_FLAG_ITEM_ID, 1);
+                if (flagItem != null) {
+                    flagItem.equipped(true);
+                }
+            }
             log.info("CTF: Jogador {} pegou a bandeira da equipe {}!", p.getName(), enemyTeam.getTeamName());
             return true;
         }
@@ -488,6 +535,10 @@ public class CtfEventService {
                 TeamType flagTeam = entry.getKey();
                 flagStatuses.put(flagTeam, FlagStatus.DROPPED);
                 flagCarriers.remove(flagTeam);
+                Participant p = participants.get(playerId);
+                if (p != null && p.getPlayer() != null && p.getPlayer().inventory() != null) {
+                    p.getPlayer().inventory().destroyItemByItemId(CTF_FLAG_ITEM_ID, 1);
+                }
                 log.info("CTF: Bandeira {} derrubada no chao!", flagTeam.getTeamName());
                 return true;
             }
@@ -544,6 +595,9 @@ public class CtfEventService {
         // Reset enemy flag back to base
         flagStatuses.put(enemyTeam, FlagStatus.IN_BASE);
         flagCarriers.remove(enemyTeam);
+        if (p.getPlayer() != null && p.getPlayer().inventory() != null) {
+            p.getPlayer().inventory().destroyItemByItemId(CTF_FLAG_ITEM_ID, 1);
+        }
         log.info("CTF: GOAL! {} capturou a bandeira inimiga! Placar: Azul {} x {} Vermelho",
                 p.getName(), teamScores.get(TeamType.BLUE), teamScores.get(TeamType.RED));
         return true;
@@ -565,7 +619,11 @@ public class CtfEventService {
             winner = null; // Tie
         }
 
+        if (this.coliseumDoorsClosed) {
+            toggleColiseumDoors(false);
+        }
         this.coliseumDoorsClosed = false;
+
         var world = com.lopez.l2j.game.world.GameWorld.getInstance();
         if (world != null) {
             world.removeNpcsByInstance(CTF_INSTANCE_ID);
@@ -577,6 +635,9 @@ public class CtfEventService {
             pc.currentHp(pc.maxHp());
             pc.currentMp(pc.maxMp());
             pc.currentCp(pc.maxCp());
+            if (pc.inventory() != null) {
+                pc.inventory().destroyItemByItemId(CTF_FLAG_ITEM_ID, 1);
+            }
             if (winner != null && p.getTeam() == winner && rewardItemCount > 0 && pc.inventory() != null) {
                 if (inventoryService != null) {
                     var added = inventoryService.addItem(pc.inventory(), rewardItemId, rewardItemCount, "CtfReward");
@@ -586,7 +647,7 @@ public class CtfEventService {
                                         added.created() ? com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.ADDED : com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED))));
                     }
                 } else {
-                    pc.inventory().byItemId(rewardItemId).ifPresent(it -> it.count(it.count() + rewardItemCount));
+                    pc.inventory().addItem(rewardItemId, rewardItemCount);
                 }
             }
             int retX = (Config.CTF_ORIGINAL_POSITION || p.getOrigX() != 0 || p.getOrigY() != 0) ? p.getOrigX() : 83400;
@@ -637,9 +698,16 @@ public class CtfEventService {
     // Getters
     public EventState getState() { return state; }
     public boolean isParticipant(int objectId) { return participants.containsKey(objectId); }
+    public boolean isPlayerInEvent(int objectId) { return isParticipant(objectId); }
     public Participant getParticipant(int objectId) { return participants.get(objectId); }
     public Map<Integer, Participant> getParticipants() { return Collections.unmodifiableMap(participants); }
     public int getTeamScore(TeamType team) { return teamScores.getOrDefault(team, 0); }
+    public int getBlueCount() {
+        return (int) participants.values().stream().filter(p -> p.getTeam() == TeamType.BLUE).count();
+    }
+    public int getRedCount() {
+        return (int) participants.values().stream().filter(p -> p.getTeam() == TeamType.RED).count();
+    }
     public FlagStatus getFlagStatus(TeamType team) { return flagStatuses.get(team); }
     public Integer getFlagCarrier(TeamType team) { return flagCarriers.get(team); }
     public int getRewardItemId() { return rewardItemId; }
