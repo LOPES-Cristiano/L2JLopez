@@ -115,7 +115,7 @@ public class Quest246PossessorOfAPreciousSoul3 extends Quest {
 
 		if (npcId == CARADINE) {
 			if (cond == 0) {
-				if (qs.hasQuestItems(CARADINE_LETTER_1)) {
+				if (qs.hasQuestItems(CARADINE_LETTER_1) && (player == null || player.level() >= 65)) {
 					return "31740-01.htm";
 				}
 				return "31740-02.htm";
@@ -176,11 +176,31 @@ public class Quest246PossessorOfAPreciousSoul3 extends Quest {
 					}
 				}
 			}
-		} else if (cond == 4 && npcId == BARAKIEL) {
-			if (!qs.hasQuestItems(RAIN_SONG)) {
+		} else if (npcId == BARAKIEL) {
+			if ((cond == 4 || cond == 2 || cond == 3) && !qs.hasQuestItems(RAIN_SONG)) {
 				qs.giveItems(RAIN_SONG, 1);
 				qs.setCond(5);
 				qs.playSound("ItemSound.quest_middle");
+			}
+			var session = qs.getPlayer();
+			if (session != null && session.party() != null) {
+				for (var member : session.party().members()) {
+					if (member == null || member == session || member.activeChar() == null) {
+						continue;
+					}
+					double dx = member.activeChar().x() - npc.x();
+					double dy = member.activeChar().y() - npc.y();
+					if (dx * dx + dy * dy <= 1500.0 * 1500.0) {
+						QuestState mQs = member.getQuestState(QUEST_NAME);
+						if (mQs != null && mQs.getState() == State.STARTED
+								&& (mQs.getCond() == 4 || mQs.getCond() == 2 || mQs.getCond() == 3)
+								&& !mQs.hasQuestItems(RAIN_SONG)) {
+							mQs.giveItems(RAIN_SONG, 1);
+							mQs.setCond(5);
+							mQs.playSound("ItemSound.quest_middle");
+						}
+					}
+				}
 			}
 		}
 
