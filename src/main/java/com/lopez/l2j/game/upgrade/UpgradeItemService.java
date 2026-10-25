@@ -69,7 +69,7 @@ public class UpgradeItemService {
 			InputStream is = file.exists() ? new java.io.FileInputStream(file) : getClass().getResourceAsStream("/data/xml/custom/UpgradeItems.xml");
 			if (is == null) {
 				log.warn("UpgradeItems.xml nao encontrado, inicializando fallback padrao.");
-				registerRecipe(new UpgradeRecipe(6658, 7577, 90, 25325, 57, 5000000L));
+				registerRecipe(new UpgradeRecipe(6658, 7577, 100, 25325, 57, 5000000L));
 				registerRecipe(new UpgradeRecipe(2375, 9882, 100, 0, 57, 1000000L));
 				registerRecipe(new UpgradeRecipe(6580, 6660, 80, 29001, 3470, 10L));
 				return;
