@@ -1,18 +1,19 @@
 package com.lopez.l2j.game.service;
 
 import com.lopez.l2j.config.Config;
+import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.world.GameWorld;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.*;
 
 /**
- * Sistema Anti-Bot Captcha (BotsPreventionManager).
+ * Sistema Anti-Bot Captcha (BotsPreventionManager) - #496.
  * Monitora mortes consecutivas de mobs com threshold aleatorizado (KillsCounter + Rnd(KillsCounterRandomization)).
- * Gera janela de verificação visual interativa com prazo de resposta (ValidationTime),
+ * Gera janela de verificação visual/aritmética interativa com prazo de resposta (ValidationTime),
  * opções de clique e punições automáticas (0 = vila, 1 = kick, 2 = jail, 3 = ban).
  */
 @Service
@@ -42,16 +43,23 @@ public class BotsPreventionService {
         private final int correctNumber;
         private final List<Integer> options;
         private final long expirationTime;
+        private final String mathPrompt;
 
         public CaptchaChallenge(int correctNumber, List<Integer> options, long expirationTime) {
+            this(correctNumber, options, expirationTime, null);
+        }
+
+        public CaptchaChallenge(int correctNumber, List<Integer> options, long expirationTime, String mathPrompt) {
             this.correctNumber = correctNumber;
             this.options = options;
             this.expirationTime = expirationTime;
+            this.mathPrompt = mathPrompt;
         }
 
         public int getCorrectNumber() { return correctNumber; }
         public List<Integer> getOptions() { return options; }
         public long getExpirationTime() { return expirationTime; }
+        public String getMathPrompt() { return mathPrompt; }
         public boolean isExpired() { return System.currentTimeMillis() > expirationTime; }
     }
 
@@ -67,8 +75,52 @@ public class BotsPreventionService {
     private final Map<Integer, Integer> playerNextThreshold = new ConcurrentHashMap<>();
     // Player objectId -> pending challenge
     private final Map<Integer, CaptchaChallenge> pendingChallenges = new ConcurrentHashMap<>();
+    private ScheduledExecutorService timeoutMonitor;
 
-    public BotsPreventionService() {}
+    public BotsPreventionService() {
+        if (enabled) {
+            startTimeoutMonitor();
+        }
+    }
+
+    public synchronized void startTimeoutMonitor() {
+        if (timeoutMonitor != null && !timeoutMonitor.isShutdown()) {
+            return;
+        }
+        timeoutMonitor = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "AntiBot-TimeoutMonitor");
+            t.setDaemon(true);
+            return t;
+        });
+        timeoutMonitor.scheduleAtFixedRate(this::sweepExpiredChallenges, 5, 5, TimeUnit.SECONDS);
+    }
+
+    public void sweepExpiredChallenges() {
+        for (Integer playerId : new ArrayList<>(pendingChallenges.keySet())) {
+            checkPunishment(playerId).ifPresent(p -> applyPunishmentToWorldPlayer(playerId, p));
+        }
+    }
+
+    public void applyPunishmentToWorldPlayer(int playerId, PunishmentType type) {
+        GameWorld world = GameWorld.getInstance();
+        if (world == null) {
+            return;
+        }
+        world.player(playerId).ifPresent(online -> {
+            PlayerCharacter pc = online.character();
+            if (pc == null) {
+                return;
+            }
+            switch (type) {
+                case TOWN -> world.teleportPlayer(pc, 83400, 147943, -3404, 0);
+                case JAIL -> {
+                    pc.setInJail(true);
+                    world.teleportPlayer(pc, -114356, -249645, -2984, 0);
+                }
+                case KICK, BAN -> world.unregisterPlayer(playerId);
+            }
+        });
+    }
 
     /**
      * Chamado toda vez que um jogador derrota um monstro.
@@ -100,7 +152,10 @@ public class BotsPreventionService {
     }
 
     private CaptchaChallenge generateChallenge() {
-        int correct = ThreadLocalRandom.current().nextInt(100, 999);
+        int partA = ThreadLocalRandom.current().nextInt(50, 500);
+        int partB = ThreadLocalRandom.current().nextInt(50, 499);
+        int correct = partA + partB;
+        String mathPrompt = partA + " + " + partB + " = " + correct;
         Set<Integer> optionSet = new HashSet<>();
         optionSet.add(correct);
         while (optionSet.size() < 4) {
@@ -109,7 +164,7 @@ public class BotsPreventionService {
         List<Integer> list = new ArrayList<>(optionSet);
         Collections.shuffle(list);
         long expires = System.currentTimeMillis() + (validationTimeoutSeconds * 1000L);
-        return new CaptchaChallenge(correct, list, expires);
+        return new CaptchaChallenge(correct, list, expires, mathPrompt);
     }
 
     /**
@@ -160,6 +215,9 @@ public class BotsPreventionService {
         sb.append("<html><body><center>");
         sb.append("<font color=\"LEVEL\">=== Verificacao de Seguranca Anti-Bot ===</font><br><br>");
         sb.append("Para continuar caçando, selecione o seguinte numero na tela:<br><br>");
+        if (challenge.getMathPrompt() != null) {
+            sb.append("<font color=\"B09B79\">").append(challenge.getMathPrompt()).append("</font><br1>");
+        }
         sb.append("<font color=\"8FA888\"><b><h1>").append(challenge.getCorrectNumber()).append("</h1></b></font><br>");
         sb.append("<table width=200>");
         sb.append("<tr>");
