@@ -114,7 +114,9 @@ public class Quest7000HeroItems extends Quest {
 			try {
 				int itemId = Integer.parseInt(event.substring(1));
 				for (int id = 6611; id <= 6621; id++) {
-					if (qs.getQuestItemsCount(id) > 0) {
+					boolean inWh = player.activeChar().warehouse() != null
+							&& player.activeChar().warehouse().getItemCount(id) > 0;
+					if (qs.getQuestItemsCount(id) > 0 || inWh) {
 						qs.exitQuest(true);
 						return "You already have an " + (HERO_ITEMS.containsKey(id) ? HERO_ITEMS.get(id).name() : "Hero weapon");
 					}
