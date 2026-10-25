@@ -184,15 +184,22 @@ public class TournamentService {
 		return null;
 	}
 
+	private synchronized ScheduledExecutorService ensureScheduler() {
+		if (scheduler == null || scheduler.isShutdown()) {
+			scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+				Thread t = new Thread(r, "Tournament-Scheduler");
+				t.setDaemon(true);
+				return t;
+			});
+		}
+		return scheduler;
+	}
+
 	public synchronized void startScheduledTournamentTasks() {
 		if (scheduler != null && !scheduler.isShutdown()) {
 			return;
 		}
-		scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-			Thread t = new Thread(r, "Tournament-Scheduler");
-			t.setDaemon(true);
-			return t;
-		});
+		ensureScheduler();
 		int checkSec = getCheckIntervalSeconds();
 		scheduler.scheduleAtFixedRate(() -> {
 			for (TournamentMode mode : TournamentMode.values()) {
@@ -401,24 +408,43 @@ public class TournamentService {
 			}
 
 			int matchId = matchIdGenerator.getAndIncrement();
+			int tournamentInstanceId = 9300 + (matchId % 100);
 			TournamentMatch match = new TournamentMatch(matchId, mode, arena, teamRed, teamBlue);
 			activeMatches.put(matchId, match);
+			var world = com.lopez.l2j.game.world.GameWorld.getInstance();
 
 			for (var m : teamRed.members()) {
 				playerToMatch.put(m.objectId(), matchId);
+				m.team(2); // Red aura
 				m.currentHp(m.maxHp());
 				m.currentMp(m.maxMp());
 				m.currentCp(m.maxCp());
 				m.teleport(arena.spawn1().x(), arena.spawn1().y(), arena.spawn1().z());
+				if (world != null) {
+					world.teleportPlayer(m, arena.spawn1().x(), arena.spawn1().y(), arena.spawn1().z(), tournamentInstanceId);
+					world.player(m.objectId()).ifPresent(op -> {
+						if (op instanceof com.lopez.l2j.network.game.GameSession gs) gs.sendUserInfoAndBroadcastCharInfo();
+					});
+				}
 			}
 
 			for (var m : teamBlue.members()) {
 				playerToMatch.put(m.objectId(), matchId);
+				m.team(1); // Blue aura
 				m.currentHp(m.maxHp());
 				m.currentMp(m.maxMp());
 				m.currentCp(m.maxCp());
 				m.teleport(arena.spawn2().x(), arena.spawn2().y(), arena.spawn2().z());
+				if (world != null) {
+					world.teleportPlayer(m, arena.spawn2().x(), arena.spawn2().y(), arena.spawn2().z(), tournamentInstanceId);
+					world.player(m.objectId()).ifPresent(op -> {
+						if (op instanceof com.lopez.l2j.network.game.GameSession gs) gs.sendUserInfoAndBroadcastCharInfo();
+					});
+				}
 			}
+
+			int countdownSec = Math.max(1, getWaitIntervalSeconds());
+			ensureScheduler().schedule(() -> startFight(matchId), countdownSec, TimeUnit.SECONDS);
 
 			log.info("Tournament: Partida #{} iniciada ({}) no {}: {} vs {}",
 					matchId, mode.getLabel(), arena.name(), teamRed.name(), teamBlue.name());
@@ -497,13 +523,22 @@ public class TournamentService {
 	}
 
 	private void returnAndHeal(TournamentTeam team) {
+		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
 		for (var m : team.members()) {
+			m.team(0);
 			m.currentHp(m.maxHp());
 			m.currentMp(m.maxMp());
 			m.currentCp(m.maxCp());
 			var loc = team.originalLoc(m.objectId());
 			if (loc != null) {
 				m.teleport(loc.x(), loc.y(), loc.z());
+				if (world != null) {
+					world.sendPacket(m.objectId(), new com.lopez.l2j.network.game.packet.GameServerPacket.Revive(m.objectId()));
+					world.teleportPlayer(m, loc.x(), loc.y(), loc.z(), 0);
+					world.player(m.objectId()).ifPresent(op -> {
+						if (op instanceof com.lopez.l2j.network.game.GameSession gs) gs.sendUserInfoAndBroadcastCharInfo();
+					});
+				}
 			}
 		}
 	}
