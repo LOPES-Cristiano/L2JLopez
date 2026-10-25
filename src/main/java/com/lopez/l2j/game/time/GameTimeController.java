@@ -25,6 +25,8 @@ public class GameTimeController {
 
 	private static final Logger log = LoggerFactory.getLogger(GameTimeController.class);
 
+	public static final int SKILL_SHADOW_SENSE = 294;
+
 	public interface DayNightListener {
 		void onDayNightChange(boolean isNight);
 	}
@@ -34,12 +36,18 @@ public class GameTimeController {
 	private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
 			Thread.ofVirtual().name("game-time-clock-", 0).factory());
 
+	@Autowired(required = false)
+	@org.springframework.context.annotation.Lazy
+	private com.lopez.l2j.game.boss.epic.ZakenService zakenService;
+
 	private volatile boolean currentNight;
+	private volatile int lastGameHour = -1;
 
 	@Autowired
 	public GameTimeController(GameWorld world) {
 		this.world = world;
 		this.currentNight = isNightTime(GameTime.now());
+		this.lastGameHour = getGameHour();
 	}
 
 	@PostConstruct
@@ -77,18 +85,49 @@ public class GameTimeController {
 		return gameMinutes < 360;
 	}
 
+	public void setZakenService(com.lopez.l2j.game.boss.epic.ZakenService zakenService) {
+		this.zakenService = zakenService;
+	}
+
 	private void tick() {
 		try {
 			int now = GameTime.now();
+			int curHour = (now / 60) % 24;
+			if (curHour != lastGameHour) {
+				lastGameHour = curHour;
+				if (zakenService != null) {
+					try {
+						zakenService.onGameHourChanged(curHour);
+					} catch (Exception e) {
+						log.warn("Erro ao notificar ZakenService na mudanca de hora", e);
+					}
+				}
+			}
+
 			boolean night = isNightTime(now);
 			if (night != currentNight) {
 				currentNight = night;
 				log.info("Transicao de ciclo de tempo: {}", currentNight ? "Anoiteceu (00:00)" : "Amanheceu (06:00)");
 				if (world != null) {
+					var skyPacket = currentNight
+							? new com.lopez.l2j.network.game.packet.GameServerPacket.SunSet()
+							: new com.lopez.l2j.network.game.packet.GameServerPacket.SunRise();
+					world.broadcast(skyPacket, p -> true);
+
 					String msg = currentNight
 							? "The sun sets, night has fallen upon the kingdom."
 							: "The sun rises, a new day begins.";
 					world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "World", msg), p -> true);
+
+					// Notifica jogadores Dark Elf com Shadow Sense (Skill 294)
+					int sysMsgId = currentNight ? 1291 : 1292; // It is now midnight and the effect of Shadow Sense can be felt / It is now daytime...
+					for (var op : world.players()) {
+						if (op != null && op.character() != null && op.character().race() == 2) {
+							op.send(com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage.of(
+									sysMsgId,
+									new com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage.SkillName(SKILL_SHADOW_SENSE, 1)));
+						}
+					}
 				}
 				for (DayNightListener l : listeners) {
 					try {
