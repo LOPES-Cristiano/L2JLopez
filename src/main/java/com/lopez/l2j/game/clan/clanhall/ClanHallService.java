@@ -41,7 +41,11 @@ public class ClanHallService {
 		ERROR
 	}
 
+	public record AuctionBidEntry(int hallId, int clanId, int bidderObjId, String bidderName, String clanName, long bidAmount, long timeBid) {}
+
 	private final Map<Integer, ClanHallRecord> clanHalls = new ConcurrentHashMap<>();
+	// hallId -> Map<clanId, AuctionBidEntry> (#397)
+	private final Map<Integer, Map<Integer, AuctionBidEntry>> activeAuctionBids = new ConcurrentHashMap<>();
 	private final ClanTable clanTable;
 	private final JdbcClient jdbc;
 
@@ -179,13 +183,21 @@ public class ClanHallService {
 	 * Se o prazo estiver vencido e o cla nao tiver recursos ou nao pagar, ocorre o despejo.
 	 */
 	public synchronized boolean processRentPayment(int hallId, long nowMillis) {
+		return processRentPayment(hallId, nowMillis, null);
+	}
+
+	/**
+	 * Processa a cobranca do aluguel semanal do Clan Hall debitando do ClanWarehouse (#396).
+	 * Se o saldo for insuficiente, inicia periodo de carencia de 7 dias (paid = false) antes do despejo automatico.
+	 */
+	public synchronized boolean processRentPayment(int hallId, long nowMillis, com.lopez.l2j.game.item.Inventory clanWarehouse) {
 		ClanHallRecord hall = clanHalls.get(hallId);
 		if (hall == null || hall.ownerId() <= 0 || hall.isSiegeType()) {
 			return false;
 		}
 
 		// Se ainda nao venceu o periodo pago
-		if (hall.paidUntil() > nowMillis) {
+		if (hall.paidUntil() > nowMillis && hall.isPaid()) {
 			return true;
 		}
 
@@ -195,7 +207,32 @@ public class ClanHallService {
 			return false;
 		}
 
-		// Se o aluguel venceu, renova se houver adena ou marca como pago
+		int lease = Math.max(0, hall.lease());
+		if (clanWarehouse != null && lease > 0) {
+			if (clanWarehouse.getItemCount(57) >= lease) {
+				clanWarehouse.destroyItemByItemId(57, lease);
+			} else {
+				if (hall.isPaid()) {
+					hall.setPaid(false);
+					if (jdbc != null) {
+						try {
+							jdbc.sql("UPDATE clanhall SET paid = 0 WHERE id = :id")
+									.param("id", hallId)
+									.update();
+						} catch (Exception ignored) {}
+					}
+					log.warn("ClanHall ID {} inadimplente (Cla {}). Carencia de 7 dias iniciada.", hallId, hall.ownerId());
+					return false;
+				}
+				if (nowMillis >= hall.paidUntil() + RENT_PERIOD_MILLIS) {
+					log.warn("ClanHall ID {} despejado apos 7 dias de inadimplencia (Cla {}).", hallId, hall.ownerId());
+					removeOwner(hallId);
+				}
+				return false;
+			}
+		}
+
+		// Se o aluguel foi pago, renova por mais 7 dias
 		hall.paidUntil(nowMillis + RENT_PERIOD_MILLIS);
 		hall.paidDayTime(hall.paidUntil());
 		hall.setPaid(true);
@@ -218,6 +255,78 @@ public class ClanHallService {
 
 		log.info("Aluguel renovado para ClanHall ID {} ate {}", hallId, hall.paidUntil());
 		return true;
+	}
+
+	/**
+	 * Registra um lance concorrente no leilao do Clan Hall com reembolso automatico do lance superado (#397).
+	 */
+	public synchronized BidResult placeAuctionBid(PlayerCharacter leader, int hallId, long bidAmount,
+			com.lopez.l2j.game.item.Inventory depositSource) {
+		if (leader == null || leader.clanId() <= 0) {
+			return BidResult.NOT_IN_CLAN;
+		}
+		var clanOpt = clanTable.byClanId(leader.clanId());
+		if (clanOpt.isEmpty()) {
+			return BidResult.NOT_IN_CLAN;
+		}
+		Clan clan = clanOpt.get();
+		if (!clan.isLeader(leader.objectId())) {
+			return BidResult.NOT_CLAN_LEADER;
+		}
+		if (clan.level() < com.lopez.l2j.config.Config.LVL_FOR_USE_AUCTION) {
+			return BidResult.CLAN_LEVEL_TOO_LOW;
+		}
+		if (getClanHallByOwner(clan.clanId()).isPresent()) {
+			return BidResult.ALREADY_HAS_CLAN_HALL;
+		}
+		ClanHallRecord hall = clanHalls.get(hallId);
+		if (hall == null) {
+			return BidResult.HALL_NOT_FOUND;
+		}
+		if (hall.isSiegeType() || hall.ownerId() > 0) {
+			return BidResult.NOT_AUCTIONABLE;
+		}
+		Map<Integer, AuctionBidEntry> bids = activeAuctionBids.computeIfAbsent(hallId, k -> new ConcurrentHashMap<>());
+		long currentHighest = bids.values().stream().mapToLong(AuctionBidEntry::bidAmount).max().orElse(0L);
+		if (bidAmount < hall.lease() || (currentHighest > 0 && bidAmount <= currentHighest)) {
+			return BidResult.BID_TOO_LOW;
+		}
+		var inv = depositSource != null ? depositSource : leader.inventory();
+		if (inv == null || inv.getItemCount(57) < bidAmount) {
+			return BidResult.NOT_ENOUGH_ADENA;
+		}
+		inv.destroyItemByItemId(57, (int) Math.min(Integer.MAX_VALUE, bidAmount));
+
+		AuctionBidEntry previousOwnBid = bids.get(clan.clanId());
+		if (previousOwnBid != null && previousOwnBid.bidAmount() > 0) {
+			inv.addItem(57, (int) Math.min(Integer.MAX_VALUE, previousOwnBid.bidAmount()));
+		}
+
+		long now = System.currentTimeMillis();
+		AuctionBidEntry entry = new AuctionBidEntry(hallId, clan.clanId(), leader.objectId(), leader.name(), clan.name(), bidAmount, now);
+		bids.put(clan.clanId(), entry);
+		clan.auctionBiddedAt(hallId);
+		return BidResult.SUCCESS;
+	}
+
+	/**
+	 * Encerra o leilao de um Clan Hall adjudicando a posse ao maior licitante (#397).
+	 */
+	public synchronized boolean settleAuction(int hallId) {
+		Map<Integer, AuctionBidEntry> bids = activeAuctionBids.remove(hallId);
+		if (bids == null || bids.isEmpty()) {
+			return false;
+		}
+		AuctionBidEntry winner = null;
+		for (AuctionBidEntry b : bids.values()) {
+			if (winner == null || b.bidAmount() > winner.bidAmount()) {
+				winner = b;
+			}
+		}
+		for (AuctionBidEntry b : bids.values()) {
+			clanTable.byClanId(b.clanId()).ifPresent(c -> c.auctionBiddedAt(0));
+		}
+		return winner != null && setOwner(hallId, winner.clanId());
 	}
 
 	/**
