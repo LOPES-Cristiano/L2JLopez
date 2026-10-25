@@ -13,12 +13,18 @@ import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
 import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Earthquake;
+import com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SpecialCamera;
+import jakarta.annotation.PreDestroy;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +44,8 @@ public class FrintezzaService {
 	public static final int SCARLET_WEAK_ID = 29046;
 	public static final int SCARLET_MEDIUM_ID = 29047;
 	public static final int SCARLET_STRONG_ID = 29048;
+	public static final int EVIL_SPIRIT_PORTRAIT_ID = 29049;
+	public static final int FRINTEZZA_MELODY_SKILL_ID = 5007;
 
 	public static final int FORCE_FIELD_SCROLL = 8073; // Frintezza's Magic Force Field Removal Scroll
 	public static final int NECKLACE_OF_FRINTEZZA = 8559;
@@ -50,11 +58,32 @@ public class FrintezzaService {
 	public static final int TOMB_Y = -153490;
 	public static final int TOMB_Z = -9165;
 
+	// Coordenadas de expulsao / lobby (Goddard)
+	public static final int EXIT_X = 147725;
+	public static final int EXIT_Y = -56517;
+	public static final int EXIT_Z = -2780;
+
+	private static final int[][] PORTRAIT_OFFSETS = {
+			{-450, -350},
+			{450, -350},
+			{-450, 350},
+			{450, 350}
+	};
+
 	private FrintezzaStatus status = FrintezzaStatus.ALIVE;
 	private long respawnTime = 0L;
 	private final List<Integer> playersInside = new CopyOnWriteArrayList<>();
+	private final List<NpcInstance> activePortraits = new CopyOnWriteArrayList<>();
 	private NpcInstance frintezzaNpc;
 	private NpcInstance activeScarlet;
+
+	private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+		Thread t = new Thread(r, "Frintezza-Timer");
+		t.setDaemon(true);
+		return t;
+	});
+	private ScheduledFuture<?> appearanceTask;
+	private ScheduledFuture<?> timeoutTask;
 
 	private final GrandBossManager grandBossManager;
 	private final JdbcClient jdbc;
@@ -125,6 +154,10 @@ public class FrintezzaService {
 		return Collections.unmodifiableList(playersInside);
 	}
 
+	public List<NpcInstance> getActivePortraits() {
+		return Collections.unmodifiableList(activePortraits);
+	}
+
 	public Optional<NpcInstance> activeScarlet() {
 		return Optional.ofNullable(activeScarlet);
 	}
@@ -177,7 +210,7 @@ public class FrintezzaService {
 	/**
 	 * Consome o pergaminho de remocao do campo de forca e teleporta o grupo para dentro da camara.
 	 */
-	public boolean enterTomb(PlayerCharacter leader, List<PlayerCharacter> partyMembers) {
+	public synchronized boolean enterTomb(PlayerCharacter leader, List<PlayerCharacter> partyMembers) {
 		if (!canEnter(leader)) {
 			return false;
 		}
@@ -217,63 +250,95 @@ public class FrintezzaService {
 		}
 
 		status = FrintezzaStatus.ENTRY;
+		scheduleEncounterTimers();
 		log.info("{} e seu grupo entraram no Ultimo Tumulo Imperial ({} jogadores, limite {} min)",
 				leader.name(), playersInside.size(), getTimeLimitMinutes());
 		return true;
 	}
 
+	private void scheduleEncounterTimers() {
+		cancelEncounterTimers();
+		long appearanceDelayMs = Math.max(5_000L, getRegistrationTimeMinutes() * 1_000L);
+		appearanceTask = scheduler.schedule(this::startFight, appearanceDelayMs, TimeUnit.MILLISECONDS);
+		timeoutTask = scheduler.schedule(this::onEncounterTimeout, getTimeLimitMillis(), TimeUnit.MILLISECONDS);
+	}
+
+	private void cancelEncounterTimers() {
+		if (appearanceTask != null) {
+			appearanceTask.cancel(false);
+			appearanceTask = null;
+		}
+		if (timeoutTask != null) {
+			timeoutTask.cancel(false);
+			timeoutTask = null;
+		}
+	}
+
+	private synchronized void onEncounterTimeout() {
+		if (status == FrintezzaStatus.ALIVE || status == FrintezzaStatus.DEAD || status == FrintezzaStatus.INTERVAL) {
+			return;
+		}
+		log.info("Tempo limite do Ultimo Tumulo Imperial esgotado. Expulsando jogadores e resetando instancia.");
+		GameWorld gw = world != null ? world : GameWorld.getInstance();
+		despawnAllEncounterNpcs(gw);
+		if (gw != null) {
+			for (int playerId : playersInside) {
+				gw.teleportPlayer(playerId, EXIT_X, EXIT_Y, EXIT_Z, 0);
+			}
+		}
+		resetToAlive();
+	}
+
 	/**
 	 * Inicia a primeira fase: Frintezza toca o orgao e Scarlet Van Halisha (Fraca) surge.
 	 */
-	public void startFight() {
+	public synchronized void startFight() {
 		if (status != FrintezzaStatus.ENTRY) {
 			return;
 		}
+		if (appearanceTask != null) {
+			appearanceTask.cancel(false);
+			appearanceTask = null;
+		}
 		status = FrintezzaStatus.PHASE_1_WEAK;
-		spawnScarletPhase(SCARLET_WEAK_ID, "Scarlet Van Halisha");
+		spawnScarletPhase(SCARLET_WEAK_ID, "Scarlet Van Halisha", 1, false);
 		log.info("Frintezza inicia a melodia do orgao! Scarlet Van Halisha Fase 1 (NPC {}) surge!", SCARLET_WEAK_ID);
 	}
 
 	/**
 	 * Transicao para a Fase 2 (Media).
 	 */
-	public void transitionToPhase2() {
+	public synchronized void transitionToPhase2() {
 		if (status != FrintezzaStatus.PHASE_1_WEAK) {
 			return;
 		}
 		status = FrintezzaStatus.PHASE_2_MEDIUM;
-		spawnScarletPhase(SCARLET_MEDIUM_ID, "Scarlet Van Halisha");
+		spawnScarletPhase(SCARLET_MEDIUM_ID, "Scarlet Van Halisha", 2, true);
 		log.info("Scarlet Van Halisha se transforma para a Fase 2 (Media - NPC {})!", SCARLET_MEDIUM_ID);
 	}
 
 	/**
 	 * Transicao para a Fase 3 (Forte / Demonio Gigante).
 	 */
-	public void transitionToPhase3() {
+	public synchronized void transitionToPhase3() {
 		if (status != FrintezzaStatus.PHASE_2_MEDIUM) {
 			return;
 		}
 		status = FrintezzaStatus.PHASE_3_STRONG;
-		spawnScarletPhase(SCARLET_STRONG_ID, "Scarlet Van Halisha");
+		spawnScarletPhase(SCARLET_STRONG_ID, "Scarlet Van Halisha", 3, true);
 		log.info("Scarlet Van Halisha atinge sua forma suprema (Fase 3 - NPC {})!", SCARLET_STRONG_ID);
 	}
 
 	/**
 	 * Conclusao do encontro: Scarlet e derrotada, Frintezza se lamenta e o colar epico e gerado.
 	 */
-	public void onScarletDefeated() {
+	public synchronized void onScarletDefeated() {
+		cancelEncounterTimers();
 		status = FrintezzaStatus.DEAD;
 		respawnTime = System.currentTimeMillis() + RESPAWN_INTERVAL_MILLIS;
 
 		GameWorld gw = world != null ? world : GameWorld.getInstance();
-		if (activeScarlet != null && gw != null) {
-			gw.removeNpc(activeScarlet);
-			activeScarlet = null;
-		}
-		if (frintezzaNpc != null && gw != null) {
-			gw.removeNpc(frintezzaNpc);
-			frintezzaNpc = null;
-		}
+		despawnAllEncounterNpcs(gw);
 		if (gw != null) {
 			gw.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Frintezza",
 					"Scarlet Van Halisha has fallen! The Imperial Tomb falls silent..."), p -> true);
@@ -287,13 +352,44 @@ public class FrintezzaService {
 		log.info("Scarlet Van Halisha foi derrotada! O Colar de Frintezza (Item {}) foi liberado.", NECKLACE_OF_FRINTEZZA);
 	}
 
-	private void spawnScarletPhase(int scarletNpcId, String name) {
+	private void despawnAllEncounterNpcs(GameWorld gw) {
+		if (activeScarlet != null) {
+			int oldScarletId = activeScarlet.objectId();
+			activeScarlet.deleteMe();
+			if (gw != null) {
+				gw.removeNpc(activeScarlet);
+				gw.broadcast(new DeleteObject(oldScarletId), p -> playersInside.contains(p.objectId()));
+			}
+			activeScarlet = null;
+		}
+		if (frintezzaNpc != null) {
+			int oldFrintId = frintezzaNpc.objectId();
+			frintezzaNpc.deleteMe();
+			if (gw != null) {
+				gw.removeNpc(frintezzaNpc);
+				gw.broadcast(new DeleteObject(oldFrintId), p -> playersInside.contains(p.objectId()));
+			}
+			frintezzaNpc = null;
+		}
+		for (NpcInstance portrait : activePortraits) {
+			int pId = portrait.objectId();
+			portrait.deleteMe();
+			if (gw != null) {
+				gw.removeNpc(portrait);
+				gw.broadcast(new DeleteObject(pId), p -> playersInside.contains(p.objectId()));
+			}
+		}
+		activePortraits.clear();
+	}
+
+	private void spawnScarletPhase(int scarletNpcId, String name, int melodyLevel, boolean spawnPortraits) {
 		GameWorld gw = world != null ? world : GameWorld.getInstance();
 		if (gw == null || objectIds == null) {
 			return;
 		}
 		if (activeScarlet != null) {
 			int oldId = activeScarlet.objectId();
+			activeScarlet.deleteMe();
 			gw.removeNpc(activeScarlet);
 			gw.broadcast(new DeleteObject(oldId), p -> playersInside.contains(p.objectId()));
 			activeScarlet = null;
@@ -305,6 +401,28 @@ public class FrintezzaService {
 			frintezzaNpc = new NpcInstance(objectIds.nextId(), frintTpl, TOMB_X, TOMB_Y - 500, TOMB_Z + 100, 16384);
 			gw.addNpc(frintezzaNpc);
 			gw.broadcast(NpcInfo.of(frintezzaNpc), p -> playersInside.contains(p.objectId()));
+		}
+
+		// Frintezza toca a melodia do orgao correspondente a fase
+		gw.broadcast(new MagicSkillUse(
+				frintezzaNpc.objectId(), frintezzaNpc.objectId(),
+				FRINTEZZA_MELODY_SKILL_ID, melodyLevel,
+				2000, 0,
+				frintezzaNpc.x(), frintezzaNpc.y(), frintezzaNpc.z()),
+				p -> playersInside.contains(p.objectId()));
+
+		if (spawnPortraits && activePortraits.isEmpty()) {
+			NpcTemplate portraitTpl = templates != null
+					? templates.get(EVIL_SPIRIT_PORTRAIT_ID).orElseGet(() -> NpcTemplate.fallback(EVIL_SPIRIT_PORTRAIT_ID, "Evil Spirit Portrait", "L2Monster"))
+					: NpcTemplate.fallback(EVIL_SPIRIT_PORTRAIT_ID, "Evil Spirit Portrait", "L2Monster");
+			for (int[] offset : PORTRAIT_OFFSETS) {
+				int px = TOMB_X + offset[0];
+				int py = TOMB_Y + offset[1];
+				NpcInstance portrait = new NpcInstance(objectIds.nextId(), portraitTpl, px, py, TOMB_Z, 0);
+				gw.addNpc(portrait);
+				activePortraits.add(portrait);
+				gw.broadcast(NpcInfo.of(portrait), p -> playersInside.contains(p.objectId()));
+			}
 		}
 
 		NpcTemplate scarletTpl = templates != null
@@ -319,12 +437,19 @@ public class FrintezzaService {
 				p -> playersInside.contains(p.objectId()));
 	}
 
-	public void resetToAlive() {
+	public synchronized void resetToAlive() {
+		cancelEncounterTimers();
 		status = FrintezzaStatus.ALIVE;
 		respawnTime = 0L;
 		playersInside.clear();
 		saveState();
 		log.info("Ultimo Tumulo Imperial resetado para status ALIVE");
+	}
+
+	@PreDestroy
+	public void shutdown() {
+		cancelEncounterTimers();
+		scheduler.shutdownNow();
 	}
 
 	private void saveState() {
