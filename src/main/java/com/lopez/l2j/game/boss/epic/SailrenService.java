@@ -138,15 +138,19 @@ public class SailrenService {
 			});
 		}
 
-		player.x(NEST_X);
-		player.y(NEST_Y);
-		player.z(NEST_Z);
+		if (world != null) {
+			world.teleportPlayer(player, NEST_X, NEST_Y, NEST_Z);
+		} else {
+			player.x(NEST_X);
+			player.y(NEST_Y);
+			player.z(NEST_Z);
+		}
 		playersInside.add(player.objectId());
 
 		if (status == BossStatus.NOTSPAWN) {
-			status = BossStatus.ALIVE;
+			status = BossStatus.WAITING;
 			if (grandBossManager != null) {
-				grandBossManager.setStatus(GrandBossManager.SAILREN, BossStatus.ALIVE);
+				grandBossManager.setStatus(GrandBossManager.SAILREN, BossStatus.WAITING);
 			}
 			startWaveSequence();
 		}
@@ -168,20 +172,37 @@ public class SailrenService {
 		scheduler.schedule(this::spawnSailren, intervalSec * 7L + 5L, TimeUnit.SECONDS);
 	}
 
+	public synchronized void onWaveMonsterKilled(int npcId) {
+		if (npcId == VELOCIRAPTOR) {
+			spawnWaveMob(PTEROSAUR, "Pterosaur");
+		} else if (npcId == PTEROSAUR) {
+			spawnWaveMob(TREX, "Tyrannosaurus");
+		} else if (npcId == TREX && activeSailren == null) {
+			spawnSailren();
+		}
+	}
+
 	private void spawnWaveMob(int npcId, String mobName) {
 		if (templates == null || world == null || objectIds == null) return;
 		NpcTemplate tpl = templates.get(npcId).orElseGet(() -> NpcTemplate.fallback(npcId, mobName, "L2Monster"));
 		NpcInstance mob = new NpcInstance(objectIds.nextId(), tpl, NEST_X + 150, NEST_Y + 150, NEST_Z, 0);
 		world.addNpc(mob);
+		world.broadcastAround(mob.x(), mob.y(), GameWorld.VISIBILITY_RADIUS,
+				new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(mob));
 		world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Primeval Isle",
 				"A roar echoes across the nest: " + mobName + " approaches!"), p -> true);
 	}
 
 	public synchronized void spawnSailren() {
 		if (!Config.SAILREN_ENABLED || templates == null || world == null || objectIds == null) return;
+		if (activeSailren != null && !activeSailren.isDead()) {
+			return;
+		}
 		NpcTemplate tpl = templates.get(SAILREN).orElseGet(() -> NpcTemplate.fallback(SAILREN, "Sailren", "L2GrandBoss"));
 		activeSailren = new NpcInstance(objectIds.nextId(), tpl, NEST_X, NEST_Y, NEST_Z, 0);
 		world.addNpc(activeSailren);
+		world.broadcastAround(NEST_X, NEST_Y, GameWorld.VISIBILITY_RADIUS,
+				new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(activeSailren));
 
 		status = BossStatus.ALIVE;
 		if (grandBossManager != null) {
@@ -228,16 +249,22 @@ public class SailrenService {
 				.orElseGet(() -> NpcTemplate.fallback(TELEPORT_CUBE, "Teleportation Cube", "L2Npc"));
 		exitCube = new NpcInstance(objectIds.nextId(), cubeTpl, NEST_X, NEST_Y, NEST_Z, 0);
 		world.addNpc(exitCube);
+		world.broadcastAround(NEST_X, NEST_Y, GameWorld.VISIBILITY_RADIUS,
+				new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(exitCube));
 
 		scheduler.schedule(this::clearNest, 15L * 60L, TimeUnit.SECONDS);
 	}
 
 	public void clearNest() {
 		if (exitCube != null && world != null) {
+			world.broadcastAround(exitCube.x(), exitCube.y(), GameWorld.VISIBILITY_RADIUS,
+					new com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject(exitCube.objectId()));
 			world.removeNpc(exitCube);
 			exitCube = null;
 		}
 		if (activeSailren != null && world != null) {
+			world.broadcastAround(activeSailren.x(), activeSailren.y(), GameWorld.VISIBILITY_RADIUS,
+					new com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject(activeSailren.objectId()));
 			world.removeNpc(activeSailren);
 			activeSailren = null;
 		}
@@ -246,9 +273,7 @@ public class SailrenService {
 				world.player(playerId).ifPresent(p -> {
 					PlayerCharacter pc = p.character();
 					if (pc != null) {
-						pc.x(EXIT_X);
-						pc.y(EXIT_Y);
-						pc.z(EXIT_Z);
+						world.teleportPlayer(pc, EXIT_X, EXIT_Y, EXIT_Z);
 					}
 				});
 			}
