@@ -99,6 +99,9 @@ import com.lopez.l2j.network.game.packet.GameClientPacket.RequestUnEquipItem;
 import com.lopez.l2j.network.game.packet.GameClientPacket.Say2;
 
 import com.lopez.l2j.network.game.handler.packet.ActionPacketHandler;
+import com.lopez.l2j.network.game.handler.packet.CharacterPacketHandler;
+import com.lopez.l2j.network.game.handler.packet.MovementPacketHandler;
+import com.lopez.l2j.network.game.handler.packet.PlayerCombatHandler;
 
 import com.lopez.l2j.network.game.handler.packet.AdminPacketHandler;
 
@@ -2516,6 +2519,41 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 
 			return getBean(com.lopez.l2j.game.npc.NpcTemplateTable.class);
+		}
+
+		public com.lopez.l2j.game.recipe.RecipeService recipes() {
+			return getBean(com.lopez.l2j.game.recipe.RecipeService.class);
+		}
+
+		public com.lopez.l2j.game.item.ItemTemplateTable items() {
+			return inventories != null ? inventories.templates() : getBean(com.lopez.l2j.game.item.ItemTemplateTable.class);
+		}
+
+		public com.lopez.l2j.game.augmentation.AugmentationService augmentations() {
+			return augmentation();
+		}
+	}
+
+	public void sendStatusUpdate() {
+		if (active != null) {
+			send(GameServerPacket.StatusUpdate.forPlayer(active));
+		}
+	}
+
+	public void clearSkillCooldowns() {
+		if (magicSkillHandler != null) {
+			magicSkillHandler.clearSkillReuse();
+		}
+		send(new GameServerPacket.SkillCoolTime());
+	}
+
+	public void sendItemList(boolean showWindow) {
+		if (active != null && active.inventory() != null) {
+			send(GameServerPacket.ItemList.of(active.inventory().items(), showWindow));
+		}
+	}
+
+	private static class UnusedContextDummy { private void dummy() {
 
 		}
 
@@ -2682,6 +2720,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private final CommandPacketHandler commandHandler;
 
 	private final ExtendedProtocolPacketHandler extendedProtocolHandler;
+	private final MovementPacketHandler movementHandler;
+	private final CharacterPacketHandler characterHandler;
 
 	public GameSession(Context ctx, byte[] cryptKey, String ip, Consumer<GameServerPacket> sink) {
 
@@ -2726,6 +2766,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		this.commandHandler = new CommandPacketHandler(this);
 
 		this.extendedProtocolHandler = new ExtendedProtocolPacketHandler(this);
+		this.movementHandler = new MovementPacketHandler(this);
+		this.characterHandler = new CharacterPacketHandler(this);
 
 	}
 
@@ -3026,6 +3068,26 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	public ExtendedProtocolPacketHandler extendedProtocolHandler() {
+		return extendedProtocolHandler;
+	}
+
+	public MovementPacketHandler movementHandler() {
+		return movementHandler;
+	}
+
+	public CharacterPacketHandler characterHandler() {
+		return characterHandler;
+	}
+
+	public void sendQuestList() {
+		if (ctx != null && ctx.questManager() != null) {
+			ctx.questManager().sendQuestList(this);
+		} else {
+			send(new QuestList(List.of()));
+		}
+	}
+
+	private ExtendedProtocolPacketHandler unusedExtendedProtocolRef() {
 
 		return extendedProtocolHandler;
 
@@ -3584,7 +3646,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			case GameClientPacket.RequestLinkHtml p -> extendedProtocolHandler.handleLinkHtml(p);
 
-			case GameClientPacket.CannotMoveAnymore p -> extendedProtocolHandler.handleCannotMoveAnymore(p);
+			case GameClientPacket.CannotMoveAnymore p -> movementHandler.handleCannotMoveAnymore(p);
 
 			case GameClientPacket.MoveWithDelta p -> extendedProtocolHandler.handleMoveWithDelta(p);
 
@@ -3743,6 +3805,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	/** Chame quando a conexao cair, por qualquer motivo. */
 
 	public void onDisconnect() {
+		if (active != null) {
+			characterHandler.onPlayerDisconnect(this, active);
+		}
 
 		if (active != null && active.isBuffShop() && ctx.buffShop() != null) {
 
@@ -4147,6 +4212,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		updateEquippedItemSkills();
 
 		updateAugmentationBonus();
+		characterHandler.onPlayerLogin(this, active);
 
 		if (active != null) {
 
@@ -4800,7 +4866,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 	}
 
-	private int getPhysicalAttackRange(PlayerCharacter player) {
+	public int getPhysicalAttackRange(PlayerCharacter player) {
 
 		int baseRange = 40;
 
@@ -4890,6 +4956,54 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		send(new ValidateLocation(npc.objectId(), npc.x(), npc.y(), npc.z(), npc.heading()));
 
+	}
+
+	private Attack buildNpcAttackPacket(NpcInstance npc, com.lopez.l2j.game.combat.CombatService.HitPlan plan,
+			List<Attack.Hit> extraHits, int x, int y, int z) {
+		List<Attack.Hit> allHits = new ArrayList<>();
+		if (PlayerCombatHandler.isDualWeapon(activeWeapon()) && !plan.miss() && plan.damage() > 1) {
+			int hit1 = plan.damage() / 2;
+			int hit2 = plan.damage() - hit1;
+			allHits.add(new Attack.Hit(npc.objectId(), hit1, plan.flags()));
+			allHits.add(new Attack.Hit(npc.objectId(), hit2, plan.flags()));
+		} else {
+			allHits.add(new Attack.Hit(npc.objectId(), plan.damage(), plan.flags()));
+		}
+		if (extraHits != null && !extraHits.isEmpty()) {
+			allHits.addAll(extraHits);
+		}
+		int firstDmg = (PlayerCombatHandler.isDualWeapon(activeWeapon()) && !plan.miss() && plan.damage() > 1) ? (plan.damage() - (plan.damage() / 2)) : plan.damage(); return new Attack(active.objectId(), npc.objectId(), firstDmg, plan.flags(), x, y, z, extraHits != null ? extraHits : List.of());
+	}
+
+	private Attack buildPlayerAttackPacket(GameSession targetPlayer, com.lopez.l2j.game.combat.CombatService.HitPlan plan,
+			List<Attack.Hit> extraHits, int x, int y, int z) {
+		List<Attack.Hit> allHits = new ArrayList<>();
+		int targetObjId = targetPlayer.active.objectId();
+		if (PlayerCombatHandler.isDualWeapon(activeWeapon()) && !plan.miss() && plan.damage() > 1) {
+			int hit1 = plan.damage() / 2;
+			int hit2 = plan.damage() - hit1;
+			allHits.add(new Attack.Hit(targetObjId, hit1, plan.flags()));
+			allHits.add(new Attack.Hit(targetObjId, hit2, plan.flags()));
+		} else {
+			allHits.add(new Attack.Hit(targetObjId, plan.damage(), plan.flags()));
+		}
+		if (extraHits != null && !extraHits.isEmpty()) {
+			allHits.addAll(extraHits);
+		}
+		int firstDmg = (PlayerCombatHandler.isDualWeapon(activeWeapon()) && !plan.miss() && plan.damage() > 1) ? (plan.damage() - (plan.damage() / 2)) : plan.damage(); return new Attack(active.objectId(), targetObjId, firstDmg, plan.flags(), x, y, z, extraHits != null ? extraHits : List.of());
+	}
+
+	private void moveApproachStep(int nextX, int nextY, int targetZ) {
+		var geo = com.lopez.l2j.game.geodata.GeoEngine.getInstance();
+		if (geo != null && geo.isEnabled()) {
+			var checked = geo.moveCheck(active.x(), active.y(), active.z(), nextX, nextY, targetZ);
+			if (checked != null) {
+				nextX = checked.x();
+				nextY = checked.y();
+				targetZ = checked.z();
+			}
+		}
+		active.moveTo(nextX, nextY, targetZ);
 	}
 
 	public void startAutoAttack(NpcInstance npc) {
@@ -5680,6 +5794,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		int timeAtk = (int) (500_000L / pAtkSpd);
 
+		if (!PlayerCombatHandler.checkAndConsumeBowMpAndGauge(this, active, activeWeapon(), pAtkSpd)) {
+			return;
+		}
+		if (ctx.questManager() != null) {
+			ctx.questManager().onNpcAttack(npc, this, false);
+		}
 		double distToNpc = Math.hypot(npc.x() - active.x(), npc.y() - active.y());
 
 		int timeToHit = calculateTimeToHit(timeAtk, activeWeapon(), distToNpc);
@@ -5737,8 +5857,18 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		// Planeja dano/flags SEM aplicar ao HP do monstro antes do impacto da animacao
 
 		var plan = ctx.combat().planAttackNpc(active, t, npc, ssGrade);
+		var poleExtraTargets = PlayerCombatHandler.isPolearmWeapon(activeWeapon())
+				? PlayerCombatHandler.planPolearmExtraHits(this, ctx, active, t, npc, ssGrade, getPhysicalAttackRange(active))
+				: java.util.List.<PlayerCombatHandler.PolearmExtraTarget>of();
+		List<Attack.Hit> extraAtkHits = new ArrayList<>();
+		if (PlayerCombatHandler.isDualWeapon(activeWeapon()) && plan.damage() > 1) {
+			extraAtkHits.add(new Attack.Hit(npc.objectId(), plan.damage() / 2, plan.flags()));
+		}
+		for (var pe : poleExtraTargets) {
+			extraAtkHits.add(new Attack.Hit(pe.npc().objectId(), pe.damage(), pe.flags()));
+		}
 
-		var atk = new Attack(active.objectId(), npc.objectId(), plan.damage(), plan.flags(), active.x(), active.y(),
+		var atk = buildNpcAttackPacket(npc, plan, extraAtkHits, active.x(), active.y(),
 
 				active.z());
 
@@ -5773,6 +5903,20 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 
 			var hit = ctx.combat().applyDamage(npc, plan.damage(), plan.flags());
+			for (var pe : poleExtraTargets) {
+				if (pe.npc() != null && !pe.npc().isDead()) {
+					var extraHit = ctx.combat().applyDamage(pe.npc(), pe.damage(), pe.flags());
+					int extraRemHp = extraHit.isDead() ? 0 : Math.max(0, extraHit.remainingHp());
+					var extraSu = StatusUpdate.hp(pe.npc().objectId(), extraRemHp, (int) pe.npc().maxHp());
+					send(extraSu);
+					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, extraSu, false);
+					if (extraHit.isDead()) {
+						PlayerCombatHandler.handleMonsterDeath(this, ctx, active, t, pe.npc(), party, extraHit.expReward(), extraHit.spReward());
+					} else if (ctx.npcAi() != null) {
+						ctx.npcAi().startCombat(pe.npc(), active.objectId());
+					}
+				}
+			}
 
 			if (hit.damage() > 0) {
 
@@ -5899,7 +6043,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 					int nextY = (int) Math.round(active.y() + Math.sin(angle) * moveDist);
 
-					active.moveTo(nextX, nextY, npc.z());
+					moveApproachStep(nextX, nextY, npc.z());
 
 				}
 
@@ -5989,7 +6133,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 					int nextY = (int) Math.round(active.y() + Math.sin(angle) * moveDist);
 
-					active.moveTo(nextX, nextY, targetPlayer.z());
+					moveApproachStep(nextX, nextY, targetPlayer.z());
 
 				}
 
@@ -6073,6 +6217,9 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		int timeAtk = (int) (500_000L / pAtkSpd);
 
+		if (!PlayerCombatHandler.checkAndConsumeBowMpAndGauge(this, active, activeWeapon(), pAtkSpd)) {
+			return;
+		}
 		double distToPlayer = Math.hypot(targetPlayer.x() - active.x(), targetPlayer.y() - active.y());
 
 		int timeToHit = calculateTimeToHit(timeAtk, activeWeapon(), distToPlayer);
@@ -6114,8 +6261,12 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		var tgtTemplate = ctx.characters().template(targetPlayer.active);
 
 		var plan = ctx.combat().planAttackPlayer(active, t, targetPlayer.active, tgtTemplate, ssGrade);
+		List<Attack.Hit> extraAtkHits = new ArrayList<>();
+		if (PlayerCombatHandler.isDualWeapon(activeWeapon()) && plan.damage() > 1) {
+			extraAtkHits.add(new Attack.Hit(targetPlayer.objectId(), plan.damage() / 2, plan.flags()));
+		}
 
-		var atk = new Attack(active.objectId(), targetPlayer.objectId(), plan.damage(), plan.flags(), active.x(),
+		var atk = buildPlayerAttackPacket(targetPlayer, plan, extraAtkHits, active.x(),
 
 				active.y(),
 
@@ -6141,7 +6292,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			}
 
-			var dmgRes = ctx.combat().applyDamagePlayer(targetPlayer.active, plan.damage());
+			var dmgRes = PlayerCombatHandler.applyPlayerDamageWithOlympiadCheck(this, targetPlayer, ctx, plan.damage());
 
 			if (dmgRes.damage() > 0) {
 
@@ -10959,6 +11110,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), target.objectId()));
 		}
 		updateAugmentationBonus();
+		characterHandler.onPlayerLogin(this, active);
 		refreshWeightAndPenalties();
 		sendUserInfoAndBroadcastCharInfo();
 		send(SystemMessage.id(SystemMessage.THE_ITEM_WAS_SUCCESSFULLY_AUGMENTED));
@@ -11019,6 +11171,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), target.objectId()));
 		}
 		updateAugmentationBonus();
+		characterHandler.onPlayerLogin(this, active);
 		sendUserInfoAndBroadcastCharInfo();
 		send(SystemMessage.of(SystemMessage.AUGMENTATION_HAS_BEEN_SUCCESSFULLY_REMOVED_FROM_YOUR_S1,
 				new SystemMessage.ItemName(target.itemId())));
