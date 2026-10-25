@@ -1,9 +1,16 @@
 package com.lopez.l2j.network.game.handler.packet;
 
 import com.lopez.l2j.config.Config;
+import com.lopez.l2j.game.cursed.CursedWeapon;
+import com.lopez.l2j.game.cursed.CursedWeaponsManager;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.network.game.GameSession;
+import com.lopez.l2j.network.game.packet.GameClientPacket;
+import com.lopez.l2j.network.game.packet.GameServerPacket;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +29,16 @@ public class CharacterPacketHandler {
 
 	private static final Logger log = LoggerFactory.getLogger(CharacterPacketHandler.class);
 	private static final int ADENA_ITEM_ID = 57;
+
+	private final GameSession session;
+
+	public CharacterPacketHandler() {
+		this.session = null;
+	}
+
+	public CharacterPacketHandler(GameSession session) {
+		this.session = session;
+	}
 
 	public boolean shouldAutoDeleteInvalidQuestData() {
 		return Config.AUTO_DELETE_INVALID_QUEST_DATA;
@@ -189,5 +206,143 @@ public class CharacterPacketHandler {
 			return false;
 		}
 		return !player.isSubClassActive() || Config.ALLOW_HERO_SKILL_ON_SUB;
+	}
+
+	/**
+	 * Sincroniza estado de Cursed Weapons, Augmentation e Armor Sets no login do jogador (#277, #280).
+	 */
+	public void onPlayerLogin(GameSession targetSession, PlayerCharacter active) {
+		GameSession s = targetSession != null ? targetSession : this.session;
+		if (s == null || active == null) {
+			return;
+		}
+		CursedWeaponsManager cwm = s.context() != null && s.context().cursedWeapons() != null
+				? s.context().cursedWeapons()
+				: CursedWeaponsManager.getInstance();
+		if (cwm != null) {
+			cwm.onPlayerLogin(active);
+		}
+		if (s.itemHandler() != null) {
+			s.itemHandler().updateAugmentationBonus();
+			s.itemHandler().updateArmorSetBonus();
+		}
+	}
+
+	/**
+	 * Processa notificacoes de desconexao em Olympiad e CTF (#419, #481).
+	 */
+	public void onPlayerDisconnect(GameSession targetSession, PlayerCharacter active) {
+		GameSession s = targetSession != null ? targetSession : this.session;
+		if (s == null || active == null || s.context() == null) {
+			return;
+		}
+		var ctx = s.context();
+		var olyGames = ctx.getBean(com.lopez.l2j.game.olympiad.OlympiadGameService.class);
+		if (olyGames != null) {
+			olyGames.onPlayerDisconnect(active.objectId());
+		}
+		if (ctx.ctf() != null) {
+			ctx.ctf().onDisconnect(active.objectId());
+		}
+	}
+
+	public void handleSendFriendMsg(GameClientPacket.RequestSendFriendMsg p) {
+		if (session != null && session.socialHandler() != null && p != null) {
+			session.socialHandler().handleSendFriendMsg(p);
+		}
+	}
+
+	public void handleAutoSoulShot(GameClientPacket.RequestAutoSoulShot p) {
+		if (session != null && session.itemHandler() != null && p != null) {
+			session.itemHandler().handleAutoSoulShot(p);
+		}
+	}
+
+	public void handleWarehouseWithdrawList(GameClientPacket.SendWareHouseWithDrawList p) {
+		if (session != null && p != null) {
+			session.onWareHouseWithdraw(p);
+		}
+	}
+
+	public void handleWithdrawParty() {
+		if (session != null && session.partyClanHandler() != null) {
+			session.partyClanHandler().handleLeaveParty();
+		}
+	}
+
+	public void handleOustPartyMember(GameClientPacket.RequestOustPartyMember p) {
+		if (session != null && session.partyClanHandler() != null && p != null) {
+			session.partyClanHandler().handleOustPartyMember(p);
+		}
+	}
+
+	public void handleDismissParty() {
+		if (session != null && session.partyClanHandler() != null) {
+			session.partyClanHandler().handleDismissParty();
+		}
+	}
+
+	public void handleQuestAbort(GameClientPacket.RequestQuestAbort p) {
+		if (session == null || p == null || session.activeChar() == null || session.context() == null) {
+			return;
+		}
+		var ctx = session.context();
+		if (ctx.questManager() != null) {
+			var q = ctx.questManager().getQuest(p.questId());
+			if (q != null) {
+				var st = session.getQuestState(q.getName());
+				if (st != null) {
+					st.exitQuest(true);
+					ctx.questManager().deleteQuestState(st);
+					ctx.questManager().sendQuestList(session);
+				}
+			}
+		}
+	}
+
+	public void handleBypassBuildCmd(GameClientPacket.SendBypassBuildCmd p) {
+		if (session == null || p == null || !session.inWorld() || session.activeChar() == null) {
+			return;
+		}
+		if (!session.activeChar().isGm()) {
+			session.send(new GameServerPacket.ActionFailed());
+			return;
+		}
+		String cmd = p.command() == null ? "" : p.command().trim();
+		if (cmd.isEmpty()) {
+			return;
+		}
+		String fullCmd = cmd.startsWith("admin_") ? cmd : "admin_" + cmd;
+		session.handleAdminCommand(fullCmd);
+	}
+
+	public void handleCursedWeaponList() {
+		if (session != null && session.hennaHandler() != null) {
+			session.hennaHandler().handleCursedWeaponList();
+		}
+	}
+
+	public void handleCursedWeaponLocation() {
+		if (session != null && session.hennaHandler() != null) {
+			session.hennaHandler().handleCursedWeaponLocation();
+		}
+	}
+
+	public void handlePledgePowerGradeList() {
+		if (session != null && session.partyClanHandler() != null) {
+			session.partyClanHandler().handlePledgePowerGradeList();
+		}
+	}
+
+	public void handlePledgeMemberPowerInfo(GameClientPacket.RequestPledgeMemberPowerInfo p) {
+		if (session != null && session.partyClanHandler() != null && p != null) {
+			session.partyClanHandler().handlePledgeMemberPowerInfo(p);
+		}
+	}
+
+	public void handlePledgePower(GameClientPacket.RequestPledgePower p) {
+		if (session != null && session.partyClanHandler() != null && p != null) {
+			session.partyClanHandler().handlePledgePower(p);
+		}
 	}
 }
