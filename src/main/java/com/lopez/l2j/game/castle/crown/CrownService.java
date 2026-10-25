@@ -140,9 +140,32 @@ public class CrownService {
 
 		Inventory inv = player.inventory();
 		inv.byItemId(CrownTable.LORDS_CROWN).ifPresent(crown -> {
+			if (crown.isEquipped()) {
+				inv.unequip(crown);
+			}
 			inv.remove(crown);
 			log.info("Coroa do Senhor removida de {}", player.name());
 		});
+	}
+
+	/**
+	 * Remove a Coroa do Lorde (6841) e os Diademas de Castelo (6834-6840, 8182, 8183) de todos os membros online
+	 * de um cla que perdeu a posse do castelo (#393).
+	 */
+	public void removeCastleCrownsFromClan(Clan clan) {
+		if (clan == null) {
+			return;
+		}
+		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (world == null) {
+			return;
+		}
+		for (var member : clan.members()) {
+			PlayerCharacter online = world.getPlayer(member.objectId());
+			if (online != null) {
+				checkCrowns(online, clan);
+			}
+		}
 	}
 
 	private ItemTemplate resolveTemplate(int itemId, String defaultName) {
