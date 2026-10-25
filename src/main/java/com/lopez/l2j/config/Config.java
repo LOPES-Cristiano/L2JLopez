@@ -248,6 +248,20 @@ public final class Config {
 	public static int MAX_SUBCLASSES = 3;
 	public static int SUBCLASS_MAX_LEVEL = 80;
 	public static int SUBCLASS_INIT_LEVEL = 40;
+	public static int MAX_FREIGHT_SLOTS = 20;
+	public static boolean TVT_REWARD_TEAM_TIE = false;
+	public static String DM_EVENT_REWARDS = "57,100000";
+	public static int DM_JOIN_TIME = 5;
+	public static boolean DM_JOIN_WITH_CURSED_WEAPON = false;
+	public static boolean DM_ALLOW_POTIONS = false;
+	public static boolean DM_REVIVE_RECOVERY = true;
+	public static boolean DM_REWARD_FIRST_PLAYERS = true;
+	public static boolean PARTY_FARM_ENABLED = true;
+	public static List<Integer> PARTY_FARM_DAYS = List.of(1, 3, 5);
+	public static List<String> PARTY_FARM_TIMES = List.of("15:00", "19:00", "23:00");
+	public static int PARTY_FARM_DURATION = 60;
+	public static int PARTY_FARM_PREP_MINUTES = 5;
+	public static String PARTY_FARM_MESSAGE = "Party Farm Event has started!";
 	public static boolean ALT_SUBCLASS_WITHOUT_QUESTS = false;
 	public static boolean ALT_SUBCLASS_EVERYWHERE = true;
 	public static boolean ANNOUNCE_CLASS_CHANGE = false;
@@ -3784,6 +3798,9 @@ public final class Config {
 		}
 		return Collections.unmodifiableMap(map);
 	}
+
+	public static int MAX_PVTSTORE_SLOTS_DWARF = 5;
+	public static int MAX_PVTSTORE_SLOTS_OTHER = 4;
 
 	private static Map<Integer, int[]> parseAutoFarmPrices(String str) {
 		if (str == null || str.isBlank()) {
