@@ -187,12 +187,25 @@ public class ClanPrivilegeService {
 			}
 			case Clan.SUBUNIT_ROYAL1, Clan.SUBUNIT_ROYAL2 -> {
 				if (clan.level() < 6) return SubPledgeResult.CLAN_LEVEL_TOO_LOW;
-				if (subLeaderId <= 0 || clan.getMember(subLeaderId) == null) return SubPledgeResult.SUB_LEADER_REQUIRED;
+				if (subLeaderId <= 0 || subLeaderId == clan.leaderId() || clan.getMember(subLeaderId) == null) {
+					return SubPledgeResult.SUB_LEADER_REQUIRED;
+				}
 				repCost = REP_COST_ROYAL;
 			}
-			case Clan.SUBUNIT_KNIGHT1, Clan.SUBUNIT_KNIGHT2, Clan.SUBUNIT_KNIGHT3, Clan.SUBUNIT_KNIGHT4 -> {
+			case Clan.SUBUNIT_KNIGHT1, Clan.SUBUNIT_KNIGHT2 -> {
 				if (clan.level() < 7) return SubPledgeResult.CLAN_LEVEL_TOO_LOW;
-				if (subLeaderId <= 0 || clan.getMember(subLeaderId) == null) return SubPledgeResult.SUB_LEADER_REQUIRED;
+				if (clan.getSubPledge(Clan.SUBUNIT_ROYAL1) == null) return SubPledgeResult.INVALID_SUB_TYPE;
+				if (subLeaderId <= 0 || subLeaderId == clan.leaderId() || clan.getMember(subLeaderId) == null) {
+					return SubPledgeResult.SUB_LEADER_REQUIRED;
+				}
+				repCost = REP_COST_KNIGHT;
+			}
+			case Clan.SUBUNIT_KNIGHT3, Clan.SUBUNIT_KNIGHT4 -> {
+				if (clan.level() < 7) return SubPledgeResult.CLAN_LEVEL_TOO_LOW;
+				if (clan.getSubPledge(Clan.SUBUNIT_ROYAL2) == null) return SubPledgeResult.INVALID_SUB_TYPE;
+				if (subLeaderId <= 0 || subLeaderId == clan.leaderId() || clan.getMember(subLeaderId) == null) {
+					return SubPledgeResult.SUB_LEADER_REQUIRED;
+				}
 				repCost = REP_COST_KNIGHT;
 			}
 			default -> {
@@ -238,5 +251,29 @@ public class ClanPrivilegeService {
 		log.info("SubPledge tipo {} '{}' criada com sucesso pelo cla '{}' (Custo: {} Rep)",
 				subType, cleanName, clan.name(), repCost);
 		return SubPledgeResult.SUCCESS;
+	}
+
+	/**
+	 * Verifica se o membro pode visualizar ou sacar itens do Clan Warehouse (#378).
+	 */
+	public boolean canAccessClanWarehouse(PlayerCharacter player, boolean withdraw) {
+		if (player == null || player.clanId() <= 0) {
+			return false;
+		}
+		var clanOpt = clanTable.byClanId(player.clanId());
+		if (clanOpt.isEmpty()) {
+			return false;
+		}
+		Clan clan = clanOpt.get();
+		if (clan.isLeader(player.objectId())) {
+			return true;
+		}
+		if (!hasPrivilege(player, Clan.CP_CL_VIEW_WAREHOUSE)) {
+			return false;
+		}
+		if (!withdraw) {
+			return true;
+		}
+		return Clan.canMemberWithdrawFromWarehouse();
 	}
 }
