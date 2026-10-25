@@ -114,14 +114,51 @@ public class FortressService {
 	}
 
 	/**
-	 * Define o cla proprietario da fortaleza.
+	 * Define o cla proprietario da fortaleza e sincroniza Clan.fortId() e clan_data.hasFort (#394).
 	 */
 	public void setOwner(int fortId, int clanId) {
 		FortressRecord fort = byId.get(fortId);
 		if (fort != null) {
+			int oldOwner = fort.ownerClanId();
 			fort.ownerClanId(clanId);
 			fort.lastOwnedTime(System.currentTimeMillis());
 			saveFortress(fort);
+
+			var clanTable = com.lopez.l2j.game.clan.ClanTable.getInstance();
+			if (oldOwner > 0 && oldOwner != clanId) {
+				if (clanTable != null) {
+					var oldClan = clanTable.getClan(oldOwner);
+					if (oldClan != null && oldClan.fortId() == fortId) {
+						oldClan.fortId(0);
+					}
+				}
+				if (jdbc != null) {
+					try {
+						jdbc.sql("UPDATE clan_data SET hasFort = 0 WHERE clan_id = :oldId AND hasFort = :fid")
+								.param("oldId", oldOwner)
+								.param("fid", fortId)
+								.update();
+					} catch (Exception ignored) {}
+				}
+			}
+
+			if (clanId > 0) {
+				if (clanTable != null) {
+					var newClan = clanTable.getClan(clanId);
+					if (newClan != null) {
+						newClan.fortId(fortId);
+					}
+				}
+				if (jdbc != null) {
+					try {
+						jdbc.sql("UPDATE clan_data SET hasFort = :fid WHERE clan_id = :cid")
+								.param("fid", fortId)
+								.param("cid", clanId)
+								.update();
+					} catch (Exception ignored) {}
+				}
+			}
+
 			log.info("Fortaleza {} (ID {}) agora pertence ao Cla {}", fort.name(), fortId, clanId);
 		}
 	}
