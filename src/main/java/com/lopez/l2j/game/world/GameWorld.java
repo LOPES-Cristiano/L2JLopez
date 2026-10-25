@@ -158,6 +158,30 @@ public class GameWorld {
 		}
 	}
 
+	public void registerPlayer(OnlinePlayer p) {
+		add(p);
+	}
+
+	public void unregisterPlayer(int objectId) {
+		removeById(objectId);
+	}
+
+	public record SimpleOnlinePlayer(PlayerCharacter character, java.util.function.Consumer<GameServerPacket> packetSink) implements OnlinePlayer {
+		public SimpleOnlinePlayer(PlayerCharacter character) {
+			this(character, null);
+		}
+		@Override public int objectId() { return character.objectId(); }
+		@Override public String name() { return character.name(); }
+		@Override public int x() { return character.x(); }
+		@Override public int y() { return character.y(); }
+		@Override public int z() { return character.z(); }
+		@Override public void send(GameServerPacket packet) {
+			if (packetSink != null && packet != null) {
+				packetSink.accept(packet);
+			}
+		}
+	}
+
 	public record PhantomOnlinePlayer(PlayerCharacter character) implements OnlinePlayer {
 		@Override public int objectId() { return character.objectId(); }
 		@Override public String name() { return character.name(); }
@@ -210,6 +234,17 @@ public class GameWorld {
 		}
 		OnlinePlayer p = playersByName.get(key(name));
 		return p != null ? p.character() : null;
+	}
+
+	public void teleportPlayer(OnlinePlayer player, int x, int y, int z) {
+		if (player == null) {
+			return;
+		}
+		if (player.character() != null) {
+			teleportPlayer(player.character(), x, y, z, player.instanceId());
+		} else {
+			player.teleportToLocation(x, y, z);
+		}
 	}
 
 	public void teleportPlayer(PlayerCharacter player, int x, int y, int z) {
@@ -376,6 +411,19 @@ public class GameWorld {
 		npcsByCell.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet()).add(npc);
 	}
 
+	public NpcInstance removeNpc(int objectId) {
+		NpcInstance npc = npcsById.get(objectId);
+		if (npc != null) {
+			removeNpc(npc);
+		}
+		return npc;
+	}
+
+	public Optional<com.lopez.l2j.game.door.DoorInstance> doorById(int doorId) {
+		com.lopez.l2j.game.door.DoorTable dt = com.lopez.l2j.game.door.DoorTable.getInstance();
+		return dt != null ? dt.byDoorId(doorId) : Optional.empty();
+	}
+
 	public void removeNpc(NpcInstance npc) {
 		npcsById.remove(npc.objectId());
 		long key = cellKey(npc.x(), npc.y());
@@ -416,6 +464,10 @@ public class GameWorld {
 			}
 			npcsByCell.computeIfAbsent(newKey, k -> ConcurrentHashMap.newKeySet()).add(npc);
 		}
+	}
+
+	public Optional<OnlinePlayer> byId(int objectId) {
+		return player(objectId);
 	}
 
 	public Optional<NpcInstance> npc(int objectId) {
