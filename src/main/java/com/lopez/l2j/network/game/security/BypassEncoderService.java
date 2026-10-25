@@ -4,9 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Servico de codificacao e validacao de bypasses por sessao de jogador.
@@ -16,6 +19,10 @@ import java.util.Set;
 public class BypassEncoderService {
 
 	private static final Logger log = LoggerFactory.getLogger(BypassEncoderService.class);
+
+	public static final int MAX_BYPASSES_PER_SESSION = 512;
+
+	private final Map<Integer, List<String>> playerSessionBypasses = new ConcurrentHashMap<>();
 
 	public enum BypassType {
 		ENCODED,
@@ -42,17 +49,54 @@ public class BypassEncoderService {
 			"_bbsloc",
 			"_bbsclan",
 			"_bbsmemo",
+			"_bbsmail",
+			"_bbsfriends",
+			"_bbsblock",
 			"_maillist_0_1_0_",
 			"_friendlist_0_",
 			"_bbsaddfav",
+			"_bbsdelfav",
 			"_mrsl",
 			"_diary",
 			"_match",
 			"manor_menu_select",
 			"_olympiad",
 			"_dispel",
-			"interface?"
+			"interface?",
+			"arenawtt"
 	);
+
+	public List<String> getOrCreateSessionBypasses(int playerObjectId) {
+		return playerSessionBypasses.computeIfAbsent(playerObjectId, k -> Collections.synchronizedList(new ArrayList<>()));
+	}
+
+	public void clearSessionBypasses(int playerObjectId) {
+		List<String> list = playerSessionBypasses.remove(playerObjectId);
+		if (list != null) {
+			synchronized (list) {
+				list.clear();
+			}
+		}
+	}
+
+	public String encodeHtmlForPlayer(int playerObjectId, String html, boolean isBbs) {
+		List<String> list = getOrCreateSessionBypasses(playerObjectId);
+		synchronized (list) {
+			if (!isBbs) {
+				list.clear();
+			}
+		}
+		return encodeHtml(html, list, isBbs);
+	}
+
+	public DecodeResult decodeForPlayer(int playerObjectId, String bypass, boolean isBbs) {
+		List<String> list = playerSessionBypasses.get(playerObjectId);
+		return decode(bypass, list, isBbs);
+	}
+
+	public String encodeHtml(String html, List<String> sessionBypasses) {
+		return encodeHtml(html, sessionBypasses, false);
+	}
 
 	/**
 	 * Codifica todos os links "bypass -h ..." de um HTML, associando-os a lista de bypasses da sessao.
@@ -62,14 +106,15 @@ public class BypassEncoderService {
 			return html;
 		}
 
-		StringBuilder sb = new StringBuilder();
+		StringBuilder sb = new StringBuilder(html.length());
 		char[] chars = html.toCharArray();
 		int len = chars.length;
 		int lastCopied = 0;
 		int i = 0;
 
 		while (i + 7 < len) {
-			if (chars[i] == '\"'
+			char quoteChar = chars[i];
+			if ((quoteChar == '\"' || quoteChar == '\'')
 					&& (chars[i + 1] == 'b' || chars[i + 1] == 'B')
 					&& (chars[i + 2] == 'y' || chars[i + 2] == 'Y')
 					&& (chars[i + 3] == 'p' || chars[i + 3] == 'P')
@@ -79,7 +124,7 @@ public class BypassEncoderService {
 					&& Character.isWhitespace(chars[i + 7])) {
 
 				int quoteEnd = i + 8;
-				while (quoteEnd < len && chars[quoteEnd] != '\"') {
+				while (quoteEnd < len && chars[quoteEnd] != quoteChar) {
 					quoteEnd++;
 				}
 
@@ -126,8 +171,16 @@ public class BypassEncoderService {
 
 					int index;
 					synchronized (sessionBypasses) {
-						index = sessionBypasses.size();
-						sessionBypasses.add(cleanCommand);
+						int existingIdx = sessionBypasses.indexOf(cleanCommand);
+						if (existingIdx >= 0) {
+							index = existingIdx;
+						} else {
+							if (sessionBypasses.size() >= MAX_BYPASSES_PER_SESSION) {
+								sessionBypasses.clear();
+							}
+							index = sessionBypasses.size();
+							sessionBypasses.add(cleanCommand);
+						}
 					}
 
 					sb.append(Integer.toHexString(index));
@@ -152,10 +205,23 @@ public class BypassEncoderService {
 			return DecodeResult.invalid(bypass);
 		}
 
+		for (int i = 0; i < bypass.length(); i++) {
+			char c = bypass.charAt(i);
+			if (c == '\0' || c == '\r' || c == '\n') {
+				log.warn("Bypass rejeitado por conter caracteres de controle invalidos.");
+				return DecodeResult.invalid(bypass);
+			}
+		}
+
 		String trimmed = bypass.trim();
-		if (trimmed.startsWith("-h ")) {
+		if (trimmed.regionMatches(true, 0, "bypass ", 0, 7)) {
+			trimmed = trimmed.substring(7).trim();
+		}
+		if (trimmed.startsWith("-h ") || trimmed.startsWith("-H ")) {
 			trimmed = trimmed.substring(3).trim();
-		} else if (trimmed.startsWith("-h")) {
+		} else if (trimmed.equalsIgnoreCase("-h")) {
+			return DecodeResult.invalid(bypass);
+		} else if (trimmed.startsWith("-h") || trimmed.startsWith("-H")) {
 			trimmed = trimmed.substring(2).trim();
 		}
 
@@ -175,20 +241,22 @@ public class BypassEncoderService {
 				token = token.substring(0, spaceIdx);
 			}
 
-			try {
-				int index = Integer.parseInt(token, 16);
-				synchronized (sessionBypasses) {
-					if (index >= 0 && index < sessionBypasses.size()) {
-						String baseCommand = sessionBypasses.get(index);
-						String finalCommand = baseCommand + extraParams;
-						return DecodeResult.valid(type, finalCommand);
+			if (!token.isEmpty()) {
+				try {
+					int index = Integer.parseInt(token, 16);
+					synchronized (sessionBypasses) {
+						if (index >= 0 && index < sessionBypasses.size()) {
+							String baseCommand = sessionBypasses.get(index);
+							String finalCommand = baseCommand + extraParams;
+							return DecodeResult.valid(type, finalCommand);
+						}
 					}
+					log.warn("Bypass codificado invalido (indice fora de alcance): index={} size={}",
+							index, sessionBypasses.size());
+					return DecodeResult.invalid(bypass);
+				} catch (NumberFormatException ignored) {
+					// Nao e token hexadecimal, segue para verificacao de comando direto
 				}
-				log.warn("Bypass codificado invalido (indice fora de alcance): index={} size={}",
-						index, sessionBypasses.size());
-				return DecodeResult.invalid(bypass);
-			} catch (NumberFormatException ignored) {
-				// Nao e token hexadecimal, segue para verificacao de comando direto
 			}
 		}
 
@@ -219,6 +287,8 @@ public class BypassEncoderService {
 				|| lower.startsWith("admin_") || lower.startsWith("voiced_")
 				|| lower.startsWith("multisell") || lower.startsWith("exc_multisell")
 				|| lower.startsWith("newbie_exc_multisell") || lower.startsWith("multisell_shadow")
-				|| lower.startsWith("buyshadow") || lower.startsWith("exchange");
+				|| lower.startsWith("buyshadow") || lower.startsWith("exchange")
+				|| lower.startsWith("arenachange") || lower.startsWith("olympiad_observe")
+				|| lower.startsWith("receive_premium") || lower.startsWith("remove_clan_penalty");
 	}
 }
