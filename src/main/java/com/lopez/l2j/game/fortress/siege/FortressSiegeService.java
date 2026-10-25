@@ -42,6 +42,8 @@ public class FortressSiegeService {
 	public static final int REGISTRATION_FEE_ADENA = 250_000;
 	public static final int MIN_CLAN_LEVEL = 4;
 	public static final long SIEGE_CYCLE_MILLIS = 7 * 24 * 60 * 60 * 1000L; // 7 dias
+	public static final int FLAGPOLE_NPC_ID = 35063;
+	public static final int SKILL_RAISE_FLAG = 2011;
 
 	public record SiegeSpawnConfig(int npcId, int x, int y, int z, int heading) {}
 	public record CommanderSpawn(int fortId, int x, int y, int z, int heading, int npcId, int index) {}
@@ -52,6 +54,7 @@ public class FortressSiegeService {
 	private final Map<Integer, List<CommanderSpawn>> commanderSpawnsByFort = new ConcurrentHashMap<>();
 	private final Map<Integer, List<CombatFlagSpawn>> combatFlagSpawnsByFort = new ConcurrentHashMap<>();
 	private final Map<Integer, List<NpcInstance>> activeSiegeNpcs = new ConcurrentHashMap<>();
+	private final Map<Integer, Integer> combatFlagCarrierByFort = new ConcurrentHashMap<>(); // fortId -> playerObjId
 
 	private final FortressService fortressService;
 	private final JdbcClient jdbc;
@@ -251,6 +254,7 @@ public class FortressSiegeService {
 
 	/**
 	 * Derrota um dos comandantes da fortaleza (Subunit Commander).
+	 * Quando todos os comandantes sao derrotados, spawna as Bandeiras de Combate (Combat Flags - Item ID 9819) (#395).
 	 */
 	public void defeatCommander(int fortId) {
 		FortressSiegeRecord siege = sieges.get(fortId);
@@ -258,7 +262,60 @@ public class FortressSiegeService {
 			siege.commandersDefeated(siege.commandersDefeated() + 1);
 			log.info("Fortaleza {}: Comandante derrotado ({}/{})",
 					fortId, siege.commandersDefeated(), FortressSiegeRecord.TOTAL_COMMANDERS);
+			if (siege.commandersDefeated() >= FortressSiegeRecord.TOTAL_COMMANDERS) {
+				spawnCombatFlags(fortId);
+			}
 		}
+	}
+
+	/**
+	 * Equipa uma Bandeira de Combate (Combat Flag 9819) no jogador atacante, aplicando penalidade
+	 * de velocidade e concedendo a habilidade de captura no mastro (Flagpole 35063) (#395).
+	 */
+	public boolean pickupCombatFlag(int fortId, PlayerCharacter player) {
+		if (player == null || player.clanId() <= 0) {
+			return false;
+		}
+		FortressSiegeRecord siege = sieges.get(fortId);
+		if (siege == null || siege.status() != SiegeStatus.IN_PROGRESS || !siege.attackerClans().contains(player.clanId())) {
+			return false;
+		}
+		if (siege.commandersDefeated() < FortressSiegeRecord.TOTAL_COMMANDERS) {
+			return false;
+		}
+		int flagItemId = getCombatFlagItemId();
+		if (player.inventory() != null && player.inventory().getItemCount(flagItemId) <= 0) {
+			player.inventory().addItem(flagItemId, 1);
+		}
+		player.skills().put(SKILL_RAISE_FLAG, 1);
+		combatFlagCarrierByFort.put(fortId, player.objectId());
+		return true;
+	}
+
+	/**
+	 * Remove a Bandeira de Combate (9819) do portador (por morte, desconexao ou fim do cerco) (#395).
+	 */
+	public void dropCombatFlag(int fortId, PlayerCharacter player) {
+		combatFlagCarrierByFort.remove(fortId);
+		if (player != null) {
+			player.skills().remove(SKILL_RAISE_FLAG);
+			if (player.inventory() != null) {
+				int flagItemId = getCombatFlagItemId();
+				int count = player.inventory().getItemCount(flagItemId);
+				if (count > 0) {
+					player.inventory().destroyItemByItemId(flagItemId, count);
+				}
+			}
+		}
+	}
+
+	private void spawnCombatFlags(int fortId) {
+		if (world == null) {
+			return;
+		}
+		String fortName = fortressService.getFortressById(fortId).map(FortressRecord::name).orElse("Fortress #" + fortId);
+		world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Fortress Siege",
+				"All barracks of " + fortName + " have been captured! Combat Flags have spawned!"));
 	}
 
 	/**
