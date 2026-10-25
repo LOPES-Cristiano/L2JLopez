@@ -40,30 +40,12 @@ public class Quest1104NewbieTravelToken extends Quest {
 
 	@Override
 	public String onTalk(NpcInstance npc, QuestState qs) {
-		if (qs.getPlayer() != null && qs.playerLevel() >= 20) {
+		if (qs.playerLevel() >= 20) {
 			qs.exitQuest(true);
-			return "<html><body>Newbie Guide:<br>Newbie Guides offer teleportation among Newbie Towns to any character below level 20.<br>If you are above level 20, please use the official gatekeepers.</body></html>";
+			return "1.htm";
 		}
 		int npcId = npc != null ? npc.npcId() : 30598;
-		StringBuilder sb = new StringBuilder();
-		sb.append("<html><body>Newbie Guide:<br>Where would you like to go? Teleportation between starter villages requires 1 <font color=\"LEVEL\">Newbie Travel Token</font>.<br><br>");
-		if (npcId != 30598) {
-			sb.append("<a action=\"bypass -h Quest 1104_NewbieTravelToken 30598\">Talking Island Village</a><br>");
-		}
-		if (npcId != 30599) {
-			sb.append("<a action=\"bypass -h Quest 1104_NewbieTravelToken 30599\">Elven Village</a><br>");
-		}
-		if (npcId != 30600) {
-			sb.append("<a action=\"bypass -h Quest 1104_NewbieTravelToken 30600\">Dark Elven Village</a><br>");
-		}
-		if (npcId != 30602) {
-			sb.append("<a action=\"bypass -h Quest 1104_NewbieTravelToken 30602\">Orc Village</a><br>");
-		}
-		if (npcId != 30601) {
-			sb.append("<a action=\"bypass -h Quest 1104_NewbieTravelToken 30601\">Dwarven Village</a><br>");
-		}
-		sb.append("</body></html>");
-		return sb.toString();
+		return npcId + ".htm";
 	}
 
 	@Override
@@ -87,7 +69,7 @@ public class Quest1104NewbieTravelToken extends Quest {
 						return null;
 					} else {
 						qs.exitQuest(true);
-						return "<html><body>Newbie Guide:<br>You do not have any <font color=\"LEVEL\">Newbie Travel Token</font>.</body></html>";
+						return "Incorrect item count";
 					}
 				}
 			} catch (NumberFormatException ignored) {
