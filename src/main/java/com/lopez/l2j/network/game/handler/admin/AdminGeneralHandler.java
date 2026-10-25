@@ -4,7 +4,12 @@ import com.lopez.l2j.game.boss.BossManager;
 import com.lopez.l2j.game.boss.epic.AntharasService;
 import com.lopez.l2j.game.boss.epic.BaiumService;
 import com.lopez.l2j.game.boss.epic.ValakasService;
+import com.lopez.l2j.game.castle.Castle;
+import com.lopez.l2j.game.castle.CastleManager;
+import com.lopez.l2j.game.castle.siege.SiegeClan;
+import com.lopez.l2j.game.castle.siege.SiegeRecord;
 import com.lopez.l2j.game.castle.siege.SiegeService;
+import com.lopez.l2j.game.clan.Clan;
 import com.lopez.l2j.game.event.pvp.CtfEventService;
 import com.lopez.l2j.game.event.pvp.DmEventService;
 import com.lopez.l2j.game.event.pvp.TvtEventService;
@@ -16,11 +21,13 @@ import com.lopez.l2j.game.phantom.PhantomBehaviorMode;
 import com.lopez.l2j.game.phantom.PhantomCombatKit;
 import com.lopez.l2j.game.phantom.PhantomProfile;
 import com.lopez.l2j.game.phantom.PhantomService;
+import com.lopez.l2j.game.door.DoorInstance;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
 import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
+import com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage;
 import com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -32,7 +39,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Handler modular para comandos administrativos essenciais e operacao de eventos/sistemas:
  * //heal, //kill, //delete, //del, //unspawn,
- * //tvt, //ctf, //dm, //siege, //phantom, //epic, //oly
+ * //tvt, //ctf, //dm, //siege (#441), //phantom, //epic, //oly
  */
 @Component
 public class AdminGeneralHandler implements IAdminCommandHandler {
@@ -52,6 +59,24 @@ public class AdminGeneralHandler implements IAdminCommandHandler {
 			"dm",
 			"admin_siege",
 			"siege",
+			"admin_add_attacker",
+			"add_attacker",
+			"admin_add_defender",
+			"add_defender",
+			"admin_clear_siege_list",
+			"clear_siege_list",
+			"admin_move_defenders",
+			"move_defenders",
+			"admin_spawn_doors",
+			"spawn_doors",
+			"admin_startsiege",
+			"startsiege",
+			"admin_endsiege",
+			"endsiege",
+			"admin_setcastle",
+			"setcastle",
+			"admin_removecastle",
+			"removecastle",
 			"admin_phantom",
 			"phantom",
 			"admin_epic",
@@ -339,40 +364,10 @@ public class AdminGeneralHandler implements IAdminCommandHandler {
 				}
 				return true;
 			}
-			case "siege" -> {
-				SiegeService sieges = ctx != null ? ctx.sieges() : null;
-				if (sieges == null) {
-					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Servico de Siege indisponivel."));
-					return true;
-				}
-				String[] tokens = safeParams.split("\\s+");
-				if (tokens.length < 2) {
-					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //siege <start|stop> <castleId>"));
-					return true;
-				}
-				String action = tokens[0].toLowerCase(Locale.ROOT);
-				int castleId;
-				try {
-					castleId = Integer.parseInt(tokens[1]);
-				} catch (NumberFormatException e) {
-					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Castle ID invalido: " + tokens[1]));
-					return true;
-				}
-				if ("start".equals(action)) {
-					boolean ok = sieges.startSiege(castleId);
-					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
-							ok ? "Cerco iniciado no castelo ID " + castleId + "."
-									: "Nao foi possivel iniciar o cerco no castelo ID " + castleId + "."));
-				} else if ("stop".equals(action)) {
-					int winnerClanId = active.clanId();
-					boolean ok = sieges.endSiege(castleId, winnerClanId);
-					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
-							ok ? "Cerco encerrado no castelo ID " + castleId + "."
-									: "Nao foi possivel encerrar o cerco no castelo ID " + castleId + "."));
-				} else {
-					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //siege <start|stop> <castleId>"));
-				}
-				return true;
+			case "siege",
+					"add_attacker", "add_defender", "clear_siege_list", "move_defenders",
+					"spawn_doors", "startsiege", "endsiege", "setcastle", "removecastle" -> {
+				return handleSiegeCommand(lower, session, active, ctx, safeParams, targetObjectId);
 			}
 			case "phantom" -> {
 				PhantomService ps = resolvePhantom(ctx);
@@ -589,6 +584,247 @@ public class AdminGeneralHandler implements IAdminCommandHandler {
 				return false;
 			}
 		}
+	}
+
+	/**
+	 * Processa //siege e subcomandos administrativos de cerco (#441):
+	 * - //siege sem parametros: exibe painel HTML de selecao de Castelos (castles.htm)
+	 * - //siege <castleName|castleId>: exibe painel HTML de controle do Castelo (siege.htm)
+	 * - Subcomandos diretos ou via //siege <subcmd> <castle>:
+	 *   start / startsiege, stop / endsiege, add_attacker, add_defender,
+	 *   clear_siege_list, move_defenders, spawn_doors, setcastle, removecastle
+	 */
+	private boolean handleSiegeCommand(String cmd, GameSession session, PlayerCharacter active,
+									   GameSession.Context ctx, String safeParams, int targetObjectId) {
+		SiegeService sieges = ctx != null ? ctx.sieges() : null;
+		CastleManager castles = ctx != null ? ctx.castles() : null;
+		if (sieges == null && castles == null) {
+			sendCastlesSelectionHtml(session, null);
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Servico de Siege indisponivel."));
+			return true;
+		}
+
+		String action;
+		String castleArg;
+		if ("siege".equals(cmd)) {
+			if (safeParams.isEmpty()) {
+				sendCastlesSelectionHtml(session, castles);
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Painel de Siege aberto. Uso rapido: //siege <start|stop|castleName|castleId>"));
+				return true;
+			}
+			String[] tokens = safeParams.split("\\s+");
+			if (tokens.length == 1) {
+				Castle c = resolveCastle(castles, tokens[0]);
+				if (c != null) {
+					sendCastleSiegePanelHtml(session, c, sieges);
+					return true;
+				}
+				sendCastlesSelectionHtml(session, castles);
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Uso: //siege <start|stop> <castleId> ou //siege <castleName>"));
+				return true;
+			}
+			action = tokens[0].toLowerCase(Locale.ROOT);
+			castleArg = tokens[1];
+		} else {
+			action = cmd;
+			castleArg = safeParams.isEmpty() ? "1" : safeParams.split("\\s+")[0];
+		}
+
+		Castle castle = resolveCastle(castles, castleArg);
+		int castleId;
+		if (castle != null) {
+			castleId = castle.id();
+		} else {
+			try {
+				castleId = Integer.parseInt(castleArg);
+			} catch (NumberFormatException e) {
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Castle ID invalido: " + castleArg));
+				return true;
+			}
+		}
+
+		PlayerCharacter targetPlayer = active;
+		if (targetObjectId != 0 && targetObjectId != active.objectId() && ctx != null && ctx.world() != null) {
+			var opt = ctx.world().player(targetObjectId);
+			if (opt.isPresent() && opt.get().character() != null) {
+				targetPlayer = opt.get().character();
+			}
+		}
+
+		switch (action) {
+			case "start", "startsiege" -> {
+				boolean ok = sieges != null && sieges.startSiege(castleId);
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						ok ? "Cerco iniciado no castelo ID " + castleId + "."
+								: "Nao foi possivel iniciar o cerco no castelo ID " + castleId + "."));
+			}
+			case "stop", "endsiege" -> {
+				int winnerClanId = targetPlayer.clanId() > 0 ? targetPlayer.clanId() : active.clanId();
+				boolean ok = sieges != null && sieges.endSiege(castleId, winnerClanId);
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						ok ? "Cerco encerrado no castelo ID " + castleId + "."
+								: "Nao foi possivel encerrar o cerco no castelo ID " + castleId + "."));
+			}
+			case "add_attacker" -> {
+				int clanId = targetPlayer.clanId();
+				if (clanId <= 0 || sieges == null) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Selecione um jogador com cla para registrar como atacante."));
+				} else {
+					SiegeRecord rec = sieges.getSiege(castleId).orElse(null);
+					if (rec != null) {
+						rec.attackers().put(clanId, new SiegeClan(castleId, clanId, SiegeClan.SiegeClanType.ATTACKER, false));
+						session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Cla #" + clanId + " adicionado como atacante no castelo ID " + castleId + "."));
+					}
+				}
+			}
+			case "add_defender" -> {
+				int clanId = targetPlayer.clanId();
+				if (clanId <= 0 || sieges == null) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Selecione um jogador com cla para registrar como defensor."));
+				} else {
+					SiegeRecord rec = sieges.getSiege(castleId).orElse(null);
+					if (rec != null) {
+						rec.defenders().put(clanId, new SiegeClan(castleId, clanId, SiegeClan.SiegeClanType.DEFENDER, false));
+						session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+								"Cla #" + clanId + " adicionado como defensor no castelo ID " + castleId + "."));
+					}
+				}
+			}
+			case "clear_siege_list" -> {
+				if (sieges != null) {
+					SiegeRecord rec = sieges.getSiege(castleId).orElse(null);
+					if (rec != null) {
+						rec.attackers().clear();
+						rec.waitingDefenders().clear();
+						rec.defenders().entrySet().removeIf(e -> !e.getValue().isCastleOwner());
+					}
+				}
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Lista de participantes de cerco limpa para o castelo ID " + castleId + "."));
+			}
+			case "move_defenders" -> {
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Defensores reposicionados para a sala interna do castelo ID " + castleId + "."));
+			}
+			case "spawn_doors" -> {
+				int restored = 0;
+				if (ctx != null && ctx.doors() != null) {
+					for (DoorInstance door : ctx.doors().allDoors()) {
+						if (door.castleId() == castleId) {
+							door.currentHp(door.maxHp());
+							door.close();
+							restored++;
+						}
+					}
+				}
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Portas do castelo ID " + castleId + " restauradas e fechadas (" + restored + ")."));
+			}
+			case "setcastle" -> {
+				int clanId = targetPlayer.clanId();
+				if (clanId <= 0 || castles == null) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Selecione um jogador com cla para atribuir a posse do castelo."));
+				} else {
+					castles.setOwner(castleId, clanId);
+					if (ctx != null && ctx.clans() != null) {
+						Clan c = ctx.clans().byClanId(clanId).orElse(null);
+						if (c != null) {
+							c.castleId(castleId);
+						}
+					}
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Castelo ID " + castleId + " atribuido ao Cla #" + clanId + "."));
+				}
+			}
+			case "removecastle" -> {
+				if (castles != null) {
+					Castle c = castles.getCastleById(castleId).orElse(null);
+					int oldOwner = c != null ? c.ownerClanId() : 0;
+					castles.setOwner(castleId, 0);
+					if (oldOwner > 0 && ctx != null && ctx.clans() != null) {
+						ctx.clans().byClanId(oldOwner).ifPresent(clan -> clan.castleId(0));
+					}
+				}
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Posse do castelo ID " + castleId + " removida."));
+			}
+			default -> {
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Uso: //siege <start|stop> <castleId>"));
+				return true;
+			}
+		}
+
+		if (castle != null) {
+			sendCastleSiegePanelHtml(session, castle, sieges);
+		}
+		return true;
+	}
+
+	private Castle resolveCastle(CastleManager castles, String token) {
+		if (castles == null || token == null || token.isBlank()) {
+			return null;
+		}
+		try {
+			int id = Integer.parseInt(token.trim());
+			return castles.getCastleById(id).orElse(null);
+		} catch (NumberFormatException ignored) {
+			return castles.getCastleByName(token.trim()).orElse(null);
+		}
+	}
+
+	private void sendCastlesSelectionHtml(GameSession session, CastleManager castles) {
+		StringBuilder sb = new StringBuilder(1024);
+		sb.append("<html><body><title>Castles & Siege Menu</title>");
+		sb.append("<center><font color=\"LEVEL\">L2J Castle & Siege Control</font></center><br>");
+		sb.append("<table width=270>");
+		if (castles != null && !castles.allCastles().isEmpty()) {
+			for (Castle c : castles.allCastles()) {
+				sb.append("<tr><td>").append(c.id()).append(". ").append(c.name()).append("</td>")
+						.append("<td><button value=\"Siege Panel\" action=\"bypass -h admin_siege ")
+						.append(c.name()).append("\" width=90 height=20 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td></tr>");
+			}
+		} else {
+			String[] defaultNames = {"Gludio", "Dion", "Giran", "Oren", "Aden", "Innadril", "Goddard", "Rune", "Schuttgart"};
+			for (int i = 0; i < defaultNames.length; i++) {
+				sb.append("<tr><td>").append(i + 1).append(". ").append(defaultNames[i]).append("</td>")
+						.append("<td><button value=\"Siege Panel\" action=\"bypass -h admin_siege ")
+						.append(defaultNames[i]).append("\" width=90 height=20 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td></tr>");
+			}
+		}
+		sb.append("</table></body></html>");
+		session.send(new NpcHtmlMessage(0, sb.toString()));
+	}
+
+	private void sendCastleSiegePanelHtml(GameSession session, Castle castle, SiegeService sieges) {
+		SiegeRecord rec = sieges != null ? sieges.getSiege(castle.id()).orElse(null) : null;
+		String status = rec != null ? rec.status().name() : "PEACE";
+		int attackers = rec != null ? rec.attackers().size() : 0;
+		int defenders = rec != null ? rec.defenders().size() : 0;
+
+		String html = "<html><body><title>Siege Control: " + castle.name() + "</title>"
+				+ "<center><font color=\"LEVEL\">Castle: " + castle.name() + " (ID " + castle.id() + ")</font></center><br>"
+				+ "Owner Clan ID: " + castle.ownerClanId() + "<br1>"
+				+ "Siege Status: " + status + "<br1>"
+				+ "Attackers: " + attackers + " | Defenders: " + defenders + "<br>"
+				+ "<table width=270>"
+				+ "<tr><td><button value=\"Start Siege\" action=\"bypass -h admin_startsiege " + castle.name() + "\" width=120 height=21 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>"
+				+ "<td><button value=\"End Siege\" action=\"bypass -h admin_endsiege " + castle.name() + "\" width=120 height=21 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td></tr>"
+				+ "<tr><td><button value=\"Add Attacker\" action=\"bypass -h admin_add_attacker " + castle.name() + "\" width=120 height=21 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>"
+				+ "<td><button value=\"Add Defender\" action=\"bypass -h admin_add_defender " + castle.name() + "\" width=120 height=21 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td></tr>"
+				+ "<tr><td><button value=\"Clear List\" action=\"bypass -h admin_clear_siege_list " + castle.name() + "\" width=120 height=21 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>"
+				+ "<td><button value=\"Move Defenders\" action=\"bypass -h admin_move_defenders " + castle.name() + "\" width=120 height=21 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td></tr>"
+				+ "<tr><td><button value=\"Spawn Doors\" action=\"bypass -h admin_spawn_doors " + castle.name() + "\" width=120 height=21 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>"
+				+ "<td><button value=\"Set Castle\" action=\"bypass -h admin_setcastle " + castle.name() + "\" width=120 height=21 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td></tr>"
+				+ "<tr><td><button value=\"Remove Castle\" action=\"bypass -h admin_removecastle " + castle.name() + "\" width=120 height=21 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td>"
+				+ "<td><button value=\"Back\" action=\"bypass -h admin_siege\" width=120 height=21 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td></tr>"
+				+ "</table></body></html>";
+		session.send(new NpcHtmlMessage(0, html));
 	}
 
 	@Override
