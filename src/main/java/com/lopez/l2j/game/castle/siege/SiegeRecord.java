@@ -25,6 +25,11 @@ public class SiegeRecord {
 	private int controlTowersActive = 3;
 	private int flameTowersActive = 2;
 
+	// Artefatos gravados por cla (clanId -> conjunto de indices de artefatos gravados) (#389)
+	private final Map<Integer, java.util.Set<Integer>> engravedArtefactsByClan = new ConcurrentHashMap<>();
+	// Zonas de armadilha (Flame Towers) desativadas (#388)
+	private final java.util.Set<Integer> disabledTrapZones = ConcurrentHashMap.newKeySet();
+
 	public SiegeRecord(int castleId, long siegeDate) {
 		this.castleId = castleId;
 		this.status = SiegeStatus.REGISTRATION;
@@ -104,5 +109,28 @@ public class SiegeRecord {
 
 	public void flameTowersActive(int flameTowersActive) {
 		this.flameTowersActive = Math.max(0, flameTowersActive);
+	}
+
+	/**
+	 * Retorna o tempo de espera de respawn (em ms) para os defensores do castelo.
+	 * Quando todas as Control Towers sao destruidas (controlTowersActive == 0), aplica o delay estendido (#387).
+	 */
+	public long defenderRespawnDelayMillis() {
+		if (controlTowersActive > 0) {
+			return 0L;
+		}
+		return 150_000L;
+	}
+
+	public Map<Integer, java.util.Set<Integer>> engravedArtefactsByClan() {
+		return engravedArtefactsByClan;
+	}
+
+	public java.util.Set<Integer> disabledTrapZones() {
+		return disabledTrapZones;
+	}
+
+	public boolean isInProgress() {
+		return status == SiegeStatus.IN_PROGRESS;
 	}
 }
