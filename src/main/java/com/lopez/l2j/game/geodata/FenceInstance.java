@@ -7,6 +7,9 @@ public class FenceInstance implements GeoObject {
 
 	public static final int STATE_PASSABLE = 0;
 	public static final int STATE_BLOCKING = 1;
+	public static final int STATE_HIDDEN = 0;
+	public static final int STATE_OPEN = 1;
+	public static final int STATE_CLOSED = 2;
 
 	private final int objectId;
 	private final String name;
@@ -97,7 +100,7 @@ public class FenceInstance implements GeoObject {
 
 	@Override
 	public boolean isBlocking() {
-		return state == STATE_BLOCKING;
+		return state == STATE_BLOCKING || state == STATE_CLOSED;
 	}
 
 	public int state() {
@@ -106,13 +109,27 @@ public class FenceInstance implements GeoObject {
 
 	public void state(int state) {
 		this.state = state;
+		broadcastInfo();
 	}
 
 	public void open() {
 		this.state = STATE_PASSABLE;
+		broadcastInfo();
 	}
 
 	public void close() {
 		this.state = STATE_BLOCKING;
+		broadcastInfo();
+	}
+
+	public void broadcastInfo() {
+		var gw = com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (gw != null) {
+			int width = Math.max(16, xMax - xMin);
+			int length = Math.max(16, yMax - yMin);
+			gw.broadcastAround(x, y, com.lopez.l2j.game.world.GameWorld.VISIBILITY_RADIUS,
+					new com.lopez.l2j.network.game.packet.GameServerPacket.ExColosseumFenceInfo(
+							objectId, state, x, y, z, width, length));
+		}
 	}
 }
