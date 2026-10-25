@@ -258,10 +258,54 @@ public class ClanTable {
 			return true;
 		}
 		clan.newLeaderId(newLeaderObjectId);
+		if (jdbc != null) {
+			try {
+				jdbc.sql("UPDATE clan_data SET new_leader_id = :nl WHERE clan_id = :cid")
+						.param("nl", newLeaderObjectId)
+						.param("cid", clan.clanId())
+						.update();
+			} catch (Exception ignored) {}
+		}
 		long scheduledTime = computeNextLeaderChangeExecutionTime();
 		log.info("Mudanca de lider do cla {} agendada para {} (novo lider ID {})",
 				clan.name(), scheduledTime, newLeaderObjectId);
 		return true;
+	}
+
+	/**
+	 * Processa tarefas agendadas de cla (dissolucao expirada e mudanca de lider agendada).
+	 */
+	public synchronized void processScheduledClanTasks() {
+		long now = System.currentTimeMillis();
+		for (Clan clan : new java.util.ArrayList<>(byClanId.values())) {
+			if (clan.dissolvingExpiryTime() > 0 && clan.dissolvingExpiryTime() <= now) {
+				dissolveClan(clan.clanId());
+				continue;
+			}
+			if (clan.newLeaderId() > 0) {
+				ClanMember target = clan.getMember(clan.newLeaderId());
+				if (target != null && target.pledgeType() == 0) {
+					clan.leaderId(target.objectId());
+					clan.leaderName(target.name());
+					clan.newLeaderId(0);
+					if (jdbc != null) {
+						try {
+							jdbc.sql("UPDATE clan_data SET leader_id = :lid, new_leader_id = 0 WHERE clan_id = :cid")
+									.param("lid", target.objectId())
+									.param("cid", clan.clanId())
+									.update();
+						} catch (Exception ignored) {
+							try {
+								jdbc.sql("UPDATE clan_data SET leader_id = :lid WHERE clan_id = :cid")
+										.param("lid", target.objectId())
+										.param("cid", clan.clanId())
+										.update();
+							} catch (Exception ignored2) {}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	/**
@@ -302,12 +346,42 @@ public class ClanTable {
 		if (killerClan == null || victimClan == null || !killerClan.isMutualWarWith(victimClan.clanId())) {
 			return;
 		}
+		if (killerClan.level() < 3 || victimClan.level() < 3) {
+			return;
+		}
 		int delta = Math.max(0, Config.REPUTATION_SCORE_PER_KILL);
 		if (delta <= 0) {
 			return;
 		}
 		updateClanReputation(killerClan.clanId(), killerClan.reputationScore() + delta);
 		updateClanReputation(victimClan.clanId(), victimClan.reputationScore() - delta);
+	}
+
+	/**
+	 * Aplica o ganho/perda de reputacao por morte em guerra de clas validando nivel >= 5,
+	 * reputacao > 0 do cla vitima e exclusao de membros da Academia (#384).
+	 */
+	public synchronized void rewardWarKillReputation(Clan killerClan, Clan victimClan,
+			PlayerCharacter killer, PlayerCharacter victim) {
+		if (killerClan == null || victimClan == null || !killerClan.isMutualWarWith(victimClan.clanId())) {
+			return;
+		}
+		if (killerClan.level() < 5 || victimClan.level() < 5 || victimClan.reputationScore() <= 0) {
+			return;
+		}
+		if (killer != null) {
+			ClanMember km = killerClan.getMember(killer.objectId());
+			if (km != null && km.pledgeType() == Clan.SUBUNIT_ACADEMY) {
+				return;
+			}
+		}
+		if (victim != null) {
+			ClanMember vm = victimClan.getMember(victim.objectId());
+			if (vm != null && vm.pledgeType() == Clan.SUBUNIT_ACADEMY) {
+				return;
+			}
+		}
+		rewardWarKillReputation(killerClan, victimClan);
 	}
 
 	/**
@@ -347,10 +421,11 @@ public class ClanTable {
 				return false;
 			}
 
-			// Validacao de Membros
-			if (clan.membersCount() < req.needMembers()) {
+			// Validacao de Membros (para niveis 6, 7 e 8 exclui aprendizes da Academia - #372)
+			int effectiveMembers = nextLevel >= 6 ? clan.nonAcademyMembersCount() : clan.membersCount();
+			if (effectiveMembers < req.needMembers()) {
 				log.warn("Cla {} nao tem membros suficientes para lvl {} (requer {}, possui {})",
-						clan.name(), nextLevel, req.needMembers(), clan.membersCount());
+						clan.name(), nextLevel, req.needMembers(), effectiveMembers);
 				return false;
 			}
 
@@ -411,6 +486,14 @@ public class ClanTable {
 	 * @return true se adicionado com sucesso, false caso contrario
 	 */
 	public synchronized boolean addClanMember(Clan clan, PlayerCharacter player) {
+		return addClanMember(clan, player, 0);
+	}
+
+	/**
+	 * Tenta adicionar um jogador a um cla ou sub-unidade (0 = principal, -1 = Academia, 100/200 = Royal, 1001..2002 = Knight),
+	 * aplicando validacoes de penalidade e limite de membros por sub-unidade (#373).
+	 */
+	public synchronized boolean addClanMember(Clan clan, PlayerCharacter player, int pledgeType) {
 		if (clan == null || player == null) {
 			return false;
 		}
@@ -426,31 +509,175 @@ public class ClanTable {
 			log.warn("Cla {} possui penalidade ativa para recrutar novos membros ate {}", clan.name(), clan.charPenaltyExpiryTime());
 			return false;
 		}
+		if (pledgeType != 0 && clan.getSubPledge(pledgeType) == null) {
+			log.warn("Cla {} nao possui a sub-unidade {} criada", clan.name(), pledgeType);
+			return false;
+		}
+		if (pledgeType == Clan.SUBUNIT_ACADEMY && player.level() >= 40) {
+			log.warn("{} nao pode ingressar na Academia do cla {} com nivel >= 40 ({})", player.name(), clan.name(), player.level());
+			return false;
+		}
 
-		int maxMembers = clan.getMaxMembers(clan.level());
-		if (clan.membersCount() >= maxMembers) {
-			log.warn("Cla {} atingiu o limite maximo de membros ({}) para o nivel {}", clan.name(), maxMembers, clan.level());
+		int maxMembers = clan.getMaxNrOfMembers(pledgeType);
+		if (clan.getSubPledgeMembersCount(pledgeType) >= maxMembers) {
+			log.warn("Cla {} atingiu o limite maximo de membros ({}) para pledgeType {}", clan.name(), maxMembers, pledgeType);
 			return false;
 		}
 
 		ClanMember member = new ClanMember(player.objectId(), player.name(), player.level(),
-				player.classId(), player.title(), false, 0);
+				player.classId(), player.title(), false, pledgeType);
+		member.powerGrade(pledgeType == Clan.SUBUNIT_ACADEMY ? 9 : 6);
 		clan.addMember(member);
 		player.clanId(clan.clanId());
 
 		if (jdbc != null) {
 			try {
-				jdbc.sql("UPDATE characters SET clanid = :clanId WHERE charId = :charId")
+				jdbc.sql("UPDATE characters SET clanid = :clanId, subpledge = :sub, power_grade = :pg WHERE charId = :charId")
 						.param("clanId", clan.clanId())
+						.param("sub", pledgeType)
+						.param("pg", member.powerGrade())
 						.param("charId", player.objectId())
 						.update();
 			} catch (Exception ex) {
-				log.error("Erro ao persistir adicao de membro {} ao cla {}", player.name(), clan.name(), ex);
+				try {
+					jdbc.sql("UPDATE characters SET clanid = :clanId WHERE charId = :charId")
+							.param("clanId", clan.clanId())
+							.param("charId", player.objectId())
+							.update();
+				} catch (Exception ex2) {
+					log.error("Erro ao persistir adicao de membro {} ao cla {}", player.name(), clan.name(), ex2);
+				}
 			}
 		}
 
-		log.info("Jogador {} adicionado ao cla {}", player.name(), clan.name());
+		log.info("Jogador {} adicionado ao cla {} (pledgeType={})", player.name(), clan.name(), pledgeType);
 		return true;
+	}
+
+	/**
+	 * Vincula um padrinho (Sponsor) do cla principal a um aprendiz (Apprentice) da Academia (#376).
+	 */
+	public synchronized boolean initApprenticeAndSponsor(Clan clan, int apprenticeObjId, int sponsorObjId) {
+		if (clan == null) {
+			return false;
+		}
+		ClanMember apprentice = clan.getMember(apprenticeObjId);
+		ClanMember sponsor = clan.getMember(sponsorObjId);
+		if (apprentice == null || sponsor == null) {
+			return false;
+		}
+		if (apprentice.pledgeType() != Clan.SUBUNIT_ACADEMY || sponsor.pledgeType() == Clan.SUBUNIT_ACADEMY) {
+			return false;
+		}
+		if (apprentice.sponsor() != 0 || sponsor.apprentice() != 0) {
+			return false;
+		}
+		apprentice.sponsor(sponsorObjId);
+		sponsor.apprentice(apprenticeObjId);
+		if (jdbc != null) {
+			try {
+				jdbc.sql("UPDATE characters SET sponsor = :sp WHERE charId = :ap")
+						.param("sp", sponsorObjId)
+						.param("ap", apprenticeObjId)
+						.update();
+				jdbc.sql("UPDATE characters SET apprentice = :ap WHERE charId = :sp")
+						.param("ap", apprenticeObjId)
+						.param("sp", sponsorObjId)
+						.update();
+			} catch (Exception ignored) {}
+		}
+		return true;
+	}
+
+	/**
+	 * Remove o vinculo entre padrinho (Sponsor) e aprendiz (Apprentice) (#376).
+	 */
+	public synchronized boolean removeApprenticeAndSponsor(Clan clan, int apprenticeObjId, int sponsorObjId) {
+		if (clan == null) {
+			return false;
+		}
+		ClanMember apprentice = clan.getMember(apprenticeObjId);
+		ClanMember sponsor = clan.getMember(sponsorObjId);
+		if (apprentice != null) {
+			apprentice.sponsor(0);
+		}
+		if (sponsor != null) {
+			sponsor.apprentice(0);
+		}
+		if (jdbc != null) {
+			try {
+				if (apprenticeObjId > 0) {
+					jdbc.sql("UPDATE characters SET sponsor = 0 WHERE charId = :ap")
+							.param("ap", apprenticeObjId)
+							.update();
+				}
+				if (sponsorObjId > 0) {
+					jdbc.sql("UPDATE characters SET apprentice = 0 WHERE charId = :sp")
+							.param("sp", sponsorObjId)
+							.update();
+				}
+			} catch (Exception ignored) {}
+		}
+		return true;
+	}
+
+	/**
+	 * Gradua automaticamente um membro da Academia ao concluir a 2a mudanca de classe (Level 40),
+	 * concedendo 190 a 650 CRP ao cla, o item Academy Circlet (8181) ao formando e removendo-o sem penalidade (#375).
+	 */
+	public synchronized int graduateAcademyMember(PlayerCharacter player) {
+		if (player == null || player.clanId() <= 0) {
+			return 0;
+		}
+		Clan clan = byClanId.get(player.clanId());
+		if (clan == null) {
+			return 0;
+		}
+		return graduateAcademyMember(clan, player, 16);
+	}
+
+	public synchronized int graduateAcademyMember(Clan clan, PlayerCharacter player, int joiningLevel) {
+		if (clan == null || player == null) {
+			return 0;
+		}
+		ClanMember member = clan.getMember(player.objectId());
+		if (member == null || member.pledgeType() != Clan.SUBUNIT_ACADEMY) {
+			return 0;
+		}
+		int effectiveJoinLvl = Math.max(16, Math.min(39, joiningLevel));
+		int crpReward = Math.max(190, Math.min(650, 650 - (effectiveJoinLvl - 16) * 20));
+
+		if (member.sponsor() > 0) {
+			removeApprenticeAndSponsor(clan, member.objectId(), member.sponsor());
+		}
+
+		clan.removeMember(player.objectId());
+		player.clanId(0);
+		player.clanJoinExpiryTime(0L);
+
+		updateClanReputation(clan.clanId(), clan.reputationScore() + crpReward);
+
+		if (player.inventory() != null) {
+			player.inventory().addItem(8181, 1); // Academy Circlet
+		}
+
+		if (jdbc != null) {
+			try {
+				jdbc.sql("UPDATE characters SET clanid = 0, subpledge = 0, power_grade = 0, sponsor = 0, apprentice = 0, clan_join_expiry_time = 0 WHERE charId = :charId")
+						.param("charId", player.objectId())
+						.update();
+			} catch (Exception ex) {
+				try {
+					jdbc.sql("UPDATE characters SET clanid = 0, clan_join_expiry_time = 0 WHERE charId = :charId")
+							.param("charId", player.objectId())
+							.update();
+				} catch (Exception ignored) {}
+			}
+		}
+
+		log.info("Membro da Academia {} graduou no cla '{}', gerando {} CRP e recebendo Academy Circlet (8181)",
+				player.name(), clan.name(), crpReward);
+		return crpReward;
 	}
 
 	/**
@@ -473,6 +700,11 @@ public class ClanTable {
 		ClanMember member = clan.removeMember(player.objectId());
 		if (member == null) {
 			return false;
+		}
+		if (member.sponsor() > 0 || member.apprentice() > 0) {
+			removeApprenticeAndSponsor(clan,
+					member.pledgeType() == Clan.SUBUNIT_ACADEMY ? member.objectId() : member.apprentice(),
+					member.pledgeType() == Clan.SUBUNIT_ACADEMY ? member.sponsor() : member.objectId());
 		}
 
 		player.clanId(0);
@@ -596,6 +828,21 @@ public class ClanTable {
 		}
 	}
 
+	public void updateAllyCrest(int clanId, int allyCrestId) {
+		Clan clan = byClanId.get(clanId);
+		if (clan != null) {
+			clan.allyCrestId(allyCrestId);
+			if (jdbc != null) {
+				try {
+					jdbc.sql("UPDATE clan_data SET ally_crest_id = :crest WHERE clan_id = :id")
+							.param("crest", allyCrestId)
+							.param("id", clanId)
+							.update();
+				} catch (Exception ignored) {}
+			}
+		}
+	}
+
 	private void loadClans() {
 		if (jdbc == null) {
 			return;
@@ -638,11 +885,20 @@ public class ClanTable {
 				}
 			}
 
-			// Carrega os membros de cada cla a partir da tabela characters
-			var membersRows = jdbc.sql("""
-					SELECT charId, char_name, level, classid, title, clanid
-					FROM characters WHERE clanid > 0
-					""").query().listOfRows();
+			// Carrega os membros de cada cla a partir da tabela characters (incluindo subpledge, power_grade, apprentice, sponsor - #371)
+			java.util.List<Map<String, Object>> membersRows;
+			try {
+				membersRows = jdbc.sql("""
+						SELECT charId, char_name, level, classid, title, clanid,
+						       subpledge, power_grade, apprentice, sponsor
+						FROM characters WHERE clanid > 0
+						""").query().listOfRows();
+			} catch (Exception exFallback) {
+				membersRows = jdbc.sql("""
+						SELECT charId, char_name, level, classid, title, clanid
+						FROM characters WHERE clanid > 0
+						""").query().listOfRows();
+			}
 
 			for (var mRow : membersRows) {
 				int clanId = ((Number) mRow.get("clanid")).intValue();
@@ -653,8 +909,15 @@ public class ClanTable {
 					int lvl = ((Number) mRow.get("level")).intValue();
 					int classId = ((Number) mRow.get("classid")).intValue();
 					String title = (String) mRow.get("title");
+					int pledgeType = mRow.get("subpledge") != null ? ((Number) mRow.get("subpledge")).intValue() : 0;
+					int powerGrade = mRow.get("power_grade") != null ? ((Number) mRow.get("power_grade")).intValue() : 5;
+					int apprentice = mRow.get("apprentice") != null ? ((Number) mRow.get("apprentice")).intValue() : 0;
+					int sponsor = mRow.get("sponsor") != null ? ((Number) mRow.get("sponsor")).intValue() : 0;
 
-					ClanMember member = new ClanMember(charId, charName, lvl, classId, title, false, 0);
+					ClanMember member = new ClanMember(charId, charName, lvl, classId, title, false, pledgeType);
+					member.powerGrade(powerGrade > 0 ? powerGrade : 5);
+					member.apprentice(apprentice);
+					member.sponsor(sponsor);
 					clan.addMember(member);
 					if (clan.leaderId() == charId) {
 						clan.leaderName(charName);
