@@ -11,6 +11,8 @@ public class Castle {
 	private int taxPercent;
 	private long treasury;
 	private long siegeDate;
+	private final java.util.Map<Integer, Integer> doorUpgrades = new java.util.concurrent.ConcurrentHashMap<>();
+	private final java.util.Map<Integer, Integer> trapUpgrades = new java.util.concurrent.ConcurrentHashMap<>();
 
 	public Castle(int id, String name) {
 		this(id, name, 0, 0, 0L, 0L);
@@ -51,6 +53,51 @@ public class Castle {
 
 	public void taxPercent(int taxPercent) {
 		this.taxPercent = Math.max(0, Math.min(15, taxPercent));
+	}
+
+	public void taxPercent(int taxPercent, int maxAllowedTax) {
+		int cap = Math.max(0, maxAllowedTax);
+		this.taxPercent = Math.max(0, Math.min(cap, taxPercent));
+	}
+
+	public java.util.Map<Integer, Integer> doorUpgrades() {
+		return java.util.Collections.unmodifiableMap(doorUpgrades);
+	}
+
+	public void upgradeDoor(int doorId, int hpRatio) {
+		if (hpRatio <= 0) {
+			doorUpgrades.remove(doorId);
+		} else {
+			doorUpgrades.put(doorId, hpRatio);
+		}
+	}
+
+	public int getDoorUpgrade(int doorId) {
+		return doorUpgrades.getOrDefault(doorId, 100);
+	}
+
+	public void clearDoorUpgrades() {
+		doorUpgrades.clear();
+	}
+
+	public java.util.Map<Integer, Integer> trapUpgrades() {
+		return java.util.Collections.unmodifiableMap(trapUpgrades);
+	}
+
+	public void upgradeTrap(int towerIndex, int level) {
+		if (level <= 0) {
+			trapUpgrades.remove(towerIndex);
+		} else {
+			trapUpgrades.put(towerIndex, level);
+		}
+	}
+
+	public int getTrapUpgrade(int towerIndex) {
+		return trapUpgrades.getOrDefault(towerIndex, 0);
+	}
+
+	public void clearTrapUpgrades() {
+		trapUpgrades.clear();
 	}
 
 	public long treasury() {
