@@ -71,7 +71,14 @@ public class AntharasAI extends RaidBossAI {
 	private void applyBuff(int skillId, int level) {
 		if (skillTable != null) {
 			skillTable.get(skillId, level).ifPresent(sk -> {
+				npc.applySkillBuff(sk);
 				npc.currentHp(Math.min(npc.maxHp(), npc.currentHp() + (npc.maxHp() * 0.05)));
+				if (world != null) {
+					var msu = new com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse(
+							npc.objectId(), npc.objectId(), skillId, level, 1500, 3000,
+							npc.x(), npc.y(), npc.z(), npc.x(), npc.y(), npc.z());
+					world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, msu);
+				}
 			});
 		}
 	}
