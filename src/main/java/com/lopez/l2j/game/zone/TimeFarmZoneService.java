@@ -31,9 +31,23 @@ public class TimeFarmZoneService {
 
 	private final Map<Integer, TimeFarmZone> zones = new ConcurrentHashMap<>();
 	private final Map<Integer, ZoneSession> activeSessions = new ConcurrentHashMap<>();
+	private final java.util.concurrent.ScheduledExecutorService expirationScheduler =
+			java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+				Thread t = Thread.ofVirtual().name("TimeFarmZoneExpirationTask").unstarted(r);
+				return t;
+			});
 
 	public TimeFarmZoneService() {
 		loadZones();
+		expirationScheduler.scheduleAtFixedRate(() -> {
+			try {
+				GameWorld gw = GameWorld.getInstance();
+				if (gw != null) {
+					checkExpirations(gw);
+				}
+			} catch (Exception ignored) {
+			}
+		}, 5000L, 5000L, java.util.concurrent.TimeUnit.MILLISECONDS);
 	}
 
 	public synchronized void loadZones() {
@@ -90,6 +104,10 @@ public class TimeFarmZoneService {
 		long expire = System.currentTimeMillis() + (zone.intervalMinutes() * 60_000L);
 		activeSessions.put(player.objectId(), new ZoneSession(zoneId, expire));
 		player.teleToLocation(zone.enterX(), zone.enterY(), zone.enterZ());
+		GameWorld gw = GameWorld.getInstance();
+		if (gw != null) {
+			gw.teleportPlayer(player, zone.enterX(), zone.enterY(), zone.enterZ(), player.instanceId());
+		}
 		player.sendMessage("Voce entrou em " + zone.name() + ". Tempo de permanencia: " + zone.intervalMinutes() + " minutos.");
 		return true;
 	}
@@ -112,6 +130,10 @@ public class TimeFarmZoneService {
 			TimeFarmZone zone = zones.get(session.zoneId());
 			if (zone != null) {
 				player.teleToLocation(zone.exitX(), zone.exitY(), zone.exitZ());
+				GameWorld gw = GameWorld.getInstance();
+				if (gw != null) {
+					gw.teleportPlayer(player, zone.exitX(), zone.exitY(), zone.exitZ(), 0);
+				}
 			}
 		}
 	}
@@ -128,6 +150,7 @@ public class TimeFarmZoneService {
 					if (onlinePlayer != null && onlinePlayer.character() != null) {
 						var pc = onlinePlayer.character();
 						pc.teleToLocation(zone.exitX(), zone.exitY(), zone.exitZ());
+						world.teleportPlayer(pc, zone.exitX(), zone.exitY(), zone.exitZ(), 0);
 						pc.sendMessage("Seu tempo na zona de farm temporal expirou!");
 					}
 				}
