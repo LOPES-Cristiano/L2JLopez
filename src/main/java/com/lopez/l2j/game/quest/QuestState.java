@@ -260,7 +260,68 @@ public class QuestState {
 	}
 
 	public PlayerCharacter getRandomPartyMember(int state, double range) {
-		return playerChar();
+		if (player == null) {
+			return null;
+		}
+		PlayerCharacter origin = playerChar();
+		if (player.party() != null && !player.party().members().isEmpty()) {
+			java.util.List<PlayerCharacter> candidates = new java.util.ArrayList<>();
+			for (GameSession member : player.party().members()) {
+				if (member == null || member.activeChar() == null) {
+					continue;
+				}
+				PlayerCharacter mc = member.activeChar();
+				if (range > 0 && origin != null) {
+					double dx = mc.x() - origin.x();
+					double dy = mc.y() - origin.y();
+					double dz = mc.z() - origin.z();
+					if (dx * dx + dy * dy + dz * dz > range * range) {
+						continue;
+					}
+				}
+				QuestState mQs = quest != null ? member.getQuestState(quest.getName()) : null;
+				if (mQs != null && mQs.isStarted()
+						&& (state <= 0 || mQs.getCond() == state || mQs.getStateId() == state)) {
+					candidates.add(mc);
+				}
+			}
+			if (!candidates.isEmpty()) {
+				return candidates.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(candidates.size()));
+			}
+		}
+		return origin;
+	}
+
+	public QuestState getRandomPartyMemberState(State targetState, double range) {
+		if (player == null) {
+			return null;
+		}
+		PlayerCharacter origin = playerChar();
+		if (player.party() != null && !player.party().members().isEmpty()) {
+			java.util.List<QuestState> candidates = new java.util.ArrayList<>();
+			for (GameSession member : player.party().members()) {
+				if (member == null || member.activeChar() == null) {
+					continue;
+				}
+				PlayerCharacter mc = member.activeChar();
+				if (range > 0 && origin != null) {
+					double dx = mc.x() - origin.x();
+					double dy = mc.y() - origin.y();
+					double dz = mc.z() - origin.z();
+					if (dx * dx + dy * dy + dz * dz > range * range) {
+						continue;
+					}
+				}
+				QuestState mQs = quest != null ? member.getQuestState(quest.getName()) : null;
+				if (mQs != null && (targetState == null || mQs.getState() == targetState)) {
+					candidates.add(mQs);
+				}
+			}
+			if (!candidates.isEmpty()) {
+				return candidates.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(candidates.size()));
+			}
+		}
+		return (targetState == null || this.state == targetState) ? this : null;
 	}
 
 	public int getCond() {
@@ -560,7 +621,46 @@ public class QuestState {
 	}
 
 	public NpcInstance addSpawn(int npcId, int x, int y, int z, int despawnDelay) {
-		return null;
+		NpcInstance spawned = null;
+		if (player != null && player.context() != null && player.context().spawns() != null) {
+			try {
+				var opt = player.context().spawns().spawn(npcId, x, y, z, 0, false);
+				if (opt != null && opt.isPresent()) {
+					spawned = opt.get();
+				}
+			} catch (Exception ignored) {
+			}
+		}
+		com.lopez.l2j.game.world.GameWorld world = (player != null && player.context() != null && player.context().world() != null)
+				? player.context().world()
+				: com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (spawned == null) {
+			var tpl = new com.lopez.l2j.game.npc.NpcTemplate(
+					npcId, npcId, "QuestNpc_" + npcId, false, "", false, 10.0, 15.0, 70, "male",
+					"L2Npc", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
+			int objId = 0x50000000 + java.util.concurrent.ThreadLocalRandom.current().nextInt(1, 0x0FFFFFFF);
+			spawned = new NpcInstance(objId, tpl, x, y, z, 0);
+			if (world != null) {
+				world.addNpc(spawned);
+				world.broadcastAround(x, y, com.lopez.l2j.game.world.GameWorld.VISIBILITY_RADIUS, new NpcInfo(spawned));
+			}
+		}
+		if (despawnDelay > 0 && spawned != null) {
+			final NpcInstance toDespawn = spawned;
+			final com.lopez.l2j.game.world.GameWorld w = world;
+			QUEST_TIMER_POOL.schedule(() -> {
+				try {
+					if (w != null) {
+						w.removeNpc(toDespawn);
+						w.broadcastAround(toDespawn.x(), toDespawn.y(),
+								com.lopez.l2j.game.world.GameWorld.VISIBILITY_RADIUS,
+								new DeleteObject(toDespawn.objectId()));
+					}
+				} catch (Exception ignored) {
+				}
+			}, despawnDelay, TimeUnit.MILLISECONDS);
+		}
+		return spawned;
 	}
 
 	public NpcInstance addSpawn(int npcId, int x, int y, int z) {
@@ -670,7 +770,10 @@ public class QuestState {
 		return activeTimers.containsKey(name);
 	}
 
-	public NpcInstance addSpawn(int npcId, int count) {
+	public NpcInstance addSpawn(int npcId, int countOrDespawnDelay) {
+		if (countOrDespawnDelay >= 1000 && player != null && player.activeChar() != null) {
+			return addSpawn(npcId, player.activeChar().x(), player.activeChar().y(), player.activeChar().z(), countOrDespawnDelay);
+		}
 		return addSpawn(npcId);
 	}
 
