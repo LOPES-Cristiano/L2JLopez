@@ -1,34 +1,42 @@
 package com.lopez.l2j.game.event.partyfarm;
 
-import com.lopez.l2j.game.model.ObjectIdFactory;
+import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.npc.NpcTemplate;
 import com.lopez.l2j.game.npc.NpcTemplateTable;
 import com.lopez.l2j.game.world.GameWorld;
-import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
-import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
-import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
+import javax.xml.parsers.DocumentBuilderFactory;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Motor de Party Farm Agendado (partyfarm.xml).
- * Lê dias da semana e horários de pico, emite aviso global com contagem regressiva
- * e spawna mobs de party em coordenadas configuradas com drop especial de moedas de evento.
+ * Evento Agendado de Party Farm (PartyFarmEvent).
+ * Lê os dias da semana ativos (PartyFarmEventByDayOfWeek), horários agendados (StartPartyFarmEvent),
+ * mensagem de anúncio prévio (PartyFarmMessageText) e gerencia o ciclo de spawn e despawn
+ * dos monstros de Party Farm no mundo real (GameWorld).
  */
 @Service
 public class PartyFarmEventService {
 
     private static final Logger log = LoggerFactory.getLogger(PartyFarmEventService.class);
-
-    public record MobSpawnConfig(int npcId, int count, int x, int y, int z) {}
 
     public enum EventStatus {
         INACTIVE,
@@ -36,157 +44,244 @@ public class PartyFarmEventService {
         RUNNING
     }
 
-    private GameWorld gameWorld;
-    private NpcTemplateTable npcTemplates;
-    private ObjectIdFactory idFactory;
+    public static class PartyFarmSpawnConfig {
+        private final int npcId;
+        private final int count;
+        private final int x;
+        private final int y;
+        private final int z;
 
-    private boolean enabled = true;
-    private int durationMinutes = 30;
-    private int preparationMinutes = 5;
-    private final Set<Integer> activeDays = new HashSet<>(Arrays.asList(1, 3, 5)); // Seg, Qua, Sex
-    private final List<String> scheduleTimes = new ArrayList<>(Arrays.asList("10:30", "15:00", "17:20", "21:15"));
-    private final List<MobSpawnConfig> spawnConfigs = new CopyOnWriteArrayList<>();
-    private final List<Integer> spawnedMonsterObjectIds = new CopyOnWriteArrayList<>();
+        public PartyFarmSpawnConfig(int npcId, int count, int x, int y, int z) {
+            this.npcId = npcId;
+            this.count = count;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
 
-    private volatile EventStatus status = EventStatus.INACTIVE;
-    private String lastTriggeredTime = "";
-    private int eventCoinItemId = 6393; // Festival Adena
-
-    public PartyFarmEventService() {
-        this(null, null, null);
+        public int getNpcId() { return npcId; }
+        public int getCount() { return count; }
+        public int getX() { return x; }
+        public int getY() { return y; }
+        public int getZ() { return z; }
     }
 
-    public PartyFarmEventService(GameWorld gameWorld, NpcTemplateTable npcTemplates) {
-        this(gameWorld, npcTemplates, null);
+    private boolean enabled = Config.PARTY_FARM_ENABLED;
+    private Set<Integer> activeDaysOfWeek = new HashSet<>(Config.PARTY_FARM_DAYS);
+    private List<LocalTime> scheduledTimes = parseTimes(Config.PARTY_FARM_TIMES);
+    private int durationMinutes = Config.PARTY_FARM_DURATION;
+    private int preparationMinutes = Config.PARTY_FARM_PREP_MINUTES;
+    private String announcementMessage = Config.PARTY_FARM_MESSAGE;
+
+    private volatile EventStatus status = EventStatus.INACTIVE;
+    private LocalDateTime currentStartTime;
+    private LocalDateTime currentEndTime;
+
+    private final List<PartyFarmSpawnConfig> spawnConfigs = new CopyOnWriteArrayList<>();
+    private final List<Integer> spawnedMonsterObjectIds = new CopyOnWriteArrayList<>();
+    private final AtomicInteger idSeq = new AtomicInteger(0x61000000);
+
+    private GameWorld gameWorld;
+    private NpcTemplateTable npcTemplates;
+    private ScheduledExecutorService scheduler;
+
+    public PartyFarmEventService() {
+        loadSpawnConfigs();
     }
 
     @Autowired
     public PartyFarmEventService(
             @Autowired(required = false) GameWorld gameWorld,
-            @Autowired(required = false) NpcTemplateTable npcTemplates,
-            @Autowired(required = false) ObjectIdFactory idFactory) {
+            @Autowired(required = false) NpcTemplateTable npcTemplates) {
         this.gameWorld = gameWorld;
         this.npcTemplates = npcTemplates;
-        this.idFactory = idFactory != null ? idFactory : ObjectIdFactory.sequential(0x57000000);
-        // Spawns padrão baseados no partyfarm.xml do Interlude (ex: Primeval Isle / Ketra / Varka)
-        spawnConfigs.add(new MobSpawnConfig(1186, 5, -82408, 246784, -3644));
-        spawnConfigs.add(new MobSpawnConfig(1186, 3, -82762, 247279, -3573));
+        loadSpawnConfigs();
+        if (this.enabled) {
+            startScheduler();
+        }
+    }
+
+    private void startScheduler() {
+        if (scheduler != null && !scheduler.isShutdown()) {
+            return;
+        }
+        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "PartyFarm-Scheduler");
+            t.setDaemon(true);
+            return t;
+        });
+        scheduler.scheduleAtFixedRate(() -> {
+            try {
+                LocalDateTime now = LocalDateTime.now();
+                checkSchedule(now);
+                if (status == EventStatus.PREPARATION && currentStartTime != null && !now.isBefore(currentStartTime)) {
+                    startEvent();
+                } else if (status == EventStatus.RUNNING && currentEndTime != null && !now.isBefore(currentEndTime)) {
+                    endEvent();
+                }
+            } catch (Exception e) {
+                log.warn("PartyFarm scheduler error: {}", e.getMessage());
+            }
+        }, 30, 30, TimeUnit.SECONDS);
+    }
+
+    private void loadSpawnConfigs() {
+        Path xmlPath = Path.of("data", "xml", "events", "partyfarm.xml");
+        if (!Files.exists(xmlPath)) {
+            xmlPath = Path.of("data", "partyfarm.xml");
+        }
+        if (Files.exists(xmlPath)) {
+            try {
+                Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xmlPath.toFile());
+                NodeList nodes = doc.getElementsByTagName("spawn");
+                for (int i = 0; i < nodes.getLength(); i++) {
+                    if (nodes.item(i) instanceof Element el) {
+                        int npcId = Integer.parseInt(el.getAttribute("npcId"));
+                        int count = el.hasAttribute("count") ? Integer.parseInt(el.getAttribute("count")) : 1;
+                        int x = Integer.parseInt(el.getAttribute("x"));
+                        int y = Integer.parseInt(el.getAttribute("y"));
+                        int z = Integer.parseInt(el.getAttribute("z"));
+                        spawnConfigs.add(new PartyFarmSpawnConfig(npcId, count, x, y, z));
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("PartyFarm: Falha ao ler XML de spawns ({}): {}", xmlPath, e.getMessage());
+            }
+        }
+        if (spawnConfigs.isEmpty()) {
+            initDefaultSpawns();
+        }
+    }
+
+    private void initDefaultSpawns() {
+        // Default Party Farm zone spawns (Execution Grounds / Giran Harbor area)
+        spawnConfigs.add(new PartyFarmSpawnConfig(22124, 5, 45000, 148000, -3400));
+        spawnConfigs.add(new PartyFarmSpawnConfig(22126, 3, 45200, 148200, -3400));
+    }
+
+    private static List<LocalTime> parseTimes(List<String> timeStrings) {
+        List<LocalTime> result = new ArrayList<>();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("HH:mm");
+        for (String s : timeStrings) {
+            try {
+                result.add(LocalTime.parse(s.trim(), fmt));
+            } catch (Exception ignored) {}
+        }
+        return result;
     }
 
     /**
-     * Checagem periódica executada pelo agendador de tarefas.
-     * Retorna a mensagem de aviso caso um horário tenha sido disparado.
+     * Verifica se a data/hora informada bate com algum agendamento de Party Farm.
+     * Retorna Optional com a mensagem de anúncio se o evento entrou em preparação.
      */
     public synchronized Optional<String> checkSchedule(LocalDateTime now) {
-        if (!enabled) {
-            return Optional.empty();
-        }
-        int day = now.getDayOfWeek().getValue() % 7; // 0 = Domingo
-        if (!activeDays.contains(day)) {
+        if (!enabled || status != EventStatus.INACTIVE) {
             return Optional.empty();
         }
 
-        String currentTime = now.format(DateTimeFormatter.ofPattern("HH:mm"));
-        if (scheduleTimes.contains(currentTime) && !currentTime.equals(lastTriggeredTime) && status == EventStatus.INACTIVE) {
-            lastTriggeredTime = currentTime;
-            status = EventStatus.PREPARATION;
-            String msg = "O Party Farm iniciará em " + preparationMinutes + " minutos!";
-            log.info("PartyFarm: Horario {} atingido! Preparacao iniciada.", currentTime);
-            return Optional.of(msg);
+        DayOfWeek dow = now.getDayOfWeek();
+        int dayNum = dow.getValue(); // 1 = Monday ... 7 = Sunday
+        if (!activeDaysOfWeek.contains(dayNum)) {
+            return Optional.empty();
         }
+
+        LocalTime currentHM = LocalTime.of(now.getHour(), now.getMinute());
+        for (LocalTime target : scheduledTimes) {
+            if (currentHM.equals(target)) {
+                status = EventStatus.PREPARATION;
+                currentStartTime = now.plusMinutes(preparationMinutes);
+                currentEndTime = currentStartTime.plusMinutes(durationMinutes);
+                log.info("PartyFarm: Entrando em fase de preparacao ({} min). Inicio previsto: {}", preparationMinutes, currentStartTime);
+                return Optional.of(announcementMessage);
+            }
+        }
+
         return Optional.empty();
     }
 
-    public synchronized void startEvent() {
+    /**
+     * Inicia efetivamente o evento de Party Farm (spawna os monstros).
+     */
+    public synchronized boolean startEvent() {
+        if (!enabled) {
+            return false;
+        }
         status = EventStatus.RUNNING;
         spawnedMonsterObjectIds.clear();
 
-        GameWorld world = this.gameWorld != null ? this.gameWorld : GameWorld.getInstance();
-        if (world != null) {
-            for (MobSpawnConfig cfg : spawnConfigs) {
-                NpcTemplate tmpl = npcTemplates != null ? npcTemplates.get(cfg.npcId()).orElse(null) : null;
-                if (tmpl == null) {
-                    tmpl = NpcTemplate.fallback(cfg.npcId(), "PartyFarm Guardian", "L2Monster");
-                }
-                int count = Math.max(1, cfg.count());
-                for (int i = 0; i < count; i++) {
-                    int sx = cfg.x();
-                    int sy = cfg.y();
-                    if (i > 0) {
-                        double angle = (2.0 * Math.PI * i) / count;
-                        int dist = 45 + (i * 20);
-                        sx += (int) Math.round(Math.cos(angle) * dist);
-                        sy += (int) Math.round(Math.sin(angle) * dist);
-                    }
-                    int objId = idFactory.nextId();
-                    NpcInstance monster = new NpcInstance(objId, tmpl, sx, sy, cfg.z(), 0);
-                    world.addNpc(monster);
-                    spawnedMonsterObjectIds.add(objId);
+        GameWorld world = resolveWorld();
+        int totalSpawned = 0;
 
-                    NpcInfo info = new NpcInfo(monster);
-                    world.broadcastAround(sx, sy, GameWorld.VISIBILITY_RADIUS, info);
+        for (PartyFarmSpawnConfig cfg : spawnConfigs) {
+            int count = Math.max(1, cfg.getCount());
+            for (int i = 0; i < count; i++) {
+                int offsetX = (i % 3) * 60;
+                int offsetY = (i / 3) * 60;
+                int sx = cfg.getX() + offsetX;
+                int sy = cfg.getY() + offsetY;
+                int sz = cfg.getZ();
+                int objId = idSeq.incrementAndGet();
+
+                if (world != null) {
+                    NpcTemplate tmpl = (npcTemplates != null)
+                            ? npcTemplates.getOrFallback(cfg.getNpcId())
+                            : NpcTemplate.fallback(cfg.getNpcId(), "PartyFarmMonster_" + cfg.getNpcId(), "L2Monster");
+                    NpcInstance npc = new NpcInstance(objId, tmpl, sx, sy, sz, 0);
+                    world.addNpc(npc);
                 }
+                spawnedMonsterObjectIds.add(objId);
+                totalSpawned++;
             }
-            world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "PartyFarm",
-                    "O evento Party Farm começou! Monstros especiais foram invocados no mundo!"));
         }
-
-        log.info("PartyFarm: Evento iniciado! {} grupos de mobs de party ativos ({} monstros invocados no mundo).",
-                spawnConfigs.size(), spawnedMonsterObjectIds.size());
+        log.info("PartyFarm: Evento iniciado! {} monstros de Party Farm spawnados ({} grupos).", totalSpawned, spawnConfigs.size());
+        return true;
     }
 
+    /**
+     * Encerra o evento de Party Farm e remove os monstros da zona.
+     */
     public synchronized void endEvent() {
-        status = EventStatus.INACTIVE;
-
-        GameWorld world = this.gameWorld != null ? this.gameWorld : GameWorld.getInstance();
-        int removedCount = 0;
-        if (world != null && !spawnedMonsterObjectIds.isEmpty()) {
+        GameWorld world = resolveWorld();
+        if (world != null) {
             for (int objId : spawnedMonsterObjectIds) {
-                Optional<NpcInstance> npcOpt = world.npc(objId);
-                if (npcOpt.isPresent()) {
-                    NpcInstance npc = npcOpt.get();
-                    world.removeNpc(npc);
-                    world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, new DeleteObject(objId));
-                    removedCount++;
-                }
+                world.removeNpc(objId);
             }
-            world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "PartyFarm",
-                    "O evento Party Farm foi encerrado! Os monstros especiais desapareceram."));
         }
+        int removed = spawnedMonsterObjectIds.size();
         spawnedMonsterObjectIds.clear();
-
-        log.info("PartyFarm: Evento finalizado. {} mobs removidos do mundo.", removedCount);
+        status = EventStatus.INACTIVE;
+        log.info("PartyFarm: Evento encerrado. {} monstros removidos do mundo.", removed);
     }
 
-    public boolean isPartyFarmMonster(int npcObjectId) {
-        return spawnedMonsterObjectIds.contains(npcObjectId);
+    public boolean isPartyFarmMonster(int objectId) {
+        return spawnedMonsterObjectIds.contains(objectId);
     }
 
     public List<Integer> getSpawnedMonsterObjectIds() {
         return Collections.unmodifiableList(spawnedMonsterObjectIds);
     }
 
-    // Gerenciamento de spawns e configurações
-    public void addSpawn(int npcId, int count, int x, int y, int z) {
-        spawnConfigs.add(new MobSpawnConfig(npcId, count, x, y, z));
+    private GameWorld resolveWorld() {
+        return gameWorld != null ? gameWorld : GameWorld.getInstance();
     }
 
-    public void clearSpawns() {
-        spawnConfigs.clear();
+    public void addSpawnConfig(PartyFarmSpawnConfig config) {
+        spawnConfigs.add(config);
     }
 
+    // Getters and Setters
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public EventStatus getStatus() { return status; }
+    public Set<Integer> getActiveDaysOfWeek() { return activeDaysOfWeek; }
+    public void setActiveDaysOfWeek(Set<Integer> activeDaysOfWeek) { this.activeDaysOfWeek = activeDaysOfWeek; }
+    public List<LocalTime> getScheduledTimes() { return scheduledTimes; }
+    public void setScheduledTimes(List<LocalTime> scheduledTimes) { this.scheduledTimes = scheduledTimes; }
     public int getDurationMinutes() { return durationMinutes; }
     public void setDurationMinutes(int durationMinutes) { this.durationMinutes = durationMinutes; }
     public int getPreparationMinutes() { return preparationMinutes; }
     public void setPreparationMinutes(int preparationMinutes) { this.preparationMinutes = preparationMinutes; }
-    public Set<Integer> getActiveDays() { return Collections.unmodifiableSet(activeDays); }
-    public List<String> getScheduleTimes() { return Collections.unmodifiableList(scheduleTimes); }
-    public List<MobSpawnConfig> getSpawnConfigs() { return Collections.unmodifiableList(spawnConfigs); }
-    public int getEventCoinItemId() { return eventCoinItemId; }
-    public void setEventCoinItemId(int eventCoinItemId) { this.eventCoinItemId = eventCoinItemId; }
-    public void setGameWorld(GameWorld gameWorld) { this.gameWorld = gameWorld; }
-    public void setNpcTemplates(NpcTemplateTable npcTemplates) { this.npcTemplates = npcTemplates; }
+    public String getAnnouncementMessage() { return announcementMessage; }
+    public void setAnnouncementMessage(String announcementMessage) { this.announcementMessage = announcementMessage; }
+    public List<PartyFarmSpawnConfig> getSpawnConfigs() { return Collections.unmodifiableList(spawnConfigs); }
 }
