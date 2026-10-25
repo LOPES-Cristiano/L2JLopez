@@ -12,18 +12,21 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
 /**
- * Servico de casamento e pareamento de personagens (Item 29 do Roteiro Mestre).
- * Gerencia noivados, casamentos e divorcios com persistencia na tabela `couples`.
+ * Servico de casamento e pareamento de personagens (Item 29 do Roteiro Mestre / #490).
+ * Gerencia noivados, casamentos (com verificacao de Formal Wear 6408 e entrega de Cupid's Bow 9140)
+ * e divorcios com persistencia na tabela `couples`.
  */
 @Service
 public class WeddingService {
 
 	private static final Logger log = LoggerFactory.getLogger(WeddingService.class);
 	public static final int FORMAL_WEAR_ITEM_ID = 6408;
+	public static final int CUPIDS_BOW_ITEM_ID = 9140;
 
 	public record Couple(int id, int player1Id, int player2Id, boolean married, long affiancedDate, long weddingDate) {}
 	public record WeddingGift(int itemId, int count) {}
@@ -32,7 +35,12 @@ public class WeddingService {
 	private final Map<Integer, Couple> couplesById = new ConcurrentHashMap<>();
 	private final Map<Integer, Integer> coupleIdByPlayer = new ConcurrentHashMap<>();
 
-	public WeddingService(JdbcClient jdbc) {
+	public WeddingService() {
+		this(null);
+	}
+
+	@Autowired
+	public WeddingService(@Autowired(required = false) JdbcClient jdbc) {
 		this.jdbc = jdbc;
 		load();
 	}
@@ -40,6 +48,9 @@ public class WeddingService {
 	public synchronized void load() {
 		couplesById.clear();
 		coupleIdByPlayer.clear();
+		if (jdbc == null) {
+			return;
+		}
 		try {
 			var list = jdbc.sql("SELECT id, player1Id, player2Id, maried, affiancedDate, weddingDate FROM couples")
 					.query((rs, rowNum) -> new Couple(
@@ -175,7 +186,7 @@ public class WeddingService {
 	public List<WeddingGift> getCeremonyGiftsForPlayer(PlayerCharacter player) {
 		List<WeddingGift> gifts = new ArrayList<>();
 		if (Config.WEDDING_GIVE_BOW) {
-			gifts.add(new WeddingGift(9140, 1));
+			gifts.add(new WeddingGift(CUPIDS_BOW_ITEM_ID, 1));
 		}
 		return gifts;
 	}
@@ -225,18 +236,20 @@ public class WeddingService {
 
 		Couple couple = new Couple(nextId, player1.objectId(), player2.objectId(), false, now, 0);
 
-		try {
-			jdbc.sql("""
-					INSERT INTO couples (id, player1Id, player2Id, maried, affiancedDate, weddingDate)
-					VALUES (:id, :p1, :p2, 0, :ad, 0)
-					""")
-					.param("id", nextId)
-					.param("p1", player1.objectId())
-					.param("p2", player2.objectId())
-					.param("ad", now)
-					.update();
-		} catch (Exception e) {
-			log.warn("Erro ao registrar noivado no banco de dados: {}", e.getMessage());
+		if (jdbc != null) {
+			try {
+				jdbc.sql("""
+						INSERT INTO couples (id, player1Id, player2Id, maried, affiancedDate, weddingDate)
+						VALUES (:id, :p1, :p2, 0, :ad, 0)
+						""")
+						.param("id", nextId)
+						.param("p1", player1.objectId())
+						.param("p2", player2.objectId())
+						.param("ad", now)
+						.update();
+			} catch (Exception e) {
+				log.warn("Erro ao registrar noivado no banco de dados: {}", e.getMessage());
+			}
 		}
 
 		couplesById.put(nextId, couple);
@@ -247,7 +260,8 @@ public class WeddingService {
 	}
 
 	/**
-	 * Conclui a cerimonia oficializando o matrimomio.
+	 * Conclui a cerimonia oficializando o matrimonio, entregando Cupid's Bow (9140)
+	 * e aplicando cor de nick quando os conjuges estao online no mundo.
 	 */
 	public synchronized boolean marry(int coupleId) {
 		Couple c = couplesById.get(coupleId);
@@ -258,21 +272,29 @@ public class WeddingService {
 		long now = System.currentTimeMillis();
 		Couple updated = new Couple(c.id(), c.player1Id(), c.player2Id(), true, c.affiancedDate(), now);
 
-		try {
-			jdbc.sql("UPDATE couples SET maried = 1, weddingDate = :wd WHERE id = :id")
-					.param("wd", now)
-					.param("id", coupleId)
-					.update();
-		} catch (Exception e) {
-			log.warn("Erro ao registrar casamento id {}: {}", coupleId, e.getMessage());
+		if (jdbc != null) {
+			try {
+				jdbc.sql("UPDATE couples SET maried = 1, weddingDate = :wd WHERE id = :id")
+						.param("wd", now)
+						.param("id", coupleId)
+						.update();
+			} catch (Exception e) {
+				log.warn("Erro ao registrar casamento id {}: {}", coupleId, e.getMessage());
+			}
 		}
 
 		couplesById.put(coupleId, updated);
 
+		GameWorld world = GameWorld.getInstance();
+		if (world != null) {
+			PlayerCharacter p1 = world.player(c.player1Id()).map(GameWorld.OnlinePlayer::character).orElse(null);
+			PlayerCharacter p2 = world.player(c.player2Id()).map(GameWorld.OnlinePlayer::character).orElse(null);
+			applyPostMarriageBenefits(p1, p2);
+		}
+
 		if (Config.ALLOW_WEDDING) {
 			String msg = "Wedding Ceremony #" + coupleId + " has been celebrated!";
 			log.info(msg);
-			GameWorld world = GameWorld.getInstance();
 			if (world != null) {
 				CreatureSay packet = new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Wedding", msg);
 				for (var online : world.onlinePlayers()) {
@@ -281,6 +303,28 @@ public class WeddingService {
 			}
 		}
 		return true;
+	}
+
+	public void applyPostMarriageBenefits(PlayerCharacter p1, PlayerCharacter p2) {
+		if (p1 != null && p2 != null && Config.WEDDING_USE_NICK_COLOR) {
+			int color = getMarriedNickColor(p1, p2);
+			p1.nameColor(color);
+			p2.nameColor(color);
+		}
+		for (PlayerCharacter p : new PlayerCharacter[]{ p1, p2 }) {
+			if (p == null || p.inventory() == null) continue;
+			for (WeddingGift gift : getCeremonyGiftsForPlayer(p)) {
+				if (p.inventory().byItemId(gift.itemId()).isEmpty()) {
+					p.inventory().addItem(gift.itemId(), gift.count());
+				}
+			}
+			if (isHoneyMoonEnabled()) {
+				int[] loc = getHoneyMoonTeleportLoc();
+				if (loc[0] != 0 || loc[1] != 0) {
+					p.teleport(loc[0], loc[1], loc[2]);
+				}
+			}
+		}
 	}
 
 	/**
@@ -292,12 +336,14 @@ public class WeddingService {
 			coupleIdByPlayer.remove(c.player1Id());
 			coupleIdByPlayer.remove(c.player2Id());
 
-			try {
-				jdbc.sql("DELETE FROM couples WHERE id = :id")
-						.param("id", coupleId)
-						.update();
-			} catch (Exception e) {
-				log.warn("Erro ao remover casal id {}: {}", coupleId, e.getMessage());
+			if (jdbc != null) {
+				try {
+					jdbc.sql("DELETE FROM couples WHERE id = :id")
+							.param("id", coupleId)
+							.update();
+				} catch (Exception e) {
+					log.warn("Erro ao remover casal id {}: {}", coupleId, e.getMessage());
+				}
 			}
 		}
 	}
@@ -319,6 +365,10 @@ public class WeddingService {
 			return false;
 		}
 		if (actor.karma() > 0 || partner.karma() > 0) {
+			return false;
+		}
+		if (actor.isInCombat() || partner.isInCombat() || actor.isInJail() || partner.isInJail()
+				|| actor.isOlympiadMode() || partner.isOlympiadMode()) {
 			return false;
 		}
 		return true;
