@@ -11,12 +11,12 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Handler para o comando de voz .acp (Auto Combat Potion) - Onda 3.
+ * Handler para os comandos de voz .acp, .apon e .apoff (Auto Combat Potion).
  */
 @Component
 public class VoicedAcpHandler implements IVoicedCommandHandler {
 
-	private static final List<String> COMMANDS = List.of("acp");
+	private static final List<String> COMMANDS = List.of("acp", "apon", "apoff");
 
 	private final AcpService acpService;
 
@@ -36,6 +36,23 @@ public class VoicedAcpHandler implements IVoicedCommandHandler {
 			return false;
 		}
 		var active = session.activeCharacter();
+		String lowerCmd = command != null ? command.toLowerCase(Locale.ROOT) : "acp";
+		if (lowerCmd.startsWith(".")) {
+			lowerCmd = lowerCmd.substring(1);
+		}
+
+		if ("apon".equals(lowerCmd)) {
+			acpService.setEnabled(active, true);
+			session.send(new CreatureSay(0, CreatureSay.ALL, "ACP", "Auto Combat Potion (ACP) ATIVADO (.apon)."));
+			session.send(new NpcHtmlMessage(0, acpService.renderHtml(active)));
+			return true;
+		}
+		if ("apoff".equals(lowerCmd)) {
+			acpService.setEnabled(active, false);
+			session.send(new CreatureSay(0, CreatureSay.ALL, "ACP", "Auto Combat Potion (ACP) DESATIVADO (.apoff)."));
+			session.send(new NpcHtmlMessage(0, acpService.renderHtml(active)));
+			return true;
+		}
 
 		if (params == null || params.isBlank() || params.equalsIgnoreCase("menu") || params.equalsIgnoreCase("status")) {
 			session.send(new NpcHtmlMessage(0, acpService.renderHtml(active)));
