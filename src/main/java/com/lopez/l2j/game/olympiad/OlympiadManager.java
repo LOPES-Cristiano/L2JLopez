@@ -39,6 +39,13 @@ public class OlympiadManager {
 	public static final int PERIOD_COMPETITION = 0;
 	public static final int PERIOD_VALIDATION = 1;
 	public static final int MIN_MATCHES_FOR_HERO = 5;
+	public static final int OFFICIAL_MIN_MATCHES_FOR_HERO = 9;
+
+	public static final Set<Integer> HERO_WEAPON_IDS = Set.of(
+			6611, 6612, 6613, 6614, 6615, 6616, 6617, 6618, 6619, 6620, 6621
+	);
+	public static final int HERO_CIRCLET_ID = 6842;
+	public static final List<Integer> HERO_SKILL_IDS = List.of(395, 396, 1374, 1375, 1376);
 
 	public static final int STADIUM_X1 = -20814;
 	public static final int STADIUM_Y1 = -21189;
@@ -49,7 +56,10 @@ public class OlympiadManager {
 	public static final int STADIUM_Z2 = -3030;
 
 	private final Map<Integer, OlympiadNoble> nobles = new ConcurrentHashMap<>();
+	private final Map<Integer, OlympiadNoble> previousCycleNoblesEom = new ConcurrentHashMap<>();
+	private final Map<Integer, OlympiadNoble> activeHeroesByClass = new ConcurrentHashMap<>();
 	private final Map<Integer, ActiveOlympiadMatch> activeMatches = new ConcurrentHashMap<>();
+	private final Map<Integer, int[]> spectatorOriginalCoords = new ConcurrentHashMap<>();
 	private final Map<OlympiadMode, List<PlayerCharacter>> modeQueues = new ConcurrentHashMap<>();
 	private final Map<Integer, String> registeredIps = new ConcurrentHashMap<>();
 	private final AtomicInteger stadiumInstanceCounter = new AtomicInteger(9300);
@@ -62,7 +72,31 @@ public class OlympiadManager {
 			PlayerCharacter playerTwo,
 			int[] origCoordsOne,
 			int[] origCoordsTwo
-	) {}
+	) {
+		public String playerOneName() {
+			return playerOne != null ? playerOne.name() : "";
+		}
+
+		public String playerTwoName() {
+			return playerTwo != null ? playerTwo.name() : "";
+		}
+	}
+
+	public Map<Integer, ActiveOlympiadMatch> getActiveMatches() {
+		return Collections.unmodifiableMap(activeMatches);
+	}
+
+	private final Map<Integer, String> heroMessages = new ConcurrentHashMap<>();
+
+	public void setHeroMessage(int charId, String msg) {
+		if (msg != null) {
+			heroMessages.put(charId, msg);
+		}
+	}
+
+	public String getHeroMessage(int charId) {
+		return heroMessages.getOrDefault(charId, "");
+	}
 
 	private int currentCycle = 1;
 	private int period = PERIOD_COMPETITION;
@@ -460,12 +494,21 @@ public class OlympiadManager {
 	}
 
 	public synchronized void recordMatch(int winnerId, int loserId, boolean draw) {
+		recordMatch(winnerId, loserId, draw, OlympiadMode.CLASS_FREE);
+	}
+
+	/**
+	 * Registra o resultado de uma luta das Olimpiadas aplicando o divisor de pontos por modalidade (#420)
+	 * (1/5 para CLASS_FREE/TEAM_BASED, 1/3 para CLASS_BASED) e persistindo em olympiad_fights (#505).
+	 */
+	public synchronized void recordMatch(int winnerId, int loserId, boolean draw, OlympiadMode mode) {
 		OlympiadNoble winner = nobles.get(winnerId);
 		OlympiadNoble loser = nobles.get(loserId);
 		if (winner == null || loser == null) {
 			return;
 		}
 
+		int pointTransfer = 0;
 		if (draw) {
 			winner.recordDraw();
 			loser.recordDraw();
@@ -475,28 +518,53 @@ public class OlympiadManager {
 				loser.points(Math.max(0, loser.points() - tiePenalty));
 			}
 		} else {
-			int pointTransfer = Math.max(1, Math.min(10, Math.min(winner.points(), loser.points()) / 5));
+			int divisor = (mode == OlympiadMode.CLASS_BASED) ? 3 : 5;
+			pointTransfer = Math.max(1, Math.min(10, Math.min(winner.points(), loser.points()) / divisor));
 			winner.recordWin(pointTransfer);
 			loser.recordLoss(pointTransfer);
 		}
 
 		persistNoble(winner);
 		persistNoble(loser);
+		persistFightHistory(winnerId, loserId, mode != null ? mode.ordinal() : 0, draw ? 0 : 1, pointTransfer);
 
-		log.info("Olympiad Match gravada: Winner={}, Loser={}, Draw={}",
-				winner.charName(), loser.charName(), draw);
+		log.info("Olympiad Match gravada: Winner={}, Loser={}, Draw={}, Mode={}, Points={}",
+				winner.charName(), loser.charName(), draw, mode, pointTransfer);
+	}
+
+	private void persistFightHistory(int charOneId, int charTwoId, int classed, int winner, int pointTransfer) {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("""
+					INSERT INTO olympiad_fights (charOneId, charTwoId, charOneClass, charTwoClass, winner, start, time, classed)
+					VALUES (:c1, :c2, :cls1, :cls2, :win, :st, :tm, :cl)
+					""")
+					.param("c1", charOneId)
+					.param("c2", charTwoId)
+					.param("cls1", nobles.containsKey(charOneId) ? nobles.get(charOneId).classId() : 0)
+					.param("cls2", nobles.containsKey(charTwoId) ? nobles.get(charTwoId).classId() : 0)
+					.param("win", winner)
+					.param("st", System.currentTimeMillis())
+					.param("tm", pointTransfer)
+					.param("cl", classed)
+					.update();
+		} catch (Exception ex) {
+			log.debug("Aviso ao gravar olympiad_fights: {}", ex.getMessage());
+		}
 	}
 
 	/**
 	 * Computa os novos Herois da temporada por classId.
-	 * Retorna mapa de classId -> Nobre com maior pontuacao (e minimo de partidas).
+	 * Retorna mapa de classId -> Nobre com maior pontuacao (minimo de partidas e ao menos 1 vitoria - #423).
 	 */
 	public Map<Integer, OlympiadNoble> computeHeroes() {
 		Map<Integer, OlympiadNoble> heroes = new HashMap<>();
 		int minMatches = Config.ALT_OLY_MIN_MATCHES > 0 ? Config.ALT_OLY_MIN_MATCHES : MIN_MATCHES_FOR_HERO;
 
 		for (OlympiadNoble noble : nobles.values()) {
-			if (noble.competitionsDone() < minMatches) {
+			if (noble.competitionsDone() < minMatches || noble.competitionsWon() < 1) {
 				continue;
 			}
 			OlympiadNoble existing = heroes.get(noble.classId());
@@ -510,7 +578,137 @@ public class OlympiadManager {
 					heroes.values().stream().map(OlympiadNoble::charName).toList());
 		}
 
+		activeHeroesByClass.clear();
+		activeHeroesByClass.putAll(heroes);
 		return Collections.unmodifiableMap(heroes);
+	}
+
+	/**
+	 * Encerra o ciclo mensal das Olimpiadas, copiando os pontos finais para olympiad_nobles_eom (#425, #505)
+	 * e elegendo os novos Herois de cada classe.
+	 */
+	public synchronized Map<Integer, OlympiadNoble> finishCycleAndArchiveEom() {
+		previousCycleNoblesEom.clear();
+		for (OlympiadNoble n : nobles.values()) {
+			OlympiadNoble copy = new OlympiadNoble(n.charId(), n.charName(), n.classId(),
+					n.points(), n.competitionsDone(), n.competitionsWon(), n.competitionsLost(), n.competitionsDrawn());
+			previousCycleNoblesEom.put(n.charId(), copy);
+			if (jdbc != null) {
+				try {
+					jdbc.sql("""
+							REPLACE INTO olympiad_nobles_eom (charId, class_id, olympiad_points, competitions_done,
+							                                  competitions_won, competitions_lost, competitions_drawn)
+							VALUES (:charId, :class_id, :olympiad_points, :competitions_done,
+							        :competitions_won, :competitions_lost, :competitions_drawn)
+							""")
+							.param("charId", copy.charId())
+							.param("class_id", copy.classId())
+							.param("olympiad_points", copy.points())
+							.param("competitions_done", copy.competitionsDone())
+							.param("competitions_won", copy.competitionsWon())
+							.param("competitions_lost", copy.competitionsLost())
+							.param("competitions_drawn", copy.competitionsDrawn())
+							.update();
+				} catch (Exception ex) {
+					log.debug("Aviso ao arquivar olympiad_nobles_eom: {}", ex.getMessage());
+				}
+			}
+		}
+		Map<Integer, OlympiadNoble> elected = computeHeroes();
+		currentCycle++;
+		return elected;
+	}
+
+	/**
+	 * Troca pontos acumulados no ciclo anterior (olympiad_nobles_eom) por Noblesse Gate Passes (6651) (#425).
+	 */
+	public synchronized int exchangePreviousCyclePoints(int charId) {
+		OlympiadNoble eom = previousCycleNoblesEom.get(charId);
+		if (eom == null) {
+			return 0;
+		}
+		int minMatches = Config.ALT_OLY_MIN_MATCHES > 0 ? Config.ALT_OLY_MIN_MATCHES : MIN_MATCHES_FOR_HERO;
+		if (eom.competitionsDone() < minMatches || eom.points() < Config.ALT_OLY_MIN_POINT_FOR_EXCHANGE) {
+			return 0;
+		}
+		int pts = eom.points();
+		eom.points(0);
+		return pts * Config.ALT_OLY_GP_PER_POINT;
+	}
+
+	/**
+	 * Concede as 5 habilidades exclusivas de Heroi (395, 396, 1374, 1375, 1376) apenas na classe principal (Base Class) (#424, #426).
+	 */
+	public void applyHeroStatusAndSkills(PlayerCharacter player, boolean isHero) {
+		if (player == null) {
+			return;
+		}
+		player.hero(isHero);
+		boolean onMainClass = !player.isSubClassActive() || player.baseClassId() == 0;
+		if (isHero && onMainClass) {
+			for (int skillId : HERO_SKILL_IDS) {
+				player.skills().put(skillId, 1);
+			}
+		} else {
+			for (int skillId : HERO_SKILL_IDS) {
+				player.skills().remove(skillId);
+			}
+			if (!isHero && player.inventory() != null) {
+				for (var item : new ArrayList<>(player.inventory().items())) {
+					if (HERO_WEAPON_IDS.contains(item.itemId()) || item.itemId() == HERO_CIRCLET_ID) {
+						if (item.isEquipped()) {
+							player.inventory().unequip(item);
+						}
+						player.inventory().remove(item);
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Ingresso em Modo Espectador de uma arena das Olimpiadas (#422).
+	 */
+	public boolean enterSpectatorMode(PlayerCharacter spectator, int stadiumInstanceId) {
+		if (spectator == null || spectator.isOlympiadMode() || isRegisteredInQueue(spectator.objectId())) {
+			return false;
+		}
+		spectatorOriginalCoords.put(spectator.objectId(), new int[]{spectator.x(), spectator.y(), spectator.z()});
+		GameWorld world = GameWorld.getInstance();
+		if (world != null) {
+			world.teleportPlayer(spectator, STADIUM_X1 + 600, STADIUM_Y1, STADIUM_Z1, stadiumInstanceId);
+			world.player(spectator.objectId()).ifPresent(s -> s.send(new ExOlympiadMode(3)));
+		} else {
+			spectator.instanceId(stadiumInstanceId);
+			spectator.x(STADIUM_X1 + 600);
+			spectator.y(STADIUM_Y1);
+			spectator.z(STADIUM_Z1);
+		}
+		return true;
+	}
+
+	/**
+	 * Saida do Modo Espectador das Olimpiadas, restaurando posicao e visibilidade (#422).
+	 */
+	public boolean leaveSpectatorMode(PlayerCharacter spectator) {
+		if (spectator == null) {
+			return false;
+		}
+		int[] orig = spectatorOriginalCoords.remove(spectator.objectId());
+		if (orig == null) {
+			return false;
+		}
+		GameWorld world = GameWorld.getInstance();
+		if (world != null) {
+			world.player(spectator.objectId()).ifPresent(s -> s.send(new ExOlympiadMode(0)));
+			world.teleportPlayer(spectator, orig[0], orig[1], orig[2], 0);
+		} else {
+			spectator.instanceId(0);
+			spectator.x(orig[0]);
+			spectator.y(orig[1]);
+			spectator.z(orig[2]);
+		}
+		return true;
 	}
 
 	public void resetWeeklyPoints() {
@@ -605,5 +803,9 @@ public class OlympiadManager {
 	public synchronized void save() {
 		nobles.values().forEach(this::persistNoble);
 		log.info("OlympiadManager: todos os {} nobres foram salvos.", nobles.size());
+	}
+
+	public synchronized Map<Integer, OlympiadNoble> electHeroes() {
+		return computeHeroes();
 	}
 }
