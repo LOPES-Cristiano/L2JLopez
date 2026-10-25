@@ -63,7 +63,7 @@ public class Quest644GraveRobberAnnihilation extends Quest {
                 qs.setState(State.STARTED);
                 qs.playSound(QuestState.SOUND_ACCEPT);
                 string2 = "karuda_q0644_0103.htm";
-            } else if (event.equalsIgnoreCase("reply_3") && n2 == 1 && n >= 11) {
+            } else if (event.equalsIgnoreCase("reply_3") && (n2 == 1 || qs.getQuestItemsCount(8088) >= 120L) && n >= 11) {
                 string2 = "karuda_q0644_0201.htm";
             } else if (n >= 11 && qs.getQuestItemsCount(8088) >= 120L) {
                 qs.takeItems(8088, 120L);
