@@ -11,6 +11,8 @@ import com.lopez.l2j.game.npc.NpcTemplate;
 import com.lopez.l2j.game.npc.NpcTemplateTable;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
+import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
+import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
 import jakarta.annotation.PostConstruct;
 import java.util.Collections;
 import java.util.List;
@@ -153,9 +155,9 @@ public class AntharasService {
 		playersInside.add(player.objectId());
 
 		if (status == BossStatus.NOTSPAWN) {
-			status = BossStatus.ALIVE;
+			status = BossStatus.WAITING;
 			if (grandBossManager != null) {
-				grandBossManager.setStatus(GrandBossManager.ANTHARAS, BossStatus.ALIVE);
+				grandBossManager.setStatus(GrandBossManager.ANTHARAS, BossStatus.WAITING);
 			}
 			int arrivalMinutes = Config.ANTHARAS_ARRIVED_TIME;
 			log.info("Antharas: Primeiro jogador ({}) entrou no covil. Antharas surgira em {} minutos!",
@@ -195,7 +197,7 @@ public class AntharasService {
 		}
 
 		if (world != null) {
-			var npcInfo = new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(activeAntharas);
+			var npcInfo = new NpcInfo(activeAntharas);
 			var quake = new com.lopez.l2j.network.game.packet.GameServerPacket.Earthquake(BOSS_X, BOSS_Y, BOSS_Z, 20, 10);
 			var cam = new com.lopez.l2j.network.game.packet.GameServerPacket.SpecialCamera(activeAntharas.objectId(), 700, 13, -19, 0, 10000);
 			for (int pid : playersInside) {
@@ -205,6 +207,7 @@ public class AntharasService {
 					op.send(cam);
 				});
 			}
+			world.broadcastAround(BOSS_X, BOSS_Y, GameWorld.VISIBILITY_RADIUS, npcInfo);
 			world.broadcast(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, "Earth Dragon",
 					"Antharas has awakened and descends into the Lair!"), p -> true);
 		}
@@ -238,6 +241,12 @@ public class AntharasService {
 		if (status != BossStatus.ALIVE) {
 			return;
 		}
+		if (activeAntharas != null && !activeAntharas.isDead() && activeAntharas.inCombat()
+				&& (System.currentTimeMillis() - activeAntharas.lastAttackTime() < 5 * 60_000L)) {
+			activityTimeoutTask = scheduler.schedule(this::putAntharasToSleep,
+					Math.max(1, Config.ANTHARAS_ACTIVE_TIME) * 60L, TimeUnit.SECONDS);
+			return;
+		}
 		if (minionTask != null) {
 			minionTask.cancel(false);
 		}
@@ -262,8 +271,21 @@ public class AntharasService {
 			int mx = BOSS_X + java.util.concurrent.ThreadLocalRandom.current().nextInt(-400, 400);
 			int my = BOSS_Y + java.util.concurrent.ThreadLocalRandom.current().nextInt(-400, 400);
 			NpcInstance minion = new NpcInstance(objId, minionTpl, mx, my, BOSS_Z, 0);
+			minion.masterObjectId(activeAntharas.objectId());
+			activeAntharas.minions().add(minion);
 			world.addNpc(minion);
+			world.broadcastAround(mx, my, GameWorld.VISIBILITY_RADIUS, new NpcInfo(minion));
 		}
+		NpcTemplate tarasqueTpl = templates.get(TARASQUE_DRAGON)
+				.orElseGet(() -> NpcTemplate.fallback(TARASQUE_DRAGON, "Tarasque Dragon", "L2Monster"));
+		int tObjId = objectIds.nextId();
+		int tx = BOSS_X + java.util.concurrent.ThreadLocalRandom.current().nextInt(-350, 350);
+		int ty = BOSS_Y + java.util.concurrent.ThreadLocalRandom.current().nextInt(-350, 350);
+		NpcInstance tarasque = new NpcInstance(tObjId, tarasqueTpl, tx, ty, BOSS_Z, 0);
+		tarasque.masterObjectId(activeAntharas.objectId());
+		activeAntharas.minions().add(tarasque);
+		world.addNpc(tarasque);
+		world.broadcastAround(tx, ty, GameWorld.VISIBILITY_RADIUS, new NpcInfo(tarasque));
 	}
 
 	public synchronized void onAntharasKilled(PlayerCharacter killer) {
@@ -299,6 +321,7 @@ public class AntharasService {
 		int objId = objectIds.nextId();
 		exitCube = new NpcInstance(objId, cubeTpl, BOSS_X, BOSS_Y, BOSS_Z, 0);
 		world.addNpc(exitCube);
+		world.broadcastAround(BOSS_X, BOSS_Y, GameWorld.VISIBILITY_RADIUS, new NpcInfo(exitCube));
 
 		// Remove o cubo e limpa a caverna apos 15 minutos
 		scheduler.schedule(this::clearLair, 15L * 60L, TimeUnit.SECONDS);
@@ -306,20 +329,36 @@ public class AntharasService {
 
 	public void clearLair() {
 		if (exitCube != null) {
-			world.removeNpc(exitCube);
+			if (world != null) {
+				world.broadcastAround(exitCube.x(), exitCube.y(), GameWorld.VISIBILITY_RADIUS, new DeleteObject(exitCube.objectId()));
+				world.removeNpc(exitCube);
+			}
 			exitCube = null;
 		}
 		if (activeAntharas != null) {
-			world.removeNpc(activeAntharas);
+			if (world != null) {
+				for (NpcInstance m : activeAntharas.minions()) {
+					if (m != null) {
+						world.broadcastAround(m.x(), m.y(), GameWorld.VISIBILITY_RADIUS, new DeleteObject(m.objectId()));
+						world.removeNpc(m);
+					}
+				}
+				activeAntharas.minions().clear();
+				world.broadcastAround(activeAntharas.x(), activeAntharas.y(), GameWorld.VISIBILITY_RADIUS,
+						new DeleteObject(activeAntharas.objectId()));
+				world.removeNpc(activeAntharas);
+			}
 			activeAntharas = null;
 		}
 		for (int playerId : playersInside) {
-			world.player(playerId).ifPresent(p -> {
-				PlayerCharacter pc = p.character();
-				if (pc != null) {
-					world.teleportPlayer(pc, EXIT_X, EXIT_Y, EXIT_Z);
-				}
-			});
+			if (world != null) {
+				world.player(playerId).ifPresent(p -> {
+					PlayerCharacter pc = p.character();
+					if (pc != null) {
+						world.teleportPlayer(pc, EXIT_X, EXIT_Y, EXIT_Z);
+					}
+				});
+			}
 		}
 		playersInside.clear();
 	}
