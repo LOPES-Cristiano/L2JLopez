@@ -1,7 +1,10 @@
 package com.lopez.l2j.game.manor;
 
 import com.lopez.l2j.config.Config;
+import com.lopez.l2j.game.castle.Castle;
+import com.lopez.l2j.game.castle.CastleManager;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -11,6 +14,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,8 +29,9 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 /**
- * Gerenciador do Sistema de Manor de Lineage II Interlude.
- * Carrega seeds.xml e gerencia producao de sementes e compra de colheitas pelos castelos.
+ * Gerenciador do Sistema de Manor de Lineage II Interlude (#274, #507).
+ * Carrega seeds.xml, agenda ciclos diarios de Refresh (20:00) e Manutencao/Aprovacao (06:00 AM),
+ * integra com a tesouraria dos castelos e persiste producao de sementes e compra de colheitas.
  */
 @Service
 public class CastleManorManager {
@@ -33,6 +40,8 @@ public class CastleManorManager {
 
 	public static final int PERIOD_CURRENT = 0;
 	public static final int PERIOD_NEXT = 1;
+
+	private static volatile CastleManorManager instance;
 
 	private final Map<Integer, SeedTemplate> seedsById = new ConcurrentHashMap<>();
 	private final Map<Integer, List<SeedTemplate>> seedsByCastle = new ConcurrentHashMap<>();
@@ -46,6 +55,9 @@ public class CastleManorManager {
 	private final Map<Integer, Map<Integer, SeedProduction>> productionNext = new ConcurrentHashMap<>();
 
 	private final JdbcClient jdbc;
+	private CastleManager castleManager;
+	private ScheduledExecutorService scheduler;
+	private volatile boolean underMaintenance = false;
 
 	@Autowired
 	public CastleManorManager(@Autowired(required = false) JdbcClient jdbc) {
@@ -54,7 +66,17 @@ public class CastleManorManager {
 
 	public CastleManorManager(String xmlPath, JdbcClient jdbc) {
 		this.jdbc = jdbc;
+		instance = this;
 		loadSeedsXml(xmlPath);
+	}
+
+	public static CastleManorManager getInstance() {
+		return instance;
+	}
+
+	@Autowired(required = false)
+	public void setCastleManager(CastleManager castleManager) {
+		this.castleManager = castleManager;
 	}
 
 	@PostConstruct
@@ -63,7 +85,118 @@ public class CastleManorManager {
 			log.info("CastleManorManager: sistema de Manor desabilitado via Config.ALLOW_MANOR");
 			return;
 		}
+		initSchema();
 		loadFromDb();
+		startSchedule();
+	}
+
+	@PreDestroy
+	public void shutdown() {
+		if (scheduler != null) {
+			scheduler.shutdownNow();
+		}
+		saveAllToDb();
+	}
+
+	public void initSchema() {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("""
+					CREATE TABLE IF NOT EXISTS castle_manor_production (
+						castle_id INT NOT NULL DEFAULT 0,
+						seed_id INT NOT NULL DEFAULT 0,
+						can_produce INT NOT NULL DEFAULT 0,
+						start_produce INT NOT NULL DEFAULT 0,
+						seed_price INT NOT NULL DEFAULT 0,
+						period INT NOT NULL DEFAULT 0,
+						PRIMARY KEY (castle_id, seed_id, period)
+					)
+					""").update();
+			jdbc.sql("""
+					CREATE TABLE IF NOT EXISTS castle_manor_seed (
+						castle_id INT NOT NULL DEFAULT 0,
+						seed_id INT NOT NULL DEFAULT 0,
+						can_produce INT NOT NULL DEFAULT 0,
+						start_produce INT NOT NULL DEFAULT 0,
+						seed_price INT NOT NULL DEFAULT 0,
+						period INT NOT NULL DEFAULT 0,
+						PRIMARY KEY (castle_id, seed_id, period)
+					)
+					""").update();
+			jdbc.sql("""
+					CREATE TABLE IF NOT EXISTS castle_manor_procure (
+						castle_id INT NOT NULL DEFAULT 0,
+						crop_id INT NOT NULL DEFAULT 0,
+						can_buy INT NOT NULL DEFAULT 0,
+						start_buy INT NOT NULL DEFAULT 0,
+						price INT NOT NULL DEFAULT 0,
+						reward_type INT NOT NULL DEFAULT 0,
+						period INT NOT NULL DEFAULT 0,
+						PRIMARY KEY (castle_id, crop_id, period)
+					)
+					""").update();
+		} catch (Exception ex) {
+			log.debug("CastleManorManager: initSchema ignorado: {}", ex.getMessage());
+		}
+	}
+
+	private void startSchedule() {
+		if (scheduler != null && !scheduler.isShutdown()) {
+			return;
+		}
+		scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+			Thread t = new Thread(r, "CastleManor-Scheduler");
+			t.setDaemon(true);
+			return t;
+		});
+		scheduleNextRefresh();
+		scheduleNextApprove();
+		long saveRateHours = getSavePeriodRateHours();
+		scheduler.scheduleAtFixedRate(this::saveAllToDb, saveRateHours, saveRateHours, TimeUnit.HOURS);
+	}
+
+	private void scheduleNextRefresh() {
+		if (scheduler == null || scheduler.isShutdown()) {
+			return;
+		}
+		long delay = Math.max(1000L, getNextRefreshTimeMillis() - System.currentTimeMillis());
+		scheduler.schedule(() -> {
+			try {
+				onRefreshPeriod();
+			} finally {
+				scheduleNextRefresh();
+			}
+		}, delay, TimeUnit.MILLISECONDS);
+	}
+
+	private void scheduleNextApprove() {
+		if (scheduler == null || scheduler.isShutdown()) {
+			return;
+		}
+		long delay = Math.max(1000L, getNextApproveTimeMillis() - System.currentTimeMillis());
+		scheduler.schedule(() -> {
+			try {
+				underMaintenance = true;
+				approveNextPeriod();
+			} finally {
+				underMaintenance = false;
+				scheduleNextApprove();
+			}
+		}, delay, TimeUnit.MILLISECONDS);
+	}
+
+	/**
+	 * Executado as 20:00 (ALT_MANOR_REFRESH_TIME): salva o estado corrente e inicia janela de recepcao/processamento.
+	 */
+	public synchronized void onRefreshPeriod() {
+		saveAllToDb();
+		log.info("CastleManorManager: ciclo de refresh das 20:00 concluido e persistido.");
+	}
+
+	public boolean isUnderMaintenance() {
+		return underMaintenance;
 	}
 
 	public static boolean isManorEnabled() {
@@ -130,12 +263,26 @@ public class CastleManorManager {
 		return Optional.ofNullable(seedsById.get(seedId));
 	}
 
+	public Optional<SeedTemplate> getSeedByCrop(int cropId) {
+		return seedsById.values().stream().filter(s -> s.cropId() == cropId).findFirst();
+	}
+
 	public List<SeedTemplate> getSeedsForCastle(int castleId) {
 		return seedsByCastle.getOrDefault(castleId, List.of());
 	}
 
 	public Collection<SeedTemplate> allSeeds() {
 		return Collections.unmodifiableCollection(seedsById.values());
+	}
+
+	public synchronized boolean setSeedProduction(int castleId, List<SeedProduction> prods, int period) {
+		if (!isManorEnabled() || prods == null) {
+			return false;
+		}
+		for (SeedProduction p : prods) {
+			setSeedProduction(castleId, p, period);
+		}
+		return true;
 	}
 
 	public synchronized boolean setSeedProduction(int castleId, SeedProduction prod, int period) {
@@ -145,6 +292,16 @@ public class CastleManorManager {
 		var map = period == PERIOD_CURRENT ? productionCurrent : productionNext;
 		map.computeIfAbsent(castleId, k -> new ConcurrentHashMap<>()).put(prod.seedId(), prod);
 		persistProduction(castleId, prod, period);
+		return true;
+	}
+
+	public synchronized boolean setCropProcure(int castleId, List<CropProcure> procs, int period) {
+		if (!isManorEnabled() || procs == null) {
+			return false;
+		}
+		for (CropProcure p : procs) {
+			setCropProcure(castleId, p, period);
+		}
 		return true;
 	}
 
@@ -174,7 +331,7 @@ public class CastleManorManager {
 	 * @return preco total a pagar em adena, ou -1 se estoque insuficiente
 	 */
 	public synchronized long buySeed(int castleId, int seedId, int count) {
-		if (!isManorEnabled()) {
+		if (!isManorEnabled() || count <= 0) {
 			return -1;
 		}
 		var opt = getSeedProduction(castleId, seedId, PERIOD_CURRENT);
@@ -186,10 +343,14 @@ public class CastleManorManager {
 			return -1;
 		}
 		prod.amount(prod.amount() - count);
+		long totalCost = (long) prod.price() * count;
+		if (castleManager != null && totalCost > 0) {
+			castleManager.getCastleById(castleId).ifPresent(castle -> castle.addToTreasury(totalCost));
+		}
 		if (shouldSaveAllActions() || jdbc != null) {
 			persistProduction(castleId, prod, PERIOD_CURRENT);
 		}
-		return (long) prod.price() * count;
+		return totalCost;
 	}
 
 	/**
@@ -198,7 +359,7 @@ public class CastleManorManager {
 	 * @return recompensa em adena paga ao jogador, ou -1 se demanda insuficiente
 	 */
 	public synchronized long sellCrop(int castleId, int cropId, int count) {
-		if (!isManorEnabled()) {
+		if (!isManorEnabled() || count <= 0) {
 			return -1;
 		}
 		var opt = getCropProcure(castleId, cropId, PERIOD_CURRENT);
@@ -216,17 +377,88 @@ public class CastleManorManager {
 		return (long) proc.price() * count;
 	}
 
+	/**
+	 * Manutencao das 06:00 AM: transfere o planejamento do proximo periodo para o periodo corrente,
+	 * debita reservas da tesouraria do castelo (quando aplicavel) e persiste no SQL.
+	 */
 	public synchronized void approveNextPeriod() {
 		procureCurrent.clear();
 		for (var entry : procureNext.entrySet()) {
-			procureCurrent.put(entry.getKey(), new ConcurrentHashMap<>(entry.getValue()));
+			int castleId = entry.getKey();
+			Castle castle = castleManager != null ? castleManager.getCastleById(castleId).orElse(null) : null;
+			Map<Integer, CropProcure> currentMap = new ConcurrentHashMap<>();
+			for (var procEntry : entry.getValue().entrySet()) {
+				CropProcure nextProc = procEntry.getValue();
+				long reserveCost = (long) nextProc.startAmount() * nextProc.price();
+				if (castle != null && reserveCost > 0) {
+					if (castle.treasury() >= reserveCost) {
+						castle.treasury(castle.treasury() - reserveCost);
+					}
+				}
+				CropProcure approved = new CropProcure(
+						nextProc.cropId(),
+						nextProc.startAmount(),
+						nextProc.startAmount(),
+						nextProc.price(),
+						nextProc.rewardType());
+				currentMap.put(procEntry.getKey(), approved);
+			}
+			procureCurrent.put(castleId, currentMap);
 		}
 
 		productionCurrent.clear();
 		for (var entry : productionNext.entrySet()) {
-			productionCurrent.put(entry.getKey(), new ConcurrentHashMap<>(entry.getValue()));
+			int castleId = entry.getKey();
+			Map<Integer, SeedProduction> currentMap = new ConcurrentHashMap<>();
+			for (var prodEntry : entry.getValue().entrySet()) {
+				SeedProduction nextProd = prodEntry.getValue();
+				SeedProduction approved = new SeedProduction(
+						nextProd.seedId(),
+						nextProd.startAmount(),
+						nextProd.startAmount(),
+						nextProd.price());
+				currentMap.put(prodEntry.getKey(), approved);
+			}
+			productionCurrent.put(castleId, currentMap);
 		}
+
+		saveAllToDb();
 		log.info("CastleManorManager: Configurações do próximo período aprovadas para o período corrente");
+	}
+
+	/**
+	 * Salva producoes de sementes e compras de colheita de todos os castelos no banco (#507).
+	 */
+	public synchronized int saveAllToDb() {
+		if (jdbc == null) {
+			return 0;
+		}
+		int saved = 0;
+		for (var entry : productionCurrent.entrySet()) {
+			for (SeedProduction p : entry.getValue().values()) {
+				persistProduction(entry.getKey(), p, PERIOD_CURRENT);
+				saved++;
+			}
+		}
+		for (var entry : productionNext.entrySet()) {
+			for (SeedProduction p : entry.getValue().values()) {
+				persistProduction(entry.getKey(), p, PERIOD_NEXT);
+				saved++;
+			}
+		}
+		for (var entry : procureCurrent.entrySet()) {
+			for (CropProcure p : entry.getValue().values()) {
+				persistProcure(entry.getKey(), p, PERIOD_CURRENT);
+				saved++;
+			}
+		}
+		for (var entry : procureNext.entrySet()) {
+			for (CropProcure p : entry.getValue().values()) {
+				persistProcure(entry.getKey(), p, PERIOD_NEXT);
+				saved++;
+			}
+		}
+		return saved;
 	}
 
 	private void loadSeedsXml(String filePath) {
