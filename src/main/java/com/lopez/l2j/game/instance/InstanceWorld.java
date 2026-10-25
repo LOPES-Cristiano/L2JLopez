@@ -15,6 +15,7 @@ public class InstanceWorld {
 	private final long durationMillis;
 	private final Set<Integer> players = ConcurrentHashMap.newKeySet();
 	private final Set<Integer> npcs = ConcurrentHashMap.newKeySet();
+	private final Set<Integer> doors = ConcurrentHashMap.newKeySet();
 	private volatile int exitX;
 	private volatile int exitY;
 	private volatile int exitZ;
@@ -37,11 +38,14 @@ public class InstanceWorld {
 
 	public Set<Integer> players() { return Collections.unmodifiableSet(players); }
 	public Set<Integer> npcs() { return Collections.unmodifiableSet(npcs); }
+	public Set<Integer> doors() { return Collections.unmodifiableSet(doors); }
 
 	public void addPlayer(int playerObjectId) { players.add(playerObjectId); }
 	public void removePlayer(int playerObjectId) { players.remove(playerObjectId); }
 	public void addNpc(int npcObjectId) { npcs.add(npcObjectId); }
 	public void removeNpc(int npcObjectId) { npcs.remove(npcObjectId); }
+	public void addDoor(int doorId) { doors.add(doorId); }
+	public void removeDoor(int doorId) { doors.remove(doorId); }
 
 	public int exitX() { return exitX; }
 	public int exitY() { return exitY; }
