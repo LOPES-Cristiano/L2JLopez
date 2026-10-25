@@ -15,6 +15,8 @@ import com.lopez.l2j.game.world.GameWorld;
 public class MysticAI extends FighterAI {
 
 	public static final int CAST_RANGE = 600;
+	public static final int SAFE_DISTANCE = 100;
+	private long lastRetreatTime = 0;
 
 	public MysticAI(NpcInstance npc, GameWorld world, CombatService combatService,
 			CharTemplateTable charTemplates, NpcSkillTable npcSkillTable, SkillTable skillTable) {
@@ -114,6 +116,11 @@ public class MysticAI extends FighterAI {
 
 		SkillTemplate chosenSkill = chooseMonsterSkill();
 		if (chosenSkill != null) {
+			long now = System.currentTimeMillis();
+			if (dist < SAFE_DISTANCE && !npc.isRooted() && !chosenSkill.isHeal() && (now - lastRetreatTime >= 3500L)) {
+				lastRetreatTime = now;
+				retreatFromTarget(player.x(), player.y(), dist);
+			}
 			int castRange = chosenSkill.castRange() > 0 ? chosenSkill.castRange() : CAST_RANGE;
 			if (dist > castRange && !npc.isRooted()) {
 				moveTowards(player.x(), player.y(), player.z(), player.objectId(), Math.max(40, castRange - 50), dist);
@@ -155,5 +162,38 @@ public class MysticAI extends FighterAI {
 				castMonsterSkill(chosenSkill, player, character, template);
 			}
 		}
+	}
+
+	private void retreatFromTarget(int targetX, int targetY, double dist) {
+		double dx = npc.x() - targetX;
+		double dy = npc.y() - targetY;
+		if (dist <= 0.001) {
+			dx = 1.0;
+			dy = 0.0;
+			dist = 1.0;
+		}
+		double retreatStep = 110.0;
+		int fromX = npc.x();
+		int fromY = npc.y();
+		int fromZ = npc.z();
+		int newX = (int) Math.round(fromX + (dx / dist) * retreatStep);
+		int newY = (int) Math.round(fromY + (dy / dist) * retreatStep);
+		int newZ = fromZ;
+
+		com.lopez.l2j.game.geodata.GeoEngine geo = (combatService != null) ? combatService.geoEngine() : null;
+		if (geo != null && geo.isEnabled()) {
+			com.lopez.l2j.game.geodata.GeoEngine.Location checked = geo.moveCheck(fromX, fromY, fromZ, newX, newY, fromZ);
+			newX = checked.x();
+			newY = checked.y();
+			newZ = checked.z();
+		}
+
+		int heading = (int) Math.round(Math.atan2(dy, dx) * 10430.378);
+		npc.moveTo(newX, newY, newZ, heading);
+		world.updateNpcPosition(npc, fromX, fromY);
+
+		var moveLoc = new com.lopez.l2j.network.game.packet.GameServerPacket.MoveToLocation(
+				npc.objectId(), newX, newY, newZ, fromX, fromY, fromZ);
+		world.broadcastAround(fromX, fromY, GameWorld.VISIBILITY_RADIUS, moveLoc);
 	}
 }
