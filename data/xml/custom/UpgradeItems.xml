@@ -2,7 +2,7 @@
 <list>
 	<!-- Tabela de Upgrades de Equipamentos (NEXORA & Lucera) - ZERO DONATE -->
 	<!-- itemId 6658 (Sword of Ipos) -> newItemId 7577 (Sirra's Blade), chance 90%, bossId 25325, reqItemId 57, reqCount 5000000 -->
-	<upgrade itemId="6658" newItemId="7577" chance="90" bossId="25325" reqItemId="57" reqCount="5000000"/>
+	<upgrade itemId="6658" newItemId="7577" chance="100" bossId="25325" reqItemId="57" reqCount="5000000"/>
 	<!-- itemId 2375 (Wolf Collar) -> newItemId 9882 (Great Wolf Necklace), chance 100%, bossId 0, reqItemId 57, reqCount 1000000 -->
 	<upgrade itemId="2375" newItemId="9882" chance="100" bossId="0" reqItemId="57" reqCount="1000000"/>
 	<!-- itemId 6580 (Imperial Crusader Breastplate) -> newItemId 6660, chance 80%, bossId 29001, reqItemId 3470, reqCount 10 -->
