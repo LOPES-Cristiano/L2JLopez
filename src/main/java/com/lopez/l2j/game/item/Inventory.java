@@ -43,6 +43,19 @@ public final class Inventory {
 		return Optional.ofNullable(items.get(objectId));
 	}
 
+	public ItemInstance getByObjectId(int objectId) {
+		return items.get(objectId);
+	}
+
+	public Set<ItemInstance> remove(int objectId) {
+		ItemInstance item = items.get(objectId);
+		return item != null ? remove(item) : Collections.emptySet();
+	}
+
+	public Set<ItemInstance> removeByObjectId(int objectId) {
+		return remove(objectId);
+	}
+
 	public Optional<ItemInstance> byItemId(int itemId) {
 		return items.values().stream().filter(i -> i.itemId() == itemId).findFirst();
 	}
@@ -127,15 +140,18 @@ public final class Inventory {
 		}
 	}
 
-	public synchronized void addItem(int itemId, int count) {
-		if (count <= 0) return;
+	public synchronized ItemInstance addItem(int itemId, int count) {
+		if (count <= 0) return null;
 		var opt = byItemId(itemId);
 		if (opt.isPresent()) {
 			opt.get().count(opt.get().count() + count);
+			return opt.get();
 		} else {
 			ItemTemplate dummy = ItemTemplate.etc(itemId, itemId, "Item_" + itemId, "etcitem", "none", 0, "none", 0, false, false, true, false);
 			int objId = 0x40000000 + (itemId * 31) + java.util.concurrent.ThreadLocalRandom.current().nextInt(10000);
-			add(new ItemInstance(objId, dummy, ownerId, count));
+			ItemInstance created = new ItemInstance(objId, dummy, ownerId, count);
+			add(created);
+			return created;
 		}
 	}
 
@@ -310,6 +326,11 @@ public final class Inventory {
 	}
 
 	/** Tira o item de todos os slots que ele ocupa. */
+	public Set<ItemInstance> unequip(int slot) {
+		ItemInstance item = paperdoll(slot);
+		return item != null ? unequip(item) : Collections.emptySet();
+	}
+
 	public Set<ItemInstance> unequip(ItemInstance item) {
 		Set<ItemInstance> changed = new LinkedHashSet<>();
 		for (int s = 0; s < PAPERDOLL_SLOTS; s++) {
