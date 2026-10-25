@@ -25,6 +25,7 @@ public abstract class Quest {
 	private final Set<Integer> startNpcIds = ConcurrentHashMap.newKeySet();
 	private final Set<Integer> talkNpcIds = ConcurrentHashMap.newKeySet();
 	private final Set<Integer> killNpcIds = ConcurrentHashMap.newKeySet();
+	private final Set<Integer> attackNpcIds = ConcurrentHashMap.newKeySet();
 	private final Set<Integer> firstTalkNpcIds = ConcurrentHashMap.newKeySet();
 
 	public Quest(int questId, String name, String descr) {
@@ -88,6 +89,10 @@ public abstract class Quest {
 
 	public Set<Integer> getKillNpcIds() {
 		return Collections.unmodifiableSet(killNpcIds);
+	}
+
+	public Set<Integer> getAttackNpcIds() {
+		return Collections.unmodifiableSet(attackNpcIds);
 	}
 
 	public Set<Integer> getFirstTalkNpcIds() {
@@ -172,7 +177,19 @@ public abstract class Quest {
 	}
 
 	public void addAttackId(int... npcIds) {
-		// Optional attack hook
+		if (npcIds != null) {
+			for (int id : npcIds) {
+				attackNpcIds.add(id);
+			}
+			QuestManager qm = this.registeredManager;
+			if (qm != null) {
+				qm.indexQuestNpcs(this);
+			}
+		}
+	}
+
+	public boolean hasAttackNpc(int npcId) {
+		return attackNpcIds.contains(npcId);
 	}
 
 	public boolean hasKillNpc(int npcId) {
@@ -270,6 +287,14 @@ public abstract class Quest {
 		return onKill(npc, qs);
 	}
 
+	public String onAttack(NpcInstance npc, GameSession player, boolean isPet) {
+		QuestState qs = player != null ? player.getQuestState(name) : null;
+		if (qs != null) {
+			return onAttack(npc, qs, isPet);
+		}
+		return null;
+	}
+
 	public String onAttack(NpcInstance npc, QuestState qs) {
 		return null;
 	}
@@ -318,6 +343,15 @@ public abstract class Quest {
 			return onKill(npc, player, isPet);
 		} catch (Exception e) {
 			log.error("Erro ao despachar onKill na quest {}: {}", name, e.getMessage(), e);
+			return null;
+		}
+	}
+
+	public String notifyAttack(NpcInstance npc, GameSession player, boolean isPet) {
+		try {
+			return onAttack(npc, player, isPet);
+		} catch (Exception e) {
+			log.error("Erro ao despachar onAttack na quest {}: {}", name, e.getMessage(), e);
 			return null;
 		}
 	}
