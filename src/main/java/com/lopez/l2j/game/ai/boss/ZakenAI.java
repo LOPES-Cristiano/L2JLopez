@@ -63,8 +63,17 @@ public class ZakenAI extends RaidBossAI {
 				int[] room = ZakenService.SHIP_ROOMS[idx];
 				int fromX = npc.x();
 				int fromY = npc.y();
+				var msu = new com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse(
+						npc.objectId(), npc.objectId(), SKILL_TELEPORT_ZAKEN, 1, 1000, 3000,
+						fromX, fromY, npc.z(), room[0], room[1], room[2]);
+				world.broadcastAround(fromX, fromY, GameWorld.VISIBILITY_RADIUS, msu);
 				npc.moveTo(room[0], room[1], room[2], 0);
 				world.updateNpcPosition(npc, fromX, fromY);
+				var telePkt = new com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation(
+						npc.objectId(), room[0], room[1], room[2], 0);
+				world.broadcastAround(fromX, fromY, GameWorld.VISIBILITY_RADIUS, telePkt);
+				world.broadcastAround(room[0], room[1], GameWorld.VISIBILITY_RADIUS,
+						new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(npc));
 			}
 		}
 
