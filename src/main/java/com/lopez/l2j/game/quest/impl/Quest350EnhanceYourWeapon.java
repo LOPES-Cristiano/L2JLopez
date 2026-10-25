@@ -64,7 +64,88 @@ public class Quest350EnhanceYourWeapon extends Quest {
 				return true;
 			}
 		}
-		return false;
+		for (int id = 5577; id <= 5582; id++) {
+			if (st.hasQuestItems(id)) {
+				return true;
+			}
+		}
+		return st.hasQuestItems(5908) || st.hasQuestItems(5911) || st.hasQuestItems(5914);
+	}
+
+	public static int getNextSoulCrystalId(int crystalId) {
+		// Red Soul Crystal 0..10 (4629..4639), 11 (5577), 12 (5580), 13 (5908)
+		if (crystalId >= 4629 && crystalId < 4638) {
+			return crystalId + 1;
+		}
+		if (crystalId == 4638) {
+			return 5577;
+		}
+		if (crystalId == 5577) {
+			return 5580;
+		}
+		if (crystalId == 5580) {
+			return 5908;
+		}
+		// Green Soul Crystal 0..10 (4639..4648), 11 (5578), 12 (5581), 13 (5911)
+		if (crystalId >= 4639 && crystalId < 4648) {
+			return crystalId + 1;
+		}
+		if (crystalId == 4648) {
+			return 5578;
+		}
+		if (crystalId == 5578) {
+			return 5581;
+		}
+		if (crystalId == 5581) {
+			return 5911;
+		}
+		// Blue Soul Crystal 0..10 (4649..4661), 11 (5579), 12 (5582), 13 (5914)
+		if (crystalId >= 4649 && crystalId < 4661) {
+			return crystalId + 1;
+		}
+		if (crystalId == 4661) {
+			return 5579;
+		}
+		if (crystalId == 5579) {
+			return 5582;
+		}
+		if (crystalId == 5582) {
+			return 5914;
+		}
+		return 0;
+	}
+
+	@Override
+	public String onKill(NpcInstance npc, GameSession player, boolean isPet) {
+		QuestState st = player != null ? player.getQuestState(QUEST_NAME) : null;
+		if (st != null) {
+			onKill(npc, st, isPet);
+		}
+		return null;
+	}
+
+	@Override
+	public String onKill(NpcInstance npc, QuestState st, boolean isPet) {
+		if (st == null || !st.isStarted()) {
+			return null;
+		}
+		int[] candidates = {
+			4629, 4630, 4631, 4632, 4633, 4634, 4635, 4636, 4637, 4638, 5577, 5580,
+			4639, 4640, 4641, 4642, 4643, 4644, 4645, 4646, 4647, 4648, 5578, 5581,
+			4649, 4650, 4651, 4652, 4653, 4654, 4655, 4656, 4657, 4658, 4659, 4660, 4661, 5579, 5582
+		};
+		for (int cid : candidates) {
+			if (st.getQuestItemsCount(cid) == 1) {
+				int nextId = getNextSoulCrystalId(cid);
+				if (nextId > 0) {
+					st.takeItems(cid, 1);
+					st.giveItems(nextId, 1);
+					st.playSound(QuestState.SOUND_ITEMGET);
+					break;
+				}
+			}
+		}
+		return null;
 	}
 
 	@Override
