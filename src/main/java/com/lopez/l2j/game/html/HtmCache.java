@@ -161,6 +161,10 @@ public class HtmCache {
 		return java.util.Collections.unmodifiableMap(scriptsDirsByCategory);
 	}
 
+	public String get(String path) {
+		return getHtml(path);
+	}
+
 	public String getQuestHtml(int questId, String questName, String fileName) {
 		if (fileName == null || fileName.isBlank()) {
 			return null;
