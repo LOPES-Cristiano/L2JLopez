@@ -74,7 +74,18 @@ public class RangerAI extends FighterAI {
 		if (dist > attackRange && !npc.isRooted()) {
 			moveTowards(player.x(), player.y(), player.z(), player.objectId(), DESIRED_RANGE, dist);
 		} else {
-			// No alcance seguro: dispara ataques
+			// No alcance seguro: dispara habilidades ofensivas de alcance ou ataques com arco
+			com.lopez.l2j.game.skill.SkillTemplate rangedSkill = chooseRangedMonsterSkill(dist);
+			if (rangedSkill != null && java.util.concurrent.ThreadLocalRandom.current().nextInt(100) < 25) {
+				int pAtkSpd = Math.max(100, npc.pAtkSpd());
+				long cooldownMs = Math.max(400L, 333_000L / pAtkSpd);
+				if (now - npc.lastAttackTime() >= cooldownMs) {
+					npc.lastAttackTime(now);
+					var template = charTemplates != null ? charTemplates.get(character.classId()).orElse(null) : null;
+					castMonsterSkill(rangedSkill, player, character, template);
+					return;
+				}
+			}
 			executeAttack(player, character);
 		}
 	}
