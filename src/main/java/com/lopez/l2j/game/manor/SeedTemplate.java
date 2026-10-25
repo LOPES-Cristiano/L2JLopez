@@ -14,4 +14,12 @@ public record SeedTemplate(
 		boolean isAlt,
 		int limitSeeds,
 		int limitCrops) {
+
+	public int seedDefaultPrice() {
+		return Math.max(10, level * 15);
+	}
+
+	public int cropDefaultPrice() {
+		return Math.max(50, level * 50);
+	}
 }
