@@ -3,6 +3,8 @@ package com.lopez.l2j.game.instance;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.world.GameWorld;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +15,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -35,6 +40,7 @@ public class InstanceService {
 	private final AtomicInteger instanceIdGenerator = new AtomicInteger(1000);
 
 	private final GameWorld gameWorld;
+	private ScheduledExecutorService cleanupScheduler;
 
 	public InstanceService() {
 		this(null);
@@ -43,6 +49,42 @@ public class InstanceService {
 	@Autowired
 	public InstanceService(@Autowired(required = false) GameWorld gameWorld) {
 		this.gameWorld = gameWorld != null ? gameWorld : GameWorld.getInstance();
+	}
+
+	@PostConstruct
+	public void init() {
+		if (cleanupScheduler == null) {
+			cleanupScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+				Thread t = new Thread(r, "InstanceService-Cleanup");
+				t.setDaemon(true);
+				return t;
+			});
+			cleanupScheduler.scheduleAtFixedRate(this::checkExpiredInstances, 60L, 60L, TimeUnit.SECONDS);
+		}
+	}
+
+	@PreDestroy
+	public void shutdown() {
+		if (cleanupScheduler != null) {
+			cleanupScheduler.shutdownNow();
+			cleanupScheduler = null;
+		}
+	}
+
+	/**
+	 * Verifica e destroi automaticamente todas as instancias cujo tempo limite (durationMillis) expirou.
+	 */
+	public void checkExpiredInstances() {
+		List<Integer> expiredIds = new ArrayList<>();
+		for (Map.Entry<Integer, InstanceWorld> entry : instances.entrySet()) {
+			if (entry.getValue().isExpired()) {
+				expiredIds.add(entry.getKey());
+			}
+		}
+		for (int instanceId : expiredIds) {
+			log.info("InstanceService: Instancia #{} expirou por tempo limite. Destruindo...", instanceId);
+			destroyInstance(instanceId);
+		}
 	}
 
 	public int createInstance(int templateId, int durationMinutes) {
@@ -148,7 +190,7 @@ public class InstanceService {
 		List<NpcInstance> list = new ArrayList<>();
 		for (NpcInstance npc : world.npcs()) {
 			if (npc.instanceId() == instanceId) {
-				list.add(npc);
+				list.add(npc.instanceId() == instanceId ? npc : null);
 			}
 		}
 		return Collections.unmodifiableList(list);
