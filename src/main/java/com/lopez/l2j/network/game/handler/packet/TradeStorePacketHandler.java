@@ -57,9 +57,21 @@ public class TradeStorePacketHandler {
 	private static final Logger log = LoggerFactory.getLogger(TradeStorePacketHandler.class);
 
 	private final GameSession session;
+	private volatile NpcInstance lastInteractedNpc;
 
 	public TradeStorePacketHandler(GameSession session) {
 		this.session = session;
+	}
+
+	private MultiSellPacketHandler resolveMultiSellHandler(GameSession.Context ctx) {
+		if (ctx != null) {
+			var bean = ctx.getBean(MultiSellPacketHandler.class);
+			if (bean != null) {
+				return bean;
+			}
+		}
+		var engineBean = GameEngineContext.getBean(MultiSellPacketHandler.class);
+		return engineBean != null ? engineBean : new MultiSellPacketHandler();
 	}
 
 	private OfflineTradeService resolveOfflineTrade(GameSession.Context ctx) {
@@ -192,11 +204,16 @@ public class TradeStorePacketHandler {
 		String title = active.storeTitle() != null ? active.storeTitle() : "Sell Store";
 		resolveOfflineTrade(ctx).setSellStoreList(active.objectId(), p.packageSale(), title, sellItems);
 		active.sitting(true);
-		active.privateStoreType(PlayerCharacter.STORE_TYPE_SELL);
+		active.privateStoreType(p.packageSale() ? PlayerCharacter.STORE_PACKAGE_SELL : PlayerCharacter.STORE_TYPE_SELL);
 		session.sendUserInfoAndBroadcastCharInfo();
 		if (ctx.world() != null) {
-			ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
-					new PrivateStoreMsgSell(active.objectId(), title), false);
+			if (p.packageSale()) {
+				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
+						new com.lopez.l2j.network.game.packet.GameServerPacket.ExPrivateStoreSetWholeMsg(active.objectId(), title), false);
+			} else {
+				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
+						new PrivateStoreMsgSell(active.objectId(), title), false);
+			}
 		}
 	}
 
@@ -228,8 +245,13 @@ public class TradeStorePacketHandler {
 		}
 		active.storeTitle(p.storeMsg());
 		if (ctx != null && ctx.world() != null) {
-			ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
-					new PrivateStoreMsgSell(active.objectId(), p.storeMsg()), false);
+			if (active.privateStoreType() == PlayerCharacter.STORE_PACKAGE_SELL) {
+				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
+						new com.lopez.l2j.network.game.packet.GameServerPacket.ExPrivateStoreSetWholeMsg(active.objectId(), p.storeMsg()), false);
+			} else {
+				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
+						new PrivateStoreMsgSell(active.objectId(), p.storeMsg()), false);
+			}
 		}
 	}
 
@@ -386,6 +408,12 @@ public class TradeStorePacketHandler {
 
 		synchronized (firstLock) {
 			synchronized (secondLock) {
+				boolean isPackageSale = sellStore.packageSale()
+						|| sellerChar.privateStoreType() == PlayerCharacter.STORE_PACKAGE_SELL;
+				if (isPackageSale && p.items().size() < sellStore.items().size()) {
+					session.send(new ActionFailed());
+					return;
+				}
 				long totalCost = 0L;
 				record ValidatedBuyItem(OfflineShopItem storeEntry, ItemInstance sellerItem, int count, int unitPrice) {}
 				List<ValidatedBuyItem> validated = new ArrayList<>();
@@ -403,6 +431,10 @@ public class TradeStorePacketHandler {
 						}
 					}
 					if (matchedStore == null || matchedStore.count() < req.count()) {
+						session.send(new ActionFailed());
+						return;
+					}
+					if (isPackageSale && req.count() < matchedStore.count()) {
 						session.send(new ActionFailed());
 						return;
 					}
@@ -513,202 +545,8 @@ public class TradeStorePacketHandler {
 	}
 
 	public void handleMultiSellChoose(MultiSellChoose p) {
-		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
-		if (!session.inWorld() || active == null || active.isDead() || active.isStoreOpen() || active.isBuffShop()
-				|| active.isOlympiadMode() || p.amount() <= 0 || ctx == null || ctx.multisell() == null) {
-			session.send(new ActionFailed());
-			return;
-		}
-		var containerOpt = ctx.multisell().get(p.listId());
-		if (containerOpt.isEmpty()) {
-			session.send(new ActionFailed());
-			return;
-		}
-		var container = containerOpt.get();
-		var entryOpt = container.entries().stream().filter(e -> e.entryId() == p.entryId()).findFirst();
-		if (entryOpt.isEmpty()) {
-			session.send(new ActionFailed());
-			return;
-		}
-		var entry = entryOpt.get();
-		int amount = Math.min(5000, p.amount());
-
-		// 1. Agrega ingredientes por itemId e valida quantidades totais necessarias
-		Map<Integer, Long> aggregatedIngredients = new HashMap<>();
-		Map<Integer, Long> maintainedIngredients = new HashMap<>();
-		long clanRepNeeded = 0L;
-		for (var ing : entry.ingredients()) {
-			if (ing.isTaxIngredient()) {
-				continue;
-			}
-			if (ing.maintainIngredient()) {
-				if (!Config.ALT_BLACKSMITH_USE_RECIPES) {
-					var tmpl = ctx.inventories() != null && ctx.inventories().templates() != null
-							? ctx.inventories().templates().get(ing.itemId()).orElse(null)
-							: null;
-					if (tmpl == null || tmpl.type2() == ItemTemplate.TYPE2_OTHER) {
-						continue;
-					}
-				}
-				maintainedIngredients.merge(ing.itemId(), Math.max(1L, ing.count()), Long::max);
-				continue;
-			}
-			long needed = (long) ing.count() * amount;
-			if (needed <= 0 || needed > Integer.MAX_VALUE) {
-				session.send(new ActionFailed());
-				return;
-			}
-			if (ing.itemId() == -200 || ing.itemId() == 65336) {
-				clanRepNeeded += needed;
-			} else if (ing.itemId() == -100 || ing.itemId() == 65436 || ing.itemId() == -300) {
-				// PC Bang Points / Fame especiais
-				continue;
-			} else {
-				aggregatedIngredients.merge(ing.itemId(), needed, Long::sum);
-			}
-		}
-
-		// Valida Clan Reputation (-200) se exigido
-		com.lopez.l2j.game.clan.Clan playerClan = null;
-		if (clanRepNeeded > 0) {
-			if (active.clanId() <= 0 || ctx.clans() == null) {
-				session.send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
-				session.send(new ActionFailed());
-				return;
-			}
-			playerClan = ctx.clans().byClanId(active.clanId()).orElse(null);
-			if (playerClan == null || playerClan.reputationScore() < clanRepNeeded) {
-				session.send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
-				session.send(new ActionFailed());
-				return;
-			}
-		}
-
-		// Valida ingredientes mantidos (ex: recipes em maintainIngredient)
-		for (var maintEntry : maintainedIngredients.entrySet()) {
-			long needed = maintEntry.getValue();
-			long count = active.inventory().items().stream()
-					.filter(i -> !i.isEquipped() && i.itemId() == maintEntry.getKey())
-					.mapToLong(ItemInstance::count)
-					.sum();
-			if (count < needed) {
-				session.send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
-				session.send(new ActionFailed());
-				return;
-			}
-		}
-
-		// Valida ingredientes consumiveis e rastreia enchantLevel se maintainEnchantment=true
-		int preservedEnchant = 0;
-		com.lopez.l2j.game.augmentation.Augmentation preservedAugmentation = null;
-		for (var ingEntry : aggregatedIngredients.entrySet()) {
-			int itemId = ingEntry.getKey();
-			long needed = ingEntry.getValue();
-			long count = active.inventory().items().stream()
-					.filter(i -> !i.isEquipped() && i.itemId() == itemId)
-					.mapToLong(ItemInstance::count)
-					.sum();
-			if (count < needed || needed > Integer.MAX_VALUE) {
-				session.send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
-				session.send(new ActionFailed());
-				return;
-			}
-			if (container.maintainEnchantment()) {
-				for (var invItem : active.inventory().items()) {
-					if (!invItem.isEquipped() && invItem.itemId() == itemId
-							&& invItem.template() != null && !invItem.template().stackable()) {
-						if (invItem.enchant() > preservedEnchant) {
-							preservedEnchant = invItem.enchant();
-						}
-						if (invItem.augmentation() != null && preservedAugmentation == null) {
-							preservedAugmentation = invItem.augmentation();
-						}
-						break;
-					}
-				}
-			}
-		}
-
-		// 2. Valida capacidade de slots do inventario para os produtos
-		int slotsNeeded = 0;
-		for (var prod : entry.products()) {
-			long totalAdd = (long) prod.count() * amount;
-			if (totalAdd <= 0 || totalAdd > Integer.MAX_VALUE) {
-				session.send(new ActionFailed());
-				return;
-			}
-			var tmpl = ctx.inventories().templates().get(prod.itemId()).orElse(null);
-			if (tmpl == null) {
-				session.send(new ActionFailed());
-				return;
-			}
-			if (!tmpl.stackable()) {
-				slotsNeeded += (int) totalAdd;
-			} else if (active.inventory().byItemId(prod.itemId()).isEmpty()) {
-				slotsNeeded++;
-			}
-		}
-		if (active.inventory().size() + slotsNeeded > active.maxInventorySlots()) {
-			session.send(SystemMessage.id(SystemMessage.SLOTS_FULL));
-			session.send(new ActionFailed());
-			return;
-		}
-
-		if (clanRepNeeded > 0 && playerClan != null) {
-			playerClan.reputationScore(playerClan.reputationScore() - (int) clanRepNeeded);
-			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.PledgeShowInfoUpdate(playerClan));
-		}
-
-		List<ItemInfo> updates = new ArrayList<>();
-		// 3. Consome os ingredientes agregados
-		for (var ingEntry : aggregatedIngredients.entrySet()) {
-			var consumed = ctx.inventories().consumeItem(active.inventory(), ingEntry.getKey(), ingEntry.getValue().intValue(), "MultiSell");
-			if (consumed != null) {
-				updates.add(consumed.removed()
-						? ItemInfo.of(consumed.item(), ItemInfo.REMOVED)
-						: ItemInfo.of(consumed.item(), ItemInfo.MODIFIED));
-			}
-		}
-
-		// 4. Adiciona os produtos (preservando encantamento/augment quando aplicavel)
-		for (var prod : entry.products()) {
-			long totalAdd = (long) prod.count() * amount;
-			int targetEnchant = prod.enchantLevel() > 0 ? prod.enchantLevel()
-					: (container.maintainEnchantment() ? preservedEnchant : 0);
-			var added = ctx.inventories().addItem(active.inventory(), prod.itemId(), (int) totalAdd, "MultiSell");
-			if (added != null) {
-				List<ItemInstance> createdItems = (added.allItems() != null && !added.allItems().isEmpty())
-						? added.allItems()
-						: (added.item() != null ? List.of(added.item()) : List.of());
-				for (var item : createdItems) {
-					if (item.template() != null && !item.template().stackable()) {
-						boolean changed = false;
-						if (targetEnchant > 0) {
-							item.enchant(targetEnchant);
-							changed = true;
-						}
-						if (container.maintainEnchantment() && preservedAugmentation != null && item.augmentation() == null) {
-							item.augmentation(preservedAugmentation);
-							changed = true;
-						}
-						if (changed) {
-							ctx.inventories().saveItem(item);
-						}
-					}
-					updates.add(ItemInfo.of(item, added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
-				}
-			}
-			session.send(SystemMessage.of(SystemMessage.YOU_PICKED_UP_S1_S2,
-					new SystemMessage.ItemName(prod.itemId()),
-					new SystemMessage.Number((int) totalAdd)));
-		}
-
-		// 5. Atualiza o inventario do jogador via InventoryUpdate (obrigatorio para multisell sync)
-		if (!updates.isEmpty()) {
-			session.send(new InventoryUpdate(updates));
-		}
-		session.refreshWeightAndPenalties();
+		resolveMultiSellHandler(ctx).handleMultiSellChoose(session, p, lastInteractedNpc);
 	}
 
 	public void handleWareHouseDeposit(SendWareHouseDepositList p) {
@@ -723,6 +561,12 @@ public class TradeStorePacketHandler {
 			return;
 		}
 		if (!com.lopez.l2j.config.Config.ALT_KARMA_PLAYER_CAN_USE_WAREHOUSE && active.karma() > 0) {
+			session.send(new ActionFailed());
+			return;
+		}
+		long requiredFee = (long) p.items().size() * com.lopez.l2j.game.service.WarehouseService.WAREHOUSE_FEE;
+		if (active.inventory().adena() < requiredFee) {
+			session.send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
 			session.send(new ActionFailed());
 			return;
 		}
@@ -802,10 +646,18 @@ public class TradeStorePacketHandler {
 			return;
 		}
 		List<ItemInfo> updates = new ArrayList<>();
+		boolean hasClanWhPriv = active.isClanLeader()
+				|| (active.clanPrivileges() & com.lopez.l2j.game.clan.Clan.CP_CL_VIEW_WAREHOUSE) != 0;
 		for (var req : p.items()) {
 			int beforeCount = active.inventory().byObjectId(req.objectId()).map(ItemInstance::count).orElse(0);
 			boolean ok = ctx.warehouse().withdrawItem(active.inventory(), active.objectId(), req.objectId(),
 					req.count());
+			if (!ok && active.clanId() > 0 && hasClanWhPriv) {
+				ok = ctx.warehouse().withdrawClanItem(active.inventory(), active.clanId(), true, req.objectId(), req.count());
+			}
+			if (!ok && Config.ALLOW_FREIGHT) {
+				ok = ctx.warehouse().withdrawFreightItem(active.inventory(), active.objectId(), req.objectId(), req.count());
+			}
 			if (ok) {
 				var item = active.inventory().byObjectId(req.objectId()).orElse(null);
 				if (item != null) {
@@ -821,104 +673,9 @@ public class TradeStorePacketHandler {
 	}
 
 	public void showMultiSell(NpcInstance npc, int listId) {
+		this.lastInteractedNpc = npc;
 		var ctx = session.context();
-		if (ctx == null || ctx.multisell() == null) {
-			session.send(new ActionFailed());
-			return;
-		}
-		var containerOpt = ctx.multisell().get(listId);
-		if (containerOpt.isEmpty()) {
-			log.warn("MultiSell id {} nao encontrada", listId);
-			session.send(new ActionFailed());
-			return;
-		}
-		var container = containerOpt.get();
-		PlayerCharacter active = session.activeChar();
-		List<MultiSellList.MultiSellEntryView> views = new ArrayList<>();
-		for (var entry : container.entries()) {
-			List<MultiSellList.ItemView> ingredients = new ArrayList<>();
-			int preservedEnchant = 0;
-			long mergedAdena = 0L;
-			int adenaViewIndex = -1;
-
-			for (var ing : entry.ingredients()) {
-				if (ing.isTaxIngredient()) {
-					continue;
-				}
-				var t = (ctx.inventories() != null && ctx.inventories().templates() != null && ing.itemId() > 0)
-						? ctx.inventories().templates().get(ing.itemId()).orElse(null)
-						: null;
-				if (ing.maintainIngredient() && !Config.ALT_BLACKSMITH_USE_RECIPES) {
-					if (t == null || t.type2() == ItemTemplate.TYPE2_OTHER) {
-						continue;
-					}
-				}
-				int type2;
-				if (ing.itemId() < 0 || ing.itemId() == 65336 || ing.itemId() == 65436) {
-					type2 = 65535;
-				} else {
-					type2 = t != null ? t.type2() : 0;
-				}
-				int ingEnchant = ing.enchantLevel();
-				if (container.maintainEnchantment() && active != null && active.inventory() != null
-						&& t != null && !t.stackable()) {
-					for (var invItem : active.inventory().items()) {
-						if (!invItem.isEquipped() && invItem.itemId() == ing.itemId() && invItem.enchant() > ingEnchant) {
-							ingEnchant = invItem.enchant();
-							break;
-						}
-					}
-					if (ingEnchant > preservedEnchant) {
-						preservedEnchant = ingEnchant;
-					}
-				}
-				if (ing.itemId() == 57 && !ing.maintainIngredient()) {
-					if (adenaViewIndex < 0) {
-						adenaViewIndex = ingredients.size();
-						ingredients.add(new MultiSellList.ItemView(57, 0, type2, ing.count(), ingEnchant));
-					}
-					mergedAdena += ing.count();
-				} else {
-					ingredients.add(new MultiSellList.ItemView(ing.itemId(), 0, type2, ing.count(), ingEnchant));
-				}
-			}
-			if (adenaViewIndex >= 0) {
-				var prevAdena = ingredients.get(adenaViewIndex);
-				ingredients.set(adenaViewIndex, new MultiSellList.ItemView(
-						57, 0, prevAdena.type2(), mergedAdena, prevAdena.enchant()));
-			}
-
-			List<MultiSellList.ItemView> products = new ArrayList<>();
-			boolean stackable = true;
-			for (var prod : entry.products()) {
-				var t = (ctx.inventories() != null && ctx.inventories().templates() != null && prod.itemId() > 0)
-						? ctx.inventories().templates().get(prod.itemId()).orElse(null)
-						: null;
-				int bodyPart = t != null ? t.bodyPart() : 0;
-				int type2 = t != null ? t.type2() : 0;
-				if (t != null && !t.stackable()) {
-					stackable = false;
-				}
-				int prodEnchant = prod.enchantLevel() > 0 ? prod.enchantLevel()
-						: (container.maintainEnchantment() && t != null && !t.stackable() ? preservedEnchant : 0);
-				products.add(
-						new MultiSellList.ItemView(prod.itemId(), bodyPart, type2, prod.count(), prodEnchant));
-			}
-			views.add(new MultiSellList.MultiSellEntryView(entry.entryId(), stackable, ingredients, products));
-		}
-
-		final int pageSize = 40;
-		if (views.isEmpty()) {
-			session.send(new MultiSellList(listId, 1, 1, pageSize, List.of()));
-			return;
-		}
-		int total = views.size();
-		int page = 1;
-		for (int i = 0; i < total; i += pageSize) {
-			int end = Math.min(i + pageSize, total);
-			int finished = (end >= total) ? 1 : 0;
-			session.send(new MultiSellList(listId, page++, finished, pageSize, views.subList(i, end)));
-		}
+		resolveMultiSellHandler(ctx).showMultiSell(session, npc, listId);
 	}
 
 	public void showSellList(NpcInstance npc) {
@@ -1373,12 +1130,33 @@ public class TradeStorePacketHandler {
 			return;
 		}
 		RecipeService recipeService = resolveRecipeService(ctx);
+		if (!recipeService.isCraftingEnabled()) {
+			session.send(SystemMessage.id(SystemMessage.CANT_CRAFT_DURING_COMBAT));
+			session.send(new ActionFailed());
+			return;
+		}
 		var recipeOpt = recipeService.getRecipe(p.id());
 		if (recipeOpt.isEmpty()) {
 			session.send(new ActionFailed());
 			return;
 		}
 		RecipeEntry recipe = recipeOpt.get();
+		if (!active.isGm() && !recipeService.hasRecipe(active.objectId(), p.id())) {
+			session.send(SystemMessage.id(SystemMessage.RECIPES_CANT_BE_REGISTERED));
+			session.send(new ActionFailed());
+			return;
+		}
+		int reqSkillId = recipe.isDwarven() ? 172 : 1320;
+		if (!active.isGm() && active.skillLevel(reqSkillId) > 0 && active.skillLevel(reqSkillId) < recipe.level()) {
+			session.send(new ActionFailed());
+			return;
+		}
+		int maxSlots = active.maxInventorySlots() > 0 ? active.maxInventorySlots() : 80;
+		if (active.inventory().byItemId(recipe.productId()).isEmpty() && active.inventory().size() >= maxSlots) {
+			session.send(SystemMessage.id(SystemMessage.SLOTS_FULL));
+			session.send(new ActionFailed());
+			return;
+		}
 
 		if (active.currentMp() < recipe.mpCost()) {
 			session.send(SystemMessage.id(SystemMessage.NOT_ENOUGH_MP));
@@ -1389,8 +1167,9 @@ public class TradeStorePacketHandler {
 		}
 
 		for (RecipeEntry.Ingredient ing : recipe.ingredients()) {
+			int reqCount = recipeService.calculateEffectiveIngredientCount(ing);
 			int have = active.inventory().byItemId(ing.itemId()).map(ItemInstance::count).orElse(0);
-			if (have < ing.count()) {
+			if (have < reqCount) {
 				session.send(new RecipeItemMakeInfo(
 						p.id(), recipe.isDwarven(), (int) active.currentMp(), active.maxMp(), 0));
 				session.send(new ActionFailed());
@@ -1402,17 +1181,19 @@ public class TradeStorePacketHandler {
 
 		List<ItemInfo> updates = new ArrayList<>();
 		for (RecipeEntry.Ingredient ing : recipe.ingredients()) {
+			int reqCount = recipeService.calculateEffectiveIngredientCount(ing);
 			if (ctx != null && ctx.inventories() != null) {
-				var consumed = ctx.inventories().consumeItem(active.inventory(), ing.itemId(), ing.count(), "Craft");
+				var consumed = ctx.inventories().consumeItem(active.inventory(), ing.itemId(), reqCount, "Craft");
 				if (consumed != null) {
 					updates.add(ItemInfo.of(consumed.item(), consumed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
 				}
 			} else {
-				active.inventory().destroyItemByItemId(ing.itemId(), ing.count());
+				active.inventory().destroyItemByItemId(ing.itemId(), reqCount);
 			}
 		}
 
-		boolean success = ThreadLocalRandom.current().nextInt(100) < recipe.successRate();
+		int effectiveRate = recipeService.calculateCraftSuccessRate(recipe, active);
+		boolean success = ThreadLocalRandom.current().nextInt(100) < effectiveRate;
 		if (success) {
 			if (ctx != null && ctx.inventories() != null) {
 				var added = ctx.inventories().addItem(active.inventory(), recipe.productId(), recipe.productCount(), "Craft");
@@ -1428,6 +1209,24 @@ public class TradeStorePacketHandler {
 			} else {
 				active.inventory().addItem(recipe.productId(), recipe.productCount());
 			}
+			if (recipeService.isAltGameCreationEnabled()) {
+				long expReward = recipeService.calculateCreationExpReward(recipe);
+				int spReward = recipeService.calculateCreationSpReward(recipe);
+				if (expReward > 0L) {
+					active.exp(active.exp() + expReward);
+				}
+				if (spReward > 0) {
+					active.sp(active.sp() + spReward);
+				}
+			}
+			if (recipe.productCount() > 1) {
+				session.send(SystemMessage.of(SystemMessage.EARNED_S2_S1_S,
+						new SystemMessage.ItemName(recipe.productId()),
+						new SystemMessage.Number(recipe.productCount())));
+			} else {
+				session.send(SystemMessage.of(SystemMessage.EARNED_ITEM_S1,
+						new SystemMessage.ItemName(recipe.productId())));
+			}
 		}
 
 		if (!updates.isEmpty()) {
@@ -1437,5 +1236,197 @@ public class TradeStorePacketHandler {
 		session.send(new RecipeItemMakeInfo(
 				p.id(), recipe.isDwarven(), (int) active.currentMp(), active.maxMp(), success ? 1 : 0));
 		session.refreshWeightAndPenalties();
+	}
+
+	// ---- Dwarven Manufacture Store (STORE_MANUFACTURE = 5, #259-#262, #264) ----
+
+	public void handleRecipeShopManageList() {
+		PlayerCharacter active = session.activeChar();
+		var ctx = session.context();
+		if (!session.inWorld() || active == null || active.isDead() || active.isOlympiadMode()) {
+			session.send(new ActionFailed());
+			return;
+		}
+		RecipeService recipeService = resolveRecipeService(ctx);
+		if (active.privateStoreType() == PlayerCharacter.STORE_MANUFACTURE) {
+			active.privateStoreType(PlayerCharacter.STORE_TYPE_NONE);
+			active.sitting(false);
+			session.sendUserInfoAndBroadcastCharInfo();
+		}
+		List<Integer> recipes = recipeService.getRecipeBook(active.objectId(), true);
+		List<com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopManageList.ManufactureRecipeEntry> createList = new ArrayList<>();
+		for (var item : recipeService.getManufactureList(active.objectId())) {
+			if (recipes.contains(item.recipeId())) {
+				createList.add(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopManageList.ManufactureRecipeEntry(
+						item.recipeId(), item.cost()));
+			}
+		}
+		session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopManageList(
+				active.objectId(), (int) active.inventory().adena(), true, recipes, createList));
+	}
+
+	public void handleRecipeShopMessageSet(GameClientPacket.RequestRecipeShopMessageSet p) {
+		PlayerCharacter active = session.activeChar();
+		if (!session.inWorld() || active == null || p == null) {
+			return;
+		}
+		active.storeTitle(p.name() != null ? p.name() : "");
+	}
+
+	public void handleRecipeShopListSet(GameClientPacket.RequestRecipeShopListSet p) {
+		PlayerCharacter active = session.activeChar();
+		var ctx = session.context();
+		if (!session.inWorld() || active == null || active.isDead() || active.isOlympiadMode() || active.isInCombat()) {
+			session.send(new ActionFailed());
+			return;
+		}
+		if (p == null || p.items() == null || p.items().isEmpty()) {
+			handleRecipeShopManageQuit();
+			return;
+		}
+		int maxSlots = active.race() == 4 ? Config.MAX_PVTSTORE_SLOTS_DWARF : Config.MAX_PVTSTORE_SLOTS_OTHER;
+		if (p.items().size() > maxSlots) {
+			session.send(SystemMessage.id(SystemMessage.YOU_HAVE_EXCEEDED_QUANTITY_THAT_CAN_BE_INPUTTED));
+			handleRecipeShopManageQuit();
+			return;
+		}
+		RecipeService recipeService = resolveRecipeService(ctx);
+		List<RecipeService.ManufactureItem> list = new ArrayList<>();
+		for (var req : p.items()) {
+			if (req.cost() < 0 || !recipeService.hasRecipe(active.objectId(), req.recipeId())) {
+				continue;
+			}
+			list.add(new RecipeService.ManufactureItem(req.recipeId(), req.cost()));
+		}
+		if (list.isEmpty()) {
+			handleRecipeShopManageQuit();
+			return;
+		}
+		recipeService.setManufactureList(active.objectId(), list);
+		String msg = active.storeTitle() != null ? active.storeTitle() : "";
+		active.sitting(true);
+		active.privateStoreType(PlayerCharacter.STORE_MANUFACTURE);
+		session.sendUserInfoAndBroadcastCharInfo();
+		var msgPacket = new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopMsg(active.objectId(), msg);
+		session.send(msgPacket);
+		if (ctx != null && ctx.world() != null) {
+			ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msgPacket, false);
+		}
+	}
+
+	public void handleRecipeShopManageQuit() {
+		PlayerCharacter active = session.activeChar();
+		var ctx = session.context();
+		if (!session.inWorld() || active == null) {
+			return;
+		}
+		resolveRecipeService(ctx).setManufactureList(active.objectId(), List.of());
+		active.privateStoreType(PlayerCharacter.STORE_TYPE_NONE);
+		active.sitting(false);
+		session.sendUserInfoAndBroadcastCharInfo();
+	}
+
+	public void showRecipeShopSellList(PlayerCharacter manufacturer) {
+		PlayerCharacter active = session.activeChar();
+		var ctx = session.context();
+		if (!session.inWorld() || active == null || manufacturer == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		RecipeService recipeService = resolveRecipeService(ctx);
+		List<com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopManageList.ManufactureRecipeEntry> entries = new ArrayList<>();
+		for (var item : recipeService.getManufactureList(manufacturer.objectId())) {
+			entries.add(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopManageList.ManufactureRecipeEntry(
+					item.recipeId(), item.cost()));
+		}
+		session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopSellList(
+				manufacturer.objectId(),
+				(int) manufacturer.currentMp(),
+				manufacturer.maxMp(),
+				(int) active.inventory().adena(),
+				entries));
+	}
+
+	public void handleRecipeShopMakeInfo(GameClientPacket.RequestRecipeShopMakeInfo p) {
+		PlayerCharacter active = session.activeChar();
+		var ctx = session.context();
+		if (!session.inWorld() || active == null || ctx == null || ctx.world() == null || p == null) {
+			return;
+		}
+		var crafterOpt = ctx.world().player(p.playerObjectId());
+		if (crafterOpt.isEmpty() || crafterOpt.get().character() == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		PlayerCharacter crafter = crafterOpt.get().character();
+		if (crafter.privateStoreType() != PlayerCharacter.STORE_MANUFACTURE) {
+			session.send(new ActionFailed());
+			return;
+		}
+		session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopItemInfo(
+				crafter.objectId(), p.recipeId(), (int) crafter.currentMp(), crafter.maxMp(), -1));
+	}
+
+	public void handleRecipeShopMakeItem(GameClientPacket.RequestRecipeShopMakeItem p) {
+		PlayerCharacter active = session.activeChar();
+		var ctx = session.context();
+		if (!session.inWorld() || active == null || active.isDead() || ctx == null || ctx.world() == null || p == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		var crafterOnlineOpt = ctx.world().player(p.playerObjectId());
+		if (crafterOnlineOpt.isEmpty() || crafterOnlineOpt.get().character() == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		var crafterOnline = crafterOnlineOpt.get();
+		PlayerCharacter crafter = crafterOnline.character();
+		if (crafter == active || crafter.isDead() || crafter.privateStoreType() != PlayerCharacter.STORE_MANUFACTURE) {
+			session.send(new ActionFailed());
+			return;
+		}
+		double dist = Math.hypot(active.x() - crafter.x(), active.y() - crafter.y());
+		if (dist > 250.0) {
+			session.send(new ActionFailed());
+			return;
+		}
+		RecipeService recipeService = resolveRecipeService(ctx);
+		var priceOpt = recipeService.getManufactureCost(crafter.objectId(), p.recipeId());
+		if (priceOpt.isEmpty()) {
+			session.send(new ActionFailed());
+			return;
+		}
+		int price = priceOpt.get();
+		var result = recipeService.craftForCustomer(crafter, active, p.recipeId(), price, ctx.inventories());
+		if (!result.attempted()) {
+			session.send(new ActionFailed());
+			return;
+		}
+		crafterOnline.send(StatusUpdate.mp(crafter.objectId(), (int) crafter.currentMp(), crafter.maxMp()));
+		if (crafterOnline instanceof GameSession crafterSession) {
+			crafterSession.send(com.lopez.l2j.network.game.packet.GameServerPacket.ItemList.of(
+					crafter.inventory().items(), false));
+			crafterSession.refreshWeightAndPenalties();
+		}
+		session.send(com.lopez.l2j.network.game.packet.GameServerPacket.ItemList.of(
+				active.inventory().items(), false));
+		session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopItemInfo(
+				crafter.objectId(), p.recipeId(), (int) crafter.currentMp(), crafter.maxMp(), result.success() ? 1 : 0));
+		session.refreshWeightAndPenalties();
+	}
+
+	public void handleRecipeShopManagePrev(GameClientPacket.RequestRecipeShopManagePrev p) {
+		PlayerCharacter active = session.activeChar();
+		var ctx = session.context();
+		if (!session.inWorld() || active == null || ctx == null || ctx.world() == null || p == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		var crafterOpt = ctx.world().player(p.playerObjectId());
+		if (crafterOpt.isEmpty() || crafterOpt.get().character() == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		showRecipeShopSellList(crafterOpt.get().character());
 	}
 }
