@@ -1,19 +1,24 @@
 package com.lopez.l2j.game.community;
 
+import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.model.CharacterRepository;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.world.GameWorld;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Desencalhe de Personagens no BBS (RepairBBSManager).
+ * Desencalhe de Personagens no BBS e via comando .repair (RepairBBSManager - #461, #478).
  * Permite que um jogador conectado repare outro personagem travado da mesma conta,
- * redefinindo suas coordenadas para a cidade mais próxima (Dion: 17867, 170259, -3503)
- * e limpando estados anômalos.
+ * validando titularidade (account_name), estado offline e ausencia de punicao na Prisao (Jail),
+ * redefinindo suas coordenadas para a cidade mais próxima (Dion/Floran: 17867, 170259, -3503),
+ * desequipando itens para o inventario e limpando estados anomalos.
  */
 @Service
 public class RepairBBSManager {
@@ -25,6 +30,12 @@ public class RepairBBSManager {
     public static final int REPAIR_Z = -3503;
 
     private final CharacterRepository characterRepository;
+
+    @Autowired(required = false)
+    private JdbcClient jdbc;
+
+    @Autowired(required = false)
+    private GameWorld gameWorld;
 
     public RepairBBSManager(CharacterRepository characterRepository) {
         this.characterRepository = characterRepository;
@@ -39,7 +50,7 @@ public class RepairBBSManager {
     }
 
     /**
-     * Executa o reparo de um personagem da mesma conta.
+     * Executa o reparo de um personagem da mesma conta (#461, #478).
      */
     public RepairResult repairCharacter(PlayerCharacter activePlayer, String targetCharName) {
         if (activePlayer == null || targetCharName == null || targetCharName.isBlank()) {
@@ -60,16 +71,51 @@ public class RepairBBSManager {
         }
 
         PlayerCharacter target = optChar.get();
-        if (!target.accountName().equalsIgnoreCase(activePlayer.accountName())) {
+        if (target.accountName() == null || activePlayer.accountName() == null
+                || !target.accountName().equalsIgnoreCase(activePlayer.accountName())) {
             log.warn("RepairBBS: Tentativa de reparar char de outra conta! Ativo: {} [{}], Alvo: {} [{}]",
                     activePlayer.getName(), activePlayer.accountName(), target.getName(), target.accountName());
             return RepairResult.NOT_SAME_ACCOUNT;
         }
 
-        // Reposiciona para a vila segura
+        if (gameWorld != null && gameWorld.findPlayer(target.objectId()) != null) {
+            return RepairResult.CANNOT_REPAIR_CURRENT_CHAR;
+        }
+
+        if (target.isInJail() || target.karma() > 999999) {
+            return RepairResult.CHAR_IN_JAIL;
+        }
+
+        // Reposiciona para a vila segura (Dion/Floran)
         target.setX(REPAIR_X);
         target.setY(REPAIR_Y);
         target.setZ(REPAIR_Z);
+        target.setInCombat(false);
+        target.setInSiege(false);
+        target.setOlympiadMode(false);
+
+        // Desequipa itens em memoria caso carregados
+        if (target.inventory() != null && target.inventory().items() != null) {
+            for (ItemInstance item : target.inventory().items()) {
+                if (item != null && item.isEquipped()) {
+                    target.inventory().unequip(item.paperdollSlot());
+                }
+            }
+        }
+
+        // Atualiza coordenadas, desequipa paperdoll e limpa atalhos corrompidos no SQL
+        if (jdbc != null) {
+            try {
+                jdbc.sql("UPDATE items SET loc = 'INVENTORY', loc_data = 0 WHERE owner_id = :cid AND loc = 'PAPERDOLL'")
+                        .param("cid", target.objectId())
+                        .update();
+                jdbc.sql("DELETE FROM character_shortcuts WHERE char_obj_id = :cid")
+                        .param("cid", target.objectId())
+                        .update();
+            } catch (Exception ex) {
+                log.debug("RepairBBS SQL cleanup ignorado: {}", ex.getMessage());
+            }
+        }
 
         characterRepository.saveState(target, false);
         log.info("RepairBBS: Personagem {} da conta {} reparado com sucesso para as coordenadas ({}, {}, {}).",
@@ -89,7 +135,7 @@ public class RepairBBSManager {
         sb.append("<tr><td align=center><font color=\"AAAAAA\">Se outro personagem da sua conta estiver travado no mundo, clique para destrava-lo.</font></td></tr>");
         sb.append("</table><br>");
 
-        List<PlayerCharacter> accountChars = characterRepository != null
+        List<PlayerCharacter> accountChars = (characterRepository != null && activePlayer != null && activePlayer.accountName() != null)
                 ? characterRepository.findByAccount(activePlayer.accountName())
                 : List.of();
 
@@ -98,7 +144,7 @@ public class RepairBBSManager {
 
         int count = 0;
         for (PlayerCharacter c : accountChars) {
-            if (c.getName().equalsIgnoreCase(activePlayer.getName())) {
+            if (activePlayer != null && c.getName().equalsIgnoreCase(activePlayer.getName())) {
                 continue; // Personagem atual em uso
             }
             count++;
