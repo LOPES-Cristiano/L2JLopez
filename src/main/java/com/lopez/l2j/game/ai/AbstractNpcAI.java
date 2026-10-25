@@ -237,5 +237,47 @@ public abstract class AbstractNpcAI {
 		var movePawn = new MoveToPawn(npc.objectId(), targetObjId, stopDistance, npc.x(), npc.y(), npc.z());
 		world.player(targetObjId).ifPresent(p -> p.send(movePawn));
 		world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, movePawn);
+
+		// Se for lider com minions e os minions estiverem ociosos/distantes, acompanha a formacao do lider (#312)
+		if (npc.hasMinions()) {
+			moveMinionsWithMaster(geo);
+		}
+	}
+
+	protected void moveMinionsWithMaster(GeoEngine geo) {
+		if (!npc.hasMinions() || world == null) {
+			return;
+		}
+		int idx = 0;
+		int total = Math.max(1, npc.minions().size());
+		for (NpcInstance minion : npc.minions()) {
+			idx++;
+			if (minion == null || minion.isDead() || minion.isCasting() || minion.isAttacking()) {
+				continue;
+			}
+			double distToMaster = Math.hypot(minion.x() - npc.x(), minion.y() - npc.y());
+			if (distToMaster <= 180.0) {
+				continue;
+			}
+			double angle = (2 * Math.PI * idx) / total;
+			int offset = 60;
+			int mx = npc.x() + (int) Math.round(Math.cos(angle) * offset);
+			int my = npc.y() + (int) Math.round(Math.sin(angle) * offset);
+			int mz = npc.z();
+			if (geo != null && geo.isEnabled()) {
+				GeoEngine.Location checked = geo.moveCheck(minion.x(), minion.y(), minion.z(), mx, my, mz);
+				mx = checked.x();
+				my = checked.y();
+				mz = checked.z();
+			}
+			int mFromX = minion.x();
+			int mFromY = minion.y();
+			int mFromZ = minion.z();
+			minion.moveTo(mx, my, mz, npc.heading());
+			world.updateNpcPosition(minion, mFromX, mFromY);
+			var movePkt = new com.lopez.l2j.network.game.packet.GameServerPacket.MoveToLocation(
+					minion.objectId(), mx, my, mz, mFromX, mFromY, mFromZ);
+			world.broadcastAround(mx, my, GameWorld.VISIBILITY_RADIUS, movePkt);
+		}
 	}
 }
