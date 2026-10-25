@@ -324,7 +324,7 @@ public class Quest234FatesWhisper extends Quest {
 			qs.setCond(8);
 			qs.playSound(QuestState.SOUND_MIDDLE);
 		} else if (CHEST_SPAWN.containsKey(npcId)) {
-			qs.addSpawn(CHEST_SPAWN.get(npcId), 120000);
+			qs.addSpawn(CHEST_SPAWN.get(npcId), npc.x(), npc.y(), npc.z(), 120000);
 		}
 		return null;
 	}
