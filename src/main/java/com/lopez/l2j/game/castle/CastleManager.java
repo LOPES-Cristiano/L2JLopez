@@ -210,9 +210,17 @@ public class CastleManager {
 	}
 
 	public void setTaxPercent(int castleId, int newTax) {
+		setTaxPercent(castleId, newTax, 15);
+	}
+
+	/**
+	 * Define a taxa de imposto do castelo respeitando o limite imposto pelo Selo da Discórdia (Seal of Strife - #392):
+	 * Dawn = até 25%, Dusk = até 5%, Neutro = até 15%.
+	 */
+	public void setTaxPercent(int castleId, int newTax, int maxAllowedTax) {
 		Castle c = byId.get(castleId);
 		if (c != null) {
-			c.taxPercent(newTax);
+			c.taxPercent(newTax, maxAllowedTax);
 			if (jdbc != null) {
 				try {
 					jdbc.sql("UPDATE castle SET taxPercent = :tax WHERE id = :id")
@@ -226,21 +234,132 @@ public class CastleManager {
 		}
 	}
 
+	/**
+	 * Aprimora o HP de um portao/muralha do castelo e persiste em castle_doorupgrade (#392, #501).
+	 */
+	public void upgradeDoor(int castleId, int doorId, int hpRatio) {
+		Castle c = byId.get(castleId);
+		if (c == null) {
+			return;
+		}
+		c.upgradeDoor(doorId, hpRatio);
+		if (jdbc != null) {
+			try {
+				if (hpRatio <= 0) {
+					jdbc.sql("DELETE FROM castle_doorupgrade WHERE doorId = :did")
+							.param("did", doorId)
+							.update();
+				} else {
+					jdbc.sql("""
+							REPLACE INTO castle_doorupgrade (doorId, hp, castleId)
+							VALUES (:did, :hp, :cid)
+							""")
+							.param("did", doorId)
+							.param("hp", hpRatio)
+							.param("cid", castleId)
+							.update();
+				}
+			} catch (Exception ex) {
+				log.debug("Erro ao persistir castle_doorupgrade: {}", ex.getMessage());
+			}
+		}
+	}
+
+	/**
+	 * Aprimora uma Flame Tower / armadilha de defesa do castelo e persiste em castle_trapupgrade (#392, #501).
+	 */
+	public void upgradeTrap(int castleId, int towerIndex, int level) {
+		Castle c = byId.get(castleId);
+		if (c == null) {
+			return;
+		}
+		c.upgradeTrap(towerIndex, level);
+		if (jdbc != null) {
+			try {
+				if (level <= 0) {
+					jdbc.sql("DELETE FROM castle_trapupgrade WHERE castleId = :cid AND towerIndex = :idx")
+							.param("cid", castleId)
+							.param("idx", towerIndex)
+							.update();
+				} else {
+					jdbc.sql("""
+							REPLACE INTO castle_trapupgrade (castleId, towerIndex, level)
+							VALUES (:cid, :idx, :lvl)
+							""")
+							.param("cid", castleId)
+							.param("idx", towerIndex)
+							.param("lvl", level)
+							.update();
+				}
+			} catch (Exception ex) {
+				log.debug("Erro ao persistir castle_trapupgrade: {}", ex.getMessage());
+			}
+		}
+	}
+
+	public static final int SKILL_SEAL_OF_RULER = 246;
+	public static final int SKILL_BUILD_HEADQUARTERS = 247;
+
 	public void setOwner(int castleId, int clanId) {
 		Castle c = byId.get(castleId);
 		if (c != null) {
 			int oldOwner = c.ownerClanId();
 			c.ownerClanId(clanId);
-			if (oldOwner > 0 && oldOwner != clanId && com.lopez.l2j.config.Config.REMOVE_CASTLE_CIRCULAR) {
-				log.debug("Castelo {} trocou de dono ({} -> {}), diademas do antigo clã marcados para remoção", castleId, oldOwner, clanId);
+
+			var clanTable = com.lopez.l2j.game.clan.ClanTable.getInstance();
+			var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+
+			if (oldOwner > 0 && oldOwner != clanId) {
+				if (clanTable != null) {
+					var oldClan = clanTable.getClan(oldOwner);
+					if (oldClan != null) {
+						if (oldClan.castleId() == castleId) {
+							oldClan.castleId(0);
+						}
+						if (world != null) {
+							var oldLeader = world.getPlayer(oldClan.leaderId());
+							if (oldLeader != null) {
+								oldLeader.skills().remove(SKILL_SEAL_OF_RULER);
+								oldLeader.skills().remove(SKILL_BUILD_HEADQUARTERS);
+							}
+						}
+					}
+				}
+				if (com.lopez.l2j.config.Config.REMOVE_CASTLE_CIRCULAR) {
+					log.debug("Castelo {} trocou de dono ({} -> {}), diademas do antigo clã marcados para remoção", castleId, oldOwner, clanId);
+				}
+				if (jdbc != null) {
+					try {
+						jdbc.sql("UPDATE clan_data SET hasCastle = 0 WHERE clan_id = :oldClanId AND hasCastle = :cid")
+								.param("oldClanId", oldOwner)
+								.param("cid", castleId)
+								.update();
+					} catch (Exception ignored) {}
+				}
 			}
-			if (jdbc != null) {
-				try {
-					jdbc.sql("UPDATE clan_data SET hasCastle = :cid WHERE clan_id = :clanId")
-							.param("cid", castleId)
-							.param("clanId", clanId)
-							.update();
-				} catch (Exception ignored) {}
+
+			if (clanId > 0) {
+				if (clanTable != null) {
+					var newClan = clanTable.getClan(clanId);
+					if (newClan != null) {
+						newClan.castleId(castleId);
+						if (world != null) {
+							var newLeader = world.getPlayer(newClan.leaderId());
+							if (newLeader != null) {
+								newLeader.skills().put(SKILL_SEAL_OF_RULER, 1);
+								newLeader.skills().put(SKILL_BUILD_HEADQUARTERS, 1);
+							}
+						}
+					}
+				}
+				if (jdbc != null) {
+					try {
+						jdbc.sql("UPDATE clan_data SET hasCastle = :cid WHERE clan_id = :clanId")
+								.param("cid", castleId)
+								.param("clanId", clanId)
+								.update();
+					} catch (Exception ignored) {}
+				}
 			}
 		}
 	}
@@ -324,6 +443,40 @@ public class CastleManager {
 				}
 			} catch (Exception ex) {
 				log.debug("Erro ao carregar castle_functions: {}", ex.getMessage());
+			}
+
+			// Carrega castle_doorupgrade (#501)
+			try {
+				List<Map<String, Object>> doorRows = jdbc.sql("SELECT doorId, hp, castleId FROM castle_doorupgrade")
+						.query().listOfRows();
+				for (var dr : doorRows) {
+					int doorId = ((Number) dr.get("doorId")).intValue();
+					int hp = ((Number) dr.get("hp")).intValue();
+					int cid = dr.get("castleId") != null ? ((Number) dr.get("castleId")).intValue() : 0;
+					Castle c = byId.get(cid);
+					if (c != null) {
+						c.upgradeDoor(doorId, hp);
+					}
+				}
+			} catch (Exception ex) {
+				log.debug("Erro ao carregar castle_doorupgrade: {}", ex.getMessage());
+			}
+
+			// Carrega castle_trapupgrade (#501)
+			try {
+				List<Map<String, Object>> trapRows = jdbc.sql("SELECT castleId, towerIndex, level FROM castle_trapupgrade")
+						.query().listOfRows();
+				for (var tr : trapRows) {
+					int cid = ((Number) tr.get("castleId")).intValue();
+					int idx = ((Number) tr.get("towerIndex")).intValue();
+					int lvl = ((Number) tr.get("level")).intValue();
+					Castle c = byId.get(cid);
+					if (c != null) {
+						c.upgradeTrap(idx, lvl);
+					}
+				}
+			} catch (Exception ex) {
+				log.debug("Erro ao carregar castle_trapupgrade: {}", ex.getMessage());
 			}
 
 			log.info("CastleManager: {} castelos carregados e sincronizados com o banco de dados", byId.size());
