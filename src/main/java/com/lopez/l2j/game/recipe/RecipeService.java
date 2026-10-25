@@ -47,7 +47,26 @@ public class RecipeService {
 	public RecipeService(@org.springframework.beans.factory.annotation.Autowired(required = false) org.springframework.jdbc.core.simple.JdbcClient jdbc) {
 		this.jdbc = jdbc;
 		instance = this;
+		initSchema();
 		loadRecipes();
+	}
+
+	public void initSchema() {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("""
+					CREATE TABLE IF NOT EXISTS character_recipebook (
+					  charId INT NOT NULL DEFAULT 0,
+					  id DECIMAL(11,0) NOT NULL DEFAULT 0,
+					  type INT NOT NULL DEFAULT 0,
+					  PRIMARY KEY (id, charId)
+					)
+					""").update();
+		} catch (Exception ex) {
+			log.debug("character_recipebook schema init: {}", ex.getMessage());
+		}
 	}
 
 	public static RecipeService getInstance() {
@@ -474,5 +493,200 @@ public class RecipeService {
 			rate += com.lopez.l2j.game.craft.DwarfCraftBonus.getCraftBonusPercent();
 		}
 		return Math.min(100, Math.max(1, rate));
+	}
+
+	public record ManufactureItem(int recipeId, int cost) {
+	}
+
+	public record CraftResult(boolean attempted, boolean success, int productId, int productCount, String message) {
+	}
+
+	private final Map<Integer, List<ManufactureItem>> manufactureLists = new ConcurrentHashMap<>();
+
+	public void setManufactureList(int crafterId, List<ManufactureItem> items) {
+		if (items == null || items.isEmpty()) {
+			manufactureLists.remove(crafterId);
+		} else {
+			manufactureLists.put(crafterId, List.copyOf(items));
+		}
+	}
+
+	public List<ManufactureItem> getManufactureList(int crafterId) {
+		return manufactureLists.getOrDefault(crafterId, List.of());
+	}
+
+	public Optional<Integer> getManufactureCost(int crafterId, int recipeId) {
+		for (ManufactureItem item : getManufactureList(crafterId)) {
+			if (item.recipeId() == recipeId) {
+				return Optional.of(item.cost());
+			}
+		}
+		return Optional.empty();
+	}
+
+	public CraftResult craftItem(com.lopez.l2j.game.model.PlayerCharacter crafter, int recipeId) {
+		return craftItem(crafter, recipeId, null);
+	}
+
+	public CraftResult craftItem(com.lopez.l2j.game.model.PlayerCharacter crafter, int recipeId,
+			com.lopez.l2j.game.service.InventoryService inventoryService) {
+		if (!isCraftingEnabled() || crafter == null || crafter.isDead() || crafter.isOlympiadMode()) {
+			return new CraftResult(false, false, 0, 0, "Cannot craft in current state");
+		}
+		RecipeEntry recipe = getRecipe(recipeId).orElseGet(() -> getRecipeByItemId(recipeId).orElse(null));
+		if (recipe == null) {
+			return new CraftResult(false, false, 0, 0, "Recipe not found");
+		}
+		var inv = crafter.inventory();
+		if (inv == null) {
+			return new CraftResult(false, false, 0, 0, "No inventory");
+		}
+		if (crafter.currentMp() < recipe.mpCost()) {
+			return new CraftResult(false, false, 0, 0, "Not enough MP");
+		}
+		for (Ingredient ing : recipe.ingredients()) {
+			int req = calculateEffectiveIngredientCount(ing);
+			if (inv.getItemCount(ing.itemId()) < req) {
+				return new CraftResult(false, false, 0, 0, "Missing ingredients");
+			}
+		}
+		int maxSlots = crafter.maxInventorySlots() > 0 ? crafter.maxInventorySlots() : 80;
+		if (inv.byItemId(recipe.productId()).isEmpty() && inv.size() >= maxSlots) {
+			return new CraftResult(false, false, 0, 0, "Inventory slots full");
+		}
+
+		crafter.currentMp(crafter.currentMp() - recipe.mpCost());
+		for (Ingredient ing : recipe.ingredients()) {
+			int req = calculateEffectiveIngredientCount(ing);
+			if (inventoryService != null) {
+				inventoryService.consumeItem(inv, ing.itemId(), req, "Craft");
+			} else {
+				inv.destroyItemByItemId(ing.itemId(), req);
+			}
+		}
+
+		int rate = calculateCraftSuccessRate(recipe, crafter);
+		boolean success = java.util.concurrent.ThreadLocalRandom.current().nextInt(100) < rate;
+		if (success) {
+			if (inventoryService != null) {
+				inventoryService.addItem(inv, recipe.productId(), recipe.productCount(), "Craft");
+			} else {
+				inv.addItem(recipe.productId(), recipe.productCount());
+			}
+			if (isAltGameCreationEnabled()) {
+				long exp = calculateCreationExpReward(recipe);
+				int sp = calculateCreationSpReward(recipe);
+				if (exp > 0) {
+					crafter.exp(crafter.exp() + exp);
+				}
+				if (sp > 0) {
+					crafter.sp(crafter.sp() + sp);
+				}
+			}
+		}
+		return new CraftResult(true, success, recipe.productId(), success ? recipe.productCount() : 0,
+				success ? "Success" : "Craft failed");
+	}
+
+	public CraftResult craftForCustomer(com.lopez.l2j.game.model.PlayerCharacter crafter,
+			com.lopez.l2j.game.model.PlayerCharacter customer, int recipeId, int price) {
+		return craftForCustomer(crafter, customer, recipeId, price, null);
+	}
+
+	public CraftResult craftForCustomer(com.lopez.l2j.game.model.PlayerCharacter crafter,
+			com.lopez.l2j.game.model.PlayerCharacter customer, int recipeId, int price,
+			com.lopez.l2j.game.service.InventoryService inventoryService) {
+		if (!isCraftingEnabled() || crafter == null || customer == null || crafter.isDead() || customer.isDead()
+				|| price < 0 || crafter.objectId() == customer.objectId()) {
+			return new CraftResult(false, false, 0, 0, "Invalid manufacture request");
+		}
+		RecipeEntry recipe = getRecipe(recipeId).orElseGet(() -> getRecipeByItemId(recipeId).orElse(null));
+		if (recipe == null) {
+			return new CraftResult(false, false, 0, 0, "Recipe not found");
+		}
+		var customerInv = customer.inventory();
+		var crafterInv = crafter.inventory();
+		if (customerInv == null || crafterInv == null) {
+			return new CraftResult(false, false, 0, 0, "No inventory");
+		}
+		if (crafter.currentMp() < recipe.mpCost()) {
+			return new CraftResult(false, false, 0, 0, "Crafter does not have enough MP");
+		}
+		if (price > 0 && customerInv.adena() < price) {
+			return new CraftResult(false, false, 0, 0, "Not enough Adena");
+		}
+		for (Ingredient ing : recipe.ingredients()) {
+			int req = calculateEffectiveIngredientCount(ing);
+			if (customerInv.getItemCount(ing.itemId()) < req) {
+				return new CraftResult(false, false, 0, 0, "Missing ingredients");
+			}
+		}
+		int maxSlots = customer.maxInventorySlots() > 0 ? customer.maxInventorySlots() : 80;
+		if (customerInv.byItemId(recipe.productId()).isEmpty() && customerInv.size() >= maxSlots) {
+			return new CraftResult(false, false, 0, 0, "Customer inventory full");
+		}
+
+		// Deduz MP do artesao
+		crafter.currentMp(crafter.currentMp() - recipe.mpCost());
+
+		// Transfere taxa em Adena (57) do cliente para o artesao
+		if (price > 0) {
+			if (inventoryService != null) {
+				inventoryService.consumeItem(customerInv, 57, price, "ManufactureFee");
+				inventoryService.addItem(crafterInv, 57, price, "ManufactureFee");
+			} else {
+				customerInv.destroyItemByItemId(57, price);
+				crafterInv.addAdena(price);
+			}
+		}
+
+		// Consome ingredientes do cliente
+		for (Ingredient ing : recipe.ingredients()) {
+			int req = calculateEffectiveIngredientCount(ing);
+			if (inventoryService != null) {
+				inventoryService.consumeItem(customerInv, ing.itemId(), req, "Manufacture");
+			} else {
+				customerInv.destroyItemByItemId(ing.itemId(), req);
+			}
+		}
+
+		int rate = calculateCraftSuccessRate(recipe, crafter);
+		boolean success = java.util.concurrent.ThreadLocalRandom.current().nextInt(100) < rate;
+		if (success) {
+			if (inventoryService != null) {
+				inventoryService.addItem(customerInv, recipe.productId(), recipe.productCount(), "Manufacture");
+			} else {
+				customerInv.addItem(recipe.productId(), recipe.productCount());
+			}
+		}
+		return new CraftResult(true, success, recipe.productId(), success ? recipe.productCount() : 0,
+				success ? "Success" : "Manufacture failed");
+	}
+
+	public void saveAllToDb() {
+		if (jdbc == null) {
+			return;
+		}
+		initSchema();
+		for (var entry : dwarvenBookByChar.entrySet()) {
+			int charId = entry.getKey();
+			for (int rId : entry.getValue()) {
+				try {
+					jdbc.sql("INSERT INTO character_recipebook (charId, id, type) VALUES (:cId, :rId, 0) ON DUPLICATE KEY UPDATE type = 0")
+							.param("cId", charId).param("rId", rId).update();
+				} catch (Exception ignored) {
+				}
+			}
+		}
+		for (var entry : commonBookByChar.entrySet()) {
+			int charId = entry.getKey();
+			for (int rId : entry.getValue()) {
+				try {
+					jdbc.sql("INSERT INTO character_recipebook (charId, id, type) VALUES (:cId, :rId, 1) ON DUPLICATE KEY UPDATE type = 1")
+							.param("cId", charId).param("rId", rId).update();
+				} catch (Exception ignored) {
+				}
+			}
+		}
 	}
 }
