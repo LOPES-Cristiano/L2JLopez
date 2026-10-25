@@ -2,6 +2,7 @@ package com.lopez.l2j.game.service;
 
 import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.world.GameWorld;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,18 +11,25 @@ import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Servico de gerenciamento de status VIP (Onda 14: add-on.properties e rates.properties).
- * Controla duracao, persistencia relacional (`characters.vip`, `characters.vip_end`),
- * taxas customizadas de XP/SP/Drop/Spoil e cores de nick/titulo.
+ * Servico de gerenciamento de status VIP (Onda 14: add-on.properties e rates.properties / #493).
+ * Controla duracao, task de expiracao em tempo real, ativacao por moedas organicas (Gold Bar 3470 / Event Medal 6392),
+ * persistencia relacional (`characters.vip`, `characters.vip_end`), taxas customizadas de XP/SP/Drop/Spoil e cores de nick/titulo.
  */
 @Service
 public class VipService {
 
 	private static final Logger log = LoggerFactory.getLogger(VipService.class);
 
+	public static final int ORGANIC_GOLD_BAR_ID = 3470;
+	public static final int ORGANIC_EVENT_MEDAL_ID = 6392;
+
 	private final JdbcTemplate jdbc;
+	private ScheduledExecutorService expirationScheduler;
 
 	public VipService() {
 		this(null);
@@ -29,6 +37,59 @@ public class VipService {
 
 	public VipService(@Autowired(required = false) DataSource dataSource) {
 		this.jdbc = dataSource != null ? new JdbcTemplate(dataSource) : null;
+		startExpirationScheduler();
+	}
+
+	public synchronized void startExpirationScheduler() {
+		if (expirationScheduler != null && !expirationScheduler.isShutdown()) {
+			return;
+		}
+		expirationScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+			Thread t = new Thread(r, "VipService-ExpirationMonitor");
+			t.setDaemon(true);
+			return t;
+		});
+		expirationScheduler.scheduleAtFixedRate(this::checkOnlineVipExpirations, 30, 30, TimeUnit.SECONDS);
+	}
+
+	public void checkOnlineVipExpirations() {
+		GameWorld world = GameWorld.getInstance();
+		if (world == null) {
+			return;
+		}
+		long now = System.currentTimeMillis();
+		for (var online : world.onlinePlayers()) {
+			PlayerCharacter pc = online.character();
+			if (pc != null && pc.isVip()) {
+				long exp = pc.vipExpiration();
+				if (exp > 0 && exp <= now) {
+					removeVip(pc);
+					if (online instanceof com.lopez.l2j.network.game.GameSession gs) {
+						gs.sendUserInfoAndBroadcastCharInfo();
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Ativa status VIP consumindo exclusivamente moeda organica (Gold Bar 3470 ou Event Medal 6392).
+	 */
+	public boolean activateVipWithOrganicCurrency(PlayerCharacter player, int tier) {
+		if (player == null || player.inventory() == null) {
+			return false;
+		}
+		int days = getVipDaysByTier(tier);
+		int costGoldBars = switch (tier) {
+			case 2 -> 18;
+			case 3 -> 25;
+			default -> 10;
+		};
+		if (!player.inventory().destroyItemByItemId(ORGANIC_GOLD_BAR_ID, costGoldBars)) {
+			return false;
+		}
+		setVip(player, days);
+		return true;
 	}
 
 	/**
