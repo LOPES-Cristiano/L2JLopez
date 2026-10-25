@@ -23,4 +23,8 @@ public record RecipeEntry(
 		recipeName = recipeName == null ? "" : recipeName;
 		ingredients = ingredients == null ? List.of() : List.copyOf(ingredients);
 	}
+
+	public boolean isDwarvenRecipe() {
+		return isDwarven;
+	}
 }
