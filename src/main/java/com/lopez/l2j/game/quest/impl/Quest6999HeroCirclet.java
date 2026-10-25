@@ -38,7 +38,8 @@ public class Quest6999HeroCirclet extends Quest {
 		PlayerCharacter player = qs.playerChar();
 		String htmltext;
 		if (player != null && player.isHero()) {
-			if (qs.getQuestItemsCount(CIRCLET) > 0) {
+			boolean inWh = player.warehouse() != null && player.warehouse().getItemCount(CIRCLET) > 0;
+			if (qs.getQuestItemsCount(CIRCLET) > 0 || inWh) {
 				htmltext = "<html><body>Monument of Heroes:<br>You can't have more than one circlet.</body></html>";
 			} else {
 				qs.giveItems(CIRCLET, 1);
