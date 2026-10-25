@@ -145,20 +145,94 @@ public class PartyClanPacketHandler {
 		}
 	}
 
+	private boolean isFestivalParticipant(PlayerCharacter player) {
+		if (player == null) {
+			return false;
+		}
+		var ctx = session.context();
+		if (ctx != null && ctx.sevenSigns() != null) {
+			return ctx.sevenSigns().isFestivalParticipant(player.objectId());
+		}
+		return false;
+	}
+
+	private boolean isPartyMemberInFestival(Party party, String memberName) {
+		if (party == null) {
+			return false;
+		}
+		var ctx = session.context();
+		if (ctx == null || ctx.sevenSigns() == null) {
+			return false;
+		}
+		for (var m : party.members()) {
+			if (m.character() != null) {
+				if (memberName == null || m.character().name().equalsIgnoreCase(memberName.trim())) {
+					if (ctx.sevenSigns().isFestivalParticipant(m.character().objectId())) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
 	public void handleLeaveParty() {
 		PlayerCharacter active = session.activeChar();
 		Party party = session.party();
-		if (party != null && active != null) {
-			party.removeMember(session);
-			session.party(null);
+		if (party == null || active == null) {
+			session.send(SystemMessage.id(200)); // YOU_ARE_NOT_IN_A_PARTY
+			return;
+		}
+		if (isFestivalParticipant(active)) {
+			session.send(SystemMessage.id(1275)); // FAILED_TO_WITHDRAW_FROM_PARTY
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pode sair do grupo enquanto participa do Festival of Darkness."));
+			return;
+		}
+		party.removeMember(session);
+		session.party(null);
+	}
+
+	public void handleWithdrawalParty(GameClientPacket.RequestWithDrawalParty p) {
+		handleLeaveParty();
+	}
+
+	public void handleWithdrawalParty() {
+		handleLeaveParty();
+	}
+
+	public void handleDismissParty() {
+		PlayerCharacter active = session.activeChar();
+		Party party = session.party();
+		if (party == null || active == null || !party.isLeader(active.objectId())) {
+			return;
+		}
+		if (isFestivalParticipant(active) || isPartyMemberInFestival(party, null)) {
+			session.send(SystemMessage.id(1275));
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao e possivel desfazer o grupo durante o Festival of Darkness."));
+			return;
+		}
+		for (var m : new java.util.ArrayList<>(party.members())) {
+			party.removeMember(m);
+			m.party(null);
 		}
 	}
 
 	public void handleExpelPartyMember(String name) {
 		PlayerCharacter active = session.activeChar();
 		Party party = session.party();
-		if (party != null && active != null && party.isLeader(active.objectId())) {
-			party.oust(name);
+		if (party != null && active != null && party.isLeader(active.objectId()) && name != null) {
+			if (isFestivalParticipant(active) || isPartyMemberInFestival(party, name)) {
+				session.send(SystemMessage.id(1275)); // FAILED_TO_EXPEL_THE_PARTY_MEMBER
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pode expulsar membros do grupo durante o Festival of Darkness."));
+				return;
+			}
+			party.oust(name.trim());
+		}
+	}
+
+	public void handleOustPartyMember(GameClientPacket.RequestOustPartyMember p) {
+		if (p != null) {
+			handleExpelPartyMember(p.name());
 		}
 	}
 
@@ -207,18 +281,48 @@ public class PartyClanPacketHandler {
 		boolean hasPriv = clan != null && (clan.isLeader(active.objectId())
 				|| (ctx.clanPrivileges() != null && ctx.clanPrivileges().hasPrivilege(active, com.lopez.l2j.game.clan.Clan.CP_CL_REGISTER_CREST)));
 		if (clan == null || !hasPriv) {
+			session.send(SystemMessage.id(SystemMessage.NOT_AUTHORIZED_TO_BESTOW_RIGHTS));
 			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao possui privilegio para alterar o brasao do cla."));
 			return;
 		}
+		if (clan.dissolvingExpiryTime() > System.currentTimeMillis()) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao e permitido registrar ou remover brasao durante dissolucao do cla."));
+			return;
+		}
+		if (p.data() == null || p.data().length == 0) {
+			if (clan.crestId() != 0) {
+				ctx.crests().removePledgeCrest(clan.crestId());
+				ctx.clans().updateCrest(clan.clanId(), 0);
+				session.send(new PledgeShowInfoUpdate(clan));
+				if (ctx.world() != null) {
+					clan.broadcastToOnlineMembers(ctx.world(), new PledgeShowInfoUpdate(clan));
+				}
+				session.sendUserInfoAndBroadcastCharInfo();
+				session.send(SystemMessage.id(1861)); // CLAN_CREST_HAS_BEEN_DELETED
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Brasao do cla removido."));
+			}
+			return;
+		}
 		if (clan.level() < 3) {
+			session.send(SystemMessage.id(272)); // CLAN_LVL_3_NEEDED_TO_SET_CREST
 			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 					"Cla nivel 3 ou superior e necessario para definir brasao."));
 			return;
+		}
+		if (p.data().length > 256) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O arquivo do brasao nao pode exceder 256 bytes (16x12 BMP 256 cores)."));
+			return;
+		}
+		if (clan.crestId() != 0) {
+			ctx.crests().removePledgeCrest(clan.crestId());
 		}
 		int crestId = ctx.crests().savePledgeCrest(p.data());
 		if (crestId != 0) {
 			ctx.clans().updateCrest(clan.clanId(), crestId);
 			session.send(new PledgeShowInfoUpdate(clan));
+			if (ctx.world() != null) {
+				clan.broadcastToOnlineMembers(ctx.world(), new PledgeShowInfoUpdate(clan));
+			}
 			session.sendUserInfoAndBroadcastCharInfo();
 			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Brasao de cla atualizado com sucesso."));
 		}
@@ -308,21 +412,84 @@ public class PartyClanPacketHandler {
 		}
 		var clanOpt = ctx.clans().byClanId(active.clanId());
 		if (clanOpt.isEmpty() || !clanOpt.get().isLeader(active.objectId())) {
+			session.send(SystemMessage.id(SystemMessage.NOT_AUTHORIZED_TO_BESTOW_RIGHTS));
 			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas o lider pode dissolver o cla."));
 			return;
 		}
-		int oldClanId = active.clanId();
-		if (ctx.clanSkills() != null) {
-			ctx.clanSkills().removeClanSkillsFromPlayer(active);
+		var clan = clanOpt.get();
+		if (clan.hasCastle() || clan.hasClanHall() || clan.fortId() > 0) {
+			session.send(SystemMessage.id(263)); // CANNOT_DISPERSE_THE_CLANS_IN_ALLY / HAS_CASTLE_OR_HIDEOUT
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao e possivel dissolver um cla que possui Castelo, Fortaleza ou Clan Hall."));
+			return;
 		}
-		ctx.clans().dissolveClan(oldClanId);
-		active.clanId(0);
-		var tpl = ctx.characters() != null ? ctx.characters().template(active) : null;
-		if (tpl != null) {
-			session.send(new UserInfo(active, tpl));
+		if (!clan.enemyClanIds().isEmpty() || !clan.attackerClanIds().isEmpty()) {
+			session.send(SystemMessage.id(264)); // CANNOT_DISSOLVE_WHILE_IN_WAR
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao e possivel dissolver o cla durante uma guerra de clas."));
+			return;
 		}
-		session.broadcastAppearance();
-		session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O cla foi dissolvido."));
+		if (ctx.sieges() != null) {
+			for (var siege : ctx.sieges().allSieges()) {
+				if (siege.attackers().containsKey(clan.clanId()) || siege.defenders().containsKey(clan.clanId())) {
+					session.send(SystemMessage.id(265)); // CANNOT_DISSOLVE_WHILE_IN_SIEGE
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao e possivel dissolver o cla enquanto inscrito em uma Siege."));
+					return;
+				}
+			}
+		}
+		if (clan.dissolvingExpiryTime() > System.currentTimeMillis()) {
+			session.send(SystemMessage.id(266)); // ALREADY_REQUESTED_DISSOLUTION
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "A dissolucao do cla ja foi solicitada."));
+			return;
+		}
+		if (com.lopez.l2j.game.clan.ClanTable.getDissolveDelayMillis() > 0L) {
+			ctx.clans().requestDissolveClan(clan, active);
+			session.send(new PledgeShowInfoUpdate(clan));
+			if (ctx.world() != null) {
+				clan.broadcastToOnlineMembers(ctx.world(), new PledgeShowInfoUpdate(clan));
+			}
+			session.send(SystemMessage.id(193)); // CLAN_SKILL_WILL_BE_DELETED_AFTER_DISSOLUTION
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pedido de dissolucao do cla registrado."));
+		} else {
+			int oldClanId = active.clanId();
+			if (ctx.clanSkills() != null) {
+				ctx.clanSkills().removeClanSkillsFromPlayer(active);
+			}
+			ctx.clans().dissolveClan(oldClanId);
+			active.clanId(0);
+			var tpl = ctx.characters() != null ? ctx.characters().template(active) : null;
+			if (tpl != null) {
+				session.send(new UserInfo(active, tpl));
+			}
+			session.broadcastAppearance();
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O cla foi dissolvido."));
+		}
+	}
+
+	public void recoverClan() {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (ctx == null || ctx.clans() == null || active == null || active.clanId() <= 0) {
+			session.send(new ActionFailed());
+			return;
+		}
+		var clanOpt = ctx.clans().byClanId(active.clanId());
+		if (clanOpt.isEmpty() || !clanOpt.get().isLeader(active.objectId())) {
+			session.send(SystemMessage.id(SystemMessage.NOT_AUTHORIZED_TO_BESTOW_RIGHTS));
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas o lider pode recuperar o cla."));
+			return;
+		}
+		var clan = clanOpt.get();
+		if (clan.dissolvingExpiryTime() <= 0) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao ha pedidos de dissolucao ativos para este cla."));
+			return;
+		}
+		clan.dissolvingExpiryTime(0L);
+		active.clanCreateExpiryTime(0L);
+		session.send(new PledgeShowInfoUpdate(clan));
+		if (ctx.world() != null) {
+			clan.broadcastToOnlineMembers(ctx.world(), new PledgeShowInfoUpdate(clan));
+		}
+		session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "A dissolucao do cla " + clan.name() + " foi cancelada!"));
 	}
 
 	// ---- Clan Wars, Alliance, Siege UI & Privileges ----
@@ -782,17 +949,174 @@ public class PartyClanPacketHandler {
 		boolean hasPriv = clan != null && (clan.isLeader(active.objectId())
 				|| (ctx.clanPrivileges() != null && ctx.clanPrivileges().hasPrivilege(active, com.lopez.l2j.game.clan.Clan.CP_CL_REGISTER_CREST)));
 		if (clan == null || !hasPriv) {
+			session.send(SystemMessage.id(SystemMessage.NOT_AUTHORIZED_TO_BESTOW_RIGHTS));
 			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao possui privilegio para registrar insignia grande."));
+			return;
+		}
+		if (p.data() == null || p.data().length == 0) {
+			if (clan.crestLargeId() != 0) {
+				ctx.crests().removePledgeCrestLarge(clan.crestLargeId());
+				ctx.clans().updateCrestLarge(clan.clanId(), 0);
+				session.send(new PledgeShowInfoUpdate(clan));
+				if (ctx.world() != null) {
+					clan.broadcastToOnlineMembers(ctx.world(), new PledgeShowInfoUpdate(clan));
+				}
+				session.sendUserInfoAndBroadcastCharInfo();
+				session.send(SystemMessage.id(1861));
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Insignia grande removida."));
+			}
 			return;
 		}
 		if (clan.castleId() <= 0 && clan.clanHallId() <= 0) {
 			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas clas com Castelo ou Clan Hall podem registrar insignia grande."));
 			return;
 		}
+		if (p.data().length > 2176) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O arquivo da insignia grande nao pode exceder 2176 bytes (64x64 BMP 256 cores)."));
+			return;
+		}
+		if (clan.crestLargeId() != 0) {
+			ctx.crests().removePledgeCrestLarge(clan.crestLargeId());
+		}
 		int crestId = ctx.crests().savePledgeCrestLarge(p.data());
 		ctx.clans().updateCrestLarge(clan.clanId(), crestId);
 		session.send(new PledgeShowInfoUpdate(clan));
+		if (ctx.world() != null) {
+			clan.broadcastToOnlineMembers(ctx.world(), new PledgeShowInfoUpdate(clan));
+		}
 		session.sendUserInfoAndBroadcastCharInfo();
+		session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Insignia grande registrada com sucesso."));
+	}
+
+	public void handleAllyCrest(GameClientPacket.RequestAllyCrest p) {
+		var ctx = session.context();
+		if (p == null || p.crestId() == 0 || ctx == null || ctx.crests() == null) {
+			return;
+		}
+		byte[] data = ctx.crests().getAllyCrest(p.crestId());
+		if (data != null) {
+			session.send(new GameServerPacket.AllyCrest(p.crestId(), data));
+		}
+	}
+
+	public void handleSetAllyCrest(GameClientPacket.RequestSetAllyCrest p) {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (p == null || ctx == null || ctx.clans() == null || ctx.crests() == null || active == null || active.clanId() <= 0) {
+			return;
+		}
+		var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
+		if (clan == null || clan.allyId() <= 0 || clan.allyId() != clan.clanId() || !clan.isLeader(active.objectId())) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Apenas o lider da alianca pode definir o brasao da alianca."));
+			return;
+		}
+		if (p.data() == null || p.data().length == 0) {
+			if (clan.allyCrestId() != 0) {
+				ctx.crests().removeAllyCrest(clan.allyCrestId());
+				for (var c : ctx.clans().allClans()) {
+					if (c.allyId() == clan.allyId()) {
+						ctx.clans().updateAllyCrest(c.clanId(), 0);
+						if (ctx.world() != null) {
+							c.broadcastToOnlineMembers(ctx.world(), new PledgeShowInfoUpdate(c));
+						}
+					}
+				}
+				session.sendUserInfoAndBroadcastCharInfo();
+				session.send(SystemMessage.id(1861));
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Brasao da alianca removido."));
+			}
+			return;
+		}
+		if (p.data().length > 192) {
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O arquivo do brasao da alianca nao pode exceder 192 bytes (8x12 BMP 256 cores)."));
+			return;
+		}
+		if (clan.allyCrestId() != 0) {
+			ctx.crests().removeAllyCrest(clan.allyCrestId());
+		}
+		int crestId = ctx.crests().saveAllyCrest(p.data());
+		if (crestId != 0) {
+			for (var c : ctx.clans().allClans()) {
+				if (c.allyId() == clan.allyId()) {
+					ctx.clans().updateAllyCrest(c.clanId(), crestId);
+					if (ctx.world() != null) {
+						c.broadcastToOnlineMembers(ctx.world(), new PledgeShowInfoUpdate(c));
+					}
+				}
+			}
+			session.sendUserInfoAndBroadcastCharInfo();
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Brasao da alianca atualizado com sucesso."));
+		}
+	}
+
+	public void handleSetPledgeAcademyMaster(GameClientPacket.RequestPledgeSetAcademyMaster p) {
+		var ctx = session.context();
+		PlayerCharacter active = session.activeChar();
+		if (p == null || ctx == null || ctx.clans() == null || active == null || active.clanId() <= 0) {
+			return;
+		}
+		var clan = ctx.clans().byClanId(active.clanId()).orElse(null);
+		if (clan == null) {
+			return;
+		}
+		boolean hasPriv = clan.isLeader(active.objectId())
+				|| (ctx.clanPrivileges() != null && ctx.clanPrivileges().hasPrivilege(active, com.lopez.l2j.game.clan.Clan.CP_CL_MASTER_RIGHTS));
+		if (!hasPriv) {
+			session.send(SystemMessage.id(SystemMessage.NOT_AUTHORIZED_TO_BESTOW_RIGHTS));
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao possui privilegio para gerenciar padrinhos da Academia."));
+			return;
+		}
+		com.lopez.l2j.game.clan.ClanMember currMember = null;
+		com.lopez.l2j.game.clan.ClanMember targetMember = null;
+		for (var m : clan.members()) {
+			if (p.currPlayerName() != null && m.name().equalsIgnoreCase(p.currPlayerName().trim())) {
+				currMember = m;
+			}
+			if (p.targetPlayerName() != null && m.name().equalsIgnoreCase(p.targetPlayerName().trim())) {
+				targetMember = m;
+			}
+		}
+		if (currMember == null || targetMember == null) {
+			return;
+		}
+		com.lopez.l2j.game.clan.ClanMember apprentice;
+		com.lopez.l2j.game.clan.ClanMember sponsor;
+		if (currMember.pledgeType() == com.lopez.l2j.game.clan.Clan.SUBUNIT_ACADEMY) {
+			apprentice = currMember;
+			sponsor = targetMember;
+		} else if (targetMember.pledgeType() == com.lopez.l2j.game.clan.Clan.SUBUNIT_ACADEMY) {
+			apprentice = targetMember;
+			sponsor = currMember;
+		} else {
+			return;
+		}
+		if (p.set() == 1) {
+			if (apprentice.sponsor() != 0 || sponsor.apprentice() != 0) {
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Um dos membros selecionados ja possui vinculo de padrinho/aprendiz."));
+				return;
+			}
+			if (ctx.clans().initApprenticeAndSponsor(clan, apprentice.objectId(), sponsor.objectId())) {
+				session.send(SystemMessage.of(1755,
+						new SystemMessage.Text(apprentice.name()),
+						new SystemMessage.Text(sponsor.name()))); // S2_HAS_BEEN_DESIGNATED_AS_APPRENTICE_OF_CLAN_MEMBER_S1
+				session.send(new PledgeShowMemberListAll(clan, 0));
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						sponsor.name() + " foi designado padrinho do aprendiz " + apprentice.name() + "."));
+			}
+		} else {
+			if (ctx.clans().removeApprenticeAndSponsor(clan, apprentice.objectId(), sponsor.objectId())) {
+				session.send(SystemMessage.of(1763,
+						new SystemMessage.Text(apprentice.name()),
+						new SystemMessage.Text(sponsor.name()))); // S2_CLAN_MEMBER_S1_APPRENTICE_HAS_BEEN_REMOVED
+				session.send(new PledgeShowMemberListAll(clan, 0));
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Vinculo de padrinho entre " + sponsor.name() + " e " + apprentice.name() + " removido."));
+			}
+		}
+	}
+
+	public void handlePledgeSetAcademyMaster(GameClientPacket.RequestPledgeSetAcademyMaster p) {
+		handleSetPledgeAcademyMaster(p);
 	}
 
 	public void handlePledgePowerGradeList() {
@@ -960,6 +1284,7 @@ public class PartyClanPacketHandler {
 			ctx.clans().byClanId(active.clanId()).ifPresent(clan -> {
 				session.send(new PledgeShowInfoUpdate(clan));
 				session.send(new PledgeShowMemberListAll(clan, 0));
+				session.send(new GameServerPacket.PledgeReceiveSubPledgeCreated(pledgeType, subPledgeName, leaderName != null ? leaderName : ""));
 			});
 		}
 		return ok;
