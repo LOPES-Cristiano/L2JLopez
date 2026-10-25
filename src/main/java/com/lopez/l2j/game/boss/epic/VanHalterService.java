@@ -83,6 +83,14 @@ public class VanHalterService {
 		this.doorService = doorService;
 	}
 
+	@jakarta.annotation.PostConstruct
+	public void init() {
+		if (grandBossManager != null) {
+			this.status = grandBossManager.getStatus(GrandBossManager.VAN_HALTER);
+		}
+		openAltarDoors();
+	}
+
 	public void triggerVanHalterAppearance() {
 		int appearanceDelaySec = Math.max(1, Config.VAN_HALTER_APPEARANCE_TIME);
 		log.info("Van Halter: Ritual iniciado; boss surgira em {} segundos.", appearanceDelaySec);
@@ -97,6 +105,8 @@ public class VanHalterService {
 		// Despawna remanescentes se houver
 		clearMinions();
 		if (activeVanHalter != null) {
+			world.broadcastAround(activeVanHalter.x(), activeVanHalter.y(), GameWorld.VISIBILITY_RADIUS,
+					new com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject(activeVanHalter.objectId()));
 			world.removeNpc(activeVanHalter);
 			activeVanHalter = null;
 		}
@@ -105,6 +115,8 @@ public class VanHalterService {
 				.orElseGet(() -> NpcTemplate.fallback(VAN_HALTER, "High Priestess van Halter", "L2GrandBoss"));
 		activeVanHalter = new NpcInstance(objectIds.nextId(), tpl, ALTAR_X, ALTAR_Y, ALTAR_Z, ALTAR_HEADING);
 		world.addNpc(activeVanHalter);
+		world.broadcastAround(ALTAR_X, ALTAR_Y, GameWorld.VISIBILITY_RADIUS,
+				new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(activeVanHalter));
 
 		// Spawna guarda real e acolitos
 		spawnHelpers();
@@ -168,6 +180,8 @@ public class VanHalterService {
 		if (status == BossStatus.ALIVE || status == BossStatus.FIGHTING) {
 			log.info("Tempo de luta de Van Halter esgotado. Despawnando boss e resetando altar.");
 			if (activeVanHalter != null && world != null) {
+				world.broadcastAround(activeVanHalter.x(), activeVanHalter.y(), GameWorld.VISIBILITY_RADIUS,
+						new com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject(activeVanHalter.objectId()));
 				world.removeNpc(activeVanHalter);
 				activeVanHalter = null;
 			}
@@ -192,13 +206,17 @@ public class VanHalterService {
 				activeVanHalter.minions().add(helper);
 			}
 			world.addNpc(helper);
+			world.broadcastAround(ox, oy, GameWorld.VISIBILITY_RADIUS,
+					new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(helper));
 			minions.add(helper);
 		}
 	}
 
 	private void clearMinions() {
 		for (NpcInstance m : minions) {
-			if (world != null) {
+			if (world != null && m != null) {
+				world.broadcastAround(m.x(), m.y(), GameWorld.VISIBILITY_RADIUS,
+						new com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject(m.objectId()));
 				world.removeNpc(m);
 			}
 		}
