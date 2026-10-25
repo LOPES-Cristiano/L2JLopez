@@ -596,13 +596,8 @@ public class NpcBypassPacketHandler {
 			return;
 		}
 		var ss = ctx().sevenSigns();
-		if (ss == null || !ss.isCompetitionPeriod()) {
-			String raw = ctx().htmls() != null ? ctx().htmls().getHtml("seven_signs/festival/festival_2a.htm") : null;
-			if (raw != null) {
-				send(new NpcHtmlMessage(npc.objectId(), ctx().htmls().render(raw, npc.objectId(), npc.name(), active().name())));
-			} else {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Inscricoes do festival estao fechadas."));
-			}
+		if (ss == null) {
+			send(new ActionFailed());
 			return;
 		}
 
@@ -617,6 +612,15 @@ public class NpcBypassPacketHandler {
 		}
 
 		if (action == 2) {
+			if (!ss.isCompetitionPeriod()) {
+				String raw = ctx().htmls() != null ? ctx().htmls().getHtml("seven_signs/festival/festival_2a.htm") : null;
+				if (raw != null) {
+					send(new NpcHtmlMessage(npc.objectId(), ctx().htmls().render(raw, npc.objectId(), npc.name(), active().name())));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Inscricoes do festival estao fechadas."));
+				}
+				return;
+			}
 			int stoneId = parts.length > 1 ? GameSession.parseIntSafe(parts[1], 6360) : 6360;
 			int stoneIdx = (stoneId == 6362) ? 2 : ((stoneId == 6361) ? 1 : 0);
 			int cost = com.lopez.l2j.game.sevensigns.SevenSignsManager.FESTIVAL_FEE_STONES[tier][stoneIdx];
@@ -647,7 +651,15 @@ public class NpcBypassPacketHandler {
 			ss.addAccumulatedBonus(tier, feePoints);
 
 			int[] loc = com.lopez.l2j.game.sevensigns.SevenSignsManager.FESTIVAL_ARENA_LOCS[tier];
-			teleportToCoordinates(loc[0], loc[1], loc[2]);
+			if (session.party() != null && ctx().world() != null) {
+				for (var memberSession : session.party().members()) {
+					if (memberSession != null && memberSession.character() != null) {
+						ctx().world().teleportPlayer(memberSession.character(), loc[0], loc[1], loc[2], 0);
+					}
+				}
+			} else {
+				teleportToCoordinates(loc[0], loc[1], loc[2]);
+			}
 			if (ctx().spawns() != null) {
 				int baseMobId = 18009 + (tier * 10);
 				int[][] offsets = {{-150, -150}, {150, -150}, {-150, 150}, {150, 150}, {0, -200}, {0, 200}};
@@ -740,6 +752,30 @@ public class NpcBypassPacketHandler {
 
 		if (action == 7) {
 			teleportToCoordinates(83400, 147943, -3404);
+			return;
+		}
+
+		if (action == 9) {
+			if (!ss.isSealValidationPeriod()) {
+				send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Recompensas do Festival so podem ser resgatadas durante o Periodo de Validacao do Selo."));
+				return;
+			}
+			int playerCabal = ss.getPlayerCabal(active().objectId());
+			if (playerCabal == com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_NULL || playerCabal != ss.previousWinner()) {
+				send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Apenas membros da Cabala vencedora podem resgatar o bonus acumulado do Festival."));
+				return;
+			}
+			var topMembers = ss.getHighestScoreMembers(playerCabal, tier);
+			boolean isTopMember = topMembers.stream().anyMatch(m -> m.equalsIgnoreCase(active().name()));
+			int bonus = ss.getAccumulatedBonus(tier);
+			if (isTopMember && bonus > 0 && ctx().inventories() != null) {
+				int share = Math.max(1, bonus / Math.max(1, topMembers.size()));
+				ss.rewardHighestRanked();
+				send(ItemList.of(active().inventory().items(), false));
+				send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Parabens! O bonus do Festival (" + share + " Ancient Adena) foi distribuido!"));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Voce nao possui bonus pendente neste tier do Festival."));
+			}
 		}
 	}
 
@@ -1344,7 +1380,37 @@ public class NpcBypassPacketHandler {
 	}
 
 
+	public void sendShowBoard(String html) {
+		if (html == null) {
+			return;
+		}
+		if (html.length() < 4090) {
+			send(new GameServerPacket.ShowBoard(html, "101"));
+			send(new GameServerPacket.ShowBoard(null, "102"));
+			send(new GameServerPacket.ShowBoard(null, "103"));
+		} else if (html.length() < 8180) {
+			send(new GameServerPacket.ShowBoard(html.substring(0, 4090), "101"));
+			send(new GameServerPacket.ShowBoard(html.substring(4090), "102"));
+			send(new GameServerPacket.ShowBoard(null, "103"));
+		} else if (html.length() < 12270) {
+			send(new GameServerPacket.ShowBoard(html.substring(0, 4090), "101"));
+			send(new GameServerPacket.ShowBoard(html.substring(4090, 8180), "102"));
+			send(new GameServerPacket.ShowBoard(html.substring(8180), "103"));
+		} else {
+			send(new GameServerPacket.ShowBoard(html.substring(0, 4090), "101"));
+			send(new GameServerPacket.ShowBoard(html.substring(4090, 8180), "102"));
+			send(new GameServerPacket.ShowBoard(html.substring(8180, 12270), "103"));
+		}
+	}
+
 	public void onBbsWrite(RequestBBSwrite p) {
+		if (p != null && ctx().communityBoard() != null && active() != null) {
+			String html = ctx().communityBoard().handleWrite(active(), p.url(), p.arg1(), p.arg2(), p.arg3(), p.arg4(), p.arg5());
+			if (html != null) {
+				sendShowBoard(html);
+				return;
+			}
+		}
 		session.chatHandler().handleBbsWrite(p);
 	}
 
@@ -1384,7 +1450,7 @@ public class NpcBypassPacketHandler {
 		if (ctx().communityBoard() != null && active() != null) {
 			String html = ctx().communityBoard().handleCommand(active(), command);
 			if (html != null) {
-				send(new GameServerPacket.ShowBoard(html));
+				sendShowBoard(html);
 			}
 		}
 	}
@@ -2461,14 +2527,17 @@ public class NpcBypassPacketHandler {
 							String fArg = action.length() > 12 ? action.substring(12).trim() : "";
 							handleNpcFindById(npc, fArg);
 							return;
-						} else if (actionLower.startsWith("evolve")) {
+						} else if (actionLower.startsWith("evolve") || (actionLower.startsWith("restore ") && npc.template() != null && npc.template().type() != null && npc.template().type().toLowerCase(java.util.Locale.ROOT).contains("pet"))) {
 							handlePetEvolveBypass(npc, action);
 							return;
 						} else if (actionLower.startsWith("ridewyvern")) {
 							handleRideWyvern(npc);
 							return;
-						} else if (actionLower.startsWith("hire")) {
-							handleHireMercenary(npc, action.length() > 4 ? action.substring(4).trim() : "");
+						} else if (actionLower.startsWith("hire") || actionLower.startsWith("merc_buy")) {
+							String hireArg = actionLower.startsWith("merc_buy")
+									? (action.length() > 8 ? action.substring(8).trim() : "")
+									: (action.length() > 4 ? action.substring(4).trim() : "");
+							handleHireMercenary(npc, hireArg);
 							return;
 						} else if (actionLower.startsWith("fishingchampionship") || actionLower.startsWith("fishingreward")) {
 							handleFishingChampionshipBypass(npc, actionLower);
@@ -2480,11 +2549,14 @@ public class NpcBypassPacketHandler {
 							return;
 						} else if (actionLower.startsWith("functions") || actionLower.startsWith("manage_functions")
 								|| actionLower.startsWith("manage_vault") || actionLower.startsWith("manage")
+								|| actionLower.startsWith("vault_deposit") || actionLower.startsWith("vault_withdraw")
 								|| actionLower.startsWith("tax_setup") || actionLower.startsWith("tax_set")
 								|| actionLower.startsWith("siege_change") || actionLower.startsWith("list_siege_clans")
 								|| actionLower.startsWith("doors_update") || actionLower.startsWith("traps_update")
 								|| actionLower.startsWith("door") || actionLower.startsWith("list_back")
-								|| actionLower.startsWith("products") || actionLower.startsWith("banish_foreigner_show")) {
+								|| actionLower.startsWith("products") || actionLower.startsWith("banish_foreigner_show")
+								|| actionLower.startsWith("fort_") || actionLower.startsWith("support_buff")
+								|| actionLower.startsWith("item_creation")) {
 							handleResidenceManagerBypass(npc, action);
 							return;
 						} else if (actionLower.startsWith("getbuff")) {
@@ -2532,6 +2604,9 @@ public class NpcBypassPacketHandler {
 									? action.substring(12).trim()
 									: (actionLower.startsWith("observeoracle") ? action.substring(13).trim() : action.substring(7).trim());
 							handleObservation(obsArgs);
+							return;
+						} else if (actionLower.startsWith("olybuff")) {
+							handleOlyBuffBypass(npc, action.length() > 7 ? action.substring(7).trim() : "");
 							return;
 						} else if (actionLower.startsWith("olympiaddesc")) {
 							String num = action.length() > 12 ? action.substring(12).trim() : "0";
@@ -2987,14 +3062,37 @@ public class NpcBypassPacketHandler {
 			return;
 		}
 		boolean open = !"0".equals(parts[0]);
+		if (!active().isGm()) {
+			var clan = (ctx().clans() != null && active().clanId() > 0) ? ctx().clans().byClanId(active().clanId()).orElse(null) : null;
+			boolean hasPriv = clan != null && (clan.isLeader(active().objectId())
+					|| (ctx().clanPrivileges() != null && (ctx().clanPrivileges().hasPrivilege(active(), com.lopez.l2j.game.clan.Clan.CP_CS_OPEN_DOOR)
+							|| ctx().clanPrivileges().hasPrivilege(active(), com.lopez.l2j.game.clan.Clan.CP_CH_OPEN_DOOR))));
+			if (!hasPriv) {
+				send(SystemMessage.id(SystemMessage.YOU_ARE_NOT_AUTHORIZED_TO_DO_THAT));
+				send(new ActionFailed());
+				return;
+			}
+		}
 		if (parts.length > 1) {
 			for (int i = 1; i < parts.length; i++) {
 				try {
 					int doorId = Integer.parseInt(parts[i]);
-					if (open) {
-						dt.openDoor(doorId);
-					} else {
-						dt.closeDoor(doorId);
+					var door = dt.getDoor(doorId);
+					if (door != null) {
+						if (!active().isGm() && door.castleId() > 0 && ctx().sieges() != null) {
+							boolean siegeActive = ctx().sieges().getSiege(door.castleId()).map(s -> s.isInProgress()).orElse(false);
+							if (siegeActive) {
+								send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Portoes do castelo nao podem ser operados durante o cerco."));
+								continue;
+							}
+						}
+						if (open) {
+							dt.openDoor(doorId);
+						} else {
+							dt.closeDoor(doorId);
+						}
+						door.broadcastStatusUpdate();
+						send(new DoorStatusUpdate(door));
 					}
 				} catch (NumberFormatException ignored) {}
 			}
@@ -3022,6 +3120,77 @@ public class NpcBypassPacketHandler {
 				}
 				teleportToCoordinates(x, y, z);
 			} catch (NumberFormatException ignored) {
+			}
+		}
+	}
+
+	private static final Set<Integer> OLY_ALLOWED_HOST_BUFFS = Set.of(
+			1086, 1204, 1059, 1085, 1078, 1068, 1240, 1077, 1242, 1062
+	);
+	private final Map<Integer, Integer> olyHostBuffCountByPlayer = new java.util.concurrent.ConcurrentHashMap<>();
+
+	private void handleOlyBuffBypass(NpcInstance npc, String args) {
+		if (active() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		String[] parts = args.trim().split("\\s+");
+		if (parts.length == 0 || parts[0].isEmpty()) {
+			send(new ActionFailed());
+			return;
+		}
+		int skillId = GameSession.parseIntSafe(parts[0], 0);
+		int skillLvl = parts.length > 1 ? GameSession.parseIntSafe(parts[1], 1) : 1;
+		if (!OLY_ALLOWED_HOST_BUFFS.contains(skillId)) {
+			send(new ActionFailed());
+			return;
+		}
+		int used = olyHostBuffCountByPlayer.getOrDefault(active().objectId(), 0);
+		if (used >= 5) {
+			send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Olympiad Host",
+					"Voce ja recebeu o limite maximo de 5 buffs das Olimpiadas."));
+			if (npc != null && ctx().world() != null) {
+				ctx().world().removeNpc(npc);
+			}
+			return;
+		}
+		var skillTable = ctx().skillService() != null ? ctx().skillService().table() : null;
+		if (skillTable != null) {
+			var skOpt = skillTable.get(skillId, skillLvl);
+			if (skOpt.isEmpty()) {
+				skOpt = skillTable.get(skillId, 1);
+			}
+			if (skOpt.isPresent()) {
+				var sk = skOpt.get();
+				session.applySkillEffects(sk, false);
+				int npcObjId = npc != null ? npc.objectId() : active().objectId();
+				int cx = npc != null ? npc.x() : active().x();
+				int cy = npc != null ? npc.y() : active().y();
+				int cz = npc != null ? npc.z() : active().z();
+				var anim = new MagicSkillUse(npcObjId, active().objectId(), sk.displayId(), sk.level(), 500, 0,
+						cx, cy, cz, active().x(), active().y(), active().z());
+				var msl = new GameServerPacket.MagicSkillLaunched(npcObjId, sk.displayId(), sk.level(), List.of(active().objectId()));
+				send(anim);
+				send(msl);
+				if (ctx().world() != null) {
+					ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, anim, false);
+					ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msl, false);
+				}
+			}
+		}
+		int remaining = 5 - (used + 1);
+		olyHostBuffCountByPlayer.put(active().objectId(), used + 1);
+		if (remaining <= 0) {
+			olyHostBuffCountByPlayer.remove(active().objectId());
+			if (npc != null && ctx().world() != null) {
+				ctx().world().removeNpc(npc);
+			}
+			send(new CreatureSay(0, CreatureSay.ALL, "Olympiad Host", "Todos os 5 buffs das Olimpiadas foram concedidos. Boa sorte!"));
+		} else if (npc != null && ctx().htmls() != null) {
+			String htmFile = remaining == 5 ? "olympiad/olympiad_buffs.htm" : "olympiad/olympiad_5buffs.htm";
+			String raw = ctx().htmls().getHtml(htmFile);
+			if (raw != null) {
+				send(new NpcHtmlMessage(npc.objectId(), ctx().htmls().render(raw, npc.objectId(), npc.name(), active().name())));
 			}
 		}
 	}
@@ -3081,11 +3250,21 @@ public class NpcBypassPacketHandler {
 								: "Nao foi possivel registrar nas Olimpiadas."));
 			}
 			case 6 -> {
-				var noble = oly != null ? oly.getNoble(active().objectId()) : java.util.Optional.<com.lopez.l2j.game.olympiad.OlympiadNoble>empty();
-				int pts = noble.map(com.lopez.l2j.game.olympiad.OlympiadNoble::points).orElse(0);
-				int passes = pts >= 50 ? pts * 1000 : 0;
+				var nobleOpt = oly != null ? oly.getNoble(active().objectId()) : java.util.Optional.<com.lopez.l2j.game.olympiad.OlympiadNoble>empty();
+				int pts = nobleOpt.map(com.lopez.l2j.game.olympiad.OlympiadNoble::points).orElse(0);
+				int gpPerPoint = Config.ALT_OLY_GP_PER_POINT > 0 ? Config.ALT_OLY_GP_PER_POINT : 1000;
+				int passes = pts >= 50 ? pts * gpPerPoint : 0;
+				if (active().isHero()) {
+					int heroBonus = Config.ALT_OLY_HERO_POINTS > 0 ? Config.ALT_OLY_HERO_POINTS * gpPerPoint : 30000;
+					passes += heroBonus;
+				}
 				if (passes > 0 && ctx().inventories() != null) {
-					ctx().inventories().addItem(active().inventory(), 6651, passes, "OlympiadGatePass");
+					nobleOpt.ifPresent(n -> {
+						n.points(0);
+						if (oly != null) oly.save();
+					});
+					int rewardItemId = oly != null ? oly.getCompetitionExchangeRewardItemId() : 6651;
+					ctx().inventories().addItem(active().inventory(), rewardItemId, passes, "OlympiadGatePass");
 					send(ItemList.of(active().inventory().items(), false));
 					send(new CreatureSay(0, CreatureSay.ALL, npcName, "Voce trocou seus pontos por " + passes + " Noblesse Gate Pass!"));
 				} else {
@@ -3135,8 +3314,13 @@ public class NpcBypassPacketHandler {
 		if (active() == null) return;
 		var playerClan = (ctx().clans() != null && active().clanId() > 0) ? ctx().clans().byClanId(active().clanId()).orElse(null) : null;
 		if (playerClan != null && playerClan.castleId() > 0 && playerClan.isLeader(active().objectId())) {
+			if (ctx().sieges() != null && ctx().sieges().getSiege(playerClan.castleId()).map(s -> s.isInProgress()).orElse(false)) {
+				send(new CreatureSay(0, CreatureSay.ALL, "Chamberlain", "A Coroa do Senhor nao pode ser entregue durante um cerco em andamento."));
+				return;
+			}
 			if (ctx().crowns() != null) {
 				ctx().crowns().rewardLordCrown(active(), playerClan.castleId());
+				send(ItemList.of(active().inventory().items(), false));
 				send(new CreatureSay(0, CreatureSay.ALL, "Chamberlain", "A Coroa do Senhor do Castelo e o Diadema foram entregues!"));
 			}
 		} else {
@@ -3186,35 +3370,15 @@ public class NpcBypassPacketHandler {
 					ownerClanId = c.ownerClanId();
 				}
 			}
-					int[] townCoords = ctx().mapRegions() != null
-							? ctx().mapRegions().getRestartCoordinates(npc.x(), npc.y(), npc.z(), 0)
-							: new int[]{83400, 147943, -3404};
-					for (var p : ctx().world().findPlayersAround(npc.x(), npc.y(), 2000, npc.instanceId())) {
-						var ch = p.character();
-						if (ch != null && !ch.isGm() && ch.objectId() != active().objectId() && (ownerClanId <= 0 || ch.clanId() != ownerClanId)) {
-							ctx().world().teleportPlayer(ch, townCoords[0], townCoords[1], townCoords[2], 0);
-						}
-					}
-					if (false) {
-						for (var p : ctx().world().findPlayersAround(npc.x(), npc.y(), 2000, npc.instanceId())) { /*
-					? ctx().mapRegions().getNearestTownCoordinates(npc.x(), npc.y())
+			int[] townCoords = ctx().mapRegions() != null
+					? ctx().mapRegions().getRestartCoordinates(npc.x(), npc.y(), npc.z(), 0)
 					: new int[]{83400, 147943, -3404};
-			for (var p : ctx().world().playersAround(npc.x(), npc.y(), 2000, npc.instanceId())) {
+			for (var p : ctx().world().findPlayersAround(npc.x(), npc.y(), 2000, npc.instanceId())) {
 				var ch = p.character();
 				if (ch != null && !ch.isGm() && ch.objectId() != active().objectId() && (ownerClanId <= 0 || ch.clanId() != ownerClanId)) {
 					ctx().world().teleportPlayer(ch, townCoords[0], townCoords[1], townCoords[2], 0);
 				}
 			}
-				var ch = p.character();
-				if (ch != null && !ch.isGm() && ch.objectId() != active().objectId() && (ownerClanId <= 0 || ch.clanId() != ownerClanId)) {
-					ctx().world().teleportPlayer(ch, townCoords[0], townCoords[1], townCoords[2], 0);
-				} */
-				var ch = p.character();
-				if (ch != null && !ch.isGm() && ch.objectId() != active().objectId() && (ownerClanId <= 0 || ch.clanId() != ownerClanId)) {
-					ctx().world().teleportPlayer(ch, townCoords[0], townCoords[1], townCoords[2], 0);
-				}
-			}
-		}
 		}
 		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Chamberlain", "Todos os nao-membros do cla foram banidos para fora do castelo."));
 		if (npc != null) {
@@ -3287,6 +3451,11 @@ public class NpcBypassPacketHandler {
 			return;
 		}
 		clan.dissolvingExpiryTime(0L);
+		active().clanCreateExpiryTime(0L);
+		if (ctx().characters() != null) {
+			ctx().characters().save(active(), true);
+		}
+		clan.broadcastToOnlineMembers(ctx().world(), new PledgeShowInfoUpdate(clan));
 		send(new PledgeShowInfoUpdate(clan));
 		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "O pedido de dissolucao do cla foi cancelado com sucesso!"));
 		if (npc != null) showNpcHtml(npc, 0);
@@ -3505,10 +3674,51 @@ public class NpcBypassPacketHandler {
 		var evolveService = new com.lopez.l2j.game.pet.PetEvolveService();
 		var summon = active() != null ? active().activeSummon() : null;
 		int petLvl = summon != null ? summon.level() : Math.max(55, active().level());
-		int[] candidates = {2375, 3500, 3501, 3502, 6648, 6649, 6650};
-		for (int itemId : candidates) {
+		String clean = action != null ? action.trim().toLowerCase(java.util.Locale.ROOT) : "";
+		boolean isRestore = clean.startsWith("restore");
+		String[] parts = clean.split("\\s+");
+		int idx = parts.length > 1 ? GameSession.parseIntSafe(parts[1], 0) : 0;
+
+		if (isRestore) {
+			int[] restoreCandidates = switch (idx) {
+				case 1 -> new int[]{10163, 9882, 10307}; // Great Wolf <-> Snow Great Wolf
+				case 2 -> new int[]{10426, 10611}; // Fenrir <-> Snow Fenrir
+				case 3 -> new int[]{4422, 4423, 4424, 10308, 10309, 10310}; // Strider <-> Red Strider
+				default -> new int[]{10163, 9882, 10307, 10426, 10611, 4422, 4423, 4424, 10308, 10309, 10310};
+			};
+			for (int itemId : restoreCandidates) {
+				if (active().inventory().byItemId(itemId).isPresent()) {
+					var res = evolveService.restorePet(active(), itemId, Math.max(70, petLvl));
+					if (res.success()) {
+						if (ctx().inventories() != null) {
+							active().inventory().byItemId(res.evolvedItemId()).ifPresent(active().inventory()::remove);
+							ctx().inventories().addItem(active().inventory(), res.evolvedItemId(), 1, "PetRestore");
+						}
+						send(ItemList.of(active().inventory().items(), false));
+						send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Pet Manager", res.message()));
+						return;
+					}
+				}
+			}
+			send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Pet Manager",
+					"Voce nao possui um Great Wolf, Fenrir ou Strider elegivel para restauracao/conversao."));
+			return;
+		}
+
+		int[] evolveCandidates = switch (idx) {
+			case 1 -> new int[]{2375}; // Wolf -> Great Wolf
+			case 2 -> new int[]{9882, 10163}; // Great Wolf -> Fenrir
+			case 3 -> new int[]{3500, 3501, 3502}; // Hatchling -> Strider
+			case 4 -> new int[]{6648}; // Baby Buffalo -> Improved
+			case 5 -> new int[]{6649}; // Baby Cougar -> Improved
+			case 6 -> new int[]{6650}; // Baby Kookaburra -> Improved
+			case 7 -> new int[]{10307}; // Snow Great Wolf -> Snow Fenrir
+			default -> new int[]{2375, 9882, 10163, 10307, 3500, 3501, 3502, 6648, 6649, 6650};
+		};
+		for (int itemId : evolveCandidates) {
 			if (active().inventory().byItemId(itemId).isPresent()) {
-				var res = evolveService.evolvePet(active(), itemId, petLvl);
+				int reqLvl = (itemId == 9882 || itemId == 10163 || itemId == 10307) ? Math.max(70, petLvl) : petLvl;
+				var res = evolveService.evolvePet(active(), itemId, reqLvl);
 				if (res.success()) {
 					if (ctx().inventories() != null) {
 						active().inventory().byItemId(res.evolvedItemId()).ifPresent(active().inventory()::remove);
@@ -3521,11 +3731,24 @@ public class NpcBypassPacketHandler {
 			}
 		}
 		send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Pet Manager",
-				"Voce precisa ter um Wolf, Hatchling ou Baby Pet (Lv. 55+) no inventario para evoluir."));
+				"Voce precisa ter um Wolf, Great Wolf, Hatchling ou Baby Pet no nivel requerido no inventario para evoluir."));
 	}
 
 	private void handleRideWyvern(NpcInstance npc) {
 		if (active() == null) return;
+		if (!active().isGm()) {
+			if (active().isInCombat() || active().pvpFlag() > 0) {
+				send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Wyvern Manager",
+						"Voce nao pode montar um Wyvern enquanto estiver em combate ou modo PvP."));
+				return;
+			}
+			int castleId = getNpcCastleId(npc);
+			if (castleId > 0 && ctx().sieges() != null && ctx().sieges().getSiege(castleId).map(s -> s.isInProgress()).orElse(false)) {
+				send(new CreatureSay(0, CreatureSay.ALL, npc != null ? npc.name() : "Wyvern Manager",
+						"Nao e permitido montar em um Wyvern durante um cerco ativo."));
+				return;
+			}
+		}
 		var clan = (ctx().clans() != null && active().clanId() > 0) ? ctx().clans().byClanId(active().clanId()).orElse(null) : null;
 		boolean isLord = active().isGm() || (clan != null && clan.isLeader(active().objectId()) && (clan.castleId() > 0 || clan.clanHallId() > 0 || clan.fortId() > 0));
 		if (!isLord) {
@@ -3701,6 +3924,20 @@ public class NpcBypassPacketHandler {
 			handleVillageMasterLink(npc, mainFile);
 			return;
 		}
+		if (lower.startsWith("doors_update") || lower.startsWith("traps_update")) {
+			String[] parts = action.trim().split("\\s+");
+			long upgradeCost = parts.length >= 3 ? Math.max(100_000L, GameSession.parseIntSafe(parts[2], 100_000)) : 100_000L;
+			if (session.consumeItem(57, (int) upgradeCost)) {
+				send(new CreatureSay(0, CreatureSay.ALL, npc.name(),
+						lower.startsWith("doors_update")
+								? "Portoes do castelo reforcados com sucesso!"
+								: "Armadilhas de defesa do castelo ativadas com sucesso!"));
+			} else {
+				send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Adena insuficiente para reforcar as defesas (" + upgradeCost + " Adena)."));
+			}
+			showNpcHtml(npc, 0);
+			return;
+		}
 		if (lower.startsWith("door")) {
 			if (lower.contains("open")) {
 				handleDoorControl(true);
@@ -3713,16 +3950,27 @@ public class NpcBypassPacketHandler {
 			handleVillageMasterLink(npc, baseDir + "door.htm");
 			return;
 		}
-		if (lower.startsWith("banish_foreigner_show")) {
+		if (lower.startsWith("banish_foreigner_show") || lower.startsWith("fort_expel")) {
 			handleBanishForeigner(npc);
 			return;
 		}
 		if (lower.startsWith("tax_setup") || lower.startsWith("tax_set")) {
 			String[] parts = action.trim().split("\\s+");
+			int maxTax = 15;
+			if (ctx().sevenSigns() != null) {
+				int strifeOwner = ctx().sevenSigns().getSealOwner(com.lopez.l2j.game.sevensigns.SevenSignsManager.SEAL_STRIFE);
+				if (strifeOwner == com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DAWN) {
+					maxTax = 25;
+				} else if (strifeOwner == com.lopez.l2j.game.sevensigns.SevenSignsManager.CABAL_DUSK) {
+					maxTax = 5;
+				}
+			}
 			if (parts.length >= 2 && castle != null && ctx().castles() != null) {
-				int newTax = GameSession.parseIntSafe(parts[1], castle.taxPercent());
+				int requestedTax = GameSession.parseIntSafe(parts[1], castle.taxPercent());
+				int newTax = Math.max(0, Math.min(maxTax, requestedTax));
 				ctx().castles().setTaxPercent(castleId, newTax);
-				send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Taxa de imposto ajustada para " + castle.taxPercent() + "%."));
+				send(new CreatureSay(0, CreatureSay.ALL, npc.name(),
+						"Taxa de imposto ajustada para " + castle.taxPercent() + "% (limite pelo Selo de Strife: " + maxTax + "%)."));
 			}
 			if (ctx().htmls() != null) {
 				String htm = ctx().htmls().getHtml("chamberlain/chamberlain-tax.htm");
@@ -3730,7 +3978,8 @@ public class NpcBypassPacketHandler {
 					int tax = castle != null ? castle.taxPercent() : 0;
 					String rendered = ctx().htmls().render(htm, npc.objectId(), npc.name(), active().name(), castleId, npc.npcId())
 							.replace("%tax%", String.valueOf(tax))
-							.replace("%tax_rate%", String.valueOf(tax));
+							.replace("%tax_rate%", String.valueOf(tax))
+							.replace("%max_tax%", String.valueOf(maxTax));
 					send(new NpcHtmlMessage(npc.objectId(), rendered));
 					return;
 				}
@@ -3738,27 +3987,29 @@ public class NpcBypassPacketHandler {
 			showNpcHtml(npc, 0);
 			return;
 		}
-		if (lower.startsWith("manage_vault")) {
+		if (lower.startsWith("manage_vault") || lower.startsWith("vault_deposit") || lower.startsWith("vault_withdraw")) {
 			String[] parts = action.trim().split("\\s+");
-			if (parts.length >= 2) {
-				String sub = parts[1].toLowerCase(java.util.Locale.ROOT);
-				long amount = parts.length >= 3 ? GameSession.parseIntSafe(parts[2], 0) : 0;
-				if ("withdraw".equals(sub) && castle != null && amount > 0) {
-					if (castle.treasury() >= amount && ctx().inventories() != null) {
-						castle.treasury(castle.treasury() - amount);
-						ctx().inventories().addItem(active().inventory(), 57, (int) amount, "CastleVaultWithdraw");
-						send(ItemList.of(active().inventory().items(), false));
-						send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Retirado " + amount + " Adena do cofre do castelo."));
-					} else {
-						send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Saldo insuficiente no cofre do castelo."));
-					}
-				} else if ("deposit".equals(sub) && castle != null && amount > 0) {
-					if (session.consumeItem(57, (int) amount) && ctx().castles() != null) {
-						ctx().castles().addToTreasury(castleId, amount);
-						send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Depositado " + amount + " Adena no cofre do castelo."));
-					} else {
-						send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Adena insuficiente."));
-					}
+			String sub = lower.startsWith("vault_deposit") ? "deposit"
+					: (lower.startsWith("vault_withdraw") ? "withdraw"
+					: (parts.length >= 2 ? parts[1].toLowerCase(java.util.Locale.ROOT) : ""));
+			long amount = (lower.startsWith("vault_deposit") || lower.startsWith("vault_withdraw"))
+					? (parts.length >= 2 ? GameSession.parseIntSafe(parts[1], 0) : 0)
+					: (parts.length >= 3 ? GameSession.parseIntSafe(parts[2], 0) : 0);
+			if ("withdraw".equals(sub) && castle != null && amount > 0) {
+				if (castle.treasury() >= amount && ctx().inventories() != null) {
+					castle.treasury(castle.treasury() - amount);
+					ctx().inventories().addItem(active().inventory(), 57, (int) amount, "CastleVaultWithdraw");
+					send(ItemList.of(active().inventory().items(), false));
+					send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Retirado " + amount + " Adena do cofre do castelo."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Saldo insuficiente no cofre do castelo."));
+				}
+			} else if ("deposit".equals(sub) && castle != null && amount > 0) {
+				if (session.consumeItem(57, (int) amount) && ctx().castles() != null) {
+					ctx().castles().addToTreasury(castleId, amount);
+					send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Depositado " + amount + " Adena no cofre do castelo."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Adena insuficiente."));
 				}
 			}
 			if (isClanHall || isFort) {
@@ -3781,7 +4032,35 @@ public class NpcBypassPacketHandler {
 			showNpcHtml(npc, 0);
 			return;
 		}
-		if (lower.startsWith("functions")) {
+		if (lower.startsWith("fort_doors")) {
+			if (lower.contains("open")) {
+				handleDoorControl(true);
+			} else if (lower.contains("close")) {
+				handleDoorControl(false);
+			} else {
+				handleVillageMasterLink(npc, "fortress/door.htm");
+			}
+			return;
+		}
+		if (lower.startsWith("fort_supply") || lower.startsWith("fort_blood_oath")) {
+			int rewardItemId = lower.startsWith("fort_blood_oath") ? 9910 : 9911;
+			if (ctx().inventories() != null) {
+				ctx().inventories().addItem(active().inventory(), rewardItemId, 1, "FortressReward");
+				send(ItemList.of(active().inventory().items(), false));
+				send(new CreatureSay(0, CreatureSay.ALL, npc.name(), "Suprimentos da Fortaleza entregues com sucesso!"));
+			}
+			return;
+		}
+		if (lower.startsWith("support_buff")) {
+			String buffArgs = action.length() > 12 ? action.substring(12).trim() : "";
+			handleSupportMagic(npc, buffArgs);
+			return;
+		}
+		if (lower.startsWith("item_creation")) {
+			session.showBuyList(npc, 1);
+			return;
+		}
+		if (lower.startsWith("functions") || lower.startsWith("fort_functions")) {
 			String arg = action.length() > 9 ? action.substring(9).trim().toLowerCase(java.util.Locale.ROOT) : "";
 			if (arg.startsWith("tele")) {
 				String teleHtm = ctx().htmls() != null ? ctx().htmls().getHtml(baseDir + "tele.htm") : null;
@@ -3901,11 +4180,23 @@ public class NpcBypassPacketHandler {
 		String npcName = npc != null ? npc.name() : "Auctioneer";
 		if (action.startsWith("bid ") && action.length() > 4) {
 			try {
-				long bid = Long.parseLong(action.substring(4).trim());
-				int hallId = 1;
+				String[] tokens = action.substring(4).trim().split("\\s+");
+				long bid = Long.parseLong(tokens[tokens.length - 1]);
+				int hallId = tokens.length >= 2 ? GameSession.parseIntSafe(tokens[0], 0) : 0;
+				if (hallId <= 0 && ctx().clanHalls() != null) {
+					for (var ch : ctx().clanHalls().getAllClanHalls()) {
+						if (ch.ownerId() <= 0) {
+							hallId = ch.id();
+							break;
+						}
+					}
+					if (hallId <= 0) {
+						hallId = 21;
+					}
+				}
 				if (ctx().clanHalls() != null) {
-					var res = ctx().clanHalls().bidOnAuction(active(), hallId, bid);
-					send(new CreatureSay(0, CreatureSay.ALL, npcName, "Resultado do lance no Clan Hall: " + res.name()));
+					var res = ctx().clanHalls().bidOnAuction(active(), hallId > 0 ? hallId : 21, bid);
+					send(new CreatureSay(0, CreatureSay.ALL, npcName, "Resultado do lance no Clan Hall #" + (hallId > 0 ? hallId : 21) + ": " + res.name()));
 				}
 			} catch (Exception ignored) {}
 			return;
@@ -4937,6 +5228,15 @@ public class NpcBypassPacketHandler {
 				new SocialAction(active().objectId(), 3), false);
 
 		String newClassName = tplOpt.map(CharTemplate::className).orElse("Class " + newClassId);
+		if (!active().isSubClassActive() && tplOpt.map(CharTemplate::classTier).orElse(0) == 2
+				&& active().clanId() > 0 && ctx().clans() != null) {
+			int crp = ctx().clans().graduateAcademyMember(active());
+			if (crp > 0) {
+				send(ItemList.of(active().inventory().items(), false));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Parabens pela graduacao na Academia do Cla! Seu cla recebeu " + crp + " pontos de reputacao e voce recebeu o Academy Circlet!"));
+			}
+		}
 		if (Config.SHOW_CLASS_CHANGE_MESSAGE) {
 			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Parabens! Voce agora e um " + newClassName + "!"));
 		}
@@ -5115,15 +5415,34 @@ public class NpcBypassPacketHandler {
 			send(new ActionFailed());
 			return;
 		}
+		if (!active().isGm()) {
+			var clan = (ctx().clans() != null && active().clanId() > 0) ? ctx().clans().byClanId(active().clanId()).orElse(null) : null;
+			boolean hasPriv = clan != null && (clan.isLeader(active().objectId())
+					|| (ctx().clanPrivileges() != null && (ctx().clanPrivileges().hasPrivilege(active(), com.lopez.l2j.game.clan.Clan.CP_CS_OPEN_DOOR)
+							|| ctx().clanPrivileges().hasPrivilege(active(), com.lopez.l2j.game.clan.Clan.CP_CH_OPEN_DOOR))));
+			if (!hasPriv) {
+				send(SystemMessage.id(SystemMessage.YOU_ARE_NOT_AUTHORIZED_TO_DO_THAT));
+				send(new ActionFailed());
+				return;
+			}
+		}
 		com.lopez.l2j.game.door.DoorTable dt = com.lopez.l2j.game.door.DoorTable.getInstance();
 		if (dt != null) {
 			var nearby = dt.findDoorsAround(active().x(), active().y(), 1000);
 			for (var door : nearby) {
+				if (!active().isGm() && door.castleId() > 0 && ctx().sieges() != null) {
+					boolean siegeActive = ctx().sieges().getSiege(door.castleId()).map(s -> s.isInProgress()).orElse(false);
+					if (siegeActive) {
+						continue;
+					}
+				}
 				if (open) {
 					dt.openDoor(door.doorId());
 				} else {
 					dt.closeDoor(door.doorId());
 				}
+				door.broadcastStatusUpdate();
+				send(new DoorStatusUpdate(door));
 			}
 		}
 		send(new CreatureSay(0, CreatureSay.ALL, "SYS", open ? "Portas abertas." : "Portas fechadas."));
