@@ -34,12 +34,12 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Servico unificado de NPC Buffer e Buffer por Esquemas (Scheme Buffer).
+ * Servico unificado de NPC Buffer e Buffer por Esquemas (Scheme Buffer - #495, #510).
  * Suporta:
  * - Estilo L2JDreamV2 / L2Interlude (NPCs 50016 e 50005 VIP, getbuff, restore, cancel, fighter, mage, schemes)
  * - Estilo L2JLucera2 (NPCs 40010 e 40011, scripts_services.Buffer:act / actBBS, buff_templates.xml, gravacao de perfis)
  * - Comando de voz (.buffer / voiced_buffer) e Community Board (_bbsbuff_)
- * - Suporte a Personagem e Mascote/Summon.
+ * - Suporte a Personagem e Mascote/Summon (sem empilhamento infinito de stats no pet).
  */
 @Service
 public class SchemeBufferService {
@@ -129,6 +129,7 @@ public class SchemeBufferService {
 	private final org.springframework.jdbc.core.simple.JdbcClient jdbc;
 	private final Map<Integer, BuffTemplate> luceraTemplates = new ConcurrentHashMap<>();
 	private final Map<Integer, List<Integer>> recordingProfiles = new ConcurrentHashMap<>();
+	private final Map<Integer, Set<Integer>> activePetBuffs = new ConcurrentHashMap<>();
 
 	public SchemeBufferService(
 			CharacterVariablesService variablesService,
@@ -145,6 +146,50 @@ public class SchemeBufferService {
 		this.skillService = skillService;
 		this.jdbc = jdbc;
 		loadLuceraBuffTemplates();
+		loadBufferSkillsFromDb();
+	}
+
+	/**
+	 * Carrega skills configuradas na tabela mods_buffer_skills (V96 - #510).
+	 */
+	public final void loadBufferSkillsFromDb() {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			var rows = jdbc.sql("SELECT id, level, skill_group, description FROM mods_buffer_skills")
+					.query().listOfRows();
+			for (var r : rows) {
+				int skId = ((Number) r.get("id")).intValue();
+				int skLvl = r.get("level") != null ? ((Number) r.get("level")).intValue() : getDefaultSkillLevel(skId);
+				String desc = r.get("description") != null ? String.valueOf(r.get("description")) : ("Skill " + skId);
+				AVAILABLE_BUFF_NAMES.putIfAbsent(skId, desc);
+				luceraTemplates.putIfAbsent(skId, new BuffTemplate(skId, false, ADENA_ID, 0,
+						List.of(new BuffSkillEntry(skId, skLvl))));
+			}
+		} catch (Exception ex) {
+			log.debug("mods_buffer_skills load ignorado: {}", ex.getMessage());
+		}
+	}
+
+	public boolean applyFighterPreset(PlayerCharacter player, GameSession session, boolean targetPet) {
+		if (!validateBufferState(player, session)) {
+			return false;
+		}
+		for (int skillId : DEFAULT_FIGHTER_BUFFS) {
+			applyBuff(player, session, skillId, targetPet);
+		}
+		return true;
+	}
+
+	public boolean applyMagePreset(PlayerCharacter player, GameSession session, boolean targetPet) {
+		if (!validateBufferState(player, session)) {
+			return false;
+		}
+		for (int skillId : DEFAULT_MAGE_BUFFS) {
+			applyBuff(player, session, skillId, targetPet);
+		}
+		return true;
 	}
 
 	/**
@@ -478,7 +523,7 @@ public class SchemeBufferService {
 	}
 
 	/**
-	 * Cancela e remove todos os buffs ativos do personagem.
+	 * Cancela e remove todos os buffs ativos do personagem e reseta os buffs aplicados no Summon/Pet.
 	 */
 	public void cancelBuffs(PlayerCharacter player, GameSession session) {
 		cancelBuffs(player, session, null);
@@ -499,6 +544,9 @@ public class SchemeBufferService {
 		}
 		player.invul(false);
 		player.effects().clear();
+		if (player.activeSummon() != null) {
+			activePetBuffs.remove(player.activeSummon().objectId());
+		}
 		if (session != null) {
 			int npcObjId = npc != null ? npc.objectId() : player.objectId();
 			int cx = npc != null ? npc.x() : player.x();
@@ -683,7 +731,6 @@ public class SchemeBufferService {
 				if (variablesService != null) {
 					variablesService.setVariable(player.objectId(), "BuffProf-" + profIdx, joined);
 				}
-				// Tambem converte em skillIds e salva em buff_scheme_(profIdx + 1)
 				List<Integer> skillIds = new ArrayList<>();
 				for (int mId : recorded) {
 					BuffTemplate tpl = luceraTemplates.get(mId);
@@ -735,7 +782,6 @@ public class SchemeBufferService {
 					session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Perfil " + (profIdx + 1) + " aplicado com sucesso!"));
 				}
 			} else {
-				// Fallback para os esquemas padrao caso o perfil ainda nao tenha sido gravado
 				int fallbackScheme = (profIdx == 1) ? 2 : (profIdx + 1);
 				applyScheme(player, session, fallbackScheme, false);
 			}
@@ -798,7 +844,6 @@ public class SchemeBufferService {
 				session.sendMagicEffectIcons();
 			}
 		} else {
-			// Fallback caso o menuId seja diretamente um skillId
 			applySingleBuff(player, session, npc, menuId, getDefaultSkillLevel(menuId), false);
 		}
 	}
@@ -835,6 +880,7 @@ public class SchemeBufferService {
 	private void applyBuffWithLevel(PlayerCharacter player, GameSession session, int skillId, int skillLevel, boolean targetPet) {
 		if (targetPet && player.activeSummon() != null && !player.activeSummon().isDead()) {
 			applyPetStatBoost(player.activeSummon(), skillId, skillLevel);
+			return;
 		}
 		if (skillService != null) {
 			int lvl = skillLevel > 0 ? skillLevel : (skillService.table() != null ? skillService.table().maxLevel(skillId) : 1);
@@ -887,7 +933,19 @@ public class SchemeBufferService {
 		return duration;
 	}
 
+	/**
+	 * #495: Aplica boost de atributos ao Summon/Pet apenas uma vez por skillId ativo,
+	 * impedindo o exploit de multiplicacao cumulativa infinita ao re-buffar o pet.
+	 */
 	private void applyPetStatBoost(SummonInstance summon, int skillId, int skillLevel) {
+		if (summon == null) {
+			return;
+		}
+		Set<Integer> petBuffSet = activePetBuffs.computeIfAbsent(summon.objectId(), k -> ConcurrentHashMap.newKeySet());
+		if (!petBuffSet.add(skillId)) {
+			// Ja possui este buff aplicado nos atributos do pet: apenas renova sem multiplicar novamente
+			return;
+		}
 		if (skillService != null) {
 			int lvl = skillLevel > 0 ? skillLevel : (skillService.table() != null ? skillService.table().maxLevel(skillId) : 1);
 			var opt = skillService.skill(skillId, lvl > 0 ? lvl : 1);
