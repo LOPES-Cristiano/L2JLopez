@@ -58,10 +58,40 @@ public class ClanSkillService {
 			double rShldMul,
 			double sDefMul,
 			int runSpdAdd,
-			boolean hasImperium
+			boolean hasImperium,
+			double cyclonicVulnMul,
+			double magmaticVulnMul,
+			double stunVulnMul,
+			double rootVulnMul,
+			double sleepVulnMul,
+			double expLossMul
 	) {
+		public ClanSkillBonuses(
+				double maxHpMul,
+				double maxCpMul,
+				double maxMpMul,
+				double regHpMul,
+				double regCpMul,
+				double regMpMul,
+				double pAtkMul,
+				double pDefMul,
+				double mAtkMul,
+				double mDefMul,
+				int accCombatAdd,
+				int rEvasAdd,
+				double rShldMul,
+				double sDefMul,
+				int runSpdAdd,
+				boolean hasImperium) {
+			this(maxHpMul, maxCpMul, maxMpMul, regHpMul, regCpMul, regMpMul,
+					pAtkMul, pDefMul, mAtkMul, mDefMul, accCombatAdd, rEvasAdd,
+					rShldMul, sDefMul, runSpdAdd, hasImperium,
+					1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+		}
+
 		public static final ClanSkillBonuses NONE = new ClanSkillBonuses(
-				1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0, 0, 1.0, 1.0, 0, false);
+				1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0, 0, 1.0, 1.0, 0, false,
+				1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
 	}
 
 	private final ClanTable clanTable;
@@ -245,20 +275,34 @@ public class ClanSkillService {
 		}
 
 		Clan clan = clanOpt.get();
+		if (clan.reputationScore() < 0) {
+			rebuildPassiveFuncsWithClanSkills(player, Collections.emptyMap());
+			return ClanSkillBonuses.NONE;
+		}
 		ClanMember member = clan.getMember(player.objectId());
 		if (member != null && !isMemberEligibleForClanSkills(member)) {
 			rebuildPassiveFuncsWithClanSkills(player, Collections.emptyMap());
 			return ClanSkillBonuses.NONE;
 		}
 
+		int playerPledgeClass = ClanMember.calculatePledgeClass(player, clan, member);
 		Map<Integer, Integer> clanSkills = clan.skills();
+		Map<Integer, Integer> eligibleSkills = new java.util.HashMap<>();
 		for (var entry : clanSkills.entrySet()) {
-			if (entry.getValue() != null && entry.getValue() > 0) {
-				player.skills().put(entry.getKey(), entry.getValue());
+			int skillId = entry.getKey();
+			Integer lvl = entry.getValue();
+			if (lvl != null && lvl > 0) {
+				int minPledgeClass = skillTreeTable.getSkill(skillId, lvl)
+						.map(PledgeSkillRecord::minPledgeClass)
+						.orElse(0);
+				if (minPledgeClass <= 0 || playerPledgeClass >= minPledgeClass) {
+					player.skills().put(skillId, lvl);
+					eligibleSkills.put(skillId, lvl);
+				}
 			}
 		}
 
-		rebuildPassiveFuncsWithClanSkills(player, clanSkills);
+		rebuildPassiveFuncsWithClanSkills(player, eligibleSkills);
 		return calculateClanSkillBonuses(player);
 	}
 
@@ -287,6 +331,9 @@ public class ClanSkillService {
 			return ClanSkillBonuses.NONE;
 		}
 		Clan clan = clanOpt.get();
+		if (clan.reputationScore() < 0) {
+			return ClanSkillBonuses.NONE;
+		}
 		ClanMember member = clan.getMember(player.objectId());
 		if (member != null && !isMemberEligibleForClanSkills(member)) {
 			return ClanSkillBonuses.NONE;
@@ -311,7 +358,13 @@ public class ClanSkillService {
 		int rEvasAdd = threeLevelAdd(skills.getOrDefault(381, 0), 1, 2, 3);
 		double rShldMul = threeLevelMul(skills.getOrDefault(382, 0), 1.03, 1.05, 1.06);
 		double sDefMul = threeLevelMul(skills.getOrDefault(383, 0), 1.03, 1.05, 1.06);
+		double cyclonicVulnMul = threeLevelMul(skills.getOrDefault(384, 0), 0.97, 0.95, 0.94);
+		double magmaticVulnMul = threeLevelMul(skills.getOrDefault(385, 0), 0.97, 0.95, 0.94);
+		double stunVulnMul = threeLevelMul(skills.getOrDefault(386, 0), 0.88, 0.80, 0.76);
+		double rootVulnMul = threeLevelMul(skills.getOrDefault(387, 0), 0.88, 0.80, 0.76);
+		double sleepVulnMul = threeLevelMul(skills.getOrDefault(388, 0), 0.88, 0.80, 0.76);
 		int runSpdAdd = threeLevelAdd(skills.getOrDefault(389, 0), 3, 5, 6);
+		double expLossMul = threeLevelMul(skills.getOrDefault(390, 0), 0.90, 0.80, 0.75);
 		boolean hasImperium = skills.getOrDefault(391, 0) > 0;
 
 		return new ClanSkillBonuses(
@@ -319,7 +372,9 @@ public class ClanSkillService {
 				regHpMul, regCpMul, regMpMul,
 				pAtkMul, pDefMul, mAtkMul, mDefMul,
 				accCombatAdd, rEvasAdd, rShldMul, sDefMul,
-				runSpdAdd, hasImperium
+				runSpdAdd, hasImperium,
+				cyclonicVulnMul, magmaticVulnMul, stunVulnMul,
+				rootVulnMul, sleepVulnMul, expLossMul
 		);
 	}
 
@@ -369,7 +424,19 @@ public class ClanSkillService {
 				case 381 -> funcs.add(new StatFunc("rEvas", StatFunc.Op.ADD, 0x40, threeLevelAdd(lvl, 1, 2, 3)));
 				case 382 -> funcs.add(new StatFunc("rShld", StatFunc.Op.MUL, 0x30, threeLevelMul(lvl, 1.03, 1.05, 1.06)));
 				case 383 -> funcs.add(new StatFunc("sDef", StatFunc.Op.MUL, 0x30, threeLevelMul(lvl, 1.03, 1.05, 1.06)));
+				case 384 -> {
+					funcs.add(new StatFunc("windVuln", StatFunc.Op.MUL, 0x30, threeLevelMul(lvl, 0.97, 0.95, 0.94)));
+					funcs.add(new StatFunc("waterVuln", StatFunc.Op.MUL, 0x30, threeLevelMul(lvl, 0.97, 0.95, 0.94)));
+				}
+				case 385 -> {
+					funcs.add(new StatFunc("fireVuln", StatFunc.Op.MUL, 0x30, threeLevelMul(lvl, 0.97, 0.95, 0.94)));
+					funcs.add(new StatFunc("earthVuln", StatFunc.Op.MUL, 0x30, threeLevelMul(lvl, 0.97, 0.95, 0.94)));
+				}
+				case 386 -> funcs.add(new StatFunc("stunVuln", StatFunc.Op.MUL, 0x30, threeLevelMul(lvl, 0.88, 0.80, 0.76)));
+				case 387 -> funcs.add(new StatFunc("rootVuln", StatFunc.Op.MUL, 0x30, threeLevelMul(lvl, 0.88, 0.80, 0.76)));
+				case 388 -> funcs.add(new StatFunc("sleepVuln", StatFunc.Op.MUL, 0x30, threeLevelMul(lvl, 0.88, 0.80, 0.76)));
 				case 389 -> funcs.add(new StatFunc("runSpd", StatFunc.Op.ADD, 0x40, threeLevelAdd(lvl, 3, 5, 6)));
+				case 390 -> funcs.add(new StatFunc("lossExp", StatFunc.Op.MUL, 0x30, threeLevelMul(lvl, 0.90, 0.80, 0.75)));
 				default -> {}
 			}
 		}
