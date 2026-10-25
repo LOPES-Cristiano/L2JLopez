@@ -81,10 +81,21 @@ public class RaidBossAI extends FighterAI {
 	public void returnHome() {
 		npc.targetPlayerId(0);
 		npc.inCombat(false);
+		npc.clearAggro();
+		npc.clearActiveEffects();
 		int fromX = npc.x();
 		int fromY = npc.y();
-		npc.moveTo(npc.spawnX(), npc.spawnY(), npc.spawnZ(), npc.spawnHeading());
-		world.updateNpcPosition(npc, fromX, fromY);
+		int sx = npc.spawnX();
+		int sy = npc.spawnY();
+		int sz = npc.spawnZ();
+		int sh = npc.spawnHeading();
+		npc.moveTo(sx, sy, sz, sh);
+		if (world != null) {
+			world.updateNpcPosition(npc, fromX, fromY);
+			var telePkt = new com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation(npc.objectId(), sx, sy, sz, sh);
+			world.broadcastAround(fromX, fromY, GameWorld.VISIBILITY_RADIUS, telePkt);
+			world.broadcastAround(sx, sy, GameWorld.VISIBILITY_RADIUS, new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(npc));
+		}
 		npc.currentHp(npc.maxHp());
 	}
 }
