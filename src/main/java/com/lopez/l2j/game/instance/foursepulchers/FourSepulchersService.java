@@ -14,11 +14,17 @@ import com.lopez.l2j.game.npc.NpcTemplateTable;
 import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import java.time.LocalTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -118,6 +124,7 @@ public class FourSepulchersService {
 
 	private final Map<Integer, SepulcherMausoleum> mausoleums = new ConcurrentHashMap<>();
 	private volatile SepulcherStatus cycleStatus = SepulcherStatus.ENTRY_TIME;
+	private ScheduledExecutorService cycleScheduler;
 
 	@Autowired(required = false)
 	private ItemTemplateTable itemTable;
@@ -173,6 +180,45 @@ public class FourSepulchersService {
 		this.npcTemplateData = npcTemplateData;
 		this.itemRepository = itemRepository;
 		initMausoleums();
+	}
+
+	@PostConstruct
+	public void init() {
+		if (cycleScheduler == null) {
+			cycleScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+				Thread t = new Thread(r, "FourSepulchers-CycleTimer");
+				t.setDaemon(true);
+				return t;
+			});
+			cycleScheduler.scheduleAtFixedRate(this::updateCycleFromClock, 60L, 60L, TimeUnit.SECONDS);
+		}
+	}
+
+	@PreDestroy
+	public void shutdown() {
+		if (cycleScheduler != null) {
+			cycleScheduler.shutdownNow();
+			cycleScheduler = null;
+		}
+	}
+
+	/**
+	 * Atualiza o estado do ciclo horario oficial dos Quatro Sepulcros:
+	 * Minutos 55..59 = ENTRY_TIME, 00..49 = ATTACK_TIME, 50..54 = COOL_TIME.
+	 */
+	public void updateCycleFromClock() {
+		int minute = LocalTime.now().getMinute();
+		SepulcherStatus target;
+		if (minute >= 55) {
+			target = SepulcherStatus.ENTRY_TIME;
+		} else if (minute >= 50) {
+			target = SepulcherStatus.COOL_TIME;
+		} else {
+			target = SepulcherStatus.ATTACK_TIME;
+		}
+		if (target != this.cycleStatus) {
+			setCycleStatus(target);
+		}
 	}
 
 	public void setInventoryService(InventoryService inventoryService) {
@@ -378,7 +424,7 @@ public class FourSepulchersService {
 	}
 
 	/**
-	 * Derrota a Sombra de Halisha na 5ª sala e entrega o Cálice correspondente.
+	 * Derrota a Sombra de Halisha na 5ª sala e entrega o Cálice correspondente para toda a party.
 	 */
 	public synchronized boolean defeatShadowOfHalisha(int sepulcherId, PlayerCharacter leader) {
 		SepulcherMausoleum m = mausoleums.get(sepulcherId);
@@ -386,10 +432,22 @@ public class FourSepulchersService {
 			return false;
 		}
 
-		deliverItem(leader, m.gobletId(), 1);
+		boolean leaderDelivered = false;
+		for (PlayerCharacter member : m.partyMembers()) {
+			if (member != null) {
+				deliverItem(member, m.gobletId(), 1);
+				if (leader != null && member.objectId() == leader.objectId()) {
+					leaderDelivered = true;
+				}
+			}
+		}
+		if (!leaderDelivered && leader != null) {
+			deliverItem(leader, m.gobletId(), 1);
+		}
+
 		despawnMausoleumMonsters(m);
 		m.reset(); // Sepulcro concluido com sucesso
-		log.info("Sombra de Halisha derrotada no Sepulcro {}! Calice {} entregue a {}",
+		log.info("Sombra de Halisha derrotada no Sepulcro {}! Calice {} entregue a party de {}",
 				sepulcherId, m.gobletId(), leader != null ? leader.name() : "Leader");
 		return true;
 	}
