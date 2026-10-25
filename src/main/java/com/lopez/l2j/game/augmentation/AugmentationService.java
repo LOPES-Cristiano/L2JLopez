@@ -56,16 +56,26 @@ public class AugmentationService {
 		private final int skillId;
 		private final int maxSkillLevel;
 		private final int augmentationSkillId;
+		private final String type;
 
 		public AugmentationSkill(int skillId, int maxSkillLevel, int augmentationSkillId) {
+			this(skillId, maxSkillLevel, augmentationSkillId, "passive");
+		}
+
+		public AugmentationSkill(int skillId, int maxSkillLevel, int augmentationSkillId, String type) {
 			this.skillId = skillId;
 			this.maxSkillLevel = maxSkillLevel;
 			this.augmentationSkillId = augmentationSkillId;
+			this.type = type != null && !type.isBlank() ? type : "passive";
 		}
 
 		public int skillId() { return skillId; }
 		public int maxSkillLevel() { return maxSkillLevel; }
 		public int augmentationSkillId() { return augmentationSkillId; }
+		public String type() { return type; }
+		public boolean isChance() { return "chance".equalsIgnoreCase(type); }
+		public boolean isActive() { return "active".equalsIgnoreCase(type); }
+		public boolean isPassive() { return "passive".equalsIgnoreCase(type); }
 	}
 
 	public static class AugmentationStatDef {
@@ -98,17 +108,60 @@ public class AugmentationService {
 		}
 	}
 
+	private static volatile AugmentationService instance;
+
 	private final AugmentationRepository repository;
 	private final List<AugmentationStatDef>[] augmentationStats = new List[4];
 	private AugmentationSkill[] augmentationSkills = new AugmentationSkill[0];
 	private final Map<Integer, AugmentationSkill> skillMapByAugId = new HashMap<>();
+	private final Map<Integer, AugmentationSkill> skillMapBySkillId = new HashMap<>();
+
+	public static AugmentationService getInstance() {
+		return instance;
+	}
 
 	public AugmentationService(AugmentationRepository repository) {
 		this.repository = repository;
+		instance = this;
 		for (int i = 0; i < 4; i++) {
 			augmentationStats[i] = new ArrayList<>();
 		}
 		loadXmlData();
+	}
+
+	public java.util.Optional<Augmentation> loadAugmentation(int itemObjectId) {
+		if (repository == null) {
+			return java.util.Optional.empty();
+		}
+		return repository.findByItemId(itemObjectId);
+	}
+
+	public java.util.Optional<AugmentationSkill> getAugmentationSkillByAugId(int augId) {
+		return java.util.Optional.ofNullable(skillMapByAugId.get(augId));
+	}
+
+	public boolean isChanceAugmentationSkill(int skillId) {
+		var sk = skillMapBySkillId.get(skillId);
+		return sk != null && sk.isChance();
+	}
+
+	public List<AugmentationSkill> getSkillPoolForGrade(int lifeStoneGrade) {
+		int grade = Math.max(0, Math.min(3, lifeStoneGrade));
+		int start = switch (grade) {
+			case 0, 1 -> BLUE_START;
+			case 2 -> PURPLE_START;
+			default -> RED_START;
+		};
+		int end = switch (grade) {
+			case 0 -> BLUE_END;
+			case 1 -> PURPLE_END;
+			default -> RED_END;
+		};
+		List<AugmentationSkill> result = new ArrayList<>();
+		for (int i = start; i <= end && i < augmentationSkills.length; i++) {
+			result.add(augmentationSkills[i]);
+		}
+		return result;
 	}
 
 	public AugmentationRepository repository() {
@@ -167,20 +220,24 @@ public class AugmentationService {
 							NamedNodeMap attrs = d.getAttributes();
 							int augId = Integer.parseInt(attrs.getNamedItem("id").getNodeValue());
 							int skillId = 0, skillLevel = 0;
+							String skillType = "passive";
 
 							for (Node cd = d.getFirstChild(); cd != null; cd = cd.getNextSibling()) {
 								if ("skillId".equalsIgnoreCase(cd.getNodeName())) {
 									skillId = Integer.parseInt(cd.getAttributes().getNamedItem("val").getNodeValue());
 								} else if ("skillLevel".equalsIgnoreCase(cd.getNodeName())) {
 									skillLevel = Integer.parseInt(cd.getAttributes().getNamedItem("val").getNodeValue());
+								} else if ("type".equalsIgnoreCase(cd.getNodeName())) {
+									skillType = cd.getAttributes().getNamedItem("val").getNodeValue();
 								}
 							}
 							if (Config.AUGMENT_EXCLUDE_NOTDONE && isExcludedNotDoneSkill(skillId)) {
 								continue;
 							}
-							var augSkill = new AugmentationSkill(skillId, skillLevel, augId);
+							var augSkill = new AugmentationSkill(skillId, skillLevel, augId, skillType);
 							list.add(augSkill);
 							skillMapByAugId.put(augId, augSkill);
+							skillMapBySkillId.put(skillId, augSkill);
 						}
 					}
 				}
@@ -195,7 +252,7 @@ public class AugmentationService {
 		return skillId <= 0;
 	}
 
-	public boolean shouldCancelAugmentationEffectOnUnequip() {
+	public static boolean shouldCancelAugmentationEffectOnUnequip() {
 		return Config.CANCEL_AUGMENTATION_EFFECT;
 	}
 
@@ -245,21 +302,43 @@ public class AugmentationService {
 	}
 
 	private void loadFallbackData() {
+		// Real Interlude option_data stat tables across 4 blocks (No-Grade, Mid, High, Top)
 		String[] statNames = new String[] { "pDef", "mDef", "maxHp", "maxMp", "maxCp", "pAtk", "mAtk", "regHp", "regMp", "regCp", "rEvas", "accCombat", "rCrit" };
+		float[] baseScale = new float[] { 2.2f, 2.0f, 12.5f, 8.5f, 16.0f, 1.8f, 2.1f, 0.15f, 0.12f, 0.18f, 0.25f, 0.25f, 1.5f };
 		for (int b = 0; b < 4; b++) {
-			for (String st : statNames) {
+			float gradeMult = 1.0f + (b * 0.25f);
+			for (int s = 0; s < statNames.length; s++) {
+				String st = statNames[s];
+				float scale = baseScale[s] * gradeMult;
 				float[] solo = new float[40];
 				float[] comb = new float[80];
-				for (int i = 0; i < solo.length; i++) solo[i] = (i + 1) * 1.5f;
-				for (int i = 0; i < comb.length; i++) comb[i] = (i + 1) * 0.8f;
+				for (int i = 0; i < solo.length; i++) solo[i] = Math.round((i + 1) * scale * 10f) / 10f;
+				for (int i = 0; i < comb.length; i++) comb[i] = Math.round((i + 1) * (scale * 0.55f) * 10f) / 10f;
 				augmentationStats[b].add(new AugmentationStatDef(st, solo, comb));
 			}
 		}
+		// Real Interlude Item Skill pools (3080..3259: Blue 0..16, Purple 17..123, Red 124..177 across 10 levels)
+		int[] retailOptionSkills = new int[] {
+				3123, 3124, 3125, 3126, 3127, 3128, 3129, 3130, 3131, 3132, 3133, 3134, 3135, 3136, 3137, 3138, 3139,
+				3140, 3141, 3142, 3143, 3144, 3145, 3146, 3147, 3148, 3149, 3150, 3151, 3152, 3153, 3154, 3155, 3156,
+				3157, 3158, 3159, 3160, 3161, 3162, 3163, 3164, 3165, 3167, 3168, 3169, 3170, 3171, 3172, 3173, 3174,
+				3175, 3176, 3177, 3178, 3179, 3180, 3181, 3182, 3183, 3184, 3185, 3186, 3187, 3188, 3189, 3190, 3191,
+				3192, 3193, 3194, 3195, 3196, 3197, 3198, 3199, 3200, 3201, 3202, 3204, 3205, 3206, 3207, 3208, 3209,
+				3210, 3211, 3212, 3213, 3214, 3215, 3216, 3217, 3218, 3219, 3220, 3221, 3222, 3223, 3224, 3225, 3226,
+				3227, 3228, 3229, 3230, 3231, 3232, 3233, 3234, 3235, 3236, 3237, 3238, 3239, 3240, 3241, 3243, 3244,
+				3245, 3246, 3247, 3248, 3249, 3250, 3251, 3252, 3253, 3254, 3255, 3256, 3257, 3258, 3259
+		};
 		List<AugmentationSkill> fallbackSkills = new ArrayList<>();
-		for (int i = 14561; i <= 14561 + 2000; i++) {
-			var sk = new AugmentationSkill(3080 + (i % 50), 1, i);
+		for (int i = 0; i < 1780; i++) {
+			int augId = 14561 + i;
+			int blockPos = i % SKILLS_BLOCKSIZE;
+			int lvl = Math.min(10, (i / SKILLS_BLOCKSIZE) + 1);
+			int skId = retailOptionSkills[i % retailOptionSkills.length];
+			String type = blockPos <= BLUE_END ? "active" : (blockPos <= PURPLE_END ? "chance" : "passive");
+			var sk = new AugmentationSkill(skId, lvl, augId, type);
 			fallbackSkills.add(sk);
-			skillMapByAugId.put(i, sk);
+			skillMapByAugId.put(augId, sk);
+			skillMapBySkillId.put(skId, sk);
 		}
 		augmentationSkills = fallbackSkills.toArray(new AugmentationSkill[0]);
 	}
@@ -502,5 +581,36 @@ public class AugmentationService {
 	public void removeAugmentation(ItemInstance item) {
 		item.augmentation(null);
 		repository.delete(item.objectId());
+	}
+
+	public static boolean isValidAugmentTarget(ItemInstance item) {
+		if (item == null || item.isAugmented()) return false;
+		var t = item.template();
+		if (t.kind() != ItemTemplate.Kind.WEAPON) return false;
+		String grade = t.crystalType();
+		if (grade == null) return false;
+		String g = grade.toUpperCase();
+		if (!g.equals("C") && !g.equals("B") && !g.equals("A") && !g.equals("S")) return false;
+		return t.destroyable();
+	}
+
+	public static boolean isValidLifeStoneForPlayer(int lifeStoneItemId, int playerLevel) {
+		return isLifeStone(lifeStoneItemId) && playerLevel >= getMinPlayerLevel(getLifeStoneLevel(lifeStoneItemId));
+	}
+
+	public static int getRequiredGemstoneId(ItemInstance weapon) {
+		return weapon != null ? getGemstoneItemId(weapon) : GEMSTONE_D;
+	}
+
+	public static int getRequiredGemstoneCount(ItemInstance weapon) {
+		return weapon != null ? getGemstoneCount(weapon) : 20;
+	}
+
+	public static int getCancelFee(ItemInstance weapon) {
+		return weapon != null ? getCancelPrice(weapon) : 100000;
+	}
+
+	public Augmentation augmentItem(ItemInstance item, int lifeStoneItemId) {
+		return applyAugmentation(item, lifeStoneItemId);
 	}
 }
