@@ -78,15 +78,125 @@ public class CommandPacketHandler {
 			session.onActionUse(new GameClientPacket.RequestActionUse(2, false, false));
 		} else if (lower.equals("/leave") || lower.equals("/partyleave")) {
 			session.onLeaveParty();
+		} else if (lower.equals("/allblock")) {
+			session.socialHandler().handleBlock(new GameClientPacket.RequestBlock(GameClientPacket.RequestBlock.ALLBLOCK, ""));
+		} else if (lower.equals("/allunblock")) {
+			session.socialHandler().handleBlock(new GameClientPacket.RequestBlock(GameClientPacket.RequestBlock.ALLUNBLOCK, ""));
+		} else if (lower.equals("/blocklist")) {
+			session.socialHandler().handleBlock(new GameClientPacket.RequestBlock(GameClientPacket.RequestBlock.BLOCKLIST, ""));
+		} else if (lower.startsWith("/block ")) {
+			String targetName = cmd.substring(7).trim();
+			session.socialHandler().handleBlock(new GameClientPacket.RequestBlock(GameClientPacket.RequestBlock.BLOCK, targetName));
+		} else if (lower.startsWith("/unblock ")) {
+			String targetName = cmd.substring(9).trim();
+			session.socialHandler().handleBlock(new GameClientPacket.RequestBlock(GameClientPacket.RequestBlock.UNBLOCK, targetName));
+		} else if (lower.equals("/evaluate") || lower.equals("/recommend")) {
+			session.socialHandler().handleEvaluate(new GameClientPacket.RequestEvaluate(session.targetObjectId()));
+		} else if (lower.equals("/friendlist")) {
+			session.onFriendList();
+		} else if (lower.startsWith("/friendinvite ")) {
+			session.onFriendInvite(new GameClientPacket.RequestFriendInvite(cmd.substring(14).trim()));
+		} else if (lower.startsWith("/frienddel ")) {
+			session.onFriendDel(new GameClientPacket.RequestFriendDel(cmd.substring(11).trim()));
+		} else if (lower.equals("/mount")) {
+			session.onUserCommand(61);
+		} else if (lower.equals("/dismount")) {
+			session.onUserCommand(62);
+		} else if (lower.equals("/partyinfo")) {
+			session.onUserCommand(81);
+		} else if (lower.equals("/attacklist")) {
+			session.onUserCommand(88);
+		} else if (lower.equals("/underattacklist")) {
+			session.onUserCommand(89);
+		} else if (lower.equals("/warlist")) {
+			session.onUserCommand(90);
+		} else if (lower.equals("/clanpenalty")) {
+			session.onUserCommand(99);
+		} else if (lower.equals("/siegestatus")) {
+			session.onUserCommand(100);
+		} else if (lower.equals("/instancezone")) {
+			session.onUserCommand(114);
 		} else if (lower.equals("/offline")) {
-			if (!com.lopez.l2j.config.Config.ALLOW_OFFLINE_TRADE) {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Modo offline desativado pelo servidor."));
-				return;
-			}
-			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Modo offline ativado. Desconectando sessao..."));
-			session.onLogout();
+			activateOfflineTrade();
 		} else {
 			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Comando: " + cmd));
+		}
+	}
+
+	private void activateOfflineTrade() {
+		PlayerCharacter active = active();
+		var ctx = ctx();
+		if (active == null) {
+			return;
+		}
+		if (!com.lopez.l2j.config.Config.ALLOW_OFFLINE_TRADE) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Modo offline desativado pelo servidor."));
+			return;
+		}
+		if (active.isInCombat() || active.isDead() || active.karma() > 0 || active.isInOlympiadMode()) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					"Nao e possivel ativar o modo offline em combate, morto, com karma ou nas Olimpiadas."));
+			return;
+		}
+		int storeType = active.privateStoreType();
+		boolean validStore = storeType == OfflineTradeService.STORE_PRIVATE_SELL
+				|| storeType == OfflineTradeService.STORE_PRIVATE_BUY
+				|| storeType == OfflineTradeService.STORE_PRIVATE_MANUFACTURE
+				|| storeType == OfflineTradeService.STORE_PRIVATE_PACKAGE_SELL
+				|| active.isBuffShop();
+		if (!validStore) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					"Voce precisa estar com uma loja pessoal aberta para ativar o modo offline."));
+			return;
+		}
+		OfflineTradeService svc = (ctx != null && ctx.offlineTrade() != null)
+				? ctx.offlineTrade()
+				: OfflineTradeService.getInstance();
+		if (svc == null) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema de loja offline desativado."));
+			return;
+		}
+		int mode = storeType != 0 ? storeType : OfflineTradeService.STORE_PRIVATE_SELL;
+		boolean packaged = (mode == OfflineTradeService.STORE_PRIVATE_PACKAGE_SELL);
+		String title = active.storeTitle();
+		List<OfflineShopItem> items = new ArrayList<>();
+
+		if (mode == OfflineTradeService.STORE_PRIVATE_SELL || mode == OfflineTradeService.STORE_PRIVATE_PACKAGE_SELL) {
+			var sellList = svc.getSellStoreList(active.objectId());
+			if (sellList != null && !sellList.items().isEmpty()) {
+				items.addAll(sellList.items());
+				packaged = sellList.packageSale();
+				if (sellList.title() != null && !sellList.title().isBlank()) {
+					title = sellList.title();
+				}
+			}
+		} else if (mode == OfflineTradeService.STORE_PRIVATE_BUY) {
+			var buyList = svc.getBuyStoreList(active.objectId());
+			if (buyList != null && !buyList.items().isEmpty()) {
+				items.addAll(buyList.items());
+				if (buyList.title() != null && !buyList.title().isBlank()) {
+					title = buyList.title();
+				}
+			}
+		}
+		if (items.isEmpty()) {
+			// Fallback apenas para BuffShop ou testes unitarios sem SellStoreList populada
+			items.add(new OfflineShopItem(57, 1, 1));
+		}
+		boolean ok = svc.startOfflineTrade(
+				active,
+				mode,
+				packaged,
+				title,
+				items,
+				OfflineTradeService.DEFAULT_OFFLINE_DURATION
+		);
+		if (ok) {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Modo offline ativado com sucesso! Desconectando sessao..."));
+			active.sitting(true);
+			session.close(new ServerClose());
+		} else {
+			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel ativar o modo offline."));
 		}
 	}
 
@@ -239,31 +349,7 @@ public class CommandPacketHandler {
 		} else if (lower.equals(".classmaster") || lower.equals(".class")) {
 			session.showClassMasterMenu(0, 0);
 		} else if (lower.equals(".offline")) {
-			if (ctx.offlineTrade() == null) {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema de loja offline desativado."));
-				return;
-			}
-			if (active.privateStoreType() == 0 && !active.isBuffShop()) {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce precisa estar com uma loja pessoal aberta para ativar o modo offline."));
-				return;
-			}
-			List<OfflineShopItem> items = new ArrayList<>();
-			items.add(new OfflineShopItem(57, 1, 1));
-			boolean ok = ctx.offlineTrade().startOfflineTrade(
-					active,
-					active.privateStoreType() != 0 ? active.privateStoreType() : OfflineTradeService.STORE_PRIVATE_SELL,
-					false,
-					active.storeTitle(),
-					items,
-					OfflineTradeService.DEFAULT_OFFLINE_DURATION
-			);
-			if (ok) {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Modo offline ativado com sucesso! Desconectando sessao..."));
-				active.sitting(true);
-				session.close(new ServerClose());
-			} else {
-				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel ativar o modo offline."));
-			}
+			activateOfflineTrade();
 		} else if (lower.equals(".deposit")) {
 			if (!com.lopez.l2j.config.Config.BANKING_SYSTEM_ENABLED) {
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sistema bancario desativado."));
