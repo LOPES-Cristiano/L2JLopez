@@ -35,6 +35,11 @@ public class DoorTable {
 	private final Map<Integer, DoorInstance> byDoorId = new ConcurrentHashMap<>();
 	private final Map<Integer, DoorInstance> byObjectId = new ConcurrentHashMap<>();
 	private final ObjectIdFactory objectIdFactory;
+	private final java.util.concurrent.ScheduledExecutorService autoDoorScheduler =
+			java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+				Thread t = Thread.ofVirtual().name("DoorAutoActionScheduler").unstarted(r);
+				return t;
+			});
 
 	@Autowired
 	public DoorTable(@Value("${l2.datapack.xml-dir:data/xml}") String xmlDir, ObjectIdFactory idFactory) {
@@ -62,6 +67,9 @@ public class DoorTable {
 			com.lopez.l2j.game.geodata.GeoEngine geo = com.lopez.l2j.game.geodata.GeoEngine.peekInstance();
 			if (geo != null) {
 				geo.addGeoObject(door);
+			}
+			if (door.autoActionDelayMs() > 0) {
+				door.scheduleAutoAction(autoDoorScheduler);
 			}
 		}
 	}
@@ -135,6 +143,10 @@ public class DoorTable {
 				Element e = (Element) doorNodes.item(i);
 				int doorId = Integer.parseInt(e.getAttribute("id"));
 				String name = e.getAttribute("name");
+				int castleId = e.hasAttribute("castleId") ? Integer.parseInt(e.getAttribute("castleId")) : 0;
+				int clanHallId = e.hasAttribute("clanHallId") ? Integer.parseInt(e.getAttribute("clanHallId")) : 0;
+				int fortId = e.hasAttribute("fortId") ? Integer.parseInt(e.getAttribute("fortId")) : 0;
+				long autoDelayMs = e.hasAttribute("autoActionDelay") ? Long.parseLong(e.getAttribute("autoActionDelay")) : 0L;
 
 				int x = 0, y = 0, z = 0;
 				int xMin = 0, xMax = 0, yMin = 0, yMax = 0, zMin = 0, zMax = 0;
@@ -163,6 +175,11 @@ public class DoorTable {
 							mdef = Integer.parseInt(child.getAttribute("mdef"));
 							unlockable = Boolean.parseBoolean(child.getAttribute("unlockable"));
 							isOpen = Boolean.parseBoolean(child.getAttribute("isOpen"));
+							if (child.hasAttribute("autoActionDelay")) {
+								autoDelayMs = Long.parseLong(child.getAttribute("autoActionDelay"));
+							} else if (child.hasAttribute("closeTime")) {
+								autoDelayMs = Long.parseLong(child.getAttribute("closeTime")) * 1000L;
+							}
 						}
 					}
 				}
@@ -170,8 +187,11 @@ public class DoorTable {
 				int objId = objectIdFactory.nextId();
 				DoorInstance door = new DoorInstance(objId, doorId, name, x, y, z,
 						xMin, xMax, yMin, yMax, zMin, zMax, hp, pdef, mdef, unlockable, isOpen);
-				byDoorId.put(doorId, door);
-				byObjectId.put(objId, door);
+				door.castleId(castleId);
+				door.clanHallId(clanHallId);
+				door.fortId(fortId);
+				door.autoActionDelayMs(autoDelayMs);
+				register(door);
 			}
 
 			log.info("DoorTable: {} portas carregadas de {}", byDoorId.size(), file.getFileName());
@@ -190,6 +210,7 @@ public class DoorTable {
 		try {
 			jdbc.sql("SELECT castleId, id, name, x, y, z, range_xmin, range_ymin, range_zmin, range_xmax, range_ymax, range_zmax, hp, pDef, mDef FROM castle_door")
 					.query((rs, i) -> {
+						int castleId = rs.getInt("castleId");
 						int doorId = rs.getInt("id");
 						String name = rs.getString("name");
 						int x = rs.getInt("x");
@@ -208,8 +229,8 @@ public class DoorTable {
 						int objId = objectIdFactory != null ? objectIdFactory.nextId() : doorId;
 						DoorInstance door = new DoorInstance(objId, doorId, name, x, y, z,
 								xMin, xMax, yMin, yMax, zMin, zMax, hp, pDef, mDef, false, false);
-						byDoorId.put(doorId, door);
-						byObjectId.put(objId, door);
+						door.castleId(castleId);
+						register(door);
 						return null;
 					}).list();
 			log.info("DoorTable: {} portas de castelos registradas de castle_door", byDoorId.size());
