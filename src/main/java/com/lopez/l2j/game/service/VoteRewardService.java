@@ -10,8 +10,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
- * Servico de recompensa por votos em rankings (Onda 14: vote.properties).
- * Controla os parametros de API (TopZone, HopZone, L2Network), intervalo de 12 horas e entrega de itens.
+ * Servico de recompensa por votos em rankings (Onda 14: vote.properties / #510).
+ * Controla os parametros de API (TopZone, HopZone, L2Network), intervalo de 12 horas,
+ * leitura e escrita na tabela `mods_voting_reward` (V97) e entrega de itens.
  */
 @Service
 public class VoteRewardService {
@@ -40,6 +41,7 @@ public class VoteRewardService {
 		this.inventoryService = inventoryService;
 		this.characterVariablesService = characterVariablesService;
 		this.jdbc = jdbc;
+		loadCooldownsFromDb();
 	}
 
 	public void setInventoryService(InventoryService inventoryService) {
@@ -50,8 +52,37 @@ public class VoteRewardService {
 		this.characterVariablesService = characterVariablesService;
 	}
 
+	public void loadCooldownsFromDb() {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			var rows = jdbc.sql("SELECT data, scope, time FROM mods_voting_reward").query().listOfRows();
+			for (var r : rows) {
+				String data = (String) r.get("data");
+				String scope = (String) r.get("scope");
+				long time = r.get("time") instanceof Number n ? n.longValue() : 0L;
+				if (data != null && time > 0) {
+					int openIdx = data.lastIndexOf('(');
+					int closeIdx = data.lastIndexOf(')');
+					if (openIdx >= 0 && closeIdx > openIdx) {
+						try {
+							int objId = Integer.parseInt(data.substring(openIdx + 1, closeIdx).trim());
+							lastVoteTimes.merge(objId, time, Math::max);
+							if (scope != null && !scope.isBlank()) {
+								siteVoteTimes.merge(objId + ":" + scope.trim().toUpperCase(), time, Math::max);
+							}
+						} catch (NumberFormatException ignored) {}
+					}
+				}
+			}
+		} catch (Exception e) {
+			log.debug("VoteRewardService loadCooldownsFromDb: {}", e.getMessage());
+		}
+	}
+
 	/**
-	 * Verifica o cooldown do voto (em memória e via CharacterVariablesService "VOTE_LAST_" + siteName),
+	 * Verifica o cooldown do voto (em memória, via CharacterVariablesService e tabela mods_voting_reward),
 	 * registra o voto e entrega a recompensa (DEFAULT_REWARD_ITEM_ID = 57, DEFAULT_REWARD_COUNT = 100_000)
 	 * na mochila e no banco do jogador via InventoryService.
 	 */
@@ -170,4 +201,3 @@ public class VoteRewardService {
 		siteVoteTimes.keySet().removeIf(k -> k.startsWith(objectId + ":"));
 	}
 }
-
