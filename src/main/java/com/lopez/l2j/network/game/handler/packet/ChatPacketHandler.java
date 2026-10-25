@@ -202,6 +202,7 @@ public class ChatPacketHandler {
 				if (party != null) {
 					party.broadcast(new CreatureSay(active.objectId(), CreatureSay.PARTY, active.name(), text));
 				} else {
+					session.send(com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage.id(200));
 					session.send(new CreatureSay(0, CreatureSay.ALL, "System", "Voce nao esta em uma party."));
 				}
 			}
@@ -209,8 +210,9 @@ public class ChatPacketHandler {
 				if (active.clanId() > 0) {
 					ctx.world().broadcast(
 							new CreatureSay(active.objectId(), CreatureSay.CLAN, active.name(), text),
-							s -> s.character().clanId() == active.clanId());
+							s -> s.character() != null && s.character().clanId() == active.clanId());
 				} else {
+					session.send(com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage.id(212));
 					session.send(new CreatureSay(0, CreatureSay.ALL, "System", "Voce nao esta em um cla."));
 				}
 			}
@@ -221,27 +223,36 @@ public class ChatPacketHandler {
 						if (clanOpt.isPresent() && clanOpt.get().allyId() > 0) {
 							ctx.alliances().broadcastAllyChat(active, text, ctx.world());
 						} else {
+							session.send(com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage.id(491));
 							session.send(new CreatureSay(0, CreatureSay.ALL, "System", "Voce nao esta em uma alianca."));
 						}
 					} else {
 						ctx.world().broadcast(
 								new CreatureSay(active.objectId(), CreatureSay.ALLIANCE, active.name(), text),
-								s -> s.character().clanId() == active.clanId());
+								s -> s.character() != null && s.character().clanId() == active.clanId());
 					}
 				} else {
+					session.send(com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage.id(491));
 					session.send(new CreatureSay(0, CreatureSay.ALL, "System", "Voce nao esta em uma alianca."));
 				}
 			}
 			case CreatureSay.TELL -> {
 				var target = ctx.world().byName(p.target());
-				if (target.isEmpty()) {
+				if (target.isEmpty() || target.get().character() == null) {
+					session.send(com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage.of(145,
+							new com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage.Text(p.target() != null ? p.target() : "")));
 					String serverName = ctx.serverName() != null ? ctx.serverName() : "Server";
 					session.send(new CreatureSay(0, CreatureSay.ANNOUNCEMENT, serverName,
 							p.target() + " nao esta online."));
 					return;
 				}
-				if (target.get().character() != null && ctx.friends() != null
-						&& ctx.friends().isBlocked(target.get().character(), active)) {
+				var targetChar = target.get().character();
+				boolean blockedByFriendList = ctx.friends() != null && ctx.friends().isBlocked(targetChar, active);
+				boolean blockedByRefusal = !active.isGm() && (targetChar.isBlockingAll()
+						|| targetChar.isBlocked(active.name())
+						|| (ctx.preferences() != null && ctx.preferences().getPreferences(targetChar.objectId()).isBlockPm()));
+				if (blockedByFriendList || blockedByRefusal) {
+					session.send(com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage.id(176));
 					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 							target.get().name() + " esta bloqueando mensagens de voce."));
 					return;
