@@ -6,6 +6,7 @@ import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.game.skill.SkillService;
 import com.lopez.l2j.game.skill.SkillTable;
 import com.lopez.l2j.game.skill.SkillTemplate;
+import com.lopez.l2j.game.world.GameWorld;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -23,9 +24,9 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
 /**
- * Servico de Buff Shop e Lojas Offline de Buffs (Item 39 do Roteiro Mestre).
+ * Servico de Buff Shop e Lojas Offline de Buffs (Item 39 do Roteiro Mestre / #498).
  * Permite que jogadores sentem em modo loja vendendo seus buffs por Adena para outros jogadores,
- * com suporte completo a persistencia offline no banco de dados.
+ * com suporte completo a persistencia offline no banco de dados e restauracao no GameWorld.
  */
 @Service
 public class BuffShopService {
@@ -559,7 +560,6 @@ public class BuffShopService {
 		var draft = getDraftOrActiveItems(seller, skillTable);
 		String title = getDraftTitle(seller);
 
-		int catDraftCount = (int) filtered.stream().filter(b -> draft.containsKey(b.skillId())).count();
 		int totalDraftCount = draft.size();
 
 		int pageSize = 8;
@@ -932,12 +932,49 @@ public class BuffShopService {
 					itemMap.put(skillId, new BuffShopItem(skillId, 1, price, "Skill #" + skillId));
 				}
 
-				BuffShop shop = new BuffShop(charId, "OfflineTrader", title != null ? title : "Buff Shop", itemMap, time, true);
+				String sellerName = resolveSellerNameAndSpawnOfflineBuffer(charId, title);
+				BuffShop shop = new BuffShop(charId, sellerName, title != null ? title : "Buff Shop", itemMap, time, true);
 				activeShops.put(charId, shop);
 			}
 			log.info("BuffShopService: {} lojas offline carregadas do banco de dados.", rows.size());
 		} catch (Exception e) {
 			log.warn("Aviso ao carregar lojas de buff offline: {}", e.getMessage());
 		}
+	}
+
+	private String resolveSellerNameAndSpawnOfflineBuffer(int charId, String title) {
+		try {
+			var charRows = jdbc.sql("SELECT account_name, char_name, level, race, classid, sex, x, y, z FROM characters WHERE charId = :id")
+					.param("id", charId)
+					.query().listOfRows();
+			if (charRows != null && !charRows.isEmpty()) {
+				var c = charRows.get(0);
+				String name = (String) c.get("char_name");
+				GameWorld world = GameWorld.getInstance();
+				if (world != null && name != null) {
+					String acc = (String) c.get("account_name");
+					int lvl = c.get("level") instanceof Number n ? n.intValue() : 80;
+					int race = c.get("race") instanceof Number n ? n.intValue() : 0;
+					int classId = c.get("classid") instanceof Number n ? n.intValue() : 0;
+					boolean sex = c.get("sex") instanceof Number n && n.intValue() == 1;
+					int x = c.get("x") instanceof Number n ? n.intValue() : 83400;
+					int y = c.get("y") instanceof Number n ? n.intValue() : 147943;
+					int z = c.get("z") instanceof Number n ? n.intValue() : -3404;
+					PlayerCharacter pc = new PlayerCharacter(charId, acc != null ? acc : "offline", name, lvl, 0L, 0,
+							classId, classId, race, sex, 0, 0, 0, 1000, 1000, 1000, 0, 0, 0, 0, "", 0, 0L, 0L,
+							x, y, z, 0, 1000.0, 1000.0, 1000.0);
+					pc.sitting(true);
+					pc.privateStoreType(1);
+					pc.setBuffShop(true);
+					pc.storeTitle(title != null ? title : "Buff Shop");
+					world.registerPlayer(new GameWorld.SimpleOnlinePlayer(pc, pkt -> {}));
+				}
+				if (name != null && !name.isBlank()) {
+					return name;
+				}
+			}
+		} catch (Exception ignored) {
+		}
+		return "OfflineTrader";
 	}
 }
