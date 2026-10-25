@@ -237,7 +237,7 @@ public class GeoEngine {
 
 			int curOffset = offset + 1;
 			for (int c = 0; c < 64; c++) {
-				byte layers = buf.get(curOffset);
+				int layers = buf.get(curOffset) & 0xFF;
 				curOffset++;
 				if (c == targetCell) {
 					short bestZ = Short.MIN_VALUE;
@@ -265,18 +265,18 @@ public class GeoEngine {
 	}
 
 	/**
-	 * Obtem as flags de movimento direcional NSWE (East=1, West=2, South=4, North=8) da celula (X, Y, Z).
+	 * Obtem simultaneamente altura Z (bits 31..16) e NSWE (bits 7..0) em uma unica passagem pelo bloco.
 	 */
-	public byte getNSWE(int x, int y, int z) {
+	public int getHeightAndNSWE(int x, int y, int z) {
 		if (!isEnabled()) {
-			return ALL_DIRECTIONS;
+			return (((short) z) << 16) | (ALL_DIRECTIONS & 0xFF);
 		}
 
 		int regX = getRegionX(x);
 		int regY = getRegionY(y);
 		RegionData region = getRegion(regX, regY);
 		if (region == null) {
-			return ALL_DIRECTIONS;
+			return (((short) z) << 16) | (ALL_DIRECTIONS & 0xFF);
 		}
 
 		int localX = x - ((regX - 20) << 15);
@@ -286,20 +286,23 @@ public class GeoEngine {
 		int blockIdx = (blockX << 8) | blockY;
 		int offset = region.blockOffsets[blockIdx];
 		if (offset < 0 || offset >= region.buffer.capacity()) {
-			return ALL_DIRECTIONS;
+			return (((short) z) << 16) | (ALL_DIRECTIONS & 0xFF);
 		}
 
 		ByteBuffer buf = region.buffer;
 		byte type = buf.get(offset);
 
 		if (type == BLOCK_TYPE_FLAT) {
-			return ALL_DIRECTIONS;
+			short h = buf.getShort(offset + 1);
+			return (h << 16) | (ALL_DIRECTIONS & 0xFF);
 		} else if (type == BLOCK_TYPE_COMPLEX) {
 			int cellX = (localX >> 4) & 0x07;
 			int cellY = (localY >> 4) & 0x07;
 			int cellIdx = (cellX << 3) | cellY;
 			short raw = buf.getShort(offset + 1 + (cellIdx << 1));
-			return decodeNSWE(raw);
+			short h = decodeGeoHeight(raw);
+			byte nswe = decodeNSWE(raw);
+			return (h << 16) | (nswe & 0xFF);
 		} else if (type == BLOCK_TYPE_MULTILAYER) {
 			int cellX = (localX >> 4) & 0x07;
 			int cellY = (localY >> 4) & 0x07;
@@ -307,11 +310,12 @@ public class GeoEngine {
 
 			int curOffset = offset + 1;
 			for (int c = 0; c < 64; c++) {
-				byte layers = buf.get(curOffset);
+				int layers = buf.get(curOffset) & 0xFF;
 				curOffset++;
 				if (c == targetCell) {
 					short bestZ = Short.MIN_VALUE;
 					byte bestNswe = ALL_DIRECTIONS;
+					short closestZ = (short) z;
 					byte closestNswe = ALL_DIRECTIONS;
 					int minDiff = Integer.MAX_VALUE;
 					for (int l = 0; l < layers; l++) {
@@ -321,6 +325,7 @@ public class GeoEngine {
 						int diff = Math.abs(layerZ - z);
 						if (diff < minDiff) {
 							minDiff = diff;
+							closestZ = layerZ;
 							closestNswe = nswe;
 						}
 						if (layerZ <= z + 64 && layerZ > bestZ) {
@@ -328,17 +333,35 @@ public class GeoEngine {
 							bestNswe = nswe;
 						}
 					}
-					return bestZ != Short.MIN_VALUE ? bestNswe : closestNswe;
+					short outZ = bestZ != Short.MIN_VALUE ? bestZ : closestZ;
+					byte outNswe = bestZ != Short.MIN_VALUE ? bestNswe : closestNswe;
+					return (outZ << 16) | (outNswe & 0xFF);
 				}
 				curOffset += (layers << 1);
 			}
 		}
 
-		return ALL_DIRECTIONS;
+		return (((short) z) << 16) | (ALL_DIRECTIONS & 0xFF);
+	}
+
+	public static short unpackHeight(int packedHeightAndNswe) {
+		return (short) (packedHeightAndNswe >> 16);
+	}
+
+	public static byte unpackNSWE(int packedHeightAndNswe) {
+		return (byte) (packedHeightAndNswe & 0xFF);
+	}
+
+	/**
+	 * Obtem as flags de movimento direcional NSWE (East=1, West=2, South=4, North=8) da celula (X, Y, Z).
+	 */
+	public byte getNSWE(int x, int y, int z) {
+		return unpackNSWE(getHeightAndNSWE(x, y, z));
 	}
 
 	/**
 	 * Verifica se as flags NSWE da celula (x, y, z) permitem o passo em direcao a (tx, ty).
+	 * Para passos diagonais entre celulas adjacentes, valida tambem que ao menos uma quina L intermediaria permite passagem.
 	 */
 	public boolean checkNSWE(int x, int y, int z, int tx, int ty) {
 		if (!isEnabled()) {
@@ -352,17 +375,22 @@ public class GeoEngine {
 			return true;
 		}
 		byte nswe = getNSWE(x, y, z);
-		if (gx2 > gx1 && (nswe & EAST) == 0) {
+		byte hFlag = gx2 > gx1 ? EAST : (gx2 < gx1 ? WEST : 0);
+		byte vFlag = gy2 > gy1 ? SOUTH : (gy2 < gy1 ? NORTH : 0);
+
+		if (hFlag != 0 && (nswe & hFlag) == 0) {
 			return false;
 		}
-		if (gx2 < gx1 && (nswe & WEST) == 0) {
+		if (vFlag != 0 && (nswe & vFlag) == 0) {
 			return false;
 		}
-		if (gy2 > gy1 && (nswe & SOUTH) == 0) {
-			return false;
-		}
-		if (gy2 < gy1 && (nswe & NORTH) == 0) {
-			return false;
+		// Verificacao de quina L em passo diagonal de 1 celula
+		if (hFlag != 0 && vFlag != 0 && Math.abs(gx2 - gx1) == 1 && Math.abs(gy2 - gy1) == 1) {
+			byte nsweH = getNSWE(tx, y, z);
+			byte nsweV = getNSWE(x, ty, z);
+			if ((nsweH & vFlag) == 0 && (nsweV & hFlag) == 0) {
+				return false;
+			}
 		}
 		return true;
 	}
@@ -403,7 +431,7 @@ public class GeoEngine {
 
 			int curOffset = offset + 1;
 			for (int c = 0; c < 64; c++) {
-				byte layers = buf.get(curOffset);
+				int layers = buf.get(curOffset) & 0xFF;
 				curOffset++;
 				if (c == targetCell) {
 					short lowestCeiling = Short.MAX_VALUE;
@@ -424,14 +452,31 @@ public class GeoEngine {
 	}
 
 	public boolean isBlockedByDynamicObjects(int x, int y, int z, int tx, int ty, int tz) {
+		int minX = Math.min(x, tx);
+		int maxX = Math.max(x, tx);
+		int minY = Math.min(y, ty);
+		int maxY = Math.max(y, ty);
+
 		for (GeoObject obj : dynamicGeoObjects) {
-			if (obj.isBlocking() && intersectsGeoObject(x, y, z, tx, ty, tz, obj)) {
+			if (!obj.isBlocking()) {
+				continue;
+			}
+			if (maxX < obj.xMin() || minX > obj.xMax() || maxY < obj.yMin() || minY > obj.yMax()) {
+				continue;
+			}
+			if (intersectsGeoObject(x, y, z, tx, ty, tz, obj)) {
 				return true;
 			}
 		}
 		if (doorTable != null) {
 			for (DoorInstance door : doorTable.allDoors()) {
-				if (door.isBlocking() && intersectsDoor(x, y, z, tx, ty, tz, door)) {
+				if (dynamicGeoObjects.contains(door) || !door.isBlocking()) {
+					continue;
+				}
+				if (maxX < door.xMin() || minX > door.xMax() || maxY < door.yMin() || minY > door.yMax()) {
+					continue;
+				}
+				if (intersectsDoor(x, y, z, tx, ty, tz, door)) {
 					return true;
 				}
 			}
@@ -586,16 +631,7 @@ public class GeoEngine {
 	}
 
 	public boolean canSeeTarget(PlayerCharacter player, PlayerCharacter target) {
-		if (player == null || target == null) {
-			return false;
-		}
-		if (player.instanceId() != target.instanceId()) {
-			return false;
-		}
-		if (!isEnabled()) {
-			return true;
-		}
-		return canSeeTarget(player.x(), player.y(), player.z(), target.x(), target.y(), target.z());
+		return canSeeTarget((com.lopez.l2j.game.model.Creature) player, (com.lopez.l2j.game.model.Creature) target);
 	}
 
 	private boolean intersectsGeoObject(int x1, int y1, int z1, int x2, int y2, int z2, GeoObject obj) {
@@ -708,7 +744,7 @@ public class GeoEngine {
 					if (curOffset >= size) {
 						break;
 					}
-					byte layers = buffer.get(curOffset);
+					int layers = buffer.get(curOffset) & 0xFF;
 					curOffset += (1 + (layers << 1));
 				}
 			} else {
@@ -726,16 +762,12 @@ public class GeoEngine {
 	}
 
 	/**
-	 * Verifica movimentacao do ponto (x,y,z) ate (tx,ty,tz).
-	 * Se bloqueado por porta fechada, flag NSWE ou desnivel intransponivel, retorna a ultima posicao valida.
+	 * Verifica movimentacao passo a passo do ponto (x,y,z) ate (tx,ty,tz).
+	 * Se bloqueado por porta fechada, cerca, flag NSWE ou desnivel intransponivel, retorna a ultima posicao valida imediatamente antes do obstaculo.
 	 */
 	public Location moveCheck(int x, int y, int z, int tx, int ty, int tz) {
 		if (!isEnabled()) {
 			return new Location(tx, ty, tz);
-		}
-
-		if (isBlockedByDynamicObjects(x, y, z, tx, ty, tz)) {
-			return new Location(x, y, z);
 		}
 
 		double dx = tx - x;
@@ -757,12 +789,18 @@ public class GeoEngine {
 			int curZ = (int) Math.round(z + i * stepZ);
 
 			short geoZ = getHeight(curX, curY, curZ);
-			if (Math.abs(geoZ - lastZ) > 64 || !checkNSWE(lastX, lastY, lastZ, curX, curY)) {
+			if (isBlockedByDynamicObjects(lastX, lastY, lastZ, curX, curY, geoZ)
+					|| Math.abs(geoZ - lastZ) > 64
+					|| !checkNSWE(lastX, lastY, lastZ, curX, curY)) {
 				return new Location(lastX, lastY, lastZ);
 			}
 			lastX = curX;
 			lastY = curY;
 			lastZ = geoZ;
+		}
+
+		if (isBlockedByDynamicObjects(x, y, z, tx, ty, tz)) {
+			return new Location(x, y, z);
 		}
 
 		return new Location(tx, ty, tz);
