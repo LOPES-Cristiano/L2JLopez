@@ -48,7 +48,7 @@ public class Quest235MimirsElixir extends Quest {
 
 		addKillId(CHIMERA_PIECE, BLOODY_GUARDIAN);
 
-		registerQuestItems(MAGISTER_MIXING_STONE, BLOOD_FIRE, MIMIRS_ELIXIR, PURE_SILVER, TRUE_GOLD, SAGES_STONE);
+		registerQuestItems(MAGISTER_MIXING_STONE, BLOOD_FIRE, PURE_SILVER, TRUE_GOLD, SAGES_STONE);
 
 		if (questManager != null) {
 			questManager.registerQuest(this);
@@ -149,14 +149,17 @@ public class Quest235MimirsElixir extends Quest {
 				return "30721-13.htm";
 			} else if (cond == 8) {
 				if (qs.hasQuestItems(PURE_SILVER) && qs.hasQuestItems(TRUE_GOLD) && qs.hasQuestItems(BLOOD_FIRE)) {
-					qs.takeItems(STAR_OF_DESTINY, -1);
 					qs.takeItems(PURE_SILVER, -1);
 					qs.takeItems(TRUE_GOLD, -1);
 					qs.takeItems(BLOOD_FIRE, -1);
-					qs.giveItems(MIMIRS_ELIXIR, 1);
-					qs.giveItems(ENCHANT_WEAPON_A, 1);
+					qs.takeItems(MAGISTER_MIXING_STONE, -1);
+					qs.takeItems(STAR_OF_DESTINY, -1);
 					qs.setCond(0);
 					qs.exitQuest(false);
+					if (!qs.hasQuestItems(MIMIRS_ELIXIR)) {
+						qs.giveItems(MIMIRS_ELIXIR, 1);
+					}
+					qs.giveItems(ENCHANT_WEAPON_A, 1);
 					qs.playSound(QuestState.SOUND_FINISH);
 					return "30721-07.htm";
 				} else if (qs.hasQuestItems(MIMIRS_ELIXIR)) {
