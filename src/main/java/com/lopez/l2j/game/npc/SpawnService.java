@@ -88,6 +88,10 @@ public class SpawnService {
 		return world.totalNpcs() - before;
 	}
 
+	public Optional<NpcInstance> byObjectId(int objectId) {
+		return world != null ? world.npc(objectId) : Optional.empty();
+	}
+
 	private int correctZ(int x, int y, int z) {
 		return correctZ(null, x, y, z);
 	}
