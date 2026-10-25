@@ -1,19 +1,20 @@
 package com.lopez.l2j.game.service;
 
+import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.*;
 
 /**
- * Monster Derby Track Retail (MonsterRaceService).
- * Corrida de 8 monstros com velocidades aleatórias e sistema de bilhetes/apostas de 1º e 2º lugar.
+ * Monster Derby Track Retail (MonsterRaceService) - #488.
+ * Corrida de 8 monstros com velocidades aleatórias, ciclo de 20 minutos,
+ * emissão de bilhete físico (4443), cálculo de odds dinâmicas e persistência em mdt_bets / mdt_history.
  */
 @Service
 public class MonsterRaceService {
@@ -21,12 +22,16 @@ public class MonsterRaceService {
     private static final Logger log = LoggerFactory.getLogger(MonsterRaceService.class);
 
     public static final int ADENA_ITEM_ID = 57;
+    public static final int RACE_TICKET_ITEM_ID = 4443;
+    public static final int RACE_CYCLE_MINUTES = 20;
 
     public record RaceBet(int betId, int playerId, String playerName, int laneFirst, int laneSecond, int betAmount) {}
 
     public record RaceOutcome(int raceId, int firstPlaceLane, int secondPlaceLane, int[][] speeds) {}
 
     private InventoryService inventoryService;
+    private JdbcClient jdbc;
+    private ScheduledExecutorService scheduler;
 
     private int currentRaceId = 1;
     private int nextBetId = 1;
@@ -34,6 +39,7 @@ public class MonsterRaceService {
     private final int[][] speeds = new int[8][20];
     private final int[] first = new int[2];
     private final int[] second = new int[2];
+    private final double[] laneOdds = new double[8];
 
     private final List<RaceBet> activeBets = new CopyOnWriteArrayList<>();
     private final Map<Integer, RaceOutcome> raceHistory = new ConcurrentHashMap<>();
@@ -41,16 +47,70 @@ public class MonsterRaceService {
 
     public MonsterRaceService() {
         calculateNewSpeeds();
+        recalculateLaneOdds();
+    }
+
+    public MonsterRaceService(InventoryService inventoryService) {
+        this(inventoryService, null);
     }
 
     @Autowired
-    public MonsterRaceService(@Autowired(required = false) InventoryService inventoryService) {
+    public MonsterRaceService(
+            @Autowired(required = false) InventoryService inventoryService,
+            @Autowired(required = false) JdbcClient jdbc) {
         this();
         this.inventoryService = inventoryService;
+        this.jdbc = jdbc;
+        loadFromDb();
     }
 
     public void setInventoryService(InventoryService inventoryService) {
         this.inventoryService = inventoryService;
+    }
+
+    public synchronized void startRaceScheduler() {
+        if (scheduler != null && !scheduler.isShutdown()) {
+            return;
+        }
+        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "MonsterRace-Scheduler");
+            t.setDaemon(true);
+            return t;
+        });
+        scheduler.scheduleAtFixedRate(this::runRace, RACE_CYCLE_MINUTES, RACE_CYCLE_MINUTES, TimeUnit.MINUTES);
+    }
+
+    public synchronized void stopRaceScheduler() {
+        if (scheduler != null) {
+            scheduler.shutdownNow();
+            scheduler = null;
+        }
+    }
+
+    private void recalculateLaneOdds() {
+        long totalPool = 0;
+        long[] lanePools = new long[8];
+        for (RaceBet b : activeBets) {
+            if (b.laneFirst() >= 1 && b.laneFirst() <= 8) {
+                lanePools[b.laneFirst() - 1] += b.betAmount();
+                totalPool += b.betAmount();
+            }
+        }
+        for (int i = 0; i < 8; i++) {
+            if (totalPool > 0 && lanePools[i] > 0) {
+                double rawOdd = (totalPool * 0.85) / lanePools[i];
+                laneOdds[i] = Math.max(1.1, Math.min(15.0, Math.round(rawOdd * 100.0) / 100.0));
+            } else {
+                laneOdds[i] = 3.5;
+            }
+        }
+    }
+
+    public double getLaneOdd(int lane) {
+        if (lane < 1 || lane > 8) {
+            return 3.5;
+        }
+        return laneOdds[lane - 1];
     }
 
     /**
@@ -59,15 +119,18 @@ public class MonsterRaceService {
      */
     public synchronized RaceOutcome runRace() {
         calculateNewSpeeds();
+        recalculateLaneOdds();
         RaceOutcome outcome = new RaceOutcome(currentRaceId, first[0], second[0], speeds.clone());
         raceHistory.put(currentRaceId, outcome);
         settleBets(outcome);
+        saveRaceOutcomeToDb(outcome);
 
         log.info("MonsterRace: Corrida #{} finalizada! 1º Lugar: Raia {}, 2º Lugar: Raia {}",
                 currentRaceId, first[0], second[0]);
 
         currentRaceId++;
         activeBets.clear();
+        recalculateLaneOdds();
         return outcome;
     }
 
@@ -111,6 +174,7 @@ public class MonsterRaceService {
         }
         var inv = player.inventory();
         if (inv != null) {
+            inv.destroyItemByItemId(RACE_TICKET_ITEM_ID, 1);
             if (inventoryService != null) {
                 var added = inventoryService.addItem(inv, ADENA_ITEM_ID, payout, "MonsterRacePayout");
                 if (added == null) {
@@ -183,6 +247,22 @@ public class MonsterRaceService {
             }
         }
 
+        ItemInstance ticket = null;
+        if (inventoryService != null) {
+            var added = inventoryService.addItem(inv, RACE_TICKET_ITEM_ID, 1, "MonsterRaceTicket");
+            if (added != null) {
+                ticket = added.item();
+            }
+        }
+        if (ticket == null) {
+            ticket = inv.addItem(RACE_TICKET_ITEM_ID, 1);
+        }
+        if (ticket != null) {
+            ticket.enchantLevel(laneFirst * 10 + laneSecond);
+            ticket.customType1(currentRaceId);
+            ticket.customType2(amount / 100);
+        }
+
         return placeBet(player.objectId(), player.name(), laneFirst, laneSecond, amount).isPresent();
     }
 
@@ -195,6 +275,8 @@ public class MonsterRaceService {
         }
         RaceBet bet = new RaceBet(nextBetId++, playerId, playerName, laneFirst, laneSecond, betAmount);
         activeBets.add(bet);
+        recalculateLaneOdds();
+        saveBetToDb(laneFirst, betAmount);
         log.info("MonsterRace: Aposta registrada #{} por {} na Raia {} (2º: Raia {}) com {} Adena",
                 bet.betId(), playerName, laneFirst, laneSecond, betAmount);
         return Optional.of(bet);
@@ -218,6 +300,57 @@ public class MonsterRaceService {
         return 0;
     }
 
+    private void loadFromDb() {
+        if (jdbc == null) {
+            return;
+        }
+        try {
+            var rows = jdbc.sql("SELECT race_id, first, second, odd_rate FROM mdt_history ORDER BY race_id DESC LIMIT 20")
+                    .query().listOfRows();
+            for (var r : rows) {
+                int rId = ((Number) r.get("race_id")).intValue();
+                int f = ((Number) r.get("first")).intValue();
+                int s = ((Number) r.get("second")).intValue();
+                raceHistory.putIfAbsent(rId, new RaceOutcome(rId, f, s, new int[8][20]));
+                if (rId >= currentRaceId) {
+                    currentRaceId = rId + 1;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("MonsterRaceService loadFromDb: {}", e.getMessage());
+        }
+    }
+
+    private void saveBetToDb(int lane, int sum) {
+        if (jdbc == null) {
+            return;
+        }
+        try {
+            jdbc.sql("UPDATE mdt_bets SET bet = bet + :s WHERE lane_id = :l")
+                    .param("s", sum)
+                    .param("l", lane)
+                    .update();
+        } catch (Exception e) {
+            log.debug("MonsterRaceService saveBetToDb: {}", e.getMessage());
+        }
+    }
+
+    private void saveRaceOutcomeToDb(RaceOutcome outcome) {
+        if (jdbc == null || outcome == null) {
+            return;
+        }
+        try {
+            jdbc.sql("INSERT INTO mdt_history (race_id, first, second, odd_rate) VALUES (:id, :f, :s, :odd)")
+                    .param("id", outcome.raceId())
+                    .param("f", outcome.firstPlaceLane())
+                    .param("s", outcome.secondPlaceLane())
+                    .param("odd", getLaneOdd(outcome.firstPlaceLane()))
+                    .update();
+        } catch (Exception e) {
+            log.debug("MonsterRaceService saveRaceOutcomeToDb: {}", e.getMessage());
+        }
+    }
+
     public int getFirstPlace() { return first[0]; }
     public int getSecondPlace() { return second[0]; }
     public int[][] getSpeeds() { return speeds; }
@@ -226,4 +359,3 @@ public class MonsterRaceService {
     public Optional<RaceOutcome> getRaceOutcome(int raceId) { return Optional.ofNullable(raceHistory.get(raceId)); }
     public int getPendingPayout(int playerId) { return pendingPayouts.getOrDefault(playerId, 0); }
 }
-
