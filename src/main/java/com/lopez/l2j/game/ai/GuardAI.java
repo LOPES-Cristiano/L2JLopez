@@ -40,38 +40,97 @@ public class GuardAI extends FighterAI {
 				npc.targetPlayerId(pkId);
 				npc.inCombat(true);
 			} else {
+				NpcInstance aggroMob = scanForAggressiveMonsters();
+				if (aggroMob != null) {
+					attackAggressiveMonster(aggroMob);
+				}
 				return;
 			}
 		}
 		super.processCombat();
 	}
 
+	private void attackAggressiveMonster(NpcInstance mob) {
+		if (mob == null || mob.isDead()) {
+			return;
+		}
+		double dist = Math.hypot(mob.x() - npc.x(), mob.y() - npc.y());
+		int effectiveRange = getEffectiveAttackRange();
+		if (dist > effectiveRange + 30) {
+			moveTowards(mob.x(), mob.y(), mob.z(), mob.objectId(), effectiveRange, dist);
+			return;
+		}
+		int pAtkSpd = Math.max(100, npc.pAtkSpd());
+		long cooldownMs = Math.max(400L, 333_000L / pAtkSpd);
+		long now = System.currentTimeMillis();
+		if (now - npc.lastAttackTime() >= cooldownMs) {
+			npc.lastAttackTime(now);
+			npc.attackEndTime(now + cooldownMs);
+			int dmg = (int) Math.max(50, npc.pAtk() * 2);
+			var atk = new com.lopez.l2j.network.game.packet.GameServerPacket.Attack(
+					npc.objectId(), mob.objectId(), dmg, 0, npc.x(), npc.y(), npc.z());
+			world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, atk);
+			if (combatService != null) {
+				combatService.applyDamage(mob, dmg, 0);
+			} else {
+				mob.currentHp(Math.max(0, mob.currentHp() - dmg));
+				if (mob.currentHp() <= 0) {
+					mob.dead(true);
+				}
+			}
+		}
+	}
+
 	@Override
 	protected void moveTowards(int targetX, int targetY, int targetZ, int targetObjId, int attackRange, double dist) {
 		if (dist <= 0.001) return;
 		npc.running(true);
+		int stopDistance = Math.max(20, attackRange);
 		// Guardas correm 50% mais rapido para interceptar criminosos
-		double runSpeed = Math.max(90, npc.template().runSpd() * 1.5);
-		double step = Math.max(16.0, Math.min(dist - attackRange, runSpeed * 0.5));
-		double dx = targetX - npc.x();
-		double dy = targetY - npc.y();
-		int newX = (int) Math.round(npc.x() + (dx / dist) * step);
-		int newY = (int) Math.round(npc.y() + (dy / dist) * step);
+		double runSpeed = Math.max(90, (npc.template() != null ? npc.template().runSpd() : npc.runSpd()) * 1.5);
+		double step = Math.max(16.0, Math.min(Math.max(0.0, dist - stopDistance), runSpeed * 0.5));
+
+		int goalX = targetX;
+		int goalY = targetY;
+		int goalZ = targetZ;
+
+		GeoEngine geo = (combatService != null) ? combatService.geoEngine() : null;
+		if (geo != null && geo.isEnabled() && com.lopez.l2j.config.Config.ENABLE_PATH_FINDING) {
+			if (!geo.canMoveToTarget(npc.x(), npc.y(), npc.z(), targetX, targetY, targetZ)) {
+				java.util.List<int[]> path = geo.findPath(npc.x(), npc.y(), npc.z(), targetX, targetY, targetZ, npc.instanceId());
+				if (path != null && !path.isEmpty()) {
+					int[] wp = path.get(0);
+					goalX = wp[0];
+					goalY = wp[1];
+					goalZ = wp[2];
+				}
+			}
+		}
+
+		double dx = goalX - npc.x();
+		double dy = goalY - npc.y();
+		double goalDist = Math.hypot(dx, dy);
+		if (goalDist <= 0.001) return;
+		double actualStep = Math.min(goalDist, step);
+		int newX = (int) Math.round(npc.x() + (dx / goalDist) * actualStep);
+		int newY = (int) Math.round(npc.y() + (dy / goalDist) * actualStep);
 		int heading = (int) Math.round(Math.atan2(dy, dx) * 10430.378);
 		int fromX = npc.x();
 		int fromY = npc.y();
 
 		int newZ = npc.z();
-		GeoEngine geo = (combatService != null) ? combatService.geoEngine() : null;
 		if (geo != null && geo.isEnabled()) {
+			GeoEngine.Location checked = geo.moveCheck(npc.x(), npc.y(), npc.z(), newX, newY, npc.z());
+			newX = checked.x();
+			newY = checked.y();
 			short geoZ = geo.getHeight(newX, newY, npc.z());
 			if (Math.abs(geoZ - npc.z()) <= 100) {
 				newZ = geoZ;
 			}
 		} else {
-			int dz = targetZ - npc.z();
+			int dz = goalZ - npc.z();
 			if (Math.abs(dz) <= 48) {
-				newZ = targetZ;
+				newZ = goalZ;
 			} else if (Math.abs(dz) <= 120) {
 				newZ += (int) (Math.signum(dz) * Math.min(Math.abs(dz), 32));
 			}
@@ -81,7 +140,7 @@ public class GuardAI extends FighterAI {
 		world.updateNpcPosition(npc, fromX, fromY);
 
 		var movePawn = new com.lopez.l2j.network.game.packet.GameServerPacket.MoveToPawn(
-				npc.objectId(), targetObjId, attackRange, npc.x(), npc.y(), npc.z());
+				npc.objectId(), targetObjId, stopDistance, npc.x(), npc.y(), npc.z());
 		world.player(targetObjId).ifPresent(p -> p.send(movePawn));
 		world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, movePawn);
 	}
