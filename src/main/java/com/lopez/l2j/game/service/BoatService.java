@@ -211,19 +211,90 @@ public class BoatService {
         }
         boolean removed = boat.getOnboardPlayers().remove(player.getObjectId());
         if (removed) {
+            GameWorld world = gameWorld != null ? gameWorld : GameWorld.getInstance();
+            if (world != null) {
+                BoatWaypoint wp = boat.getCurrentWaypoint();
+                world.broadcastAround(wp.x(), wp.y(), GameWorld.VISIBILITY_RADIUS,
+                        new com.lopez.l2j.network.game.packet.GameServerPacket.GetOffVehicle(
+                                player.getObjectId(), boatId, wp.x(), wp.y(), wp.z()));
+            }
             log.info("BoatService: Jogador {} desembarcou do barco #{}", player.getName(), boatId);
         }
         return removed;
     }
 
+    /**
+     * Valida posse do bilhete da rota antes da partida; caso nao possua, expulsa o passageiro para o cais.
+     */
+    public boolean validateTicketOrEvict(PlayerCharacter player, int boatId) {
+        if (player == null) {
+            return false;
+        }
+        BoatRoute boat = boats.get(boatId);
+        if (boat == null) {
+            return false;
+        }
+        int ticketId = boat.getRequiredTicketId();
+        if (ticketId <= 0) {
+            return true;
+        }
+        var inv = player.inventory();
+        boolean hasTicket = false;
+        if (inv != null) {
+            if (inventoryService != null) {
+                hasTicket = inventoryService.consumeItem(inv, ticketId, 1, "BoatDepartureTicket") != null;
+            } else {
+                hasTicket = inv.destroyItemByItemId(ticketId, 1);
+            }
+        }
+        if (!hasTicket) {
+            disembarkBoat(player, boatId);
+            BoatWaypoint dock = boat.getWaypoints().get(0);
+            player.setX(dock.x());
+            player.setY(dock.y());
+            player.setZ(dock.z());
+            GameWorld world = gameWorld != null ? gameWorld : GameWorld.getInstance();
+            if (world != null) {
+                world.teleportPlayer(player, dock.x(), dock.y(), dock.z());
+            }
+            player.sendMessage("Voce nao possui o bilhete de passagem e foi desembarcado no porto.");
+            return false;
+        }
+        return true;
+    }
+
     public void advanceWaypoint(int boatId) {
         BoatRoute boat = boats.get(boatId);
-        if (boat == null) return;
+        if (boat == null || boat.getWaypoints().isEmpty()) return;
+
+        if (boat.getState() == BoatState.ARRIVED) {
+            boat.setCurrentWaypointIndex(0);
+            boat.setState(BoatState.DOCKED);
+            return;
+        }
 
         int nextIdx = boat.getCurrentWaypointIndex() + 1;
         if (nextIdx < boat.getWaypoints().size()) {
             boat.setCurrentWaypointIndex(nextIdx);
             boat.setState(BoatState.SAILING);
+            BoatWaypoint wp = boat.getCurrentWaypoint();
+            GameWorld world = gameWorld != null ? gameWorld : GameWorld.getInstance();
+            if (world != null) {
+                world.broadcastAround(wp.x(), wp.y(), GameWorld.VISIBILITY_RADIUS,
+                        new com.lopez.l2j.network.game.packet.GameServerPacket.VehicleDeparture(
+                                boatId, wp.speed(), 180, wp.x(), wp.y(), wp.z()));
+                world.broadcastAround(wp.x(), wp.y(), GameWorld.VISIBILITY_RADIUS,
+                        new com.lopez.l2j.network.game.packet.GameServerPacket.VehicleInfo(
+                                boatId, wp.x(), wp.y(), wp.z(), 0));
+                for (int pid : boat.getOnboardPlayers()) {
+                    PlayerCharacter pc = world.getPlayer(pid);
+                    if (pc != null) {
+                        pc.setX(wp.x());
+                        pc.setY(wp.y());
+                        pc.setZ(wp.z());
+                    }
+                }
+            }
         } else {
             boat.setState(BoatState.ARRIVED);
         }
