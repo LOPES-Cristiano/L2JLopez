@@ -76,6 +76,14 @@ public record ItemTemplate(
 		return subType;
 	}
 
+	public String weaponType() {
+		return subType != null ? subType : "";
+	}
+
+	public boolean freightable() {
+		return tradeable && !isQuest();
+	}
+
 	public boolean isWeapon() {
 		return kind == Kind.WEAPON;
 	}
