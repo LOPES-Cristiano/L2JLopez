@@ -42,4 +42,8 @@ public class CropProcure {
 	public int rewardType() {
 		return rewardType;
 	}
+
+	public int reward() {
+		return rewardType;
+	}
 }
