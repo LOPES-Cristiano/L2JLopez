@@ -58,8 +58,28 @@ public class AutoSpawnService {
 
 	@PostConstruct
 	public void init() {
+		spawnAllConfiguredWalkers();
 		scheduler.scheduleAtFixedRate(this::tick, 1, 1, TimeUnit.SECONDS);
-		log.info("AutoSpawnService iniciado com sucesso. {} rotas carregadas na tabela.", routesTable.totalRoutes());
+		log.info("AutoSpawnService iniciado com sucesso. {} rotas carregadas na tabela ({} walkers ativos).",
+				routesTable.totalRoutes(), activeWalkers.size());
+	}
+
+	public int spawnAllConfiguredWalkers() {
+		if (!com.lopez.l2j.config.Config.ALLOW_NPC_WALKERS || routesTable == null) {
+			return 0;
+		}
+		int spawned = 0;
+		for (var entry : routesTable.getAllRoutes().entrySet()) {
+			int routeId = entry.getKey();
+			List<NpcWalkerNode> nodes = entry.getValue();
+			if (nodes != null && !nodes.isEmpty()) {
+				int npcId = nodes.get(0).npcId();
+				if (spawnAndRegisterWalker(npcId, routeId).isPresent()) {
+					spawned++;
+				}
+			}
+		}
+		return spawned;
 	}
 
 	@PreDestroy
@@ -250,6 +270,7 @@ public class AutoSpawnService {
 					NpcInstance npc = new NpcInstance(objectId, tpl, task.x, task.y, task.z, task.heading);
 					if (world != null) {
 						world.addNpc(npc);
+						world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, new GameServerPacket.NpcInfo(npc));
 					}
 					task.spawnedNpc = npc;
 					task.despawnTime = nowMillis + task.despawnDelayMs;
@@ -273,6 +294,8 @@ public class AutoSpawnService {
 	private void despawnAutoSpawn(AutoSpawnTask task) {
 		if (task.spawnedNpc != null) {
 			if (world != null) {
+				var delPkt = new GameServerPacket.DeleteObject(task.spawnedNpc.objectId());
+				world.broadcastAround(task.spawnedNpc.x(), task.spawnedNpc.y(), GameWorld.VISIBILITY_RADIUS, delPkt);
 				world.removeNpc(task.spawnedNpc);
 			}
 			task.spawnedNpc = null;
