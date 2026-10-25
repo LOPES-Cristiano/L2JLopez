@@ -2,6 +2,7 @@ package com.lopez.l2j.game.offlinetrade;
 
 import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.world.GameWorld;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,9 +18,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Servico responsavel pelo gerenciamento de Lojas Privadas em memoria (SellStoreList / BuyStoreList)
- * e Lojas Offline (Offline Trade) - Item 94.
+ * e Lojas Offline (Offline Trade) - Item 94 / #497.
  * Permite que personagens vendam ou comprem itens reais (online e apos desconexao),
- * persistindo as configuracoes offline nas tabelas character_offline e character_offline_shop.
+ * persistindo as configuracoes offline nas tabelas character_offline e character_offline_shop
+ * e restaurando as lojas diretamente no GameWorld na inicializacao.
  */
 @Service
 public class OfflineTradeService {
@@ -263,7 +265,8 @@ public class OfflineTradeService {
     }
 
     /**
-     * Carrega comerciantes offline ativos do banco de dados na inicializacao.
+     * Carrega comerciantes offline ativos do banco de dados na inicializacao
+     * e reconstrói suas listas em memória e presença no GameWorld.
      */
     public synchronized int loadOfflineTraders() {
         if (!Config.RESTORE_OFFLINE_TRADERS) {
@@ -308,7 +311,14 @@ public class OfflineTradeService {
                     ));
                 }
 
-                activeTraders.put(charId, new OfflineTrader(charId, shopId, mode, packaged, title, endTime, items));
+                OfflineTrader trader = new OfflineTrader(charId, shopId, mode, packaged, title, endTime, items);
+                activeTraders.put(charId, trader);
+                if (mode == STORE_PRIVATE_BUY) {
+                    setBuyStoreList(charId, title, items);
+                } else {
+                    setSellStoreList(charId, packaged, title, items);
+                }
+                restoreOfflineTraderToWorld(trader);
                 loaded++;
             }
         } catch (Exception e) {
@@ -317,6 +327,44 @@ public class OfflineTradeService {
 
         log.info("Offline Trade Service: {} comerciantes offline restaurados do banco", loaded);
         return loaded;
+    }
+
+    private void restoreOfflineTraderToWorld(OfflineTrader trader) {
+        GameWorld world = GameWorld.getInstance();
+        if (world == null || jdbc == null || trader == null) {
+            return;
+        }
+        try {
+            var charRows = jdbc.sql("SELECT account_name, char_name, level, race, classid, sex, x, y, z FROM characters WHERE charId = :id")
+                    .param("id", trader.charId())
+                    .query().listOfRows();
+            if (charRows.isEmpty()) {
+                return;
+            }
+            var c = charRows.get(0);
+            String acc = (String) c.get("account_name");
+            String name = (String) c.get("char_name");
+            int lvl = c.get("level") instanceof Number n ? n.intValue() : 1;
+            int race = c.get("race") instanceof Number n ? n.intValue() : 0;
+            int classId = c.get("classid") instanceof Number n ? n.intValue() : 0;
+            boolean sex = c.get("sex") instanceof Number n && n.intValue() == 1;
+            int x = c.get("x") instanceof Number n ? n.intValue() : 83400;
+            int y = c.get("y") instanceof Number n ? n.intValue() : 147943;
+            int z = c.get("z") instanceof Number n ? n.intValue() : -3404;
+
+            PlayerCharacter pc = new PlayerCharacter(trader.charId(), acc != null ? acc : "offline",
+                    name != null ? name : ("Trader" + trader.charId()), lvl, 0L, 0, classId, classId, race, sex,
+                    0, 0, 0, 1000, 1000, 1000, 0, 0, 0, 0, "", 0, 0L, 0L, x, y, z, 0, 1000.0, 1000.0, 1000.0);
+            pc.sitting(true);
+            pc.privateStoreType(trader.mode());
+            pc.storeTitle(trader.title());
+            if (Config.ALLOW_OFFLINE_TRADE_PROTECTION) {
+                pc.invul(true);
+            }
+            world.registerPlayer(new GameWorld.SimpleOnlinePlayer(pc, pkt -> {}));
+        } catch (Exception e) {
+            log.debug("restoreOfflineTraderToWorld {}: {}", trader.charId(), e.getMessage());
+        }
     }
 
     /**
