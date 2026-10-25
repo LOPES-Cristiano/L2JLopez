@@ -163,4 +163,8 @@ public class FriendListService {
 		}
 		return receiver.isBlocked(sender.name());
 	}
+
+	public List<FriendItem> getFriends(int charId) {
+		return loadFriends(charId, id -> false);
+	}
 }
