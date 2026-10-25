@@ -135,6 +135,7 @@ public class DayNightSpawnService implements GameTimeController.DayNightListener
 	public synchronized void despawnDayCreatures() {
 		for (NpcInstance npc : activeDayInstances) {
 			if (world != null) {
+				world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, new GameServerPacket.DeleteObject(npc.objectId()));
 				world.removeNpc(npc);
 			}
 		}
@@ -153,6 +154,7 @@ public class DayNightSpawnService implements GameTimeController.DayNightListener
 	public synchronized void despawnNightCreatures() {
 		for (NpcInstance npc : activeNightInstances) {
 			if (world != null) {
+				world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, new GameServerPacket.DeleteObject(npc.objectId()));
 				world.removeNpc(npc);
 			}
 		}
@@ -170,6 +172,7 @@ public class DayNightSpawnService implements GameTimeController.DayNightListener
 			// Coordenadas padrao de Hellmann (Cursed Village / Forest of the Dead)
 			NpcInstance boss = new NpcInstance(objectId, tplOpt.get(), 58941, -50030, -3230, 0);
 			world.addNpc(boss);
+			world.broadcastAround(boss.x(), boss.y(), GameWorld.VISIBILITY_RADIUS, new GameServerPacket.NpcInfo(boss));
 			activeNightBoss = boss;
 			log.info("DayNightSpawnService: Raid Boss Hellmann (ID {}) surgiu nas sombras da noite.", RAID_HELLMANN_ID);
 		}
@@ -178,6 +181,8 @@ public class DayNightSpawnService implements GameTimeController.DayNightListener
 	public synchronized void despawnNightBoss() {
 		if (activeNightBoss != null) {
 			if (world != null) {
+				world.broadcastAround(activeNightBoss.x(), activeNightBoss.y(), GameWorld.VISIBILITY_RADIUS,
+						new GameServerPacket.DeleteObject(activeNightBoss.objectId()));
 				world.removeNpc(activeNightBoss);
 			}
 			log.info("DayNightSpawnService: Raid Boss Hellmann (ID {}) desapareceu ao raiar do sol.", RAID_HELLMANN_ID);
@@ -197,6 +202,7 @@ public class DayNightSpawnService implements GameTimeController.DayNightListener
 			int objectId = objectIds.nextId();
 			NpcInstance npc = new NpcInstance(objectId, template, data.x(), data.y(), data.z(), data.heading());
 			world.addNpc(npc);
+			world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, new GameServerPacket.NpcInfo(npc));
 			instanceList.add(npc);
 		}
 	}
