@@ -31,6 +31,21 @@ public class ClanHallSiegeService {
 	public static final int MAX_REGISTERED_CLANS = 5;
 	public static final long SIEGE_INTERVAL_MILLIS = 7L * 86_400_000L; // 7 dias
 
+	// Bosses de Clan Halls Contestaveis (#399)
+	public static final int NURKA_NPC_ID = 35368;            // Hall 21: Fortress of Resistance
+	public static final int DIETRICH_NPC_ID = 35408;         // Hall 34: Devastated Castle
+	public static final int MIKHAIL_NPC_ID = 35409;          // Hall 34: Devastated Castle
+	public static final int GUSTAV_NPC_ID = 35410;           // Hall 34: Devastated Castle
+	public static final int LIDIA_VON_HELLMANN_NPC_ID = 35629; // Hall 64: Fortress of the Dead
+	public static final int ALFRED_VON_HELLMANN_NPC_ID = 35630;
+	public static final int GISELLE_VON_HELLMANN_NPC_ID = 35631;
+
+	// Itens de qualificacao e decretos (#400, #401)
+	public static final int TARLK_AMULET_ITEM_ID = 5009;     // Hall 35: Bandit Stronghold
+	public static final int BEAST_FARM_PASS_ITEM_ID = 8093;  // Hall 63: Wild Beast Reserve
+	public static final int WAR_DECREE_ITEM_ID = 8034;       // Hall 62: Rainbow Springs Chateau
+	public static final int DEFAULT_GOURD_MAX_HP = 50_000;
+
 	public enum RegisterResult {
 		SUCCESS,
 		NOT_IN_CLAN,
@@ -243,5 +258,159 @@ public class ClanHallSiegeService {
 		sieges.put(62, new ClanHallSiegeRecord(62, "Rainbow Springs", defaultNext, SiegeState.REGISTRATION));
 		sieges.put(63, new ClanHallSiegeRecord(63, "Beast Farm", defaultNext, SiegeState.REGISTRATION));
 		sieges.put(64, new ClanHallSiegeRecord(64, "Fortress of the Dead", defaultNext, SiegeState.REGISTRATION));
+	}
+
+	/**
+	 * Contabiliza dano causado por um cla nos Bosses de Clan Hall (Nurka 35368, Gustav 35410, Lidia 35629) (#399).
+	 */
+	public synchronized void recordBossDamage(int hallId, int clanId, int npcId, long damage) {
+		if (clanId <= 0 || damage <= 0) {
+			return;
+		}
+		ClanHallSiegeRecord siege = sieges.get(hallId);
+		if (siege == null || siege.state() != SiegeState.IN_PROGRESS) {
+			return;
+		}
+		var clanOpt = clanTable.byClanId(clanId);
+		if (clanOpt.isEmpty() || clanOpt.get().level() < MIN_CLAN_LEVEL_FOR_SIEGE) {
+			return;
+		}
+		siege.addClanDamage(clanId, damage);
+	}
+
+	/**
+	 * Processa a morte do Boss principal de um Clan Hall (Nurka 35368, Gustav 35410, Lidia 35629)
+	 * e concede a posse ao cla elegivel com maior dano acumulado (#399).
+	 */
+	public synchronized boolean onSiegeBossKilled(int hallId, int npcId) {
+		ClanHallSiegeRecord siege = sieges.get(hallId);
+		if (siege == null || siege.state() != SiegeState.IN_PROGRESS) {
+			return false;
+		}
+		boolean isFinalBoss = (hallId == 21 && npcId == NURKA_NPC_ID)
+				|| (hallId == 34 && npcId == GUSTAV_NPC_ID)
+				|| (hallId == 64 && npcId == LIDIA_VON_HELLMANN_NPC_ID);
+		if (!isFinalBoss) {
+			return false;
+		}
+		Integer winnerClanId = null;
+		long bestDamage = 0L;
+		for (var entry : siege.damageByClanId().entrySet()) {
+			int cid = entry.getKey();
+			long dmg = entry.getValue();
+			if ((hallId == 21 || siege.isRegistered(cid)) && dmg > bestDamage) {
+				bestDamage = dmg;
+				winnerClanId = cid;
+			}
+		}
+		return endSiege(hallId, winnerClanId);
+	}
+
+	/**
+	 * Seleciona a bandeira de cla (35423..35427) e o NPC aliado (35428..35432) para Bandit Stronghold (35) e Beast Farm (63) (#400).
+	 */
+	public synchronized boolean selectTeamFlagAndAlly(int hallId, int clanId, int flagNpcId, int allyNpcId) {
+		if (hallId != 35 && hallId != 63) {
+			return false;
+		}
+		ClanHallSiegeRecord siege = sieges.get(hallId);
+		if (siege == null || !siege.isRegistered(clanId)) {
+			return false;
+		}
+		if (flagNpcId >= 35423 && flagNpcId <= 35427) {
+			siege.clanFlagNpcIds().put(clanId, flagNpcId);
+		}
+		if (allyNpcId >= 35428 && allyNpcId <= 35432) {
+			siege.clanAllyNpcIds().put(clanId, allyNpcId);
+		}
+		return true;
+	}
+
+	/**
+	 * Elimina a bandeira de um cla em Bandit Stronghold (35) ou Wild Beast Reserve (63).
+	 * Quando resta apenas 1 cla com bandeira de pe, declara-o vencedor (#400).
+	 */
+	public synchronized boolean onTeamFlagDestroyed(int hallId, int defeatedClanId) {
+		if (hallId != 35 && hallId != 63) {
+			return false;
+		}
+		ClanHallSiegeRecord siege = sieges.get(hallId);
+		if (siege == null || siege.state() != SiegeState.IN_PROGRESS) {
+			return false;
+		}
+		siege.clanFlagNpcIds().remove(defeatedClanId);
+		siege.unregisterClan(defeatedClanId);
+		if (siege.registeredClanIds().size() == 1) {
+			Integer lastClanId = siege.registeredClanIds().iterator().next();
+			return endSiege(hallId, lastClanId);
+		}
+		return true;
+	}
+
+	/**
+	 * Registra um cla em Rainbow Springs Chateau (62) mediante entrega de War Decrees (Item ID 8034) (#401).
+	 */
+	public synchronized RegisterResult registerRainbowSpringsWithDecrees(PlayerCharacter leader, int decreeCount) {
+		if (leader == null || leader.clanId() <= 0 || decreeCount <= 0) {
+			return RegisterResult.NOT_IN_CLAN;
+		}
+		var clanOpt = clanTable.byClanId(leader.clanId());
+		if (clanOpt.isEmpty()) {
+			return RegisterResult.NOT_IN_CLAN;
+		}
+		Clan clan = clanOpt.get();
+		if (!clan.isLeader(leader.objectId())) {
+			return RegisterResult.NOT_CLAN_LEADER;
+		}
+		if (clan.level() < MIN_CLAN_LEVEL_FOR_SIEGE) {
+			return RegisterResult.CLAN_LEVEL_TOO_LOW;
+		}
+		if (clanHallService.getClanHallByOwner(clan.clanId()).isPresent()) {
+			return RegisterResult.ALREADY_HAS_CLAN_HALL;
+		}
+		ClanHallSiegeRecord siege = sieges.get(62);
+		if (siege == null || siege.state() != SiegeState.REGISTRATION) {
+			return RegisterResult.SIEGE_NOT_IN_REGISTRATION;
+		}
+		if (leader.inventory() == null || leader.inventory().getItemCount(WAR_DECREE_ITEM_ID) < decreeCount) {
+			return RegisterResult.ERROR;
+		}
+		leader.inventory().destroyItemByItemId(WAR_DECREE_ITEM_ID, decreeCount);
+		siege.warDecreesByClanId().merge(clan.clanId(), decreeCount, Integer::sum);
+
+		// Mantem ate 4 clas classificados pelos maiores lances de War Decrees
+		var top4 = siege.warDecreesByClanId().entrySet().stream()
+				.sorted((a, b) -> Integer.compare(b.getValue(), a.getValue()))
+				.limit(4)
+				.map(Map.Entry::getKey)
+				.toList();
+		for (Integer existing : new java.util.ArrayList<>(siege.registeredClanIds())) {
+			if (!top4.contains(existing)) {
+				siege.unregisterClan(existing);
+			}
+		}
+		for (Integer qualified : top4) {
+			siege.registerClan(qualified);
+			siege.gourdHpByClanId().putIfAbsent(qualified, DEFAULT_GOURD_MAX_HP);
+		}
+		return RegisterResult.SUCCESS;
+	}
+
+	/**
+	 * Aplica dano ao Gourd (NPC 35588/35589) de um cla durante o mini-game de Rainbow Springs Chateau (62).
+	 * O primeiro cla a zerar o HP de seu Gourd vence o Clan Hall (#401).
+	 */
+	public synchronized boolean damageRainbowGourd(int clanId, int damage) {
+		ClanHallSiegeRecord siege = sieges.get(62);
+		if (siege == null || siege.state() != SiegeState.IN_PROGRESS || !siege.isRegistered(clanId) || damage <= 0) {
+			return false;
+		}
+		int currentHp = siege.gourdHpByClanId().getOrDefault(clanId, DEFAULT_GOURD_MAX_HP);
+		int newHp = Math.max(0, currentHp - damage);
+		siege.gourdHpByClanId().put(clanId, newHp);
+		if (newHp == 0) {
+			return endSiege(62, clanId);
+		}
+		return true;
 	}
 }
