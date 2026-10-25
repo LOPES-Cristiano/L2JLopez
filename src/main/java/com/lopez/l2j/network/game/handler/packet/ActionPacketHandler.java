@@ -1,9 +1,19 @@
 package com.lopez.l2j.network.game.handler.packet;
 
+import com.lopez.l2j.config.Config;
+import com.lopez.l2j.game.clan.Clan;
+import com.lopez.l2j.game.door.DoorInstance;
+import com.lopez.l2j.game.door.DoorTable;
+import com.lopez.l2j.game.geodata.GeoEngine;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.model.PlayerStats;
 import com.lopez.l2j.game.npc.NpcInstance;
+import com.lopez.l2j.game.offlinetrade.OfflineShopItem;
+import com.lopez.l2j.game.offlinetrade.OfflineTradeService;
 import com.lopez.l2j.game.skill.SkillTemplate;
+import com.lopez.l2j.game.trade.TradeService;
 import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.network.game.GameEngineContext;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.packet.GameClientPacket;
 import com.lopez.l2j.network.game.packet.GameClientPacket.Action;
@@ -12,13 +22,19 @@ import com.lopez.l2j.network.game.packet.GameClientPacket.MoveBackwardToLocation
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestActionUse;
 import com.lopez.l2j.network.game.packet.GameClientPacket.RequestMagicSkillUse;
 import com.lopez.l2j.network.game.packet.GameClientPacket.ValidatePosition;
+import com.lopez.l2j.network.game.packet.GameServerPacket;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ActionFailed;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ChairSit;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ChangeMoveType;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ChangeWaitType;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
+import com.lopez.l2j.network.game.packet.GameServerPacket.DoorStatusUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ManufactureRecipeEntry;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToLocation;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToPawn;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MyTargetSelected;
+import com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopSellList;
+import com.lopez.l2j.network.game.packet.GameServerPacket.StaticObject;
 import com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate;
 import com.lopez.l2j.network.game.packet.GameServerPacket.StopMove;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
@@ -27,6 +43,7 @@ import com.lopez.l2j.network.game.packet.GameServerPacket.SendTradeRequest;
 import com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Comparator;
 import org.slf4j.Logger;
@@ -47,7 +64,11 @@ public class ActionPacketHandler {
 
 	public void handleMove(MoveBackwardToLocation p) {
 		PlayerCharacter active = session.activeChar();
-		if (!session.inWorld() || active == null || active.sitting() || active.isDisabled() || active.isRooted()) {
+		if (!session.inWorld() || active == null || active.isDead() || active.sitting() || active.isDisabled() || active.isRooted()) {
+			session.send(new ActionFailed());
+			return;
+		}
+		if (p.moveMovement() == 0 && !Config.ALLOW_KEYBOARD_MOVEMENT) {
 			session.send(new ActionFailed());
 			return;
 		}
@@ -72,10 +93,34 @@ public class ActionPacketHandler {
 		if (active.isFishing() && ctx != null && ctx.fishing() != null) {
 			ctx.fishing().stopFishing(active, session::send);
 		}
+
+		int targetX = p.targetX();
+		int targetY = p.targetY();
+		int targetZ = p.targetZ();
+		GeoEngine geo = GeoEngine.getInstance();
+		if (geo != null) {
+			if (geo.isBlockedByDynamicObjects(p.originX(), p.originY(), p.originZ(), targetX, targetY, targetZ)) {
+				active.stopMove();
+				session.send(new StopMove(active.objectId(), session.x(), session.y(), session.z(), active.heading()));
+				session.send(new ActionFailed());
+				return;
+			}
+			if (geo.isEnabled()) {
+				GeoEngine.Location checked = geo.moveCheck(
+						p.originX(), p.originY(), p.originZ(),
+						targetX, targetY, targetZ);
+				if (checked != null) {
+					targetX = checked.x();
+					targetY = checked.y();
+					targetZ = checked.z();
+				}
+			}
+		}
+
 		if (session.pendingNpcInteractObjectId() != 0 && ctx != null && ctx.world() != null) {
 			var pendingNpc = ctx.world().npc(session.pendingNpcInteractObjectId()).orElse(null);
 			if (pendingNpc != null) {
-				double distToNpc = Math.hypot(p.targetX() - pendingNpc.x(), p.targetY() - pendingNpc.y());
+				double distToNpc = Math.hypot(targetX - pendingNpc.x(), targetY - pendingNpc.y());
 				if (distToNpc > 300) {
 					session.pendingNpcInteractObjectId(0);
 				}
@@ -89,13 +134,13 @@ public class ActionPacketHandler {
 			session.pendingGroundItemPickupObjectId(0);
 		}
 
-		if (p.targetX() == p.originX() && p.targetY() == p.originY() && p.targetZ() == p.originZ()) {
+		if (targetX == p.originX() && targetY == p.originY() && targetZ == p.originZ()) {
 			active.stopMove();
 			session.send(new StopMove(active.objectId(), session.x(), session.y(), session.z(), active.heading()));
 			return;
 		}
 		active.moveTo(p.originX(), p.originY(), p.originZ());
-		var move = new MoveToLocation(active.objectId(), p.targetX(), p.targetY(), p.targetZ(), p.originX(),
+		var move = new MoveToLocation(active.objectId(), targetX, targetY, targetZ, p.originX(),
 				p.originY(), p.originZ());
 		session.send(move);
 		if (ctx != null && ctx.world() != null) {
@@ -104,7 +149,7 @@ public class ActionPacketHandler {
 		var summon = active.activeSummon();
 		if (summon != null && !summon.isDead() && summon.following()) {
 			int sx = summon.x(), sy = summon.y(), sz = summon.z();
-			int tx = p.targetX() - 40, ty = p.targetY() - 40, tz = p.targetZ();
+			int tx = targetX - 40, ty = targetY - 40, tz = targetZ;
 			summon.moveTo(tx, ty, tz);
 			var sMove = new MoveToLocation(summon.objectId(), tx, ty, tz, sx, sy, sz);
 			session.send(sMove);
@@ -127,16 +172,40 @@ public class ActionPacketHandler {
 		}
 		int realX = active.x();
 		int realY = active.y();
+		int realZ = active.z();
 		double dx = p.x() - realX;
 		double dy = p.y() - realY;
 		double diffSq = dx * dx + dy * dy;
-		// Se a diferenca for muito grande (> 1000 unidades), o pacote esta dessincronizado
-		// Nao aceita a posicao defasada do cliente e sincroniza a posicao real do servidor
-		if (diffSq > 1_000_000.0) {
-			session.send(new ValidateLocation(active.objectId(), realX, realY, active.z(), active.heading()));
+
+		GeoEngine geo = GeoEngine.getInstance();
+		if (geo != null && geo.isBlockedByDynamicObjects(realX, realY, realZ, p.x(), p.y(), p.z())) {
+			session.send(new ValidateLocation(active.objectId(), realX, realY, realZ, active.heading()));
 			return;
 		}
-		active.moveTo(p.x(), p.y(), p.z());
+
+		// Se a diferenca for muito grande (> 500 unidades em modo estrito 2 ou > 1000 unidades), o pacote esta dessincronizado
+		double maxDriftSq = (Config.COORD_SYNCHRONIZE == 2) ? 250_000.0 : 1_000_000.0;
+		if (diffSq > maxDriftSq) {
+			session.send(new ValidateLocation(active.objectId(), realX, realY, realZ, active.heading()));
+			return;
+		}
+
+		int resolvedZ = p.z();
+		if (geo != null && geo.isEnabled()) {
+			short geoZ = geo.getHeight(p.x(), p.y(), p.z());
+			if (Math.abs(p.z() - geoZ) > 200) {
+				if (Math.abs(realZ - geoZ) <= 200) {
+					resolvedZ = geoZ;
+				} else {
+					session.send(new ValidateLocation(active.objectId(), realX, realY, realZ, active.heading()));
+					return;
+				}
+			} else {
+				resolvedZ = geoZ;
+			}
+		}
+
+		active.moveTo(p.x(), p.y(), resolvedZ);
 		active.heading(p.heading());
 		MovementPacketHandler.checkFlagZoneOnMove(session);
 		session.updateKnownObjects();
@@ -194,7 +263,7 @@ public class ActionPacketHandler {
 
 	public void handleAction(Action p) {
 		PlayerCharacter active = session.activeChar();
-		if (!session.inWorld() || active == null) {
+		if (!session.inWorld() || active == null || session.teleporting()) {
 			session.send(new ActionFailed());
 			return;
 		}
@@ -295,7 +364,8 @@ public class ActionPacketHandler {
 			}
 			if (other.character() != null && (other.character().privateStoreType() == PlayerCharacter.STORE_TYPE_SELL
 					|| other.character().privateStoreType() == 8
-					|| other.character().privateStoreType() == PlayerCharacter.STORE_TYPE_BUY)) {
+					|| other.character().privateStoreType() == PlayerCharacter.STORE_TYPE_BUY
+					|| other.character().privateStoreType() == PlayerCharacter.STORE_MANUFACTURE)) {
 				session.targetObjectId(other.objectId());
 				session.send(new MyTargetSelected(other.objectId(), 0));
 				session.send(StatusUpdate.hp(other.objectId(), (int) other.character().currentHp(), other.character().maxHp()));
@@ -304,8 +374,11 @@ public class ActionPacketHandler {
 				double dx = active.x() - other.x();
 				double dy = active.y() - other.y();
 				if (dx * dx + dy * dy <= 250.0 * 250.0) {
-					if (other.character().privateStoreType() == PlayerCharacter.STORE_TYPE_BUY) {
+					int storeType = other.character().privateStoreType();
+					if (storeType == PlayerCharacter.STORE_TYPE_BUY) {
 						session.tradeStoreHandler().showPrivateStoreBuyWindow(other.character());
+					} else if (storeType == PlayerCharacter.STORE_MANUFACTURE) {
+						showManufactureShopWindow(active, other);
 					} else {
 						session.tradeStoreHandler().showPrivateStoreSellWindow(other.character());
 					}
@@ -348,6 +421,7 @@ public class ActionPacketHandler {
 				var obj = staticObjOpt.get();
 				session.targetObjectId(obj.objectId());
 				session.send(new MyTargetSelected(obj.objectId(), 0));
+				session.send(new StaticObject(obj.staticObjectId(), obj.objectId()));
 				session.send(new ValidateLocation(obj.objectId(), obj.x(), obj.y(), obj.z(), 0));
 
 				if (p.shift() != 0 && active.isGm()) {
@@ -375,6 +449,28 @@ public class ActionPacketHandler {
 					}
 					session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(obj.objectId(), content));
 					session.send(new ActionFailed());
+				} else if (obj.isThroneOrStatue()) {
+					double dx = active.x() - obj.x();
+					double dy = active.y() - obj.y();
+					if (dx * dx + dy * dy > 150.0 * 150.0) {
+						var movePawn = new MoveToPawn(active.objectId(), obj.objectId(), 60, active.x(), active.y(), active.z());
+						session.send(movePawn);
+						ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, movePawn, false);
+					} else {
+						Clan clan = (active.clanId() > 0 && ctx.clans() != null)
+								? ctx.clans().byClanId(active.clanId()).orElse(null)
+								: null;
+						int castleOwnerClanId = clan != null && clan.castleId() > 0 ? clan.clanId() : 0;
+						if (active.isGm() || obj.canSitOnThrone(active, clan, castleOwnerClanId)) {
+							active.sitting(true);
+							active.moveTo(obj.x(), obj.y(), obj.z());
+							ChairSit sit = new ChairSit(active.objectId(), obj.staticObjectId());
+							session.send(sit);
+							ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, sit, false);
+						} else {
+							session.send(new ActionFailed());
+						}
+					}
 				}
 				return;
 			}
@@ -397,33 +493,38 @@ public class ActionPacketHandler {
 			}
 		}
 
-		if (ctx.doors() != null) {
-			var doorOpt = ctx.doors().door(p.objectId());
+		DoorTable doorTable = ctx.doors() != null ? ctx.doors() : DoorTable.getInstance();
+		if (doorTable != null) {
+			DoorInstance doorOpt = doorTable.door(p.objectId());
 			if (doorOpt != null) {
-				if (session.targetObjectId() == doorOpt.doorId() && !doorOpt.isOpen() && doorOpt.currentHp() > 0) {
-					int pAtk = 150 + active.level() * 15;
-					int pDef = Math.max(1, doorOpt.pDef());
-					int dmg = Math.max(1, (int) Math.round((70.0 * pAtk) / pDef));
-					doorOpt.currentHp(Math.max(0, doorOpt.currentHp() - dmg));
-					var atk = new com.lopez.l2j.network.game.packet.GameServerPacket.Attack(
-							active.objectId(), doorOpt.doorId(), dmg, 0, active.x(), active.y(), active.z());
-					session.send(atk);
-					ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, atk, false);
-					var su = StatusUpdate.hp(doorOpt.doorId(), doorOpt.currentHp(), doorOpt.maxHp());
-					session.send(su);
-					ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, su, false);
-					if (doorOpt.currentHp() <= 0) {
-						doorOpt.openDoor();
-						var dsu = new com.lopez.l2j.network.game.packet.GameServerPacket.DoorStatusUpdate(doorOpt);
-						session.send(dsu);
-						ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, dsu, false);
-					}
+				int doorObjId = doorOpt.objectId();
+				if (p.shift() != 0 && active.isGm()) {
+					session.targetObjectId(doorObjId);
+					session.send(new MyTargetSelected(doorObjId, 0));
+					session.send(new StaticObject(doorOpt.doorId(), doorObjId));
+					session.send(new DoorStatusUpdate(doorOpt));
+					session.send(StatusUpdate.hp(doorObjId, doorOpt.currentHp(), doorOpt.maxHp()));
+					String htm = "<html><body><table border=0>"
+							+ "<tr><td>Door Info:</td></tr>"
+							+ "<tr><td>Door ID: " + doorOpt.doorId() + "</td></tr>"
+							+ "<tr><td>Object ID: " + doorObjId + "</td></tr>"
+							+ "<tr><td>HP: " + doorOpt.currentHp() + " / " + doorOpt.maxHp() + "</td></tr>"
+							+ "<tr><td>Open: " + doorOpt.isOpen() + "</td></tr>"
+							+ "</table></body></html>";
+					session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(doorObjId, htm));
 					return;
 				}
-				session.targetObjectId(doorOpt.doorId());
-				session.send(new MyTargetSelected(doorOpt.doorId(), 0));
-				session.send(StatusUpdate.hp(doorOpt.doorId(), (int) doorOpt.currentHp(), doorOpt.maxHp()));
-				session.send(new ValidateLocation(doorOpt.doorId(), doorOpt.x(), doorOpt.y(), doorOpt.z(), 0));
+				if ((session.targetObjectId() == doorObjId || session.targetObjectId() == doorOpt.doorId())
+						&& !doorOpt.isOpen() && doorOpt.currentHp() > 0) {
+					attackDoor(active, ctx, doorOpt);
+					return;
+				}
+				session.targetObjectId(doorObjId);
+				session.send(new MyTargetSelected(doorObjId, 0));
+				session.send(new StaticObject(doorOpt.doorId(), doorObjId));
+				session.send(new DoorStatusUpdate(doorOpt));
+				session.send(StatusUpdate.hp(doorObjId, doorOpt.currentHp(), doorOpt.maxHp()));
+				session.send(new ValidateLocation(doorObjId, doorOpt.x(), doorOpt.y(), doorOpt.z(), 0));
 				return;
 			}
 		}
@@ -432,9 +533,91 @@ public class ActionPacketHandler {
 		session.send(new ActionFailed());
 	}
 
+	private void showManufactureShopWindow(PlayerCharacter buyer, GameWorld.OnlinePlayer crafterOnline) {
+		if (buyer == null || crafterOnline == null || crafterOnline.character() == null) {
+			return;
+		}
+		PlayerCharacter crafter = crafterOnline.character();
+		List<ManufactureRecipeEntry> recipes = new ArrayList<>();
+		if (crafterOnline instanceof GameSession crafterSession && crafterSession.extendedProtocolHandler() != null) {
+			try {
+				var field = ExtendedProtocolPacketHandler.class.getDeclaredField("manufactureList");
+				field.setAccessible(true);
+				@SuppressWarnings("unchecked")
+				List<ManufactureRecipeEntry> list = (List<ManufactureRecipeEntry>) field.get(crafterSession.extendedProtocolHandler());
+				if (list != null) {
+					recipes.addAll(list);
+				}
+			} catch (Exception ignored) {
+			}
+		}
+		if (recipes.isEmpty() && OfflineTradeService.getInstance() != null) {
+			OfflineTradeService.SellStoreList sellList = OfflineTradeService.getInstance().getSellStoreList(crafter.objectId());
+			if (sellList != null && sellList.items() != null) {
+				for (OfflineShopItem item : sellList.items()) {
+					recipes.add(new ManufactureRecipeEntry(item.itemId(), item.price()));
+				}
+			}
+		}
+		session.send(new RecipeShopSellList(
+				crafter.objectId(),
+				(int) crafter.currentMp(),
+				crafter.maxMp(),
+				(int) (buyer.inventory() != null ? buyer.inventory().adena() : 0L),
+				recipes));
+	}
+
+	private void attackDoor(PlayerCharacter active, GameSession.Context ctx, DoorInstance door) {
+		int doorObjId = door.objectId();
+		session.targetObjectId(doorObjId);
+
+		int attackRange = session.getPhysicalAttackRange(active) + 100;
+		double dx = active.x() - door.x();
+		double dy = active.y() - door.y();
+		if ((door.x() != 0 || door.y() != 0) && (dx * dx + dy * dy > (double) attackRange * attackRange)) {
+			var movePawn = new MoveToPawn(active.objectId(), doorObjId, Math.max(60, attackRange - 40), active.x(), active.y(), active.z());
+			session.send(movePawn);
+			ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, movePawn, false);
+			return;
+		}
+
+		GeoEngine geo = GeoEngine.getInstance();
+		if (geo != null && geo.isEnabled() && (door.x() != 0 || door.y() != 0)) {
+			if (!geo.canSeeTarget(active.x(), active.y(), active.z(), door.x(), door.y(), door.z())) {
+				session.send(SystemMessage.id(SystemMessage.CANT_SEE_TARGET));
+				session.send(new ActionFailed());
+				return;
+			}
+		}
+
+		int pAtk = 150 + active.level() * 15;
+		if (ctx.characters() != null) {
+			var tpl = ctx.characters().template(active);
+			if (tpl != null) {
+				var stats = PlayerStats.calculate(active, tpl);
+				if (stats != null && stats.pAtk() > 0) {
+					pAtk = stats.pAtk();
+				}
+			}
+		}
+		int pDef = Math.max(1, door.pDef());
+		int dmg = Math.max(1, (int) Math.round((70.0 * pAtk) / pDef));
+		door.currentHp(door.currentHp() - dmg);
+		var atk = new com.lopez.l2j.network.game.packet.GameServerPacket.Attack(
+				active.objectId(), doorObjId, dmg, 0, active.x(), active.y(), active.z());
+		session.send(atk);
+		ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, atk, false);
+		var su = StatusUpdate.hp(doorObjId, door.currentHp(), door.maxHp());
+		session.send(su);
+		ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, su, false);
+		var dsu = new DoorStatusUpdate(door);
+		session.send(dsu);
+		ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, dsu, false);
+	}
+
 	public void handleAttackRequest(AttackRequest p) {
 		PlayerCharacter active = session.activeChar();
-		if (!session.inWorld() || active == null || active.isDead() || active.sitting() || active.isDisabled()) {
+		if (!session.inWorld() || active == null || active.isDead() || active.sitting() || active.isDisabled() || session.teleporting()) {
 			session.send(new ActionFailed());
 			return;
 		}
@@ -470,32 +653,11 @@ public class ActionPacketHandler {
 				return;
 			}
 		}
-		if (ctx.doors() != null) {
-			var doorOpt = ctx.doors().door(p.objectId());
+		DoorTable doorTable = ctx.doors() != null ? ctx.doors() : DoorTable.getInstance();
+		if (doorTable != null) {
+			var doorOpt = doorTable.door(p.objectId());
 			if (doorOpt != null && !doorOpt.isOpen() && doorOpt.currentHp() > 0) {
-				session.targetObjectId(doorOpt.doorId());
-				int pAtk = 150 + active.level() * 15;
-				int pDef = Math.max(1, doorOpt.pDef());
-				int dmg = Math.max(1, (int) Math.round((70.0 * pAtk) / pDef));
-				doorOpt.currentHp(Math.max(0, doorOpt.currentHp() - dmg));
-				var atk = new com.lopez.l2j.network.game.packet.GameServerPacket.Attack(
-						active.objectId(), doorOpt.doorId(), dmg, 0, active.x(), active.y(), active.z());
-				session.send(atk);
-				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, atk, false);
-				var su = StatusUpdate.hp(doorOpt.doorId(), doorOpt.currentHp(), doorOpt.maxHp());
-				session.send(su);
-				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, su, false);
-				if (doorOpt.currentHp() <= 0) {
-					doorOpt.openDoor();
-					var dsu = new com.lopez.l2j.network.game.packet.GameServerPacket.DoorStatusUpdate(doorOpt);
-					session.send(dsu);
-					ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, dsu, false);
-				}
-				return;
-			}
-		}
-		if (false) { if (false) {
-				if (false) return;
+				attackDoor(active, ctx, doorOpt);
 				return;
 			}
 		}
@@ -518,13 +680,19 @@ public class ActionPacketHandler {
 
 	public void handleActionUse(RequestActionUse p) {
 		PlayerCharacter active = session.activeChar();
-		if (!session.inWorld() || active == null || active.isDead()) {
+		if (!session.inWorld() || active == null || active.isDead() || session.teleporting()) {
 			session.send(new ActionFailed());
 			return;
 		}
 		var ctx = session.context();
 		switch (p.actionId()) {
 			case 0 -> { // Sit / Stand
+				if (session.casting() || session.isAttackingNow() || active.isDisabled()
+						|| (active.effects() != null && active.effects().hasSkill(60))
+						|| active.privateStoreType() != PlayerCharacter.STORE_TYPE_NONE) {
+					session.send(new ActionFailed());
+					return;
+				}
 				active.sitting(!active.sitting());
 				var wait = new ChangeWaitType(active.objectId(), active.sitting() ? 0 : 1, session.x(), session.y(), session.z());
 				session.send(wait);
@@ -575,36 +743,22 @@ public class ActionPacketHandler {
 							&& targetSession != session && targetSession.activeChar() != null) {
 						session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 								"Solicitando troca com " + targetSession.character().name() + "..."));
-						targetSession.send(new SendTradeRequest(active.objectId()));
+						TradeService tradeSvc = ctx.getBean(TradeService.class);
+						if (tradeSvc == null) {
+							tradeSvc = GameEngineContext.getBean(TradeService.class);
+						}
+						if (tradeSvc != null && session.tradeStoreHandler() != null) {
+							session.tradeStoreHandler().handleTradeRequest(new GameClientPacket.TradeRequest(targetSession.objectId()));
+						} else {
+							targetSession.send(new SendTradeRequest(active.objectId()));
+						}
 						return;
 					}
 				}
 				session.send(new ActionFailed());
 			}
 			case 4 -> { // Target Next
-				if (ctx != null && ctx.world() != null) {
-					double bestDistSq = 900.0 * 900.0;
-					NpcInstance bestNpc = null;
-					for (var npc : ctx.world().findNpcsAround(active.x(), active.y(), 900)) {
-						if (npc.template().isAttackable() && !npc.isDead()) {
-							double dx = active.x() - npc.x();
-							double dy = active.y() - npc.y();
-							double d2 = dx * dx + dy * dy;
-							if (d2 < bestDistSq) {
-								bestDistSq = d2;
-								bestNpc = npc;
-							}
-						}
-					}
-					if (bestNpc != null) {
-						session.targetObjectId(bestNpc.objectId());
-						session.send(new MyTargetSelected(bestNpc.objectId(), 0));
-						session.send(new ValidateLocation(bestNpc.objectId(), bestNpc.x(), bestNpc.y(), bestNpc.z(),
-								bestNpc.heading()));
-						return;
-					}
-				}
-				session.send(new ActionFailed());
+				handleTargetNearestHostile();
 			}
 			case 5 -> { // Pickup
 				if (ctx != null && ctx.groundItems() != null) {
@@ -739,8 +893,39 @@ public class ActionPacketHandler {
 			case 32 -> session.sendSocialAction(13); // Sorrow
 			case 33 -> session.sendSocialAction(14); // Charm
 			case 34 -> session.sendSocialAction(15); // Shyness
-			case 53, 54 -> { // Follow / Move to Target
+			case 53, 54 -> { // Move Servitor/Pet to Target (ou Follow se sem summon)
 				if (session.targetObjectId() != 0 && ctx != null && ctx.world() != null) {
+					var sum = active.activeSummon();
+					if (sum != null && !sum.isDead()) {
+						int tx = 0, ty = 0, tz = 0;
+						boolean found = false;
+						var npcOpt = ctx.world().npc(session.targetObjectId());
+						if (npcOpt.isPresent()) {
+							var npc = npcOpt.get();
+							tx = npc.x();
+							ty = npc.y();
+							tz = npc.z();
+							found = true;
+						} else {
+							var tpOpt = ctx.world().player(session.targetObjectId());
+							if (tpOpt.isPresent()) {
+								var tp = tpOpt.get();
+								tx = tp.x();
+								ty = tp.y();
+								tz = tp.z();
+								found = true;
+							}
+						}
+						if (found) {
+							sum.following(false);
+							int ox = sum.x(), oy = sum.y(), oz = sum.z();
+							sum.moveTo(tx, ty, tz);
+							var mv = new MoveToLocation(sum.objectId(), tx, ty, tz, ox, oy, oz);
+							session.send(mv);
+							ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, mv, false);
+							return;
+						}
+					}
 					var targetPlayerOpt = ctx.world().player(session.targetObjectId());
 					if (targetPlayerOpt.isPresent() && targetPlayerOpt.get() instanceof GameSession ts) {
 						session.startFollow(ts);
@@ -749,8 +934,9 @@ public class ActionPacketHandler {
 					var npcOpt = ctx.world().npc(session.targetObjectId());
 					if (npcOpt.isPresent()) {
 						var npc = npcOpt.get();
+						int ox = active.x(), oy = active.y(), oz = active.z();
 						active.moveTo(npc.x(), npc.y(), npc.z());
-						session.send(new MoveToLocation(active.objectId(), active.x(), active.y(), active.z(), npc.x(), npc.y(), npc.z()));
+						session.send(new MoveToLocation(active.objectId(), npc.x(), npc.y(), npc.z(), ox, oy, oz));
 						return;
 					}
 				}
@@ -758,6 +944,82 @@ public class ActionPacketHandler {
 			}
 			default -> session.send(new ActionFailed());
 		}
+	}
+
+	/**
+	 * Seleciona o inimigo atacavel mais proximo dentro de 1200 unidades (NextTarget / Action 4) (#099).
+	 */
+	public void handleTargetNearestHostile() {
+		PlayerCharacter active = session.activeChar();
+		var ctx = session.context();
+		if (!session.inWorld() || active == null || ctx == null || ctx.world() == null) {
+			session.send(new ActionFailed());
+			return;
+		}
+		int currentTargetId = session.targetObjectId();
+		double bestDistSq = 1200.0 * 1200.0;
+		NpcInstance bestNpc = null;
+		double fallbackDistSq = 1200.0 * 1200.0;
+		NpcInstance fallbackNpc = null;
+		GeoEngine geo = GeoEngine.getInstance();
+
+		for (var npc : ctx.world().findNpcsAround(active.x(), active.y(), 1200)) {
+			if (npc.template() != null && npc.template().isAttackable() && !npc.isDead()) {
+				if (geo != null && geo.isEnabled()
+						&& !geo.canSeeTarget(active.x(), active.y(), active.z(), npc.x(), npc.y(), npc.z())) {
+					continue;
+				}
+				double dx = active.x() - npc.x();
+				double dy = active.y() - npc.y();
+				double d2 = dx * dx + dy * dy;
+				if (npc.objectId() != currentTargetId && d2 < bestDistSq) {
+					bestDistSq = d2;
+					bestNpc = npc;
+				}
+				if (d2 < fallbackDistSq) {
+					fallbackDistSq = d2;
+					fallbackNpc = npc;
+				}
+			}
+		}
+		if (bestNpc == null) {
+			bestNpc = fallbackNpc;
+		}
+		if (bestNpc != null) {
+			session.targetObjectId(bestNpc.objectId());
+			int levelDiff = active.level() - (bestNpc.template() != null ? bestNpc.template().level() : active.level());
+			session.send(new MyTargetSelected(bestNpc.objectId(), levelDiff));
+			session.send(StatusUpdate.hp(bestNpc.objectId(), (int) bestNpc.currentHp(), (int) bestNpc.maxHp()));
+			session.send(new ValidateLocation(bestNpc.objectId(), bestNpc.x(), bestNpc.y(), bestNpc.z(), bestNpc.heading()));
+			return;
+		}
+
+		// Se nao houver monstro hostil, verifica jogador hostil/PvP proximo
+		GameSession bestPlayer = null;
+		double bestPlayerDistSq = 1200.0 * 1200.0;
+		for (var pl : ctx.world().players()) {
+			if (pl instanceof GameSession gs && gs != session && gs.activeChar() != null && !gs.activeChar().isDead()) {
+				if (!session.canAutoAttackPlayerWithoutCtrl(gs)) {
+					continue;
+				}
+				double dx = active.x() - gs.x();
+				double dy = active.y() - gs.y();
+				double d2 = dx * dx + dy * dy;
+				if (d2 < bestPlayerDistSq) {
+					bestPlayerDistSq = d2;
+					bestPlayer = gs;
+				}
+			}
+		}
+		if (bestPlayer != null && bestPlayer.activeChar() != null) {
+			session.targetObjectId(bestPlayer.objectId());
+			session.send(new MyTargetSelected(bestPlayer.objectId(), 0));
+			session.send(StatusUpdate.hp(bestPlayer.objectId(), (int) bestPlayer.activeChar().currentHp(), bestPlayer.activeChar().maxHp()));
+			session.send(new ValidateLocation(bestPlayer.objectId(), bestPlayer.x(), bestPlayer.y(), bestPlayer.z(), bestPlayer.activeChar().heading()));
+			return;
+		}
+
+		session.send(new ActionFailed());
 	}
 
 	private void toggleSummonFollow(PlayerCharacter active, GameSession.Context ctx) {
