@@ -62,8 +62,11 @@ public class ClanSkillTreeTable {
 							int minClanLevel = Integer.parseInt(attrs.getNamedItem("clan_lvl").getNodeValue());
 							int repCost = Integer.parseInt(attrs.getNamedItem("repCost").getNodeValue());
 							int itemId = Integer.parseInt(attrs.getNamedItem("itemId").getNodeValue());
+							int minPledgeClass = attrs.getNamedItem("minPledgeClass") != null
+									? Integer.parseInt(attrs.getNamedItem("minPledgeClass").getNodeValue())
+									: 0;
 
-							var record = new PledgeSkillRecord(skillId, level, name, minClanLevel, repCost, itemId);
+							var record = new PledgeSkillRecord(skillId, level, name, minClanLevel, repCost, itemId, minPledgeClass);
 							allSkills.add(record);
 							skillMap.put(skillKey(skillId, level), record);
 						}
