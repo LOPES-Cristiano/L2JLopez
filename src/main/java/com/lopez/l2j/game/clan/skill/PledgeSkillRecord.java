@@ -9,5 +9,10 @@ public record PledgeSkillRecord(
 		String name,
 		int minClanLevel,
 		int repCost,
-		int itemId
-) {}
+		int itemId,
+		int minPledgeClass
+) {
+	public PledgeSkillRecord(int skillId, int level, String name, int minClanLevel, int repCost, int itemId) {
+		this(skillId, level, name, minClanLevel, repCost, itemId, 0);
+	}
+}
