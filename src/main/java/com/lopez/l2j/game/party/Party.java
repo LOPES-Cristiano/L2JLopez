@@ -43,6 +43,150 @@ public final class Party {
 	private int leaderObjectId;
 	private final int itemDistribution;
 	private final List<GameSession> members = new CopyOnWriteArrayList<>();
+	private volatile CommandChannel commandChannel;
+
+	/**
+	 * Representa um Canal de Comando (Command Channel / L2CommandChannel do L2JDream) (#385).
+	 */
+	public static final class CommandChannel {
+		public static final int STRATEGY_GUIDE_ID = 8871;
+		public static final int CLAN_IMPERIUM_SKILL_ID = 391;
+
+		private volatile int channelLeaderObjectId;
+		private final List<Party> parties = new CopyOnWriteArrayList<>();
+
+		public CommandChannel(Party leaderParty) {
+			this.channelLeaderObjectId = leaderParty.leaderObjectId();
+			this.parties.add(leaderParty);
+			leaderParty.setCommandChannel(this);
+		}
+
+		public static boolean checkAndConsumeCreationRequirements(PlayerCharacter leader) {
+			if (leader == null || leader.clanId() <= 0) {
+				return false;
+			}
+			var clanTable = com.lopez.l2j.game.clan.ClanTable.getInstance();
+			if (clanTable != null) {
+				var clan = clanTable.getClan(leader.clanId());
+				if (clan == null || clan.level() < 4) {
+					return false;
+				}
+				if (clan.getSkillLevel(CLAN_IMPERIUM_SKILL_ID) > 0) {
+					return true;
+				}
+			}
+			if (leader.skills().getOrDefault(CLAN_IMPERIUM_SKILL_ID, 0) > 0) {
+				return true;
+			}
+			if (leader.inventory() != null && leader.inventory().getItemCount(STRATEGY_GUIDE_ID) >= 1) {
+				leader.inventory().destroyItemByItemId(STRATEGY_GUIDE_ID, 1);
+				return true;
+			}
+			return false;
+		}
+
+		public int channelLeaderObjectId() {
+			return channelLeaderObjectId;
+		}
+
+		public List<Party> parties() {
+			return parties;
+		}
+
+		public synchronized boolean addParty(Party party) {
+			if (party == null || parties.contains(party) || parties.size() >= 50) {
+				return false;
+			}
+			parties.add(party);
+			party.setCommandChannel(this);
+			return true;
+		}
+
+		public synchronized void removeParty(Party party) {
+			if (party == null || !parties.remove(party)) {
+				return;
+			}
+			party.setCommandChannel(null);
+			if (parties.size() < 2) {
+				disband();
+			} else if (party.leaderObjectId() == channelLeaderObjectId) {
+				this.channelLeaderObjectId = parties.get(0).leaderObjectId();
+			}
+		}
+
+		public synchronized void disband() {
+			for (Party p : parties) {
+				p.setCommandChannel(null);
+			}
+			parties.clear();
+		}
+
+		public void broadcast(GameServerPacket packet) {
+			for (Party p : parties) {
+				p.broadcast(packet);
+			}
+		}
+
+		public int getMemberCount() {
+			int total = 0;
+			for (Party p : parties) {
+				total += p.size();
+			}
+			return total;
+		}
+
+		public List<PlayerCharacter> getMembers() {
+			List<PlayerCharacter> all = new ArrayList<>();
+			for (Party p : parties) {
+				all.addAll(p.characters());
+			}
+			return all;
+		}
+	}
+
+	public boolean isInCommandChannel() {
+		return commandChannel != null;
+	}
+
+	public CommandChannel getCommandChannel() {
+		return commandChannel;
+	}
+
+	public CommandChannel commandChannel() {
+		return commandChannel;
+	}
+
+	public void setCommandChannel(CommandChannel commandChannel) {
+		this.commandChannel = commandChannel;
+	}
+
+	public void commandChannel(CommandChannel commandChannel) {
+		this.commandChannel = commandChannel;
+	}
+
+	public GameSession leader() {
+		for (var s : members) {
+			if (s.character() != null && s.character().objectId() == leaderObjectId) {
+				return s;
+			}
+		}
+		return members.isEmpty() ? null : members.get(0);
+	}
+
+	public void removePartyMember(int objectId) {
+		for (var s : members) {
+			if (s.character() != null && s.character().objectId() == objectId) {
+				removeMember(s);
+				return;
+			}
+		}
+	}
+
+	public void removeMember(PlayerCharacter player) {
+		if (player != null) {
+			removePartyMember(player.objectId());
+		}
+	}
 
 	public Party(GameSession leader, GameSession firstMember, int itemDistribution) {
 		this.leaderObjectId = leader.character().objectId();
@@ -161,6 +305,9 @@ public final class Party {
 
 	/** Desfaz o grupo completamente. */
 	public synchronized void disband() {
+		if (commandChannel != null) {
+			commandChannel.removeParty(this);
+		}
 		for (var s : members) {
 			s.send(new PartySmallWindowDeleteAll());
 			s.send(SystemMessage.id(SystemMessage.PARTY_DISPERSED));
@@ -288,8 +435,40 @@ public final class Party {
 			}
 			long memberExp = partyExp > 0 ? Math.max(1L, Math.round(partyExp * share)) : 0L;
 			int memberSp = partySp > 0 ? (int) Math.min(Integer.MAX_VALUE, Math.max(1L, Math.round(partySp * share))) : 0;
+
+			// Bonus de EXP/SP (+10%) para aprendiz da Academia quando seu Padrinho (Sponsor) esta ativo na party (#377)
+			if (hasActiveSponsorInParty(s.character(), eligible)) {
+				memberExp = Math.max(memberExp, Math.round(memberExp * 1.10));
+				memberSp = (int) Math.min(Integer.MAX_VALUE, Math.max(memberSp, Math.round(memberSp * 1.10)));
+			}
+
 			s.applyExpAndSp(memberExp, memberSp);
 		}
+	}
+
+	private boolean hasActiveSponsorInParty(PlayerCharacter ch, List<GameSession> eligible) {
+		if (ch == null || ch.clanId() <= 0 || eligible == null) {
+			return false;
+		}
+		var clanTable = com.lopez.l2j.game.clan.ClanTable.getInstance();
+		if (clanTable == null) {
+			return false;
+		}
+		var clan = clanTable.getClan(ch.clanId());
+		if (clan == null) {
+			return false;
+		}
+		var member = clan.getMember(ch.objectId());
+		if (member == null || member.pledgeType() != com.lopez.l2j.game.clan.Clan.SUBUNIT_ACADEMY || member.sponsor() <= 0) {
+			return false;
+		}
+		int sponsorId = member.sponsor();
+		for (var s : eligible) {
+			if (s.character() != null && s.character().objectId() == sponsorId) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private String leaderName() {
