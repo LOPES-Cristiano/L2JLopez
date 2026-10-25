@@ -41,6 +41,7 @@ public class QuestManager implements SmartInitializingSingleton {
 	private final Map<Integer, List<Quest>> questsByTalkNpc = new ConcurrentHashMap<>();
 	private final Map<Integer, List<Quest>> questsByFirstTalkNpc = new ConcurrentHashMap<>();
 	private final Map<Integer, List<Quest>> questsByKillNpc = new ConcurrentHashMap<>();
+	private final Map<Integer, List<Quest>> questsByAttackNpc = new ConcurrentHashMap<>();
 
 	public QuestManager(JdbcTemplate jdbcTemplate) {
 		this(jdbcTemplate, null);
@@ -137,6 +138,9 @@ public class QuestManager implements SmartInitializingSingleton {
 		for (int npcId : quest.getKillNpcIds()) {
 			addQuestToNpcIndex(questsByKillNpc, npcId, quest);
 		}
+		for (int npcId : quest.getAttackNpcIds()) {
+			addQuestToNpcIndex(questsByAttackNpc, npcId, quest);
+		}
 	}
 
 	private static void addQuestToNpcIndex(Map<Integer, List<Quest>> index, int npcId, Quest quest) {
@@ -170,6 +174,12 @@ public class QuestManager implements SmartInitializingSingleton {
 	public List<Quest> getQuestsForKillNpc(int npcId) {
 		ensureDiscoveredQuestsRegistered();
 		List<Quest> list = questsByKillNpc.get(npcId);
+		return list != null ? Collections.unmodifiableList(list) : List.of();
+	}
+
+	public List<Quest> getQuestsForAttackNpc(int npcId) {
+		ensureDiscoveredQuestsRegistered();
+		List<Quest> list = questsByAttackNpc.get(npcId);
 		return list != null ? Collections.unmodifiableList(list) : List.of();
 	}
 
@@ -369,6 +379,16 @@ public class QuestManager implements SmartInitializingSingleton {
 		int npcId = npc.npcId();
 		for (Quest q : getQuestsForKillNpc(npcId)) {
 			q.notifyKill(npc, player, isPet);
+		}
+	}
+
+	public void onNpcAttack(NpcInstance npc, GameSession player, boolean isPet) {
+		if (npc == null || player == null) {
+			return;
+		}
+		int npcId = npc.npcId();
+		for (Quest q : getQuestsForAttackNpc(npcId)) {
+			q.notifyAttack(npc, player, isPet);
 		}
 	}
 
