@@ -20,13 +20,44 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * Servico central de encantamento de habilidades (Skill Enchanting).
  * Controla verificacao de pre-requisitos (Giant's Codex, SP, EXP, 3rd class transfer),
- * taxas oficiais por nivel de jogador (76, 77, 78+), sucesso e downgrade para base_lvl na falha.
+ * suporte de +1 a +30 por rota (101..130, 141..170, etc.), taxas oficiais por nivel
+ * de jogador (76..80), sucesso e downgrade para base_lvl na falha.
  */
 @Service
 public class SkillEnchantService {
 
 	private static final Logger log = LoggerFactory.getLogger(SkillEnchantService.class);
 	public static final int GIANTS_CODEX_ITEM_ID = 6622;
+	public static final int MAX_ENCHANT_STEP = 30;
+
+	/**
+	 * Tabelas oficiais Interlude de probabilidade (%) para +1 a +30 por nivel do personagem (76 a 80).
+	 */
+	private static final int[] RETAIL_RATES_LVL_76 = {
+		0, 82, 80, 78, 40, 30, 20, 14, 10, 6, 2,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+	};
+	private static final int[] RETAIL_RATES_LVL_77 = {
+		0, 92, 90, 88, 82, 80, 78, 40, 30, 20, 14,
+		10, 6, 2, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+	};
+	private static final int[] RETAIL_RATES_LVL_78 = {
+		0, 97, 95, 93, 92, 90, 88, 82, 80, 78, 40,
+		30, 20, 14, 10, 6, 2, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+	};
+	private static final int[] RETAIL_RATES_LVL_79 = {
+		0, 99, 98, 97, 96, 95, 93, 92, 90, 88, 82,
+		80, 78, 40, 30, 20, 14, 10, 6, 2, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+	};
+	private static final int[] RETAIL_RATES_LVL_80 = {
+		0, 99, 99, 99, 98, 97, 96, 95, 93, 92, 90,
+		88, 82, 80, 78, 40, 30, 20, 14, 10, 6,
+		5, 4, 3, 2, 2, 1, 1, 1, 1, 1
+	};
 
 	public enum ResultType {
 		SUCCESS,
@@ -62,23 +93,83 @@ public class SkillEnchantService {
 	 * momento no qual a utilizacao do Secret Book of Giants (Giant's Codex) e obrigatoria.
 	 */
 	public static boolean isFirstEnchantLevel(int level) {
-		return level == 101 || level == 141 || level == 181 || level == 221 || level == 261 || (level % 100 == 1);
+		return level == 101 || level == 141 || level == 181 || level == 221 || level == 261
+				|| level == 301 || level == 341 || level == 381 || (level > 100 && level % 100 == 1);
 	}
 
 	/**
-	 * Calcula a taxa de sucesso com base no nivel atual do jogador (76, 77, 78+).
+	 * Extrai o passo de encantamento (+1 a +30) a partir do nivel de encantamento (101..130, 141..170, etc.).
+	 */
+	public static int getEnchantStep(int skillLevel) {
+		if (skillLevel <= 100) {
+			return 0;
+		}
+		int offset = skillLevel - 101;
+		int step = (offset % 40) + 1;
+		return Math.min(MAX_ENCHANT_STEP, Math.max(1, step));
+	}
+
+	/**
+	 * Extrai o indice da rota de encantamento (1..8) a partir do nivel de encantamento.
+	 */
+	public static int getEnchantRoute(int skillLevel) {
+		if (skillLevel <= 100) {
+			return 0;
+		}
+		return ((skillLevel - 101) / 40) + 1;
+	}
+
+	/**
+	 * Verifica se um nivel de encantamento esta dentro do intervalo valido (+1 a +30).
+	 */
+	public static boolean isValidEnchantLevel(int skillLevel) {
+		if (skillLevel < 101) {
+			return false;
+		}
+		int step = ((skillLevel - 101) % 40) + 1;
+		return step >= 1 && step <= MAX_ENCHANT_STEP;
+	}
+
+	/**
+	 * Retorna a probabilidade oficial de encantamento (+1 a +30) para os niveis de jogador 76 a 80.
+	 */
+	public static int getRetailSuccessRate(int skillLevel, int playerLevel) {
+		int step = getEnchantStep(skillLevel);
+		if (step < 1 || step > MAX_ENCHANT_STEP) {
+			return 0;
+		}
+		if (playerLevel <= 76) {
+			return RETAIL_RATES_LVL_76[step];
+		} else if (playerLevel == 77) {
+			return RETAIL_RATES_LVL_77[step];
+		} else if (playerLevel == 78) {
+			return RETAIL_RATES_LVL_78[step];
+		} else if (playerLevel == 79) {
+			return RETAIL_RATES_LVL_79[step];
+		} else {
+			return RETAIL_RATES_LVL_80[step];
+		}
+	}
+
+	/**
+	 * Calcula a taxa de sucesso com base no nivel atual do jogador (76, 77, 78..80).
 	 */
 	public int getSuccessRate(EnchantSkillLearn enchant, int playerLevel) {
 		if (enchant == null) {
 			return 0;
 		}
+		int rate;
 		if (playerLevel <= 76) {
-			return enchant.rate76();
+			rate = enchant.rate76();
 		} else if (playerLevel == 77) {
-			return enchant.rate77();
+			rate = enchant.rate77();
 		} else {
-			return enchant.rate78();
+			rate = enchant.rate78();
 		}
+		if (rate > 0) {
+			return rate;
+		}
+		return getRetailSuccessRate(enchant.level(), playerLevel);
 	}
 
 	/**
@@ -102,7 +193,7 @@ public class SkillEnchantService {
 	 * Consulta os detalhes de custo e probabilidade para um determinado skill e nivel desejado.
 	 */
 	public Optional<EnchantInfo> getEnchantInfo(PlayerCharacter player, int skillId, int level) {
-		if (player == null || skillTreeTable == null) {
+		if (player == null || skillTreeTable == null || !isValidEnchantLevel(level)) {
 			return Optional.empty();
 		}
 		var opt = skillTreeTable.getEnchantSkill(skillId, level);
@@ -131,13 +222,13 @@ public class SkillEnchantService {
 	}
 
 	/**
-	 * Executa a operacao de encantamento do skill.
+	 * Executa a operacao de encantamento do skill (+1 a +30).
 	 */
 	public EnchantResult enchantSkill(PlayerCharacter player, int skillId, int level) {
 		if (player == null || skillTreeTable == null) {
 			return new EnchantResult(ResultType.INVALID_CONDITION, skillId, 0, 0, 0);
 		}
-		if (player.isDead() || player.level() < 76) {
+		if (player.isDead() || player.level() < 76 || !isValidEnchantLevel(level)) {
 			return new EnchantResult(ResultType.INVALID_CONDITION, skillId, 0, player.skillLevel(skillId), 0);
 		}
 		var opt = skillTreeTable.getEnchantSkill(skillId, level);
@@ -152,7 +243,7 @@ public class SkillEnchantService {
 			return new EnchantResult(ResultType.INVALID_CONDITION, skillId, currentLvl, currentLvl, 0);
 		}
 
-		// 1. Checa Giant's Codex (6622)
+		// 1. Checa Giant's Codex (6622) no nivel +1 da rota
 		boolean needBook = Config.ENCHANT_SKILL_SP_BOOK_NEEDED && isFirstEnchantLevel(s.level());
 		ItemInstance bookItem = null;
 		if (needBook) {
@@ -181,8 +272,16 @@ public class SkillEnchantService {
 		}
 
 		// Consumir Livro (Giant's Codex)
-		if (needBook && bookItem != null && inventoryService != null) {
-			inventoryService.destroyItem(player.inventory(), bookItem.objectId(), 1, "SkillEnchant");
+		if (needBook && bookItem != null) {
+			if (inventoryService != null) {
+				inventoryService.destroyItem(player.inventory(), bookItem.objectId(), 1, "SkillEnchant");
+			} else if (player.inventory() != null) {
+				if (bookItem.count() > 1) {
+					bookItem.count(bookItem.count() - 1);
+				} else {
+					player.inventory().remove(bookItem.objectId());
+				}
+			}
 		}
 
 		// Consumir SP e EXP
