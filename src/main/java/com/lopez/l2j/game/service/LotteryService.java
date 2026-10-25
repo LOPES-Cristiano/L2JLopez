@@ -1,9 +1,11 @@
 package com.lopez.l2j.game.service;
 
+import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -14,7 +16,8 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * Loteria de Aden Retail (LotteryService).
  * Compra de bilhetes nas capitais com escolha de 5 números (1 a 20),
- * acúmulo do prêmio total da loteria e sorteio automático regular/semanal.
+ * emissão de bilhete físico (item 4442) com bitmask em custom_type1/custom_type2,
+ * acúmulo do prêmio total da loteria, persistência SQL na tabela `games` e sorteio regular.
  */
 @Service
 public class LotteryService {
@@ -22,6 +25,7 @@ public class LotteryService {
     private static final Logger log = LoggerFactory.getLogger(LotteryService.class);
 
     public static final int ADENA_ITEM_ID = 57;
+    public static final int LOTTERY_TICKET_ITEM_ID = 4442;
     public static final int TICKET_PRICE = 2000;
 
     public record LotteryTicket(int ticketId, int playerId, String playerName, Set<Integer> numbers, int lotteryId) {}
@@ -30,6 +34,7 @@ public class LotteryService {
                              int firstPrizeWinners, int secondPrizeWinners, int thirdPrizeWinners) {}
 
     private InventoryService inventoryService;
+    private JdbcClient jdbc;
 
     private int currentLotteryId = 1001;
     private int ticketPrice = TICKET_PRICE; // 2.000 Adena por bilhete
@@ -43,18 +48,50 @@ public class LotteryService {
 
     public LotteryService() {}
 
+    public LotteryService(InventoryService inventoryService) {
+        this(inventoryService, null);
+    }
+
     @Autowired
-    public LotteryService(@Autowired(required = false) InventoryService inventoryService) {
+    public LotteryService(
+            @Autowired(required = false) InventoryService inventoryService,
+            @Autowired(required = false) JdbcClient jdbc) {
         this.inventoryService = inventoryService;
+        this.jdbc = jdbc;
+        loadFromDb();
     }
 
     public void setInventoryService(InventoryService inventoryService) {
         this.inventoryService = inventoryService;
     }
 
+    public static int encodeNumbersBitmask(Set<Integer> numbers) {
+        if (numbers == null) {
+            return 0;
+        }
+        int mask = 0;
+        for (int n : numbers) {
+            if (n >= 1 && n <= 20) {
+                mask |= (1 << (n - 1));
+            }
+        }
+        return mask;
+    }
+
+    public static Set<Integer> decodeNumbersBitmask(int customType1, int customType2) {
+        int mask = (customType1 & 0xFFFF) | ((customType2 & 0xFFFF) << 16);
+        Set<Integer> result = new LinkedHashSet<>();
+        for (int i = 1; i <= 20; i++) {
+            if ((mask & (1 << (i - 1))) != 0) {
+                result.add(i);
+            }
+        }
+        return result;
+    }
+
     /**
      * Compra de bilhete integrada ao PlayerCharacter: valida números, cobra TICKET_PRICE (2.000 Adena)
-     * do inventário/banco via InventoryService e registra o bilhete para o jogador.
+     * do inventário/banco via InventoryService, entrega o bilhete físico 4442 com bitmask e registra o bilhete.
      */
     public synchronized boolean buyTicket(PlayerCharacter player, Set<Integer> numbers) {
         if (player == null || !isValidNumbers(numbers)) {
@@ -75,6 +112,25 @@ public class LotteryService {
             }
         }
 
+        int mask = encodeNumbersBitmask(numbers);
+        int type1 = mask & 0xFFFF;
+        int type2 = (mask >>> 16) & 0xFFFF;
+        ItemInstance ticketItem = null;
+        if (inventoryService != null) {
+            var added = inventoryService.addItem(inv, LOTTERY_TICKET_ITEM_ID, 1, "LotteryTicket");
+            if (added != null) {
+                ticketItem = added.item();
+            }
+        }
+        if (ticketItem == null) {
+            ticketItem = inv.addItem(LOTTERY_TICKET_ITEM_ID, 1);
+        }
+        if (ticketItem != null) {
+            ticketItem.enchantLevel(currentLotteryId);
+            ticketItem.customType1(type1);
+            ticketItem.customType2(type2);
+        }
+
         return buyTicket(player.objectId(), player.name(), numbers).isPresent();
     }
 
@@ -91,6 +147,7 @@ public class LotteryService {
         LotteryTicket ticket = new LotteryTicket(nextTicketId++, playerId, playerName, new HashSet<>(numbers), currentLotteryId);
         currentTickets.add(ticket);
         ticketsByRound.computeIfAbsent(currentLotteryId, k -> new CopyOnWriteArrayList<>()).add(ticket);
+        saveRoundToDb(currentLotteryId, prizePool, 0, 0, 0);
         log.info("Lottery: Jogador {} comprou bilhete #{} para a loteria #{}: {}", playerName, ticket.ticketId(), currentLotteryId, numbers);
         return Optional.of(ticket);
     }
@@ -143,6 +200,8 @@ public class LotteryService {
         DrawResult result = new DrawResult(currentLotteryId, winningNumbers, prizePool, firstMatches, secondMatches, thirdMatches);
         drawHistory.put(currentLotteryId, result);
         ticketsByRound.put(currentLotteryId, new CopyOnWriteArrayList<>(currentTickets));
+        int mask = encodeNumbersBitmask(winningSet);
+        saveRoundToDb(currentLotteryId, prizePool, 1, mask & 0xFFFF, (mask >>> 16) & 0xFFFF);
 
         log.info("Lottery: Sorteio #{} realizado! Números sorteados: {}. Acertos: 5={}, 4={}, 3={}. Prêmio: {}",
                 currentLotteryId, winningNumbers, firstMatches, secondMatches, thirdMatches, prizePool);
@@ -156,12 +215,13 @@ public class LotteryService {
 
         currentLotteryId++;
         currentTickets.clear();
+        saveRoundToDb(currentLotteryId, prizePool, 0, 0, 0);
         return result;
     }
 
     /**
      * Calcula e resgata o prêmio pendente do jogador em uma determinada rodada,
-     * impedindo resgate duplicado e entregando Adena via InventoryService.
+     * impedindo resgate duplicado, consumindo o bilhete físico (se presente) e entregando Adena via InventoryService.
      */
     public synchronized int claimPrize(PlayerCharacter player, int roundNumber) {
         if (player == null) {
@@ -202,6 +262,7 @@ public class LotteryService {
         claimedPrizes.add(claimKey);
         var inv = player.inventory();
         if (inv != null) {
+            inv.destroyItemByItemId(LOTTERY_TICKET_ITEM_ID, 1);
             if (inventoryService != null) {
                 var added = inventoryService.addItem(inv, ADENA_ITEM_ID, totalPrize, "LotteryPrize");
                 if (added == null) {
@@ -216,6 +277,56 @@ public class LotteryService {
         return totalPrize;
     }
 
+    private void loadFromDb() {
+        if (jdbc == null) {
+            return;
+        }
+        try {
+            var rows = jdbc.sql("SELECT idnr, prize, finished, number1, number2 FROM games WHERE id = 1 ORDER BY idnr DESC")
+                    .query().listOfRows();
+            for (var r : rows) {
+                int idnr = ((Number) r.get("idnr")).intValue();
+                int prize = ((Number) r.get("prize")).intValue();
+                int finished = ((Number) r.get("finished")).intValue();
+                int num1 = ((Number) r.get("number1")).intValue();
+                int num2 = ((Number) r.get("number2")).intValue();
+                if (finished == 0 && idnr >= currentLotteryId) {
+                    currentLotteryId = idnr;
+                    prizePool = Math.max(prizePool, prize);
+                } else if (finished == 1) {
+                    List<Integer> winning = new ArrayList<>(decodeNumbersBitmask(num1, num2));
+                    drawHistory.putIfAbsent(idnr, new DrawResult(idnr, winning, prize, 0, 0, 0));
+                }
+            }
+        } catch (Exception e) {
+            log.debug("LotteryService loadFromDb: {}", e.getMessage());
+        }
+    }
+
+    private void saveRoundToDb(int roundId, int prize, int finished, int num1, int num2) {
+        if (jdbc == null) {
+            return;
+        }
+        try {
+            jdbc.sql("DELETE FROM games WHERE id = 1 AND idnr = :idnr")
+                    .param("idnr", roundId)
+                    .update();
+            jdbc.sql("""
+                    INSERT INTO games (id, idnr, enddate, prize, newprize, prize1, prize2, prize3, end1, end2, end3, finished, number1, number2)
+                    VALUES (1, :idnr, :end, :prize, :prize, 0, 0, 0, 0, 0, 0, :fin, :n1, :n2)
+                    """)
+                    .param("idnr", roundId)
+                    .param("end", System.currentTimeMillis() + 604_800_000L)
+                    .param("prize", prize)
+                    .param("fin", finished)
+                    .param("n1", num1)
+                    .param("n2", num2)
+                    .update();
+        } catch (Exception e) {
+            log.debug("LotteryService saveRoundToDb: {}", e.getMessage());
+        }
+    }
+
     public int getCurrentLotteryId() { return currentLotteryId; }
     public int getPrizePool() { return prizePool; }
     public int getTicketPrice() { return ticketPrice; }
@@ -223,4 +334,3 @@ public class LotteryService {
     public List<LotteryTicket> getCurrentTickets() { return Collections.unmodifiableList(currentTickets); }
     public Optional<DrawResult> getDrawResult(int lotteryId) { return Optional.ofNullable(drawHistory.get(lotteryId)); }
 }
-
