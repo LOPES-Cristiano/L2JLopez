@@ -1722,11 +1722,102 @@ public final class PlayerCharacter implements Creature {
 		this.inventory = inventory;
 	}
 
+	private Inventory warehouse;
+	private volatile com.lopez.l2j.game.party.Party party;
+
+	public Inventory warehouse() {
+		if (warehouse == null) {
+			warehouse = new Inventory(objectId);
+		}
+		return warehouse;
+	}
+
+	public void warehouse(Inventory warehouse) {
+		this.warehouse = warehouse;
+	}
+
+	public com.lopez.l2j.game.party.Party party() {
+		return party;
+	}
+
+	public com.lopez.l2j.game.party.Party getParty() {
+		return party;
+	}
+
+	public void party(com.lopez.l2j.game.party.Party party) {
+		this.party = party;
+	}
+
+	public void setParty(com.lopez.l2j.game.party.Party party) {
+		this.party = party;
+	}
+
+	public int sex() {
+		return female ? 1 : 0;
+	}
+
+	public void dismount() {
+		this.mountType = 0;
+		this.mountNpcId = 0;
+	}
+
+	public void clearAllEffects() {
+		if (effects != null) {
+			effects.clear();
+		}
+	}
+
+	public static final int STORE_TYPE_MANUFACTURE = 5;
+
+	public boolean inOlympiadMode() {
+		return this.olympiadMode;
+	}
+
+	public boolean isInOlympiadMode() {
+		return this.olympiadMode;
+	}
+
+	public void teamAura(int val) {
+		this.team = val;
+	}
+
+	public int teamAura() {
+		return this.team;
+	}
+
+	public int activeClassIndex() {
+		return subClassActive ? 1 : 0;
+	}
+
+	public void setPosition(int x, int y, int z) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+	}
+
 	public void sendMessage(String message) {
 		if (message == null || message.isBlank()) return;
 		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
 		if (world != null) {
 			world.sendMessage(objectId, message);
 		}
+	}
+
+	private volatile int targetObjectId;
+
+	public int targetObjectId() {
+		return targetObjectId;
+	}
+
+	public void targetObjectId(int id) {
+		this.targetObjectId = id;
+	}
+
+	public void removeSkill(int skillId) {
+		skills.remove(skillId);
+	}
+
+	public boolean inObserverMode() {
+		return olympiadMode;
 	}
 }
