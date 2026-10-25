@@ -26,11 +26,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ArenaDuelService {
 
 	private static final Logger log = LoggerFactory.getLogger(ArenaDuelService.class);
+	public static final int MATCH_TIMEOUT_SECONDS = 120;
 
 	private final Map<Integer, ArenaDefinition> arenas = new ConcurrentHashMap<>();
 	private final Queue<QueuedPlayer> waitingQueue = new ConcurrentLinkedQueue<>();
 	private final Map<Integer, ArenaMatch> activeMatches = new ConcurrentHashMap<>();
 	private final Map<Integer, Integer> playerToMatch = new ConcurrentHashMap<>();
+	private final Map<Integer, ArenaLoc> spectatorOriginalLocs = new ConcurrentHashMap<>();
 	private final AtomicInteger matchIdGenerator = new AtomicInteger(1);
 
 	private final ItemRepository itemRepository;
@@ -101,15 +103,22 @@ public class ArenaDuelService {
 		return null;
 	}
 
+	private synchronized ScheduledExecutorService ensureScheduler() {
+		if (scheduler == null || scheduler.isShutdown()) {
+			scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+				Thread t = new Thread(r, "ArenaDuel-Scheduler");
+				t.setDaemon(true);
+				return t;
+			});
+		}
+		return scheduler;
+	}
+
 	public synchronized void startScheduledArenaTasks() {
 		if (scheduler != null && !scheduler.isShutdown()) {
 			return;
 		}
-		scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-			Thread t = new Thread(r, "ArenaDuel-Scheduler");
-			t.setDaemon(true);
-			return t;
-		});
+		ensureScheduler();
 		int checkSec = getCheckIntervalSeconds();
 		scheduler.scheduleAtFixedRate(this::processQueue, checkSec, checkSec, TimeUnit.SECONDS);
 		if (Config.ARENA_ENABLED && Config.ARENA_INTERVAL > 0) {
@@ -182,8 +191,13 @@ public class ArenaDuelService {
 		return false;
 	}
 
+	private boolean isEligibleState(PlayerCharacter player) {
+		return player != null && !player.isDead() && !player.isInCombat()
+				&& !player.isInJail() && !player.isOlympiadMode() && player.karma() <= 0;
+	}
+
 	public synchronized boolean register(PlayerCharacter player) {
-		if (player == null || player.isDead()) {
+		if (!isEligibleState(player)) {
 			return false;
 		}
 		if (isRegistered(player.objectId()) || isInMatch(player.objectId())) {
@@ -253,9 +267,9 @@ public class ArenaDuelService {
 			}
 
 			// Validate both players are still valid
-			if (qp1.player().isDead() || qp2.player().isDead()) {
-				if (!qp1.player().isDead()) waitingQueue.add(qp1);
-				if (!qp2.player().isDead()) waitingQueue.add(qp2);
+			if (!isEligibleState(qp1.player()) || !isEligibleState(qp2.player())) {
+				if (isEligibleState(qp1.player())) waitingQueue.add(qp1);
+				if (isEligibleState(qp2.player())) waitingQueue.add(qp2);
 				continue;
 			}
 
@@ -273,27 +287,29 @@ public class ArenaDuelService {
 			qp1.player().currentHp(qp1.player().maxHp());
 			qp1.player().currentMp(qp1.player().maxMp());
 			qp1.player().currentCp(qp1.player().maxCp());
+			qp1.player().teleport(freeArena.spawn1().x(), freeArena.spawn1().y(), freeArena.spawn1().z());
 			if (world != null) {
 				world.teleportPlayer(qp1.player(), freeArena.spawn1().x(), freeArena.spawn1().y(), freeArena.spawn1().z(), duelInstanceId);
 				world.player(qp1.player().objectId()).ifPresent(op -> {
 					if (op instanceof com.lopez.l2j.network.game.GameSession gs) gs.sendUserInfoAndBroadcastCharInfo();
 				});
-			} else {
-				qp1.player().teleport(freeArena.spawn1().x(), freeArena.spawn1().y(), freeArena.spawn1().z());
 			}
 
 			qp2.player().team(2);
 			qp2.player().currentHp(qp2.player().maxHp());
 			qp2.player().currentMp(qp2.player().maxMp());
 			qp2.player().currentCp(qp2.player().maxCp());
+			qp2.player().teleport(freeArena.spawn2().x(), freeArena.spawn2().y(), freeArena.spawn2().z());
 			if (world != null) {
 				world.teleportPlayer(qp2.player(), freeArena.spawn2().x(), freeArena.spawn2().y(), freeArena.spawn2().z(), duelInstanceId);
 				world.player(qp2.player().objectId()).ifPresent(op -> {
 					if (op instanceof com.lopez.l2j.network.game.GameSession gs) gs.sendUserInfoAndBroadcastCharInfo();
 				});
-			} else {
-				qp2.player().teleport(freeArena.spawn2().x(), freeArena.spawn2().y(), freeArena.spawn2().z());
 			}
+
+			int countdownSec = getWaitIntervalSeconds();
+			ensureScheduler().schedule(() -> startFight(matchId), countdownSec, TimeUnit.SECONDS);
+			ensureScheduler().schedule(() -> onMatchTimeout(matchId), countdownSec + MATCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
 			log.info("Match #{} started in {}: {} vs {}", matchId, freeArena.name(), qp1.player().name(), qp2.player().name());
 		}
@@ -305,6 +321,19 @@ public class ArenaDuelService {
 			match.setState(ArenaDuelState.FIGHTING);
 			log.info("Match #{} is now FIGHTING!", matchId);
 		}
+	}
+
+	private synchronized void onMatchTimeout(int matchId) {
+		ArenaMatch match = activeMatches.get(matchId);
+		if (match == null || match.getState() == ArenaDuelState.FINISHED) {
+			return;
+		}
+		PlayerCharacter p1 = match.getPlayer1();
+		PlayerCharacter p2 = match.getPlayer2();
+		double hpRatio1 = p1.maxHp() > 0 ? p1.currentHp() / p1.maxHp() : 0;
+		double hpRatio2 = p2.maxHp() > 0 ? p2.currentHp() / p2.maxHp() : 0;
+		int winnerId = hpRatio1 > hpRatio2 ? p1.objectId() : (hpRatio2 > hpRatio1 ? p2.objectId() : 0);
+		finishMatch(matchId, winnerId);
 	}
 
 	public synchronized void finishMatch(int matchId, int winnerId) {
@@ -333,33 +362,39 @@ public class ArenaDuelService {
 		p1.currentHp(p1.maxHp());
 		p1.currentMp(p1.maxMp());
 		p1.currentCp(p1.maxCp());
+		p1.teleport(match.getOriginalLoc1().x(), match.getOriginalLoc1().y(), match.getOriginalLoc1().z());
 		if (world != null) {
 			world.sendPacket(p1.objectId(), new com.lopez.l2j.network.game.packet.GameServerPacket.Revive(p1.objectId()));
 			world.teleportPlayer(p1, match.getOriginalLoc1().x(), match.getOriginalLoc1().y(), match.getOriginalLoc1().z(), 0);
 			world.player(p1.objectId()).ifPresent(op -> {
 				if (op instanceof com.lopez.l2j.network.game.GameSession gs) gs.sendUserInfoAndBroadcastCharInfo();
 			});
-		} else {
-			p1.teleport(match.getOriginalLoc1().x(), match.getOriginalLoc1().y(), match.getOriginalLoc1().z());
 		}
 
 		p2.team(0);
 		p2.currentHp(p2.maxHp());
 		p2.currentMp(p2.maxMp());
 		p2.currentCp(p2.maxCp());
+		p2.teleport(match.getOriginalLoc2().x(), match.getOriginalLoc2().y(), match.getOriginalLoc2().z());
 		if (world != null) {
 			world.sendPacket(p2.objectId(), new com.lopez.l2j.network.game.packet.GameServerPacket.Revive(p2.objectId()));
 			world.teleportPlayer(p2, match.getOriginalLoc2().x(), match.getOriginalLoc2().y(), match.getOriginalLoc2().z(), 0);
 			world.player(p2.objectId()).ifPresent(op -> {
 				if (op instanceof com.lopez.l2j.network.game.GameSession gs) gs.sendUserInfoAndBroadcastCharInfo();
 			});
-		} else {
-			p2.teleport(match.getOriginalLoc2().x(), match.getOriginalLoc2().y(), match.getOriginalLoc2().z());
 		}
 
 		// Return spectators
-		for (int specId : match.getSpectators()) {
-			// Spectator cleanup
+		for (int specId : new ArrayList<>(match.getSpectators())) {
+			ArenaLoc retLoc = spectatorOriginalLocs.remove(specId);
+			if (world != null) {
+				world.player(specId).ifPresent(op -> {
+					PlayerCharacter spec = op.character();
+					if (spec != null && retLoc != null) {
+						world.teleportPlayer(spec, retLoc.x(), retLoc.y(), retLoc.z(), 0);
+					}
+				});
+			}
 		}
 
 		playerToMatch.remove(p1.objectId());
@@ -396,6 +431,7 @@ public class ArenaDuelService {
 		ArenaMatch match = findMatchByArena(arenaId);
 		if (match == null) return false;
 
+		spectatorOriginalLocs.putIfAbsent(spectator.objectId(), new ArenaLoc(spectator.x(), spectator.y(), spectator.z()));
 		match.addSpectator(spectator.objectId());
 		int duelInstanceId = 9200 + (match.getMatchId() % 100);
 		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
@@ -412,12 +448,13 @@ public class ArenaDuelService {
 		for (ArenaMatch match : activeMatches.values()) {
 			match.removeSpectator(spectator.objectId());
 		}
-		if (returnLoc != null) {
+		ArenaLoc effectiveLoc = returnLoc != null ? returnLoc : spectatorOriginalLocs.remove(spectator.objectId());
+		if (effectiveLoc != null) {
 			var world = com.lopez.l2j.game.world.GameWorld.getInstance();
 			if (world != null) {
-				world.teleportPlayer(spectator, returnLoc.x(), returnLoc.y(), returnLoc.z(), 0);
+				world.teleportPlayer(spectator, effectiveLoc.x(), effectiveLoc.y(), effectiveLoc.z(), 0);
 			} else {
-				spectator.teleport(returnLoc.x(), returnLoc.y(), returnLoc.z());
+				spectator.teleport(effectiveLoc.x(), effectiveLoc.y(), effectiveLoc.z());
 			}
 		}
 	}
@@ -505,6 +542,9 @@ public class ArenaDuelService {
 					});
 				}
 			}
+		} else if (winner.inventory() != null) {
+			winner.inventory().addItem(57, 1_000_000);
+			winner.inventory().addItem(6673, 5);
 		}
 	}
 }
