@@ -48,6 +48,7 @@ public class FishingChampionshipService {
 	private org.springframework.jdbc.core.simple.JdbcClient jdbc;
 
 	private final List<FisherScore> rankings = new CopyOnWriteArrayList<>();
+	private final List<FisherScore> previousWinners = new CopyOnWriteArrayList<>();
 	private final Set<String> claimedPeriodRewards = ConcurrentHashMap.newKeySet();
 	private int currentCycle = 1;
 
@@ -63,9 +64,32 @@ public class FishingChampionshipService {
 		this.inventoryService = inventoryService;
 		this.characterVariablesService = characterVariablesService;
 		this.jdbc = jdbc;
+		initSchema();
 		loadFromDb();
 		if (Config.FISHERMAN_ENABLED) {
 			startChampionshipScheduler();
+		}
+	}
+
+	public void initSchema() {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("""
+					CREATE TABLE IF NOT EXISTS fishing_championship (
+					    PlayerName VARCHAR(35) NOT NULL,
+					    fishLength FLOAT(10,2) NOT NULL,
+					    rewarded INT(1) NOT NULL
+					)
+					""").update();
+			jdbc.sql("""
+					CREATE TABLE IF NOT EXISTS fishing_championship_date (
+					    finish_date BIGINT(20) UNSIGNED NOT NULL
+					)
+					""").update();
+		} catch (Exception e) {
+			log.debug("FishingChampionshipService initSchema: {}", e.getMessage());
 		}
 	}
 
@@ -120,6 +144,7 @@ public class FishingChampionshipService {
 
 		rankings.add(new FisherScore(0, playerName, length, 0));
 		sortRankings();
+		saveToDb();
 		return length;
 	}
 
@@ -140,6 +165,7 @@ public class FishingChampionshipService {
 					if (roundedLength > existing.fishLength()) {
 						rankings.set(i, new FisherScore(playerId, playerName, roundedLength, existing.rewarded()));
 						sortRankings();
+						saveToDb();
 					}
 					return;
 				}
@@ -148,6 +174,7 @@ public class FishingChampionshipService {
 
 		rankings.add(new FisherScore(playerId, playerName, roundedLength, 0));
 		sortRankings();
+		saveToDb();
 	}
 
 	/**
@@ -207,29 +234,53 @@ public class FishingChampionshipService {
 		if (rank <= 0 && player.name() != null) {
 			rank = getRankByName(player.name());
 		}
+		boolean fromPreviousCycle = false;
+		if (rank <= 0) {
+			for (int i = 0; i < previousWinners.size(); i++) {
+				FisherScore prev = previousWinners.get(i);
+				if ((prev.playerId() > 0 && prev.playerId() == player.objectId())
+						|| (player.name() != null && player.name().equalsIgnoreCase(prev.playerName()))) {
+					if (prev.rewarded() == 0) {
+						rank = i + 1;
+						fromPreviousCycle = true;
+					}
+					break;
+				}
+			}
+		}
 
 		int reward = getRewardForRank(rank);
 		if (reward <= 0) {
 			return 0;
 		}
 
-		String claimKey = currentCycle + ":" + player.objectId();
+		int targetCycle = fromPreviousCycle ? Math.max(1, currentCycle - 1) : currentCycle;
+		String claimKey = targetCycle + ":" + player.objectId();
 		if (claimedPeriodRewards.contains(claimKey)) {
 			return 0;
 		}
 
-		String varName = CLAIM_VAR_PREFIX + currentCycle;
+		String varName = CLAIM_VAR_PREFIX + targetCycle;
 		if (characterVariablesService != null && characterVariablesService.getBoolean(player.objectId(), varName, false)) {
 			return 0;
 		}
 
 		int index = rank - 1;
-		if (index >= 0 && index < rankings.size()) {
+		if (fromPreviousCycle) {
+			if (index >= 0 && index < previousWinners.size()) {
+				FisherScore current = previousWinners.get(index);
+				if (current.rewarded() == 1) {
+					return 0;
+				}
+				previousWinners.set(index, new FisherScore(player.objectId(), current.playerName(), current.fishLength(), 1));
+			}
+		} else if (index >= 0 && index < rankings.size()) {
 			FisherScore current = rankings.get(index);
 			if (current.rewarded() == 1) {
 				return 0;
 			}
 			rankings.set(index, new FisherScore(player.objectId(), current.playerName(), current.fishLength(), 1));
+			saveToDb();
 		}
 
 		claimedPeriodRewards.add(claimKey);
@@ -251,7 +302,7 @@ public class FishingChampionshipService {
 		}
 
 		log.info("FishingChampionship: Jogador {} (Rank #{}) resgatou {} (item {}) no ciclo #{}",
-				player.name(), rank, reward, rewardItemId, currentCycle);
+				player.name(), rank, reward, rewardItemId, targetCycle);
 		return reward;
 	}
 
@@ -264,16 +315,22 @@ public class FishingChampionshipService {
 		return Collections.unmodifiableList(top);
 	}
 
+	public List<FisherScore> getPreviousWinners() {
+		return Collections.unmodifiableList(previousWinners);
+	}
+
 	public int getCurrentCycle() {
 		return currentCycle;
 	}
 
 	public synchronized List<FisherReward> finishCycle() {
 		sortRankings();
+		previousWinners.clear();
 		List<FisherReward> payouts = new ArrayList<>();
 		int limit = Math.min(5, rankings.size());
 		for (int i = 0; i < limit; i++) {
 			FisherScore fs = rankings.get(i);
+			previousWinners.add(fs);
 			payouts.add(new FisherReward(i + 1, fs.playerName(), fs.fishLength(), getRewardForRank(i + 1)));
 		}
 		currentCycle++;
@@ -285,6 +342,7 @@ public class FishingChampionshipService {
 
 	public synchronized void clear() {
 		rankings.clear();
+		previousWinners.clear();
 		claimedPeriodRewards.clear();
 		saveToDb();
 	}
@@ -334,4 +392,3 @@ public class FishingChampionshipService {
 		rankings.sort(Comparator.comparingDouble(FisherScore::fishLength).reversed());
 	}
 }
-
