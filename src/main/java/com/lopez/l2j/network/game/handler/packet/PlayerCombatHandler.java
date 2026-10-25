@@ -5,36 +5,285 @@ import com.lopez.l2j.game.boss.BossManager;
 import com.lopez.l2j.game.boss.epic.AntharasService;
 import com.lopez.l2j.game.boss.epic.BaiumService;
 import com.lopez.l2j.game.boss.epic.ValakasService;
+import com.lopez.l2j.game.combat.CombatService;
+import com.lopez.l2j.game.cursed.CursedWeaponsManager;
+import com.lopez.l2j.game.event.pvp.CtfEventService;
+import com.lopez.l2j.game.geodata.GeoEngine;
 import com.lopez.l2j.game.instance.frintezza.FrintezzaService;
+import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.model.PlayerStats;
 import com.lopez.l2j.game.npc.NpcInstance;
+import com.lopez.l2j.game.olympiad.OlympiadGameService;
+import com.lopez.l2j.game.olympiad.OlympiadMatch;
+import com.lopez.l2j.game.olympiad.OlympiadParticipant;
 import com.lopez.l2j.game.party.Party;
 import com.lopez.l2j.game.pve.DungeonService;
 import com.lopez.l2j.game.pve.SoloFarmService;
+import com.lopez.l2j.game.quest.impl.Quest350EnhanceYourWeapon;
 import com.lopez.l2j.game.service.BotsPreventionService;
 import com.lopez.l2j.game.summon.SummonInstance;
 import com.lopez.l2j.game.template.CharTemplate;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.GameSession;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ActionFailed;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Attack;
+import com.lopez.l2j.network.game.packet.GameServerPacket.AutoAttackStop;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
 import com.lopez.l2j.network.game.packet.GameServerPacket.Die;
+import com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.MoveToLocation;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage;
+import com.lopez.l2j.network.game.packet.GameServerPacket.SetupGauge;
 import com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate;
 import com.lopez.l2j.network.game.packet.GameServerPacket.SystemMessage;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Handler centralizado para o ciclo pós-impacto de combate físico/mágico do jogador
+ * Handler centralizado para o ciclo de combate físico/mágico do jogador
+ * (Polearm multi-target, Dual 2-hit, Bow reuse/MP/gauge, interceptação de morte em Olympiad)
  * e de seu Summon/Pet ativo, desacoplando regras de morte de monstros, Dungeons, SoloFarm,
- * Anti-Bot Captcha, Raid Points, Quests e Drops de {@link GameSession}.
+ * Anti-Bot Captcha, Raid Points, Quests, Soul Crystals, Cursed Weapons e Drops de {@link GameSession}.
  */
 public final class PlayerCombatHandler {
 
 	private PlayerCombatHandler() {
+	}
+
+	/** Representa um acerto adicional de arma Polearm (lança) no cone frontal de 120° (#139). */
+	public record PolearmExtraTarget(NpcInstance npc, int damage, int flags, boolean crit) {
+	}
+
+	public static boolean isPolearmWeapon(ItemInstance weapon) {
+		return weapon != null && weapon.template() != null
+				&& "pole".equalsIgnoreCase(weapon.template().subType());
+	}
+
+	public static boolean isDualWeapon(ItemInstance weapon) {
+		if (weapon == null || weapon.template() == null || weapon.template().subType() == null) {
+			return false;
+		}
+		String sub = weapon.template().subType();
+		return "dual".equalsIgnoreCase(sub) || "dualfist".equalsIgnoreCase(sub);
+	}
+
+	public static boolean isBowWeapon(ItemInstance weapon) {
+		return weapon != null && weapon.template() != null
+				&& "bow".equalsIgnoreCase(weapon.template().subType());
+	}
+
+	/**
+	 * Calcula a quantidade máxima de alvos atingidos por um ataque de Polearm (#139),
+	 * respeitando Polearm Mastery (skill 216) e modificadores de stat {@code atkCountMax}.
+	 */
+	public static int resolvePolearmMaxTargets(PlayerCharacter active) {
+		if (active == null) {
+			return 1;
+		}
+		double baseMax = active.skillLevel(216) > 0 ? 5.0 : 3.0;
+		int modified = (int) Math.round(PlayerStats.applyStat(active, "atkCountMax", baseMax));
+		return Math.max(1, Math.min(12, modified));
+	}
+
+	/**
+	 * Planeja os acertos secundários de Polearm em um cone frontal de 120° (±60°)
+	 * com decaimento progressivo de dano (85%, 72%, 61%, 52%...) (#139).
+	 */
+	public static List<PolearmExtraTarget> planPolearmExtraHits(
+			GameSession session,
+			GameSession.Context ctx,
+			PlayerCharacter active,
+			CharTemplate template,
+			NpcInstance mainTarget,
+			int ssGrade,
+			int attackRange) {
+		if (session == null || ctx == null || ctx.world() == null || ctx.combat() == null
+				|| active == null || mainTarget == null) {
+			return List.of();
+		}
+		int maxTargets = resolvePolearmMaxTargets(active);
+		if (maxTargets <= 1) {
+			return List.of();
+		}
+		int extraLimit = maxTargets - 1;
+		int reach = Math.max(80, attackRange) + 60;
+		double mainAngle = Math.atan2(mainTarget.y() - active.y(), mainTarget.x() - active.x());
+		double halfConeRad = Math.toRadians(60.0); // 120° total frontal cone
+		GeoEngine geo = GeoEngine.getInstance();
+
+		List<PolearmExtraTarget> extraHits = new ArrayList<>();
+		double decay = 0.85;
+		for (NpcInstance cand : ctx.world().findNpcsAround(active.x(), active.y(), reach)) {
+			if (cand == null || cand.objectId() == mainTarget.objectId() || cand.isDead()
+					|| cand.template() == null || !cand.template().isAttackable()) {
+				continue;
+			}
+			double dx = cand.x() - active.x();
+			double dy = cand.y() - active.y();
+			double dist = Math.hypot(dx, dy);
+			double colRad = cand.template().collisionRadius() > 0 ? cand.template().collisionRadius() : 20.0;
+			if (dist > reach + colRad) {
+				continue;
+			}
+			double angle = Math.atan2(dy, dx);
+			double diff = Math.abs( normalizeAngleDiff(angle - mainAngle) );
+			if (diff > halfConeRad) {
+				continue;
+			}
+			if (geo != null && geo.isEnabled()
+					&& !geo.canSeeTarget(active.x(), active.y(), active.z(), cand.x(), cand.y(), cand.z())) {
+				continue;
+			}
+			var plan = ctx.combat().planAttackNpc(active, template, cand, ssGrade);
+			int scaledDamage = plan.damage() > 0 ? Math.max(1, (int) Math.round(plan.damage() * decay)) : 0;
+			extraHits.add(new PolearmExtraTarget(cand, scaledDamage, plan.flags(), plan.crit()));
+			decay *= 0.85;
+			if (extraHits.size() >= extraLimit) {
+				break;
+			}
+		}
+		return extraHits;
+	}
+
+	private static double normalizeAngleDiff(double angle) {
+		while (angle <= -Math.PI) angle += 2.0 * Math.PI;
+		while (angle > Math.PI) angle -= 2.0 * Math.PI;
+		return angle;
+	}
+
+	/**
+	 * Calcula o tempo de recarga (reuse delay) do arco em milissegundos (#141).
+	 */
+	public static int calculateBowReuseDelayMs(int pAtkSpd) {
+		return Math.max(400, (1500 * 333) / Math.max(1, pAtkSpd));
+	}
+
+	/**
+	 * Retorna o custo de MP por disparo de arco conforme o Grade da arma (#141).
+	 */
+	public static int getBowMpConsume(ItemInstance weapon) {
+		if (weapon == null || weapon.template() == null || weapon.template().crystalType() == null) {
+			return 1;
+		}
+		return switch (weapon.template().crystalType().toLowerCase(java.util.Locale.ROOT)) {
+			case "c", "b" -> 2;
+			case "a", "s" -> 3;
+			default -> 1;
+		};
+	}
+
+	/**
+	 * Valida e consome MP do disparo de arco e envia barra vermelha {@link SetupGauge#RED} (#141).
+	 */
+	public static boolean checkAndConsumeBowMpAndGauge(
+			GameSession session,
+			PlayerCharacter active,
+			ItemInstance weapon,
+			int pAtkSpd) {
+		if (!isBowWeapon(weapon) || session == null || active == null) {
+			return true;
+		}
+		int mpCost = getBowMpConsume(weapon);
+		if (active.currentMp() < mpCost) {
+			session.send(SystemMessage.id(SystemMessage.NOT_ENOUGH_MP));
+			session.send(new ActionFailed());
+			session.stopAutoAttack();
+			session.send(new AutoAttackStop(active.objectId()));
+			return false;
+		}
+		active.currentMp(Math.max(0.0, active.currentMp() - mpCost));
+		session.sendVitals();
+		int reuseMs = calculateBowReuseDelayMs(pAtkSpd);
+		session.send(new SetupGauge(SetupGauge.RED, reuseMs));
+		return true;
+	}
+
+	/**
+	 * Aplica dano entre jogadores interceptando dano letal durante partidas das Grandes Olimpíadas
+	 * (clamp HP >= 1.0, registra dano no {@link OlympiadGameService} e encerra a partida sem matar o personagem) (#416).
+	 */
+	public static CombatService.PlayerDamageResult applyPlayerDamageWithOlympiadCheck(
+			GameSession attackerSession,
+			GameSession victimSession,
+			GameSession.Context ctx,
+			int damage) {
+		if (victimSession == null || victimSession.activeChar() == null) {
+			return new CombatService.PlayerDamageResult(0, 0, 0, false, 0, 0);
+		}
+		PlayerCharacter victim = victimSession.activeChar();
+		PlayerCharacter attacker = attackerSession != null ? attackerSession.activeChar() : null;
+
+		if (victim.isOlympiadMode() || (attacker != null && attacker.isOlympiadMode())) {
+			OlympiadGameService olyGames = ctx != null ? ctx.getBean(OlympiadGameService.class) : null;
+			int matchId = findActiveOlympiadMatchId(olyGames, victim.objectId());
+			int actualDmg = Math.max(0, damage);
+			if (matchId > 0 && olyGames != null && attacker != null) {
+				boolean matchEnded = olyGames.recordCombatDamage(matchId, attacker.objectId(), victim.objectId(), actualDmg);
+				if (matchEnded) {
+					if (attackerSession != null) {
+						attackerSession.stopAutoAttack();
+						attackerSession.cancelCast();
+					}
+					victimSession.stopAutoAttack();
+					victimSession.cancelCast();
+				}
+				return new CombatService.PlayerDamageResult(actualDmg, 0, actualDmg, false,
+						(int) Math.max(1.0, victim.currentHp()), (int) victim.currentCp());
+			}
+			// Mesmo sem match registrada no serviço, impede morte real se olympiadMode estiver ativo
+			double newHp = victim.currentHp() - actualDmg;
+			if (newHp <= 1.0) {
+				victim.currentHp(1.0);
+				if (attackerSession != null) {
+					attackerSession.stopAutoAttack();
+					attackerSession.cancelCast();
+				}
+				victimSession.stopAutoAttack();
+				victimSession.cancelCast();
+				return new CombatService.PlayerDamageResult(actualDmg, 0, actualDmg, false, 1, (int) victim.currentCp());
+			}
+			victim.currentHp(newHp);
+			return new CombatService.PlayerDamageResult(actualDmg, 0, actualDmg, false,
+					(int) victim.currentHp(), (int) victim.currentCp());
+		}
+
+		if (ctx != null && ctx.combat() != null) {
+			return ctx.combat().applyDamagePlayer(victim, damage);
+		}
+		victim.currentHp(Math.max(0.0, victim.currentHp() - Math.max(0, damage)));
+		return new CombatService.PlayerDamageResult(damage, 0, damage, victim.isDead(),
+				(int) victim.currentHp(), (int) victim.currentCp());
+	}
+
+	@SuppressWarnings("unchecked")
+	private static int findActiveOlympiadMatchId(OlympiadGameService olyGames, int charId) {
+		if (olyGames == null || charId <= 0) {
+			return -1;
+		}
+		try {
+			var field = OlympiadGameService.class.getDeclaredField("activeMatches");
+			field.setAccessible(true);
+			Map<Integer, OlympiadMatch> matches = (Map<Integer, OlympiadMatch>) field.get(olyGames);
+			if (matches != null) {
+				for (OlympiadMatch m : matches.values()) {
+					for (OlympiadParticipant p : m.teamA()) {
+						if (p.charId() == charId) return m.matchId();
+					}
+					for (OlympiadParticipant p : m.teamB()) {
+						if (p.charId() == charId) return m.matchId();
+					}
+				}
+			}
+		} catch (Exception ignored) {
+		}
+		return -1;
 	}
 
 	/**
@@ -95,9 +344,18 @@ public final class PlayerCombatHandler {
 			ctx.drops().rewardMonsterDeath(active, npc, ctx.inventories(), session::send);
 		}
 
+		// Verificação de Drop de Cursed Weapons (Zariche 8190 / Akamanah 8689) (#275)
+		CursedWeaponsManager cwm = ctx.cursedWeapons() != null ? ctx.cursedWeapons() : CursedWeaponsManager.getInstance();
+		if (cwm != null && npc.isMonster() && !npc.isRaid()) {
+			cwm.checkDrop(npc.npcId(), active);
+		}
+
 		if (ctx.questManager() != null) {
 			ctx.questManager().onNpcKill(npc, session, false);
 		}
+
+		// Absorção e evolução de Soul Crystal (Quest 350 Enhance Your Weapon) (#203, #435)
+		tryAbsorbSoulCrystal(session, ctx, active, npc);
 
 		if (ctx.raidPoints() != null && npc.template() != null && npc.template().isRaidBoss()) {
 			int lvl = npc.template().level();
@@ -153,6 +411,15 @@ public final class PlayerCombatHandler {
 			if (frintSvc != null) frintSvc.onScarletDefeated();
 		}
 
+		// Dimensional Rift Boss Anakazel (NPCs 25333..25338) (#345)
+		if (killedNpcId >= 25333 && killedNpcId <= 25338 && ctx.dimensionalRift() != null) {
+			int leaderId = party != null ? party.leaderObjectId() : active.objectId();
+			List<PlayerCharacter> members = party != null
+					? party.members().stream().map(GameSession::activeChar).filter(Objects::nonNull).toList()
+					: List.of(active);
+			ctx.dimensionalRift().onBossDefeated(leaderId, killedNpcId, members);
+		}
+
 		if (ctx.fourSepulchers() != null) {
 			var fs = ctx.fourSepulchers();
 			for (int sepId = 1; sepId <= 4; sepId++) {
@@ -173,8 +440,6 @@ public final class PlayerCombatHandler {
 					break;
 				}
 			}
-		}
-		if (false) {
 		}
 
 		// Integração com Dungeons Instanciadas (Onda C9)
@@ -214,7 +479,7 @@ public final class PlayerCombatHandler {
 
 		// Integração com PartyFarm Event (drop especial de moeda do evento)
 		if (ctx.partyFarm() != null && ctx.partyFarm().isPartyFarmMonster(npc.objectId())) {
-			int coinId = ctx.partyFarm().getEventCoinItemId();
+			int coinId = 6393; // Event - Glistering Medal
 			if (coinId > 0 && ctx.inventories() != null && active.inventory() != null) {
 				var added = ctx.inventories().addItem(active.inventory(), coinId, 1, "PartyFarmDrop");
 				if (added != null) {
@@ -240,8 +505,52 @@ public final class PlayerCombatHandler {
 		session.saveBuffs();
 	}
 
+	private static void tryAbsorbSoulCrystal(
+			GameSession session,
+			GameSession.Context ctx,
+			PlayerCharacter active,
+			NpcInstance npc) {
+		if (session == null || ctx == null || ctx.inventories() == null || active == null
+				|| active.inventory() == null || npc == null || npc.template() == null) {
+			return;
+		}
+		int mobLevel = npc.template().level();
+		if (mobLevel < 40 && !npc.isRaid()) {
+			return;
+		}
+		// Se Quest 350 já estiver ativa, QuestManager.onNpcKill já processou a evolução
+		var qs = session.getQuestState(Quest350EnhanceYourWeapon.QUEST_NAME);
+		if (qs != null && qs.isStarted()) {
+			return;
+		}
+		for (ItemInstance item : active.inventory().items()) {
+			if (item == null) continue;
+			int nextId = Quest350EnhanceYourWeapon.getNextSoulCrystalId(item.itemId());
+			if (nextId > 0) {
+				int chance = npc.isRaid() ? 100 : 35;
+				if (ThreadLocalRandom.current().nextInt(100) < chance) {
+					var removed = ctx.inventories().destroyItem(active.inventory(), item.objectId(), 1, "SoulCrystalAbsorb");
+					var added = ctx.inventories().addItem(active.inventory(), nextId, 1, "SoulCrystalAbsorb");
+					List<ItemInfo> updates = new ArrayList<>();
+					if (removed != null) {
+						updates.add(ItemInfo.of(removed.item(), removed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+					}
+					if (added != null && added.item() != null) {
+						updates.add(ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+					}
+					if (!updates.isEmpty()) {
+						session.send(new InventoryUpdate(updates));
+					}
+					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Seu Soul Crystal absorveu a alma do monstro e evoluiu!"));
+				}
+				break;
+			}
+		}
+	}
+
 	/**
-	 * Processa a morte de um jogador abatido por outro jogador (PvP, PK, TownWar, GvE, FlagZone).
+	 * Processa a morte de um jogador abatido por outro jogador (PvP, PK, TownWar, GvE, FlagZone, CursedWeapon, CTF).
 	 */
 	public static void handlePlayerDeath(
 			GameSession killerSession,
@@ -267,7 +576,8 @@ public final class PlayerCombatHandler {
 	}
 
 	/**
-	 * Processa o abate entre jogadores integrando TownWar, GvE, FlagZone, PvPColor e PvPRank.
+	 * Processa o abate entre jogadores integrando TownWar, GvE, FlagZone, Siege, ClanWar, Olympiad,
+	 * CursedWeaponsManager, CTF, PvPColor e PvPRank (#275, #403, #481).
 	 */
 	public static void handlePlayerKill(
 			PlayerCharacter attacker,
@@ -284,12 +594,36 @@ public final class PlayerCombatHandler {
 			return;
 		}
 
+		// Integração com CursedWeaponsManager (evolução de estágio ou drop da arma amaldiçoada) (#275)
+		CursedWeaponsManager cwm = (ctx != null && ctx.cursedWeapons() != null)
+				? ctx.cursedWeapons()
+				: CursedWeaponsManager.getInstance();
+		if (cwm != null) {
+			cwm.onPlayerKilled(attacker, targetPlayer);
+		}
+
+		// Integração com CTF Event (drop de bandeira e respawn caso o portador morra) (#481)
+		CtfEventService ctf = ctx != null ? ctx.ctf() : null;
+		boolean inCtf = ctf != null && ctf.isParticipant(targetPlayer.objectId());
+		if (inCtf) {
+			if (ctf.isFlagCarrier(targetPlayer.objectId())) {
+				ctf.dropFlag(targetPlayer.objectId());
+			}
+			ctf.reviveParticipant(targetPlayer.objectId());
+		}
+
 		boolean inTownWar = townWar != null
 				&& (townWar.isInsideWarZone(targetPlayer, ctx != null ? ctx.zones() : null)
 						|| townWar.isInsideWarZone(attacker, ctx != null ? ctx.zones() : null));
 		boolean inFlagZone = flagZone != null
 				&& (flagZone.isInFlagZone(targetPlayer) || flagZone.isInFlagZone(attacker));
 		boolean inGvE = gve != null && gve.isEnemy(attacker, targetPlayer);
+		boolean inOlympiad = attacker.isOlympiadMode() || targetPlayer.isOlympiadMode();
+		boolean inMutualClanWar = ctx != null && ctx.clanWars() != null
+				&& attacker.clanId() > 0 && targetPlayer.clanId() > 0
+				&& ctx.clanWars().isMutualWar(attacker.clanId(), targetPlayer.clanId());
+		boolean inPvpCombatZone = (killerSession != null && killerSession.isInsidePvpCombatZone())
+				|| (victimSession != null && victimSession.isInsidePvpCombatZone());
 
 		if (inTownWar) {
 			townWar.onWarKill(attacker, targetPlayer);
@@ -301,7 +635,8 @@ public final class PlayerCombatHandler {
 			flagZone.onPlayerDeath(targetPlayer, victimSession != null ? victimSession::send : null);
 		}
 
-		boolean karmaFreeEventOrWar = inTownWar || inFlagZone || inGvE;
+		boolean karmaFreeEventOrWar = inTownWar || inFlagZone || inGvE || inOlympiad
+				|| inMutualClanWar || inPvpCombatZone || inCtf;
 
 		if (ctx != null && ctx.pvpRewards() != null && killerSession != null && victimSession != null) {
 			ctx.pvpRewards().handleKill(killerSession, victimSession, karmaFreeEventOrWar);
