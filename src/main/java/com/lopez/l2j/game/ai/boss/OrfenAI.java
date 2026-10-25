@@ -44,8 +44,31 @@ public class OrfenAI extends RaidBossAI {
 			int fromX = npc.x();
 			int fromY = npc.y();
 			npc.moveTo(ORFEN_NEST_X, ORFEN_NEST_Y, ORFEN_NEST_Z, 0);
-			world.updateNpcPosition(npc, fromX, fromY);
+			if (world != null) {
+				world.updateNpcPosition(npc, fromX, fromY);
+				var telePkt = new com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation(
+						npc.objectId(), ORFEN_NEST_X, ORFEN_NEST_Y, ORFEN_NEST_Z, 0);
+				world.broadcastAround(fromX, fromY, GameWorld.VISIBILITY_RADIUS, telePkt);
+				world.broadcastAround(ORFEN_NEST_X, ORFEN_NEST_Y, GameWorld.VISIBILITY_RADIUS,
+						new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(npc));
+			}
 			return;
+		} else if (hpPercent > 95.0 && retreated) {
+			retreated = false;
+			int fromX = npc.x();
+			int fromY = npc.y();
+			int sx = npc.spawnX();
+			int sy = npc.spawnY();
+			int sz = npc.spawnZ();
+			npc.moveTo(sx, sy, sz, npc.spawnHeading());
+			if (world != null) {
+				world.updateNpcPosition(npc, fromX, fromY);
+				var telePkt = new com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation(
+						npc.objectId(), sx, sy, sz, npc.spawnHeading());
+				world.broadcastAround(fromX, fromY, GameWorld.VISIBILITY_RADIUS, telePkt);
+				world.broadcastAround(sx, sy, GameWorld.VISIBILITY_RADIUS,
+						new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(npc));
+			}
 		}
 
 		if (Config.ORFEN_USE_TELEPORT && npc.targetPlayerId() != 0 && world != null) {
@@ -54,8 +77,13 @@ public class OrfenAI extends RaidBossAI {
 				if (ch != null && !ch.isDead()) {
 					double dist = Math.hypot(ch.x() - npc.x(), ch.y() - npc.y());
 					if (dist > 300.0 && dist < 1200.0 && ThreadLocalRandom.current().nextInt(100) < 25) {
-						// Puxa o jogador para a frente da Orfen
+						// Puxa o jogador para a frente da Orfen e conjura Paralysis (4064)
 						world.teleportPlayer(ch, npc.x() + 50, npc.y() + 50, npc.z(), ch.instanceId());
+						var msu = new com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse(
+								npc.objectId(), ch.objectId(), 4064, 1, 1500, 3000,
+								npc.x(), npc.y(), npc.z(), ch.x(), ch.y(), ch.z());
+						p.send(msu);
+						world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, msu);
 					}
 				}
 			});
