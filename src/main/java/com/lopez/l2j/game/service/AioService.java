@@ -2,6 +2,7 @@ package com.lopez.l2j.game.service;
 
 import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.world.GameWorld;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,18 +12,23 @@ import org.springframework.stereotype.Service;
 import javax.sql.DataSource;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Sistema Completo de Buffers AIO / AIOx (AioService).
+ * Sistema Completo de Buffers AIO / AIOx (AioService) - #492.
  * Suporta atribuição de status AIOx com duração temporal, persistência relacional
  * nas colunas `aio` e `aio_end` da tabela `characters`, restrição estrita a zonas
- * de paz (Peace Zones), catálogo completo de buffs de suporte, menu próprio (.aiomenu)
- * e entrega de itens (.getaiogoods).
+ * de paz (Peace Zones), entrega/remoção da Dual AIO (9209 / 8000), catálogo completo
+ * de buffs de suporte, menu próprio (.aiomenu) e entrega de itens (.getaiogoods).
  */
 @Service
 public class AioService {
 
     private static final Logger log = LoggerFactory.getLogger(AioService.class);
+    public static final int AIO_DUAL_ITEM_ID = 9209;
+    public static final int AIO_ROD_ALT_ID = 8000;
 
     public record AioBuff(int skillId, int level, String name) {}
 
@@ -31,6 +37,7 @@ public class AioService {
     private final com.lopez.l2j.game.skill.SkillTable skillTable;
     private final Set<Integer> aioPlayers = ConcurrentHashMap.newKeySet();
     private final List<AioBuff> aioBuffs = new ArrayList<>();
+    private ScheduledExecutorService scheduler;
 
     // Consumíveis entregues pelo comando .getaiogoods
     public record ConsumableReward(int itemId, int count, String name) {}
@@ -52,6 +59,55 @@ public class AioService {
         this.skillTable = skillTable;
         initDefaultBuffs();
         initDefaultGoods();
+        if (Config.ENABLE_AIO_SYSTEM) {
+            startAioMonitorScheduler();
+        }
+    }
+
+    public synchronized void startAioMonitorScheduler() {
+        if (scheduler != null && !scheduler.isShutdown()) {
+            return;
+        }
+        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "AioService-Monitor");
+            t.setDaemon(true);
+            return t;
+        });
+        scheduler.scheduleAtFixedRate(this::checkOnlineAioPlayers, 10, 10, TimeUnit.SECONDS);
+    }
+
+    public void checkOnlineAioPlayers() {
+        GameWorld world = GameWorld.getInstance();
+        if (world == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        for (var online : world.onlinePlayers()) {
+            PlayerCharacter pc = online.character();
+            if (pc == null || !pc.isAio()) {
+                continue;
+            }
+            long exp = pc.aioExpiration();
+            if (exp > 0 && exp <= now) {
+                removeAio(pc);
+                if (online instanceof com.lopez.l2j.network.game.GameSession gs) {
+                    gs.sendUserInfoAndBroadcastCharInfo();
+                }
+            }
+        }
+    }
+
+    public boolean enforceTownBoundary(PlayerCharacter player, boolean isInsidePeaceZone) {
+        if (player == null || !player.isAio() || canLeaveTown(player) || isInsidePeaceZone) {
+            return true;
+        }
+        GameWorld world = GameWorld.getInstance();
+        if (world != null) {
+            world.teleportPlayer(player, 83400, 147943, -3404, 0);
+        } else {
+            player.teleport(83400, 147943, -3404);
+        }
+        return false;
     }
 
     private void initDefaultBuffs() {
@@ -132,8 +188,8 @@ public class AioService {
     }
 
     public boolean canEquipWeapon(PlayerCharacter player, int itemId) {
-        if (itemId == 9209) { // AIO Dual
-            return Config.ALLOW_AIO_DUAL;
+        if (itemId == AIO_DUAL_ITEM_ID || itemId == AIO_ROD_ALT_ID) {
+            return player != null && player.isAio() && Config.ALLOW_AIO_DUAL;
         }
         return true;
     }
@@ -239,6 +295,23 @@ public class AioService {
                 player.getName(), player.getObjectId());
     }
 
+    private void grantAioDualWeapon(PlayerCharacter player) {
+        if (player == null || player.inventory() == null || !Config.ALLOW_AIO_DUAL) {
+            return;
+        }
+        if (player.inventory().byItemId(AIO_DUAL_ITEM_ID).isEmpty()) {
+            player.inventory().addItem(AIO_DUAL_ITEM_ID, 1);
+        }
+    }
+
+    private void revokeAioDualWeapon(PlayerCharacter player) {
+        if (player == null || player.inventory() == null) {
+            return;
+        }
+        player.inventory().destroyItemByItemId(AIO_DUAL_ITEM_ID, 1);
+        player.inventory().destroyItemByItemId(AIO_ROD_ALT_ID, 1);
+    }
+
     /**
      * Concede status AIOx a um jogador online por uma quantidade de dias.
      * Se o jogador já possuir tempo de AIO ativo, os novos dias são somados.
@@ -266,6 +339,7 @@ public class AioService {
         player.aioExpiration(expiration);
         applyAioColors(player);
         rewardAioSkills(player);
+        grantAioDualWeapon(player);
         saveAio(player.objectId(), 1, expiration);
 
         log.info("AIO: Status AIOx concedido ao jogador {} [{}] por {} dias (expira em {})",
@@ -306,6 +380,7 @@ public class AioService {
         player.nameColor(0xFFFFFF);
         player.titleColor(0xFFFF77);
         removeAioSkills(player);
+        revokeAioDualWeapon(player);
         if (Config.ENABLE_AIO_DELEVEL && Config.AIO_SET_DELEVEL > 0) {
             player.level(Config.AIO_SET_DELEVEL);
         }
@@ -325,6 +400,9 @@ public class AioService {
                     jdbc.update("DELETE FROM character_skills WHERE charId = ? AND skill_id = ?", charId, skillId);
                 } catch (Exception ignored) {}
             }
+            try {
+                jdbc.update("DELETE FROM items WHERE owner_id = ? AND item_id IN (?, ?)", charId, AIO_DUAL_ITEM_ID, AIO_ROD_ALT_ID);
+            } catch (Exception ignored) {}
         }
         saveAio(charId, 0, 0L);
         log.info("AIO: Status AIOx offline removido do charId={}", charId);
@@ -376,6 +454,7 @@ public class AioService {
                 aioPlayers.add(player.getObjectId());
                 applyAioColors(player);
                 rewardAioSkills(player);
+                grantAioDualWeapon(player);
             }
         }
     }
@@ -589,6 +668,7 @@ public class AioService {
         player.setAio(true);
         player.aioExpiration(newExpiration);
         player.rewardAioSkills();
+        grantAioDualWeapon(player);
 
         if (Config.ALLOW_AIO_NAME_COLOR && Config.AIO_NAME_COLOR != null && !Config.AIO_NAME_COLOR.isBlank()) {
             try {
