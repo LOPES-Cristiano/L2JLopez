@@ -163,6 +163,7 @@ public class NpcAiService {
 			}
 		}
 		npc.targetPlayerId(targetPlayerId);
+		npc.addDamageHate(targetPlayerId, 0, 1);
 		npc.inCombat(true);
 		npc.applyPassiveSkills(npcSkillTable, skillTable);
 
@@ -274,29 +275,73 @@ public class NpcAiService {
 		}
 		var playerOpt = world.player(playerId);
 		for (NpcInstance npc : java.util.List.copyOf(activeCombatNpcs)) {
-			if (npc != null && (npc.targetPlayerId() == playerId || (npc.targetPlayerId() == 0 && npc.inCombat()))) {
-				if (npc.isCasting()) {
-					var cancelPkt = new MagicSkillCanceld(npc.objectId());
-					playerOpt.ifPresent(p -> p.send(cancelPkt));
-					world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, cancelPkt);
+			if (npc != null) {
+				boolean wasTargeting = (npc.targetPlayerId() == playerId);
+				npc.stopHating(playerId);
+				if (wasTargeting || npc.targetPlayerId() == playerId || (npc.targetPlayerId() == 0 && npc.inCombat())) {
+					if (npc.isCasting()) {
+						var cancelPkt = new MagicSkillCanceld(npc.objectId());
+						playerOpt.ifPresent(p -> p.send(cancelPkt));
+						world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, cancelPkt);
+					}
+					npc.abortCast();
+					npc.abortAttack();
+					int nextHated = findNextValidHatedPlayer(npc);
+					if (nextHated != 0) {
+						npc.targetPlayerId(nextHated);
+					} else {
+						returnToSpawn(npc);
+					}
 				}
-				npc.abortCast();
-				npc.abortAttack();
-				returnToSpawn(npc);
 			}
 		}
 		for (NpcInstance npc : world.npcs()) {
-			if (npc != null && npc.targetPlayerId() == playerId) {
-				if (npc.isCasting()) {
-					var cancelPkt = new MagicSkillCanceld(npc.objectId());
-					playerOpt.ifPresent(p -> p.send(cancelPkt));
-					world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, cancelPkt);
+			if (npc != null) {
+				boolean wasTargeting = (npc.targetPlayerId() == playerId);
+				npc.stopHating(playerId);
+				if (wasTargeting || npc.targetPlayerId() == playerId) {
+					if (npc.isCasting()) {
+						var cancelPkt = new MagicSkillCanceld(npc.objectId());
+						playerOpt.ifPresent(p -> p.send(cancelPkt));
+						world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, cancelPkt);
+					}
+					npc.abortCast();
+					npc.abortAttack();
+					int nextHated = findNextValidHatedPlayer(npc);
+					if (nextHated != 0) {
+						npc.targetPlayerId(nextHated);
+					} else {
+						returnToSpawn(npc);
+					}
 				}
-				npc.abortCast();
-				npc.abortAttack();
-				returnToSpawn(npc);
 			}
 		}
+	}
+
+	private int findNextValidHatedPlayer(NpcInstance npc) {
+		if (npc == null) {
+			return 0;
+		}
+		for (int i = 0; i < 8; i++) {
+			int candId = npc.getMostHatedId();
+			if (candId == 0) {
+				return 0;
+			}
+			var pOpt = world.player(candId);
+			if (pOpt.isPresent() && pOpt.get().character() != null && !pOpt.get().character().isDead()) {
+				return candId;
+			}
+			var sOpt = world.summon(candId);
+			if (sOpt.isPresent() && !sOpt.get().isDead()) {
+				int ownerId = sOpt.get().ownerId();
+				var ownerOpt = world.player(ownerId);
+				if (ownerOpt.isPresent() && ownerOpt.get().character() != null && !ownerOpt.get().character().isDead()) {
+					return ownerId;
+				}
+			}
+			npc.stopHating(candId);
+		}
+		return 0;
 	}
 
 	/**
@@ -393,6 +438,14 @@ public class NpcAiService {
 		npc.spoiled(false);
 		npc.spoilerPlayerId(0);
 		npc.spoilRewards(null);
+		npc.seeded(false);
+		npc.seederPlayerId(0);
+		npc.seedItemId(0);
+		npc.overhit(false);
+		npc.overhitDamage(0);
+		npc.overhitAttackerId(0);
+		npc.clearAggro();
+		npc.clearActiveEffects();
 		if (championService != null) {
 			championService.tryRollChampion(npc);
 		} else {
@@ -467,15 +520,22 @@ public class NpcAiService {
 		}
 
 		// 2. Processa monstros e guardas em combate
+		boolean tickEffects = (tickCount % 4 == 0);
 		for (NpcInstance npc : activeCombatNpcs) {
 			try {
+				if (tickEffects && !npc.isDead()) {
+					int dotDmg = npc.tickActiveEffects();
+					if (dotDmg > 0 && combatService != null) {
+						combatService.applyDamage(npc, dotDmg, 0);
+					}
+				}
 				processCombatNpc(npc);
 			} catch (Exception e) {
 				log.warn("Erro ao processar combate do monstro {}: {}", npc.name(), e.getMessage());
 			}
 		}
 
-		// 3. Suporte de Priests ociosos proximos a aliados feridos
+		// 3. Suporte de Priests e QueenAntNurses ociosos proximos a aliados feridos
 		processIdlePriests();
 
 		// 4. Roaming aleatorio de monstros pacificos / ociosos (a cada 10 segundos = 40 ticks)
@@ -490,10 +550,17 @@ public class NpcAiService {
 				continue;
 			}
 			AbstractNpcAI ai = getOrAssignAI(npc);
-			if (ai instanceof PriestAI priestAI) {
+			if (ai instanceof com.lopez.l2j.game.ai.boss.QueenAntNurseAI nurseAI) {
+				nurseAI.processCombat();
+			} else if (ai instanceof PriestAI priestAI) {
 				NpcInstance wounded = priestAI.findWoundedAlly();
 				if (wounded != null) {
 					priestAI.processCombat();
+				}
+			} else if (Config.ALLOW_GUARDS && ai instanceof GuardAI guardAI && (tickCount % 8 == 0)) {
+				NpcInstance aggroMob = guardAI.scanForAggressiveMonsters();
+				if (aggroMob != null) {
+					guardAI.processCombat();
 				}
 			}
 		}
@@ -587,6 +654,36 @@ public class NpcAiService {
 					continue;
 				}
 				if (npc.isMonster()) {
+					com.lopez.l2j.game.geodata.GeoEngine geo = (combatService != null) ? combatService.geoEngine() : null;
+					// Se for lacaio ocioso distante do mestre, aproxima-se do mestre (#312)
+					if (npc.isMinion() && npc.masterObjectId() != 0) {
+						var masterOpt = world.npc(npc.masterObjectId());
+						if (masterOpt.isPresent() && !masterOpt.get().isDead()) {
+							NpcInstance master = masterOpt.get();
+							double distMaster = Math.hypot(npc.x() - master.x(), npc.y() - master.y());
+							if (distMaster > 160.0) {
+								double angle = rnd.nextDouble(0, 2 * Math.PI);
+								int dist = rnd.nextInt(45, 95);
+								int mx = master.x() + (int) Math.round(Math.cos(angle) * dist);
+								int my = master.y() + (int) Math.round(Math.sin(angle) * dist);
+								int mz = master.z();
+								if (geo != null && geo.isEnabled()) {
+									var loc = geo.moveCheck(npc.x(), npc.y(), npc.z(), mx, my, mz);
+									mx = loc.x();
+									my = loc.y();
+									mz = loc.z();
+								}
+								int fromX = npc.x();
+								int fromY = npc.y();
+								int heading = (int) Math.round(Math.atan2(my - fromY, mx - fromX) * 10430.378);
+								var movePkt = new MoveToLocation(npc.objectId(), mx, my, mz, fromX, fromY, npc.z());
+								npc.moveTo(mx, my, mz, heading);
+								world.updateNpcPosition(npc, fromX, fromY);
+								world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, movePkt);
+								continue;
+							}
+						}
+					}
 					if (maxMonsterAnim <= 0 || maxWalkAnim <= 0) {
 						continue;
 					}
@@ -595,13 +692,26 @@ public class NpcAiService {
 						int maxOffset = Config.MAX_DRIFT_RANGE > 0 ? Config.MAX_DRIFT_RANGE : 120;
 						int targetX = npc.spawnX() + rnd.nextInt(-maxOffset, maxOffset + 1);
 						int targetY = npc.spawnY() + rnd.nextInt(-maxOffset, maxOffset + 1);
+						int targetZ = npc.spawnZ();
+						if (geo != null && geo.isEnabled()) {
+							var checked = geo.moveCheck(npc.x(), npc.y(), npc.z(), targetX, targetY, targetZ);
+							targetX = checked.x();
+							targetY = checked.y();
+							short gz = geo.getHeight(targetX, targetY, checked.z());
+							if (Math.abs(gz - npc.z()) <= 100) {
+								targetZ = gz;
+							}
+						}
+						if (targetX == npc.x() && targetY == npc.y()) {
+							continue;
+						}
 						int heading = (int) Math.round(Math.atan2(targetY - npc.y(), targetX - npc.x()) * 10430.378);
 
 						int fromX = npc.x();
 						int fromY = npc.y();
-						var movePkt = new MoveToLocation(npc.objectId(), targetX, targetY, npc.spawnZ(),
+						var movePkt = new MoveToLocation(npc.objectId(), targetX, targetY, targetZ,
 								npc.x(), npc.y(), npc.z());
-						npc.moveTo(targetX, targetY, npc.spawnZ(), heading);
+						npc.moveTo(targetX, targetY, targetZ, heading);
 						world.updateNpcPosition(npc, fromX, fromY);
 						world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, movePkt);
 					}
@@ -651,15 +761,44 @@ public class NpcAiService {
 
 		var playerOpt = world.player(npc.targetPlayerId());
 		if (playerOpt.isEmpty()) {
-			returnToSpawn(npc);
-			return;
+			// Verifica se o alvo atual e um Summon/Pet vivo (#308)
+			var summonOpt = world.summon(npc.targetPlayerId());
+			if (summonOpt.isPresent() && !summonOpt.get().isDead()) {
+				playerOpt = world.player(summonOpt.get().ownerId());
+			}
+		}
+		if (playerOpt.isEmpty()) {
+			npc.stopHating(npc.targetPlayerId());
+			int nextTarget = findNextValidHatedPlayer(npc);
+			if (nextTarget != 0) {
+				npc.targetPlayerId(nextTarget);
+				playerOpt = world.player(nextTarget);
+			}
+			if (playerOpt.isEmpty()) {
+				returnToSpawn(npc);
+				return;
+			}
 		}
 
 		var player = playerOpt.get();
 		var character = player.character();
 		if (character == null || character.isDead()) {
-			returnToSpawn(npc);
-			return;
+			npc.stopHating(npc.targetPlayerId());
+			int nextTarget = findNextValidHatedPlayer(npc);
+			if (nextTarget != 0) {
+				npc.targetPlayerId(nextTarget);
+				var nextOpt = world.player(nextTarget);
+				if (nextOpt.isPresent() && nextOpt.get().character() != null && !nextOpt.get().character().isDead()) {
+					player = nextOpt.get();
+					character = player.character();
+				} else {
+					returnToSpawn(npc);
+					return;
+				}
+			} else {
+				returnToSpawn(npc);
+				return;
+			}
 		}
 
 		boolean guardHuntingPk = isGuardNpc(npc) && character.karma() > 0;
@@ -678,8 +817,13 @@ public class NpcAiService {
 		double dz = player.z() - npc.z();
 		double dist3d = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-		// Perda de aggro se o jogador fugir muito longe (> 1500) ou se a diferenca de altura for excessiva (> 350)
-		if (dist3d > 1500.0 || Math.abs(dz) > 350.0) {
+		// Limite maximo de perseguicao em relacao ao spawn original (#314)
+		double driftFromSpawn = Math.hypot(npc.x() - npc.spawnX(), npc.y() - npc.spawnY());
+		double maxPursueDrift = (npc.isRaid() || (npc.template() != null && (npc.template().isRaidBoss() || npc.template().isGrandBoss())))
+				? 3500.0 : 2500.0;
+
+		// Perda de aggro se o jogador fugir muito longe (> 1500), altura excessiva (> 350) ou afastamento excessivo do spawn
+		if (dist3d > 1500.0 || Math.abs(dz) > 350.0 || driftFromSpawn > maxPursueDrift) {
 			returnToSpawn(npc);
 			var stopAtk = new AutoAttackStop(npc.objectId());
 			player.send(stopAtk);
@@ -687,11 +831,34 @@ public class NpcAiService {
 			return;
 		}
 
-		tryRollHotSpringDebuff(npc);
-		tryRollFogMobClone(npc);
+		if (tryRollHotSpringDebuff(npc)) {
+			applyHotSpringDebuffToPlayer(npc, player, character);
+		}
+		if (tryRollFogMobClone(npc)) {
+			npc.pAtkMul(Math.min(2.0, npc.pAtkMul() * 1.05));
+		}
 
 		AbstractNpcAI ai = getOrAssignAI(npc);
 		ai.processCombat();
+	}
+
+	private void applyHotSpringDebuffToPlayer(NpcInstance npc, GameWorld.OnlinePlayer player,
+			com.lopez.l2j.game.model.PlayerCharacter character) {
+		if (player == null || character == null || character.isDead()) {
+			return;
+		}
+		int[] hsSkills = { 4551, 4552, 4553, 4554 }; // Malaria, Cholera, Flu, Rheumatism
+		int skillId = hsSkills[ThreadLocalRandom.current().nextInt(hsSkills.length)];
+		int curLvl = (character.effects() != null) ? character.effects().getSkillLevel(skillId) : 0;
+		int nextLvl = Math.min(10, Math.max(1, curLvl + 1));
+		if (character.effects() != null) {
+			character.effects().addEffect(skillId, nextLvl, 600_000L, "hotspring_" + skillId, false);
+		}
+		var msu = new com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse(
+				npc.objectId(), character.objectId(), skillId, nextLvl, 1000, 3000,
+				npc.x(), npc.y(), npc.z(), player.x(), player.y(), player.z());
+		player.send(msu);
+		world.broadcastAround(npc.x(), npc.y(), GameWorld.VISIBILITY_RADIUS, msu);
 	}
 
 	public void onMasterDied(NpcInstance master) {
@@ -719,7 +886,9 @@ public class NpcAiService {
 		if (npc.isDead()) {
 			return;
 		}
-		npc.currentHp(npc.template().maxHp());
+		npc.clearAggro();
+		npc.clearActiveEffects();
+		npc.currentHp(npc.maxHp() > 0 ? npc.maxHp() : (npc.template() != null ? npc.template().maxHp() : 1000));
 		int sx = npc.spawnX();
 		int sy = npc.spawnY();
 		int sz = npc.spawnZ();
@@ -727,11 +896,17 @@ public class NpcAiService {
 		if (npc.x() != sx || npc.y() != sy) {
 			int fromX = npc.x();
 			int fromY = npc.y();
+			double distToSpawn = Math.hypot(fromX - sx, fromY - sy);
 			var movePkt = new MoveToLocation(npc.objectId(), sx, sy, sz, npc.x(), npc.y(), npc.z());
 			npc.moveTo(sx, sy, sz, sh);
 			world.updateNpcPosition(npc, fromX, fromY);
 			world.broadcastAround(fromX, fromY, GameWorld.VISIBILITY_RADIUS, movePkt);
 			world.broadcastAround(sx, sy, GameWorld.VISIBILITY_RADIUS, movePkt);
+			if (distToSpawn > 500.0) {
+				var telePkt = new com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation(npc.objectId(), sx, sy, sz, sh);
+				world.broadcastAround(fromX, fromY, GameWorld.VISIBILITY_RADIUS, telePkt);
+				world.broadcastAround(sx, sy, GameWorld.VISIBILITY_RADIUS, new NpcInfo(npc));
+			}
 		}
 
 		// Se for mestre com lacaios, faz os lacaios retornarem tambem
