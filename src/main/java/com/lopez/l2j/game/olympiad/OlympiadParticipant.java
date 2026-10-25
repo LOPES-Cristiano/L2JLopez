@@ -21,6 +21,7 @@ public class OlympiadParticipant {
 	private int team; // 1 = Blue/Side A, 2 = Red/Side B
 	private double damageDealt = 0;
 	private boolean dead = false;
+	private int remainingBuffs = 5;
 
 	public OlympiadParticipant(GameSession session, int origX, int origY, int origZ) {
 		this.session = session;
@@ -106,5 +107,13 @@ public class OlympiadParticipant {
 
 	public void setDead(boolean dead) {
 		this.dead = dead;
+	}
+
+	public int remainingBuffs() {
+		return remainingBuffs;
+	}
+
+	public void remainingBuffs(int remainingBuffs) {
+		this.remainingBuffs = Math.max(0, remainingBuffs);
 	}
 }
