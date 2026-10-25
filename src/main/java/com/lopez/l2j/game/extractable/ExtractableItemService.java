@@ -59,13 +59,6 @@ public class ExtractableItemService {
 			return false;
 		}
 
-		// Consome 1 item extraivel
-		if (inventoryService != null) {
-			inventoryService.consumeItem(inv, item.itemId(), 1, "Extract");
-		} else {
-			inv.destroyItemByItemId(item.itemId(), 1);
-		}
-
 		int roll = ThreadLocalRandom.current().nextInt(100);
 		int cumulativeChance = 0;
 		ExtractableProduct selectedProduct = null;
@@ -78,6 +71,59 @@ public class ExtractableItemService {
 			}
 		}
 
+		// Valida capacidade de slots e peso antes de destruir a capsula (#222)
+		int fishRate = isFishItem(item) ? Math.max(1, com.lopez.l2j.config.Config.RATE_EXTR_FISH) : 1;
+		if (selectedProduct != null && !selectedProduct.items().isEmpty()) {
+			int slotsNeeded = 0;
+			long weightNeeded = 0;
+			for (ExtractableProduct.ProductItem reward : selectedProduct.items()) {
+				int finalCount = Math.max(1, reward.count() * fishRate);
+				var tmpl = inventoryService != null && inventoryService.templates() != null
+						? inventoryService.templates().get(reward.itemId()).orElse(null)
+						: null;
+				boolean stackable = tmpl == null || tmpl.stackable();
+				if (!stackable) {
+					slotsNeeded += finalCount;
+				} else if (inv.byItemId(reward.itemId()).isEmpty()) {
+					slotsNeeded += 1;
+				}
+				if (tmpl != null && reward.itemId() != com.lopez.l2j.game.item.ItemTemplate.ADENA_ID && !tmpl.isQuestItem()) {
+					weightNeeded += (long) tmpl.weight() * finalCount;
+				}
+			}
+			if (item.count() == 1) {
+				slotsNeeded = Math.max(0, slotsNeeded - 1);
+			}
+			if (item.template() != null) {
+				weightNeeded -= item.template().weight();
+			}
+			int maxSlots = player.maxInventorySlots() > 0 ? player.maxInventorySlots() : 80;
+			if (inv.size() + slotsNeeded > maxSlots) {
+				if (clientSender != null) {
+					clientSender.accept(SystemMessage.id(SystemMessage.SLOTS_FULL));
+				}
+				return false;
+			}
+			if (weightNeeded > 0 && inv.currentLoad() + weightNeeded > 69_000 * Math.max(1.0, com.lopez.l2j.config.Config.ALT_WEIGHT_LIMIT)) {
+				if (clientSender != null) {
+					clientSender.accept(SystemMessage.id(SystemMessage.WEIGHT_LIMIT_EXCEEDED));
+				}
+				return false;
+			}
+		} else if (inv.size() > (player.maxInventorySlots() > 0 ? player.maxInventorySlots() : 80)) {
+			if (clientSender != null) {
+				clientSender.accept(SystemMessage.id(SystemMessage.SLOTS_FULL));
+			}
+			return false;
+		}
+
+		// Consome 1 item extraivel
+		if (inventoryService != null) {
+			inventoryService.consumeItem(inv, item.itemId(), 1, "Extract");
+		} else {
+			inv.destroyItemByItemId(item.itemId(), 1);
+		}
+
 		if (selectedProduct == null || selectedProduct.items().isEmpty()) {
 			if (clientSender != null) {
 				clientSender.accept(SystemMessage.id(SystemMessage.NOTHING_INSIDE_THAT));
@@ -86,14 +132,13 @@ public class ExtractableItemService {
 		}
 
 		// Entrega as recompensas (aplicando RATE_EXTR_FISH quando o item extraido for um peixe)
-		int fishRate = isFishItem(item) ? Math.max(1, com.lopez.l2j.config.Config.RATE_EXTR_FISH) : 1;
 		for (ExtractableProduct.ProductItem reward : selectedProduct.items()) {
 			int finalCount = Math.max(1, reward.count() * fishRate);
 			if (inventoryService != null) {
 				inventoryService.addItem(inv, reward.itemId(), finalCount, "Extract");
 			} else {
 				// Fallback sintetico para testes sem servico completo
-				inv.destroyItemByItemId(reward.itemId(), 0); // no-op check
+				inv.addItem(reward.itemId(), finalCount);
 			}
 
 			if (clientSender != null) {
