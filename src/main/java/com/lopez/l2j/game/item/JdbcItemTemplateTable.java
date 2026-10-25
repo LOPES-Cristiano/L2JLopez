@@ -17,18 +17,77 @@ import org.springframework.stereotype.Repository;
  * H2 dos testes) resultam em catalogo vazio com aviso, sem derrubar o servidor.
  */
 @Repository
-class JdbcItemTemplateTable implements ItemTemplateTable {
+public class JdbcItemTemplateTable implements ItemTemplateTable {
 
 	private static final Logger log = LoggerFactory.getLogger(JdbcItemTemplateTable.class);
 
-	private record Data(Map<Integer, ItemTemplate> byId, List<CreationItem> creation) {
+	public record ExtendedItemProps(
+			int duration,
+			int lifetime,
+			int crystalCount,
+			boolean crystallizable,
+			String material,
+			int mpConsume,
+			int shieldDefRate,
+			boolean html
+	) {
+	}
+
+	public record PremiumItemEntry(
+			int id,
+			String itemId,
+			String price,
+			String quantity,
+			String enchant
+	) {
+	}
+
+	private record Data(
+			Map<Integer, ItemTemplate> byId,
+			List<CreationItem> creation,
+			Map<Integer, ExtendedItemProps> extendedById,
+			List<PremiumItemEntry> premiumItems
+	) {
 	}
 
 	private final JdbcClient jdbc;
 	private volatile Data data;
 
-	JdbcItemTemplateTable(JdbcClient jdbc) {
+	public JdbcItemTemplateTable(JdbcClient jdbc) {
 		this.jdbc = jdbc;
+	}
+
+	public Optional<ExtendedItemProps> getExtendedProps(int itemId) {
+		return Optional.ofNullable(data().extendedById().get(itemId));
+	}
+
+	public int getDuration(int itemId) {
+		var p = data().extendedById().get(itemId);
+		return p != null ? p.duration() : -1;
+	}
+
+	public int getCrystalCount(int itemId) {
+		var p = data().extendedById().get(itemId);
+		return p != null ? p.crystalCount() : 0;
+	}
+
+	public boolean isCrystallizable(int itemId) {
+		var p = data().extendedById().get(itemId);
+		return p != null && p.crystallizable();
+	}
+
+	public int getMpConsume(int itemId) {
+		var p = data().extendedById().get(itemId);
+		return p != null ? p.mpConsume() : 0;
+	}
+
+	public int getShieldDefRate(int itemId) {
+		var p = data().extendedById().get(itemId);
+		return p != null ? p.shieldDefRate() : 0;
+	}
+
+	public List<PremiumItemEntry> getPremiumItems() {
+		return data().premiumItems();
 	}
 
 	@Override
@@ -68,12 +127,13 @@ class JdbcItemTemplateTable implements ItemTemplateTable {
 	private Data load() {
 		long start = System.nanoTime();
 		Map<Integer, ItemTemplate> byId = new HashMap<>();
-		int etc = load(byId, "etcitem", false, JdbcItemTemplateTable::etc);
-		int armor = load(byId, "armor", false, JdbcItemTemplateTable::armor);
-		int weapon = load(byId, "weapon", false, JdbcItemTemplateTable::weapon);
-		int custom = load(byId, "custom_etcitem", true, JdbcItemTemplateTable::etc)
-				+ load(byId, "custom_armor", true, JdbcItemTemplateTable::armor)
-				+ load(byId, "custom_weapon", true, JdbcItemTemplateTable::weapon);
+		Map<Integer, ExtendedItemProps> extendedById = new HashMap<>();
+		int etc = load(byId, extendedById, "etcitem", false, JdbcItemTemplateTable::etc);
+		int armor = load(byId, extendedById, "armor", false, JdbcItemTemplateTable::armor);
+		int weapon = load(byId, extendedById, "weapon", false, JdbcItemTemplateTable::weapon);
+		int custom = load(byId, extendedById, "custom_etcitem", true, JdbcItemTemplateTable::etc)
+				+ load(byId, extendedById, "custom_armor", true, JdbcItemTemplateTable::armor)
+				+ load(byId, extendedById, "custom_weapon", true, JdbcItemTemplateTable::weapon);
 		int xmlLoaded = loadXmlItemStats(byId);
 		List<CreationItem> creation = new ArrayList<>();
 		try {
@@ -84,9 +144,22 @@ class JdbcItemTemplateTable implements ItemTemplateTable {
 		} catch (RuntimeException e) {
 			log.warn("char_creation_items indisponivel: {}", e.getMessage());
 		}
+		List<PremiumItemEntry> premiumItems = new ArrayList<>();
+		try {
+			premiumItems.addAll(jdbc.sql("SELECT id, item_id, preco, quantidade, enchant FROM items_premium")
+					.query((rs, i) -> new PremiumItemEntry(
+							rs.getInt("id"),
+							optString(rs, "item_id"),
+							optString(rs, "preco"),
+							optString(rs, "quantidade"),
+							optString(rs, "enchant")))
+					.list());
+		} catch (RuntimeException e) {
+			log.debug("items_premium indisponivel: {}", e.getMessage());
+		}
 		log.info("ItemTable: {} etc, {} armaduras, {} armas, {} custom, {} xml stats, {} itens iniciais em {} ms", etc, armor, weapon,
 				custom, xmlLoaded, creation.size(), (System.nanoTime() - start) / 1_000_000);
-		return new Data(Map.copyOf(byId), List.copyOf(creation));
+		return new Data(Map.copyOf(byId), List.copyOf(creation), Map.copyOf(extendedById), List.copyOf(premiumItems));
 	}
 
 	private int loadXmlItemStats(Map<Integer, ItemTemplate> byId) {
@@ -171,18 +244,45 @@ class JdbcItemTemplateTable implements ItemTemplateTable {
 		ItemTemplate read(ResultSet rs, int displayId) throws SQLException;
 	}
 
-	private int load(Map<Integer, ItemTemplate> into, String table, boolean custom, RowReader reader) {
+	private int load(Map<Integer, ItemTemplate> into, Map<Integer, ExtendedItemProps> extendedInto, String table, boolean custom, RowReader reader) {
 		try {
-			List<ItemTemplate> rows = jdbc.sql("SELECT * FROM " + table).query((rs, i) -> {
+			record LoadedRow(ItemTemplate template, ExtendedItemProps props) {}
+			List<LoadedRow> rows = jdbc.sql("SELECT * FROM " + table).query((rs, i) -> {
 				int id = rs.getInt("item_id");
 				int display = custom ? rs.getInt("item_display_id") : id;
-				return reader.read(rs, display == 0 ? id : display);
+				ItemTemplate tmpl = reader.read(rs, display == 0 ? id : display);
+				ExtendedItemProps props = readExtendedProps(rs);
+				return new LoadedRow(tmpl, props);
 			}).list();
-			rows.forEach(t -> into.put(t.id(), t));
+			for (LoadedRow row : rows) {
+				into.put(row.template().id(), row.template());
+				extendedInto.put(row.template().id(), row.props());
+			}
 			return rows.size();
 		} catch (RuntimeException e) {
 			log.warn("Tabela {} indisponivel: {}", table, e.getMessage());
 			return 0;
+		}
+	}
+
+	private static ExtendedItemProps readExtendedProps(ResultSet rs) {
+		int duration = optIntDefault(rs, "duration", -1);
+		int lifetime = optIntDefault(rs, "lifetime", -1);
+		int crystalCount = Math.max(0, optInt(rs, "crystal_count"));
+		boolean crystallizable = "true".equalsIgnoreCase(optString(rs, "crystallizable"));
+		String material = optString(rs, "material");
+		int mpConsume = Math.max(0, optInt(rs, "mp_consume"));
+		int shieldDefRate = Math.max(0, optInt(rs, "shield_def_rate"));
+		boolean html = "true".equalsIgnoreCase(optString(rs, "html"));
+		return new ExtendedItemProps(duration, lifetime, crystalCount, crystallizable, material, mpConsume, shieldDefRate, html);
+	}
+
+	private static int optIntDefault(ResultSet rs, String column, int def) {
+		try {
+			int v = rs.getInt(column);
+			return rs.wasNull() ? def : v;
+		} catch (SQLException e) {
+			return def;
 		}
 	}
 
