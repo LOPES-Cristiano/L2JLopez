@@ -104,7 +104,11 @@ public class Quest635InTheDimensionalRift extends Quest {
             html = "7.htm";
             qs.exitQuest(true);
         } else if (string2 != null) {
-            pc.teleToLocation(new int[]{0, 0, 0});
+            String[] coords = string2.split(",");
+            if (coords.length >= 3) {
+                pc.teleToLocation(Integer.parseInt(coords[0].trim()), Integer.parseInt(coords[1].trim()), Integer.parseInt(coords[2].trim()));
+            }
+            qs.unset("loc");
             html = "7.htm";
             qs.exitQuest(true);
         } else {
