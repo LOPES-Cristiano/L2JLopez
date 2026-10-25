@@ -185,6 +185,46 @@ public class Clan {
 		return members.size();
 	}
 
+	/**
+	 * Retorna o total de membros do cla excluindo os aprendizes da Academia (SUBUNIT_ACADEMY).
+	 * Usado nas validacoes de nivel de cla 6, 7 e 8 e declaracao de guerra.
+	 */
+	public int nonAcademyMembersCount() {
+		int count = 0;
+		for (ClanMember m : members.values()) {
+			if (m.pledgeType() != SUBUNIT_ACADEMY) {
+				count++;
+			}
+		}
+		return count;
+	}
+
+	/**
+	 * Retorna a quantidade de membros alocados em uma sub-unidade especifica (0 = cla principal).
+	 */
+	public int getSubPledgeMembersCount(int pledgeType) {
+		int count = 0;
+		for (ClanMember m : members.values()) {
+			if (m.pledgeType() == pledgeType) {
+				count++;
+			}
+		}
+		return count;
+	}
+
+	/**
+	 * Retorna a capacidade maxima de membros para o pledgeType informado (0 = principal, -1 = Academia, 100/200 = Royal, 1001..2002 = Knight).
+	 */
+	public int getMaxNrOfMembers(int pledgeType) {
+		return switch (pledgeType) {
+			case 0 -> getMaxMembers(this.level);
+			case SUBUNIT_ACADEMY -> 20;
+			case SUBUNIT_ROYAL1, SUBUNIT_ROYAL2 -> getMaxRoyalMembers();
+			case SUBUNIT_KNIGHT1, SUBUNIT_KNIGHT2, SUBUNIT_KNIGHT3, SUBUNIT_KNIGHT4 -> getMaxKnightMembers();
+			default -> 0;
+		};
+	}
+
 	public void addMember(ClanMember member) {
 		if (member != null) {
 			members.put(member.objectId(), member);
@@ -294,5 +334,9 @@ public class Clan {
 			var player = world.player(m.objectId());
 			player.ifPresent(p -> p.send(packet));
 		}
+	}
+
+	public void noticeEnabled(boolean enabled) {
+		this.noticeEnabled = enabled;
 	}
 }
