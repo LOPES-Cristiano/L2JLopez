@@ -14,18 +14,21 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Servico de Pontos PC Bang / PC Cafe (repatriado de L2JDreamV2 / L2JLucera2).
+ * Servico de Pontos PC Bang / PC Cafe (repatriado de L2JDreamV2 / L2JLucera2) - #494.
  * Conecta as propriedades PcBangPointEnable, PcBangPointMinLevel, PcBangPointMinCount,
- * PcBangPointMaxCount, PcBangPointDualChance e PcBangPointTimeStamp de fun_events.properties.
+ * PcBangPointMaxCount, PcBangPointDualChance e PcBangPointTimeStamp de fun_events.properties,
+ * bloqueando concessao a lojas privadas/AFK e notificando o cliente com ExPCCafePointInfo.
  */
 @Service
 public class PcCafeService {
 
 	private static final Logger log = LoggerFactory.getLogger(PcCafeService.class);
+	public static final long ACTIVE_COMBAT_WINDOW_MS = 15 * 60 * 1000L;
 
 	public record PcBangAward(int pointsGranted, boolean doubled, int totalPoints) {}
 
 	private final Map<Integer, Integer> playerPoints = new ConcurrentHashMap<>();
+	private final Map<Integer, Long> lastCombatTimestamps = new ConcurrentHashMap<>();
 	private ScheduledExecutorService scheduler;
 
 	public PcCafeService() {
@@ -84,9 +87,30 @@ public class PcCafeService {
 		return Math.max(1, Config.PC_CAFE_INTERVAL);
 	}
 
+	public void recordCombatActivity(int playerId) {
+		lastCombatTimestamps.put(playerId, System.currentTimeMillis());
+	}
+
+	public boolean hasRecentCombatActivity(PlayerCharacter player) {
+		if (player == null) {
+			return false;
+		}
+		if (player.isInCombat() || player.autoAttacking()) {
+			recordCombatActivity(player.objectId());
+			return true;
+		}
+		Long ts = lastCombatTimestamps.get(player.objectId());
+		if (ts == null) {
+			return true; // Sem histórico prévio de AFK na sessão
+		}
+		return (System.currentTimeMillis() - ts) <= ACTIVE_COMBAT_WINDOW_MS;
+	}
+
 	public boolean isEligible(PlayerCharacter player) {
 		return isEnabled() && player != null && !player.isDead()
-				&& player.level() >= getMinLevel() && player.level() <= getMaxLevel();
+				&& player.privateStoreType() == 0 && !player.isBuffShop()
+				&& player.level() >= getMinLevel() && player.level() <= getMaxLevel()
+				&& hasRecentCombatActivity(player);
 	}
 
 	public PcBangAward awardPoints(PlayerCharacter player) {
@@ -102,6 +126,12 @@ public class PcCafeService {
 				&& ThreadLocalRandom.current().nextInt(100) < getDualPointChancePercent();
 		int granted = doubled ? basePoints * 2 : basePoints;
 		int newTotal = playerPoints.merge(player.objectId(), granted, Integer::sum);
+
+		GameWorld world = GameWorld.getInstance();
+		if (world != null) {
+			world.sendPacket(player.objectId(), new com.lopez.l2j.network.game.packet.GameServerPacket.ExPCCafePointInfo(
+					newTotal, granted, 1, 24, doubled ? 2 : 1));
+		}
 		return new PcBangAward(granted, doubled, newTotal);
 	}
 
