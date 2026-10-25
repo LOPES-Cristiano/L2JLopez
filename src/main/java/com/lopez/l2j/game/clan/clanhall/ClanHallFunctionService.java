@@ -296,6 +296,43 @@ public class ClanHallFunctionService {
 	}
 
 	/**
+	 * Verifica e renova periodicamente as funcoes de Clan Hall vencidas debitando do ClanWarehouse;
+	 * caso nao haja saldo suficiente, desativa e remove a funcao do banco (#398).
+	 */
+	public synchronized void processExpiredFunctions(long nowMillis,
+			java.util.function.IntFunction<Inventory> clanWarehouseByClanId) {
+		for (var hallEntry : hallFunctions.entrySet()) {
+			int hallId = hallEntry.getKey();
+			var hallOpt = clanHallService.getClanHall(hallId);
+			if (hallOpt.isEmpty() || hallOpt.get().ownerId() <= 0) {
+				for (Integer typeId : new java.util.ArrayList<>(hallEntry.getValue().keySet())) {
+					removeFunction(hallId, typeId);
+				}
+				continue;
+			}
+			int ownerClanId = hallOpt.get().ownerId();
+			Inventory clanWh = clanWarehouseByClanId != null ? clanWarehouseByClanId.apply(ownerClanId) : null;
+			for (var func : new java.util.ArrayList<>(hallEntry.getValue().values())) {
+				if (func.endTime() <= nowMillis) {
+					int fee = Math.max(0, func.fee());
+					if (clanWh != null && fee > 0) {
+						if (clanWh.getItemCount(ItemTemplate.ADENA_ID) >= fee) {
+							clanWh.destroyItemByItemId(ItemTemplate.ADENA_ID, fee);
+							setFunction(hallId, func.type(), func.level(), fee, func.rateMillis());
+						} else {
+							removeFunction(hallId, func.type());
+						}
+					} else if (clanWh == null && fee > 0) {
+						removeFunction(hallId, func.type());
+					} else {
+						setFunction(hallId, func.type(), func.level(), fee, func.rateMillis());
+					}
+				}
+			}
+		}
+	}
+
+	/**
 	 * Calcula multiplicador de regeneracao de HP dentro do Clan Hall.
 	 * Exemplo: lvl 100 -> +100% (multiplicador 2.0x).
 	 */
