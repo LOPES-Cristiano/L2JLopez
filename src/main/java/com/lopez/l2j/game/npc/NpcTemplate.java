@@ -83,6 +83,12 @@ public record NpcTemplate(
 				? null : factionId.trim();
 	}
 
+	public static NpcTemplate simple(int id, String name, String title, int level) {
+		return new NpcTemplate(id, id, name, false, title, false, 9.0, 23.0, level,
+				"male", "L2Npc", 40, 2444, 1500, 100, 100, 100, 100, 253, 333,
+				0, 0, 0, 80, 120, 0, false, 0L, 0, null, 0);
+	}
+
 	public boolean isMonster() {
 		if (type == null) {
 			return false;
