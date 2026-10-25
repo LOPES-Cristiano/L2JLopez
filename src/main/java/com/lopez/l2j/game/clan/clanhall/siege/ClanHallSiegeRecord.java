@@ -20,6 +20,14 @@ public class ClanHallSiegeRecord {
 	private volatile long siegeDate;
 	private volatile SiegeState state;
 	private final Set<Integer> registeredClanIds = ConcurrentHashMap.newKeySet();
+	// Dano acumulado por cla nos Bosses de Clan Hall (Nurka 35368, Gustav 35410, Lidia 35629) (#399)
+	private final java.util.Map<Integer, Long> damageByClanId = new ConcurrentHashMap<>();
+	// Bandeira / NPC Aliado escolhido por cla em Bandit Stronghold (35) e Beast Farm (63) (#400)
+	private final java.util.Map<Integer, Integer> clanFlagNpcIds = new ConcurrentHashMap<>();
+	private final java.util.Map<Integer, Integer> clanAllyNpcIds = new ConcurrentHashMap<>();
+	// Decretos de guerra e HP do Gourd em Rainbow Springs Chateau (62) (#401)
+	private final java.util.Map<Integer, Integer> warDecreesByClanId = new ConcurrentHashMap<>();
+	private final java.util.Map<Integer, Integer> gourdHpByClanId = new ConcurrentHashMap<>();
 
 	public ClanHallSiegeRecord(int hallId, String name, long siegeDate, SiegeState state) {
 		this.hallId = hallId;
@@ -39,5 +47,24 @@ public class ClanHallSiegeRecord {
 	public boolean registerClan(int clanId) { return registeredClanIds.add(clanId); }
 	public boolean unregisterClan(int clanId) { return registeredClanIds.remove(clanId); }
 	public boolean isRegistered(int clanId) { return registeredClanIds.contains(clanId); }
-	public void clearRegisteredClans() { registeredClanIds.clear(); }
+	public void clearRegisteredClans() {
+		registeredClanIds.clear();
+		damageByClanId.clear();
+		clanFlagNpcIds.clear();
+		clanAllyNpcIds.clear();
+		warDecreesByClanId.clear();
+		gourdHpByClanId.clear();
+	}
+
+	public java.util.Map<Integer, Long> damageByClanId() { return damageByClanId; }
+	public void addClanDamage(int clanId, long damage) {
+		if (clanId > 0 && damage > 0) {
+			damageByClanId.merge(clanId, damage, Long::sum);
+		}
+	}
+
+	public java.util.Map<Integer, Integer> clanFlagNpcIds() { return clanFlagNpcIds; }
+	public java.util.Map<Integer, Integer> clanAllyNpcIds() { return clanAllyNpcIds; }
+	public java.util.Map<Integer, Integer> warDecreesByClanId() { return warDecreesByClanId; }
+	public java.util.Map<Integer, Integer> gourdHpByClanId() { return gourdHpByClanId; }
 }
