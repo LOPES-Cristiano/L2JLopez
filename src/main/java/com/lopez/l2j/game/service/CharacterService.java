@@ -147,6 +147,10 @@ public class CharacterService {
 		c.deleteTime(0);
 	}
 
+	public void save(PlayerCharacter c) {
+		save(c, true);
+	}
+
 	public void save(PlayerCharacter c, boolean online) {
 		try {
 			repository.saveState(c, online);
