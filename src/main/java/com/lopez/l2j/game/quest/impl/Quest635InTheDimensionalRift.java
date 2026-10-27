@@ -8,6 +8,7 @@ import com.lopez.l2j.game.quest.Quest;
 import com.lopez.l2j.game.quest.QuestManager;
 import com.lopez.l2j.game.quest.QuestState;
 import com.lopez.l2j.game.quest.State;
+import com.lopez.l2j.network.game.GameSession;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -60,14 +61,33 @@ public class Quest635InTheDimensionalRift extends Quest {
         String string3 = qs.get("loc");
         if (event.equals("5.htm")) {
             if (n > 0 || string3 != null) {
-                if (pc.getLastNpc() != null && this.ac(pc.getLastNpc().getNpcId()) && !this.m(qs)) {
+                int lastNpcId = pc != null && pc.getLastNpc() != null ? pc.getLastNpc().getNpcId() : qs.getLastTalkedNpcId();
+                if (this.ac(lastNpcId) && !this.m(qs)) {
                     string2 = "Sorry...";
                     qs.exitQuest(true);
                     return string2;
                 }
                 qs.setState(State.STARTED);
                 qs.setCond(1);
-                pc.teleToLocation(-114790, -180576, -6781);
+                qs.teleportPlayer(-114790, -180576, -6781);
+                if (qs.getPlayer() != null && qs.getPlayer().party() != null) {
+                    for (GameSession member : qs.getPlayer().party().members()) {
+                        if (member == null || member == qs.getPlayer()) continue;
+                        QuestState mQs = member.getQuestState(getName());
+                        if (mQs == null) {
+                            mQs = newQuestState(member);
+                        }
+                        if (mQs != null) {
+                            PlayerCharacter mPc = member.activeChar();
+                            if (mPc != null && mQs.get("loc") == null) {
+                                mQs.set("loc", mPc.getX() + "," + mPc.getY() + "," + mPc.getZ());
+                            }
+                            mQs.setState(State.STARTED);
+                            mQs.setCond(1);
+                            mQs.teleportPlayer(-114790, -180576, -6781);
+                        }
+                    }
+                }
             } else {
                 string2 = "What are you trying to do?";
                 qs.exitQuest(true);
@@ -100,13 +120,13 @@ public class Quest635InTheDimensionalRift extends Quest {
             }
         } else if (n2 > 0) {
             int[] nArray = bQA[n2];
-            pc.teleToLocation(nArray[0], nArray[1], nArray[2]);
+            qs.teleportPlayer(nArray[0], nArray[1], nArray[2]);
             html = "7.htm";
             qs.exitQuest(true);
         } else if (string2 != null) {
             String[] coords = string2.split(",");
             if (coords.length >= 3) {
-                pc.teleToLocation(Integer.parseInt(coords[0].trim()), Integer.parseInt(coords[1].trim()), Integer.parseInt(coords[2].trim()));
+                qs.teleportPlayer(Integer.parseInt(coords[0].trim()), Integer.parseInt(coords[1].trim()), Integer.parseInt(coords[2].trim()));
             }
             qs.unset("loc");
             html = "7.htm";
