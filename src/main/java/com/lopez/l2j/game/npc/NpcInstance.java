@@ -42,32 +42,101 @@ public final class NpcInstance implements Creature {
 		this.currentMp = template.maxMp();
 	}
 
-	public int objectId() { return objectId; }
-	public NpcTemplate template() { return template; }
-	public NpcTemplate getTemplate() { return template; }
-	public int npcId() { return template.id(); }
-	public int getNpcId() { return template.id(); }
-	public int idTemplate() { return template != null ? template.idTemplate() : 0; }
+	public int objectId() {
+		return objectId;
+	}
+
+	public NpcTemplate template() {
+		return template;
+	}
+
+	public NpcTemplate getTemplate() {
+		return template;
+	}
+
+	public int npcId() {
+		return template.id();
+	}
+
+	public int getNpcId() {
+		return template.id();
+	}
+
+	public int idTemplate() {
+		return template != null ? template.idTemplate() : 0;
+	}
+
 	@Override
-	public int level() { return template != null ? template.level() : 1; }
-	public int getLevel() { return level(); }
-	public String name() { return template.name(); }
-	public int x() { return x; }
-	public void x(int value) { this.x = value; }
-	public int y() { return y; }
-	public void y(int value) { this.y = value; }
-	public int z() { return z; }
-	public void z(int value) { this.z = value; }
-	public int heading() { return heading; }
-	public void heading(int value) { this.heading = value; }
+	public int level() {
+		return template != null ? template.level() : 1;
+	}
+
+	public int getLevel() {
+		return level();
+	}
+
+	public String name() {
+		return template.name();
+	}
+
+	public int x() {
+		return x;
+	}
+
+	public void x(int value) {
+		this.x = value;
+	}
+
+	public int y() {
+		return y;
+	}
+
+	public void y(int value) {
+		this.y = value;
+	}
+
+	public int z() {
+		return z;
+	}
+
+	public void z(int value) {
+		this.z = value;
+	}
+
+	public int heading() {
+		return heading;
+	}
+
+	public void heading(int value) {
+		this.heading = value;
+	}
+
 	@Override
-	public int instanceId() { return instanceId; }
+	public int instanceId() {
+		return instanceId;
+	}
+
 	@Override
-	public void instanceId(int value) { this.instanceId = value; }
-	public int spawnX() { return spawnX; }
-	public int spawnY() { return spawnY; }
-	public int spawnZ() { return spawnZ; }
-	public int spawnHeading() { return spawnHeading; }
+	public void instanceId(int value) {
+		this.instanceId = value;
+	}
+
+	public int spawnX() {
+		return spawnX;
+	}
+
+	public int spawnY() {
+		return spawnY;
+	}
+
+	public int spawnZ() {
+		return spawnZ;
+	}
+
+	public int spawnHeading() {
+		return spawnHeading;
+	}
+
 	public double currentHp() {
 		return dead ? 0.0 : currentHp;
 	}
@@ -80,6 +149,14 @@ public final class NpcInstance implements Creature {
 		this.currentHp = Math.max(0.0, value);
 		if (this.currentHp <= 0.0) {
 			this.dead = true;
+			abortAttack();
+			abortCast();
+			var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+			if (world != null) {
+				world.removeNpc(this);
+				world.broadcastAround(this.x, this.y, com.lopez.l2j.game.world.GameWorld.VISIBILITY_RADIUS,
+						new com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject(this.objectId));
+			}
 		}
 	}
 
@@ -92,6 +169,13 @@ public final class NpcInstance implements Creature {
 		return dead;
 	}
 
+	public boolean applyDamage(int attackerObjId, int damage) {
+		if (attackerObjId > 0 && damage > 0) {
+			addDamageHate(attackerObjId, damage, damage);
+		}
+		return applyDamage(damage);
+	}
+
 	public void onDamage(int attackerObjId, int damage) {
 		addDamageHate(attackerObjId, damage, damage);
 		applyDamage(damage);
@@ -101,8 +185,13 @@ public final class NpcInstance implements Creature {
 		return (int) mDef();
 	}
 
-	public double currentMp() { return currentMp; }
-	public void currentMp(double value) { this.currentMp = value; }
+	public double currentMp() {
+		return currentMp;
+	}
+
+	public void currentMp(double value) {
+		this.currentMp = value;
+	}
 
 	public boolean isDead() {
 		return dead;
@@ -116,8 +205,15 @@ public final class NpcInstance implements Creature {
 			abortCast();
 		}
 	}
-	public boolean isInCombat() { return inCombat; }
-	public boolean inCombat() { return inCombat; }
+
+	public boolean isInCombat() {
+		return inCombat;
+	}
+
+	public boolean inCombat() {
+		return inCombat;
+	}
+
 	public void inCombat(boolean value) {
 		this.inCombat = value;
 		if (!value) {
@@ -125,10 +221,22 @@ public final class NpcInstance implements Creature {
 			abortCast();
 		}
 	}
-	public boolean isRunning() { return running; }
-	public void running(boolean value) { this.running = value; }
-	public boolean isAttackable() { return template.isAttackable(); }
-	public boolean isMonster() { return template.isMonster(); }
+
+	public boolean isRunning() {
+		return running;
+	}
+
+	public void running(boolean value) {
+		this.running = value;
+	}
+
+	public boolean isAttackable() {
+		return template.isAttackable();
+	}
+
+	public boolean isMonster() {
+		return template.isMonster();
+	}
 
 	private volatile java.util.concurrent.ScheduledFuture<?> currentAttackTask;
 	private volatile java.util.concurrent.ScheduledFuture<?> currentCastTask;
@@ -199,12 +307,31 @@ public final class NpcInstance implements Creature {
 
 	public void deleteMe() {
 		this.dead = true;
+		abortAttack();
+		abortCast();
+		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (world != null) {
+			world.removeNpc(this);
+			world.broadcastAround(this.x, this.y, com.lopez.l2j.game.world.GameWorld.VISIBILITY_RADIUS,
+					new com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject(this.objectId));
+		}
 	}
 
-	public int getX() { return (int) x; }
-	public int getY() { return (int) y; }
-	public int getZ() { return (int) z; }
-	public int getHeading() { return heading; }
+	public int getX() {
+		return (int) x;
+	}
+
+	public int getY() {
+		return (int) y;
+	}
+
+	public int getZ() {
+		return (int) z;
+	}
+
+	public int getHeading() {
+		return heading;
+	}
 
 	private volatile double basePDefMul = 1.0;
 	private volatile double baseMDefMul = 1.0;
@@ -236,48 +363,212 @@ public final class NpcInstance implements Creature {
 	private volatile String championTitle;
 	private volatile boolean invul;
 
-	public double maxHp() { purgeExpiredEffectsIfNeeded(); return template.maxHp() * maxHpMul; }
-	@Override
-	public double maxHpValue() { return maxHp(); }
-	@Override
-	public double maxMpValue() { return template != null ? template.maxMp() : 100.0; }
-	@Override
-	public boolean isNpc() { return true; }
-	public double maxHpMul() { purgeExpiredEffectsIfNeeded(); return maxHpMul; }
-	public void maxHpMul(double value) { this.baseMaxHpMul = value; recalculateStatMultipliers(); }
-	public boolean isChampion() { return champion; }
-	public void champion(boolean value) { this.champion = value; }
-	public String championTitle() { return championTitle; }
-	public void championTitle(String value) { this.championTitle = value; }
-	public boolean invul() { return invul; }
-	public void invul(boolean value) { this.invul = value; }
+	public double maxHp() {
+		purgeExpiredEffectsIfNeeded();
+		return template.maxHp() * maxHpMul;
+	}
 
-	public double pDef() { purgeExpiredEffectsIfNeeded(); return template.pDef() * pDefMul; }
-	public double mDef() { purgeExpiredEffectsIfNeeded(); return template.mDef() * mDefMul; }
-	public double pAtk() { purgeExpiredEffectsIfNeeded(); return template.pAtk() * pAtkMul; }
-	public double mAtk() { purgeExpiredEffectsIfNeeded(); return template.mAtk() * mAtkMul; }
-	public int runSpd() { purgeExpiredEffectsIfNeeded(); return (int) Math.max(1, template.runSpd() * runSpdMul); }
-	public int walkSpd() { purgeExpiredEffectsIfNeeded(); return (int) Math.max(1, template.walkSpd() * runSpdMul); }
-	public int pAtkSpd() { purgeExpiredEffectsIfNeeded(); return (int) Math.max(1, template.pAtkSpd() * pAtkSpdMul); }
-	public int mAtkSpd() { purgeExpiredEffectsIfNeeded(); return (int) Math.max(1, template.mAtkSpd() * mAtkSpdMul); }
-	public void pDefMul(double value) { this.basePDefMul = value; recalculateStatMultipliers(); }
-	public double pDefMul() { purgeExpiredEffectsIfNeeded(); return pDefMul; }
-	public void mDefMul(double value) { this.baseMDefMul = value; recalculateStatMultipliers(); }
-	public double mDefMul() { purgeExpiredEffectsIfNeeded(); return mDefMul; }
-	public void pAtkMul(double value) { this.basePAtkMul = value; recalculateStatMultipliers(); }
-	public double pAtkMul() { purgeExpiredEffectsIfNeeded(); return pAtkMul; }
-	public void mAtkMul(double value) { this.baseMAtkMul = value; recalculateStatMultipliers(); }
-	public double mAtkMul() { purgeExpiredEffectsIfNeeded(); return mAtkMul; }
-	public void runSpdMul(double value) { this.baseRunSpdMul = value; recalculateStatMultipliers(); }
-	public double runSpdMul() { purgeExpiredEffectsIfNeeded(); return runSpdMul; }
-	public void pAtkSpdMul(double value) { this.basePAtkSpdMul = value; recalculateStatMultipliers(); }
-	public double pAtkSpdMul() { purgeExpiredEffectsIfNeeded(); return pAtkSpdMul; }
-	public void mAtkSpdMul(double value) { this.baseMAtkSpdMul = value; recalculateStatMultipliers(); }
-	public double mAtkSpdMul() { purgeExpiredEffectsIfNeeded(); return mAtkSpdMul; }
-	public int targetPlayerId() { return targetPlayerId; }
-	public void targetPlayerId(int value) { this.targetPlayerId = value; }
-	public long lastAttackTime() { return lastAttackTime; }
-	public void lastAttackTime(long value) { this.lastAttackTime = value; }
+	@Override
+	public double maxHpValue() {
+		return maxHp();
+	}
+
+	@Override
+	public double maxMpValue() {
+		return template != null ? template.maxMp() : 100.0;
+	}
+
+	@Override
+	public boolean isNpc() {
+		return true;
+	}
+
+	public double maxHpMul() {
+		purgeExpiredEffectsIfNeeded();
+		return maxHpMul;
+	}
+
+	public void maxHpMul(double value) {
+		this.baseMaxHpMul = value;
+		recalculateStatMultipliers();
+	}
+
+	public boolean isChampion() {
+		return champion;
+	}
+
+	public void champion(boolean value) {
+		this.champion = value;
+	}
+
+	public String championTitle() {
+		return championTitle;
+	}
+
+	public void championTitle(String value) {
+		this.championTitle = value;
+	}
+
+	public boolean invul() {
+		return invul;
+	}
+
+	public void invul(boolean value) {
+		this.invul = value;
+	}
+
+	private volatile boolean questSpawn;
+	private volatile int scriptValue;
+
+	public boolean isQuestSpawn() {
+		return questSpawn;
+	}
+
+	public void questSpawn(boolean value) {
+		this.questSpawn = value;
+	}
+
+	public int scriptValue() {
+		return scriptValue;
+	}
+
+	public int getScriptValue() {
+		return scriptValue;
+	}
+
+	public void setScriptValue(int value) {
+		this.scriptValue = value;
+	}
+
+	public boolean isScriptValue(int value) {
+		return this.scriptValue == value;
+	}
+
+	public double pDef() {
+		purgeExpiredEffectsIfNeeded();
+		return template.pDef() * pDefMul;
+	}
+
+	public double mDef() {
+		purgeExpiredEffectsIfNeeded();
+		return template.mDef() * mDefMul;
+	}
+
+	public double pAtk() {
+		purgeExpiredEffectsIfNeeded();
+		return template.pAtk() * pAtkMul;
+	}
+
+	public double mAtk() {
+		purgeExpiredEffectsIfNeeded();
+		return template.mAtk() * mAtkMul;
+	}
+
+	public int runSpd() {
+		purgeExpiredEffectsIfNeeded();
+		return (int) Math.max(1, template.runSpd() * runSpdMul);
+	}
+
+	public int walkSpd() {
+		purgeExpiredEffectsIfNeeded();
+		return (int) Math.max(1, template.walkSpd() * runSpdMul);
+	}
+
+	public int pAtkSpd() {
+		purgeExpiredEffectsIfNeeded();
+		return (int) Math.max(1, template.pAtkSpd() * pAtkSpdMul);
+	}
+
+	public int mAtkSpd() {
+		purgeExpiredEffectsIfNeeded();
+		return (int) Math.max(1, template.mAtkSpd() * mAtkSpdMul);
+	}
+
+	public void pDefMul(double value) {
+		this.basePDefMul = value;
+		recalculateStatMultipliers();
+	}
+
+	public double pDefMul() {
+		purgeExpiredEffectsIfNeeded();
+		return pDefMul;
+	}
+
+	public void mDefMul(double value) {
+		this.baseMDefMul = value;
+		recalculateStatMultipliers();
+	}
+
+	public double mDefMul() {
+		purgeExpiredEffectsIfNeeded();
+		return mDefMul;
+	}
+
+	public void pAtkMul(double value) {
+		this.basePAtkMul = value;
+		recalculateStatMultipliers();
+	}
+
+	public double pAtkMul() {
+		purgeExpiredEffectsIfNeeded();
+		return pAtkMul;
+	}
+
+	public void mAtkMul(double value) {
+		this.baseMAtkMul = value;
+		recalculateStatMultipliers();
+	}
+
+	public double mAtkMul() {
+		purgeExpiredEffectsIfNeeded();
+		return mAtkMul;
+	}
+
+	public void runSpdMul(double value) {
+		this.baseRunSpdMul = value;
+		recalculateStatMultipliers();
+	}
+
+	public double runSpdMul() {
+		purgeExpiredEffectsIfNeeded();
+		return runSpdMul;
+	}
+
+	public void pAtkSpdMul(double value) {
+		this.basePAtkSpdMul = value;
+		recalculateStatMultipliers();
+	}
+
+	public double pAtkSpdMul() {
+		purgeExpiredEffectsIfNeeded();
+		return pAtkSpdMul;
+	}
+
+	public void mAtkSpdMul(double value) {
+		this.baseMAtkSpdMul = value;
+		recalculateStatMultipliers();
+	}
+
+	public double mAtkSpdMul() {
+		purgeExpiredEffectsIfNeeded();
+		return mAtkSpdMul;
+	}
+
+	public int targetPlayerId() {
+		return targetPlayerId;
+	}
+
+	public void targetPlayerId(int value) {
+		this.targetPlayerId = value;
+	}
+
+	public long lastAttackTime() {
+		return lastAttackTime;
+	}
+
+	public void lastAttackTime(long value) {
+		this.lastAttackTime = value;
+	}
 
 	// ---- AggroList (Damage & Hate Table para IA de Monstros e Raid Bosses) ----
 
@@ -290,15 +581,25 @@ public final class NpcInstance implements Creature {
 			this.attackerId = attackerId;
 		}
 
-		public int attackerId() { return attackerId; }
-		public long damage() { return damage; }
-		public long hate() { return hate; }
+		public int attackerId() {
+			return attackerId;
+		}
+
+		public long damage() {
+			return damage;
+		}
+
+		public long hate() {
+			return hate;
+		}
+
 		public synchronized void addDamageHate(long dmg, long h) {
 			if (dmg > 0) {
 				this.damage += dmg;
 			}
 			this.hate = Math.max(0L, this.hate + h);
 		}
+
 		public synchronized void reduceHate(long amount) {
 			this.hate = Math.max(0L, this.hate - Math.max(0L, amount));
 		}
@@ -371,18 +672,34 @@ public final class NpcInstance implements Creature {
 	private final java.util.List<NpcInstance> minions = new java.util.concurrent.CopyOnWriteArrayList<>();
 	private volatile boolean raidMinion;
 
-	public int masterObjectId() { return masterObjectId; }
-	public void masterObjectId(int id) { this.masterObjectId = id; }
-	public java.util.List<NpcInstance> minions() { return minions; }
-	public boolean hasMinions() { return !minions.isEmpty(); }
-	public boolean isMinion() { return masterObjectId != 0 || template.isMinion(); }
-	public boolean isRaidMinion() {
-		return raidMinion || (template != null && (
-				"L2RaidMinion".equalsIgnoreCase(template.type())
-				|| "L2GrandBossMinion".equalsIgnoreCase(template.type())
-		));
+	public int masterObjectId() {
+		return masterObjectId;
 	}
-	public void raidMinion(boolean value) { this.raidMinion = value; }
+
+	public void masterObjectId(int id) {
+		this.masterObjectId = id;
+	}
+
+	public java.util.List<NpcInstance> minions() {
+		return minions;
+	}
+
+	public boolean hasMinions() {
+		return !minions.isEmpty();
+	}
+
+	public boolean isMinion() {
+		return masterObjectId != 0 || template.isMinion();
+	}
+
+	public boolean isRaidMinion() {
+		return raidMinion || (template != null && ("L2RaidMinion".equalsIgnoreCase(template.type())
+				|| "L2GrandBossMinion".equalsIgnoreCase(template.type())));
+	}
+
+	public void raidMinion(boolean value) {
+		this.raidMinion = value;
+	}
 
 	public void moveTo(int x, int y, int z) {
 		moveTo(x, y, z, this.heading);
@@ -401,14 +718,37 @@ public final class NpcInstance implements Creature {
 	private volatile int spoilerPlayerId;
 	private volatile java.util.List<com.lopez.l2j.game.drop.DropReward> spoilRewards;
 
-	public boolean isSpoiled() { return spoiled; }
-	public void spoiled(boolean value) { this.spoiled = value; }
-	public int spoilerPlayerId() { return spoilerPlayerId; }
-	public void spoilerPlayerId(int value) { this.spoilerPlayerId = value; }
-	public java.util.List<com.lopez.l2j.game.drop.DropReward> spoilRewards() { return spoilRewards; }
-	public void spoilRewards(java.util.List<com.lopez.l2j.game.drop.DropReward> rewards) { this.spoilRewards = rewards; }
-	public boolean hasSpoilRewards() { return spoilRewards != null && !spoilRewards.isEmpty(); }
-	public boolean isSweepable() { return dead && spoiled && spoilRewards != null && !spoilRewards.isEmpty(); }
+	public boolean isSpoiled() {
+		return spoiled;
+	}
+
+	public void spoiled(boolean value) {
+		this.spoiled = value;
+	}
+
+	public int spoilerPlayerId() {
+		return spoilerPlayerId;
+	}
+
+	public void spoilerPlayerId(int value) {
+		this.spoilerPlayerId = value;
+	}
+
+	public java.util.List<com.lopez.l2j.game.drop.DropReward> spoilRewards() {
+		return spoilRewards;
+	}
+
+	public void spoilRewards(java.util.List<com.lopez.l2j.game.drop.DropReward> rewards) {
+		this.spoilRewards = rewards;
+	}
+
+	public boolean hasSpoilRewards() {
+		return spoilRewards != null && !spoilRewards.isEmpty();
+	}
+
+	public boolean isSweepable() {
+		return dead && spoiled && spoilRewards != null && !spoilRewards.isEmpty();
+	}
 
 	public void addMinion(NpcInstance minion) {
 		if (minion != null && !minions.contains(minion)) {
@@ -430,10 +770,21 @@ public final class NpcInstance implements Creature {
 
 	private volatile int abnormalEffect;
 
-	public int abnormalEffect() { return abnormalEffect; }
-	public void abnormalEffect(int value) { this.abnormalEffect = value; }
-	public void startAbnormalEffect(int mask) { this.abnormalEffect |= mask; }
-	public void stopAbnormalEffect(int mask) { this.abnormalEffect &= ~mask; }
+	public int abnormalEffect() {
+		return abnormalEffect;
+	}
+
+	public void abnormalEffect(int value) {
+		this.abnormalEffect = value;
+	}
+
+	public void startAbnormalEffect(int mask) {
+		this.abnormalEffect |= mask;
+	}
+
+	public void stopAbnormalEffect(int mask) {
+		this.abnormalEffect &= ~mask;
+	}
 
 	// ---- controle de debuffs de skills (Stun/Sleep/Paralyze/Root) ----
 
@@ -443,7 +794,10 @@ public final class NpcInstance implements Creature {
 	private volatile long mutedUntil;
 	private volatile long physicalMutedUntil;
 
-	/** Stun/Paralyze/Sleep: nao anda nem ataca ate {@code until}. Sleep quebra ao tomar dano. */
+	/**
+	 * Stun/Paralyze/Sleep: nao anda nem ataca ate {@code until}. Sleep quebra ao
+	 * tomar dano.
+	 */
 	public void disable(long until, boolean sleep) {
 		this.disabledUntil = Math.max(disabledUntil, until);
 		this.sleeping = sleep;
@@ -486,7 +840,8 @@ public final class NpcInstance implements Creature {
 		}
 	}
 
-	// ---- controle de Reuse (Cooldown), Efeitos Ativos (ActiveNpcEffect), Self-Buffs e Passivas de Monstros ----
+	// ---- controle de Reuse (Cooldown), Efeitos Ativos (ActiveNpcEffect),
+	// Self-Buffs e Passivas de Monstros ----
 
 	public record ActiveNpcEffect(
 			int skillId,
@@ -573,11 +928,13 @@ public final class NpcInstance implements Creature {
 			return;
 		}
 		purgeExpiredEffectsIfNeeded();
-		String key = (effect.stackType() != null && !effect.stackType().isBlank() && !"none".equalsIgnoreCase(effect.stackType()))
-				? effect.stackType().toLowerCase(java.util.Locale.ROOT)
-				: "skill_" + effect.skillId();
+		String key = (effect.stackType() != null && !effect.stackType().isBlank()
+				&& !"none".equalsIgnoreCase(effect.stackType()))
+						? effect.stackType().toLowerCase(java.util.Locale.ROOT)
+						: "skill_" + effect.skillId();
 		ActiveNpcEffect existing = activeEffects.get(key);
-		if (existing != null && System.currentTimeMillis() < existing.expiresAt() && existing.stackOrder() > effect.stackOrder()) {
+		if (existing != null && System.currentTimeMillis() < existing.expiresAt()
+				&& existing.stackOrder() > effect.stackOrder()) {
 			return;
 		}
 		if (existing != null && existing.abnormalMask() != 0 && existing.abnormalMask() != effect.abnormalMask()) {
@@ -625,7 +982,8 @@ public final class NpcInstance implements Creature {
 			return;
 		}
 		String st = stat.toLowerCase(java.util.Locale.ROOT);
-		double pAtkM = 1.0, pDefM = 1.0, mAtkM = 1.0, mDefM = 1.0, pAtkSpdM = 1.0, mAtkSpdM = 1.0, runSpdM = 1.0, maxHpM = 1.0;
+		double pAtkM = 1.0, pDefM = 1.0, mAtkM = 1.0, mDefM = 1.0, pAtkSpdM = 1.0, mAtkSpdM = 1.0, runSpdM = 1.0,
+				maxHpM = 1.0;
 		switch (st) {
 			case "patk" -> pAtkM = factor;
 			case "pdef" -> pDefM = factor;
@@ -667,8 +1025,8 @@ public final class NpcInstance implements Creature {
 				dotDmg = Math.max(dotDmg, (int) Math.round(Math.abs(eff.val())));
 			}
 		}
-		double[] muls = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-		double[] adds = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+		double[] muls = { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 };
+		double[] adds = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 		accumulateStatFuncs(skill.funcs(), muls, adds);
 		for (var eff : skill.effects()) {
 			accumulateStatFuncs(eff.funcs(), muls, adds);
@@ -720,7 +1078,8 @@ public final class NpcInstance implements Creature {
 	}
 
 	/**
-	 * Processa um tick (1s) dos efeitos ativos (purga expirados e aplica DoT Poison/Bleed).
+	 * Processa um tick (1s) dos efeitos ativos (purga expirados e aplica DoT
+	 * Poison/Bleed).
 	 */
 	public int tickActiveEffects() {
 		purgeExpiredEffectsIfNeeded();
@@ -747,18 +1106,53 @@ public final class NpcInstance implements Creature {
 	private volatile int overhitDamage;
 	private volatile int overhitAttackerId;
 
-	public boolean isSeeded() { return seeded; }
-	public void seeded(boolean val) { this.seeded = val; }
-	public int seederPlayerId() { return seederPlayerId; }
-	public void seederPlayerId(int val) { this.seederPlayerId = val; }
-	public int seedItemId() { return seedItemId; }
-	public void seedItemId(int val) { this.seedItemId = val; }
-	public boolean isOverhit() { return overhit; }
-	public void overhit(boolean val) { this.overhit = val; }
-	public int overhitDamage() { return overhitDamage; }
-	public void overhitDamage(int val) { this.overhitDamage = val; }
-	public int overhitAttackerId() { return overhitAttackerId; }
-	public void overhitAttackerId(int val) { this.overhitAttackerId = val; }
+	public boolean isSeeded() {
+		return seeded;
+	}
+
+	public void seeded(boolean val) {
+		this.seeded = val;
+	}
+
+	public int seederPlayerId() {
+		return seederPlayerId;
+	}
+
+	public void seederPlayerId(int val) {
+		this.seederPlayerId = val;
+	}
+
+	public int seedItemId() {
+		return seedItemId;
+	}
+
+	public void seedItemId(int val) {
+		this.seedItemId = val;
+	}
+
+	public boolean isOverhit() {
+		return overhit;
+	}
+
+	public void overhit(boolean val) {
+		this.overhit = val;
+	}
+
+	public int overhitDamage() {
+		return overhitDamage;
+	}
+
+	public void overhitDamage(int val) {
+		this.overhitDamage = val;
+	}
+
+	public int overhitAttackerId() {
+		return overhitAttackerId;
+	}
+
+	public void overhitAttackerId(int val) {
+		this.overhitAttackerId = val;
+	}
 
 	public void applyPassiveSkills(NpcSkillTable npcSkillTable, com.lopez.l2j.game.skill.SkillTable skillTable) {
 		if (passivesInitialized || npcSkillTable == null || skillTable == null || template == null) {
@@ -828,7 +1222,8 @@ public final class NpcInstance implements Creature {
 		this.maxHpMul = Math.max(0.05, baseMaxHpMul * passiveMaxHpMul * eMaxHpMul + eMaxHpAdd);
 	}
 
-	private void accumulateStatFuncs(java.util.List<com.lopez.l2j.game.skill.StatFunc> funcs, double[] muls, double[] adds) {
+	private void accumulateStatFuncs(java.util.List<com.lopez.l2j.game.skill.StatFunc> funcs, double[] muls,
+			double[] adds) {
 		if (funcs == null || funcs.isEmpty() || template == null) {
 			return;
 		}
@@ -843,36 +1238,52 @@ public final class NpcInstance implements Creature {
 			}
 			switch (st) {
 				case "patk" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) muls[0] *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pAtk() > 0) adds[0] += (val / template.pAtk());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						muls[0] *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pAtk() > 0)
+						adds[0] += (val / template.pAtk());
 				}
 				case "pdef" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) muls[1] *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pDef() > 0) adds[1] += (val / template.pDef());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						muls[1] *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pDef() > 0)
+						adds[1] += (val / template.pDef());
 				}
 				case "matk" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) muls[2] *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mAtk() > 0) adds[2] += (val / template.mAtk());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						muls[2] *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mAtk() > 0)
+						adds[2] += (val / template.mAtk());
 				}
 				case "mdef" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) muls[3] *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mDef() > 0) adds[3] += (val / template.mDef());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						muls[3] *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mDef() > 0)
+						adds[3] += (val / template.mDef());
 				}
 				case "patkspd" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) muls[4] *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pAtkSpd() > 0) adds[4] += (val / template.pAtkSpd());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						muls[4] *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pAtkSpd() > 0)
+						adds[4] += (val / template.pAtkSpd());
 				}
 				case "matkspd" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) muls[5] *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mAtkSpd() > 0) adds[5] += (val / template.mAtkSpd());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						muls[5] *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mAtkSpd() > 0)
+						adds[5] += (val / template.mAtkSpd());
 				}
 				case "runspd" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) muls[6] *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.runSpd() > 0) adds[6] += (val / template.runSpd());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						muls[6] *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.runSpd() > 0)
+						adds[6] += (val / template.runSpd());
 				}
 				case "maxhp" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) muls[7] *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.maxHp() > 0) adds[7] += (val / template.maxHp());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						muls[7] *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.maxHp() > 0)
+						adds[7] += (val / template.maxHp());
 				}
 			}
 		}
@@ -893,45 +1304,74 @@ public final class NpcInstance implements Creature {
 			}
 			switch (st) {
 				case "patk" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.passivePAtkMul *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pAtk() > 0) this.passivePAtkMul += (val / template.pAtk());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						this.passivePAtkMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pAtk() > 0)
+						this.passivePAtkMul += (val / template.pAtk());
 				}
 				case "pdef" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.passivePDefMul *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pDef() > 0) this.passivePDefMul += (val / template.pDef());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						this.passivePDefMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pDef() > 0)
+						this.passivePDefMul += (val / template.pDef());
 				}
 				case "matk" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.passiveMAtkMul *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mAtk() > 0) this.passiveMAtkMul += (val / template.mAtk());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						this.passiveMAtkMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mAtk() > 0)
+						this.passiveMAtkMul += (val / template.mAtk());
 				}
 				case "mdef" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.passiveMDefMul *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mDef() > 0) this.passiveMDefMul += (val / template.mDef());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						this.passiveMDefMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mDef() > 0)
+						this.passiveMDefMul += (val / template.mDef());
 				}
 				case "patkspd" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.passivePAtkSpdMul *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pAtkSpd() > 0) this.passivePAtkSpdMul += (val / template.pAtkSpd());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						this.passivePAtkSpdMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.pAtkSpd() > 0)
+						this.passivePAtkSpdMul += (val / template.pAtkSpd());
 				}
 				case "matkspd" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.passiveMAtkSpdMul *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mAtkSpd() > 0) this.passiveMAtkSpdMul += (val / template.mAtkSpd());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						this.passiveMAtkSpdMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.mAtkSpd() > 0)
+						this.passiveMAtkSpdMul += (val / template.mAtkSpd());
 				}
 				case "runspd" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.passiveRunSpdMul *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.runSpd() > 0) this.passiveRunSpdMul += (val / template.runSpd());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						this.passiveRunSpdMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.runSpd() > 0)
+						this.passiveRunSpdMul += (val / template.runSpd());
 				}
 				case "maxhp" -> {
-					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL) this.passiveMaxHpMul *= val;
-					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.maxHp() > 0) this.passiveMaxHpMul += (val / template.maxHp());
+					if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.MUL)
+						this.passiveMaxHpMul *= val;
+					else if (f.op() == com.lopez.l2j.game.skill.StatFunc.Op.ADD && template.maxHp() > 0)
+						this.passiveMaxHpMul += (val / template.maxHp());
 				}
 			}
 		}
 	}
 
-	// ---- Propriedades e regras de configuracao (npc.properties / bosses.properties / options.properties) ----
+	// ---- Propriedades e regras de configuracao (npc.properties /
+	// bosses.properties / options.properties) ----
 
 	public boolean isRaid() {
 		return template != null && (template.isRaidBoss() || template.isGrandBoss() || isRaidMinion());
+	}
+
+	public boolean isRaidBoss() {
+		return template != null && template.isRaidBoss();
+	}
+
+	public boolean isGrandBoss() {
+		return template != null && template.isGrandBoss();
+	}
+
+	public boolean isDeleted() {
+		return dead;
 	}
 
 	public boolean canBeAttackedByPlayer() {
