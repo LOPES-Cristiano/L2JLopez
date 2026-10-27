@@ -49,7 +49,7 @@ public class Quest661TheHarvestGroundsSafe extends Quest {
 
         String string2 = event;
         int n = qs.getInt("clear_gathering_site_cookie");
-        int n2 = getFirstStartNpc();
+        int n2 = qs.resolveEventNpcId(getFirstStartNpc());
         if (n2 == 30210) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
