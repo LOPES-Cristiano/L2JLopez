@@ -18,8 +18,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
 /**
- * Buffs ativos de um jogador, indexados por stackType (mesma regra do L2J: um efeito por stackType, o novo
- * substitui o antigo respeitando stackOrder). Thread-safe: e lido pelo calculo de stats e alterado pelos timers de expiracao.
+ * Buffs ativos de um jogador, indexados por stackType (mesma regra do L2J: um
+ * efeito por stackType, o novo
+ * substitui o antigo respeitando stackOrder). Thread-safe: e lido pelo calculo
+ * de stats e alterado pelos timers de expiracao.
  */
 public final class PlayerEffects {
 
@@ -33,15 +35,19 @@ public final class PlayerEffects {
 	public static final int ABNORMAL_FEAR = 0x00000010;
 
 	/**
-	 * Gatilho de skill reativa (ChanceSkillTrigger: Mirage, Counterattack, Augmentation triggers, etc.).
+	 * Gatilho de skill reativa (ChanceSkillTrigger: Mirage, Counterattack,
+	 * Augmentation triggers, etc.).
 	 */
-	public record ChanceTrigger(int sourceSkillId, int triggeredSkillId, int triggeredLevel, String chanceType, double chance) {
+	public record ChanceTrigger(int sourceSkillId, int triggeredSkillId, int triggeredLevel, String chanceType,
+			double chance) {
 	}
 
 	/**
-	 * Buff temporario com modificadores de stats (porta enxuta de L2Effect + FuncAdd/FuncMul).
+	 * Buff temporario com modificadores de stats (porta enxuta de L2Effect +
+	 * FuncAdd/FuncMul).
 	 *
-	 * @param funcs funcoes de stat vindas do skill (buffs/debuffs/toggles); as pocoes usam os campos fixos
+	 * @param funcs funcoes de stat vindas do skill (buffs/debuffs/toggles); as
+	 *              pocoes usam os campos fixos
 	 */
 	public record ActiveBuff(int skillId, int level, String stackType, int stackOrder, long endTimeMillis,
 			int runSpdAdd, double pAtkSpdMul, double mAtkSpdMul, int accuracyAdd, List<StatFunc> funcs,
@@ -158,14 +164,19 @@ public final class PlayerEffects {
 		return (skillId >= 264 && skillId <= 311) || skillId == 349 || (skillId >= 363 && skillId <= 367);
 	}
 
-	/** Retorna slots extras de buff conferidos por Divine Inspiration (skill 1405, niveis 1 a 4). */
+	/**
+	 * Retorna slots extras de buff conferidos por Divine Inspiration (skill 1405,
+	 * niveis 1 a 4).
+	 */
 	public static int getExtraBuffSlots(PlayerCharacter ch) {
 		return ch != null && ch.skills() != null ? Math.max(0, Math.min(4, ch.skills().getOrDefault(1405, 0))) : 0;
 	}
 
 	/**
-	 * Converte o stackOrder do XML (que pode ser fracionario como 0.2..0.3 no Focus ou 1.08..1.35 em Might/Shield/Acumen/Haste)
-	 * para uma escala inteira preservando precisao de duas casas decimais, evitando que Math.round transforme 0.3 em 0
+	 * Converte o stackOrder do XML (que pode ser fracionario como 0.2..0.3 no Focus
+	 * ou 1.08..1.35 em Might/Shield/Acumen/Haste)
+	 * para uma escala inteira preservando precisao de duas casas decimais, evitando
+	 * que Math.round transforme 0.3 em 0
 	 * ou 1.08..1.35 em 1 (abaixo do proprio level do skill).
 	 */
 	public static int resolveStackOrder(double xmlStackOrder, int skillLevel) {
@@ -180,10 +191,16 @@ public final class PlayerEffects {
 	}
 
 	private final Map<String, ActiveBuff> byStack = new java.util.LinkedHashMap<>();
-	/** Buffs regulares sombreados temporariamente por Herbs do mesmo stackType (#176). */
+	/**
+	 * Buffs regulares sombreados temporariamente por Herbs do mesmo stackType
+	 * (#176).
+	 */
 	private final Map<String, ActiveBuff> shadowedByHerb = new ConcurrentHashMap<>();
 	/** Gatilhos de ChanceSkillTrigger ativos (#175). */
 	private final Map<Integer, ChanceTrigger> chanceTriggers = new ConcurrentHashMap<>();
+	private final Map<Integer, Integer> fusionCharges = new ConcurrentHashMap<>();
+	private final Map<Integer, Integer> bestowedSkills = new ConcurrentHashMap<>();
+	private final List<ActiveBuff> recentlyExpired = new ArrayList<>();
 
 	private int extraBuffSlots = 0;
 	private volatile boolean explicitBuffBlocked = false;
@@ -252,11 +269,13 @@ public final class PlayerEffects {
 				autoRegisterBuiltInChanceTrigger(buff);
 				return true;
 			}
-			// Se um buff normal for lancado enquanto uma Herb do mesmo stackType estiver ativa,
+			// Se um buff normal for lancado enquanto uma Herb do mesmo stackType estiver
+			// ativa,
 			// atualiza o buff sombreado para que ele vigore quando a Herb expirar.
 			if (!buff.isHerb() && existing.isHerb() && !buff.isDebuff() && !buff.isPermanent()) {
 				ActiveBuff prevShadow = shadowedByHerb.get(buff.stackType());
-				if (prevShadow == null || !Config.CANCEL_LESSER_EFFECT || buff.stackOrder() >= prevShadow.stackOrder()) {
+				if (prevShadow == null || !Config.CANCEL_LESSER_EFFECT
+						|| buff.stackOrder() >= prevShadow.stackOrder()) {
 					shadowedByHerb.put(buff.stackType(), buff);
 				}
 				if (buff.stackOrder() > existing.stackOrder()) {
@@ -315,13 +334,25 @@ public final class PlayerEffects {
 			}
 		}
 		for (ActiveBuff b : expired) {
-			byStack.remove(b.stackType(), b);
+			if (byStack.remove(b.stackType(), b)) {
+				recentlyExpired.add(b);
+			}
 			chanceTriggers.remove(b.skillId());
 			if (b.isHerb()) {
 				restoreShadowedIfPresent(b.stackType(), now);
 			}
 		}
 		shadowedByHerb.values().removeIf(b -> !b.isPermanent() && b.endTimeMillis() <= now);
+	}
+
+	public synchronized List<ActiveBuff> pollExpired(long now) {
+		purgeExpiredAndRestoreShadowed(now);
+		if (recentlyExpired.isEmpty()) {
+			return List.of();
+		}
+		List<ActiveBuff> out = new ArrayList<>(recentlyExpired);
+		recentlyExpired.clear();
+		return out;
 	}
 
 	private void restoreShadowedIfPresent(String stackType, long now) {
@@ -357,7 +388,10 @@ public final class PlayerEffects {
 		}
 	}
 
-	/** Remove apenas se o buff do stack ainda for este (evita apagar um buff renovado). */
+	/**
+	 * Remove apenas se o buff do stack ainda for este (evita apagar um buff
+	 * renovado).
+	 */
 	public synchronized boolean remove(ActiveBuff buff) {
 		if (buff == null) {
 			return false;
@@ -371,10 +405,16 @@ public final class PlayerEffects {
 		} else if (!buff.isHerb()) {
 			shadowedByHerb.remove(buff.stackType(), buff);
 		}
+		if (!removed && recentlyExpired.remove(buff)) {
+			return true;
+		}
 		return removed;
 	}
 
-	/** Remove todos os efeitos de um skill (toggle desligado); devolve true se havia algum. */
+	/**
+	 * Remove todos os efeitos de um skill (toggle desligado); devolve true se havia
+	 * algum.
+	 */
 	public synchronized boolean removeSkill(int skillId) {
 		chanceTriggers.remove(skillId);
 		shadowedByHerb.values().removeIf(b -> b.skillId() == skillId);
@@ -398,7 +438,8 @@ public final class PlayerEffects {
 	}
 
 	/**
-	 * Remove o efeito ativo de uma skill de Argumentacao (Life Stone) ao desequipar a arma,
+	 * Remove o efeito ativo de uma skill de Argumentacao (Life Stone) ao desequipar
+	 * a arma,
 	 * caso Config.CANCEL_AUGMENTATION_EFFECT esteja habilitado.
 	 */
 	public synchronized boolean removeAugmentationEffects(int augSkillId) {
@@ -412,19 +453,23 @@ public final class PlayerEffects {
 	}
 
 	/**
-	 * Executa o efeito Cancel/Bane removendo buffs positivos conforme Config.CANCEL_MODE ("new" ou "old").
+	 * Executa o efeito Cancel/Bane removendo buffs positivos conforme
+	 * Config.CANCEL_MODE ("new" ou "old").
 	 */
 	public synchronized int cancelBuffs(int maxCancel) {
 		return cancelBuffs(maxCancel, 78, 78, 25.0, 0.0, 0.0);
 	}
 
 	/**
-	 * #136: Executa Cancel com rolagem individual por buff (Formulas.calcCancelSuccess) do fim para o inicio
-	 * (buffs mais recentes e dances/songs primeiro), sem tocar em debuffs ou toggles.
+	 * #136: Executa Cancel com rolagem individual por buff
+	 * (Formulas.calcCancelSuccess) do fim para o inicio
+	 * (buffs mais recentes e dances/songs primeiro), sem tocar em debuffs ou
+	 * toggles.
 	 */
 	public synchronized int cancelBuffs(int maxCancel, int magicLevel, int targetLevel, double baseCancelRate,
 			double cancelProf, double cancelVuln) {
-		return cancelBuffsWithDetails(maxCancel, magicLevel, targetLevel, baseCancelRate, cancelProf, cancelVuln).size();
+		return cancelBuffsWithDetails(maxCancel, magicLevel, targetLevel, baseCancelRate, cancelProf, cancelVuln)
+				.size();
 	}
 
 	public synchronized List<ActiveBuff> cancelBuffsWithDetails(int maxCancel, int magicLevel, int targetLevel,
@@ -464,7 +509,8 @@ public final class PlayerEffects {
 				}
 			}
 		}
-		// Se nenhum passou no roll individual mas havia buffs cancelaveis, garante ao menos 1 se baseRate >= 25
+		// Se nenhum passou no roll individual mas havia buffs cancelaveis, garante ao
+		// menos 1 se baseRate >= 25
 		if (removedList.isEmpty() && !ordered.isEmpty() && effBaseRate >= 25.0) {
 			ActiveBuff first = ordered.get(0);
 			if (Formulas.calcCancelSuccess(magicLevel, targetLevel, effBaseRate + 25.0,
@@ -476,7 +522,8 @@ public final class PlayerEffects {
 	}
 
 	/**
-	 * #137: Warrior Bane remove buffs com stackType attack_time_down (Haste) e speed_up (Wind Walk).
+	 * #137: Warrior Bane remove buffs com stackType attack_time_down (Haste) e
+	 * speed_up (Wind Walk).
 	 */
 	public synchronized boolean removeWarriorBaneBuffs() {
 		return removeBuffsByIdsOrStackOrStats(
@@ -486,7 +533,8 @@ public final class PlayerEffects {
 	}
 
 	/**
-	 * #137: Mage Bane remove buffs com stackType casting_time_down (Acumen) e ma_up (Empower).
+	 * #137: Mage Bane remove buffs com stackType casting_time_down (Acumen) e ma_up
+	 * (Empower).
 	 */
 	public synchronized boolean removeMageBaneBuffs() {
 		return removeBuffsByIdsOrStackOrStats(
@@ -550,7 +598,8 @@ public final class PlayerEffects {
 	}
 
 	// =========================================================================
-	// #166 - PhoenixBless / Salvation (Skill 1410 Salvation, Skill 438 Soul of the Phoenix)
+	// #166 - PhoenixBless / Salvation (Skill 1410 Salvation, Skill 438 Soul of the
+	// Phoenix)
 	// =========================================================================
 
 	public synchronized boolean hasSalvation() {
@@ -670,7 +719,8 @@ public final class PlayerEffects {
 	}
 
 	/**
-	 * #169: Processa o tick periodico de toggles (Relax 226, Silent Move 221, Chameleon Rest 296, Fake Death 60, etc.).
+	 * #169: Processa o tick periodico de toggles (Relax 226, Silent Move 221,
+	 * Chameleon Rest 296, Fake Death 60, etc.).
 	 */
 	public synchronized void onActionTime(PlayerCharacter player, Consumer<GameServerPacket> packetSender) {
 		if (player == null) {
@@ -717,6 +767,9 @@ public final class PlayerEffects {
 				player.currentHp(Math.min(player.maxHp(), player.currentHp() + (5.0 * Math.max(1, b.level()))));
 			} else if (isFakeDeath || isSilentMove || b.tickVal() > 0) {
 				double mpDrain = b.tickVal() > 0 ? b.tickVal() : (isFakeDeath ? 10.0 : 5.0);
+				if (en.equalsIgnoreCase("MpConsumePerLevel")) {
+					mpDrain *= Math.max(1, player.level());
+				}
 				if (player.currentMp() < mpDrain) {
 					removeSkill(id);
 					if (packetSender != null) {
@@ -781,7 +834,8 @@ public final class PlayerEffects {
 	}
 
 	/**
-	 * #172: Calcula o destino de fuga (Fear) afastando o alvo das coordenadas do conjurador,
+	 * #172: Calcula o destino de fuga (Fear) afastando o alvo das coordenadas do
+	 * conjurador,
 	 * validado via GeoEngine.moveCheck.
 	 */
 	public int[] computeFearDestination(PlayerCharacter target) {
@@ -902,8 +956,76 @@ public final class PlayerEffects {
 		return Math.min(50.0, Math.max(0.0, percent));
 	}
 
+	public synchronized boolean hasProtectionBlessing() {
+		return hasSkill(5182)
+				|| hasActiveEffectName("ProtectionBlessing")
+				|| hasActiveStack("protection_blessing", "blessing_of_protection");
+	}
+
+	public synchronized boolean consumeProtectionBlessing() {
+		if (!hasProtectionBlessing()) {
+			return false;
+		}
+		removeSkill(5182);
+		byStack.values().removeIf(b -> {
+			String en = b.effectName() != null ? b.effectName() : "";
+			String st = b.stackType() != null ? b.stackType().toLowerCase(Locale.ROOT) : "";
+			return en.equalsIgnoreCase("ProtectionBlessing")
+					|| st.contains("protection_blessing")
+					|| st.contains("blessing_of_protection");
+		});
+		return true;
+	}
+
+	public int addFusionCharge(int skillId, int maxCharges) {
+		int limit = Math.max(1, maxCharges);
+		return fusionCharges.compute(skillId, (k, v) -> v == null ? 1 : Math.min(limit, v + 1));
+	}
+
+	public int addSeedCharge(int skillId, int maxCharges) {
+		return addFusionCharge(skillId, maxCharges);
+	}
+
+	public int getFusionCharge(int skillId) {
+		return fusionCharges.getOrDefault(skillId, 0);
+	}
+
+	public int getSeedCharge(int skillId) {
+		return getFusionCharge(skillId);
+	}
+
+	public void clearFusionCharge(int skillId) {
+		fusionCharges.remove(skillId);
+	}
+
+	public void addBestowSkill(PlayerCharacter player, int sourceSkillId, int bestowedSkillId, int bestowedLevel) {
+		if (bestowedSkillId <= 0) {
+			return;
+		}
+		bestowedSkills.put(sourceSkillId, bestowedSkillId);
+		if (player != null && player.skills() != null) {
+			player.skills().put(bestowedSkillId, Math.max(1, bestowedLevel));
+		}
+	}
+
+	public boolean removeBestowSkill(PlayerCharacter player, int sourceSkillId) {
+		Integer grantedId = bestowedSkills.remove(sourceSkillId);
+		if (grantedId == null) {
+			return false;
+		}
+		if (player != null && player.skills() != null) {
+			player.skills().remove(grantedId);
+		}
+		return true;
+	}
+
+	public Map<Integer, Integer> bestowedSkills() {
+		return Collections.unmodifiableMap(bestowedSkills);
+	}
+
 	/**
-	 * Remove buffs positivos por IDs de skill, stackType ou atributo modificado em StatFunc.
+	 * Remove buffs positivos por IDs de skill, stackType ou atributo modificado em
+	 * StatFunc.
 	 * Usado por Warrior Bane, Mage Bane, Block Shield e Block Wind Walk.
 	 */
 	public synchronized boolean removeBuffsByIdsOrStackOrStats(java.util.Set<Integer> skillIds,
@@ -963,8 +1085,10 @@ public final class PlayerEffects {
 	}
 
 	/**
-	 * Rouba até {@code maxSteal} buffs positivos (nao-permanentes) do alvo, removendo-os deste {@link PlayerEffects}
-	 * e retornando a lista de buffs roubados para aplicacao no conjurador (Steal Divinity / STEAL_BUFF).
+	 * Rouba até {@code maxSteal} buffs positivos (nao-permanentes) do alvo,
+	 * removendo-os deste {@link PlayerEffects}
+	 * e retornando a lista de buffs roubados para aplicacao no conjurador (Steal
+	 * Divinity / STEAL_BUFF).
 	 */
 	public synchronized List<ActiveBuff> stealBuffs(int maxSteal) {
 		int limit = maxSteal > 0 ? maxSteal : 3;
@@ -998,6 +1122,9 @@ public final class PlayerEffects {
 		byStack.clear();
 		shadowedByHerb.clear();
 		chanceTriggers.clear();
+		fusionCharges.clear();
+		bestowedSkills.clear();
+		recentlyExpired.clear();
 		explicitBuffBlocked = false;
 		explicitDebuffBlocked = false;
 		afraidUntilMs = 0L;
@@ -1005,15 +1132,47 @@ public final class PlayerEffects {
 
 	public synchronized void clearDebuffs() {
 		byStack.values().removeIf(ActiveBuff::isDebuff);
+		recentlyExpired.removeIf(ActiveBuff::isDebuff);
 		afraidUntilMs = 0L;
 	}
 
+	public synchronized void cleanseDebuffs() {
+		clearDebuffs();
+	}
+
+	public synchronized void applySkill(com.lopez.l2j.game.skill.SkillTemplate sk, long defaultDurationMs) {
+		if (sk == null) {
+			return;
+		}
+		long dur = defaultDurationMs > 0 ? defaultDurationMs : 120_000L;
+		if (sk.effects() != null && !sk.effects().isEmpty()) {
+			for (var eff : sk.effects()) {
+				long eDur = eff.durationMs() > 0 ? eff.durationMs() : dur;
+				String stack = (eff.stackType() != null && !eff.stackType().isBlank() && !"none".equalsIgnoreCase(eff.stackType()))
+						? eff.stackType()
+						: ("skill_" + sk.id());
+				int order = resolveStackOrder(eff.stackOrder(), sk.level());
+				put(ActiveBuff.ofSkill(sk.id(), sk.level(), stack, order, System.currentTimeMillis() + eDur,
+						eff.funcs() != null ? eff.funcs() : List.of(), false, 0, eff.name(), eff.val(), eff.period()));
+			}
+		} else {
+			addBuff(sk.id(), sk.level(), dur);
+		}
+	}
+
 	public synchronized void removeDebuffsByStackOrName(String... keywords) {
-		byStack.values().removeIf(b -> {
-			if (!b.isDebuff()) return false;
-			String st = b.stackType().toLowerCase(java.util.Locale.ROOT);
+		removeDebuffsByStackOrNameAndReturn(keywords);
+	}
+
+	public synchronized boolean removeDebuffsByStackOrNameAndReturn(String... keywords) {
+		return byStack.values().removeIf(b -> {
+			if (!b.isDebuff())
+				return false;
+			String st = b.stackType() != null ? b.stackType().toLowerCase(java.util.Locale.ROOT) : "";
+			String en = b.effectName() != null ? b.effectName().toLowerCase(java.util.Locale.ROOT) : "";
 			for (String kw : keywords) {
-				if (st.contains(kw.toLowerCase(java.util.Locale.ROOT))) {
+				String k = kw.toLowerCase(java.util.Locale.ROOT);
+				if (st.contains(k) || en.contains(k)) {
 					return true;
 				}
 			}
