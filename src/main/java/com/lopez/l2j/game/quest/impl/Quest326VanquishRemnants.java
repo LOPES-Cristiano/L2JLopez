@@ -61,17 +61,17 @@ public class Quest326VanquishRemnants extends Quest {
 		String html = event;
 
         String string2 = event;
-        int n = getFirstStartNpc();
+        int n = qs.resolveEventNpcId(getFirstStartNpc());
         if (n == 30435) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
                 qs.set("vanquish_remnants", String.valueOf(1), true);
                 qs.setState(State.STARTED);
-                qs.playSound("QuestState.SOUND_ACCEPT");
+                qs.playSound(QuestState.SOUND_ACCEPT);
                 string2 = "leopold_q0326_03.htm";
             } else if (event.equalsIgnoreCase("reply_1")) {
                 qs.unset("vanquish_remnants");
-                qs.playSound("QuestState.SOUND_FINISH");
+                qs.playSound(QuestState.SOUND_FINISH);
                 qs.exitQuest(true);
                 string2 = "leopold_q0326_07.htm";
             } else if (event.equalsIgnoreCase("reply_2")) {
