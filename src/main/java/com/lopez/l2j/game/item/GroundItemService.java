@@ -201,6 +201,10 @@ public class GroundItemService {
 	 * LIST_OF_PROTECTED_ITEMS, DESTROY_PLAYER_DROPPED_ITEM e DESTROY_EQUIPABLE_ITEM.
 	 */
 	public static long resolveExpireTimeMs(long nowMs, int dropperId, int itemId, ItemTemplate tpl, boolean isHerb) {
+		var cwm = com.lopez.l2j.game.cursed.CursedWeaponsManager.getInstance();
+		if (cwm != null && cwm.isCursedWeapon(itemId)) {
+			return Long.MAX_VALUE;
+		}
 		if (Config.LIST_OF_PROTECTED_ITEMS != null && Config.LIST_OF_PROTECTED_ITEMS.contains(itemId)) {
 			return Long.MAX_VALUE;
 		}
@@ -340,6 +344,11 @@ public class GroundItemService {
 		GroundItem gi = itemsByObjectId.remove(itemObjectId);
 		if (gi == null) {
 			return Optional.empty();
+		}
+
+		var cwm = com.lopez.l2j.game.cursed.CursedWeaponsManager.getInstance();
+		if (cwm != null && cwm.isCursedWeapon(gi.itemId()) && player != null) {
+			cwm.activate(gi.itemId(), player);
 		}
 
 		if (world != null) {
