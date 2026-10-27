@@ -43,7 +43,7 @@ public class Quest338AlligatorHunter extends Quest {
 
         String string2 = event;
         int n = qs.getInt("crocodile_hunter_ex");
-        int n2 = getFirstStartNpc();
+        int n2 = qs.resolveEventNpcId(getFirstStartNpc());
         if (n2 == 30892) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
