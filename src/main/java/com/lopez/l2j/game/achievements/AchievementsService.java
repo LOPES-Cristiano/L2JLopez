@@ -265,6 +265,13 @@ public class AchievementsService {
 		for (AchievementReward reward : def.rewards()) {
 			awardRewardItem(player, reward);
 		}
+		var gw = com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (gw != null) {
+			var online = gw.findPlayer(player.objectId());
+			if (online != null) {
+				online.sendPacket(new com.lopez.l2j.network.game.packet.GameServerPacket.ItemList(player, false));
+			}
+		}
 
 		int newTimes = (existing == null ? 1 : existing.timesCompleted() + 1);
 		PlayerAchievement pa = new PlayerAchievement(player.objectId(), achievementId, newTimes, Instant.now());
