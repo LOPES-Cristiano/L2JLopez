@@ -8,6 +8,7 @@ import com.lopez.l2j.game.quest.Quest;
 import com.lopez.l2j.game.quest.QuestManager;
 import com.lopez.l2j.game.quest.QuestState;
 import com.lopez.l2j.game.quest.State;
+import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -19,61 +20,61 @@ import org.springframework.stereotype.Component;
 @Component
 public class Quest615MagicalPowerofFire1 extends Quest {
 
-	public static final int bMc = 31378;
-	public static final int bMd = 31379;
-	public static final int bMe = 31559;
-	public static final int bMf = 7242;
-	public static final int bLv = 7081;
-	public static final int bMg = 7243;
-	public static final int bLW = 7222;
-	public static final int bLX = 7223;
-	public static final int bLY = 7224;
-	public static final int bLZ = 7225;
-	public static final int bLx = 1661;
-	public static final int[] bMh = new int[19];
+    public static final int bMc = 31378;
+    public static final int bMd = 31379;
+    public static final int bMe = 31559;
+    public static final int bMf = 7242;
+    public static final int bLv = 7081;
+    public static final int bMg = 7243;
+    public static final int bLW = 7222;
+    public static final int bLX = 7223;
+    public static final int bLY = 7224;
+    public static final int bLZ = 7225;
+    public static final int bLx = 1661;
+    public static final int[] bMh = new int[19];
 
-	public Quest615MagicalPowerofFire1(QuestManager questManager) {
-	super(615, "615_MagicalPowerofFire1", "615_MagicalPowerofFire1");
-		this.addStartNpc(31378);
-		this.addTalkId(31378);
-		this.addTalkId(31379);
-		this.addTalkId(31559);
-		this.bMh[0] = 21324;
-		this.bMh[1] = 21325;
-		this.bMh[2] = 21327;
-		this.bMh[3] = 21328;
-		this.bMh[4] = 21329;
-		this.bMh[5] = 21331;
-		this.bMh[6] = 21332;
-		this.bMh[7] = 21334;
-		this.bMh[8] = 21335;
-		this.bMh[9] = 21336;
-		this.bMh[10] = 21338;
-		this.bMh[11] = 21339;
-		this.bMh[12] = 21340;
-		this.bMh[13] = 21342;
-		this.bMh[14] = 21343;
-		this.bMh[15] = 21344;
-		this.bMh[16] = 21345;
-		this.bMh[17] = 21346;
-		this.bMh[18] = 21347;
-		for (int n : this.bMh) {
-		this.addAttackId(n);
-		}
-		if (questManager != null) {
-			questManager.registerQuest(this);
-		}
-	}
+    public Quest615MagicalPowerofFire1(QuestManager questManager) {
+        super(615, "615_MagicalPowerofFire1", "615_MagicalPowerofFire1");
+        this.addStartNpc(31378);
+        this.addTalkId(31378);
+        this.addTalkId(31379);
+        this.addTalkId(31559);
+        this.bMh[0] = 21324;
+        this.bMh[1] = 21325;
+        this.bMh[2] = 21327;
+        this.bMh[3] = 21328;
+        this.bMh[4] = 21329;
+        this.bMh[5] = 21331;
+        this.bMh[6] = 21332;
+        this.bMh[7] = 21334;
+        this.bMh[8] = 21335;
+        this.bMh[9] = 21336;
+        this.bMh[10] = 21338;
+        this.bMh[11] = 21339;
+        this.bMh[12] = 21340;
+        this.bMh[13] = 21342;
+        this.bMh[14] = 21343;
+        this.bMh[15] = 21344;
+        this.bMh[16] = 21345;
+        this.bMh[17] = 21346;
+        this.bMh[18] = 21347;
+        for (int n : this.bMh) {
+            this.addAttackId(n);
+        }
+        if (questManager != null) {
+            questManager.registerQuest(this);
+        }
+    }
 
-	@Override
-	public String onEvent(String event, QuestState qs) {
-		PlayerCharacter pc = qs.playerChar();
-		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "1".equalsIgnoreCase(event)) {
-			qs.setCond(1);
-			qs.setState(State.STARTED);
-			qs.playSound(QuestState.SOUND_ACCEPT);
-		}
-		String html = event;
+    @Override
+    public String onEvent(String event, QuestState qs) {
+        PlayerCharacter pc = qs.playerChar();
+        if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "1".equalsIgnoreCase(event)) {
+            qs.setCond(1);
+            qs.setState(State.STARTED);
+            qs.playSound(QuestState.SOUND_ACCEPT);
+        }
+        String html = event;
 
         String string2 = event;
         if (event.equalsIgnoreCase("quest_accept")) {
@@ -92,16 +93,18 @@ public class Quest615MagicalPowerofFire1 extends Quest {
                 qs.giveItems(7242, 1L);
                 string2 = "asefas_box_q0615_03.htm";
                 qs.setCond(3);
+                qs.playSound(QuestState.SOUND_MIDDLE);
             }
         }
         return string2;
-    
-	}
 
-	@Override
-	public String onTalk(NpcInstance npc, QuestState qs) {
-		PlayerCharacter pc = qs.playerChar();
-		if (pc == null) return "noquest";
+    }
+
+    @Override
+    public String onTalk(NpcInstance npc, QuestState qs) {
+        PlayerCharacter pc = qs.playerChar();
+        if (pc == null)
+            return "noquest";
 
         String html = "noquest";
         int n = npc != null ? npc.getNpcId() : 0;
@@ -111,7 +114,8 @@ public class Quest615MagicalPowerofFire1 extends Quest {
             case 31378: {
                 if (n2 == 0) {
                     if (pc.getLevel() >= 74) {
-                        if (qs.getQuestItemsCount(7222) == 1L || qs.getQuestItemsCount(7223) == 1L || qs.getQuestItemsCount(7224) == 1L || qs.getQuestItemsCount(7225) == 1L) {
+                        if (qs.getQuestItemsCount(7222) == 1L || qs.getQuestItemsCount(7223) == 1L
+                                || qs.getQuestItemsCount(7224) == 1L || qs.getQuestItemsCount(7225) == 1L) {
                             if (qs.getQuestItemsCount(7081) == 0L) {
                                 html = "herald_naran_q0615_01.htm";
                                 break;
@@ -128,7 +132,8 @@ public class Quest615MagicalPowerofFire1 extends Quest {
                     qs.exitQuest(true);
                     break;
                 }
-                if (n2 != 1) break;
+                if (n2 != 1)
+                    break;
                 html = "herald_naran_q0615_03.htm";
                 break;
             }
@@ -136,14 +141,20 @@ public class Quest615MagicalPowerofFire1 extends Quest {
                 if (n2 == 1) {
                     html = "shaman_udan_q0615_01.htm";
                     qs.setCond(2);
+                    qs.playSound(QuestState.SOUND_MIDDLE);
+                    break;
+                }
+                if (n2 == 2 && n3 == 0) {
+                    html = "shaman_udan_q0615_02.htm";
                     break;
                 }
                 if (n2 == 2 && n3 == 1) {
                     html = "shaman_udan_q0615_03.htm";
-                    // npc doCast
+                    qs.set("proval", "0");
                     break;
                 }
-                if (n2 != 3 || qs.getQuestItemsCount(7242) < 1L) break;
+                if (n2 != 3 || qs.getQuestItemsCount(7242) < 1L)
+                    break;
                 html = "shaman_udan_q0615_04.htm";
                 qs.takeItems(7242, qs.getQuestItemsCount(7242));
                 qs.giveItems(7243, 1L);
@@ -153,26 +164,34 @@ public class Quest615MagicalPowerofFire1 extends Quest {
                 break;
             }
             case 31559: {
-                if (n2 != 2) break;
+                if (n2 != 2)
+                    break;
                 html = "asefas_box_q0615_01.htm";
             }
         }
         return html;
-    
-	}
 
-	@Override
-	public String onAttack(NpcInstance npc, QuestState qs) {
-		PlayerCharacter pc = qs.playerChar();
-		if (pc == null) return null;
+    }
+
+    @Override
+    public String onAttack(NpcInstance npc, QuestState qs) {
+        PlayerCharacter pc = qs.playerChar();
+        if (pc == null)
+            return null;
 
         int n = qs.getCond();
         int n2 = qs.getInt("proval");
         if (n == 2 && n2 == 0) {
-            // npc doCast
+            qs.set("proval", "1");
+            qs.playSound(QuestState.SOUND_MIDDLE);
+            qs.addSpawn(31684, 10000);
+            if (qs.getPlayer() != null && npc != null) {
+                qs.getPlayer().sendPacket(new CreatureSay(npc.objectId(), 0,
+                        npc.name() != null ? npc.name() : "Ketra's Eye", "You won't get away with this!"));
+            }
         }
         return null;
-    
-	}
+
+    }
 
 }
