@@ -227,7 +227,8 @@ public class Quest233TestOfWarspirit extends Quest {
 		} else if (npcId == ORIM) {
 			if (cond == 1 && !qs.hasQuestItems(BRAKIS_REMAINS1)) {
 				if (qs.hasQuestItems(ORIM_CONTRACT)) {
-					if (qs.getQuestItemsCount(PORTA_EYE) + qs.getQuestItemsCount(EXCURO_SCALE) + qs.getQuestItemsCount(MORDEO_TALON) >= 30) {
+					if (qs.getQuestItemsCount(PORTA_EYE) + qs.getQuestItemsCount(EXCURO_SCALE)
+							+ qs.getQuestItemsCount(MORDEO_TALON) >= 30) {
 						qs.takeItems(EXCURO_SCALE, -1);
 						qs.takeItems(MORDEO_TALON, -1);
 						qs.takeItems(PORTA_EYE, -1);
@@ -340,8 +341,10 @@ public class Quest233TestOfWarspirit extends Quest {
 			return "30507-07.htm";
 		} else if (npcId == VIVYAN) {
 			if (cond == 1 && qs.hasQuestItems(RACOY_TOTEM)) {
-				if (qs.hasQuestItems(VIVYAN_LETTER)) return "30030-05.htm";
-				if (qs.hasQuestItems(INSECT_DIAGRAM_BOOK)) return "30030-06.htm";
+				if (qs.hasQuestItems(VIVYAN_LETTER))
+					return "30030-05.htm";
+				if (qs.hasQuestItems(INSECT_DIAGRAM_BOOK))
+					return "30030-06.htm";
 				return "30030-01.htm";
 			}
 			return "30030-07.htm";
@@ -393,31 +396,50 @@ public class Quest233TestOfWarspirit extends Quest {
 			}
 			case NOBLE_ANT, NOBLE_ANT_LEADER -> {
 				if (qs.hasQuestItems(INSECT_DIAGRAM_BOOK)) {
-					if (!qs.hasQuestItems(KIRUNA_SKULL)) qs.giveItems(KIRUNA_SKULL, 1);
-					else if (!qs.hasQuestItems(KIRUNA_RIBBONE)) qs.giveItems(KIRUNA_RIBBONE, 1);
-					else if (!qs.hasQuestItems(KIRUNA_SPINE)) qs.giveItems(KIRUNA_SPINE, 1);
-					else if (!qs.hasQuestItems(KIRUNA_ARMBONE)) qs.giveItems(KIRUNA_ARMBONE, 1);
-					else if (!qs.hasQuestItems(KIRUNA_THIGHBONE)) qs.giveItems(KIRUNA_THIGHBONE, 1);
+					if (!qs.hasQuestItems(KIRUNA_SKULL))
+						qs.giveItems(KIRUNA_SKULL, 1);
+					else if (!qs.hasQuestItems(KIRUNA_RIBBONE))
+						qs.giveItems(KIRUNA_RIBBONE, 1);
+					else if (!qs.hasQuestItems(KIRUNA_SPINE))
+						qs.giveItems(KIRUNA_SPINE, 1);
+					else if (!qs.hasQuestItems(KIRUNA_ARMBONE))
+						qs.giveItems(KIRUNA_ARMBONE, 1);
+					else if (!qs.hasQuestItems(KIRUNA_THIGHBONE))
+						qs.giveItems(KIRUNA_THIGHBONE, 1);
 					qs.playSound(QuestState.SOUND_ITEMGET);
 				}
 			}
 			case LETO_LIZARDMAN_SHAMAN, LETO_LIZARDMAN_OVERLORD -> {
 				if (qs.hasQuestItems(PEKIRON_TOTEM)) {
-					if (!qs.hasQuestItems(TONAR_SKULL)) qs.giveItems(TONAR_SKULL, 1);
-					else if (!qs.hasQuestItems(TONAR_RIBBONE)) qs.giveItems(TONAR_RIBBONE, 1);
-					else if (!qs.hasQuestItems(TONAR_SPINE)) qs.giveItems(TONAR_SPINE, 1);
-					else if (!qs.hasQuestItems(TONAR_ARMBONE)) qs.giveItems(TONAR_ARMBONE, 1);
-					else if (!qs.hasQuestItems(TONAR_THIGHBONE)) qs.giveItems(TONAR_THIGHBONE, 1);
+					if (!qs.hasQuestItems(TONAR_SKULL))
+						qs.giveItems(TONAR_SKULL, 1);
+					else if (!qs.hasQuestItems(TONAR_RIBBONE))
+						qs.giveItems(TONAR_RIBBONE, 1);
+					else if (!qs.hasQuestItems(TONAR_SPINE))
+						qs.giveItems(TONAR_SPINE, 1);
+					else if (!qs.hasQuestItems(TONAR_ARMBONE))
+						qs.giveItems(TONAR_ARMBONE, 1);
+					else if (!qs.hasQuestItems(TONAR_THIGHBONE))
+						qs.giveItems(TONAR_THIGHBONE, 1);
 					qs.playSound(QuestState.SOUND_ITEMGET);
 				}
 			}
 			case MEDUSA -> {
 				if (qs.hasQuestItems(MANAKIA_TOTEM)) {
-					if (!qs.hasQuestItems(HERMODT_RIBBONE)) qs.giveItems(HERMODT_RIBBONE, 1);
-					else if (!qs.hasQuestItems(HERMODT_SPINE)) qs.giveItems(HERMODT_SPINE, 1);
-					else if (!qs.hasQuestItems(HERMODT_ARMBONE)) qs.giveItems(HERMODT_ARMBONE, 1);
-					else if (!qs.hasQuestItems(HERMODT_THIGHBONE)) qs.giveItems(HERMODT_THIGHBONE, 1);
+					if (!qs.hasQuestItems(HERMODT_RIBBONE))
+						qs.giveItems(HERMODT_RIBBONE, 1);
+					else if (!qs.hasQuestItems(HERMODT_SPINE))
+						qs.giveItems(HERMODT_SPINE, 1);
+					else if (!qs.hasQuestItems(HERMODT_ARMBONE))
+						qs.giveItems(HERMODT_ARMBONE, 1);
+					else if (!qs.hasQuestItems(HERMODT_THIGHBONE))
+						qs.giveItems(HERMODT_THIGHBONE, 1);
 					qs.playSound(QuestState.SOUND_ITEMGET);
+					if (qs.hasQuestItems(HERMODT_RIBBONE) && qs.hasQuestItems(HERMODT_SPINE)
+							&& qs.hasQuestItems(HERMODT_ARMBONE) && qs.hasQuestItems(HERMODT_THIGHBONE)
+							&& !qs.hasQuestItems(HERMODT_SKULL)) {
+						qs.addSpawn(STENOA_GORGON_QUEEN, 200000);
+					}
 				}
 			}
 			case STENOA_GORGON_QUEEN -> {
