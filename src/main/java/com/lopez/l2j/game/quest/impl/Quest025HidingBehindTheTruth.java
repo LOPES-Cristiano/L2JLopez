@@ -11,8 +11,10 @@ import org.springframework.stereotype.Component;
 
 /**
  * Quest 025: Hiding Behind the Truth
- * Benedict e Agripel em Rune, Maid of Lidia, Shadow Hardin, Broken Bookshelves, Tombstone e Coffin.
- * Recompensa: Jóias B-grade (Earring of Blessing, Necklace of Blessing, Ring of Blessing).
+ * Benedict e Agripel em Rune, Maid of Lidia, Shadow Hardin, Broken Bookshelves,
+ * Tombstone e Coffin.
+ * Recompensa: Jóias B-grade (Earring of Blessing, Necklace of Blessing, Ring of
+ * Blessing).
  */
 @Component
 public class Quest025HidingBehindTheTruth extends Quest {
@@ -51,7 +53,8 @@ public class Quest025HidingBehindTheTruth extends Quest {
 	public Quest025HidingBehindTheTruth(QuestManager questManager) {
 		super(QUEST_ID, QUEST_NAME, "Hiding Behind the Truth");
 		addStartNpc(BENEDICT);
-		addTalkId(BENEDICT, AGRIPEL, HARDIN, MAID_OF_LIDIA, BROKEN_BOOKSHELF_1, BROKEN_BOOKSHELF_2, BROKEN_BOOKSHELF_3, TOMBSTONE, COFFIN);
+		addTalkId(BENEDICT, AGRIPEL, HARDIN, MAID_OF_LIDIA, BROKEN_BOOKSHELF_1, BROKEN_BOOKSHELF_2, BROKEN_BOOKSHELF_3,
+				TOMBSTONE, COFFIN);
 		addAttackId(TRIOLS_PAWN);
 		addKillId(TRIOLS_PAWN);
 		registerQuestItems(TOTEM_DOLL);
@@ -76,8 +79,10 @@ public class Quest025HidingBehindTheTruth extends Quest {
 			return "falsepriest_benedict_q0025_05.htm";
 		} else if ("31349-06.htm".equalsIgnoreCase(event) || "31349-07.htm".equalsIgnoreCase(event)
 				|| "31349-08.htm".equalsIgnoreCase(event) || "31349-09.htm".equalsIgnoreCase(event)
-				|| "falsepriest_benedict_q0025_06.htm".equalsIgnoreCase(event) || "falsepriest_benedict_q0025_07.htm".equalsIgnoreCase(event)
-				|| "falsepriest_benedict_q0025_08.htm".equalsIgnoreCase(event) || "falsepriest_benedict_q0025_09.htm".equalsIgnoreCase(event)) {
+				|| "falsepriest_benedict_q0025_06.htm".equalsIgnoreCase(event)
+				|| "falsepriest_benedict_q0025_07.htm".equalsIgnoreCase(event)
+				|| "falsepriest_benedict_q0025_08.htm".equalsIgnoreCase(event)
+				|| "falsepriest_benedict_q0025_09.htm".equalsIgnoreCase(event)) {
 			return event;
 		} else if ("reply_3".equalsIgnoreCase(event) || "31349-10.htm".equalsIgnoreCase(event)) {
 			qs.setCond(4);
@@ -88,8 +93,10 @@ public class Quest025HidingBehindTheTruth extends Quest {
 			return "31348-02.htm".equalsIgnoreCase(event) ? "31348-02.htm" : "falsepriest_agripel_q0025_02.htm";
 		} else if ("31348-03.htm".equalsIgnoreCase(event) || "31348-04.htm".equalsIgnoreCase(event)
 				|| "31348-05.htm".equalsIgnoreCase(event) || "31348-06.htm".equalsIgnoreCase(event)
-				|| "falsepriest_agripel_q0025_04.htm".equalsIgnoreCase(event) || "falsepriest_agripel_q0025_05.htm".equalsIgnoreCase(event)
-				|| "falsepriest_agripel_q0025_06.htm".equalsIgnoreCase(event) || "falsepriest_agripel_q0025_07.htm".equalsIgnoreCase(event)) {
+				|| "falsepriest_agripel_q0025_04.htm".equalsIgnoreCase(event)
+				|| "falsepriest_agripel_q0025_05.htm".equalsIgnoreCase(event)
+				|| "falsepriest_agripel_q0025_06.htm".equalsIgnoreCase(event)
+				|| "falsepriest_agripel_q0025_07.htm".equalsIgnoreCase(event)) {
 			return event;
 		} else if ("reply_6".equalsIgnoreCase(event) || "31348-07.htm".equalsIgnoreCase(event)) {
 			qs.setCond(5);
@@ -101,7 +108,8 @@ public class Quest025HidingBehindTheTruth extends Quest {
 			return "31348-10.htm".equalsIgnoreCase(event) ? "31348-10.htm" : "falsepriest_agripel_q0025_10.htm";
 		} else if ("31348-11.htm".equalsIgnoreCase(event) || "31348-12.htm".equalsIgnoreCase(event)
 				|| "31348-14.htm".equalsIgnoreCase(event) || "falsepriest_agripel_q0025_11.htm".equalsIgnoreCase(event)
-				|| "falsepriest_agripel_q0025_12.htm".equalsIgnoreCase(event) || "falsepriest_agripel_q0025_14.htm".equalsIgnoreCase(event)) {
+				|| "falsepriest_agripel_q0025_12.htm".equalsIgnoreCase(event)
+				|| "falsepriest_agripel_q0025_14.htm".equalsIgnoreCase(event)) {
 			return event;
 		} else if ("reply_21".equalsIgnoreCase(event) || "31348-13.htm".equalsIgnoreCase(event)) {
 			qs.setCond(17);
@@ -123,7 +131,8 @@ public class Quest025HidingBehindTheTruth extends Quest {
 		} else if ("31522-07.htm".equalsIgnoreCase(event) || "31522-08.htm".equalsIgnoreCase(event)
 				|| "31522-09.htm".equalsIgnoreCase(event) || "31522-10.htm".equalsIgnoreCase(event)
 				|| "31522-11.htm".equalsIgnoreCase(event) || "shadow_hardin_q0025_07.htm".equalsIgnoreCase(event)
-				|| "shadow_hardin_q0025_08.htm".equalsIgnoreCase(event) || "shadow_hardin_q0025_09.htm".equalsIgnoreCase(event)
+				|| "shadow_hardin_q0025_08.htm".equalsIgnoreCase(event)
+				|| "shadow_hardin_q0025_09.htm".equalsIgnoreCase(event)
 				|| "shadow_hardin_q0025_11.htm".equalsIgnoreCase(event)) {
 			return event;
 		} else if ("reply_17".equalsIgnoreCase(event)) {
@@ -150,14 +159,17 @@ public class Quest025HidingBehindTheTruth extends Quest {
 		} else if ("reply_9".equalsIgnoreCase(event) || "31535-03.htm".equalsIgnoreCase(event)) {
 			qs.setCond(7);
 			qs.playSound(QuestState.SOUND_MIDDLE);
+			qs.addSpawn(TRIOLS_PAWN, 120000);
 			return "31535-03.htm".equalsIgnoreCase(event) ? "31535-03.htm" : "broken_desk2_q0025_07.htm";
 		} else if ("reply_9a".equalsIgnoreCase(event)) {
 			qs.setCond(7);
 			qs.playSound(QuestState.SOUND_MIDDLE);
+			qs.addSpawn(TRIOLS_PAWN, 120000);
 			return "broken_desk3_q0025_07.htm";
 		} else if ("reply_9b".equalsIgnoreCase(event)) {
 			qs.setCond(7);
 			qs.playSound(QuestState.SOUND_MIDDLE);
+			qs.addSpawn(TRIOLS_PAWN, 120000);
 			return "broken_desk4_q0025_07.htm";
 		} else if ("reply_10".equalsIgnoreCase(event) || "31535-05.htm".equalsIgnoreCase(event)) {
 			qs.setCond(9);
@@ -182,7 +194,8 @@ public class Quest025HidingBehindTheTruth extends Quest {
 			return "31532-02.htm".equalsIgnoreCase(event) ? "31532-02.htm" : "maid_of_ridia_q0025_02.htm";
 		} else if ("31532-03.htm".equalsIgnoreCase(event) || "31532-04.htm".equalsIgnoreCase(event)
 				|| "31532-05.htm".equalsIgnoreCase(event) || "maid_of_ridia_q0025_04.htm".equalsIgnoreCase(event)
-				|| "maid_of_ridia_q0025_05.htm".equalsIgnoreCase(event) || "maid_of_ridia_q0025_06.htm".equalsIgnoreCase(event)) {
+				|| "maid_of_ridia_q0025_05.htm".equalsIgnoreCase(event)
+				|| "maid_of_ridia_q0025_06.htm".equalsIgnoreCase(event)) {
 			return event;
 		} else if ("reply_13".equalsIgnoreCase(event) || "31532-06.htm".equalsIgnoreCase(event)) {
 			qs.setCond(11);
@@ -194,8 +207,10 @@ public class Quest025HidingBehindTheTruth extends Quest {
 				|| "31532-12.htm".equalsIgnoreCase(event) || "31532-13.htm".equalsIgnoreCase(event)
 				|| "31532-14.htm".equalsIgnoreCase(event) || "31532-15.htm".equalsIgnoreCase(event)
 				|| "31532-16.htm".equalsIgnoreCase(event) || "31532-17.htm".equalsIgnoreCase(event)
-				|| "maid_of_ridia_q0025_14.htm".equalsIgnoreCase(event) || "maid_of_ridia_q0025_15.htm".equalsIgnoreCase(event)
-				|| "maid_of_ridia_q0025_16.htm".equalsIgnoreCase(event) || "maid_of_ridia_q0025_19.htm".equalsIgnoreCase(event)
+				|| "maid_of_ridia_q0025_14.htm".equalsIgnoreCase(event)
+				|| "maid_of_ridia_q0025_15.htm".equalsIgnoreCase(event)
+				|| "maid_of_ridia_q0025_16.htm".equalsIgnoreCase(event)
+				|| "maid_of_ridia_q0025_19.htm".equalsIgnoreCase(event)
 				|| "maid_of_ridia_q0025_20.htm".equalsIgnoreCase(event)) {
 			return event;
 		} else if ("reply_15".equalsIgnoreCase(event)) {
@@ -216,6 +231,7 @@ public class Quest025HidingBehindTheTruth extends Quest {
 		} else if ("reply_1a".equalsIgnoreCase(event) || "31531-02.htm".equalsIgnoreCase(event)) {
 			qs.setCond(12);
 			qs.playSound(QuestState.SOUND_MIDDLE);
+			qs.addSpawn(COFFIN, 60104, -35820, -664, 120000);
 			return "31531-02.htm".equalsIgnoreCase(event) ? "31531-02.htm" : "q_forest_stone2_q0025_02.htm";
 		}
 		return event;
@@ -224,7 +240,8 @@ public class Quest025HidingBehindTheTruth extends Quest {
 	@Override
 	public String onTalk(NpcInstance npc, QuestState qs) {
 		PlayerCharacter pc = qs.playerChar();
-		if (pc == null) return "noquest";
+		if (pc == null)
+			return "noquest";
 
 		if (qs.isCompleted()) {
 			return getAlreadyCompletedMsg();
@@ -354,6 +371,7 @@ public class Quest025HidingBehindTheTruth extends Quest {
 				if (cond == 11) {
 					return "q_forest_stone2_q0025_01.htm";
 				} else if (cond == 12) {
+					qs.addSpawn(COFFIN, 60104, -35820, -664, 120000);
 					return "q_forest_stone2_q0025_02.htm";
 				} else if (cond >= 13) {
 					return "q_forest_stone2_q0025_03.htm";
