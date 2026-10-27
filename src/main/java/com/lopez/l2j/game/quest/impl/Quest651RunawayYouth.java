@@ -36,15 +36,13 @@ public class Quest651RunawayYouth extends Quest {
 	@Override
 	public String onEvent(String event, QuestState qs) {
 		PlayerCharacter pc = qs.playerChar();
-		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "1".equalsIgnoreCase(event)) {
-			qs.setCond(1);
-			qs.setState(State.STARTED);
-			qs.playSound(QuestState.SOUND_ACCEPT);
-		}
-		String html = event;
-
         String string2 = event;
-        if (event.equalsIgnoreCase("runaway_boy_ivan_q0651_03.htm")) {
+        if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "1".equalsIgnoreCase(event)
+                || "runaway_boy_ivan_q0651_03.htm".equalsIgnoreCase(event)) {
+            if (pc != null && pc.getLevel() < 26) {
+                qs.exitQuest(true);
+                return "runaway_boy_ivan_q0651_01a.htm";
+            }
             if (qs.getQuestItemsCount(SOE) > 0L) {
                 qs.setCond(1);
                 qs.setState(State.STARTED);
@@ -52,6 +50,9 @@ public class Quest651RunawayYouth extends Quest {
                 qs.takeItems(SOE, 1L);
                 string2 = "runaway_boy_ivan_q0651_04.htm";
                 qs.startQuestTimer("ivan_timer", 20000L);
+            } else {
+                qs.exitQuest(true);
+                string2 = "runaway_boy_ivan_q0651_05.htm";
             }
         } else if (event.equalsIgnoreCase("runaway_boy_ivan_q0651_05.htm")) {
             qs.exitQuest(true);
