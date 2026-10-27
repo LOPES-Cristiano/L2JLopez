@@ -31,7 +31,24 @@ public class PcCafeService {
 	private final Map<Integer, Long> lastCombatTimestamps = new ConcurrentHashMap<>();
 	private ScheduledExecutorService scheduler;
 
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	private org.springframework.jdbc.core.simple.JdbcClient jdbc;
+
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	private com.lopez.l2j.game.service.CharacterVariablesService variablesService;
+
 	public PcCafeService() {
+		if (Config.PC_CAFFE_ENABLED) {
+			startScheduler();
+		}
+	}
+
+	@org.springframework.beans.factory.annotation.Autowired
+	public PcCafeService(
+			@org.springframework.beans.factory.annotation.Autowired(required = false) org.springframework.jdbc.core.simple.JdbcClient jdbc,
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.service.CharacterVariablesService variablesService) {
+		this.jdbc = jdbc;
+		this.variablesService = variablesService;
 		if (Config.PC_CAFFE_ENABLED) {
 			startScheduler();
 		}
@@ -125,7 +142,10 @@ public class PcCafeService {
 		boolean doubled = getDualPointChancePercent() > 0
 				&& ThreadLocalRandom.current().nextInt(100) < getDualPointChancePercent();
 		int granted = doubled ? basePoints * 2 : basePoints;
-		int newTotal = playerPoints.merge(player.objectId(), granted, Integer::sum);
+		int current = getPoints(player.objectId());
+		int newTotal = current + granted;
+		playerPoints.put(player.objectId(), newTotal);
+		persistPoints(player.objectId(), newTotal);
 
 		GameWorld world = GameWorld.getInstance();
 		if (world != null) {
@@ -152,11 +172,38 @@ public class PcCafeService {
 	}
 
 	public int getPoints(int playerId) {
-		return playerPoints.getOrDefault(playerId, 0);
+		Integer cached = playerPoints.get(playerId);
+		if (cached != null) {
+			return cached;
+		}
+		if (variablesService != null) {
+			int v = variablesService.getInt(playerId, "PC_CAFE_POINTS", -1);
+			if (v >= 0) {
+				playerPoints.put(playerId, v);
+				return v;
+			}
+		}
+		if (jdbc != null) {
+			try {
+				Integer dbPts = jdbc.sql("SELECT pc_point FROM characters WHERE charId = :id")
+						.param("id", playerId)
+						.query(Integer.class)
+						.optional()
+						.orElse(null);
+				if (dbPts != null && dbPts >= 0) {
+					playerPoints.put(playerId, dbPts);
+					return dbPts;
+				}
+			} catch (Exception ignored) {
+			}
+		}
+		return 0;
 	}
 
 	public void setPoints(int playerId, int points) {
-		playerPoints.put(playerId, Math.max(0, points));
+		int clamped = Math.max(0, points);
+		playerPoints.put(playerId, clamped);
+		persistPoints(playerId, clamped);
 	}
 
 	public boolean consumePoints(int playerId, int amount) {
@@ -167,7 +214,24 @@ public class PcCafeService {
 		if (current < amount) {
 			return false;
 		}
-		playerPoints.put(playerId, current - amount);
+		int updated = current - amount;
+		playerPoints.put(playerId, updated);
+		persistPoints(playerId, updated);
 		return true;
+	}
+
+	private void persistPoints(int playerId, int points) {
+		if (variablesService != null) {
+			variablesService.setVar(playerId, "PC_CAFE_POINTS", String.valueOf(points));
+		}
+		if (jdbc != null) {
+			try {
+				jdbc.sql("UPDATE characters SET pc_point = :pts WHERE charId = :id")
+						.param("pts", points)
+						.param("id", playerId)
+						.update();
+			} catch (Exception ignored) {
+			}
+		}
 	}
 }
