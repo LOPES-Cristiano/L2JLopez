@@ -1,234 +1,302 @@
-// package com.lopez.l2j.game.parity;
+package com.lopez.l2j.game.parity;
 
-// import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.*;
 
-// import com.lopez.l2j.game.augmentation.Augmentation;
-// import com.lopez.l2j.game.augmentation.AugmentationService;
-// import com.lopez.l2j.game.clan.Clan;
-// import com.lopez.l2j.game.combat.Formulas;
-// import com.lopez.l2j.game.community.CommunityAuctionService;
-// import com.lopez.l2j.game.community.CommunityBoardService;
-// import com.lopez.l2j.game.cubic.CubicInstance;
-// import com.lopez.l2j.game.cursed.CursedWeaponsManager;
-// import com.lopez.l2j.game.effect.PlayerEffects;
-// import com.lopez.l2j.game.event.pvp.CtfEventService;
-// import com.lopez.l2j.game.event.pvp.DmEventService;
-// import com.lopez.l2j.game.event.pvp.TvtEventService;
-// import com.lopez.l2j.game.item.ItemInstance;
-// import com.lopez.l2j.game.item.ItemTemplate;
-// import com.lopez.l2j.game.manor.CastleManorManager;
-// import com.lopez.l2j.game.manor.CropProcure;
-// import com.lopez.l2j.game.manor.SeedProduction;
-// import com.lopez.l2j.game.model.PlayerCharacter;
-// import com.lopez.l2j.game.model.PlayerStats;
-// import com.lopez.l2j.game.npc.NpcInstance;
-// import com.lopez.l2j.game.npc.NpcTemplate;
-// import com.lopez.l2j.game.olympiad.OlympiadManager;
-// import com.lopez.l2j.game.olympiad.OlympiadMode;
-// import com.lopez.l2j.game.pet.PetDataTable;
-// import com.lopez.l2j.game.pet.PetService;
-// import com.lopez.l2j.network.game.packet.GameServerPacket;
-// import java.util.ArrayList;
-// import java.util.List;
-// import org.junit.jupiter.api.Test;
+import com.lopez.l2j.config.Config;
+import com.lopez.l2j.game.clan.Clan;
+import com.lopez.l2j.game.combat.CombatService;
+import com.lopez.l2j.game.combat.Formulas;
+import com.lopez.l2j.game.community.CommunityAuctionService;
+import com.lopez.l2j.game.cubic.CubicInstance;
+import com.lopez.l2j.game.dressme.DressMeData;
+import com.lopez.l2j.game.effect.PlayerEffects;
+import com.lopez.l2j.game.geodata.GeoEngine;
+import com.lopez.l2j.game.item.ItemInstance;
+import com.lopez.l2j.game.item.ItemSlots;
+import com.lopez.l2j.game.item.ItemTemplate;
+import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.npc.NpcInstance;
+import com.lopez.l2j.game.npc.NpcTemplate;
+import com.lopez.l2j.game.party.Party;
+import com.lopez.l2j.game.pet.PetDataTable;
+import com.lopez.l2j.game.quest.QuestState;
+import com.lopez.l2j.game.quest.impl.Quest350EnhanceYourWeapon;
+import com.lopez.l2j.game.skill.StatFunc;
+import com.lopez.l2j.game.summon.SummonInstance;
+import com.lopez.l2j.network.game.packet.GameClientPacket;
+import com.lopez.l2j.network.game.packet.GameServerPacket;
+import java.util.List;
+import org.junit.jupiter.api.Test;
 
-// /**
-// * Suite de verificacao de paridade das 510 melhorias L2JDreamV2 & L2JLucera2
-// -> L2JLopez,
-// * incluindo validacao estrita da diretriz ZERO DOACOES (100% moedas organicas
-// in-game).
-// */
-// class DreamLucera510ParityTest {
+/**
+ * Suite integrada de validacao do Roteiro Mestre de 510 Melhorias (Fase 1) + 220 Melhorias Profundas (Fase 2)
+ * (L2JLopez vs L2JDreamV2 & L2JLucera2), garantindo 100% de fidelidade Interlude C6 (746)
+ * e politica estrita de ZERO DOACOES.
+ */
+class DreamLucera510ParityTest {
 
-// @Test
-// void protocolPacketsAndShowBoard101To103Split() {
-// var abn = new GameServerPacket.AbnormalStatusUpdate(List.of(
-// new GameServerPacket.AbnormalStatusUpdate.EffectHolder(1204, 2, 1200)));
-// byte[] abnBytes = abn.encode();
-// assertEquals(0x7f, abnBytes[0] & 0xFF);
+	private static PlayerCharacter newTestPlayer(int objectId, String name, int level, int classId) {
+		return new PlayerCharacter(
+				objectId, "acc_" + objectId, name, level, 1_000_000L, 0,
+				0, classId, classId, false, 0, 0, 0,
+				3000, 1500, 2000, 0, 0, 0, 0, "",
+				0, 0L, 0L, 0, 0, 0, 0,
+				3000.0, 1500.0, 2000.0);
+	}
 
-// var shortBuff = new GameServerPacket.ShortBuffStatusUpdate(2279, 2, 15);
-// byte[] sbBytes = shortBuff.encode();
-// assertEquals((byte) 0xf4, sbBytes[0]);
+	// ========================================================================
+	// BLOCO 1: REDE, PROTOCOLO INTERLUDE 746 & PACOTES C->S / S->C (#1 a #95)
+	// ========================================================================
 
-// var obsMode = new GameServerPacket.ObservationMode(83400, 148000, -3400);
-// assertEquals((byte) 0xdf, obsMode.encode()[0]);
+	@Test
+	void testBloco1_ClientAndServerPacketsEncodingAndDecoding() {
+		byte[] fishRankingPayload = new byte[] { (byte) 0xD0, 0x1F, 0x00 };
+		var decoded = GameClientPacket.decode(GameClientPacket.State.IN_GAME, fishRankingPayload);
+		assertTrue(decoded.isPresent());
+		assertInstanceOf(GameClientPacket.RequestExFishRanking.class, decoded.get());
 
-// var obsReturn = new GameServerPacket.ObservationReturn(83400, 148000, -3400);
-// assertEquals((byte) 0xe0, obsReturn.encode()[0]);
+		var abnormal = new GameServerPacket.AbnormalStatusUpdate(List.of(
+				new GameServerPacket.MagicEffectIcons.Icon(1204, 2, 1200)
+		));
+		byte[] abnBytes = abnormal.encode();
+		assertEquals(0x7f, abnBytes[0] & 0xFF);
 
-// // #441: ShowBoard 101 / 102 / 103 split for large HTML
-// String largeHtml = "<html><body>" + "A".repeat(9000) + "</body></html>";
-// List<GameServerPacket> sent = new ArrayList<>();
-// CommunityBoardService.sendShowBoard(sent::add, largeHtml);
-// assertEquals(3, sent.size());
-// assertInstanceOf(GameServerPacket.ShowBoard.class, sent.get(0));
-// assertEquals("101", ((GameServerPacket.ShowBoard) sent.get(0)).id());
-// assertEquals("102", ((GameServerPacket.ShowBoard) sent.get(1)).id());
-// assertEquals("103", ((GameServerPacket.ShowBoard) sent.get(2)).id());
-// }
+		var dualAsk = new GameServerPacket.ExDuelAskStart("Challenger", 0);
+		byte[] duelBytes = dualAsk.encode();
+		assertEquals(0xFE, duelBytes[0] & 0xFF);
+		assertEquals(0x4B, duelBytes[1] & 0xFF);
 
-// @Test
-// void playerEffectsBlockBuffBlockDebuffAndHerbShadowPreservation() {
-// PlayerEffects effects = new PlayerEffects();
+		var confirmDlg = new GameServerPacket.ConfirmDlg(1510, "Ressuscitar?", 30000, 1);
+		byte[] dlgBytes = confirmDlg.encode();
+		assertEquals(0xED, dlgBytes[0] & 0xFF);
+	}
 
-// // Normal buff Wind Walk Lv 2 (1204) for 1200s
-// assertTrue(effects.addBuff(1204, 2, 1200_000L, "Speed", false, false,
-// false));
-// assertEquals(2, effects.getBuff(1204).orElseThrow().skillLevel());
+	// ========================================================================
+	// BLOCO 2: COMBATE, FORMULAS, STATS & SKILLS (#96 a #185)
+	// ========================================================================
 
-// // Herb of Speed (2283) overrides temporarily on "Speed" stackType while
-// preserving 1204 in shadow
-// assertTrue(effects.addHerbBuff(2283, 1, 50L, "Speed"));
-// assertTrue(effects.hasBuff(2283));
-// assertFalse(effects.hasBuff(1204));
+	@Test
+	void testBloco2_FormulasHerbShadowBuffsAndBanes() {
+		PlayerEffects effects = new PlayerEffects();
+		long now = System.currentTimeMillis();
+		effects.put(PlayerEffects.ActiveBuff.ofSkill(
+				1204, 2, "Speed", 2, now + 1200_000L,
+				List.of(new StatFunc("runSpd", StatFunc.Op.ADD, 0x40, 33.0)),
+				false, 0, "Buff", 0.0, 1200));
+		assertTrue(effects.hasSkill(1204));
 
-// // Wait for Herb to expire -> original Wind Walk 1204 must be restored from
-// shadow!
-// try {
-// Thread.sleep(70L);
-// } catch (InterruptedException ignored) {
-// }
-// var expired = effects.purgeExpired();
-// assertTrue(expired.contains(2283));
-// assertTrue(effects.hasBuff(1204), "Original buff must be restored after Herb
-// expires");
+		effects.put(PlayerEffects.ActiveBuff.ofSkill(
+				2283, 1, "Speed", 3, now + 10L,
+				List.of(new StatFunc("runSpd", StatFunc.Op.ADD, 0x40, 40.0)),
+				false, 0, "Buff", 0.0, 1));
+		assertNotNull(effects.getShadowedBuff("Speed"), "O buff original de Wind Walk deve ficar sombreado pela Herb");
 
-// // BlockBuff prevents external normal buffs, but allows toggle/debuff
-// effects.blockBuff(true);
-// assertFalse(effects.addBuff(1068, 3, 1200_000L, "pAtk", false, false,
-// false));
-// assertTrue(effects.addBuff(4001, 1, 30_000L, null, false, true, false)); //
-// debuff allowed
+		try {
+			Thread.sleep(25L);
+		} catch (InterruptedException ignored) {
+			Thread.currentThread().interrupt();
+		}
 
-// // BlockDebuff prevents debuffs
-// effects.blockBuff(false);
-// effects.blockDebuff(true);
-// assertFalse(effects.addBuff(4002, 1, 30_000L, null, false, true, false));
-// assertTrue(effects.addBuff(1068, 3, 1200_000L, "pAtk", false, false, false));
-// }
+		var activeAfterHerb = effects.active();
+		assertTrue(activeAfterHerb.stream().anyMatch(b -> b.skillId() == 1204),
+				"O buff original 1204 deve ser restaurado apos a expiracao da Herb");
 
-// @Test
-// void combatFormulasShieldBlowAndNpcOverhit() {
-// // Shield result constants (#127)
-// assertEquals(0, Formulas.SHIELD_DEFENSE_FAILED);
-// assertEquals(1, Formulas.SHIELD_DEFENSE_SUCCEEDED);
-// assertEquals(2, Formulas.SHIELD_DEFENSE_PERFECT_BLOCK);
+		effects.put(PlayerEffects.ActiveBuff.ofSkill(
+				1086, 2, "attack_time_down", 2, System.currentTimeMillis() + 600_000L,
+				List.of(new StatFunc("pAtkSpd", StatFunc.Op.MUL, 0x30, 1.33)),
+				false, 0, "Buff", 0.0, 600));
+		assertTrue(effects.removeWarriorBaneBuffs(), "Warrior Bane deve remover Haste/Wind Walk");
+		assertFalse(effects.hasSkill(1086));
 
-// // NpcInstance Over-hit EXP bonus & Raid Curse (#314, #351)
-// NpcTemplate tpl = NpcTemplate.simple(20100, "Orc Warrior", "", 40);
-// NpcInstance npc = new NpcInstance(50001, tpl, 0, 0, 0, 0);
-// npc.overhitEnabled(true);
-// npc.applyOverhitDamage(2500, 100); // lethal blow with surplus
-// assertTrue(npc.isOverhit());
-// long baseExp = 10_000L;
-// long bonusExp = npc.calculateOverhitExp(baseExp);
-// assertTrue(bonusExp > 0L, "Over-hit must grant bonus EXP");
-// }
+		effects.put(PlayerEffects.ActiveBuff.ofSkill(
+				1085, 3, "casting_time_down", 3, System.currentTimeMillis() + 600_000L,
+				List.of(new StatFunc("mAtkSpd", StatFunc.Op.MUL, 0x30, 1.30)),
+				false, 0, "Buff", 0.0, 600));
+		assertTrue(effects.removeMageBaneBuffs(), "Mage Bane deve remover Acumen/Empower");
+		assertFalse(effects.hasSkill(1085));
 
-// @Test
-// void augmentationBitpackingAndGemstoneRules() {
-// Augmentation aug = new Augmentation((14561 << 16) | 120, 3123, 10);
-// assertEquals(120, aug.stat12());
-// assertEquals(14561, aug.stat34());
-// assertEquals(120, aug.effect1Id());
-// assertEquals(14561, aug.effect2Id());
-// assertTrue(aug.hasSkill());
+		effects.put(PlayerEffects.ActiveBuff.ofSkill(
+				1068, 3, "pa_up", 3, System.currentTimeMillis() + 600_000L,
+				List.of(new StatFunc("pAtk", StatFunc.Op.MUL, 0x30, 1.15)),
+				false, 0, "Buff", 0.0, 600));
+		var stolen = effects.stealBuffs(3);
+		assertEquals(1, stolen.size());
+		assertEquals(1068, stolen.get(0).skillId());
 
-// ItemTemplate sWeaponTpl = ItemTemplate.weapon(6364, 6364, "Forgotten Blade",
-// "rhand", "s", 1300,
-// "fine_steel", 281, 132, "sword", 8, 0, 0, 0, 379, 0, 40, 1, 1, true, true,
-// true, true);
-// ItemInstance sWeapon = new ItemInstance(90001, sWeaponTpl, 1, 1);
-// assertTrue(AugmentationService.isValidAugmentTarget(sWeapon));
-// assertEquals(AugmentationService.GEMSTONE_C,
-// AugmentationService.getRequiredGemstoneId(sWeapon));
-// assertEquals(25, AugmentationService.getRequiredGemstoneCount(sWeapon));
-// assertEquals(480_000, AugmentationService.getCancelFee(sWeapon));
-// }
+		assertEquals(32768, PlayerEffects.computeBluffHeading(0));
+		assertTrue(Formulas.calcLevelMod(76) > 1.5);
+		assertEquals(1.20, Formulas.calcPositionCritMultiplier(CombatService.RelativePosition.BEHIND), 0.001);
+	}
 
-// @Test
-// void manorEconomyCursedWeaponsPetsAndCubics() {
-// // Manor Seed & Crop cycle (#274)
-// CastleManorManager manor = new CastleManorManager("data/xml/world/seeds.xml",
-// null);
-// manor.setSeedProduction(1, new SeedProduction(5016, 100, 100, 25),
-// CastleManorManager.PERIOD_NEXT);
-// manor.setCropProcure(1, new CropProcure(5068, 50, 50, 200, 1),
-// CastleManorManager.PERIOD_NEXT);
-// manor.approveNextPeriod();
+	// ========================================================================
+	// BLOCO 3: ITENS, PETS, SUMMONS, CUBICS & ECONOMIA (#186 a #260)
+	// ========================================================================
 
-// long seedCost = manor.buySeed(1, 5016, 10);
-// assertEquals(250L, seedCost);
-// long cropReward = manor.sellCrop(1, 5068, 5);
-// assertEquals(1000L, cropReward);
+	@Test
+	void testBloco3_CubicsAndInventoryShieldRestrictions() {
+		PlayerCharacter owner = newTestPlayer(1001, "CubicMaster", 78, 96);
 
-// // Cursed Weapons (#286-#290)
-// assertEquals(8190, CursedWeaponsManager.ZARICHE_ID);
-// assertEquals(8689, CursedWeaponsManager.AKAMANAH_ID);
-// assertEquals(9_999_999, CursedWeaponsManager.CURSED_KARMA);
+		CubicInstance lifeCubic = new CubicInstance(owner, CubicInstance.LIFE_CUBIC, 1, false);
+		assertEquals(CubicInstance.LIFE_CUBIC, lifeCubic.id());
+		assertTrue(lifeCubic.isActive());
+		lifeCubic.stop();
+		assertFalse(lifeCubic.isActive());
 
-// // Pet Mount Speeds (#240-#242)
-// assertEquals(200, PetService.getMountSpeedForNpc(PetDataTable.WYVERN_ID));
-// assertEquals(180, PetService.getMountSpeedForNpc(12526)); // Strider
+		ItemTemplate shieldTpl = new ItemTemplate(
+				103, 103, "Tower Shield", ItemTemplate.Kind.ARMOR, "none",
+				1, 1, ItemSlots.SLOT_L_HAND, 1200, false, "c", 50000,
+				0, 0, 0, 0, 0, 0, 0, -8, 150, 0, 0, 0, 0,
+				List.of(), null, null, null, true, true, true, true);
+		ItemTemplate bowTpl = new ItemTemplate(
+				279, 279, "Eminence Bow", ItemTemplate.Kind.WEAPON, "bow",
+				0, 0, ItemSlots.SLOT_LR_HAND, 1800, false, "c", 150000,
+				250, 80, 0, 0, 293, 12, -3, 0, 0, 0, 5, 2, 5,
+				List.of(), null, null, null, true, true, true, true);
 
-// // Cubics (#250-#258)
-// PlayerCharacter owner = new PlayerCharacter(1001, "acc", "CubicOwner", 0,
-// false, 0, 0, 0, 0,
-// 2000, 2000, 1000, 1000, 1500, 1500, 78, 1_000_000L, 0, 0, 0, 0, 0, false);
-// CubicInstance lifeCubic = new CubicInstance(owner, CubicInstance.LIFE_CUBIC,
-// 1, 500, 100, 5000, 60000, false);
-// assertTrue(lifeCubic.isLifeCubic());
-// assertEquals(CubicInstance.LIFE_CUBIC, lifeCubic.cubicId());
-// }
+		ItemInstance shield = new ItemInstance(9001, shieldTpl, owner.objectId(), 1);
+		ItemInstance bow = new ItemInstance(9002, bowTpl, owner.objectId(), 1);
+		owner.inventory().addItem(shield);
+		owner.inventory().addItem(bow);
 
-// @Test
-// void clanSubUnitsOlympiadHeroRulesAndZeroDonationsEnforcement() {
-// // Clan Sub-units & Academy (#371-#385)
-// Clan clan = new Clan(1, "Alpha", 5, 1001, "Leader");
-// assertTrue(clan.createSubPledge(Clan.SUBUNIT_ACADEMY, "AlphaAcademy", 0));
-// assertTrue(clan.hasSubPledge(Clan.SUBUNIT_ACADEMY));
-// clan.setRankPrivs(1, Clan.CP_ALL);
-// assertEquals(Clan.CP_ALL, clan.getRankPrivs(1));
+		owner.inventory().equip(shield);
+		assertNotNull(owner.inventory().paperdoll(ItemSlots.LHAND));
 
-// // Olympiad Hero Skills & Point Divisors (#420, #424)
-// OlympiadManager oly = new OlympiadManager(null);
-// oly.registerNoble(1001, "NobleOne", 88);
-// oly.registerNoble(1002, "NobleTwo", 88);
-// oly.recordMatch(1001, 1002, false, OlympiadMode.CLASS_BASED);
-// assertTrue(oly.getNoble(1001).orElseThrow().points() > 18);
+		owner.inventory().equip(bow);
+		assertNotNull(owner.inventory().paperdoll(ItemSlots.RHAND));
+		assertNull(owner.inventory().paperdoll(ItemSlots.LHAND),
+				"Equipar um arco (LRHAND) deve desequipar automaticamente o escudo na mao esquerda");
+	}
 
-// PlayerCharacter heroChar = new PlayerCharacter(1001, "acc", "NobleOne", 0,
-// false, 88, 0, 0, 0,
-// 3000, 3000, 1500, 1500, 2000, 2000, 78, 1_000_000L, 0, 0, 0, 0, 0, false);
-// oly.applyHeroStatusAndSkills(heroChar, true);
-// for (int heroSkillId : OlympiadManager.HERO_SKILL_IDS) {
-// assertTrue(heroChar.skills().containsKey(heroSkillId), "Hero on main class
-// must receive skill " + heroSkillId);
-// }
-// heroChar.subClassActive(true);
-// heroChar.baseClassId(88);
-// oly.applyHeroStatusAndSkills(heroChar, true);
-// for (int heroSkillId : OlympiadManager.HERO_SKILL_IDS) {
-// assertFalse(heroChar.skills().containsKey(heroSkillId), "Hero skills must be
-// removed on subclass");
-// }
+	// ========================================================================
+	// BLOCO 4: MUNDO, GEODATA, ZONAS, IA DE MONSTROS & BOSSES (#261 a #345)
+	// ========================================================================
 
-// // ZERO DOACOES: CommunityAuctionService only permits organic in-game
-// currencies (#445)
-// CommunityAuctionService auction = new CommunityAuctionService(null, null);
-// assertTrue(auction.isCurrencyAllowed(57)); // Adena
-// assertTrue(auction.isCurrencyAllowed(3470)); // Gold Bar
-// assertTrue(auction.isCurrencyAllowed(5575)); // Ancient Adena
-// assertFalse(auction.isCurrencyAllowed(99999), "Non-organic / donation
-// currencies must be strictly rejected");
+	@Test
+	void testBloco4_GeoEngineAggroListAndRaidCurse() {
+		GeoEngine geo = GeoEngine.getInstance();
+		assertNotNull(geo);
+		assertTrue(geo.canSeeTarget(83400, 148600, -3400, 83450, 148650, -3400));
 
-// // PvP Event Engines (#470-#477)
-// TvtEventService tvt = new TvtEventService();
-// CtfEventService ctf = new CtfEventService();
-// DmEventService dm = new DmEventService();
-// assertNotNull(tvt.buildStatusHtml());
-// assertNotNull(ctf.buildStatusHtml());
-// assertNotNull(dm.buildStatusHtml());
-// }
-// }
+		NpcTemplate raidTpl = new NpcTemplate(
+				25001, 25001, "Queen Ant", true, "Raid Boss", true,
+				15.0, 22.0, 40, "female", "L2RaidBoss", 40,
+				50000, 10000, 500, 400, 300, 300, 278, 333,
+				0, 0, 0, 80, 150, 500, false, 100000L, 10000);
+		NpcInstance raid = new NpcInstance(50001, raidTpl, 0, 0, 0, 0);
+
+		raid.addDamageHate(1001, 500, 1200);
+		raid.addDamageHate(1002, 900, 800);
+		assertEquals(1001, raid.getMostHatedId(), "O alvo com maior hate (1001) deve ser o MostHated");
+
+		raid.stopHating(1001);
+		assertEquals(1002, raid.getMostHatedId(), "Apos stopHating(1001), o proximo na fila de hate deve ser 1002");
+
+		Config.DISABLE_RAID_BOSS_FOSSILIZATION = false;
+		Config.MAX_LEVEL_RAID_BOSS_CURSE = 8;
+		assertTrue(raid.shouldApplyRaidCurse(55), "Atacante Lv55 contra Raid Lv40 deve sofrer Raid Curse");
+		assertFalse(raid.shouldApplyRaidCurse(42), "Atacante Lv42 contra Raid Lv40 nao deve sofrer Raid Curse");
+		assertTrue(raid.isLethalProtected(), "Raid Boss deve ter imunidade a Lethal Strike");
+	}
+
+	// ========================================================================
+	// BLOCO 5: CLANS, SIEGES, SEVEN SIGNS, OLYMPIAD, PARTY & QUESTS (#346 a #430)
+	// ========================================================================
+
+	@Test
+	void testBloco5_ClanSubPledgesPartyBonusAndNoblesse() {
+		Clan clan = new Clan(1, "Alpha", 1001, "Leader", 5);
+		clan.addSubPledge(Clan.SUBUNIT_ACADEMY, "AlphaAcademy", 0);
+		assertNotNull(clan.getSubPledge(Clan.SUBUNIT_ACADEMY));
+
+		clan.setRankPrivilege(1, Clan.CP_ALL);
+		assertEquals(Clan.CP_ALL, clan.getRankPrivilege(1));
+
+		assertEquals(8871, Party.CommandChannel.STRATEGY_GUIDE_ID);
+		assertEquals(391, Party.CommandChannel.CLAN_IMPERIUM_SKILL_ID);
+
+		PlayerCharacter leader = newTestPlayer(2001, "Leader", 76, 88);
+		leader.effects().put(PlayerEffects.ActiveBuff.ofSkill(
+				1323, 1, "noblesse_blessing", 1, System.currentTimeMillis() + 3600_000L,
+				List.of(), false, 0, "NoblesseBless", 0.0, 3600));
+		assertTrue(leader.effects().hasNoblesseBless());
+		assertTrue(leader.effects().consumeNoblesseBless());
+		assertFalse(leader.effects().hasNoblesseBless());
+	}
+
+	// ========================================================================
+	// BLOCO 6: BBS, VOICED, ADMIN, EVENTOS, MODS & ZERO DOACOES (#431 a #510)
+	// ========================================================================
+
+	@Test
+	void testBloco6_ZeroDonationsPolicyAndConfigs() {
+		assertEquals(746, Config.MAX_PROTOCOL_VERSION, "Protocolo maximo deve ser Interlude 746");
+
+		CommunityAuctionService auction = new CommunityAuctionService();
+		PlayerCharacter seller = newTestPlayer(3001, "HonestSeller", 78, 88);
+		ItemTemplate dualsTpl = new ItemTemplate(
+				6580, 6580, "Tallum Blade*Dark Legion's Edge", ItemTemplate.Kind.WEAPON, "dual",
+				0, 0, ItemSlots.SLOT_LR_HAND, 2080, false, "s", 48_000_000,
+				342, 132, 0, 0, 325, 8, 0, 0, 0, 0, 1, 1, 10,
+				List.of(), null, null, null, true, true, true, true);
+		ItemInstance duals = new ItemInstance(9901, dualsTpl, seller.objectId(), 1);
+		seller.inventory().addItem(duals);
+
+		var rejectedListing = auction.listItem(seller, 9901, 1, 100L, 9999);
+		assertNull(rejectedListing, "Politica Zero Doacoes: Moedas customizadas/doacao (9999) devem ser bloqueadas");
+
+		var validListing = auction.listItem(seller, 9901, 1, 50_000_000L, 57);
+		assertNotNull(validListing, "Moeda organica Adena (57) deve ser aceita no Auction");
+		assertEquals(57, validListing.currencyItemId());
+	}
+
+	// ========================================================================
+	// FASE 2: VARREDURA PROFUNDA & CONEXOES PONTA-A-PONTA (#511 a #730)
+	// ========================================================================
+
+	@Test
+	void testPhase2_DeepImplementationAndConnections() {
+		// 1. Opcode 0xA6 RequestSetCastleSiegeTime separado de 0x9D RequestSkillCoolTime (#512)
+		byte[] setSiegeTimePayload = new byte[] { (byte) 0xA6, 0x03, 0x00, 0x00, 0x00, 0x10, 0x20, 0x00, 0x00 };
+		var decodedSiegeTime = GameClientPacket.decode(GameClientPacket.State.IN_GAME, setSiegeTimePayload);
+		assertTrue(decodedSiegeTime.isPresent());
+		assertInstanceOf(GameClientPacket.RequestSetCastleSiegeTime.class, decodedSiegeTime.get());
+		assertEquals(3, ((GameClientPacket.RequestSetCastleSiegeTime) decodedSiegeTime.get()).castleId());
+
+		// 2. Novos pacotes Server->Client de Fase 2 (#514-#525)
+		assertEquals(0x6E, new GameServerPacket.HideBoard().encode()[0] & 0xFF);
+		assertEquals(0xCF, new GameServerPacket.EventTrigger(100, true).encode()[0] & 0xFF);
+		assertEquals(0xD3, new GameServerPacket.RequestNetPing(42).encode()[0] & 0xFF);
+
+		// 3. Soul Crystal Leveling (SA) IDs retail Stage 0..13 e Ressonancia (#596-#605)
+		assertEquals(4629, Quest350EnhanceYourWeapon.RED_SOUL_CRYSTAL_0);
+		assertEquals(4640, Quest350EnhanceYourWeapon.GREEN_SOUL_CRYSTAL_0);
+		assertEquals(4651, Quest350EnhanceYourWeapon.BLUE_SOUL_CRYSTAL_0);
+		assertEquals(5577, Quest350EnhanceYourWeapon.getNextSoulCrystalId(4639)); // Red 10 -> 11
+		assertEquals(5908, Quest350EnhanceYourWeapon.getNextSoulCrystalId(5580)); // Red 12 -> 13
+		assertEquals(5578, Quest350EnhanceYourWeapon.getNextSoulCrystalId(4650)); // Green 10 -> 11
+		assertEquals(5911, Quest350EnhanceYourWeapon.getNextSoulCrystalId(5581)); // Green 12 -> 13
+		assertEquals(5579, Quest350EnhanceYourWeapon.getNextSoulCrystalId(4661)); // Blue 10 -> 11
+		assertEquals(5914, Quest350EnhanceYourWeapon.getNextSoulCrystalId(5582)); // Blue 12 -> 13
+
+		// 4. Multi-NPC QuestState resolveEventNpcId (#631)
+		PlayerCharacter quester = newTestPlayer(4001, "PaganRunner", 76, 88);
+		QuestState qs = new QuestState(null, null);
+		qs.setLastTalkedNpcId(32010); // Priest Flauron (2nd NPC)
+		assertEquals(32010, qs.resolveEventNpcId(31329), "resolveEventNpcId deve retornar o ultimo NPC interagido (32010)");
+
+		// 5. PetDataTable.isPetArmor nao confunde Spiritshots (2509..2514) ou Scrolls (3926..3935) (#625)
+		assertFalse(PetDataTable.isPetArmor(2509), "Spiritshot NG (2509) nao deve ser classificado como Pet Armor");
+		assertFalse(PetDataTable.isPetArmor(3926), "L2Day Scroll (3926) nao deve ser classificado como Pet Armor");
+		assertEquals(8872, SummonInstance.SIEGE_CANNONBALL_ID, "Flash Gunpowder retail ID deve ser 8872");
+
+		// 6. PlayerEffects ProtectionBlessing e Fusion Charges (#566, #560)
+		quester.effects().addBuff(5182, 1, 300_000L);
+		assertTrue(quester.effects().hasProtectionBlessing());
+		quester.effects().addFusionCharge(1285, 3);
+		assertEquals(1, quester.effects().getFusionCharge(1285));
+
+		// 7. DressMeData.xml carregado (#719)
+		DressMeData dressMeData = new DressMeData();
+		assertFalse(dressMeData.all().isEmpty(), "DressMeData.xml deve carregar skins classicas do Interlude");
+	}
+}
