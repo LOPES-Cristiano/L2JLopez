@@ -12,7 +12,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Quest 625: The Finest Ingredients - Part 2
- * Derrota do Raid Boss Icicle Emperor Bumbalump em Hot Springs e obtenção de Dyes raros.
+ * Derrota do Raid Boss Icicle Emperor Bumbalump em Hot Springs e obtenção de
+ * Dyes raros.
  */
 @Component
 public class Quest625TheFinestIngredientsPart2 extends Quest {
@@ -33,7 +34,7 @@ public class Quest625TheFinestIngredientsPart2 extends Quest {
 	public static final int MEAT = 7210;
 
 	// Dyes de Recompensa
-	public static final int[] REWARDS = {4589, 4590, 4591, 4592, 4593, 4594};
+	public static final int[] REWARDS = { 4589, 4590, 4591, 4592, 4593, 4594 };
 
 	@Autowired
 	public Quest625TheFinestIngredientsPart2(QuestManager questManager) {
@@ -75,6 +76,7 @@ public class Quest625TheFinestIngredientsPart2 extends Quest {
 				qs.takeItems(FOOD, 1);
 				qs.setCond(2);
 				qs.playSound(QuestState.SOUND_MIDDLE);
+				qs.addSpawn(BUMBALUMP, 158240, -121536, -2253, 1200000);
 				return event;
 			} else {
 				return "31542-04.htm";
@@ -122,6 +124,7 @@ public class Quest625TheFinestIngredientsPart2 extends Quest {
 			if (cond == 1 && qs.hasQuestItems(FOOD)) {
 				return "31542-01.htm";
 			} else if (cond == 2) {
+				qs.addSpawn(BUMBALUMP, 158240, -121536, -2253, 1200000);
 				return "31542-03.htm";
 			}
 		}
