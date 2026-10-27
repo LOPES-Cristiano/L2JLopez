@@ -47,7 +47,7 @@ public class Quest654JourneytoaSettlement extends Quest {
 
         String string2 = event;
         int n = qs.getInt("to_reach_an_ending");
-        int n2 = getFirstStartNpc();
+        int n2 = qs.resolveEventNpcId(getFirstStartNpc());
         if (n2 == 31453) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
