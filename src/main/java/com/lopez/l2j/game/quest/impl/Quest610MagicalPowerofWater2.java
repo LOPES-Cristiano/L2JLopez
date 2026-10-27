@@ -8,6 +8,7 @@ import com.lopez.l2j.game.quest.Quest;
 import com.lopez.l2j.game.quest.QuestManager;
 import com.lopez.l2j.game.quest.QuestState;
 import com.lopez.l2j.game.quest.State;
+import com.lopez.l2j.network.game.GameSession;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -27,6 +28,7 @@ public class Quest610MagicalPowerofWater2 extends Quest {
 	public static final int bLB = 4594;
 	public static final int bLC = 25316;
 	private NpcInstance bLD = null;
+	private static volatile long lastBossKillTimeMs = 0L;
 
 	public Quest610MagicalPowerofWater2(QuestManager questManager) {
 	super(610, "610_MagicalPowerofWater2", "610_MagicalPowerofWater2");
@@ -56,12 +58,14 @@ public class Quest610MagicalPowerofWater2 extends Quest {
             qs.setState(State.STARTED);
             qs.playSound(QuestState.SOUND_ACCEPT);
         } else if (event.equalsIgnoreCase("610_1")) {
-            if (Math.max(0L, 0L) + 10800000L > System.currentTimeMillis()) {
+            if (lastBossKillTimeMs > 0L && lastBossKillTimeMs + 10800000L > System.currentTimeMillis()) {
                 string2 = "totem_of_barka_q0610_0204.htm";
             } else if (qs.getQuestItemsCount(7238) >= 1L && (this.bLD == null || this.bLD.isDead())) {
                 qs.takeItems(7238, 1L);
+                qs.setCond(2);
                 this.bLD = qs.addSpawn(25316, 104825, -36926, -1136);
                 qs.playSound(QuestState.SOUND_MIDDLE);
+                string2 = "totem_of_barka_q0610_0201.htm";
             } else {
                 string2 = "totem_of_barka_q0610_0203.htm";
             }
@@ -110,7 +114,7 @@ public class Quest610MagicalPowerofWater2 extends Quest {
                 html = "shaman_asefa_q0610_0201.htm";
             }
         } else if (n == 31560) {
-            if (Math.max(0L, 0L) + 10800000L > System.currentTimeMillis()) {
+            if (lastBossKillTimeMs > 0L && lastBossKillTimeMs + 10800000L > System.currentTimeMillis()) {
                 html = "totem_of_barka_q0610_0204.htm";
             } else if (this.bLD != null && !this.bLD.isDead()) {
                 html = "totem_of_barka_q0610_0202.htm";
@@ -134,9 +138,25 @@ public class Quest610MagicalPowerofWater2 extends Quest {
 		PlayerCharacter pc = qs.playerChar();
 		if (pc == null) return null;
 
-        if (qs.getQuestItemsCount(this.ICE_HEART_OF_ASHUTAR) == 0L && (npc == null || npc.getNpcId() == 25316)) {
-            qs.giveItems(this.ICE_HEART_OF_ASHUTAR, 1L);
-            qs.setCond(3);
+        if (npc == null || npc.getNpcId() == 25316) {
+            lastBossKillTimeMs = System.currentTimeMillis();
+            if (qs.getQuestItemsCount(this.ICE_HEART_OF_ASHUTAR) == 0L) {
+                qs.giveItems(this.ICE_HEART_OF_ASHUTAR, 1L);
+                qs.setCond(3);
+                qs.playSound(QuestState.SOUND_MIDDLE);
+            }
+            if (qs.getPlayer() != null && qs.getPlayer().party() != null) {
+                for (GameSession member : qs.getPlayer().party().members()) {
+                    if (member == null || member == qs.getPlayer()) continue;
+                    QuestState mQs = member.getQuestState(getName());
+                    if (mQs != null && mQs.isStarted() && mQs.getCond() >= 1 && mQs.getCond() <= 2
+                            && mQs.getQuestItemsCount(this.ICE_HEART_OF_ASHUTAR) == 0L) {
+                        mQs.giveItems(this.ICE_HEART_OF_ASHUTAR, 1L);
+                        mQs.setCond(3);
+                        mQs.playSound(QuestState.SOUND_MIDDLE);
+                    }
+                }
+            }
             if (this.bLD != null) {
                 this.bLD.deleteMe();
             }
