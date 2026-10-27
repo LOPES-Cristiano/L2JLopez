@@ -51,7 +51,7 @@ public class Quest371ShriekOfGhosts extends Quest {
 		String html = event;
 
         String string2 = event;
-        int n = getFirstStartNpc();
+        int n = qs.resolveEventNpcId(getFirstStartNpc());
         if (n == bth) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
