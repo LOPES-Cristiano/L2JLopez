@@ -132,5 +132,28 @@ class DeepAuditGapClosureTest {
 
 		var grades = new GameServerPacket.PledgePowerGradeList(Map.of(1, 3, 2, 5));
 		assertEquals(0xfe, grades.encode()[0] & 0xFF);
+
+		// SystemMessage S1_CRYSTALLIZED (1258) e EARNED_S2_S1_S (53) com ItemNumber (type 6)
+		var smCryst = GameServerPacket.SystemMessage.of(
+				GameServerPacket.SystemMessage.S1_CRYSTALLIZED,
+				new GameServerPacket.SystemMessage.ItemName(7575));
+		byte[] crystBytes = smCryst.encode();
+		assertEquals(0x64, crystBytes[0] & 0xFF);
+
+		var smEarned = GameServerPacket.SystemMessage.of(
+				GameServerPacket.SystemMessage.EARNED_S2_S1_S,
+				new GameServerPacket.SystemMessage.ItemName(1462),
+				new GameServerPacket.SystemMessage.ItemNumber(150));
+		byte[] earnedBytes = smEarned.encode();
+		assertEquals(0x64, earnedBytes[0] & 0xFF);
+		// Param 1: type 3 (ItemName), value 1462; Param 2: type 6 (ItemNumber), value 150
+		var r = new com.lopez.l2j.network.login.packet.PacketReader(earnedBytes);
+		assertEquals(0x64, r.readC());
+		assertEquals(53, r.readD());
+		assertEquals(2, r.readD());
+		assertEquals(3, r.readD());
+		assertEquals(1462, r.readD());
+		assertEquals(6, r.readD());
+		assertEquals(150, r.readD());
 	}
 }
