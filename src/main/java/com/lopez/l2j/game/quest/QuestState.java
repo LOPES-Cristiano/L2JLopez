@@ -40,6 +40,7 @@ public class QuestState {
 	private final Quest quest;
 	private GameSession player;
 	private State state;
+	private volatile int lastTalkedNpcId;
 	private final Map<String, String> variables = new ConcurrentHashMap<>();
 	private final Map<String, ScheduledFuture<?>> activeTimers = new ConcurrentHashMap<>();
 
@@ -66,6 +67,10 @@ public class QuestState {
 	}
 
 	public GameSession getPlayer() {
+		return player;
+	}
+
+	public GameSession player() {
 		return player;
 	}
 
@@ -340,8 +345,10 @@ public class QuestState {
 
 	/**
 	 * Retorna o valor de estado/condicao formatado para o pacote QuestList (0x80).
-	 * Quando etapas intermediarias de cond sao puladas, envia a bitmask (0x80000001 | bits)
-	 * exigida pelo cliente Interlude para atualizar a descricao e a localizacao alvo no mapa.
+	 * Quando etapas intermediarias de cond sao puladas, envia a bitmask (0x80000001
+	 * | bits)
+	 * exigida pelo cliente Interlude para atualizar a descricao e a localizacao
+	 * alvo no mapa.
 	 */
 	public int getQuestListState() {
 		int flags = getInt("__compltdStateFlags");
@@ -477,8 +484,8 @@ public class QuestState {
 				player.refreshWeightAndPenalties();
 			}
 			if (count > 1) {
-				player.send(SystemMessage.of(SystemMessage.EARNED_S2_S1_S, new SystemMessage.Number(count),
-						new SystemMessage.ItemName(itemId)));
+				player.send(SystemMessage.of(SystemMessage.EARNED_S2_S1_S,
+						new SystemMessage.ItemName(itemId), new SystemMessage.ItemNumber(count)));
 			} else {
 				player.send(SystemMessage.of(SystemMessage.EARNED_S1, new SystemMessage.ItemName(itemId)));
 			}
@@ -509,6 +516,61 @@ public class QuestState {
 
 	public int playerLevel() {
 		return playerChar() != null ? playerChar().level() : 0;
+	}
+
+	public int getPlayerLevel() {
+		return playerLevel();
+	}
+
+	public int getLastTalkedNpcId() {
+		return lastTalkedNpcId;
+	}
+
+	public void setLastTalkedNpcId(int npcId) {
+		this.lastTalkedNpcId = npcId;
+	}
+
+	public int resolveEventNpcId(int fallbackStartNpc) {
+		if (lastTalkedNpcId > 0) {
+			return lastTalkedNpcId;
+		}
+		if (player != null) {
+			try {
+				var m = player.getClass().getMethod("lastInteractedNpcId");
+				Object res = m.invoke(player);
+				if (res instanceof Number num && num.intValue() > 0) {
+					return num.intValue();
+				}
+			} catch (Exception ignored) {
+			}
+			int targetObjId = player.targetObjectId();
+			if (targetObjId > 0 && player.context() != null && player.context().world() != null) {
+				var npcOpt = player.context().world().npc(targetObjId);
+				if (npcOpt != null && npcOpt.isPresent()) {
+					return npcOpt.get().npcId();
+				}
+			}
+		}
+		return fallbackStartNpc;
+	}
+
+	public void teleportPlayer(int x, int y, int z) {
+		PlayerCharacter pc = playerChar();
+		if (pc != null) {
+			pc.teleToLocation(x, y, z);
+		}
+		if (player != null) {
+			if (player.context() != null && player.context().world() != null && pc != null) {
+				try {
+					player.context().world().teleportPlayer(pc, x, y, z);
+					return;
+				} catch (Exception ignored) {
+				}
+			}
+			if (pc != null) {
+				player.send(new TeleportToLocation(pc.objectId(), x, y, z, pc.heading()));
+			}
+		}
 	}
 
 	public void takeItems(int itemId, int count) {
@@ -615,34 +677,67 @@ public class QuestState {
 
 	public NpcInstance addSpawn(int npcId) {
 		if (player != null && player.activeChar() != null) {
-			return addSpawn(npcId, player.activeChar().x(), player.activeChar().y(), player.activeChar().z(), 0);
+			return addSpawn(npcId, player.activeChar().x(), player.activeChar().y(), player.activeChar().z(),
+					player.activeChar().heading(), true, 0);
 		}
 		return null;
 	}
 
 	public NpcInstance addSpawn(int npcId, int x, int y, int z, int despawnDelay) {
+		return addSpawn(npcId, x, y, z, 0, false, despawnDelay);
+	}
+
+	public NpcInstance addSpawn(int npcId, int x, int y, int z, int heading, boolean randomOffset, int despawnDelay) {
+		int spawnX = x;
+		int spawnY = y;
+		if (randomOffset) {
+			int dx = java.util.concurrent.ThreadLocalRandom.current().nextInt(40, 101);
+			int dy = java.util.concurrent.ThreadLocalRandom.current().nextInt(40, 101);
+			if (java.util.concurrent.ThreadLocalRandom.current().nextBoolean()) {
+				dx = -dx;
+			}
+			if (java.util.concurrent.ThreadLocalRandom.current().nextBoolean()) {
+				dy = -dy;
+			}
+			spawnX += dx;
+			spawnY += dy;
+		}
 		NpcInstance spawned = null;
 		if (player != null && player.context() != null && player.context().spawns() != null) {
 			try {
-				var opt = player.context().spawns().spawn(npcId, x, y, z, 0, false);
+				var opt = player.context().spawns().spawn(npcId, spawnX, spawnY, z, heading, false);
 				if (opt != null && opt.isPresent()) {
 					spawned = opt.get();
 				}
 			} catch (Exception ignored) {
 			}
 		}
-		com.lopez.l2j.game.world.GameWorld world = (player != null && player.context() != null && player.context().world() != null)
-				? player.context().world()
-				: com.lopez.l2j.game.world.GameWorld.getInstance();
+		com.lopez.l2j.game.world.GameWorld world = (player != null && player.context() != null
+				&& player.context().world() != null)
+						? player.context().world()
+						: com.lopez.l2j.game.world.GameWorld.getInstance();
 		if (spawned == null) {
 			var tpl = new com.lopez.l2j.game.npc.NpcTemplate(
 					npcId, npcId, "QuestNpc_" + npcId, false, "", false, 10.0, 15.0, 70, "male",
 					"L2Npc", 40, 100, 20, 10, 30, 5, 15, 200, 200, 0, 0, 0, 50, 100, 0, false);
 			int objId = 0x50000000 + java.util.concurrent.ThreadLocalRandom.current().nextInt(1, 0x0FFFFFFF);
-			spawned = new NpcInstance(objId, tpl, x, y, z, 0);
+			spawned = new NpcInstance(objId, tpl, spawnX, spawnY, z, heading);
 			if (world != null) {
 				world.addNpc(spawned);
-				world.broadcastAround(x, y, com.lopez.l2j.game.world.GameWorld.VISIBILITY_RADIUS, new NpcInfo(spawned));
+				world.broadcastAround(spawnX, spawnY, com.lopez.l2j.game.world.GameWorld.VISIBILITY_RADIUS,
+						new NpcInfo(spawned));
+			}
+		}
+		if (spawned != null) {
+			spawned.questSpawn(true);
+			if (spawned.isAttackable()
+					&& npcId != 27165 && npcId != 27166 && npcId != 27167
+					&& (npcId < 27185 || npcId > 27188)
+					&& player != null && player.activeChar() != null) {
+				spawned.addDamageHate(player.activeChar().objectId(), 0, 500);
+				if (player.context() != null && player.context().npcAi() != null) {
+					player.context().npcAi().startCombat(spawned, player.activeChar().objectId());
+				}
 			}
 		}
 		if (despawnDelay > 0 && spawned != null) {
@@ -650,6 +745,7 @@ public class QuestState {
 			final com.lopez.l2j.game.world.GameWorld w = world;
 			QUEST_TIMER_POOL.schedule(() -> {
 				try {
+					toDespawn.deleteMe();
 					if (w != null) {
 						w.removeNpc(toDespawn);
 						w.broadcastAround(toDespawn.x(), toDespawn.y(),
@@ -664,7 +760,7 @@ public class QuestState {
 	}
 
 	public NpcInstance addSpawn(int npcId, int x, int y, int z) {
-		return addSpawn(npcId, x, y, z, 0);
+		return addSpawn(npcId, x, y, z, 0, false, 0);
 	}
 
 	public void playTutorialVoice(String voice) {
@@ -772,7 +868,8 @@ public class QuestState {
 
 	public NpcInstance addSpawn(int npcId, int countOrDespawnDelay) {
 		if (countOrDespawnDelay >= 1000 && player != null && player.activeChar() != null) {
-			return addSpawn(npcId, player.activeChar().x(), player.activeChar().y(), player.activeChar().z(), countOrDespawnDelay);
+			return addSpawn(npcId, player.activeChar().x(), player.activeChar().y(), player.activeChar().z(),
+					player.activeChar().heading(), true, countOrDespawnDelay);
 		}
 		return addSpawn(npcId);
 	}
@@ -826,17 +923,13 @@ public class QuestState {
 		return total;
 	}
 
-	public NpcInstance addSpawn(int npcId, int x, int y, int z, int heading, boolean randomOffset, int despawnDelay) {
-		return addSpawn(npcId, x, y, z, despawnDelay);
-	}
-
 	public NpcInstance addSpawn(int npcId, int x, int y, int z, int heading, int randomOffset, int despawnDelay) {
-		return addSpawn(npcId, x, y, z, despawnDelay);
+		return addSpawn(npcId, x, y, z, heading, randomOffset > 0, despawnDelay);
 	}
 
 	public NpcInstance addSpawn(int npcId, NpcInstance npc, boolean isSummonSpawn, int despawnDelay) {
 		if (npc != null) {
-			return addSpawn(npcId, npc.x(), npc.y(), npc.z(), despawnDelay);
+			return addSpawn(npcId, npc.x(), npc.y(), npc.z(), npc.heading(), true, despawnDelay);
 		}
 		return addSpawn(npcId);
 	}
