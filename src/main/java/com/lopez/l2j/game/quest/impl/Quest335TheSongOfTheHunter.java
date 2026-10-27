@@ -57,80 +57,88 @@ public class Quest335TheSongOfTheHunter extends Quest {
    private static final int bkT = 3724;
    private static final int bkU = 3725;
    private static final int bkV = 3726;
-   private static final int[] bkW = new int[]{3708, 3698, 3699, 3700, 3701, 3702, 3703, 3704, 3705, 3706, 3707};
-   private static final int[] bkX = new int[]{20578, 20579, 20580, 20581, 20582, 20641, 20642, 20643, 20644, 20645};
-   private static final int[][][] bkY = new int[][][]{
-      {{3709}, {40}, {20550, 75}},
-      {{3710}, {20}, {20581, 50}},
-      {{3711, 3712, 3713}, {3}},
-      {{3714}, {1}, {27143, 100}},
-      {{3715}, {20}, {20563, 50}, {20565, 50}},
-      {{3716}, {30}, {20555, 70}}
+   private static final int[] bkW = new int[] { 3708, 3698, 3699, 3700, 3701, 3702, 3703, 3704, 3705, 3706, 3707 };
+   private static final int[] bkX = new int[] { 20578, 20579, 20580, 20581, 20582, 20641, 20642, 20643, 20644, 20645 };
+   private static final int[][][] bkY = new int[][][] {
+         { { 3709 }, { 40 }, { 20550, 75 } },
+         { { 3710 }, { 20 }, { 20581, 50 } },
+         { { 3711, 3712, 3713 }, { 3 } },
+         { { 3714 }, { 1 }, { 27143, 100 } },
+         { { 3715 }, { 20 }, { 20563, 50 }, { 20565, 50 } },
+         { { 3716 }, { 30 }, { 20555, 70 } }
    };
-   private static final int[][][] bkZ = new int[][][]{
-      {{3717}, {20}, {20586, 50}},
-      {{3718}, {20}, {20560, 50}, {20561, 50}},
-      {{3719}, {30}, {20591, 75}, {20597, 75}},
-      {{3720}, {20}, {20675, 50}},
-      {{3721}, {20}, {20660, 50}},
-      {{3722, 3723, 3724, 3725, 3726}, {5}}
+   private static final int[][][] bkZ = new int[][][] {
+         { { 3717 }, { 20 }, { 20586, 50 } },
+         { { 3718 }, { 20 }, { 20560, 50 }, { 20561, 50 } },
+         { { 3719 }, { 30 }, { 20591, 75 }, { 20597, 75 } },
+         { { 3720 }, { 20 }, { 20675, 50 } },
+         { { 3721 }, { 20 }, { 20660, 50 } },
+         { { 3722, 3723, 3724, 3725, 3726 }, { 5 } }
    };
-   private static final Request[] bla = new Request[]{
-      new Request(3727, 3769, 40, 2090, "C: 40 Totems of Kadesh").addDrop(20578, 80).addDrop(20579, 83),
-      new Request(3728, 3770, 50, 6340, "C: 50 Jade Necklaces of Timak").addDrop(20586, 89).addDrop(20588, 100),
-      new Request(3729, 3771, 50, 9480, "C: 50 Enchanted Golem Shards").addDrop(20565, 100),
-      new Request(3730, 3772, 30, 9110, "C: 30 Pieces Monster Eye Meat").addDrop(20556, 50),
-      new Request(3731, 3773, 40, 8690, "C: 40 Eggs of Dire Wyrm").addDrop(20557, 80),
-      new Request(3732, 3774, 100, 9480, "C: 100 Claws of Guardian Basilisk").addDrop(20550, 150),
-      new Request(3733, 3775, 50, 11280, "C: 50 Revenant Chains").addDrop(20552, 100),
-      new Request(3734, 3776, 30, 9640, "C: 30 Windsus Tusks").addDrop(20553, 50),
-      new Request(3735, 3777, 100, 9180, "C: 100 Skulls of Grandis").addDrop(20554, 200),
-      new Request(3736, 3778, 50, 5160, "C: 50 Taik Obsidian Amulets").addDrop(20631, 100).addDrop(20632, 93),
-      new Request(3737, 3779, 30, 3140, "C: 30 Heads of Karul Bugbear").addDrop(20600, 50),
-      new Request(3738, 3780, 40, 3160, "C: 40 Ivory Charms of Tamlin").addDrop(20601, 62).addDrop(20602, 80),
-      new Request(3739, 3781, 1, 6370, "B: Situation Preparation - Leto Chief").addSpawn(20582, 27157, 10).addDrop(27157, 100),
-      new Request(3740, 3782, 50, 19080, "B: 50 Enchanted Gargoyle Horns").addDrop(20567, 50),
-      new Request(3741, 3783, 50, 17730, "B: 50 Coiled Serpent Totems").addDrop(20269, 93).addDrop(20271, 100),
-      new Request(3742, 3784, 1, 5790, "B: Situation Preparation - Sorcerer Catch of Leto")
-         .addSpawn(20581, 27156, 10)
-         .addDrop(27156, 100),
-      new Request(3743, 3785, 1, 8560, "B: Situation Preparation - Timak Raider Kaikee").addSpawn(20586, 27158, 10).addDrop(27158, 100),
-      new Request(3744, 3786, 30, 8320, "B: 30 Kronbe Venom Sacs").addDrop(20603, 50),
-      new Request(3745, 3787, 30, 30310, "A: 30 Eva's Charm").addDrop(20562, 50),
-      new Request(3746, 3788, 1, 27540, "A: Titan's Tablet").addSpawn(20554, 27160, 10).addDrop(27160, 100),
-      new Request(3747, 3789, 1, 20560, "A: Book of Shunaiman").addSpawn(20600, 27164, 10).addDrop(27164, 100)
+   private static final Request[] bla = new Request[] {
+         new Request(3727, 3769, 40, 2090, "C: 40 Totems of Kadesh").addDrop(20578, 80).addDrop(20579, 83),
+         new Request(3728, 3770, 50, 6340, "C: 50 Jade Necklaces of Timak").addDrop(20586, 89).addDrop(20588, 100),
+         new Request(3729, 3771, 50, 9480, "C: 50 Enchanted Golem Shards").addDrop(20565, 100),
+         new Request(3730, 3772, 30, 9110, "C: 30 Pieces Monster Eye Meat").addDrop(20556, 50),
+         new Request(3731, 3773, 40, 8690, "C: 40 Eggs of Dire Wyrm").addDrop(20557, 80),
+         new Request(3732, 3774, 100, 9480, "C: 100 Claws of Guardian Basilisk").addDrop(20550, 150),
+         new Request(3733, 3775, 50, 11280, "C: 50 Revenant Chains").addDrop(20552, 100),
+         new Request(3734, 3776, 30, 9640, "C: 30 Windsus Tusks").addDrop(20553, 50),
+         new Request(3735, 3777, 100, 9180, "C: 100 Skulls of Grandis").addDrop(20554, 200),
+         new Request(3736, 3778, 50, 5160, "C: 50 Taik Obsidian Amulets").addDrop(20631, 100).addDrop(20632, 93),
+         new Request(3737, 3779, 30, 3140, "C: 30 Heads of Karul Bugbear").addDrop(20600, 50),
+         new Request(3738, 3780, 40, 3160, "C: 40 Ivory Charms of Tamlin").addDrop(20601, 62).addDrop(20602, 80),
+         new Request(3739, 3781, 1, 6370, "B: Situation Preparation - Leto Chief").addSpawn(20582, 27157, 10)
+               .addDrop(27157, 100),
+         new Request(3740, 3782, 50, 19080, "B: 50 Enchanted Gargoyle Horns").addDrop(20567, 50),
+         new Request(3741, 3783, 50, 17730, "B: 50 Coiled Serpent Totems").addDrop(20269, 93).addDrop(20271, 100),
+         new Request(3742, 3784, 1, 5790, "B: Situation Preparation - Sorcerer Catch of Leto")
+               .addSpawn(20581, 27156, 10)
+               .addDrop(27156, 100),
+         new Request(3743, 3785, 1, 8560, "B: Situation Preparation - Timak Raider Kaikee").addSpawn(20586, 27158, 10)
+               .addDrop(27158, 100),
+         new Request(3744, 3786, 30, 8320, "B: 30 Kronbe Venom Sacs").addDrop(20603, 50),
+         new Request(3745, 3787, 30, 30310, "A: 30 Eva's Charm").addDrop(20562, 50),
+         new Request(3746, 3788, 1, 27540, "A: Titan's Tablet").addSpawn(20554, 27160, 10).addDrop(27160, 100),
+         new Request(3747, 3789, 1, 20560, "A: Book of Shunaiman").addSpawn(20600, 27164, 10).addDrop(27164, 100)
    };
-   private static final Request[] blb = new Request[]{
-      new Request(3748, 3790, 40, 6850, "C: 40 Rotting Tree Spores").addDrop(20558, 67),
-      new Request(3749, 3791, 40, 7250, "C: 40 Trisalim Venom Sacs").addDrop(20560, 66).addDrop(20561, 75),
-      new Request(3750, 3792, 50, 7160, "C: 50 Totems of Taik Orc").addDrop(20633, 53).addDrop(20634, 99),
-      new Request(3751, 3793, 40, 6580, "C: 40 Harit Barbed Necklaces").addDrop(20641, 88).addDrop(20642, 88).addDrop(20643, 91),
-      new Request(3752, 3794, 20, 10100, "C: 20 Coins of Ancient Empire")
-         .addDrop(20661, 50)
-         .addSpawn(20661, 27149, 5)
-         .addDrop(20662, 52)
-         .addSpawn(20662, 27149, 5)
-         .addDrop(27149, 300),
-      new Request(3753, 3795, 30, 13000, "C: 30 Skins of Farkran").addDrop(20667, 90),
-      new Request(3754, 3796, 40, 7660, "C: 40 Tempest Shards").addDrop(20589, 49).addSpawn(20589, 27149, 5).addDrop(27149, 500),
-      new Request(3755, 3797, 40, 7660, "C: 40 Tsunami Shards").addDrop(20590, 51).addSpawn(20590, 27149, 5).addDrop(27149, 500),
-      new Request(3756, 3798, 40, 11260, "C: 40 Manes of Pan Ruem").addDrop(20592, 80).addDrop(20598, 100),
-      new Request(3757, 3799, 40, 7660, "C: 40 Hamadryad Shard").addDrop(20594, 64).addSpawn(20594, 27149, 5).addDrop(27149, 500),
-      new Request(3758, 3800, 30, 8810, "C: 30 Manes of Vanor Silenos").addDrop(20682, 70).addDrop(20683, 85).addDrop(20684, 90),
-      new Request(3759, 3801, 30, 7350, "C: 30 Totems of Tarlk Bugbears").addDrop(20571, 63),
-      new Request(3760, 3802, 1, 8760, "B: Situation Preparation - Overlord Okun of Timak")
-         .addSpawn(20588, 27159, 10)
-         .addDrop(27159, 100),
-      new Request(3761, 3803, 1, 9380, "B: Situation Preparation - Overlord Kakran of Taik")
-         .addSpawn(20634, 27161, 10)
-         .addDrop(27161, 100),
-      new Request(3762, 3804, 40, 17820, "B: 40 Narcissus Soulstones").addDrop(20639, 86).addSpawn(20639, 27149, 5).addDrop(27149, 500),
-      new Request(3763, 3805, 20, 17540, "B: 20 Eyes of Deprived").addDrop(20664, 77),
-      new Request(3764, 3806, 20, 14160, "B: 20 Unicorn Horns").addDrop(20593, 68).addDrop(20599, 86),
-      new Request(3765, 3807, 1, 15960, "B: Golden Mane of Silenos").addSpawn(20686, 27163, 10).addDrop(27163, 100),
-      new Request(3766, 3808, 20, 39100, "A: 20 Skulls of Executed Person").addDrop(20659, 73),
-      new Request(3767, 3809, 1, 39550, "A: Bust of Travis").addSpawn(20662, 27162, 10).addDrop(27162, 100),
-      new Request(3768, 3810, 10, 41200, "A: 10 Swords of Cadmus").addDrop(20676, 64)
+   private static final Request[] blb = new Request[] {
+         new Request(3748, 3790, 40, 6850, "C: 40 Rotting Tree Spores").addDrop(20558, 67),
+         new Request(3749, 3791, 40, 7250, "C: 40 Trisalim Venom Sacs").addDrop(20560, 66).addDrop(20561, 75),
+         new Request(3750, 3792, 50, 7160, "C: 50 Totems of Taik Orc").addDrop(20633, 53).addDrop(20634, 99),
+         new Request(3751, 3793, 40, 6580, "C: 40 Harit Barbed Necklaces").addDrop(20641, 88).addDrop(20642, 88)
+               .addDrop(20643, 91),
+         new Request(3752, 3794, 20, 10100, "C: 20 Coins of Ancient Empire")
+               .addDrop(20661, 50)
+               .addSpawn(20661, 27149, 5)
+               .addDrop(20662, 52)
+               .addSpawn(20662, 27149, 5)
+               .addDrop(27149, 300),
+         new Request(3753, 3795, 30, 13000, "C: 30 Skins of Farkran").addDrop(20667, 90),
+         new Request(3754, 3796, 40, 7660, "C: 40 Tempest Shards").addDrop(20589, 49).addSpawn(20589, 27149, 5)
+               .addDrop(27149, 500),
+         new Request(3755, 3797, 40, 7660, "C: 40 Tsunami Shards").addDrop(20590, 51).addSpawn(20590, 27149, 5)
+               .addDrop(27149, 500),
+         new Request(3756, 3798, 40, 11260, "C: 40 Manes of Pan Ruem").addDrop(20592, 80).addDrop(20598, 100),
+         new Request(3757, 3799, 40, 7660, "C: 40 Hamadryad Shard").addDrop(20594, 64).addSpawn(20594, 27149, 5)
+               .addDrop(27149, 500),
+         new Request(3758, 3800, 30, 8810, "C: 30 Manes of Vanor Silenos").addDrop(20682, 70).addDrop(20683, 85)
+               .addDrop(20684, 90),
+         new Request(3759, 3801, 30, 7350, "C: 30 Totems of Tarlk Bugbears").addDrop(20571, 63),
+         new Request(3760, 3802, 1, 8760, "B: Situation Preparation - Overlord Okun of Timak")
+               .addSpawn(20588, 27159, 10)
+               .addDrop(27159, 100),
+         new Request(3761, 3803, 1, 9380, "B: Situation Preparation - Overlord Kakran of Taik")
+               .addSpawn(20634, 27161, 10)
+               .addDrop(27161, 100),
+         new Request(3762, 3804, 40, 17820, "B: 40 Narcissus Soulstones").addDrop(20639, 86).addSpawn(20639, 27149, 5)
+               .addDrop(27149, 500),
+         new Request(3763, 3805, 20, 17540, "B: 20 Eyes of Deprived").addDrop(20664, 77),
+         new Request(3764, 3806, 20, 14160, "B: 20 Unicorn Horns").addDrop(20593, 68).addDrop(20599, 86),
+         new Request(3765, 3807, 1, 15960, "B: Golden Mane of Silenos").addSpawn(20686, 27163, 10).addDrop(27163, 100),
+         new Request(3766, 3808, 20, 39100, "A: 20 Skulls of Executed Person").addDrop(20659, 73),
+         new Request(3767, 3809, 1, 39550, "A: Bust of Travis").addSpawn(20662, 27162, 10).addDrop(27162, 100),
+         new Request(3768, 3810, 10, 41200, "A: 10 Swords of Cadmus").addDrop(20676, 64)
    };
 
    public Quest335TheSongOfTheHunter(QuestManager questManager) {
@@ -198,8 +206,9 @@ public class Quest335TheSongOfTheHunter extends Quest {
       this.addQuestItem(3697);
       this.addQuestItem(3471);
       this.addQuestItem(bkW);
-   
-      if (questManager != null) questManager.registerQuest(this);
+
+      if (questManager != null)
+         questManager.registerQuest(this);
    }
 
    @Override
@@ -439,7 +448,7 @@ public class Quest335TheSongOfTheHunter extends Quest {
       }
 
       int var3 = var1.getNpcId();
-      int[][][] var4 = (int[][][])null;
+      int[][][] var4 = (int[][][]) null;
       if (var2.getQuestItemsCount(3695) > 0L) {
          var4 = bkY;
       } else if (var2.getQuestItemsCount(3696) > 0L) {
@@ -479,7 +488,8 @@ public class Quest335TheSongOfTheHunter extends Quest {
                if (var25 == 0L) {
                   var2.rollAndGive(3713, 1, 1, 1, 100.0);
                }
-            } else if (var3 == 20553 && var2.getQuestItemsCount(3714) == 0L && (ThreadLocalRandom.current().nextInt(100) < 10)) {
+            } else if (var3 == 20553 && var2.getQuestItemsCount(3714) == 0L
+                  && (ThreadLocalRandom.current().nextInt(100) < 10)) {
                var2.addSpawn(27143, var1.x(), var1.y(), var1.z(), var1.heading(), 100, 300000);
             }
          } else if (var2.getQuestItemsCount(3696) > 0L) {
@@ -523,9 +533,7 @@ public class Quest335TheSongOfTheHunter extends Quest {
       }
 
       if (var2.getQuestItemsCount(3692) > 0L || var2.getQuestItemsCount(3693) > 0L) {
-         if (var2.getQuestItemsCount(3697) > 0L && var2.getItemEquipped(7) == 3471
-            )
-          {
+         if (var2.getQuestItemsCount(3697) > 0L && var2.getItemEquipped(7) == 3471) {
             int var17 = h(var2);
             if (var17 > 0 && var17 < 10) {
                for (int var27 : bkX) {
@@ -553,7 +561,8 @@ public class Quest335TheSongOfTheHunter extends Quest {
                var2.rollAndGive(var18.request_item, 1, 1, var18.request_count, var18.droplist.get(var3).intValue());
             }
 
-            if (var18.spawnlist.containsKey(var3) && var2.getQuestItemsCount(var18.request_item) < var18.request_count) {
+            if (var18.spawnlist.containsKey(var3)
+                  && var2.getQuestItemsCount(var18.request_item) < var18.request_count) {
                int[] var20 = var18.spawnlist.get(var3);
                if ((ThreadLocalRandom.current().nextInt(100) < var20[1])) {
                   var2.addSpawn(var20[0], var1.x(), var1.y(), var1.z(), var1.heading(), 100, 300000);
@@ -608,7 +617,7 @@ public class Quest335TheSongOfTheHunter extends Quest {
       }
 
       var0.takeAllItems(bkW);
-      var0.giveItems(57, 3400 * (int)Math.pow(2.0, var1 - 2));
+      var0.giveItems(57, 3400 * (int) Math.pow(2.0, var1 - 2));
       return true;
    }
 
@@ -630,13 +639,15 @@ public class Quest335TheSongOfTheHunter extends Quest {
             }
          } else if ((ThreadLocalRandom.current().nextInt(100) < 20)) {
             var6[0] = 12 + ThreadLocalRandom.current().nextInt(6);
-            var6[1] = (ThreadLocalRandom.current().nextInt(100) < 5) ? 18 + ThreadLocalRandom.current().nextInt(3) : ThreadLocalRandom.current().nextInt(12);
+            var6[1] = (ThreadLocalRandom.current().nextInt(100) < 5) ? 18 + ThreadLocalRandom.current().nextInt(3)
+                  : ThreadLocalRandom.current().nextInt(12);
             var6[2] = ThreadLocalRandom.current().nextInt(6);
             var6[3] = 6 + ThreadLocalRandom.current().nextInt(6);
             var6[4] = ThreadLocalRandom.current().nextInt(12);
          } else {
             var6[0] = ThreadLocalRandom.current().nextInt(12);
-            var6[1] = (ThreadLocalRandom.current().nextInt(100) < 5) ? 18 + ThreadLocalRandom.current().nextInt(3) : ThreadLocalRandom.current().nextInt(12);
+            var6[1] = (ThreadLocalRandom.current().nextInt(100) < 5) ? 18 + ThreadLocalRandom.current().nextInt(3)
+                  : ThreadLocalRandom.current().nextInt(12);
             var6[2] = ThreadLocalRandom.current().nextInt(6);
             var6[3] = 6 + ThreadLocalRandom.current().nextInt(6);
             var6[4] = ThreadLocalRandom.current().nextInt(12);
@@ -671,23 +682,18 @@ public class Quest335TheSongOfTheHunter extends Quest {
       String var2 = "<html><head><body>Guild Member Tor:<br>%reply%<br>%reply%<br>%reply%<br>%reply%<br>%reply%<br></body></html>";
       int[] var3 = unpackInt(var0.getInt("list"), 5);
 
-      for (int var4 = 0; var4 <= 5; var4++) {
-         String var5 = "<a action=\"bypass -h Quest Quest335TheSongOfTheHunter 30745-request-"
-            + var1[var3[var4]].request_id
-            + "\">"
-            + var1[var3[var4]].text
-            + "</a>";
+      for (int var4 = 0; var4 < 5; var4++) {
+         String var5 = "<a action=\"bypass -h Quest 335_TheSongOfTheHunter 30745-request-"
+               // replaced bypass header above
+               + var1[var3[var4]].request_id
+               + "\">"
+               + var1[var3[var4]].text
+               + "</a>";
          var2 = var2.replaceFirst("%reply%", var5);
       }
 
       return var2;
    }
-
-   
-
-   
-
-   
 
    private static Request b(QuestState var0, Request[] var1) {
       for (Request var5 : var1) {
@@ -739,7 +745,7 @@ public class Quest335TheSongOfTheHunter extends Quest {
 
       public Request addSpawn(int var1, int var2, int var3) {
          try {
-            this.spawnlist.put(var1, new int[]{var2, var3});
+            this.spawnlist.put(var1, new int[] { var2, var3 });
          } catch (Exception var5) {
             var5.printStackTrace();
          }
