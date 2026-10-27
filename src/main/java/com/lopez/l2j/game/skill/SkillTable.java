@@ -580,7 +580,14 @@ public class SkillTable {
 				|| "Mute".equalsIgnoreCase(effectName)
 				|| "SilenceMagicPhysical".equalsIgnoreCase(effectName)
 				|| "PhysicalMute".equalsIgnoreCase(effectName)
-				|| "Petrification".equalsIgnoreCase(effectName));
+				|| "Petrification".equalsIgnoreCase(effectName)
+				|| "Petrify".equalsIgnoreCase(effectName)
+				|| "Medusa".equalsIgnoreCase(effectName)
+				|| "StunSelf".equalsIgnoreCase(effectName)
+				|| "ConfuseMob".equalsIgnoreCase(effectName)
+				|| "Confusion".equalsIgnoreCase(effectName)
+				|| "BigHead".equalsIgnoreCase(effectName)
+				|| "Grow".equalsIgnoreCase(effectName));
 		int effectiveTime = skipBuffMultiplier ? baseTime : resolveBuffDurationSeconds(skillId, baseTime);
 		String abnormalAttr = r.str(e.getAttribute("abnormal"), null);
 		int abnormalMask = AbnormalEffect.parseMask(abnormalAttr, effectName);
