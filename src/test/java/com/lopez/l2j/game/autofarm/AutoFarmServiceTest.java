@@ -221,4 +221,80 @@ class AutoFarmServiceTest {
         assertEquals(AutoFarmAction.ActionType.CAST_SKILL, action.type());
         assertEquals(1177, action.skillId());
     }
+
+    @Test
+    void testSpoilRotationAndAutoSweepWhenSpoilAndSweeperPlacedInAttackTab() {
+        SkillTable skillTable = mock(SkillTable.class);
+
+        SkillTemplate spoil254 = new SkillTemplate(
+                254, 1, "Spoil", SkillTemplate.OperateType.ACTIVE, "SPOIL", "TARGET_ONE",
+                false, 10, 0, 0, 0.0, 40, 0, 1500, 0, 3000, 20, 0.0, false,
+                0, 0, 0, 0, 0, true, false,
+                Collections.emptyList(), Collections.emptyList(), null, null
+        );
+        SkillTemplate sweeper42 = new SkillTemplate(
+                42, 1, "Sweeper", SkillTemplate.OperateType.ACTIVE, "SWEEP", "TARGET_CORPSE_MOB",
+                false, 0, 0, 0, 0.0, 40, 0, 500, 0, 1000, 20, 0.0, false,
+                0, 0, 0, 0, 0, false, false,
+                Collections.emptyList(), Collections.emptyList(), null, null
+        );
+        SkillTemplate spoilFestival302 = new SkillTemplate(
+                302, 1, "Spoil Festival", SkillTemplate.OperateType.ACTIVE, "SPOIL", "TARGET_AREA",
+                false, 20, 0, 0, 0.0, 40, 200, 1500, 0, 3000, 20, 0.0, false,
+                0, 0, 0, 0, 0, true, false,
+                Collections.emptyList(), Collections.emptyList(), null, null
+        );
+        SkillTemplate spoilCrush348 = new SkillTemplate(
+                348, 1, "Spoil Crush", SkillTemplate.OperateType.ACTIVE, "PDAM", "TARGET_ONE",
+                false, 15, 0, 0, 50.0, 40, 0, 1500, 0, 3000, 20, 0.0, false,
+                0, 0, 0, 0, 0, true, false,
+                Collections.emptyList(), Collections.emptyList(), null, null
+        );
+
+        when(skillTable.get(254, 1)).thenReturn(Optional.of(spoil254));
+        when(skillTable.get(42, 1)).thenReturn(Optional.of(sweeper42));
+        when(skillTable.get(302, 1)).thenReturn(Optional.of(spoilFestival302));
+        when(skillTable.get(348, 1)).thenReturn(Optional.of(spoilCrush348));
+
+        AutoFarmService service = new AutoFarmService();
+        ReflectionTestUtils.setField(service, "skillTable", skillTable);
+
+        PlayerCharacter player = createPlayer(5005, "FortuneSeeker");
+        player.skills().put(254, 1);
+        player.skills().put(42, 1);
+        player.skills().put(302, 1);
+        player.skills().put(348, 1);
+
+        AutoFarmState state = service.getOrCreateState(player.objectId());
+        state.setEnabled(true);
+        state.setRndAttackSkills(false);
+        state.setAttackChance(100);
+        // Simula configuracao da screenshot: Spoil (254), Sweeper (42), Spoil Festival (302), Spoil Crush (348) na aba ATTACK
+        state.getAttackSpells().clear();
+        state.getAttackSpells().addAll(List.of(254, 42, 302, 348));
+
+        NpcInstance chest = mock(NpcInstance.class);
+        when(chest.objectId()).thenReturn(95001);
+        when(chest.isAttackable()).thenReturn(true);
+        when(chest.isDead()).thenReturn(false);
+        when(chest.isSpoiled()).thenReturn(false);
+        when(chest.x()).thenReturn(20);
+        when(chest.y()).thenReturn(20);
+
+        // 1. Monstro nao spoilado: seleciona Spoil (254)
+        AutoFarmAction action1 = service.processTick(player, List.of(chest));
+        assertEquals(AutoFarmAction.ActionType.CAST_SKILL, action1.type());
+        assertEquals(254, action1.skillId());
+
+        // 2. Proximo tick (round-robin) e monstro ainda nao foi spoilado -> deve pular Sweeper (42) e usar Spoil Festival (302)
+        AutoFarmAction action2 = service.processTick(player, List.of(chest));
+        assertEquals(AutoFarmAction.ActionType.CAST_SKILL, action2.type());
+        assertEquals(302, action2.skillId());
+
+        // 3. Monstro agora esta spoilado -> deve ignorar Spoil (254), Sweeper (42) e Spoil Festival (302) e usar Spoil Crush (348)
+        when(chest.isSpoiled()).thenReturn(true);
+        AutoFarmAction action3 = service.processTick(player, List.of(chest));
+        assertEquals(AutoFarmAction.ActionType.CAST_SKILL, action3.type());
+        assertEquals(348, action3.skillId());
+    }
 }
