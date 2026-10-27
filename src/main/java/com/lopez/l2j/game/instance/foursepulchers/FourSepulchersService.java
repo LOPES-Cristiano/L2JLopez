@@ -331,8 +331,16 @@ public class FourSepulchersService {
 			return false;
 		}
 
-		// Consome o Pass of Darkness do lider (persistindo via InventoryService se disponivel)
+		// Consome o Pass of Darkness do lider e dos membros da party que o possuirem (persistindo via InventoryService se disponivel)
 		consumeItem(leader, PASS_OF_DARKNESS, 1);
+		if (party != null) {
+			for (PlayerCharacter pc : party) {
+				if (pc != null && pc != leader && pc.objectId() != leader.objectId()
+						&& pc.inventory() != null && pc.inventory().byItemId(PASS_OF_DARKNESS).isPresent()) {
+					consumeItem(pc, PASS_OF_DARKNESS, 1);
+				}
+			}
+		}
 
 		despawnMausoleumMonsters(m);
 		m.reset();
@@ -667,6 +675,73 @@ public class FourSepulchersService {
 	public List<NpcInstance> getSpawnedMonsters(int sepulcherId) {
 		SepulcherMausoleum m = mausoleums.get(sepulcherId);
 		return m != null ? Collections.unmodifiableList(m.spawnedMonsters()) : List.of();
+	}
+
+	/**
+	 * Notifica a morte de um monstro dentro de um dos mausoleus dos Quatro Sepulcros.
+	 * Se for a Sombra de Halisha (5ª sala), entrega o Calice correspondente;
+	 * se for o ultimo monstro vivo da wave atual (salas 1 a 4), concede a Chapel Key ao lider.
+	 */
+	public synchronized boolean onMonsterKilled(NpcInstance npc, PlayerCharacter killer) {
+		if (npc == null) {
+			return false;
+		}
+		for (SepulcherMausoleum m : mausoleums.values()) {
+			if (!m.isInUse() || m.spawnedMonsters().isEmpty()) {
+				continue;
+			}
+			boolean found = false;
+			for (NpcInstance spawned : m.spawnedMonsters()) {
+				if (spawned.objectId() == npc.objectId()) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				continue;
+			}
+			PlayerCharacter leader = resolveMausoleumLeader(m, killer);
+			if (m.stage() >= 5 || npc.npcId() == m.bossId()) {
+				return defeatShadowOfHalisha(m.id(), leader);
+			}
+			boolean allDead = true;
+			for (NpcInstance spawned : m.spawnedMonsters()) {
+				if (spawned.objectId() != npc.objectId() && !spawned.isDead() && !spawned.isDeleted()) {
+					allDead = false;
+					break;
+				}
+			}
+			if (allDead && leader != null) {
+				deliverItem(leader, CHAPEL_KEY, 1);
+				m.lastClearedStage(m.stage());
+				log.info("Sepulcro {} ({}): Wave da Sala {} concluida! Chapel Key entregue a {}.",
+						m.id(), m.name(), m.stage(), leader.name());
+				return true;
+			}
+			return false;
+		}
+		return false;
+	}
+
+	private PlayerCharacter resolveMausoleumLeader(SepulcherMausoleum m, PlayerCharacter fallback) {
+		if (m == null) {
+			return fallback;
+		}
+		for (PlayerCharacter pc : m.partyMembers()) {
+			if (pc != null && pc.objectId() == m.leaderId()) {
+				return pc;
+			}
+		}
+		if (gameWorld != null && m.leaderId() > 0) {
+			PlayerCharacter onlineLeader = gameWorld.getPlayer(m.leaderId());
+			if (onlineLeader != null) {
+				return onlineLeader;
+			}
+		}
+		if (!m.partyMembers().isEmpty()) {
+			return m.partyMembers().get(0);
+		}
+		return fallback;
 	}
 
 	private ItemTemplate resolveTemplate(int itemId) {
