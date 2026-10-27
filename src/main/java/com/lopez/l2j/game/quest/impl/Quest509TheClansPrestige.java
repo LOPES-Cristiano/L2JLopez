@@ -53,7 +53,7 @@ public class Quest509TheClansPrestige extends Quest {
 
         String string2 = event;
         int n = qs.getInt("pledge_make_well_known");
-        int n2 = getFirstStartNpc();
+        int n2 = qs.resolveEventNpcId(getFirstStartNpc());
         if (n2 == 31331) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
