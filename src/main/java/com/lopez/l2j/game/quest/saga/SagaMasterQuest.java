@@ -9,14 +9,16 @@ import com.lopez.l2j.game.quest.State;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Superclasse base que encapsula todo o fluxo de progressao das 31 Sagas de 3a Classe no Lineage II Interlude.
- * Replica fielmente a sequencia das 6 Tablets of Vision, os Halisha's Marks, Arconte de Halisha e troca de classe.
+ * Superclasse base que encapsula todo o fluxo de progressao das 31 Sagas de 3a
+ * Classe no Lineage II Interlude.
+ * Replica fielmente a sequencia das 6 Tablets of Vision, os Halisha's Marks,
+ * Arconte de Halisha e troca de classe.
  */
 public abstract class SagaMasterQuest extends Quest {
 
-	public static final int[] ARCHON_MINIONS = {21646, 21647, 21648, 21649, 21650, 21651};
-	public static final int[] GUARDIAN_ANGELS = {27214, 27215, 27216};
-	public static final int[] ARCHON_HELLISHA_NORM = {18212, 18213, 18214, 18215, 18216, 18217, 18218, 18219};
+	public static final int[] ARCHON_MINIONS = { 21646, 21647, 21648, 21649, 21650, 21651 };
+	public static final int[] GUARDIAN_ANGELS = { 27214, 27215, 27216 };
+	public static final int[] ARCHON_HELLISHA_NORM = { 18212, 18213, 18214, 18215, 18216, 18217, 18218, 18219 };
 
 	protected final int classId;
 	protected final int prevClass;
@@ -83,12 +85,14 @@ public abstract class SagaMasterQuest extends Quest {
 
 	protected void completeSaga(QuestState qs) {
 		PlayerCharacter pc = qs.playerChar();
-		if (pc == null) return;
+		if (pc == null)
+			return;
 
 		angelKills.remove(pc.objectId());
+		qs.unset("angelKills");
 		qs.addExpAndSp(2586527, 0);
 		qs.giveItems(57, 5000000); // 5kk Adena
-		qs.giveItems(6622, 1);       // Book of Giants (Giant's Codex)
+		qs.giveItems(6622, 1); // Book of Giants (Giant's Codex)
 		qs.exitQuest(false);
 
 		// Converte a classe para a 3a Classe
@@ -113,12 +117,16 @@ public abstract class SagaMasterQuest extends Quest {
 		long current = qs.getQuestItemsCount(items[3]);
 		if (current < 700) {
 			qs.giveItems(items[3], 1);
-			qs.playSound(QuestState.SOUND_ITEMGET);
+			if (current + 1 >= 700) {
+				qs.takeItems(items[3], 20);
+				qs.addSpawn(mob[1], 180000);
+				qs.playSound(QuestState.SOUND_MIDDLE);
+			} else {
+				qs.playSound(QuestState.SOUND_ITEMGET);
+			}
 		} else {
-			// Atingiu os 700 Halisha's Marks: derrota o Arconte e adquire o Amuleto 5
-			qs.takeItems(items[3], -1);
-			qs.giveItems(items[8], 1); // Resonance Amulet 5
-			qs.setCond(16);
+			qs.takeItems(items[3], 20);
+			qs.addSpawn(mob[1], 180000);
 			qs.playSound(QuestState.SOUND_MIDDLE);
 		}
 	}
@@ -126,7 +134,8 @@ public abstract class SagaMasterQuest extends Quest {
 	@Override
 	public String onEvent(String event, QuestState qs) {
 		PlayerCharacter pc = qs.playerChar();
-		if (pc == null) return null;
+		if (pc == null)
+			return null;
 
 		if ("0-011.htm".equalsIgnoreCase(event) || "0-012.htm".equalsIgnoreCase(event) ||
 				"0-013.htm".equalsIgnoreCase(event) || "0-014.htm".equalsIgnoreCase(event) ||
@@ -244,7 +253,8 @@ public abstract class SagaMasterQuest extends Quest {
 	@Override
 	public String onTalk(NpcInstance npcInst, QuestState qs) {
 		PlayerCharacter pc = qs.playerChar();
-		if (pc == null) return "noquest";
+		if (pc == null)
+			return "noquest";
 
 		int npcId = npcInst.getNpcId();
 		int cond = qs.getCond();
@@ -259,11 +269,15 @@ public abstract class SagaMasterQuest extends Quest {
 				return "0-01.htm";
 			}
 		} else if (cond == 1) {
-			if (npcId == npc[0]) return "0-04.htm";
-			if (npcId == npc[2]) return "2-01.htm";
+			if (npcId == npc[0])
+				return "0-04.htm";
+			if (npcId == npc[2])
+				return "2-01.htm";
 		} else if (cond == 2) {
-			if (npcId == npc[2]) return "2-02.htm";
-			if (npcId == npc[1]) return "1-01.htm";
+			if (npcId == npc[2])
+				return "2-02.htm";
+			if (npcId == npc[1])
+				return "1-01.htm";
 		} else if (cond == 3) {
 			if (npcId == npc[1]) {
 				if (qs.hasQuestItems(items[0])) {
@@ -281,49 +295,75 @@ public abstract class SagaMasterQuest extends Quest {
 				return "tunatun_q72_02.htm";
 			}
 		} else if (cond == 4) {
-			if (npcId == npc[1]) return "1-04.htm";
-			if (npcId == npc[2]) return "2-03.htm";
+			if (npcId == npc[1])
+				return "1-04.htm";
+			if (npcId == npc[2])
+				return "2-03.htm";
 		} else if (cond == 5) {
-			if (npcId == npc[2]) return "2-04.htm";
-			if (npcId == npc[5]) return "5-01.htm";
+			if (npcId == npc[2])
+				return "2-04.htm";
+			if (npcId == npc[5])
+				return "5-01.htm";
 		} else if (cond == 6) {
-			if (npcId == npc[5]) return "5-03.htm";
-			if (npcId == npc[6]) return "6-01.htm";
+			if (npcId == npc[5])
+				return "5-03.htm";
+			if (npcId == npc[6])
+				return "6-01.htm";
 		} else if (cond == 7) {
-			if (npcId == npc[6]) return "6-02.htm";
+			if (npcId == npc[6])
+				return "6-02.htm";
 		} else if (cond == 8) {
-			if (npcId == npc[6]) return "6-04.htm";
-			if (npcId == npc[7]) return "7-01.htm";
+			if (npcId == npc[6])
+				return "6-04.htm";
+			if (npcId == npc[7])
+				return "7-01.htm";
 		} else if (cond == 9) {
-			if (npcId == npc[7]) return "7-05.htm";
+			if (npcId == npc[7])
+				return "7-05.htm";
 		} else if (cond == 10) {
-			if (npcId == npc[7]) return "7-07.htm";
-			if (npcId == npc[3]) return "3-01.htm";
+			if (npcId == npc[7])
+				return "7-07.htm";
+			if (npcId == npc[3])
+				return "3-01.htm";
 		} else if (cond == 11 || cond == 12) {
 			if (npcId == npc[3]) {
 				return qs.hasQuestItems(items[2]) ? "3-05.htm" : "3-04.htm";
 			}
 		} else if (cond == 13) {
-			if (npcId == npc[3]) return "3-06.htm";
-			if (npcId == npc[8]) return "8-01.htm";
+			if (npcId == npc[3])
+				return "3-06.htm";
+			if (npcId == npc[8])
+				return "8-01.htm";
 		} else if (cond == 14) {
-			if (npcId == npc[8]) return "8-03.htm";
-			if (npcId == npc[11]) return "11-01.htm";
+			if (npcId == npc[8])
+				return "8-03.htm";
+			if (npcId == npc[11])
+				return "11-01.htm";
 		} else if (cond == 15) {
-			if (npcId == npc[11]) return "11-02.htm";
-			if (npcId == npc[9]) return "9-01.htm";
+			if (npcId == npc[11])
+				return "11-02.htm";
+			if (npcId == npc[9])
+				return "9-01.htm";
 		} else if (cond == 16) {
-			if (npcId == npc[9]) return "9-02.htm";
+			if (npcId == npc[9])
+				return "9-02.htm";
 		} else if (cond == 17) {
-			if (npcId == npc[9]) return "9-04.htm";
-			if (npcId == npc[10]) return "10-01.htm";
-			if (npcId == npc[4]) return "4-06.htm";
+			if (npcId == npc[9])
+				return "9-04.htm";
+			if (npcId == npc[10])
+				return "10-01.htm";
+			if (npcId == npc[4])
+				return "4-06.htm";
 		} else if (cond == 18) {
-			if (npcId == npc[10]) return "10-05.htm";
-			if (npcId == npc[4]) return "4-09.htm";
+			if (npcId == npc[10])
+				return "10-05.htm";
+			if (npcId == npc[4])
+				return "4-09.htm";
 		} else if (cond == 19) {
-			if (npcId == npc[10]) return "10-07.htm";
-			if (npcId == npc[0]) return "0-06.htm";
+			if (npcId == npc[10])
+				return "10-07.htm";
+			if (npcId == npc[0])
+				return "0-06.htm";
 		} else if (cond == 20 && npcId == npc[0]) {
 			if (pc.level() >= 76) {
 				completeSaga(qs);
@@ -338,7 +378,8 @@ public abstract class SagaMasterQuest extends Quest {
 	@Override
 	public String onKill(NpcInstance npcInst, QuestState qs, boolean isPet) {
 		PlayerCharacter pc = qs.playerChar();
-		if (pc == null) return null;
+		if (pc == null)
+			return null;
 
 		int npcId = npcInst.getNpcId();
 		int cond = qs.getCond();
@@ -346,9 +387,13 @@ public abstract class SagaMasterQuest extends Quest {
 		// 1. Guardian Angels (Cond 6 -> Matar 10 para obter Amuleto 2)
 		for (int ga : GUARDIAN_ANGELS) {
 			if (ga == npcId && cond == 6) {
-				int kills = angelKills.merge(pc.objectId(), 1, Integer::sum);
+				int prevKills = Math.max(angelKills.getOrDefault(pc.objectId(), 0), qs.getInt("angelKills"));
+				int kills = prevKills + 1;
+				angelKills.put(pc.objectId(), kills);
+				qs.set("angelKills", String.valueOf(kills));
 				if (kills >= 10) {
 					angelKills.remove(pc.objectId());
+					qs.unset("angelKills");
 					qs.giveItems(items[5], 1); // Resonance Amulet 2
 					qs.setCond(7);
 					qs.playSound(QuestState.SOUND_MIDDLE);
