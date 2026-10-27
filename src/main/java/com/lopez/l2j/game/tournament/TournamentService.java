@@ -282,21 +282,35 @@ public class TournamentService {
 			return false;
 		}
 		String candidateAccount = candidate.account();
-		if (candidateAccount == null || candidateAccount.isBlank()) {
-			return false;
-		}
+		String candidateIp = resolvePlayerIp(candidate);
 		Queue<TournamentTeam> soloQueue = waitingQueues.get(TournamentMode.SOLO_1X1);
 		if (soloQueue == null) {
 			return false;
 		}
 		for (TournamentTeam team : soloQueue) {
 			for (PlayerCharacter existing : team.members()) {
-				if (existing != null && candidateAccount.equalsIgnoreCase(existing.account())) {
+				if (existing == null) continue;
+				if (candidateAccount != null && !candidateAccount.isBlank() && candidateAccount.equalsIgnoreCase(existing.account())) {
+					return true;
+				}
+				if (candidateIp != null && !"127.0.0.1".equals(candidateIp) && candidateIp.equals(resolvePlayerIp(existing))) {
 					return true;
 				}
 			}
 		}
 		return false;
+	}
+
+	private String resolvePlayerIp(PlayerCharacter player) {
+		if (player == null) return null;
+		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (world != null) {
+			var op = world.findPlayer(player.objectId());
+			if (op instanceof com.lopez.l2j.network.game.GameSession gs && gs.clientIp() != null && !gs.clientIp().isBlank()) {
+				return gs.clientIp();
+			}
+		}
+		return null;
 	}
 
 	public List<RewardEntry> getConfigured1x1Rewards() {
