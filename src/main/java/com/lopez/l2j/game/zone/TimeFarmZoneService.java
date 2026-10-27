@@ -2,9 +2,16 @@ package com.lopez.l2j.game.zone;
 
 import com.lopez.l2j.game.item.Inventory;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.service.CharacterVariablesService;
+import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemList;
+import com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -13,6 +20,7 @@ import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -31,6 +39,10 @@ public class TimeFarmZoneService {
 
 	private final Map<Integer, TimeFarmZone> zones = new ConcurrentHashMap<>();
 	private final Map<Integer, ZoneSession> activeSessions = new ConcurrentHashMap<>();
+	@Autowired(required = false)
+	private InventoryService inventoryService;
+	@Autowired(required = false)
+	private CharacterVariablesService variablesService;
 	private final java.util.concurrent.ScheduledExecutorService expirationScheduler =
 			java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
 				Thread t = Thread.ofVirtual().name("TimeFarmZoneExpirationTask").unstarted(r);
@@ -38,13 +50,19 @@ public class TimeFarmZoneService {
 			});
 
 	public TimeFarmZoneService() {
+		this(null, null);
+	}
+
+	@Autowired
+	public TimeFarmZoneService(
+			@Autowired(required = false) InventoryService inventoryService,
+			@Autowired(required = false) CharacterVariablesService variablesService) {
+		this.inventoryService = inventoryService;
+		this.variablesService = variablesService;
 		loadZones();
 		expirationScheduler.scheduleAtFixedRate(() -> {
 			try {
-				GameWorld gw = GameWorld.getInstance();
-				if (gw != null) {
-					checkExpirations(gw);
-				}
+				checkExpiredSessions();
 			} catch (Exception ignored) {
 			}
 		}, 5000L, 5000L, java.util.concurrent.TimeUnit.MILLISECONDS);
@@ -94,15 +112,37 @@ public class TimeFarmZoneService {
 
 		Inventory inv = player.inventory();
 		if (zone.costAdena() > 0) {
+			int cost = (int) zone.costAdena();
 			if (inv.count(57) < zone.costAdena()) {
 				player.sendMessage("Adena insuficiente para entrar na zona de farm temporal.");
 				return false;
 			}
-			inv.destroyItemByItemId(57, (int) zone.costAdena());
+			if (inventoryService != null) {
+				var res = inventoryService.consumeItem(inv, 57, cost, "TimeFarmZone");
+				if (res == null) {
+					player.sendMessage("Adena insuficiente para entrar na zona de farm temporal.");
+					return false;
+				}
+				GameWorld gw = GameWorld.getInstance();
+				if (gw != null) {
+					gw.sendPacket(player.objectId(), new InventoryUpdate(List.of(
+							ItemInfo.of(res.item(), res.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+				}
+			} else {
+				inv.destroyItemByItemId(57, cost);
+				GameWorld gw = GameWorld.getInstance();
+				if (gw != null) {
+					gw.sendPacket(player.objectId(), ItemList.of(inv.items(), false));
+				}
+			}
 		}
 
 		long expire = System.currentTimeMillis() + (zone.intervalMinutes() * 60_000L);
 		activeSessions.put(player.objectId(), new ZoneSession(zoneId, expire));
+		if (variablesService != null) {
+			variablesService.setVariable(player.objectId(), "time_farm_zone_id", String.valueOf(zoneId));
+			variablesService.setVariable(player.objectId(), "time_farm_expire_ms", String.valueOf(expire));
+		}
 		player.teleToLocation(zone.enterX(), zone.enterY(), zone.enterZ());
 		GameWorld gw = GameWorld.getInstance();
 		if (gw != null) {
@@ -126,6 +166,10 @@ public class TimeFarmZoneService {
 	public void exitZone(PlayerCharacter player) {
 		if (player == null) return;
 		ZoneSession session = activeSessions.remove(player.objectId());
+		if (variablesService != null) {
+			variablesService.deleteVariable(player.objectId(), "time_farm_zone_id");
+			variablesService.deleteVariable(player.objectId(), "time_farm_expire_ms");
+		}
 		if (session != null) {
 			TimeFarmZone zone = zones.get(session.zoneId());
 			if (zone != null) {
@@ -138,22 +182,39 @@ public class TimeFarmZoneService {
 		}
 	}
 
+	public void checkExpiredSessions() {
+		checkExpirations(GameWorld.getInstance());
+	}
+
 	public void checkExpirations(GameWorld world) {
 		long now = System.currentTimeMillis();
 		for (Map.Entry<Integer, ZoneSession> entry : activeSessions.entrySet()) {
 			if (now >= entry.getValue().expireTimeMillis()) {
 				int playerId = entry.getKey();
 				ZoneSession session = activeSessions.remove(playerId);
-				TimeFarmZone zone = zones.get(session.zoneId());
+				if (variablesService != null) {
+					variablesService.deleteVariable(playerId, "time_farm_zone_id");
+					variablesService.deleteVariable(playerId, "time_farm_expire_ms");
+				}
+				TimeFarmZone zone = session != null ? zones.get(session.zoneId()) : null;
 				if (zone != null && world != null) {
 					var onlinePlayer = world.findPlayer(playerId);
-					if (onlinePlayer != null && onlinePlayer.character() != null) {
+					if (onlinePlayer != null) {
 						var pc = onlinePlayer.character();
-						pc.teleToLocation(zone.exitX(), zone.exitY(), zone.exitZ());
-						world.teleportPlayer(pc, zone.exitX(), zone.exitY(), zone.exitZ(), 0);
-						pc.sendMessage("Seu tempo na zona de farm temporal expirou!");
+						if (pc != null) {
+							pc.teleToLocation(zone.exitX(), zone.exitY(), zone.exitZ());
+							world.teleportPlayer(pc, zone.exitX(), zone.exitY(), zone.exitZ(), 0);
+							pc.sendMessage("Seu tempo na zona de farm temporal expirou!");
+						} else {
+							onlinePlayer.send(new TeleportToLocation(playerId, zone.exitX(), zone.exitY(), zone.exitZ(), 0));
+							onlinePlayer.sendMessage("Seu tempo na zona de farm temporal expirou!");
+						}
 					}
 				}
+			} else if (variablesService != null) {
+				int playerId = entry.getKey();
+				long remSec = Math.max(0L, (entry.getValue().expireTimeMillis() - now) / 1000L);
+				variablesService.setVariable(playerId, "time_farm_remaining_sec", String.valueOf(remSec));
 			}
 		}
 	}
