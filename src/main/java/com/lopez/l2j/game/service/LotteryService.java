@@ -1,6 +1,7 @@
 package com.lopez.l2j.game.service;
 
 import com.lopez.l2j.game.item.ItemInstance;
+import com.lopez.l2j.game.item.ItemRepository;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,7 @@ public class LotteryService {
                              int firstPrizeWinners, int secondPrizeWinners, int thirdPrizeWinners) {}
 
     private InventoryService inventoryService;
+    private ItemRepository itemRepository;
     private JdbcClient jdbc;
 
     private int currentLotteryId = 1001;
@@ -49,20 +51,30 @@ public class LotteryService {
     public LotteryService() {}
 
     public LotteryService(InventoryService inventoryService) {
-        this(inventoryService, null);
+        this(inventoryService, null, null);
+    }
+
+    public LotteryService(InventoryService inventoryService, JdbcClient jdbc) {
+        this(inventoryService, jdbc, null);
     }
 
     @Autowired
     public LotteryService(
             @Autowired(required = false) InventoryService inventoryService,
-            @Autowired(required = false) JdbcClient jdbc) {
+            @Autowired(required = false) JdbcClient jdbc,
+            @Autowired(required = false) ItemRepository itemRepository) {
         this.inventoryService = inventoryService;
         this.jdbc = jdbc;
+        this.itemRepository = itemRepository;
         loadFromDb();
     }
 
     public void setInventoryService(InventoryService inventoryService) {
         this.inventoryService = inventoryService;
+    }
+
+    public void setItemRepository(ItemRepository itemRepository) {
+        this.itemRepository = itemRepository;
     }
 
     public static int encodeNumbersBitmask(Set<Integer> numbers) {
@@ -129,6 +141,11 @@ public class LotteryService {
             ticketItem.enchantLevel(currentLotteryId);
             ticketItem.customType1(type1);
             ticketItem.customType2(type2);
+            if (inventoryService != null) {
+                inventoryService.saveItem(ticketItem);
+            } else if (itemRepository != null) {
+                itemRepository.update(ticketItem);
+            }
         }
 
         return buyTicket(player.objectId(), player.name(), numbers).isPresent();
@@ -262,14 +279,33 @@ public class LotteryService {
         claimedPrizes.add(claimKey);
         var inv = player.inventory();
         if (inv != null) {
-            inv.destroyItemByItemId(LOTTERY_TICKET_ITEM_ID, 1);
             if (inventoryService != null) {
+                var consumed = inventoryService.consumeItem(inv, LOTTERY_TICKET_ITEM_ID, 1, "LotteryClaim");
+                if (consumed == null) {
+                    inv.destroyItemByItemId(LOTTERY_TICKET_ITEM_ID, 1);
+                }
                 var added = inventoryService.addItem(inv, ADENA_ITEM_ID, totalPrize, "LotteryPrize");
                 if (added == null) {
                     inv.addAdena(totalPrize);
                 }
             } else {
+                var ticketOpt = inv.byItemId(LOTTERY_TICKET_ITEM_ID);
+                inv.destroyItemByItemId(LOTTERY_TICKET_ITEM_ID, 1);
+                if (itemRepository != null && ticketOpt.isPresent()) {
+                    try {
+                        itemRepository.delete(ticketOpt.get().objectId());
+                    } catch (Exception ignored) {
+                    }
+                }
                 inv.addAdena(totalPrize);
+                if (itemRepository != null) {
+                    inv.byItemId(ADENA_ITEM_ID).ifPresent(adenaItem -> {
+                        try {
+                            itemRepository.update(adenaItem);
+                        } catch (Exception ignored) {
+                        }
+                    });
+                }
             }
         }
 
