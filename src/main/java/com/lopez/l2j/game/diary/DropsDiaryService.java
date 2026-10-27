@@ -29,8 +29,52 @@ public class DropsDiaryService {
 	// playerId -> (itemId -> DailyDropRecord)
 	private final Map<Integer, Map<Integer, DailyDropRecord>> dropsByPlayer = new ConcurrentHashMap<>();
 
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	private org.springframework.jdbc.core.simple.JdbcClient jdbc;
+
 	public DropsDiaryService() {
 		loadLimits();
+	}
+
+	@org.springframework.beans.factory.annotation.Autowired
+	public DropsDiaryService(@org.springframework.beans.factory.annotation.Autowired(required = false) org.springframework.jdbc.core.simple.JdbcClient jdbc) {
+		this.jdbc = jdbc;
+		loadLimits();
+		loadFromDb();
+	}
+
+	@jakarta.annotation.PostConstruct
+	public void initDb() {
+		loadFromDb();
+	}
+
+	private void loadFromDb() {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("""
+					CREATE TABLE IF NOT EXISTS character_drops_diary (
+						charId INT NOT NULL,
+						itemId INT NOT NULL,
+						drop_date VARCHAR(16) NOT NULL,
+						drop_count INT NOT NULL DEFAULT 0,
+						PRIMARY KEY (charId, itemId)
+					)
+					""").update();
+			LocalDate today = LocalDate.now();
+			var rows = jdbc.sql("SELECT charId, itemId, drop_date, drop_count FROM character_drops_diary WHERE drop_date = :dt")
+					.param("dt", today.toString())
+					.query().listOfRows();
+			for (var r : rows) {
+				int charId = ((Number) r.get("charId")).intValue();
+				int itemId = ((Number) r.get("itemId")).intValue();
+				int count = ((Number) r.get("drop_count")).intValue();
+				dropsByPlayer.computeIfAbsent(charId, k -> new ConcurrentHashMap<>())
+						.put(itemId, new DailyDropRecord(today, count));
+			}
+		} catch (Exception ignored) {
+		}
 	}
 
 	public synchronized void loadLimits() {
@@ -98,13 +142,28 @@ public class DropsDiaryService {
 		if (count <= 0) return;
 		LocalDate today = LocalDate.now();
 
-		dropsByPlayer.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>())
+		DailyDropRecord updated = dropsByPlayer.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>())
 				.compute(itemId, (k, old) -> {
 					if (old == null || !today.equals(old.date())) {
 						return new DailyDropRecord(today, count);
 					}
 					return new DailyDropRecord(today, old.count() + count);
 				});
+		if (jdbc != null && updated != null) {
+			try {
+				jdbc.sql("""
+						INSERT INTO character_drops_diary (charId, itemId, drop_date, drop_count)
+						VALUES (:cid, :iid, :dt, :cnt)
+						ON DUPLICATE KEY UPDATE drop_date = VALUES(drop_date), drop_count = VALUES(drop_count)
+						""")
+						.param("cid", playerId)
+						.param("iid", itemId)
+						.param("dt", today.toString())
+						.param("cnt", updated.count())
+						.update();
+			} catch (Exception ignored) {
+			}
+		}
 	}
 
 	public int getDailyCount(int playerId, int itemId) {
