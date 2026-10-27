@@ -123,6 +123,7 @@ public class Quest242PossessorOfAPreciousSoul2 extends Quest {
 				if (cornerstones >= 4) {
 					qs.setCond(10);
 					qs.playSound(QuestState.SOUND_MIDDLE);
+					qs.addSpawn(PURE_UNICORN, 85884, -76588, -3470, 60000);
 				}
 			}
 			return event;
@@ -244,6 +245,7 @@ public class Quest242PossessorOfAPreciousSoul2 extends Quest {
 			} else if (cond == 10) {
 				qs.setCond(11);
 				qs.playSound(QuestState.SOUND_MIDDLE);
+				qs.addSpawn(PURE_UNICORN, 85884, -76588, -3470, 60000);
 				return "31746-2.htm";
 			}
 		} else if (npcId == PURE_UNICORN) {
