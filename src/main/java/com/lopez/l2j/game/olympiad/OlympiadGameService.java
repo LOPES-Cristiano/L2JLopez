@@ -72,6 +72,24 @@ public class OlympiadGameService {
 		for (OlympiadMode mode : OlympiadMode.values()) {
 			queues.put(mode, Collections.synchronizedList(new ArrayList<>()));
 		}
+		matchScheduler.scheduleAtFixedRate(this::runPeriodicMatchmaking, 30, 30, java.util.concurrent.TimeUnit.SECONDS);
+	}
+
+	@jakarta.annotation.PreDestroy
+	public void shutdown() {
+		matchScheduler.shutdownNow();
+	}
+
+	private void runPeriodicMatchmaking() {
+		if (!Config.OLYMPIAD_ENABLED) {
+			return;
+		}
+		int stadiumIndex = 1;
+		for (OlympiadMode mode : OlympiadMode.values()) {
+			if (hasConfiguredParticipantsForScheduledMatch(mode)) {
+				createMatchIfReady(mode, stadiumIndex++);
+			}
+		}
 	}
 
 	@Autowired(required = false)
