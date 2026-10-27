@@ -56,10 +56,19 @@ public class Quest660AidingtheFloranVillage extends Quest {
 		String html = event;
 
         String string2 = event;
-        int n = getFirstStartNpc();
+        int n = qs.resolveEventNpcId(getFirstStartNpc());
+        if (n == 30608 && (event.equalsIgnoreCase("menu_select?ask=660&reply=1")
+                || event.equalsIgnoreCase("menu_select?ask=660&reply=2")
+                || event.equalsIgnoreCase("menu_select?ask=660&reply=3")
+                || event.equalsIgnoreCase("menu_select?ask=660&reply=10")
+                || event.equalsIgnoreCase("menu_select?ask=660&reply=14")
+                || event.equalsIgnoreCase("menu_select?ask=660&reply=18")
+                || (event.equalsIgnoreCase("menu_select?ask=660&reply=20") && qs.getCond() == 2))) {
+            n = 30291;
+        }
         if (n == 30608) {
             if (event.equalsIgnoreCase("quest_accept")) {
-                if (pc.getLevel() >= 30) {
+                if (pc == null || pc.getLevel() >= 30) {
                     qs.setCond(1);
                     qs.set("support_ploran_town", String.valueOf(1), true);
                     qs.setState(State.STARTED);
