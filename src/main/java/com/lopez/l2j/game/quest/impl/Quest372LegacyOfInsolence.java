@@ -108,7 +108,7 @@ public class Quest372LegacyOfInsolence extends Quest {
 		String html = event;
 
         String string2 = event;
-        int n = getFirstStartNpc();
+        int n = qs.resolveEventNpcId(getFirstStartNpc());
         if (n == 30844) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
