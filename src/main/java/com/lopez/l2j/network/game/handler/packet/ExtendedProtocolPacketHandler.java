@@ -35,13 +35,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Handler modular para todos os pacotes estendidos do protocolo Interlude (Revision 746):
- * Alianca, Clan Extended, Party Matching Room, MPCC (Command Channel), Dwarven Manufacture,
- * Manor/Castelos, Pets, Barcos/Veiculos, Rotacao, Observacao/Olimpiadas, Peticoes e Ambiente.
+ * Handler modular para todos os pacotes estendidos do protocolo Interlude
+ * (Revision 746):
+ * Alianca, Clan Extended, Party Matching Room, MPCC (Command Channel), Dwarven
+ * Manufacture,
+ * Manor/Castelos, Pets, Barcos/Veiculos, Rotacao, Observacao/Olimpiadas,
+ * Peticoes e Ambiente.
  */
 public class ExtendedProtocolPacketHandler {
 
 	private static final Map<Integer, PartyMatchRoomState> PARTY_ROOMS = new ConcurrentHashMap<>();
+	private static final java.util.Set<Integer> PARTY_WAITING_ROOM = ConcurrentHashMap.newKeySet();
+	private final java.util.Set<String> redeemedCoupons = ConcurrentHashMap.newKeySet();
 	private static final AtomicInteger NEXT_ROOM_ID = new AtomicInteger(1);
 
 	public static class PartyMatchRoomState {
@@ -56,7 +61,8 @@ public class ExtendedProtocolPacketHandler {
 		public final String leaderName;
 		public final List<PartyRoomMemberEntry> members = new ArrayList<>();
 
-		public PartyMatchRoomState(int id, String title, int location, int minLvl, int maxLvl, int maxMembers, int lootType, int leaderObjId, String leaderName) {
+		public PartyMatchRoomState(int id, String title, int location, int minLvl, int maxLvl, int maxMembers,
+				int lootType, int leaderObjId, String leaderName) {
 			this.id = id;
 			this.title = title != null && !title.isBlank() ? title : "Party Room #" + id;
 			this.location = location;
@@ -134,7 +140,8 @@ public class ExtendedProtocolPacketHandler {
 	}
 
 	public void handleLinkHtml(RequestLinkHtml p) {
-		if (p.link() == null || p.link().isBlank() || p.link().contains("..") || p.link().contains("\\") || p.link().contains(":")) {
+		if (p.link() == null || p.link().isBlank() || p.link().contains("..") || p.link().contains("\\")
+				|| p.link().contains(":")) {
 			send(new ActionFailed());
 			return;
 		}
@@ -283,7 +290,8 @@ public class ExtendedProtocolPacketHandler {
 				send(new SpawnItem(gi.objectId(), gi.itemId(), gi.x(), gi.y(), gi.z(), true, gi.count()));
 			}
 		}
-		send(new ServerObjectInfo(active.objectId(), 30000, active.name(), false, active.x(), active.y(), active.z(), 0, 10.0, 20.0, 100, 100));
+		send(new ServerObjectInfo(active.objectId(), 30000, active.name(), false, active.x(), active.y(), active.z(), 0,
+				10.0, 20.0, 100, 100));
 	}
 
 	public void handleMagicSkillUseGround(RequestExMagicSkillUseGround p) {
@@ -303,7 +311,32 @@ public class ExtendedProtocolPacketHandler {
 	// =========================================================================
 
 	public void handleSiegeInfo(RequestSiegeInfo p) {
-		int castleId = 1;
+		PlayerCharacter active = active();
+		int resolvedCastleId = 1;
+		if (ctx() != null && ctx().castles() != null && active != null) {
+			if (session.targetObjectId() > 0 && ctx().world() != null) {
+				var npcOpt = ctx().world().npc(session.targetObjectId());
+				if (npcOpt.isPresent()) {
+					var cAtNpc = ctx().castles().getCastleAt(npcOpt.get().x(), npcOpt.get().y(), npcOpt.get().z(),
+							ctx().zones());
+					if (cAtNpc.isPresent()) {
+						resolvedCastleId = cAtNpc.get().id();
+					}
+				}
+			}
+			if (resolvedCastleId == 1) {
+				var cAtPlayer = ctx().castles().getCastleAt(active.x(), active.y(), active.z(), ctx().zones());
+				if (cAtPlayer.isPresent()) {
+					resolvedCastleId = cAtPlayer.get().id();
+				} else if (active.clanId() > 0 && ctx().clans() != null) {
+					var clanOpt = ctx().clans().byClanId(active.clanId());
+					if (clanOpt.isPresent() && clanOpt.get().castleId() > 0) {
+						resolvedCastleId = clanOpt.get().castleId();
+					}
+				}
+			}
+		}
+		int castleId = resolvedCastleId;
 		String castleName = "Gludio";
 		int ownerClanId = 0;
 		String ownerName = "";
@@ -323,8 +356,25 @@ public class ExtendedProtocolPacketHandler {
 				}
 			}
 		}
-		send(new SiegeInfo(castleId, ownerClanId, castleName, ownerName, leaderName, (int) (System.currentTimeMillis() / 1000L + 3600)));
+		send(new SiegeInfo(castleId, ownerClanId, castleName, ownerName, leaderName,
+				(int) (System.currentTimeMillis() / 1000L + 3600)));
 		send(new ExShowFortressMapInfo(101, false, 3));
+		if (p == null)
+			return;
+	}
+
+	public void handleSetCastleSiegeTime(RequestSetCastleSiegeTime p) {
+		PlayerCharacter active = active();
+		if (active == null) {
+			return;
+		}
+		int castleId = p.castleId() > 0 ? p.castleId() : 1;
+		long newSiegeTimeMs = p.time() > 100_000_000 ? p.time() * 1000L
+				: System.currentTimeMillis() + Math.max(1, p.time()) * 3600_000L;
+		if (ctx() != null && ctx().castles() != null) {
+			ctx().castles().getCastleById(castleId).ifPresent(c -> c.siegeDate(newSiegeTimeMs));
+		}
+		handleSiegeInfo(new RequestSiegeInfo());
 	}
 
 	public void handleReplyStartPledgeWar(RequestReplyStartPledgeWar p) {
@@ -334,6 +384,9 @@ public class ExtendedProtocolPacketHandler {
 		}
 		String pledgeName = p.reqName() != null ? p.reqName() : "";
 		if (p.answer() == 1) {
+			if (ctx() != null && ctx().clanWars() != null && !pledgeName.isBlank()) {
+				ctx().clanWars().declareWar(active, pledgeName);
+			}
 			send(new StartPledgeWar(active.name(), pledgeName));
 			send(new RelationChanged(active.objectId(), 0x00080, true, active.karma(), active.pvpFlag()));
 		}
@@ -346,6 +399,9 @@ public class ExtendedProtocolPacketHandler {
 		}
 		String pledgeName = p.reqName() != null ? p.reqName() : "";
 		if (p.answer() == 1) {
+			if (ctx() != null && ctx().clanWars() != null && !pledgeName.isBlank()) {
+				ctx().clanWars().stopWar(active, pledgeName);
+			}
 			send(new StopPledgeWar(pledgeName, active.name()));
 			send(new RelationChanged(active.objectId(), 0, false, active.karma(), active.pvpFlag()));
 		}
@@ -362,6 +418,10 @@ public class ExtendedProtocolPacketHandler {
 	}
 
 	public void handleSurrenderPersonally(RequestSurrenderPersonally p) {
+		if (active() != null && ctx() != null && ctx().clanWars() != null && p.pledgeName() != null
+				&& !p.pledgeName().isBlank()) {
+			ctx().clanWars().stopWar(active(), p.pledgeName());
+		}
 		PlayerCharacter active = active();
 		if (active == null) {
 			return;
@@ -471,7 +531,8 @@ public class ExtendedProtocolPacketHandler {
 			send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce nao pertence a uma alianca."));
 			return;
 		}
-		List<Clan> allyClans = ctx().alliances() != null ? ctx().alliances().getAllianceClans(clan.allyId()) : List.of(clan);
+		List<Clan> allyClans = ctx().alliances() != null ? ctx().alliances().getAllianceClans(clan.allyId())
+				: List.of(clan);
 		List<AllyClanInfo> infos = new ArrayList<>();
 		int totalMembers = 0;
 		int onlineMembers = 0;
@@ -524,7 +585,8 @@ public class ExtendedProtocolPacketHandler {
 				sponsor.apprentice(0);
 				apprentice.sponsor(0);
 			}
-			session.partyClanHandler().handlePledgeMemberInfo(new RequestPledgeMemberInfo(apprentice.pledgeType(), apprentice.name()));
+			session.partyClanHandler()
+					.handlePledgeMemberInfo(new RequestPledgeMemberInfo(apprentice.pledgeType(), apprentice.name()));
 		}
 	}
 
@@ -544,7 +606,8 @@ public class ExtendedProtocolPacketHandler {
 				send(new PledgeShowMemberListAdd(m.name(), m.level(), m.classId(), 0, 0, 1, m.pledgeType()));
 				break;
 			}
-			if (p.selectedMember() != null && !p.selectedMember().isBlank() && m.name().equalsIgnoreCase(p.selectedMember())) {
+			if (p.selectedMember() != null && !p.selectedMember().isBlank()
+					&& m.name().equalsIgnoreCase(p.selectedMember())) {
 				m.pledgeType(0);
 			}
 		}
@@ -581,11 +644,14 @@ public class ExtendedProtocolPacketHandler {
 			return;
 		}
 		int roomId = NEXT_ROOM_ID.getAndIncrement();
-		PartyMatchRoomState room = new PartyMatchRoomState(roomId, active.name() + "'s Room", p.loc(), 1, 85, 8, 0, active.objectId(), active.name());
-		room.members.add(new PartyRoomMemberEntry(active.objectId(), active.name(), active.classId(), active.level(), p.loc(), 1));
+		PartyMatchRoomState room = new PartyMatchRoomState(roomId, active.name() + "'s Room", p.loc(), 1, 85, 8, 0,
+				active.objectId(), active.name());
+		room.members.add(new PartyRoomMemberEntry(active.objectId(), active.name(), active.classId(), active.level(),
+				p.loc(), 1));
 		PARTY_ROOMS.put(roomId, room);
 		currentPartyRoomId = roomId;
-		send(new PartyMatchDetail(room.id, room.maxMembers, room.minLvl, room.maxLvl, room.lootType, room.location, room.title));
+		send(new PartyMatchDetail(room.id, room.maxMembers, room.minLvl, room.maxLvl, room.lootType, room.location,
+				room.title));
 		send(new ExPartyRoomMember(1, room.members));
 	}
 
@@ -606,7 +672,8 @@ public class ExtendedProtocolPacketHandler {
 		}
 		List<PartyMatchRoomEntry> entries = new ArrayList<>();
 		for (PartyMatchRoomState r : PARTY_ROOMS.values()) {
-			entries.add(new PartyMatchRoomEntry(r.id, r.title, r.location, r.minLvl, r.maxLvl, r.members.size(), r.maxMembers, r.leaderName));
+			entries.add(new PartyMatchRoomEntry(r.id, r.title, r.location, r.minLvl, r.maxLvl, r.members.size(),
+					r.maxMembers, r.leaderName));
 		}
 		send(new PartyMatchList(entries));
 	}
@@ -622,12 +689,14 @@ public class ExtendedProtocolPacketHandler {
 		}
 		if (room != null) {
 			currentPartyRoomId = room.id;
-			var memberEntry = new PartyRoomMemberEntry(active.objectId(), active.name(), active.classId(), active.level(), room.location,
+			var memberEntry = new PartyRoomMemberEntry(active.objectId(), active.name(), active.classId(),
+					active.level(), room.location,
 					room.leaderObjId == active.objectId() ? 1 : 0);
 			if (room.members.stream().noneMatch(m -> m.objectId() == active.objectId())) {
 				room.members.add(memberEntry);
 			}
-			send(new PartyMatchDetail(room.id, room.maxMembers, room.minLvl, room.maxLvl, room.lootType, room.location, room.title));
+			send(new PartyMatchDetail(room.id, room.maxMembers, room.minLvl, room.maxLvl, room.lootType, room.location,
+					room.title));
 			send(new ExPartyRoomMember(room.leaderObjId == active.objectId() ? 1 : 0, room.members));
 			send(new ExManagePartyRoomMember(0, memberEntry));
 		}
@@ -689,11 +758,16 @@ public class ExtendedProtocolPacketHandler {
 	}
 
 	public void handleListPartyMatchingWaitingRoom(RequestListPartyMatchingWaitingRoom p) {
+		if (active() != null) {
+			PARTY_WAITING_ROOM.add(active().objectId());
+		}
 		List<PartyMatchingWaiterEntry> waiters = new ArrayList<>();
 		if (ctx() != null && ctx().world() != null) {
 			for (var pl : ctx().world().players()) {
-				if (pl.character() != null && pl.character().level() >= p.minLvl() && pl.character().level() <= p.maxLvl()) {
-					waiters.add(new PartyMatchingWaiterEntry(pl.name(), pl.character().classId(), pl.character().level()));
+				if (pl.character() != null && pl.character().level() >= p.minLvl()
+						&& pl.character().level() <= p.maxLvl()) {
+					waiters.add(
+							new PartyMatchingWaiterEntry(pl.name(), pl.character().classId(), pl.character().level()));
 				}
 			}
 		}
@@ -701,6 +775,15 @@ public class ExtendedProtocolPacketHandler {
 	}
 
 	public void handleExitPartyMatchingWaitingRoom(RequestExitPartyMatchingWaitingRoom p) {
+		PlayerCharacter active = active();
+		if (active != null) {
+			PARTY_WAITING_ROOM.remove(active.objectId());
+			PartyMatchRoomState room = PARTY_ROOMS.get(currentPartyRoomId);
+			if (room != null) {
+				room.members.removeIf(m -> m.objectId() == active.objectId());
+			}
+		}
+		currentPartyRoomId = 0;
 		send(new ActionFailed());
 	}
 
@@ -808,7 +891,17 @@ public class ExtendedProtocolPacketHandler {
 			pos.add(new PartyMemberPosEntry(active.objectId(), active.x(), active.y(), active.z()));
 		}
 		send(new PartyMemberPosition(pos));
-		send(new PartySpelled(0, active.objectId(), List.of()));
+		send(new PartyMemberPosition(pos));
+		List<EffectInfo> effects = new ArrayList<>();
+		if (active.effects() != null && active.effects().active() != null) {
+			long now = System.currentTimeMillis();
+			for (var buff : active.effects().active()) {
+				int durSec = buff.endTimeMillis() == Long.MAX_VALUE ? -1
+						: Math.max(0, (int) ((buff.endTimeMillis() - now) / 1000L));
+				effects.add(new EffectInfo(buff.skillId(), buff.level(), durSec));
+			}
+		}
+		send(new PartySpelled(0, active.objectId(), effects));
 	}
 
 	// =========================================================================
@@ -816,7 +909,22 @@ public class ExtendedProtocolPacketHandler {
 	// =========================================================================
 
 	public void handlePrivateStoreManageCancel(RequestPrivateStoreManageCancel p) {
+		PlayerCharacter active = active();
+		if (active != null && !active.isStoreOpen()) {
+			active.privateStoreType(PlayerCharacter.STORE_TYPE_NONE);
+		}
 		send(new ActionFailed());
+	}
+
+	public List<ManufactureRecipeEntry> getManufactureList() {
+		return List.copyOf(manufactureList);
+	}
+
+	public void syncManufactureList(List<ManufactureRecipeEntry> list) {
+		manufactureList.clear();
+		if (list != null) {
+			manufactureList.addAll(list);
+		}
 	}
 
 	public void handleRecipeBookDestroy(RequestRecipeBookDestroy p) {
@@ -824,10 +932,17 @@ public class ExtendedProtocolPacketHandler {
 		if (active == null) {
 			return;
 		}
+		if (active.privateStoreType() == PlayerCharacter.STORE_MANUFACTURE) {
+			send(SystemMessage.id(SystemMessage.CANT_ALTER_RECIPEBOOK_WHILE_CRAFTING));
+			send(new ActionFailed());
+			return;
+		}
 		recipeBook.remove(Integer.valueOf(p.recipeId()));
 		RecipeService rs = (ctx() != null && ctx().recipes() != null)
 				? ctx().recipes()
-				: (GameEngineContext.getBean(RecipeService.class) != null ? GameEngineContext.getBean(RecipeService.class) : RecipeService.getInstance());
+				: (GameEngineContext.getBean(RecipeService.class) != null
+						? GameEngineContext.getBean(RecipeService.class)
+						: RecipeService.getInstance());
 		boolean isDwarven = true;
 		if (rs != null) {
 			var recipeOpt = rs.getRecipe(p.recipeId());
@@ -847,9 +962,16 @@ public class ExtendedProtocolPacketHandler {
 		if (active == null) {
 			return;
 		}
+		if (active.privateStoreType() == PlayerCharacter.STORE_MANUFACTURE) {
+			active.privateStoreType(PlayerCharacter.STORE_TYPE_NONE);
+			active.sitting(false);
+			session.sendUserInfoAndBroadcastCharInfo();
+		}
 		RecipeService rs = (ctx() != null && ctx().recipes() != null)
 				? ctx().recipes()
-				: (GameEngineContext.getBean(RecipeService.class) != null ? GameEngineContext.getBean(RecipeService.class) : RecipeService.getInstance());
+				: (GameEngineContext.getBean(RecipeService.class) != null
+						? GameEngineContext.getBean(RecipeService.class)
+						: RecipeService.getInstance());
 		List<Integer> book = new ArrayList<>(recipeBook);
 		if (rs != null) {
 			for (Integer rId : rs.getRecipeBook(active.objectId(), true)) {
@@ -857,8 +979,16 @@ public class ExtendedProtocolPacketHandler {
 					book.add(rId);
 				}
 			}
+			if (manufactureList.isEmpty()) {
+				for (var item : rs.getManufactureList(active.objectId())) {
+					if (book.contains(item.recipeId())) {
+						manufactureList.add(new ManufactureRecipeEntry(item.recipeId(), item.cost()));
+					}
+				}
+			}
 		}
-		send(new RecipeShopManageList(active.objectId(), (int) active.inventory().adena(), true, book, manufactureList));
+		send(new RecipeShopManageList(active.objectId(), (int) active.inventory().adena(), true, book,
+				manufactureList));
 	}
 
 	public void handleRecipeShopMessageSet(RequestRecipeShopMessageSet p) {
@@ -879,22 +1009,46 @@ public class ExtendedProtocolPacketHandler {
 		if (active == null) {
 			return;
 		}
+		if (active.isInCombat()) {
+			send(SystemMessage.id(SystemMessage.CANT_CRAFT_DURING_COMBAT));
+			send(new ActionFailed());
+			return;
+		}
+		int maxSlots = active.race() == 4 ? Config.MAX_PVTSTORE_SLOTS_DWARF : Config.MAX_PVTSTORE_SLOTS_OTHER;
+		if (p != null && p.items() != null && p.items().size() > maxSlots) {
+			send(SystemMessage.id(SystemMessage.YOU_HAVE_EXCEEDED_QUANTITY_THAT_CAN_BE_INPUTTED));
+			handleRecipeShopManageQuit(new RequestRecipeShopManageQuit());
+			return;
+		}
+		RecipeService rs = (ctx() != null && ctx().recipes() != null)
+				? ctx().recipes()
+				: (GameEngineContext.getBean(RecipeService.class) != null
+						? GameEngineContext.getBean(RecipeService.class)
+						: RecipeService.getInstance());
 		manufactureList.clear();
-		if (p.items() != null) {
+		List<RecipeService.ManufactureItem> serviceItems = new ArrayList<>();
+		if (p != null && p.items() != null) {
 			for (var it : p.items()) {
 				if (it.cost() >= 0) {
 					manufactureList.add(new ManufactureRecipeEntry(it.recipeId(), it.cost()));
+					serviceItems.add(new RecipeService.ManufactureItem(it.recipeId(), it.cost()));
 				}
 			}
+		}
+		if (rs != null) {
+			rs.setManufactureList(active.objectId(), serviceItems);
 		}
 		if (manufactureList.isEmpty()) {
 			handleRecipeShopManageQuit(new RequestRecipeShopManageQuit());
 			return;
 		}
+		String msg = active.storeTitle() != null && !active.storeTitle().isEmpty() ? active.storeTitle()
+				: manufactureMessage;
+		active.storeTitle(msg);
 		active.sitting(true);
 		active.privateStoreType(PlayerCharacter.STORE_TYPE_MANUFACTURE);
 		session.sendUserInfoAndBroadcastCharInfo();
-		var msgPkt = new RecipeShopMsg(active.objectId(), manufactureMessage);
+		var msgPkt = new RecipeShopMsg(active.objectId(), msg);
 		send(msgPkt);
 		if (ctx() != null && ctx().world() != null) {
 			ctx().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msgPkt, false);
@@ -905,6 +1059,15 @@ public class ExtendedProtocolPacketHandler {
 		PlayerCharacter active = active();
 		if (active == null) {
 			return;
+		}
+		manufactureList.clear();
+		RecipeService rs = (ctx() != null && ctx().recipes() != null)
+				? ctx().recipes()
+				: (GameEngineContext.getBean(RecipeService.class) != null
+						? GameEngineContext.getBean(RecipeService.class)
+						: RecipeService.getInstance());
+		if (rs != null) {
+			rs.setManufactureList(active.objectId(), List.of());
 		}
 		active.privateStoreType(PlayerCharacter.STORE_TYPE_NONE);
 		active.sitting(false);
@@ -935,9 +1098,8 @@ public class ExtendedProtocolPacketHandler {
 		}
 		if (ctx() != null && ctx().world() != null && p.playerObjectId() != active.objectId()) {
 			var crafterOpt = ctx().world().byId(p.playerObjectId());
-			if (crafterOpt.isPresent() && crafterOpt.get() instanceof GameSession gs
-					&& gs.character() != null
-					&& gs.character().privateStoreType() == PlayerCharacter.STORE_TYPE_MANUFACTURE) {
+			if (crafterOpt.isPresent() && crafterOpt.get().character() != null
+					&& crafterOpt.get().character().privateStoreType() == PlayerCharacter.STORE_TYPE_MANUFACTURE) {
 				session.tradeStoreHandler().handleRecipeShopMakeItem(p);
 				return;
 			}
@@ -948,7 +1110,8 @@ public class ExtendedProtocolPacketHandler {
 		}
 		RecipeEntry recipe = rs != null ? rs.getRecipe(p.recipeId()).orElse(null) : null;
 		boolean ok = recipe != null;
-		send(new RecipeShopItemInfo(p.playerObjectId(), p.recipeId(), (int) active.currentMp(), active.maxMp(), ok ? 1 : 0));
+		send(new RecipeShopItemInfo(p.playerObjectId(), p.recipeId(), (int) active.currentMp(), active.maxMp(),
+				ok ? 1 : 0));
 	}
 
 	public void handleRecipeShopManagePrev(RequestRecipeShopManagePrev p) {
@@ -956,7 +1119,16 @@ public class ExtendedProtocolPacketHandler {
 		if (active == null) {
 			return;
 		}
-		send(new RecipeShopSellList(active.objectId(), (int) active.currentMp(), active.maxMp(), (int) active.inventory().adena(), manufactureList));
+		if (ctx() != null && ctx().world() != null && p != null && p.playerObjectId() != 0
+				&& p.playerObjectId() != active.objectId()) {
+			var crafterOpt = ctx().world().byId(p.playerObjectId());
+			if (crafterOpt.isPresent() && crafterOpt.get().character() != null) {
+				session.tradeStoreHandler().showRecipeShopSellList(crafterOpt.get().character());
+				return;
+			}
+		}
+		send(new RecipeShopSellList(active.objectId(), (int) active.currentMp(), active.maxMp(),
+				(int) active.inventory().adena(), manufactureList));
 	}
 
 	public void handlePackageSendableItemList(RequestPackageSendableItemList p) {
@@ -974,7 +1146,8 @@ public class ExtendedProtocolPacketHandler {
 		send(new PackageToList(chars));
 		List<WarehouseItem> items = new ArrayList<>();
 		for (ItemInstance it : active.inventory().items()) {
-			if (!it.isEquipped() && it.itemId() != ItemTemplate.ADENA_ID && (it.template() == null || it.template().freightable())) {
+			if (!it.isEquipped() && it.itemId() != ItemTemplate.ADENA_ID
+					&& (it.template() == null || it.template().freightable())) {
 				int t1 = it.template() != null ? it.template().type1() : 0;
 				int t2 = it.template() != null ? it.template().type2() : 0;
 				int bp = it.template() != null ? it.template().bodyPart() : 0;
@@ -1033,25 +1206,43 @@ public class ExtendedProtocolPacketHandler {
 					if (st != null) {
 						rewardItemId = st.reward1();
 					}
-					CropProcure cp = manor.getCropProcure(p.manorId() > 0 ? p.manorId() : 1, it.itemId(), CastleManorManager.PERIOD_CURRENT).orElse(null);
+					CropProcure cp = manor.getCropProcure(p.manorId() > 0 ? p.manorId() : 1, it.itemId(),
+							CastleManorManager.PERIOD_CURRENT).orElse(null);
 					if (cp != null && st != null) {
 						rewardItemId = cp.reward() == 2 ? st.reward2() : st.reward1();
 					}
 				}
 				var invCropOpt = active.inventory().byItemId(it.itemId());
+				int cropPrice = (manor != null && manor.getCropProcure(p.manorId() > 0 ? p.manorId() : 1, it.itemId(),
+						CastleManorManager.PERIOD_CURRENT).isPresent())
+								? manor.getCropProcure(p.manorId() > 0 ? p.manorId() : 1, it.itemId(),
+										CastleManorManager.PERIOD_CURRENT).get().price()
+								: 0;
+				int rewardRefPrice = (ctx() != null && ctx().items() != null
+						&& ctx().items().get(rewardItemId).isPresent()
+						&& ctx().items().get(rewardItemId).get().price() > 0)
+								? ctx().items().get(rewardItemId).get().price()
+								: 100;
 				int cropObjId = invCropOpt.map(ItemInstance::objectId).orElse(0);
 				if (invCropOpt.isPresent() && ctx() != null && ctx().inventories() != null) {
 					ItemInstance cropItem = invCropOpt.get();
 					int actualCount = Math.min(it.count(), cropItem.count());
-					if (actualCount > 0 && (manor == null || manor.sellCrop(p.manorId() > 0 ? p.manorId() : 1, it.itemId(), actualCount) >= 0)) {
-						if (ctx().inventories().destroyItem(active.inventory(), cropItem.objectId(), actualCount, "SellProcureCrop") != null) {
+					if (actualCount > 0 && (manor == null
+							|| manor.sellCrop(p.manorId() > 0 ? p.manorId() : 1, it.itemId(), actualCount) >= 0)) {
+						if (ctx().inventories().destroyItem(active.inventory(), cropItem.objectId(), actualCount,
+								"SellProcureCrop") != null) {
 							ItemInstance remaining = active.inventory().byObjectId(cropItem.objectId()).orElse(null);
 							if (remaining != null) {
 								changes.add(ItemInfo.of(remaining, ItemInfo.MODIFIED));
 							} else {
 								changes.add(ItemInfo.of(cropItem, ItemInfo.REMOVED));
 							}
-							var rewardRes = ctx().inventories().addItem(active.inventory(), rewardItemId, actualCount, "ProcureReward");
+							int calcRewardCount = cropPrice > 0
+									? Math.max(1, (int) ((long) actualCount * cropPrice / Math.max(1, rewardRefPrice)))
+									: actualCount;
+							rewardCount = calcRewardCount;
+							var rewardRes = ctx().inventories().addItem(active.inventory(), rewardItemId,
+									calcRewardCount, "ProcureReward");
 							if (rewardRes != null && rewardRes.item() != null) {
 								changes.add(ItemInfo.of(rewardRes.item(), ItemInfo.MODIFIED));
 							}
@@ -1087,7 +1278,8 @@ public class ExtendedProtocolPacketHandler {
 				}
 				int unitPrice = 100;
 				if (manor != null) {
-					SeedProduction sp = manor.getSeedProduction(p.manorId(), s.itemId(), CastleManorManager.PERIOD_CURRENT).orElse(null);
+					SeedProduction sp = manor
+							.getSeedProduction(p.manorId(), s.itemId(), CastleManorManager.PERIOD_CURRENT).orElse(null);
 					if (sp != null) {
 						if (sp.amount() < s.count()) {
 							send(SystemMessage.id(348)); // Incorrect item count.
@@ -1114,7 +1306,8 @@ public class ExtendedProtocolPacketHandler {
 			// 2. Deduct Adena upfront
 			if (totalCost > 0 && ctx() != null && ctx().inventories() != null) {
 				ItemInstance adena = active.inventory().byItemId(ItemTemplate.ADENA_ID).orElse(null);
-				if (adena == null || ctx().inventories().destroyItem(active.inventory(), adena.objectId(), (int) totalCost, "BuySeed") == null) {
+				if (adena == null || ctx().inventories().destroyItem(active.inventory(), adena.objectId(),
+						(int) totalCost, "BuySeed") == null) {
 					send(SystemMessage.id(279));
 					send(new ActionFailed());
 					return;
@@ -1125,7 +1318,7 @@ public class ExtendedProtocolPacketHandler {
 				} else {
 					changes.add(ItemInfo.of(adena, ItemInfo.REMOVED));
 				}
-				if (castles != null && p.manorId() > 0) {
+				if (castles != null && p.manorId() > 0 && manor == null) {
 					castles.addToTreasury(p.manorId(), totalCost);
 				}
 			}
@@ -1134,7 +1327,8 @@ public class ExtendedProtocolPacketHandler {
 			for (var s : p.seeds()) {
 				int unitPrice = 100;
 				if (manor != null) {
-					SeedProduction sp = manor.getSeedProduction(p.manorId(), s.itemId(), CastleManorManager.PERIOD_CURRENT).orElse(null);
+					SeedProduction sp = manor
+							.getSeedProduction(p.manorId(), s.itemId(), CastleManorManager.PERIOD_CURRENT).orElse(null);
 					if (sp != null) {
 						unitPrice = Math.max(1, sp.price());
 						manor.buySeed(p.manorId(), s.itemId(), s.count());
@@ -1170,10 +1364,12 @@ public class ExtendedProtocolPacketHandler {
 		List<ShopPreviewProduct> products = new ArrayList<>();
 		int count = p.items() != null ? Math.min(p.items().size(), 17) : 0;
 		long totalWearCost = (long) count * Math.max(0, Config.WEAR_PRICE);
-		if (totalWearCost > 0 && ctx() != null && ctx().inventories() != null && active.inventory().adena() >= totalWearCost) {
+		if (totalWearCost > 0 && ctx() != null && ctx().inventories() != null
+				&& active.inventory().adena() >= totalWearCost) {
 			ItemInstance adena = active.inventory().byItemId(ItemTemplate.ADENA_ID).orElse(null);
 			if (adena != null) {
-				ctx().inventories().destroyItem(active.inventory(), adena.objectId(), (int) totalWearCost, "WearPreview");
+				ctx().inventories().destroyItem(active.inventory(), adena.objectId(), (int) totalWearCost,
+						"WearPreview");
 			}
 		}
 		if (p.items() != null) {
@@ -1209,7 +1405,9 @@ public class ExtendedProtocolPacketHandler {
 			case com.lopez.l2j.game.item.ItemSlots.SLOT_R_HAND -> 7;
 			case com.lopez.l2j.game.item.ItemSlots.SLOT_L_HAND -> 8;
 			case com.lopez.l2j.game.item.ItemSlots.SLOT_GLOVES -> 9;
-			case com.lopez.l2j.game.item.ItemSlots.SLOT_CHEST, com.lopez.l2j.game.item.ItemSlots.SLOT_FULL_ARMOR, com.lopez.l2j.game.item.ItemSlots.SLOT_ALLDRESS -> 10;
+			case com.lopez.l2j.game.item.ItemSlots.SLOT_CHEST, com.lopez.l2j.game.item.ItemSlots.SLOT_FULL_ARMOR,
+					com.lopez.l2j.game.item.ItemSlots.SLOT_ALLDRESS ->
+				10;
 			case com.lopez.l2j.game.item.ItemSlots.SLOT_LEGS -> 11;
 			case com.lopez.l2j.game.item.ItemSlots.SLOT_FEET -> 12;
 			case com.lopez.l2j.game.item.ItemSlots.SLOT_BACK -> 13;
@@ -1244,7 +1442,8 @@ public class ExtendedProtocolPacketHandler {
 						reward2 = st.reward2();
 						price = st.cropDefaultPrice();
 					}
-					CropProcure cp = manor.getCropProcure(c.manorId(), c.itemId(), CastleManorManager.PERIOD_CURRENT).orElse(null);
+					CropProcure cp = manor.getCropProcure(c.manorId(), c.itemId(), CastleManorManager.PERIOD_CURRENT)
+							.orElse(null);
 					if (cp != null) {
 						price = cp.price();
 						rewardType = cp.reward();
@@ -1255,7 +1454,8 @@ public class ExtendedProtocolPacketHandler {
 					ItemInstance invCrop = invCropOpt.get();
 					int sellCount = Math.min(c.count(), invCrop.count());
 					if (sellCount > 0 && (manor == null || manor.sellCrop(c.manorId(), c.itemId(), sellCount) >= 0)) {
-						if (ctx().inventories().destroyItem(active.inventory(), invCrop.objectId(), sellCount, "ProcureCrop") != null) {
+						if (ctx().inventories().destroyItem(active.inventory(), invCrop.objectId(), sellCount,
+								"ProcureCrop") != null) {
 							ItemInstance rem = active.inventory().byObjectId(invCrop.objectId()).orElse(null);
 							if (rem != null) {
 								changes.add(ItemInfo.of(rem, ItemInfo.MODIFIED));
@@ -1263,14 +1463,29 @@ public class ExtendedProtocolPacketHandler {
 								changes.add(ItemInfo.of(invCrop, ItemInfo.REMOVED));
 							}
 							int rewardItemId = rewardType == 2 ? reward2 : reward1;
-							var rewardRes = ctx().inventories().addItem(active.inventory(), rewardItemId, sellCount, "ProcureCropReward");
+							int procPrice = (manor != null
+									&& manor.getCropProcure(c.manorId(), c.itemId(), CastleManorManager.PERIOD_CURRENT)
+											.isPresent())
+													? manor.getCropProcure(c.manorId(), c.itemId(),
+															CastleManorManager.PERIOD_CURRENT).get().price()
+													: 0;
+							int rewardRefPrice = (ctx().items() != null && ctx().items().get(rewardItemId).isPresent()
+									&& ctx().items().get(rewardItemId).get().price() > 0)
+											? ctx().items().get(rewardItemId).get().price()
+											: 100;
+							int calcRewardCount = procPrice > 0
+									? Math.max(1, (int) ((long) sellCount * procPrice / Math.max(1, rewardRefPrice)))
+									: sellCount;
+							var rewardRes = ctx().inventories().addItem(active.inventory(), rewardItemId,
+									calcRewardCount, "ProcureCropReward");
 							if (rewardRes != null && rewardRes.item() != null) {
 								changes.add(ItemInfo.of(rewardRes.item(), ItemInfo.MODIFIED));
 							}
 						}
 					}
 				}
-				crops.add(new SellCropEntry(c.objectId(), c.itemId(), seedLevel, reward1, reward2, c.manorId(), c.count(), price, rewardType, c.count()));
+				crops.add(new SellCropEntry(c.objectId(), c.itemId(), seedLevel, reward1, reward2, c.manorId(),
+						c.count(), price, rewardType, c.count()));
 				details.add(new CropProcureDetailEntry(c.manorId(), c.count(), price, rewardType));
 			}
 		}
@@ -1379,7 +1594,8 @@ public class ExtendedProtocolPacketHandler {
 		}
 		int gemStoneId = AugmentationService.getRequiredGemstoneId(targetItem);
 		int gemStoneCount = AugmentationService.getRequiredGemstoneCount(targetItem);
-		send(new ExPutIntensiveResultForVariationMake(p.refinerItemObjId(), refinerItem.itemId(), gemStoneId, gemStoneCount));
+		send(new ExPutIntensiveResultForVariationMake(p.refinerItemObjId(), refinerItem.itemId(), gemStoneId,
+				gemStoneCount));
 	}
 
 	public void handleConfirmGemStone(RequestConfirmGemStone p) {
@@ -1391,7 +1607,8 @@ public class ExtendedProtocolPacketHandler {
 		ItemInstance gemStone = active.inventory().byObjectId(p.gemstoneItemObjId()).orElse(null);
 		int reqGemId = AugmentationService.getRequiredGemstoneId(targetItem);
 		int reqGemCount = AugmentationService.getRequiredGemstoneCount(targetItem);
-		if (targetItem == null || gemStone == null || gemStone.itemId() != reqGemId || p.gemstoneCount() < reqGemCount) {
+		if (targetItem == null || gemStone == null || gemStone.itemId() != reqGemId
+				|| p.gemstoneCount() < reqGemCount) {
 			send(SystemMessage.id(1960)); // Gemstone quantity is incorrect.
 			send(new ActionFailed());
 			return;
@@ -1426,8 +1643,10 @@ public class ExtendedProtocolPacketHandler {
 			return;
 		}
 		if (ctx().inventories() != null) {
-			if (ctx().inventories().destroyItem(active.inventory(), refinerItem.objectId(), 1, "AugmentLifeStone") == null
-					|| ctx().inventories().destroyItem(active.inventory(), gemStone.objectId(), reqGemCount, "AugmentGemStone") == null) {
+			if (ctx().inventories().destroyItem(active.inventory(), refinerItem.objectId(), 1,
+					"AugmentLifeStone") == null
+					|| ctx().inventories().destroyItem(active.inventory(), gemStone.objectId(), reqGemCount,
+							"AugmentGemStone") == null) {
 				send(new ExVariationResult(0, 0, 0));
 				return;
 			}
@@ -1457,7 +1676,8 @@ public class ExtendedProtocolPacketHandler {
 		}
 		long price = AugmentationService.getCancelFee(item);
 		int augId = item.augmentation() != null ? item.augmentation().augmentationId() : 0;
-		send(new ExPutItemResultForVariationCancel(item.objectId(), item.itemId(), augId & 0xFFFF, (augId >> 16) & 0xFFFF, price));
+		send(new ExPutItemResultForVariationCancel(item.objectId(), item.itemId(), augId & 0xFFFF,
+				(augId >> 16) & 0xFFFF, price));
 	}
 
 	public void handleRefineCancel(RequestRefineCancel p) {
@@ -1479,7 +1699,8 @@ public class ExtendedProtocolPacketHandler {
 		}
 		if (fee > 0 && ctx() != null && ctx().inventories() != null) {
 			ItemInstance adena = active.inventory().byItemId(ItemTemplate.ADENA_ID).orElse(null);
-			if (adena == null || ctx().inventories().destroyItem(active.inventory(), adena.objectId(), (int) fee, "AugmentCancelFee") == null) {
+			if (adena == null || ctx().inventories().destroyItem(active.inventory(), adena.objectId(), (int) fee,
+					"AugmentCancelFee") == null) {
 				send(new ExVariationCancelResult(0, 0));
 				return;
 			}
@@ -1520,7 +1741,8 @@ public class ExtendedProtocolPacketHandler {
 		PetService.getInstance().usePetItem(active, active.activeSummon(), p.objectId(), this::send);
 		var itemOpt = active.inventory().byObjectId(p.objectId());
 		List<PetInventoryItem> items = new ArrayList<>();
-		itemOpt.ifPresent(it -> items.add(new PetInventoryItem(2, 0, it.objectId(), it.itemId(), it.count(), 0, 0, it.isEquipped(), 0, it.enchant(), 0)));
+		itemOpt.ifPresent(it -> items.add(new PetInventoryItem(2, 0, it.objectId(), it.itemId(), it.count(), 0, 0,
+				it.isEquipped(), 0, it.enchant(), 0)));
 		send(new PetInventoryUpdate(items));
 	}
 
@@ -1530,19 +1752,26 @@ public class ExtendedProtocolPacketHandler {
 			return;
 		}
 		List<PetInventoryItem> items = new ArrayList<>();
-		active.inventory().byObjectId(p.objectId()).ifPresent(it ->
-				items.add(new PetInventoryItem(1, 0, it.objectId(), it.itemId(), Math.min(it.count(), p.amount()), 0, 0, false, 0, it.enchant(), 0)));
+		active.inventory().byObjectId(p.objectId()).ifPresent(it -> items.add(new PetInventoryItem(1, 0, it.objectId(),
+				it.itemId(), Math.min(it.count(), p.amount()), 0, 0, false, 0, it.enchant(), 0)));
 		PetService.getInstance().transferItemToPet(active, active.activeSummon(), p.objectId(), p.amount(), this::send);
-		send(new PetItemList(items));
+		var summon = active.activeSummon();
+		if (summon != null && summon.petInventory() != null && !summon.petInventory().items().isEmpty()) {
+			send(PetService.getInstance().buildPetItemListPacket(summon));
+		} else {
+			send(new PetItemList(items));
+		}
 		send(new PetInventoryUpdate(items));
 	}
 
 	public void handleGetItemFromPet(RequestGetItemFromPet p) {
 		PlayerCharacter active = active();
 		if (active != null) {
-			PetService.getInstance().transferItemFromPet(active, active.activeSummon(), p.objectId(), p.amount(), this::send);
+			PetService.getInstance().transferItemFromPet(active, active.activeSummon(), p.objectId(), p.amount(),
+					this::send);
 		}
-		List<PetInventoryItem> items = List.of(new PetInventoryItem(3, 0, p.objectId(), 0, p.amount(), 0, 0, false, 0, 0, 0));
+		List<PetInventoryItem> items = List
+				.of(new PetInventoryItem(3, 0, p.objectId(), 0, p.amount(), 0, 0, false, 0, 0, 0));
 		send(new PetInventoryUpdate(items));
 	}
 
@@ -1551,10 +1780,14 @@ public class ExtendedProtocolPacketHandler {
 		if (active != null && active.activeSummon() != null && ctx() != null && ctx().groundItems() != null) {
 			var gi = ctx().groundItems().byObjectId(p.objectId()).orElse(null);
 			if (gi != null) {
-				PetService.getInstance().petPickUpItem(active, active.activeSummon(), gi, ctx().groundItems(), this::send);
+				PetService.getInstance().petPickUpItem(active, active.activeSummon(), gi, ctx().groundItems(),
+						this::send);
 			}
 		}
-		session.actionHandler().tryPickupGroundItem(p.objectId());
+		if (active == null || active.activeSummon() == null || ctx() == null || ctx().groundItems() == null
+				|| ctx().groundItems().byObjectId(p.objectId()).isPresent()) {
+			session.actionHandler().tryPickupGroundItem(p.objectId());
+		}
 		send(new PetInventoryUpdate(List.of()));
 	}
 
@@ -1599,7 +1832,8 @@ public class ExtendedProtocolPacketHandler {
 		if (active == null) {
 			return;
 		}
-		PetitionService svc = (ctx() != null && ctx().petition() != null) ? ctx().petition() : GameEngineContext.getBean(PetitionService.class);
+		PetitionService svc = (ctx() != null && ctx().petition() != null) ? ctx().petition()
+				: GameEngineContext.getBean(PetitionService.class);
 		if (svc != null) {
 			svc.submitPetition(active.objectId(), active.name(), p.type(), p.content());
 		}
@@ -1611,7 +1845,8 @@ public class ExtendedProtocolPacketHandler {
 		if (active == null) {
 			return;
 		}
-		PetitionService svc = (ctx() != null && ctx().petition() != null) ? ctx().petition() : GameEngineContext.getBean(PetitionService.class);
+		PetitionService svc = (ctx() != null && ctx().petition() != null) ? ctx().petition()
+				: GameEngineContext.getBean(PetitionService.class);
 		if (svc != null) {
 			for (var t : svc.getPendingPetitions()) {
 				if (t.getPetitionerId() == active.objectId()) {
@@ -1620,6 +1855,24 @@ public class ExtendedProtocolPacketHandler {
 			}
 		}
 		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Sua peticao foi cancelada."));
+	}
+
+	public void handlePetitionVote(PetitionVote p) {
+		PlayerCharacter active = active();
+		if (active == null) {
+			return;
+		}
+		PetitionService svc = (ctx() != null && ctx().petition() != null) ? ctx().petition()
+				: GameEngineContext.getBean(PetitionService.class);
+		if (svc != null) {
+			for (var t : svc.getPendingPetitions()) {
+				if (t.getPetitionerId() == active.objectId()) {
+					svc.closePetition(t.getId());
+				}
+			}
+		}
+		send(new PetitionVotePacket());
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Avaliacao de suporte GM registrada (nota=" + p.unk1() + ")."));
 	}
 
 	public void handleGmList(RequestGmList p) {
@@ -1691,10 +1944,12 @@ public class ExtendedProtocolPacketHandler {
 		if (ctx() != null && ctx().olympiad() != null) {
 			var matches = ctx().olympiad().getActiveMatches();
 			if (matches != null && !matches.isEmpty()) {
-				StringBuilder sb = new StringBuilder("<html><body><center>Grand Olympiad Games</center><br><table width=270>");
+				StringBuilder sb = new StringBuilder(
+						"<html><body><center>Grand Olympiad Games</center><br><table width=270>");
 				for (var entry : matches.entrySet()) {
 					var m = entry.getValue();
-					sb.append("<tr><td><a action=\"bypass -h _olympiad_observe_").append(entry.getKey()).append("\">Arena ")
+					sb.append("<tr><td><a action=\"bypass -h _olympiad_observe_").append(entry.getKey())
+							.append("\">Arena ")
 							.append(entry.getKey() + 1).append("</a></td><td>")
 							.append(m.playerOneName()).append(" vs ").append(m.playerTwoName()).append("</td></tr>");
 				}
@@ -1715,21 +1970,63 @@ public class ExtendedProtocolPacketHandler {
 		}
 		List<HeroListEntry> heroes = List.of(new HeroListEntry(active.name(), active.classId(), "", 0, "", 0, 1));
 		send(new ExHeroList(heroes));
-		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Mensagem de Heroi registrada: " + (p.heroWords() != null ? p.heroWords() : "")));
+		send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+				"Mensagem de Heroi registrada: " + (p.heroWords() != null ? p.heroWords() : "")));
 	}
 
 	public void handleExFishRanking(RequestExFishRanking p) {
 		send(new ExAutoFishing(0));
-		send(new NpcHtmlMessage(0, "<html><body>Fishing Championship Ranking</body></html>"));
+		StringBuilder sb = new StringBuilder(
+				"<html><body><center><font color=\"LEVEL\">Fishing Championship Ranking</font></center><br>");
+		if (ctx() != null && ctx().fishingChampionship() != null) {
+			var top = ctx().fishingChampionship().getTopFishers(5);
+			sb.append("<table width=270><tr><td>Rank</td><td>Fisher</td><td>Length</td></tr>");
+			if (top != null && !top.isEmpty()) {
+				int rank = 1;
+				for (var f : top) {
+					sb.append("<tr><td>#").append(rank++).append("</td><td>").append(f.playerName())
+							.append("</td><td>").append(String.format(java.util.Locale.US, "%.2f", f.fishLength()))
+							.append("</td></tr>");
+				}
+			} else {
+				sb.append("<tr><td colspan=3>No entries yet.</td></tr>");
+			}
+			sb.append("</table>");
+			var prev = ctx().fishingChampionship().getPreviousWinners();
+			if (prev != null && !prev.isEmpty()) {
+				sb.append("<br><font color=\"LEVEL\">Previous Period Winners:</font><table width=270>");
+				int r = 1;
+				for (var w : prev) {
+					sb.append("<tr><td>#").append(r++).append("</td><td>").append(w.playerName())
+							.append("</td><td>").append(String.format(java.util.Locale.US, "%.2f", w.fishLength()))
+							.append("</td></tr>");
+				}
+				sb.append("</table>");
+			}
+		} else {
+			sb.append("Fishing Championship Ranking");
+		}
+		sb.append("</body></html>");
+		send(new NpcHtmlMessage(0, sb.toString()));
 	}
 
 	public void handlePCCafeCouponUse(RequestPCCafeCouponUse p) {
 		send(new ShowPCCafeCouponShowUI());
-		send(new ExPCCafePointInfo(100, 10, 1, 3600, 0));
+		PlayerCharacter active = active();
+		String code = p.couponCode() != null ? p.couponCode().trim().toUpperCase(java.util.Locale.ROOT) : "";
+		int added = 0;
+		if (!code.isEmpty() && code.length() >= 4 && redeemedCoupons.add(code)) {
+			added = 100;
+			if (active != null) {
+				active.pcCaffePoints(active.pcCaffePoints() + added);
+			}
+		}
+		int totalPoints = active != null ? (active.pcCaffePoints() > 0 ? active.pcCaffePoints() : 100) : 100;
+		send(new ExPCCafePointInfo(totalPoints, added > 0 ? added : 10, 1, 3600, 0));
 	}
 
 	public void handleGameGuardReply(GameGuardReply p) {
-		// Resposta do GameGuard validada
+		session.setGameGuardAuthed(true);
 	}
 
 	public void sendProtocolExtendedDiagnostics(NpcInstance npc, ItemInstance item) {
@@ -1737,7 +2034,8 @@ public class ExtendedProtocolPacketHandler {
 		if (active == null) {
 			return;
 		}
-		send(new TargetSelected(active.objectId(), npc != null ? npc.objectId() : active.objectId(), active.x(), active.y(), active.z()));
+		send(new TargetSelected(active.objectId(), npc != null ? npc.objectId() : active.objectId(), active.x(),
+				active.y(), active.z()));
 		if (item != null) {
 			send(new EquipUpdate(2, item.objectId(), item.template() != null ? item.template().bodyPart() : 0));
 			send(new ExUseSharedGroupItem(item.itemId(), 1, 5, 10));
@@ -1771,7 +2069,8 @@ public class ExtendedProtocolPacketHandler {
 		send(new ExShowTrace(List.of(new TracePoint(active.x(), active.y(), active.z(), 1000))));
 		send(new MonRaceInfo(0, 0));
 		send(new ExDuelUpdateUserInfo(active.name(), active.objectId(), active.classId(), active.level(),
-				(int) active.currentHp(), active.maxHp(), (int) active.currentMp(), active.maxMp(), (int) active.currentCp(), active.maxCp()));
+				(int) active.currentHp(), active.maxHp(), (int) active.currentMp(), active.maxMp(),
+				(int) active.currentCp(), active.maxCp()));
 		send(new ExEnchantSkillInfoDetail(6622, 1));
 		send(new RequestEnchant(1));
 		send(new TradeItemUpdate(List.of()));
