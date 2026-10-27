@@ -1,16 +1,21 @@
 package com.lopez.l2j.network.game.handler.packet;
 
 import com.lopez.l2j.config.Config;
-import com.lopez.l2j.game.cursed.CursedWeapon;
+import com.lopez.l2j.game.arenaduel.ArenaDuelService;
+import com.lopez.l2j.game.castle.siege.SiegeStatus;
 import com.lopez.l2j.game.cursed.CursedWeaponsManager;
+import com.lopez.l2j.game.event.pvp.DmEventService;
+import com.lopez.l2j.game.event.pvp.LastManStandingService;
+import com.lopez.l2j.game.event.pvp.TvtEventService;
+import com.lopez.l2j.game.fortress.siege.FortressSiegeRecord;
+import com.lopez.l2j.game.fortress.siege.FortressSiegeService;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.tournament.TournamentService;
 import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.packet.GameClientPacket;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -229,7 +234,7 @@ public class CharacterPacketHandler {
 	}
 
 	/**
-	 * Processa notificacoes de desconexao em Olympiad e CTF (#419, #481).
+	 * Processa notificacoes de desconexao em Olympiad, CTF, TvT, DM, LMS, Tournament, ArenaDuel e Fortress Siege (#395, #419, #481, #483).
 	 */
 	public void onPlayerDisconnect(GameSession targetSession, PlayerCharacter active) {
 		GameSession s = targetSession != null ? targetSession : this.session;
@@ -243,6 +248,43 @@ public class CharacterPacketHandler {
 		}
 		if (ctx.ctf() != null) {
 			ctx.ctf().onDisconnect(active.objectId());
+		}
+
+		TvtEventService tvt = ctx.tvt() != null ? ctx.tvt() : ctx.getBean(TvtEventService.class);
+		if (tvt != null) {
+			tvt.onDisconnect(active.objectId());
+		}
+
+		DmEventService dm = ctx.dm() != null ? ctx.dm() : ctx.getBean(DmEventService.class);
+		if (dm != null) {
+			dm.unregister(active);
+		}
+
+		LastManStandingService lms = ctx.getBean(LastManStandingService.class);
+		if (lms != null) {
+			lms.onDisconnect(active.objectId());
+		}
+
+		TournamentService tournament = ctx.getBean(TournamentService.class);
+		if (tournament != null) {
+			tournament.onPlayerDeath(active.objectId());
+			tournament.unregister(active.objectId());
+		}
+
+		ArenaDuelService arenaDuel = ctx.arenaDuel() != null ? ctx.arenaDuel() : ctx.getBean(ArenaDuelService.class);
+		if (arenaDuel != null) {
+			arenaDuel.onPlayerDisconnect(active.objectId());
+		}
+
+		FortressSiegeService fortSieges = ctx.fortressSieges() != null
+				? ctx.fortressSieges()
+				: ctx.getBean(FortressSiegeService.class);
+		if (fortSieges != null) {
+			for (FortressSiegeRecord rec : fortSieges.allSieges()) {
+				if (rec.status() == SiegeStatus.IN_PROGRESS) {
+					fortSieges.dropCombatFlag(rec.fortId(), active);
+				}
+			}
 		}
 	}
 
