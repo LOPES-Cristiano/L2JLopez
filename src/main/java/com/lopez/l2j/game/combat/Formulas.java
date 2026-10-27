@@ -527,7 +527,7 @@ public final class Formulas {
 				case "stun" -> "stunProf";
 				case "sleep" -> "sleepProf";
 				case "root" -> "rootProf";
-				case "paralyze", "petrification", "medusa" -> "paralyzeProf";
+				case "paralyze", "petrification", "petrify", "medusa" -> "paralyzeProf";
 				case "mute", "silence", "physicalmute", "silencemagicphysical", "fear", "betray", "derangement" -> "derangementProf";
 				case "confusion", "confuse", "confuse_mob_only", "switch", "aggdebuff", "aggdamage", "aggremove", "aggreduce" -> "confusionProf";
 				case "poison" -> "poisonProf";
@@ -562,10 +562,15 @@ public final class Formulas {
 			targetLevel = npc.template().level();
 		} else if (target instanceof PlayerCharacter pc) {
 			targetLevel = pc.level();
-			con = Math.max(1, 43 + PlayerStats.clampHennaBonus(pc.hennaCON()) + pc.augCON());
-			men = Math.max(1, 25 + PlayerStats.clampHennaBonus(pc.hennaMEN()) + pc.augMEN());
-			dex = Math.max(1, 30 + PlayerStats.clampHennaBonus(pc.hennaDEX()) + pc.augDEX());
-			wit = Math.max(1, 20 + PlayerStats.clampHennaBonus(pc.hennaWIT()) + pc.augWIT());
+			com.lopez.l2j.game.template.CharTemplate tpl = PlayerStats.findTemplate(pc.classId());
+			int baseCon = tpl != null ? tpl.con() : 43;
+			int baseMen = tpl != null ? tpl.men() : 25;
+			int baseDex = tpl != null ? tpl.dex() : 30;
+			int baseWit = tpl != null ? tpl.wit() : 20;
+			con = Math.max(1, baseCon + PlayerStats.clampHennaBonus(pc.hennaCON()) + pc.augCON());
+			men = Math.max(1, baseMen + PlayerStats.clampHennaBonus(pc.hennaMEN()) + pc.augMEN());
+			dex = Math.max(1, baseDex + PlayerStats.clampHennaBonus(pc.hennaDEX()) + pc.augDEX());
+			wit = Math.max(1, baseWit + PlayerStats.clampHennaBonus(pc.hennaWIT()) + pc.augWIT());
 			vuln = CombatService.calcDebuffVulnerability(pc, effectOrSkillType);
 			if (vuln <= 0.0) {
 				return false;
@@ -708,7 +713,8 @@ public final class Formulas {
 			attr = isMage ? st.intel() : st.str();
 		}
 		double bonus = isMage ? BaseStatsTable.intBonus(attr) : BaseStatsTable.strBonus(attr);
-		double chance = Math.min(25.0, bonus * 2.0);
+		// Formula retail L2J: (bonus - 1.0) * 100.0 (aprox. 2% a 5% de chance conforme STR/INT)
+		double chance = Math.max(0.5, Math.min(10.0, (bonus - 1.0) * 100.0));
 		return ThreadLocalRandom.current().nextDouble(100.0) < chance;
 	}
 
@@ -992,5 +998,22 @@ public final class Formulas {
 		}
 
 		return new CpDamageResult(cpDmg, hpDmg, newCp, newHp);
+	}
+
+	public static boolean calcDeadlyRouletteSuccess(double currentHp, double maxHp) {
+		return calcDeadlyRouletteSuccess(currentHp, maxHp, 50.0);
+	}
+
+	public static int calcGiveSpAmount(com.lopez.l2j.game.skill.SkillTemplate sk) {
+		double baseSp = sk != null ? sk.power() : 0.0;
+		double rateSp = Config.RATE_SP > 0 ? Config.RATE_SP : 1.0;
+		return calcGiveSpAmount(baseSp, rateSp);
+	}
+
+	public static int calcHealAmount(PlayerCharacter caster, PlayerCharacter target, double basePower, int mAtk, boolean sps, boolean bss) {
+		double giveHp = caster != null ? PlayerStats.applyStat(caster, "giveHp", 1.0) : 1.0;
+		double gainHp = target != null ? PlayerStats.applyStat(target, "gainHp", 1.0) : 1.0;
+		double bonusHp = target != null ? PlayerStats.applyStat(target, "bonusHp", 0.0) : 0.0;
+		return calcHealAmount(basePower, mAtk, sps, bss, gainHp, giveHp, bonusHp);
 	}
 }
