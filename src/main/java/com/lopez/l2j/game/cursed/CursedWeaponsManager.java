@@ -53,8 +53,22 @@ public class CursedWeaponsManager {
 	private final JdbcClient jdbc;
 	private final ScheduledExecutorService expirationScheduler;
 
+	@Autowired(required = false)
+	private com.lopez.l2j.game.item.GroundItemService groundItemService;
+
+	@Autowired(required = false)
+	private com.lopez.l2j.game.world.GameWorld gameWorld;
+
 	public static CursedWeaponsManager getInstance() {
 		return instance;
+	}
+
+	public void setGroundItemService(com.lopez.l2j.game.item.GroundItemService groundItemService) {
+		this.groundItemService = groundItemService;
+	}
+
+	public void setGameWorld(com.lopez.l2j.game.world.GameWorld gameWorld) {
+		this.gameWorld = gameWorld;
 	}
 
 	@Autowired
@@ -89,9 +103,18 @@ public class CursedWeaponsManager {
 					  playerPkKills INT DEFAULT 0,
 					  nbKills INT DEFAULT 0,
 					  endTime DECIMAL(20,0) DEFAULT 0,
+					  x INT DEFAULT 0,
+					  y INT DEFAULT 0,
+					  z INT DEFAULT 0,
 					  PRIMARY KEY (itemId)
 					)
 					""").update();
+			try {
+				jdbc.sql("ALTER TABLE cursed_weapons ADD COLUMN x INT DEFAULT 0").update();
+				jdbc.sql("ALTER TABLE cursed_weapons ADD COLUMN y INT DEFAULT 0").update();
+				jdbc.sql("ALTER TABLE cursed_weapons ADD COLUMN z INT DEFAULT 0").update();
+			} catch (Exception ignored) {
+			}
 		} catch (Exception ex) {
 			log.debug("cursed_weapons schema init: {}", ex.getMessage());
 		}
@@ -162,6 +185,7 @@ public class CursedWeaponsManager {
 			if (roll < cw.dropRate()) {
 				cw.dropOnGround(x, y, z);
 				cw.endTime(System.currentTimeMillis() + ((long) cw.durationMinutes() * 60_000L));
+				spawnDroppedGroundItemAndBroadcast(cw, x, y, z);
 				persistDb(cw);
 				log.info("Arma amaldicoada {} (ID {}) dropou no mundo em ({}, {}, {}) pelo monstro {}",
 						cw.name(), cw.itemId(), x, y, z, monsterId);
@@ -190,11 +214,31 @@ public class CursedWeaponsManager {
 		if (cw != null && !cw.isActive()) {
 			cw.dropOnGround(x, y, z);
 			cw.endTime(System.currentTimeMillis() + ((long) cw.durationMinutes() * 60_000L));
+			spawnDroppedGroundItemAndBroadcast(cw, x, y, z);
 			persistDb(cw);
 			log.info("Drop forcado da arma amaldicoada {} em ({}, {}, {})", cw.name(), x, y, z);
 			return true;
 		}
 		return false;
+	}
+
+	private void spawnDroppedGroundItemAndBroadcast(CursedWeapon cw, int x, int y, int z) {
+		if (groundItemService != null && (x != 0 || y != 0 || z != 0)) {
+			groundItemService.dropItem(0, cw.itemId(), 1, x, y, z);
+		}
+		var world = gameWorld != null ? gameWorld : com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (world != null) {
+			var redSky = new com.lopez.l2j.network.game.packet.GameServerPacket.ExRedSky(10);
+			var quake = new com.lopez.l2j.network.game.packet.GameServerPacket.Earthquake(x, y, z, 14, 3);
+			var msg = new com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay(
+					0, com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay.ANNOUNCEMENT,
+					"System", cw.name() + " has appeared in the world!");
+			for (var p : world.allPlayers()) {
+				p.send(redSky);
+				p.send(quake);
+				p.send(msg);
+			}
+		}
 	}
 
 	/**
@@ -328,6 +372,7 @@ public class CursedWeaponsManager {
 				// 50% de chance de cair no chao ou desaparecer
 				if (ThreadLocalRandom.current().nextBoolean()) {
 					victimCw.dropOnGround(victim.x(), victim.y(), victim.z());
+					spawnDroppedGroundItemAndBroadcast(victimCw, victim.x(), victim.y(), victim.z());
 					persistDb(victimCw);
 				} else {
 					endOfLife(victimCw.itemId(), victim);
@@ -445,10 +490,18 @@ public class CursedWeaponsManager {
 			return;
 		}
 		try {
-			List<Map<String, Object>> rows = jdbc.sql("""
-					SELECT itemId, charId, playerKarma, playerPkKills, nbKills, endTime
-					FROM cursed_weapons
-					""").query().listOfRows();
+			List<Map<String, Object>> rows;
+			try {
+				rows = jdbc.sql("""
+						SELECT itemId, charId, playerKarma, playerPkKills, nbKills, endTime, x, y, z
+						FROM cursed_weapons
+						""").query().listOfRows();
+			} catch (Exception colEx) {
+				rows = jdbc.sql("""
+						SELECT itemId, charId, playerKarma, playerPkKills, nbKills, endTime
+						FROM cursed_weapons
+						""").query().listOfRows();
+			}
 
 			for (var row : rows) {
 				int itemId = ((Number) row.get("itemId")).intValue();
@@ -457,6 +510,9 @@ public class CursedWeaponsManager {
 				int pPkKills = row.get("playerPkKills") != null ? ((Number) row.get("playerPkKills")).intValue() : 0;
 				int nbKills = row.get("nbKills") != null ? ((Number) row.get("nbKills")).intValue() : 0;
 				long endTime = row.get("endTime") != null ? ((Number) row.get("endTime")).longValue() : 0L;
+				int x = row.get("x") != null ? ((Number) row.get("x")).intValue() : 0;
+				int y = row.get("y") != null ? ((Number) row.get("y")).intValue() : 0;
+				int z = row.get("z") != null ? ((Number) row.get("z")).intValue() : 0;
 
 				CursedWeapon cw = weapons.get(itemId);
 				if (cw != null) {
@@ -466,8 +522,15 @@ public class CursedWeaponsManager {
 						cw.playerId(charId);
 						cw.kills(nbKills);
 						cw.endTime(endTime);
-						cw.setActive(charId > 0);
-						cw.setDropped(charId == 0);
+						if (charId > 0) {
+							cw.setActive(true);
+							cw.setDropped(false);
+						} else {
+							cw.dropOnGround(x, y, z);
+							if (groundItemService != null && (x != 0 || y != 0 || z != 0)) {
+								groundItemService.dropItem(0, itemId, 1, x, y, z);
+							}
+						}
 						savedKarma.put(itemId, pKarma);
 						savedPkKills.put(itemId, pPkKills);
 					}
@@ -504,17 +567,34 @@ public class CursedWeaponsManager {
 			jdbc.sql("DELETE FROM cursed_weapons WHERE itemId = :itemId")
 					.param("itemId", cw.itemId())
 					.update();
-			jdbc.sql("""
-					INSERT INTO cursed_weapons (itemId, charId, playerKarma, playerPkKills, nbKills, endTime)
-					VALUES (:itemId, :charId, :playerKarma, :playerPkKills, :nbKills, :endTime)
-					""")
-					.param("itemId", cw.itemId())
-					.param("charId", cw.playerId())
-					.param("playerKarma", pKarma)
-					.param("playerPkKills", pPk)
-					.param("nbKills", cw.kills())
-					.param("endTime", cw.endTime())
-					.update();
+			try {
+				jdbc.sql("""
+						INSERT INTO cursed_weapons (itemId, charId, playerKarma, playerPkKills, nbKills, endTime, x, y, z)
+						VALUES (:itemId, :charId, :playerKarma, :playerPkKills, :nbKills, :endTime, :x, :y, :z)
+						""")
+						.param("itemId", cw.itemId())
+						.param("charId", cw.playerId())
+						.param("playerKarma", pKarma)
+						.param("playerPkKills", pPk)
+						.param("nbKills", cw.kills())
+						.param("endTime", cw.endTime())
+						.param("x", cw.x())
+						.param("y", cw.y())
+						.param("z", cw.z())
+						.update();
+			} catch (Exception colEx) {
+				jdbc.sql("""
+						INSERT INTO cursed_weapons (itemId, charId, playerKarma, playerPkKills, nbKills, endTime)
+						VALUES (:itemId, :charId, :playerKarma, :playerPkKills, :nbKills, :endTime)
+						""")
+						.param("itemId", cw.itemId())
+						.param("charId", cw.playerId())
+						.param("playerKarma", pKarma)
+						.param("playerPkKills", pPk)
+						.param("nbKills", cw.kills())
+						.param("endTime", cw.endTime())
+						.update();
+			}
 		} catch (Exception ex) {
 			log.error("Erro ao persistir cursed weapon {}", cw.itemId(), ex);
 		}
