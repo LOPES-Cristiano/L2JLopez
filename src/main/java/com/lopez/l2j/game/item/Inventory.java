@@ -60,6 +60,10 @@ public final class Inventory {
 		return items.values().stream().filter(i -> i.itemId() == itemId).findFirst();
 	}
 
+	public ItemInstance getItemByItemId(int itemId) {
+		return byItemId(itemId).orElse(null);
+	}
+
 	/** Adiciona sem empilhar (restauracao ou item ja resolvido pelo servico). */
 	public void add(ItemInstance item) {
 		item.ownerId(ownerId);
