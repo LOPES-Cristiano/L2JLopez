@@ -49,6 +49,16 @@ public class HeroService {
 					  PRIMARY KEY (charId)
 					)
 					""");
+			jdbc.execute("""
+					CREATE TABLE IF NOT EXISTS heroes (
+					  charId DECIMAL(11,0) NOT NULL DEFAULT 0,
+					  char_name VARCHAR(45) NOT NULL DEFAULT '',
+					  class_id DECIMAL(3,0) NOT NULL DEFAULT 0,
+					  count DECIMAL(3,0) NOT NULL DEFAULT 0,
+					  played DECIMAL(1,0) NOT NULL DEFAULT 0,
+					  PRIMARY KEY (charId)
+					)
+					""");
 		} catch (Exception e) {
 			log.warn("HeroService: Nao foi possivel verificar/criar character_herolist: {}", e.getMessage());
 		}
@@ -197,6 +207,23 @@ public class HeroService {
 				player.heroExpiration(0L);
 				removeHeroSkills(player);
 			}
+		} else if (isOlympiadHero(player.objectId())) {
+			player.setHero(true);
+			player.heroExpiration(0L);
+			rewardHeroSkills(player);
+		}
+	}
+
+	public boolean isOlympiadHero(int charId) {
+		if (jdbc == null) {
+			return false;
+		}
+		try {
+			List<Integer> res = jdbc.query("SELECT played FROM heroes WHERE charId = ? AND played = 1",
+					(rs, rowNum) -> rs.getInt("played"), charId);
+			return !res.isEmpty();
+		} catch (Exception e) {
+			return false;
 		}
 	}
 
