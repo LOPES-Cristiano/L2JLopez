@@ -296,6 +296,40 @@ class GameSessionAdminAndNpcTest {
 				"Deve enviar ServerClose (0x26) para exibir o dialogo de desconexao no cliente");
 	}
 
+	@Test
+	void testAdminSetAdminBroadcastsCharInfoToNearbyPlayers() {
+		player.accessLevel(100);
+		List<GameServerPacket> targetPackets = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+		PlayerCharacter targetChar = new PlayerCharacter(2003, "craftAcc", "Craft", 1, 0, 0, 0, 0, 0, false, 0, 0, 0,
+				500, 300, 200, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 500.0, 300.0, 200.0);
+		targetChar.inventory(new Inventory(targetChar.objectId()));
+		GameSession targetSession = new GameSession(ctx, new byte[8], "127.0.0.1", targetPackets::add, p -> {});
+		setField(targetSession, "active", targetChar);
+		setField(targetSession, "inWorld", true);
+		world.add(targetSession);
+
+		sent.clear();
+		invoke(session, "onSay", new Say2("//setadmin Craft 100", 0, null));
+
+		assertEquals(100, targetChar.accessLevel(), "Target accessLevel should be updated to 100");
+		assertTrue(targetPackets.stream().anyMatch(p -> p instanceof com.lopez.l2j.network.game.packet.GameServerPacket.UserInfo),
+				"Target should receive UserInfo");
+		assertTrue(sent.stream().anyMatch(p -> p instanceof com.lopez.l2j.network.game.packet.GameServerPacket.CharInfo ci
+				&& ci.c().objectId() == targetChar.objectId()),
+				"Nearby GM/players should receive CharInfo broadcast with updated GM name color");
+
+		// Also test //setadmin <level> with target selected
+		sent.clear();
+		targetPackets.clear();
+		setField(session, "targetObjectId", targetChar.objectId());
+		invoke(session, "onSay", new Say2("//setadmin 0", 0, null));
+		assertEquals(0, targetChar.accessLevel(), "Selected target accessLevel should be updated to 0 via //setadmin 0");
+		assertTrue(sent.stream().anyMatch(p -> p instanceof com.lopez.l2j.network.game.packet.GameServerPacket.CharInfo ci
+				&& ci.c().objectId() == targetChar.objectId()),
+				"Nearby players should receive CharInfo when //setadmin is used with target selection");
+	}
+
 	private static void setField(Object target, String name, Object val) {
 		try {
 			var f = target.getClass().getDeclaredField(name);
