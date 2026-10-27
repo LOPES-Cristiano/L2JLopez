@@ -110,6 +110,7 @@ public class Quest620FourGoblets extends Quest {
 				htmltext = ThreadLocalRandom.current().nextBoolean() ? "31452-03.htm" : "31452-04.htm";
 			}
 		} else if ("31452-06.htm".equalsIgnoreCase(event)) {
+			qs.teleportPlayer(169589, -90493, -2914);
 			return "31452-06.htm";
 		} else if ("31453-13.htm".equalsIgnoreCase(event)
 				|| "quest_accept".equalsIgnoreCase(event)
@@ -158,15 +159,33 @@ public class Quest620FourGoblets extends Quest {
 						: (ThreadLocalRandom.current().nextBoolean() ? "31454-09.htm" : "31454-10.htm");
 			}
 		} else if ("tele_4sep".equalsIgnoreCase(event) || "tele_it".equalsIgnoreCase(event)) {
+			boolean allowed = false;
 			if (qs.hasQuestItems(ANTIQUE_BROOCH)) {
-				return null;
-			}
-			if (qs.hasQuestItems(GRAVE_PASS)) {
+				allowed = true;
+			} else if (qs.hasQuestItems(GRAVE_PASS)) {
 				qs.takeItems(GRAVE_PASS, 1);
+				allowed = true;
+			}
+			if (allowed) {
+				if ("tele_4sep".equalsIgnoreCase(event)) {
+					qs.teleportPlayer(178298, -84574, -7216);
+				} else {
+					qs.teleportPlayer(186942, -75602, -2834);
+				}
 				return null;
 			}
 			return "31919-00.htm";
 		} else if ("Enter".equalsIgnoreCase(event)) {
+			int npcId = qs.resolveEventNpcId(CONQUERORS_SEPULCHER_MANAGER);
+			if (npcId == EMPERORS_SEPULCHER_MANAGER) {
+				qs.teleportPlayer(181217, -75577, -7216);
+			} else if (npcId == GREAT_SAGES_SEPULCHER_MANAGER) {
+				qs.teleportPlayer(179561, -88978, -7216);
+			} else if (npcId == JUDGES_SEPULCHER_MANAGER) {
+				qs.teleportPlayer(175015, -86192, -7216);
+			} else {
+				qs.teleportPlayer(181632, -85587, -7218);
+			}
 			return null;
 		} else if ("6881".equalsIgnoreCase(event)
 				|| "6883".equalsIgnoreCase(event)
