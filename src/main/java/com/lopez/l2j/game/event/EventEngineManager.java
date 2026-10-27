@@ -104,6 +104,7 @@ public class EventEngineManager {
         if (tvtService != null && tvtService.isParticipant(playerId)) return true;
         if (ctfService != null && ctfService.isParticipant(playerId)) return true;
         if (dmService != null && dmService.isParticipant(playerId)) return true;
+        if (lmsService != null && lmsService.isParticipant(playerId)) return true;
         return false;
     }
 }
