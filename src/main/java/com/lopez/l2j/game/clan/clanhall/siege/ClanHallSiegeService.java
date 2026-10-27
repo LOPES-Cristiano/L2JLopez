@@ -130,6 +130,7 @@ public class ClanHallSiegeService {
 		}
 
 		siege.registerClan(clan.clanId());
+		saveClanHallAttacker(hallId, clan.clanId(), 0);
 		log.info("Cla '{}' registrado com sucesso para a siege de ClanHall ID {} '{}'",
 				clan.name(), hallId, siege.name());
 		return RegisterResult.SUCCESS;
@@ -148,6 +149,7 @@ public class ClanHallSiegeService {
 		}
 		boolean removed = siege.unregisterClan(leader.clanId());
 		if (removed) {
+			deleteClanHallAttacker(hallId, leader.clanId());
 			log.info("Cla ID {} cancelou inscricao na siege de ClanHall ID {}", leader.clanId(), hallId);
 		}
 		return removed;
@@ -208,6 +210,7 @@ public class ClanHallSiegeService {
 		siege.siegeDate(nextDate);
 		siege.clearRegisteredClans();
 		siege.state(SiegeState.REGISTRATION);
+		clearClanHallAttackers(hallId);
 
 		if (jdbc != null) {
 			try {
@@ -230,6 +233,18 @@ public class ClanHallSiegeService {
 	private void loadSieges() {
 		if (jdbc != null) {
 			try {
+				jdbc.sql("""
+						CREATE TABLE IF NOT EXISTS clanhall_siege_attackers (
+							hall_id INT NOT NULL,
+							clan_id INT NOT NULL,
+							decrees INT DEFAULT 0,
+							PRIMARY KEY (hall_id, clan_id)
+						)
+						""").update();
+			} catch (Exception ex) {
+				log.debug("Nao foi possivel criar tabela clanhall_siege_attackers: {}", ex.getMessage());
+			}
+			try {
 				var rows = jdbc.sql("SELECT id, name, siege_data FROM clanhall_siege").query().listOfRows();
 				for (var row : rows) {
 					int id = ((Number) row.get("id")).intValue();
@@ -239,6 +254,7 @@ public class ClanHallSiegeService {
 				}
 				if (!rows.isEmpty()) {
 					log.info("ClanHallSiegeService: {} sieges carregadas do banco", sieges.size());
+					loadClanHallAttackers();
 					return;
 				}
 			} catch (Exception ex) {
@@ -248,6 +264,77 @@ public class ClanHallSiegeService {
 
 		// Sieges oficiais de Clan Halls contestaveis
 		populateDefaultSieges();
+		loadClanHallAttackers();
+	}
+
+	private void loadClanHallAttackers() {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			var rows = jdbc.sql("SELECT hall_id, clan_id, decrees FROM clanhall_siege_attackers").query().listOfRows();
+			for (var row : rows) {
+				int hallId = ((Number) row.get("hall_id")).intValue();
+				int clanId = ((Number) row.get("clan_id")).intValue();
+				int decrees = row.get("decrees") != null ? ((Number) row.get("decrees")).intValue() : 0;
+				ClanHallSiegeRecord siege = sieges.get(hallId);
+				if (siege != null) {
+					siege.registerClan(clanId);
+					if (decrees > 0) {
+						siege.warDecreesByClanId().put(clanId, decrees);
+						siege.gourdHpByClanId().putIfAbsent(clanId, DEFAULT_GOURD_MAX_HP);
+					}
+				}
+			}
+		} catch (Exception ex) {
+			log.debug("Nao foi possivel carregar clanhall_siege_attackers: {}", ex.getMessage());
+		}
+	}
+
+	private void saveClanHallAttacker(int hallId, int clanId, int decrees) {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("DELETE FROM clanhall_siege_attackers WHERE hall_id = :hid AND clan_id = :cid")
+					.param("hid", hallId)
+					.param("cid", clanId)
+					.update();
+			jdbc.sql("INSERT INTO clanhall_siege_attackers (hall_id, clan_id, decrees) VALUES (:hid, :cid, :dec)")
+					.param("hid", hallId)
+					.param("cid", clanId)
+					.param("dec", decrees)
+					.update();
+		} catch (Exception ex) {
+			log.debug("Erro ao persistir clanhall_siege_attackers: {}", ex.getMessage());
+		}
+	}
+
+	private void deleteClanHallAttacker(int hallId, int clanId) {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("DELETE FROM clanhall_siege_attackers WHERE hall_id = :hid AND clan_id = :cid")
+					.param("hid", hallId)
+					.param("cid", clanId)
+					.update();
+		} catch (Exception ex) {
+			log.debug("Erro ao remover de clanhall_siege_attackers: {}", ex.getMessage());
+		}
+	}
+
+	private void clearClanHallAttackers(int hallId) {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("DELETE FROM clanhall_siege_attackers WHERE hall_id = :hid")
+					.param("hid", hallId)
+					.update();
+		} catch (Exception ex) {
+			log.debug("Erro ao limpar clanhall_siege_attackers do hall {}: {}", hallId, ex.getMessage());
+		}
 	}
 
 	private void populateDefaultSieges() {
@@ -340,6 +427,7 @@ public class ClanHallSiegeService {
 		}
 		siege.clanFlagNpcIds().remove(defeatedClanId);
 		siege.unregisterClan(defeatedClanId);
+		deleteClanHallAttacker(hallId, defeatedClanId);
 		if (siege.registeredClanIds().size() == 1) {
 			Integer lastClanId = siege.registeredClanIds().iterator().next();
 			return endSiege(hallId, lastClanId);
@@ -387,11 +475,14 @@ public class ClanHallSiegeService {
 		for (Integer existing : new java.util.ArrayList<>(siege.registeredClanIds())) {
 			if (!top4.contains(existing)) {
 				siege.unregisterClan(existing);
+				deleteClanHallAttacker(62, existing);
 			}
 		}
 		for (Integer qualified : top4) {
 			siege.registerClan(qualified);
 			siege.gourdHpByClanId().putIfAbsent(qualified, DEFAULT_GOURD_MAX_HP);
+			int totalDecrees = siege.warDecreesByClanId().getOrDefault(qualified, 0);
+			saveClanHallAttacker(62, qualified, totalDecrees);
 		}
 		return RegisterResult.SUCCESS;
 	}
