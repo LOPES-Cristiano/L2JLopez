@@ -111,6 +111,9 @@ public class CommunityBoardService {
     @Autowired(required = false)
     private com.lopez.l2j.game.social.FriendListService friendListService;
 
+    @Autowired(required = false)
+    private com.lopez.l2j.game.dressme.DressMeData dressMeData;
+
     public CommunityBoardService() {
         this(null, null, null);
     }
@@ -1044,6 +1047,33 @@ public class CommunityBoardService {
             if (c != null) {
                 c.notice(notice);
                 c.noticeEnabled(!notice.isEmpty());
+                clanTable.saveNotice(c.clanId(), notice, !notice.isEmpty());
+                if (jdbc != null) {
+                    try {
+                        jdbc.sql("""
+                                INSERT INTO clan_notices (clanID, notice, enabled)
+                                VALUES (:id, :n, :en)
+                                ON DUPLICATE KEY UPDATE notice = VALUES(notice), enabled = VALUES(enabled)
+                                """)
+                                .param("id", c.clanId())
+                                .param("n", notice)
+                                .param("en", !notice.isEmpty() ? "true" : "false")
+                                .update();
+                    } catch (Exception ex) {
+                        try {
+                            jdbc.sql("""
+                                    INSERT INTO clan_notices (clan_id, notice, enabled)
+                                    VALUES (:id, :n, :en)
+                                    ON DUPLICATE KEY UPDATE notice = VALUES(notice), enabled = VALUES(enabled)
+                                    """)
+                                    .param("id", c.clanId())
+                                    .param("n", notice)
+                                    .param("en", !notice.isEmpty() ? "true" : "false")
+                                    .update();
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
             }
         } else if (args.startsWith("clanmail") && player.clanId() > 0 && clanTable != null) {
             String[] parts = args.split(";", 3);
@@ -1306,11 +1336,18 @@ public class CommunityBoardService {
             }
         } else if (jdbc != null) {
             try {
-                friends.addAll(jdbc.sql("SELECT friend_name FROM character_friends WHERE char_id = :cid")
+                friends.addAll(jdbc.sql("SELECT friend_name FROM character_friends WHERE charId = :cid")
                         .param("cid", player.objectId())
                         .query(String.class)
                         .list());
-            } catch (Exception ignored) {
+            } catch (Exception ex) {
+                try {
+                    friends.addAll(jdbc.sql("SELECT friend_name FROM character_friends WHERE char_id = :cid")
+                            .param("cid", player.objectId())
+                            .query(String.class)
+                            .list());
+                } catch (Exception ignored) {
+                }
             }
         }
 
@@ -1387,9 +1424,29 @@ public class CommunityBoardService {
     }
 
     public String getCommunityDressMeHtml(PlayerCharacter player) {
-        return "<html><body><br>" + renderNavigationBar()
-                + "<center><font color=\"LEVEL\" size=3><b>DRESSME VISUAL SYSTEM (_bbsdressme)</b></font><br>"
-                + "<font color=\"8FA888\">Desbloqueio exclusivo com moedas in-game: Adena (57), Gold Bar (3470) e Event Medal (6392)!</font></center></body></html>";
+        StringBuilder sb = new StringBuilder();
+        sb.append("<html><body><br>").append(renderNavigationBar());
+        sb.append("<center><font color=\"LEVEL\" size=3><b>DRESSME VISUAL SYSTEM (_bbsdressme)</b></font><br>");
+        sb.append("<font color=\"8FA888\">Desbloqueio exclusivo com moedas in-game: Adena (57), Gold Bar (3470) e Event Medal (6392)!</font></center><br>");
+        sb.append("<table width=610 bgcolor=151515 border=1 cellpadding=4 cellspacing=0 align=center>");
+        sb.append("<tr><th width=80>ID</th><th width=260>Skin</th><th width=120>Tipo</th><th width=150>Acao</th></tr>");
+        var entries = dressMeData != null ? dressMeData.all() : java.util.List.<com.lopez.l2j.game.dressme.DressMeEntry>of();
+        if (entries.isEmpty()) {
+            sb.append("<tr><td align=center>9001</td><td>Draconic Leather Set</td><td align=center>ARMOR</td><td align=center><button value=\"Equipar\" action=\"bypass -h voiced_dressme apply 9001\" width=80 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td></tr>");
+            sb.append("<tr><td align=center>9002</td><td>Imperial Crusader Set</td><td align=center>ARMOR</td><td align=center><button value=\"Equipar\" action=\"bypass -h voiced_dressme apply 9002\" width=80 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td></tr>");
+            sb.append("<tr><td align=center>9003</td><td>Major Arcana Robe Set</td><td align=center>ARMOR</td><td align=center><button value=\"Equipar\" action=\"bypass -h voiced_dressme apply 9003\" width=80 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td></tr>");
+        } else {
+            for (var e : entries) {
+                sb.append("<tr><td align=center>").append(e.skillId()).append("</td>")
+                        .append("<td>").append(e.name()).append("</td>")
+                        .append("<td align=center>").append(e.type()).append("</td>")
+                        .append("<td align=center><button value=\"Equipar\" action=\"bypass -h voiced_dressme apply ")
+                        .append(e.skillId())
+                        .append("\" width=80 height=20 back=\"L2UI_ch3.Btn1_normalOn\" fore=\"L2UI_ch3.Btn1_normal\"></td></tr>");
+            }
+        }
+        sb.append("</table></body></html>");
+        return sb.toString();
     }
 
     /**
