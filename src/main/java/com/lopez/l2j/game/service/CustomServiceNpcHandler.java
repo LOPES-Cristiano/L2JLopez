@@ -7,13 +7,18 @@ import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.quest.Quest;
 import com.lopez.l2j.game.quest.QuestManager;
 import com.lopez.l2j.game.quest.QuestState;
+import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.GameSession;
+import com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemList;
 import com.lopez.l2j.network.game.packet.GameServerPacket.RadarControl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -62,9 +67,24 @@ public class CustomServiceNpcHandler extends Quest {
 	@Autowired(required = false)
 	private BossManager bossManager;
 
+	@Autowired(required = false)
+	private CharacterService characterService;
+
+	@Autowired(required = false)
+	private InventoryService inventoryService;
+
+	public CustomServiceNpcHandler(QuestManager questManager) {
+		this(questManager, null, null);
+	}
+
 	@Autowired
-	public CustomServiceNpcHandler(@Autowired(required = false) QuestManager questManager) {
+	public CustomServiceNpcHandler(
+			@Autowired(required = false) QuestManager questManager,
+			@Autowired(required = false) CharacterService characterService,
+			@Autowired(required = false) InventoryService inventoryService) {
 		super(5555, "CustomServiceNpcHandler", "Custom In-Game Services");
+		this.characterService = characterService;
+		this.inventoryService = inventoryService;
 		for (int npcId : CUSTOM_NPCS) {
 			addStartNpc(npcId);
 			addTalkId(npcId);
@@ -164,6 +184,42 @@ public class CustomServiceNpcHandler extends Quest {
 		return sb.toString();
 	}
 
+	private boolean consumeCurrency(PlayerCharacter player, int itemId, int count, String process) {
+		if (player == null || player.inventory() == null) return false;
+		if (count <= 0) return true;
+		if (inventoryService != null) {
+			var cons = inventoryService.consumeItem(player.inventory(), itemId, count, process);
+			if (cons == null) {
+				return false;
+			}
+			GameWorld gw = GameWorld.getInstance();
+			if (gw != null) {
+				gw.sendPacket(player.objectId(), new InventoryUpdate(List.of(
+						ItemInfo.of(cons.item(), cons.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+			}
+			return true;
+		}
+		boolean ok = player.inventory().destroyItemByItemId(itemId, count);
+		if (ok) {
+			GameWorld gw = GameWorld.getInstance();
+			if (gw != null) {
+				gw.sendPacket(player.objectId(), ItemList.of(player.inventory().items(), false));
+			}
+		}
+		return ok;
+	}
+
+	private void persistPlayerState(PlayerCharacter player) {
+		if (player == null) return;
+		if (characterService != null) {
+			characterService.save(player, true);
+		}
+		GameWorld gw = GameWorld.getInstance();
+		if (gw != null) {
+			gw.player(player.objectId()).ifPresent(GameWorld.OnlinePlayer::sendUserInfoAndBroadcastCharInfo);
+		}
+	}
+
 	private String handleClassAdvance(PlayerCharacter player, int newClassId) {
 		long costAdena = player.level() < 40 ? 100_000L : (player.level() < 76 ? 1_000_000L : 0L);
 		int costGoldBar = player.level() >= 76 ? 10 : 0;
@@ -178,10 +234,15 @@ public class CustomServiceNpcHandler extends Quest {
 			return "<html><body>Você não possui Gold Bars suficientes (10 necessárias)!</body></html>";
 		}
 
-		if (costAdena > 0) inv.destroyItemByItemId(ADENA, (int) costAdena);
-		if (costGoldBar > 0) inv.destroyItemByItemId(GOLD_BAR, costGoldBar);
+		if (costAdena > 0 && !consumeCurrency(player, ADENA, (int) costAdena, "ClassAdvance")) {
+			return "<html><body>Você não possui Adena suficiente!</body></html>";
+		}
+		if (costGoldBar > 0 && !consumeCurrency(player, GOLD_BAR, costGoldBar, "ClassAdvance")) {
+			return "<html><body>Você não possui Gold Bars suficientes (10 necessárias)!</body></html>";
+		}
 
 		player.classId(newClassId);
+		persistPlayerState(player);
 		log.info("ClassMaster: Jogador {} avançou para classe ID {}", player.name(), newClassId);
 		return "<html><body>Parabéns! Sua classe foi atualizada com sucesso!</body></html>";
 	}
@@ -196,11 +257,11 @@ public class CustomServiceNpcHandler extends Quest {
 	private String handleBuyNobles(PlayerCharacter player) {
 		if (player.isNoble()) return "<html><body>Você já é Nobre!</body></html>";
 		var inv = player.inventory();
-		if (inv == null || inv.getItemCount(GOLD_BAR) < 50) {
+		if (inv == null || inv.getItemCount(GOLD_BAR) < 50 || !consumeCurrency(player, GOLD_BAR, 50, "BuyNobles")) {
 			return "<html><body>Você precisa de 50 Gold Bars para se tornar Nobre.</body></html>";
 		}
-		inv.destroyItemByItemId(GOLD_BAR, 50);
 		player.setNoble(true);
+		persistPlayerState(player);
 		log.info("NoblesSeller: Jogador {} adquiriu Noblesse", player.name());
 		return "<html><body>Parabéns Nobre guerreiro! O status Noblesse foi ativado!</body></html>";
 	}
@@ -217,22 +278,22 @@ public class CustomServiceNpcHandler extends Quest {
 	private String handleCleanKarma(PlayerCharacter player) {
 		if (player.karma() <= 0) return "<html><body>Você não possui Karma para limpar!</body></html>";
 		var inv = player.inventory();
-		if (inv == null || inv.getItemCount(ADENA) < 500_000) {
+		if (inv == null || inv.getItemCount(ADENA) < 500_000 || !consumeCurrency(player, ADENA, 500_000, "CleanKarma")) {
 			return "<html><body>Você não possui Adena suficiente (500k necessário)!</body></html>";
 		}
-		inv.destroyItemByItemId(ADENA, 500_000);
 		player.karma(0);
+		persistPlayerState(player);
 		return "<html><body>Seu Karma foi totalmente limpo!</body></html>";
 	}
 
 	private String handleCleanPk(PlayerCharacter player) {
 		if (player.pkKills() <= 0) return "<html><body>Você não possui mortes PK registradas!</body></html>";
 		var inv = player.inventory();
-		if (inv == null || inv.getItemCount(GOLD_BAR) < 1) {
+		if (inv == null || inv.getItemCount(GOLD_BAR) < 1 || !consumeCurrency(player, GOLD_BAR, 1, "CleanPk")) {
 			return "<html><body>Você precisa de 1 Gold Bar para remover 1 PK!</body></html>";
 		}
-		inv.destroyItemByItemId(GOLD_BAR, 1);
 		player.pkKills(player.pkKills() - 1);
+		persistPlayerState(player);
 		return "<html><body>1 PK foi removido com sucesso! Restantes: " + player.pkKills() + "</body></html>";
 	}
 
@@ -246,22 +307,22 @@ public class CustomServiceNpcHandler extends Quest {
 	private String handleLevelUp(PlayerCharacter player) {
 		if (player.level() >= 80) return "<html><body>Você já atingiu o nível máximo (80)!</body></html>";
 		var inv = player.inventory();
-		if (inv == null || inv.getItemCount(ADENA) < 500_000) {
+		if (inv == null || inv.getItemCount(ADENA) < 500_000 || !consumeCurrency(player, ADENA, 500_000, "LevelUp")) {
 			return "<html><body>Adena insuficiente!</body></html>";
 		}
-		inv.destroyItemByItemId(ADENA, 500_000);
 		player.level(player.level() + 1);
+		persistPlayerState(player);
 		return "<html><body>Você subiu para o nível " + player.level() + "!</body></html>";
 	}
 
 	private String handleLevelDown(PlayerCharacter player) {
 		if (player.level() <= 1) return "<html><body>Você já está no nível mínimo!</body></html>";
 		var inv = player.inventory();
-		if (inv == null || inv.getItemCount(ADENA) < 500_000) {
+		if (inv == null || inv.getItemCount(ADENA) < 500_000 || !consumeCurrency(player, ADENA, 500_000, "LevelDown")) {
 			return "<html><body>Adena insuficiente!</body></html>";
 		}
-		inv.destroyItemByItemId(ADENA, 500_000);
 		player.level(player.level() - 1);
+		persistPlayerState(player);
 		return "<html><body>Você reduziu seu nível para " + player.level() + "!</body></html>";
 	}
 
