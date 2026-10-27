@@ -90,7 +90,33 @@ public class AdminGeneralHandler implements IAdminCommandHandler {
 			"admin_reload",
 			"reload",
 			"admin_movie",
-			"movie"
+			"movie",
+			"admin_startfortsiege", "startfortsiege",
+			"admin_endfortsiege", "endfortsiege",
+			"admin_setfort", "setfort",
+			"admin_rainbowspring_startsiege", "rainbowspring_startsiege",
+			"admin_devcastle_startsiege", "devcastle_startsiege",
+			"admin_addolypoints", "addolypoints",
+			"admin_removeolypoints", "removeolypoints",
+			"admin_setolypoints", "setolypoints",
+			"admin_getolypoints", "getolypoints",
+			"admin_manor_reset", "manor_reset",
+			"admin_manor_save", "manor_save",
+			"admin_cw_info", "cw_info",
+			"admin_cw_goto", "cw_goto",
+			"admin_cw_drop", "cw_drop",
+			"admin_find_mammon", "find_mammon",
+			"admin_freelook", "freelook",
+			"admin_cinematic", "cinematic",
+			"admin_setcp", "setcp",
+			"admin_sethp", "sethp",
+			"admin_setmp", "setmp",
+			"admin_gmcancel", "gmcancel",
+			"admin_remclanwait", "remclanwait",
+			"admin_give_all", "give_all",
+			"admin_give_all_by_ip", "give_all_by_ip",
+			"admin_give_all_by_hwid", "give_all_by_hwid",
+			"admin_give_all_radius", "give_all_radius"
 	);
 
 	private final AtomicInteger phantomSeq = new AtomicInteger(1);
@@ -566,6 +592,301 @@ public class AdminGeneralHandler implements IAdminCommandHandler {
 				if ("balance".equalsIgnoreCase(safeParams)) {
 					balanceProfileService.reload();
 					session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "XMLs de balance recarregados com sucesso!"));
+					return true;
+				}
+				return false;
+			}
+			case "startfortsiege", "endfortsiege", "setfort",
+					"rainbowspring_startsiege", "devcastle_startsiege",
+					"addolypoints", "removeolypoints", "setolypoints", "getolypoints",
+					"manor_reset", "manor_save",
+					"cw_info", "cw_goto", "cw_drop",
+					"find_mammon", "freelook", "cinematic",
+					"setcp", "sethp", "setmp", "gmcancel", "remclanwait",
+					"give_all", "give_all_by_ip", "give_all_by_hwid", "give_all_radius" -> {
+				if (session.adminHandler() != null) {
+					switch (lower) {
+						case "startfortsiege" -> {
+							String token = safeParams.isEmpty() ? "101" : safeParams.split("\\s+")[0];
+							int fortId = GameSession.parseIntSafe(token, -1);
+							if (fortId <= 0 && ctx != null && ctx.fortresses() != null) {
+								fortId = ctx.fortresses().getFortressByName(token).map(com.lopez.l2j.game.fortress.FortressRecord::id).orElse(101);
+							}
+							boolean ok = ctx != null && ctx.fortressSieges() != null && ctx.fortressSieges().startSiege(fortId);
+							session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									ok ? "Siege de Fortaleza iniciada (Fort ID " + fortId + ")."
+											: "Fortaleza nao encontrada ou cerco ja ativo (Fort ID " + fortId + ")."));
+						}
+						case "endfortsiege" -> {
+							String token = safeParams.isEmpty() ? "101" : safeParams.split("\\s+")[0];
+							int fortId = GameSession.parseIntSafe(token, -1);
+							if (fortId <= 0 && ctx != null && ctx.fortresses() != null) {
+								fortId = ctx.fortresses().getFortressByName(token).map(com.lopez.l2j.game.fortress.FortressRecord::id).orElse(101);
+							}
+							var target = session.adminHandler().getTargetPlayerOrActive();
+							int winnerClanId = target != null && target.clanId() > 0 ? target.clanId() : 0;
+							boolean ok = ctx != null && ctx.fortressSieges() != null && ctx.fortressSieges().endSiege(fortId, winnerClanId);
+							session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									ok ? "Siege de Fortaleza encerrada (Fort ID " + fortId + ")."
+											: "Fortaleza nao encontrada (Fort ID " + fortId + ")."));
+						}
+						case "setfort" -> {
+							String token = safeParams.isEmpty() ? "101" : safeParams.split("\\s+")[0];
+							int fortId = GameSession.parseIntSafe(token, -1);
+							if (fortId <= 0 && ctx != null && ctx.fortresses() != null) {
+								fortId = ctx.fortresses().getFortressByName(token).map(com.lopez.l2j.game.fortress.FortressRecord::id).orElse(101);
+							}
+							var target = session.adminHandler().getTargetPlayerOrActive();
+							int clanId = target != null ? target.clanId() : 0;
+							if (ctx != null && ctx.fortresses() != null && fortId > 0) {
+								ctx.fortresses().setOwner(fortId, clanId);
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+										"Fortaleza ID " + fortId + " atribuida ao Cla #" + clanId + " (" + (target != null ? target.name() : active.name()) + ")."));
+							} else {
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Fortaleza ou jogador invalido."));
+							}
+						}
+						case "rainbowspring_startsiege" -> {
+							boolean ok = ctx != null && ctx.clanHallSieges() != null && ctx.clanHallSieges().startSiege(62);
+							session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									ok ? "Siege de Rainbow Springs Chateau (ID 62) iniciada!" : "Siege de Rainbow Springs Chateau (ID 62) acionada."));
+						}
+						case "devcastle_startsiege" -> {
+							boolean ok = ctx != null && ctx.clanHallSieges() != null && ctx.clanHallSieges().startSiege(34);
+							session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									ok ? "Siege de Devastated Castle (ID 34) iniciada!" : "Siege de Devastated Castle (ID 34) acionada."));
+						}
+						case "addolypoints" -> {
+							var target = session.adminHandler().getTargetPlayerOrActive();
+							int pts = GameSession.parseIntSafe(safeParams.isEmpty() ? "10" : safeParams.split("\\s+")[0], 10);
+							if (target != null && ctx != null && ctx.olympiad() != null) {
+								var noble = ctx.olympiad().registerNoble(target.objectId(), target.name(), target.classId());
+								noble.points(Math.max(0, noble.points() + pts));
+								ctx.olympiad().save();
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+										"Pontos de Olimpiada de " + target.name() + " aumentados em +" + pts + " (Total: " + noble.points() + ")."));
+							} else {
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pontos de Olimpiada adicionados: " + pts));
+							}
+						}
+						case "removeolypoints" -> {
+							var target = session.adminHandler().getTargetPlayerOrActive();
+							int pts = GameSession.parseIntSafe(safeParams.isEmpty() ? "10" : safeParams.split("\\s+")[0], 10);
+							if (target != null && ctx != null && ctx.olympiad() != null) {
+								var noble = ctx.olympiad().registerNoble(target.objectId(), target.name(), target.classId());
+								noble.points(Math.max(0, noble.points() - pts));
+								ctx.olympiad().save();
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+										"Pontos de Olimpiada de " + target.name() + " reduzidos em -" + pts + " (Total: " + noble.points() + ")."));
+							} else {
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pontos de Olimpiada removidos: " + pts));
+							}
+						}
+						case "setolypoints" -> {
+							var target = session.adminHandler().getTargetPlayerOrActive();
+							int pts = GameSession.parseIntSafe(safeParams.isEmpty() ? "18" : safeParams.split("\\s+")[0], 18);
+							if (target != null && ctx != null && ctx.olympiad() != null) {
+								var noble = ctx.olympiad().registerNoble(target.objectId(), target.name(), target.classId());
+								noble.points(Math.max(0, pts));
+								ctx.olympiad().save();
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+										"Pontos de Olimpiada de " + target.name() + " definidos para " + noble.points() + "."));
+							} else {
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pontos de Olimpiada definidos: " + pts));
+							}
+						}
+						case "getolypoints" -> {
+							var target = session.adminHandler().getTargetPlayerOrActive();
+							if (target != null && ctx != null && ctx.olympiad() != null) {
+								int pts = ctx.olympiad().getNoble(target.objectId())
+										.map(com.lopez.l2j.game.olympiad.OlympiadNoble::points)
+										.orElse(0);
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+										"Pontos de Olimpiada de " + target.name() + ": " + pts));
+							} else {
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pontos de Olimpiada: 0"));
+							}
+						}
+						case "manor_reset" -> {
+							if (ctx != null && ctx.manor() != null) {
+								ctx.manor().approveNextPeriod();
+								ctx.manor().saveAllToDb();
+							}
+							session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Manor resetado e periodo seguinte aprovado com sucesso."));
+						}
+						case "manor_save" -> {
+							int saved = ctx != null && ctx.manor() != null ? ctx.manor().saveAllToDb() : 0;
+							session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Dados de Manor salvos no banco de dados (" + saved + " registros)."));
+						}
+						case "cw_info" -> {
+							if (ctx != null && ctx.cursedWeapons() != null) {
+								StringBuilder sb = new StringBuilder("Cursed Weapons: ");
+								for (var cw : ctx.cursedWeapons().allWeapons()) {
+									sb.append(cw.name()).append(" [ID=").append(cw.itemId())
+											.append(", Active=").append(cw.isActive())
+											.append(", Dropped=").append(cw.isDropped())
+											.append(", Stage=").append(cw.stage())
+											.append(", Kills=").append(cw.kills())
+											.append(", Holder=").append(cw.playerName().isEmpty() ? "None" : cw.playerName())
+											.append("] ");
+								}
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", sb.toString()));
+							}
+							session.adminHandler().showAdminHtml("cwinfo.htm");
+						}
+						case "cw_goto" -> {
+							int cwId = GameSession.parseIntSafe(safeParams.isEmpty() ? "8190" : safeParams.split("\\s+")[0], 8190);
+							if (safeParams.toLowerCase(Locale.ROOT).contains("akamanah")) {
+								cwId = 8689;
+							}
+							boolean teleported = false;
+							if (ctx != null && ctx.cursedWeapons() != null) {
+								var cwOpt = ctx.cursedWeapons().getCursedWeapon(cwId);
+								if (cwOpt.isPresent()) {
+									var cw = cwOpt.get();
+									if (cw.isActive() && cw.playerId() > 0 && ctx.world() != null) {
+										var holder = ctx.world().player(cw.playerId()).orElse(null);
+										if (holder != null) {
+											session.teleportToLocation(holder.x(), holder.y(), holder.z());
+											session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Teleportado para o portador de " + cw.name() + " (" + holder.name() + ")."));
+											teleported = true;
+										}
+									}
+									if (!teleported && (cw.isDropped() || cw.x() != 0 || cw.y() != 0)) {
+										session.teleportToLocation(cw.x(), cw.y(), cw.z());
+										session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Teleportado para " + cw.name() + " em (" + cw.x() + ", " + cw.y() + ", " + cw.z() + ")."));
+										teleported = true;
+									}
+								}
+							}
+							if (!teleported) {
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cursed Weapon " + cwId + " nao esta ativa ou dropada no mundo."));
+							}
+						}
+						case "cw_drop" -> {
+							int cwId = GameSession.parseIntSafe(safeParams.isEmpty() ? "8190" : safeParams.split("\\s+")[0], 8190);
+							if (safeParams.toLowerCase(Locale.ROOT).contains("akamanah")) {
+								cwId = 8689;
+							}
+							boolean dropped = ctx != null && ctx.cursedWeapons() != null && ctx.cursedWeapons().forceDrop(cwId, active.x(), active.y(), active.z());
+							session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									dropped ? "Cursed Weapon " + cwId + " dropada em (" + active.x() + ", " + active.y() + ", " + active.z() + ")."
+											: "Nao foi possivel dropar a Cursed Weapon " + cwId + " (pode ja estar ativa)."));
+						}
+						case "find_mammon" -> session.adminHandler().handleAdminCommand("mammon_find " + safeParams);
+						case "freelook" -> {
+							int mode = GameSession.parseIntSafe(safeParams.isEmpty() ? "1" : safeParams.split("\\s+")[0], 1);
+							session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.CameraMode(mode));
+							session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Camera FreeLook modo " + mode + " ativado."));
+						}
+						case "cinematic" -> {
+							String[] parts = safeParams.isEmpty() ? new String[0] : safeParams.split("\\s+");
+							if (parts.length > 0 && ("stop".equalsIgnoreCase(parts[0]) || "off".equalsIgnoreCase(parts[0]) || "normal".equalsIgnoreCase(parts[0]))) {
+								session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.NormalCamera());
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Camera cinematica encerrada (NormalCamera)."));
+							} else {
+								int targetId = targetObjectId != 0 ? targetObjectId : active.objectId();
+								int dist = parts.length >= 1 ? GameSession.parseIntSafe(parts[0], 400) : 400;
+								int yaw = parts.length >= 2 ? GameSession.parseIntSafe(parts[1], 180) : 180;
+								int pitch = parts.length >= 3 ? GameSession.parseIntSafe(parts[2], 10) : 10;
+								int time = parts.length >= 4 ? GameSession.parseIntSafe(parts[3], 1000) : 1000;
+								int duration = parts.length >= 5 ? GameSession.parseIntSafe(parts[4], 5000) : 5000;
+								session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.SpecialCamera(targetId, dist, yaw, pitch, time, duration));
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "SpecialCamera disparada no objeto " + targetId + " (dist=" + dist + ", dur=" + duration + "ms)."));
+							}
+						}
+						case "setcp", "sethp", "setmp" -> {
+							int val = GameSession.parseIntSafe(safeParams.isEmpty() ? "1000" : safeParams.split("\\s+")[0], 1000);
+							var targetChar = session.adminHandler().getTargetPlayerOrActive();
+							var targetPlayer = session.adminHandler().getTargetOnlinePlayerOrSelf();
+							if (targetChar != null) {
+								if ("setcp".equals(lower)) {
+									if (val > targetChar.maxCp()) targetChar.maxCp(val);
+									targetChar.currentCp(Math.max(0, val));
+								} else if ("sethp".equals(lower)) {
+									if (val > targetChar.maxHp()) targetChar.maxHp(val);
+									targetChar.currentHp(Math.max(1, val));
+								} else {
+									if (val > targetChar.maxMp()) targetChar.maxMp(val);
+									targetChar.currentMp(Math.max(0, val));
+								}
+								if (targetPlayer != null) {
+									targetPlayer.send(new StatusUpdate(targetChar.objectId(), List.of(
+											new StatusUpdate.Attribute(StatusUpdate.CUR_HP, (int) targetChar.currentHp()),
+											new StatusUpdate.Attribute(StatusUpdate.MAX_HP, targetChar.maxHp()),
+											new StatusUpdate.Attribute(StatusUpdate.CUR_MP, (int) targetChar.currentMp()),
+											new StatusUpdate.Attribute(StatusUpdate.MAX_MP, targetChar.maxMp()),
+											new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) targetChar.currentCp()),
+											new StatusUpdate.Attribute(StatusUpdate.MAX_CP, targetChar.maxCp()))));
+								}
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+										lower.toUpperCase(Locale.ROOT) + " de " + targetChar.name() + " definido para " + val + "."));
+							}
+						}
+						case "gmcancel" -> session.adminHandler().handleAdminCommand("cancel " + safeParams);
+						case "remclanwait" -> {
+							var targetChar = session.adminHandler().getTargetPlayerOrActive();
+							if (targetChar != null) {
+								targetChar.clanJoinExpiryTime(0L);
+								targetChar.clanCreateExpiryTime(0L);
+								if (targetChar.clanId() > 0 && ctx != null && ctx.clans() != null) {
+									ctx.clans().byClanId(targetChar.clanId()).ifPresent(clan -> {
+										clan.charPenaltyExpiryTime(0L);
+										clan.setAllyPenalty(0L, 0);
+										clan.dissolvingExpiryTime(0L);
+									});
+								}
+								if (ctx != null && ctx.characters() != null) {
+									ctx.characters().save(targetChar, true);
+								}
+								session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+										"Penalidades de espera de cla/alianca removidas para " + targetChar.name() + "."));
+							}
+						}
+						case "give_all", "give_all_by_ip", "give_all_by_hwid", "give_all_radius" -> {
+							String[] parts = safeParams.isEmpty() ? new String[0] : safeParams.split("\\s+");
+							int itemId = parts.length >= 1 ? GameSession.parseIntSafe(parts[0], 57) : 57;
+							int count = parts.length >= 2 ? Math.max(1, GameSession.parseIntSafe(parts[1], 1)) : 1;
+							int radius = (lower.equals("give_all_radius") && parts.length >= 3)
+									? Math.max(1, GameSession.parseIntSafe(parts[2], 1000))
+									: 1000;
+							long rSq = (long) radius * radius;
+							java.util.Set<String> seenKeys = new java.util.HashSet<>();
+							int rewarded = 0;
+							if (ctx != null && ctx.world() != null && ctx.inventories() != null) {
+								for (var p : ctx.world().players()) {
+									if (p.character() == null) continue;
+									if (lower.equals("give_all_by_ip")) {
+										String ip = (p instanceof GameSession gs && gs.ip() != null) ? gs.ip() : ("ip_" + p.objectId());
+										if (!seenKeys.add(ip)) continue;
+									} else if (lower.equals("give_all_by_hwid")) {
+										String hwid = p.character().account() != null && !p.character().account().isBlank()
+												? p.character().account()
+												: ((p instanceof GameSession gs && gs.ip() != null) ? gs.ip() : ("hwid_" + p.objectId()));
+										if (!seenKeys.add(hwid)) continue;
+									} else if (lower.equals("give_all_radius")) {
+										long dx = p.character().x() - active.x();
+										long dy = p.character().y() - active.y();
+										if (dx * dx + dy * dy > rSq) continue;
+									}
+									var added = ctx.inventories().addItem(p.character().inventory(), itemId, count, "AdminGiveAll");
+									if (added != null) {
+										p.send(new com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate(List.of(
+												com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.of(added.item(),
+														added.created()
+																? com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.ADDED
+																: com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED))));
+										if (p instanceof GameSession gs) {
+											gs.refreshWeightAndPenalties();
+										}
+										rewarded++;
+									}
+								}
+							}
+							session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+									lower + ": Item " + itemId + " x" + count + " entregue para " + rewarded + " jogador(es)."));
+						}
+					}
 					return true;
 				}
 				return false;
