@@ -42,6 +42,7 @@ public class QuestManager implements SmartInitializingSingleton {
 	private final Map<Integer, List<Quest>> questsByFirstTalkNpc = new ConcurrentHashMap<>();
 	private final Map<Integer, List<Quest>> questsByKillNpc = new ConcurrentHashMap<>();
 	private final Map<Integer, List<Quest>> questsByAttackNpc = new ConcurrentHashMap<>();
+	private final Map<String, String> globalQuestVars = new ConcurrentHashMap<>();
 
 	public QuestManager(JdbcTemplate jdbcTemplate) {
 		this(jdbcTemplate, null);
@@ -318,6 +319,54 @@ public class QuestManager implements SmartInitializingSingleton {
 		} catch (Exception e) {
 			log.warn("Erro ao deletar var {} da quest {} para charId {}: {}", var, qName, charId, e.getMessage());
 		}
+	}
+
+	public void saveGlobalQuestVar(String var, String value) {
+		if (var == null || var.isBlank()) {
+			return;
+		}
+		if (value == null) {
+			globalQuestVars.remove(var);
+		} else {
+			globalQuestVars.put(var, value);
+		}
+		if (jdbcTemplate != null) {
+			try {
+				if (value == null) {
+					jdbcTemplate.update("DELETE FROM quest_global_data WHERE var = ?", var);
+				} else {
+					jdbcTemplate.update("REPLACE INTO quest_global_data (var, value) VALUES (?, ?)", var, value);
+				}
+			} catch (Exception e) {
+				log.warn("Erro ao persistir global quest var {}: {}", var, e.getMessage());
+			}
+		}
+	}
+
+	public String getGlobalQuestVar(String var) {
+		if (var == null || var.isBlank()) {
+			return null;
+		}
+		String cached = globalQuestVars.get(var);
+		if (cached != null) {
+			return cached;
+		}
+		if (jdbcTemplate != null) {
+			try {
+				List<String> results = jdbcTemplate.query(
+						"SELECT value FROM quest_global_data WHERE var = ?",
+						(rs, rowNum) -> rs.getString("value"),
+						var);
+				if (results != null && !results.isEmpty() && results.get(0) != null) {
+					String val = results.get(0);
+					globalQuestVars.put(var, val);
+					return val;
+				}
+			} catch (Exception e) {
+				log.debug("Erro ao consultar global quest var {}: {}", var, e.getMessage());
+			}
+		}
+		return null;
 	}
 
 	// ==================== Dispatchers ====================
