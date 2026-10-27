@@ -35,6 +35,12 @@ public class DropService {
 	private final com.lopez.l2j.game.item.GroundItemService groundItemService;
 	private com.lopez.l2j.game.event.official.OfficialEventService officialEventService;
 	private com.lopez.l2j.game.event.official.L2DayEventService l2DayEventService;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	private com.lopez.l2j.game.diary.DropsDiaryService dropsDiaryService;
+
+	public void setDropsDiaryService(com.lopez.l2j.game.diary.DropsDiaryService dropsDiaryService) {
+		this.dropsDiaryService = dropsDiaryService;
+	}
 
 	public DropService(
 			DropTable dropTable,
@@ -429,8 +435,16 @@ public class DropService {
 		}
 
 		List<ItemInfo> itemUpdates = new ArrayList<>();
+		List<DropReward> deliveredRewards = new ArrayList<>(rewards.size());
 
 		for (DropReward reward : rewards) {
+			if (player != null && dropsDiaryService != null && !dropsDiaryService.canDropItem(player.objectId(), reward.itemId())) {
+				continue;
+			}
+			if (player != null && dropsDiaryService != null) {
+				dropsDiaryService.recordDrop(player.objectId(), reward.itemId(), reward.count());
+			}
+			deliveredRewards.add(reward);
 			boolean isHerb = isHerbItem(reward.itemId());
 			boolean shouldLoot;
 			if (isHerb) {
@@ -500,7 +514,7 @@ public class DropService {
 			}
 		}
 
-		return rewards;
+		return deliveredRewards;
 	}
 
 	/**
