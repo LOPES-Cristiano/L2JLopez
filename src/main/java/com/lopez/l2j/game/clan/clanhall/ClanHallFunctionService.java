@@ -181,7 +181,8 @@ public class ClanHallFunctionService {
 	}
 
 	/**
-	 * Ativa ou atualiza uma funcao de Clan Hall debitando a taxa em Adena do jogador/lider.
+	 * Ativa ou atualiza uma funcao de Clan Hall debitando a taxa em Adena do
+	 * jogador/lider.
 	 */
 	public synchronized boolean activateFunction(PlayerCharacter player, int clanHallId, FunctionType type, int level) {
 		if (type == null) {
@@ -191,7 +192,8 @@ public class ClanHallFunctionService {
 	}
 
 	/**
-	 * Ativa ou atualiza uma funcao de Clan Hall pelo ID numerico do tipo, debitando Adena do jogador.
+	 * Ativa ou atualiza uma funcao de Clan Hall pelo ID numerico do tipo, debitando
+	 * Adena do jogador.
 	 */
 	public synchronized boolean activateFunction(PlayerCharacter player, int clanHallId, int type, int level) {
 		FunctionType ft = FunctionType.fromId(type);
@@ -201,9 +203,11 @@ public class ClanHallFunctionService {
 	}
 
 	/**
-	 * Ativa ou atualiza uma funcao de Clan Hall validando posse do cla e debitando Adena via InventoryService.
+	 * Ativa ou atualiza uma funcao de Clan Hall validando posse do cla e debitando
+	 * Adena via InventoryService.
 	 */
-	public synchronized boolean activateFunction(PlayerCharacter player, int clanHallId, int type, int level, int fee, long rateMillis) {
+	public synchronized boolean activateFunction(PlayerCharacter player, int clanHallId, int type, int level, int fee,
+			long rateMillis) {
 		if (player == null || player.clanId() <= 0 || level <= 0) {
 			return false;
 		}
@@ -225,6 +229,20 @@ public class ClanHallFunctionService {
 				}
 			} else {
 				inv.destroyItemByItemId(ItemTemplate.ADENA_ID, fee);
+			}
+			var gw = com.lopez.l2j.game.world.GameWorld.getInstance();
+			if (gw != null) {
+				var online = gw.findPlayer(player.objectId());
+				if (online != null) {
+					var remaining = inv.getItemByItemId(ItemTemplate.ADENA_ID);
+					if (remaining != null) {
+						online.sendPacket(
+								com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate.modified(java.util.List.of(remaining)));
+					} else {
+						online.sendPacket(
+								new com.lopez.l2j.network.game.packet.GameServerPacket.ItemList(player, false));
+					}
+				}
 			}
 		}
 
@@ -296,7 +314,8 @@ public class ClanHallFunctionService {
 	}
 
 	/**
-	 * Verifica e renova periodicamente as funcoes de Clan Hall vencidas debitando do ClanWarehouse;
+	 * Verifica e renova periodicamente as funcoes de Clan Hall vencidas debitando
+	 * do ClanWarehouse;
 	 * caso nao haja saldo suficiente, desativa e remove a funcao do banco (#398).
 	 */
 	public synchronized void processExpiredFunctions(long nowMillis,
@@ -370,7 +389,8 @@ public class ClanHallFunctionService {
 	}
 
 	/**
-	 * Retorna porcentagem de EXP recuperada ao ressuscitar no Clan Hall (e.g. 10%, 20%, 30%, 40%, 50%).
+	 * Retorna porcentagem de EXP recuperada ao ressuscitar no Clan Hall (e.g. 10%,
+	 * 20%, 30%, 40%, 50%).
 	 */
 	public int getExpRestorePercent(PlayerCharacter player, int clanHallId) {
 		if (player == null || player.clanId() <= 0 || clanHallId <= 0) {
@@ -388,7 +408,8 @@ public class ClanHallFunctionService {
 	}
 
 	/**
-	 * Retorna lista de IDs de skills de buff de suporte conforme o nivel da funcao do Clan Hall.
+	 * Retorna lista de IDs de skills de buff de suporte conforme o nivel da funcao
+	 * do Clan Hall.
 	 */
 	public List<Integer> getAvailableSupportBuffSkills(int supportLevel) {
 		return switch (supportLevel) {
@@ -396,7 +417,8 @@ public class ClanHallFunctionService {
 			case 2 -> List.of(4342, 4343, 4344, 4345, 4346); // + Bless the Body, Bless the Soul
 			case 3 -> List.of(4342, 4343, 4344, 4345, 4346, 4347, 4348); // + Concentration, Acumen
 			case 4 -> List.of(4342, 4343, 4344, 4345, 4346, 4347, 4348, 4349, 4350); // + Berserker Spirit, Empower
-			case 5, 6, 7, 8 -> List.of(4342, 4343, 4344, 4345, 4346, 4347, 4348, 4349, 4350, 4351, 4352, 4353); // Full Support
+			case 5, 6, 7, 8 -> List.of(4342, 4343, 4344, 4345, 4346, 4347, 4348, 4349, 4350, 4351, 4352, 4353); // Full
+																												// Support
 			default -> Collections.emptyList();
 		};
 	}
