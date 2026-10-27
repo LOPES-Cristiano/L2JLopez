@@ -46,7 +46,11 @@ public class MultiSellPacketHandler {
 	public record MaintainedEquipmentState(
 			int enchantLevel,
 			Augmentation augmentation,
-			int sourceObjectId) {
+			int sourceObjectId,
+			int mana) {
+		public MaintainedEquipmentState(int enchantLevel, Augmentation augmentation, int sourceObjectId) {
+			this(enchantLevel, augmentation, sourceObjectId, -1);
+		}
 	}
 
 	public boolean doesBlacksmithRequireRecipes() {
@@ -215,9 +219,9 @@ public class MultiSellPacketHandler {
 			}
 		}
 		if (bestMatch == null) {
-			return new MaintainedEquipmentState(0, null, 0);
+			return new MaintainedEquipmentState(0, null, 0, -1);
 		}
-		return new MaintainedEquipmentState(bestMatch.enchant(), bestMatch.augmentation(), bestMatch.objectId());
+		return new MaintainedEquipmentState(bestMatch.enchant(), bestMatch.augmentation(), bestMatch.objectId(), bestMatch.mana());
 	}
 
 	/**
@@ -230,12 +234,27 @@ public class MultiSellPacketHandler {
 			Augmentation preservedAugmentation,
 			AugmentationService augmentationService,
 			InventoryService inventoryService) {
+		applyMaintainedEquipmentState(createdItem, container, targetEnchant, preservedAugmentation, -1, augmentationService, inventoryService);
+	}
+
+	public void applyMaintainedEquipmentState(
+			ItemInstance createdItem,
+			MultiSellContainer container,
+			int targetEnchant,
+			Augmentation preservedAugmentation,
+			int preservedMana,
+			AugmentationService augmentationService,
+			InventoryService inventoryService) {
 		if (createdItem == null || createdItem.template() == null || createdItem.template().stackable()) {
 			return;
 		}
 		boolean changed = false;
 		if (targetEnchant > 0 && createdItem.enchant() != targetEnchant) {
 			createdItem.enchant(targetEnchant);
+			changed = true;
+		}
+		if (container != null && container.maintainEnchantment() && preservedMana > 0 && createdItem.mana() != preservedMana) {
+			createdItem.mana(preservedMana);
 			changed = true;
 		}
 		if (container != null && container.maintainEnchantment() && preservedAugmentation != null && createdItem.augmentation() == null) {
@@ -485,9 +504,10 @@ public class MultiSellPacketHandler {
 			}
 		}
 
-		// #268 - Valida ingredientes consumiveis e rastreia enchantLevel/augmentation se maintainEnchantment=true
+		// #268 - Valida ingredientes consumiveis e rastreia enchantLevel/augmentation/mana se maintainEnchantment=true
 		int preservedEnchant = 0;
 		Augmentation preservedAugmentation = null;
+		int preservedMana = -1;
 		int maintainedSourceObjectId = 0;
 		for (var ingEntry : aggregatedIngredients.entrySet()) {
 			int itemId = ingEntry.getKey();
@@ -510,6 +530,9 @@ public class MultiSellPacketHandler {
 					}
 					if (state.augmentation() != null && preservedAugmentation == null) {
 						preservedAugmentation = state.augmentation();
+					}
+					if (state.mana() > 0 && preservedMana <= 0) {
+						preservedMana = state.mana();
 					}
 					if (maintainedSourceObjectId == 0) {
 						maintainedSourceObjectId = state.sourceObjectId();
@@ -569,11 +592,30 @@ public class MultiSellPacketHandler {
 				}
 			}
 			if (toConsume > 0) {
-				var consumed = ctx.inventories().consumeItem(active.inventory(), itemId, toConsume, "MultiSell");
-				if (consumed != null) {
-					updates.add(consumed.removed()
-							? ItemInfo.of(consumed.item(), ItemInfo.REMOVED)
-							: ItemInfo.of(consumed.item(), ItemInfo.MODIFIED));
+				var tmpl = ctx.inventories().templates().get(itemId).orElse(null);
+				if (tmpl != null && !tmpl.stackable()) {
+					List<ItemInstance> candidates = active.inventory().items().stream()
+							.filter(i -> !i.isEquipped() && i.itemId() == itemId)
+							.limit(toConsume)
+							.toList();
+					for (ItemInstance cand : candidates) {
+						if (ctx.augmentation() != null && cand.isAugmented()) {
+							ctx.augmentation().removeAugmentation(cand);
+						}
+						var destroyed = ctx.inventories().destroyItem(active.inventory(), cand.objectId(), 1, "MultiSell");
+						if (destroyed != null) {
+							updates.add(destroyed.removed()
+									? ItemInfo.of(destroyed.item(), ItemInfo.REMOVED)
+									: ItemInfo.of(destroyed.item(), ItemInfo.MODIFIED));
+						}
+					}
+				} else {
+					var consumed = ctx.inventories().consumeItem(active.inventory(), itemId, toConsume, "MultiSell");
+					if (consumed != null) {
+						updates.add(consumed.removed()
+								? ItemInfo.of(consumed.item(), ItemInfo.REMOVED)
+								: ItemInfo.of(consumed.item(), ItemInfo.MODIFIED));
+					}
 				}
 			}
 		}
@@ -583,7 +625,7 @@ public class MultiSellPacketHandler {
 			creditCastleTax(container, totalCastleTax, nearestCastle, ctx.castles());
 		}
 
-		// 4. Adiciona os produtos (preservando encantamento/augment quando aplicavel)
+		// 4. Adiciona os produtos (preservando encantamento/augment/mana quando aplicavel)
 		for (var prod : entry.products()) {
 			long totalAdd = (long) prod.count() * amount;
 			int targetEnchant = prod.enchantLevel() > 0 ? prod.enchantLevel()
@@ -595,7 +637,7 @@ public class MultiSellPacketHandler {
 						: (added.item() != null ? List.of(added.item()) : List.of());
 				for (var item : createdItems) {
 					applyMaintainedEquipmentState(
-							item, container, targetEnchant, preservedAugmentation, ctx.augmentation(), ctx.inventories());
+							item, container, targetEnchant, preservedAugmentation, preservedMana, ctx.augmentation(), ctx.inventories());
 					updates.add(ItemInfo.of(item, added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
 				}
 			}
