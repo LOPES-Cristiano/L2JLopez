@@ -64,7 +64,7 @@ public class Quest351BlackSwan extends Quest {
 		String html = event;
 
         String string2 = event;
-        int n = getFirstStartNpc();
+        int n = qs.resolveEventNpcId(getFirstStartNpc());
         if (n == 30916) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
@@ -80,13 +80,15 @@ public class Quest351BlackSwan extends Quest {
             if (event.equalsIgnoreCase("reply_1")) {
                 if (qs.getQuestItemsCount(4297) == 0L) {
                     string2 = "iason_haine_q0351_02.htm";
-                } else if (qs.getQuestItemsCount(4297) >= 10L) {
-                    qs.giveItems(57, 3880L + 20L * qs.getQuestItemsCount(4297));
                 } else {
-                    qs.giveItems(57, 20L * qs.getQuestItemsCount(4297));
+                    if (qs.getQuestItemsCount(4297) >= 10L) {
+                        qs.giveItems(57, 3880L + 20L * qs.getQuestItemsCount(4297));
+                    } else {
+                        qs.giveItems(57, 20L * qs.getQuestItemsCount(4297));
+                    }
+                    qs.takeItems(4297, -1L);
+                    string2 = "iason_haine_q0351_03.htm";
                 }
-                qs.takeItems(4297, -1L);
-                string2 = "iason_haine_q0351_03.htm";
             } else if (event.equalsIgnoreCase("reply_2")) {
                 if (qs.getQuestItemsCount(4298) == 0L) {
                     string2 = "iason_haine_q0351_04.htm";
