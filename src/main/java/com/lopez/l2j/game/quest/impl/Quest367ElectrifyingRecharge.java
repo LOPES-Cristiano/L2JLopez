@@ -60,7 +60,7 @@ public class Quest367ElectrifyingRecharge extends Quest {
 		String html = event;
 
         String string2 = event;
-        int n = getFirstStartNpc();
+        int n = qs.resolveEventNpcId(getFirstStartNpc());
         if (n == 30673) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
@@ -103,7 +103,6 @@ public class Quest367ElectrifyingRecharge extends Quest {
                     qs.exitQuest(true);
                     break;
                 }
-                qs.exitQuest(true);
                 html = "researcher_lorain_q0367_01.htm";
                 break;
             }
@@ -150,6 +149,7 @@ public class Quest367ElectrifyingRecharge extends Quest {
                 }
                 qs.takeItems(5879, -1L);
                 qs.giveItems(5875, 1L);
+                qs.setCond(1);
                 html = "researcher_lorain_q0367_06.htm";
             }
         }
@@ -185,12 +185,16 @@ public class Quest367ElectrifyingRecharge extends Quest {
                     qs.setCond(2);
                     qs.playSound(QuestState.SOUND_MIDDLE);
                 }
-                // npc doCast
-                qs.takeItems(5875, -1L);
-                qs.takeItems(5876, -1L);
-                qs.takeItems(5877, -1L);
-                qs.takeItems(5878, -1L);
-                qs.playSound(QuestState.SOUND_MIDDLE);
+            } else if (n3 == 1) {
+                if (qs.getQuestItemsCount(5875) > 0L || qs.getQuestItemsCount(5876) > 0L
+                        || qs.getQuestItemsCount(5877) > 0L || qs.getQuestItemsCount(5878) > 0L) {
+                    qs.takeItems(5875, -1L);
+                    qs.takeItems(5876, -1L);
+                    qs.takeItems(5877, -1L);
+                    qs.takeItems(5878, -1L);
+                    qs.giveItems(5880, 1L);
+                    qs.playSound(QuestState.SOUND_MIDDLE);
+                }
             }
         }
         return null;
