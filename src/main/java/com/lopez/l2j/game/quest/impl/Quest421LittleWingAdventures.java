@@ -12,7 +12,8 @@ import org.springframework.stereotype.Component;
 /**
  * Quest 421: Little Wing's Big Adventure
  * Evolucao do Hatchling (nivel 55+) em Strider (Montaria).
- * Cronos em Hunters Village -> Fairy Mymyu em Enchanted Valley -> Leaf of Trees.
+ * Cronos em Hunters Village -> Fairy Mymyu em Enchanted Valley -> Leaf of
+ * Trees.
  */
 @Component
 public class Quest421LittleWingAdventures extends Quest {
@@ -40,6 +41,8 @@ public class Quest421LittleWingAdventures extends Quest {
 		super(QUEST_ID, QUEST_NAME, "Little Wing's Big Adventure");
 		addStartNpc(CRONOS);
 		addTalkId(CRONOS, MYMYU);
+		addAttackId(27185, 27186, 27187, 27188);
+		addKillId(27185, 27186, 27187, 27188);
 		registerQuestItems(FAIRY_LEAF);
 		if (questManager != null) {
 			questManager.registerQuest(this);
@@ -49,7 +52,8 @@ public class Quest421LittleWingAdventures extends Quest {
 	@Override
 	public String onEvent(String event, QuestState qs) {
 		PlayerCharacter pc = qs.playerChar();
-		if (pc == null) return null;
+		if (pc == null)
+			return null;
 
 		if ("30610-05.htm".equalsIgnoreCase(event)) {
 			qs.setState(State.STARTED);
@@ -86,7 +90,8 @@ public class Quest421LittleWingAdventures extends Quest {
 	@Override
 	public String onTalk(NpcInstance npc, QuestState qs) {
 		PlayerCharacter pc = qs.playerChar();
-		if (pc == null) return "noquest";
+		if (pc == null)
+			return "noquest";
 
 		int npcId = npc.getNpcId();
 		int cond = qs.getCond();
@@ -102,9 +107,10 @@ public class Quest421LittleWingAdventures extends Quest {
 			}
 			return "30610-06.htm";
 		} else if (npcId == MYMYU) {
-			if (cond == 1) return "30747-01.htm";
-			if (cond == 2) {
-				if (qs.getQuestItemsCount(FAIRY_LEAF) == 0) {
+			if (cond == 1)
+				return "30747-01.htm";
+			if (cond == 2 || cond == 3) {
+				if (qs.getQuestItemsCount(FAIRY_LEAF) == 0 || cond == 3) {
 					return "30747-05.htm";
 				}
 				return "30747-03.htm";
@@ -112,5 +118,41 @@ public class Quest421LittleWingAdventures extends Quest {
 		}
 
 		return "noquest";
+	}
+
+	@Override
+	public String onAttack(NpcInstance npc, QuestState qs, boolean isPet) {
+		if (qs == null || !qs.isStarted() || npc == null) {
+			return null;
+		}
+		int npcId = npc.getNpcId();
+		if (npcId >= 27185 && npcId <= 27188 && qs.getCond() == 2 && qs.hasQuestItems(FAIRY_LEAF)) {
+			String key = "tree_" + npcId;
+			if (qs.getInt(key) == 0) {
+				qs.set(key, "1");
+				qs.takeItems(FAIRY_LEAF, 1);
+				if (qs.getQuestItemsCount(FAIRY_LEAF) == 0) {
+					qs.setCond(3);
+					qs.playSound(QuestState.SOUND_MIDDLE);
+				} else {
+					qs.playSound(QuestState.SOUND_ITEMGET);
+				}
+			}
+		}
+		return null;
+	}
+
+	@Override
+	public String onKill(NpcInstance npc, QuestState qs, boolean isPet) {
+		if (qs == null || !qs.isStarted() || npc == null) {
+			return null;
+		}
+		int npcId = npc.getNpcId();
+		if (npcId >= 27185 && npcId <= 27188) {
+			for (int i = 0; i < 2; i++) {
+				qs.addSpawn(27189, 180000);
+			}
+		}
+		return null;
 	}
 }
