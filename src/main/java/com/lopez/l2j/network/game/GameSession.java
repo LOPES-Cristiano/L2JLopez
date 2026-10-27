@@ -2526,7 +2526,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 
 		public com.lopez.l2j.game.item.ItemTemplateTable items() {
-			return inventories != null ? inventories.templates() : getBean(com.lopez.l2j.game.item.ItemTemplateTable.class);
+			return inventories != null ? inventories.templates()
+					: getBean(com.lopez.l2j.game.item.ItemTemplateTable.class);
 		}
 
 		public com.lopez.l2j.game.augmentation.AugmentationService augmentations() {
@@ -2553,7 +2554,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		}
 	}
 
-	private static class UnusedContextDummy { private void dummy() {
+	private static class UnusedContextDummy {
+		private void dummy() {
 
 		}
 
@@ -2674,6 +2676,25 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	private int macroRevision = 1;
 
 	private int nextMacroId = 1000;
+	private volatile long lastPingTimeMs;
+	private volatile int lastPingLatencyMs;
+	private volatile boolean gameGuardAuthed;
+
+	public long lastPingTimeMs() {
+		return lastPingTimeMs;
+	}
+
+	public int lastPingLatencyMs() {
+		return lastPingLatencyMs;
+	}
+
+	public boolean isGameGuardAuthed() {
+		return gameGuardAuthed;
+	}
+
+	public void setGameGuardAuthed(boolean gameGuardAuthed) {
+		this.gameGuardAuthed = gameGuardAuthed;
+	}
 
 	public record RequestPartyPending(GameSession requester, int itemDistribution) {
 
@@ -3666,9 +3687,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			case GameClientPacket.RequestSurrenderPledgeWar p -> extendedProtocolHandler.handleSurrenderPledgeWar(p);
 
-			case GameClientPacket.RequestMoveToLocationInVehicle p -> extendedProtocolHandler.handleMoveToLocationInVehicle(p);
+			case GameClientPacket.RequestMoveToLocationInVehicle p ->
+				extendedProtocolHandler.handleMoveToLocationInVehicle(p);
 
-			case GameClientPacket.CannotMoveAnymoreInVehicle p -> extendedProtocolHandler.handleCannotMoveAnymoreInVehicle(p);
+			case GameClientPacket.CannotMoveAnymoreInVehicle p ->
+				extendedProtocolHandler.handleCannotMoveAnymoreInVehicle(p);
 
 			case GameClientPacket.RequestPledgeExtendedInfo p -> extendedProtocolHandler.handlePledgeExtendedInfo(p);
 
@@ -3680,7 +3703,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			case GameClientPacket.RequestPartyMatchDetail p -> extendedProtocolHandler.handlePartyMatchDetail(p);
 
-			case GameClientPacket.RequestPrivateStoreManageCancel p -> extendedProtocolHandler.handlePrivateStoreManageCancel(p);
+			case GameClientPacket.RequestPrivateStoreManageCancel p ->
+				extendedProtocolHandler.handlePrivateStoreManageCancel(p);
 
 			case GameClientPacket.RequestPetition p -> extendedProtocolHandler.handlePetition(p);
 
@@ -3710,7 +3734,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			case GameClientPacket.RequestPetGetItem p -> extendedProtocolHandler.handlePetGetItem(p);
 
-			case GameClientPacket.RequestPackageSendableItemList p -> extendedProtocolHandler.handlePackageSendableItemList(p);
+			case GameClientPacket.RequestPackageSendableItemList p ->
+				extendedProtocolHandler.handlePackageSendableItemList(p);
 
 			case GameClientPacket.RequestPackageSend p -> extendedProtocolHandler.handlePackageSend(p);
 
@@ -3718,19 +3743,23 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			case GameClientPacket.RequestRecipeBookDestroy p -> extendedProtocolHandler.handleRecipeBookDestroy(p);
 
-			case GameClientPacket.RequestRecipeShopManageList p -> extendedProtocolHandler.handleRecipeShopManageList(p);
+			case GameClientPacket.RequestRecipeShopManageList p ->
+				extendedProtocolHandler.handleRecipeShopManageList(p);
 
-			case GameClientPacket.RequestRecipeShopMessageSet p -> extendedProtocolHandler.handleRecipeShopMessageSet(p);
+			case GameClientPacket.RequestRecipeShopMessageSet p ->
+				extendedProtocolHandler.handleRecipeShopMessageSet(p);
 
 			case GameClientPacket.RequestRecipeShopListSet p -> extendedProtocolHandler.handleRecipeShopListSet(p);
 
-			case GameClientPacket.RequestRecipeShopManageQuit p -> extendedProtocolHandler.handleRecipeShopManageQuit(p);
+			case GameClientPacket.RequestRecipeShopManageQuit p ->
+				extendedProtocolHandler.handleRecipeShopManageQuit(p);
 
 			case GameClientPacket.RequestRecipeShopMakeInfo p -> extendedProtocolHandler.handleRecipeShopMakeInfo(p);
 
 			case GameClientPacket.RequestRecipeShopMakeItem p -> extendedProtocolHandler.handleRecipeShopMakeItem(p);
 
-			case GameClientPacket.RequestRecipeShopManagePrev p -> extendedProtocolHandler.handleRecipeShopManagePrev(p);
+			case GameClientPacket.RequestRecipeShopManagePrev p ->
+				extendedProtocolHandler.handleRecipeShopManagePrev(p);
 
 			case GameClientPacket.ObserverReturn p -> extendedProtocolHandler.handleObserverReturn(p);
 
@@ -3774,21 +3803,56 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 			case GameClientPacket.AnswerJoinPartyRoom p -> extendedProtocolHandler.handleAnswerJoinPartyRoom(p);
 
-			case GameClientPacket.RequestListPartyMatchingWaitingRoom p -> extendedProtocolHandler.handleListPartyMatchingWaitingRoom(p);
+			case GameClientPacket.RequestListPartyMatchingWaitingRoom p ->
+				extendedProtocolHandler.handleListPartyMatchingWaitingRoom(p);
 
-			case GameClientPacket.RequestExitPartyMatchingWaitingRoom p -> extendedProtocolHandler.handleExitPartyMatchingWaitingRoom(p);
+			case GameClientPacket.RequestExitPartyMatchingWaitingRoom p ->
+				extendedProtocolHandler.handleExitPartyMatchingWaitingRoom(p);
 
-			case GameClientPacket.RequestPledgeSetAcademyMaster p -> extendedProtocolHandler.handlePledgeSetAcademyMaster(p);
+			case GameClientPacket.RequestPledgeSetAcademyMaster p ->
+				extendedProtocolHandler.handlePledgeSetAcademyMaster(p);
 
 			case GameClientPacket.RequestExFishRanking p -> extendedProtocolHandler.handleExFishRanking(p);
 
 			case GameClientPacket.RequestPCCafeCouponUse p -> extendedProtocolHandler.handlePCCafeCouponUse(p);
 
-			case GameClientPacket.RequestPledgeReorganizeMember p -> extendedProtocolHandler.handlePledgeReorganizeMember(p);
+			case GameClientPacket.RequestPledgeReorganizeMember p ->
+				extendedProtocolHandler.handlePledgeReorganizeMember(p);
 
-			case GameClientPacket.RequestExMPCCShowPartyMembersInfo p -> extendedProtocolHandler.handleExMPCCShowPartyMembersInfo(p);
+			case GameClientPacket.RequestExMPCCShowPartyMembersInfo p ->
+				extendedProtocolHandler.handleExMPCCShowPartyMembersInfo(p);
 
-			case GameClientPacket.RequestExMagicSkillUseGround p -> extendedProtocolHandler.handleMagicSkillUseGround(p);
+			case GameClientPacket.RequestExMagicSkillUseGround p ->
+				extendedProtocolHandler.handleMagicSkillUseGround(p);
+
+			case GameClientPacket.NetPing p -> {
+				this.lastPingLatencyMs = p.ping() > 0 ? p.ping()
+						: (lastPingTimeMs > 0 ? (int) (System.currentTimeMillis() - lastPingTimeMs) : 0);
+				this.lastPingTimeMs = System.currentTimeMillis();
+			}
+
+			case GameClientPacket.PetitionVote p -> extendedProtocolHandler.handlePetitionVote(p);
+
+			case GameClientPacket.RequestKeyMapping p -> send(new GameServerPacket.ExUISetting());
+
+			case GameClientPacket.GotoLobby p -> {
+				if (active != null) {
+					leaveWorld();
+					state = State.AUTHED;
+				}
+				sendCharacterList();
+			}
+
+			case GameClientPacket.RequestSetCastleSiegeTime p -> extendedProtocolHandler.handleSetCastleSiegeTime(p);
+
+			case GameClientPacket.RequestEx2ndPasswordCheck p ->
+				log.debug("RequestEx2ndPasswordCheck recebido de {}", account);
+
+			case GameClientPacket.RequestEx2ndPasswordVerify p ->
+				log.debug("RequestEx2ndPasswordVerify recebido de {} (mode={})", account, p.mode());
+
+			case GameClientPacket.RequestEx2ndPasswordReq p ->
+				log.debug("RequestEx2ndPasswordReq recebido de {} (change={})", account, p.changePass());
 
 			case Unknown p -> log.debug("Opcode ignorado 0x{}{} no estado {}", Integer.toHexString(p.opcode()),
 
@@ -4972,10 +5036,15 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (extraHits != null && !extraHits.isEmpty()) {
 			allHits.addAll(extraHits);
 		}
-		int firstDmg = (PlayerCombatHandler.isDualWeapon(activeWeapon()) && !plan.miss() && plan.damage() > 1) ? (plan.damage() - (plan.damage() / 2)) : plan.damage(); return new Attack(active.objectId(), npc.objectId(), firstDmg, plan.flags(), x, y, z, extraHits != null ? extraHits : List.of());
+		int firstDmg = (PlayerCombatHandler.isDualWeapon(activeWeapon()) && !plan.miss() && plan.damage() > 1)
+				? (plan.damage() - (plan.damage() / 2))
+				: plan.damage();
+		return new Attack(active.objectId(), npc.objectId(), firstDmg, plan.flags(), x, y, z,
+				extraHits != null ? extraHits : List.of());
 	}
 
-	private Attack buildPlayerAttackPacket(GameSession targetPlayer, com.lopez.l2j.game.combat.CombatService.HitPlan plan,
+	private Attack buildPlayerAttackPacket(GameSession targetPlayer,
+			com.lopez.l2j.game.combat.CombatService.HitPlan plan,
 			List<Attack.Hit> extraHits, int x, int y, int z) {
 		List<Attack.Hit> allHits = new ArrayList<>();
 		int targetObjId = targetPlayer.active.objectId();
@@ -4990,7 +5059,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		if (extraHits != null && !extraHits.isEmpty()) {
 			allHits.addAll(extraHits);
 		}
-		int firstDmg = (PlayerCombatHandler.isDualWeapon(activeWeapon()) && !plan.miss() && plan.damage() > 1) ? (plan.damage() - (plan.damage() / 2)) : plan.damage(); return new Attack(active.objectId(), targetObjId, firstDmg, plan.flags(), x, y, z, extraHits != null ? extraHits : List.of());
+		int firstDmg = (PlayerCombatHandler.isDualWeapon(activeWeapon()) && !plan.miss() && plan.damage() > 1)
+				? (plan.damage() - (plan.damage() / 2))
+				: plan.damage();
+		return new Attack(active.objectId(), targetObjId, firstDmg, plan.flags(), x, y, z,
+				extraHits != null ? extraHits : List.of());
 	}
 
 	private void moveApproachStep(int nextX, int nextY, int targetZ) {
@@ -5460,6 +5533,14 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
+		if (damage > 0) {
+			active.onDamaged();
+			boolean hadSleep = active.effects().removeDebuffsByStackOrNameAndReturn("sleep");
+			if (hadSleep) {
+				refreshBuffs();
+			}
+		}
+
 		active.enterCombat();
 
 		if (ctx.acpService() != null) {
@@ -5798,7 +5879,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		if (ctx.questManager() != null) {
-			ctx.questManager().onNpcAttack(npc, this, false);
+
 		}
 		double distToNpc = Math.hypot(npc.x() - active.x(), npc.y() - active.y());
 
@@ -5858,7 +5939,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		var plan = ctx.combat().planAttackNpc(active, t, npc, ssGrade);
 		var poleExtraTargets = PlayerCombatHandler.isPolearmWeapon(activeWeapon())
-				? PlayerCombatHandler.planPolearmExtraHits(this, ctx, active, t, npc, ssGrade, getPhysicalAttackRange(active))
+				? PlayerCombatHandler.planPolearmExtraHits(this, ctx, active, t, npc, ssGrade,
+						getPhysicalAttackRange(active))
 				: java.util.List.<PlayerCombatHandler.PolearmExtraTarget>of();
 		List<Attack.Hit> extraAtkHits = new ArrayList<>();
 		if (PlayerCombatHandler.isDualWeapon(activeWeapon()) && plan.damage() > 1) {
@@ -5903,15 +5985,22 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			}
 
 			var hit = ctx.combat().applyDamage(npc, plan.damage(), plan.flags());
+			if (ctx.questManager() != null) {
+				ctx.questManager().onNpcAttack(npc, this, false);
+			}
 			for (var pe : poleExtraTargets) {
 				if (pe.npc() != null && !pe.npc().isDead()) {
 					var extraHit = ctx.combat().applyDamage(pe.npc(), pe.damage(), pe.flags());
+					if (ctx.questManager() != null) {
+						ctx.questManager().onNpcAttack(pe.npc(), this, false);
+					}
 					int extraRemHp = extraHit.isDead() ? 0 : Math.max(0, extraHit.remainingHp());
 					var extraSu = StatusUpdate.hp(pe.npc().objectId(), extraRemHp, (int) pe.npc().maxHp());
 					send(extraSu);
 					ctx.world().broadcastAround(this, GameWorld.VISIBILITY_RADIUS, extraSu, false);
 					if (extraHit.isDead()) {
-						PlayerCombatHandler.handleMonsterDeath(this, ctx, active, t, pe.npc(), party, extraHit.expReward(), extraHit.spReward());
+						PlayerCombatHandler.handleMonsterDeath(this, ctx, active, t, pe.npc(), party,
+								extraHit.expReward(), extraHit.spReward());
 					} else if (ctx.npcAi() != null) {
 						ctx.npcAi().startCombat(pe.npc(), active.objectId());
 					}
@@ -6878,7 +6967,21 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 		}
 
-		var recipeService = com.lopez.l2j.game.recipe.RecipeService.getInstance();
+		if (active.privateStoreType() == PlayerCharacter.STORE_MANUFACTURE) {
+
+			send(SystemMessage.id(SystemMessage.CANT_ALTER_RECIPEBOOK_WHILE_CRAFTING));
+
+			send(new ActionFailed());
+
+			return;
+
+		}
+
+		var recipeService = (ctx != null && ctx.recipes() != null)
+
+				? ctx.recipes()
+
+				: com.lopez.l2j.game.recipe.RecipeService.getInstance();
 
 		List<Integer> recipes = recipeService != null
 
@@ -7495,6 +7598,7 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			icons.putIfAbsent(b.skillId(), new MagicEffectIcons.Icon(b.skillId(), b.level(), b.remainingSeconds(now)));
 
 		}
+		active.effects().pollExpired(now);
 
 		send(new MagicEffectIcons(List.copyOf(icons.values())));
 
@@ -9901,6 +10005,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 
 				}
 
+				if (owner.effects() != null && !owner.effects().pollExpired(System.currentTimeMillis()).isEmpty()) {
+					refreshBuffs();
+					saveBuffs();
+				}
+
 				checkZoneEnvironment();
 
 			} catch (Exception e) {
@@ -11039,7 +11148,8 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 		int gemItemId = AugmentationService.getGemstoneItemId(target);
 		int gemCount = AugmentationService.getGemstoneCount(target);
 		send(new ExPutIntensiveResultForVariationMake(p.refinerItemObjId(), refiner.itemId(), gemItemId, gemCount));
-		send(SystemMessage.of(SystemMessage.REQUIRES_S1_S2, new SystemMessage.Number(gemCount), new SystemMessage.ItemName(gemItemId)));
+		send(SystemMessage.of(SystemMessage.REQUIRES_S1_S2, new SystemMessage.Number(gemCount),
+				new SystemMessage.ItemName(gemItemId)));
 	}
 
 	private void onConfirmGemStone(GameClientPacket.RequestConfirmGemStone p) {
@@ -11196,14 +11306,18 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 	}
 
 	private void onCrystallizeItem(GameClientPacket.RequestCrystallizeItem p) {
-		if (!inWorld || active == null || active.isDead() || active.isStoreOpen() || ctx.inventories() == null) {
+		if (!inWorld || active == null || active.isDead() || ctx.inventories() == null) {
+			send(new ActionFailed());
+			return;
+		}
+		if (active.isStoreOpen() || active.isBuffShop()) {
+			send(SystemMessage.id(SystemMessage.CANNOT_TRADE_DISCARD_DROP_ITEM_WHILE_IN_SHOPMODE));
 			send(new ActionFailed());
 			return;
 		}
 		int crystSkillLvl = active.skillLevel(248); // Crystallize
 		if (crystSkillLvl <= 0 && !active.isGm()) {
-			send(new CreatureSay(0, CreatureSay.ALL, "SYS",
-					"Voce precisa da habilidade Crystallize para cristalizar itens."));
+			send(SystemMessage.id(SystemMessage.CRYSTALLIZE_LEVEL_TOO_LOW));
 			send(new ActionFailed());
 			return;
 		}
@@ -11213,30 +11327,23 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			return;
 		}
 		int grade = item.template().crystalGrade();
-		if (grade <= 0 || (crystSkillLvl < grade && !active.isGm())) {
+		if (grade <= 0 || !item.template().destroyable()) {
 			send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(item.itemId())));
 			send(new ActionFailed());
 			return;
 		}
-		int crystalItemId = switch (grade) {
-			case 1 -> 1458; // Crystal: D-Grade
-			case 2 -> 1459; // Crystal: C-Grade
-			case 3 -> 1460; // Crystal: B-Grade
-			case 4 -> 1461; // Crystal: A-Grade
-			case 5 -> 1462; // Crystal: S-Grade
-			default -> 0;
-		};
+		if (crystSkillLvl < grade && !active.isGm()) {
+			send(SystemMessage.id(SystemMessage.CRYSTALLIZE_LEVEL_TOO_LOW));
+			send(new ActionFailed());
+			return;
+		}
+		int crystalItemId = com.lopez.l2j.game.item.EnchantTableService.getCrystalId(item.template().crystalType());
 		if (crystalItemId == 0) {
 			send(new ActionFailed());
 			return;
 		}
-		int crystalCount = Math.max(1, item.template().price() / switch (grade) {
-			case 1 -> 650;
-			case 2 -> 3000;
-			case 3 -> 10000;
-			case 4 -> 25000;
-			default -> 50000;
-		});
+		int crystalCount = Math.max(1, com.lopez.l2j.game.item.EnchantTableService.calculateCrystalsOnBreak(item));
+		int removedItemId = item.itemId();
 		if (item.isEquipped()) {
 			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), item.objectId()));
 		}
@@ -11250,9 +11357,11 @@ public final class GameSession implements GameWorld.OnlinePlayer {
 			updates.add(ItemInfo.of(added.item(), added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
 		}
 		send(new InventoryUpdate(updates));
+		send(SystemMessage.of(SystemMessage.S1_CRYSTALLIZED, new SystemMessage.ItemName(removedItemId)));
+		send(SystemMessage.of(SystemMessage.EARNED_S2_S1_S,
+				new SystemMessage.ItemName(crystalItemId), new SystemMessage.ItemNumber(crystalCount)));
 		refreshWeightAndPenalties();
 		sendUserInfoAndBroadcastCharInfo();
-		send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Item cristalizado: +" + crystalCount + " cristais obtidos."));
 	}
 
 	private void onSkillCoolTime() {
