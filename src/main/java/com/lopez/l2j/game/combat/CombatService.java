@@ -215,7 +215,9 @@ public class CombatService {
 		RelativePosition pos = getRelativePosition(attackerX, attackerY, targetX, targetY, targetHeading);
 		int dex = 30;
 		if (attacker != null) {
-			dex = Math.max(1, 30 + PlayerStats.clampHennaBonus(attacker.hennaDEX()) + attacker.augDEX());
+			CharTemplate tpl = PlayerStats.findTemplate(attacker.classId());
+			int baseDex = tpl != null ? tpl.dex() : 30;
+			dex = Math.max(1, baseDex + PlayerStats.clampHennaBonus(attacker.hennaDEX()) + attacker.augDEX());
 		}
 		double chance = Formulas.calcBlowRate(attacker, pos, dex);
 		return ThreadLocalRandom.current().nextDouble(100.0) < chance;
@@ -551,7 +553,7 @@ public class CombatService {
 				case "stun" -> "stunVuln";
 				case "sleep" -> "sleepVuln";
 				case "root" -> "rootVuln";
-				case "paralyze", "petrification", "medusa" -> "paralyzeVuln";
+				case "paralyze", "petrification", "petrify", "medusa" -> "paralyzeVuln";
 				case "mute", "silence", "physicalmute", "silencemagicphysical", "fear", "betray", "derangement" -> "derangementVuln";
 				case "confusion", "confuse", "confuse_mob_only", "switch", "aggdebuff", "aggdamage", "aggremove", "aggreduce" -> "confusionVuln";
 				case "poison" -> "poisonVuln";
@@ -853,6 +855,11 @@ public class CombatService {
 	/** Chance (0-100) de um debuff pegar num monstro: usa Formulas.calcSkillSuccess. */
 	public boolean debuffLands(double basePower, int magicLevel, int attackerLevel, NpcInstance target) {
 		return debuffLands(basePower, magicLevel, attackerLevel, target, false, false);
+	}
+
+	public boolean debuffLands(PlayerCharacter attacker, double basePower, int magicLevel, NpcInstance target,
+			boolean sps, boolean bss, String saveVs, String effectOrSkillType) {
+		return Formulas.calcSkillSuccess(attacker, target, basePower, magicLevel, 1, saveVs, effectOrSkillType, sps, bss, false);
 	}
 
 	public boolean debuffLands(double basePower, int magicLevel, int attackerLevel, NpcInstance target,
@@ -1389,11 +1396,26 @@ public class CombatService {
 
 	public boolean debuffLandsPlayer(double basePower, int magicLevel, int attackerLevel, PlayerCharacter target,
 			boolean sps, boolean bss, String effectOrSkillType) {
+		return debuffLandsPlayer(null, basePower, magicLevel, attackerLevel, target, sps, bss, null, effectOrSkillType);
+	}
+
+	public boolean debuffLandsPlayer(PlayerCharacter attacker, double basePower, int magicLevel, int attackerLevel,
+			PlayerCharacter target, boolean sps, boolean bss, String saveVs, String effectOrSkillType) {
 		double vuln = calcDebuffVulnerability(target, effectOrSkillType);
 		if (vuln <= 0.0) {
 			return false;
 		}
-		double chance = (basePower > 0 ? basePower : 50) * vuln;
+		double prof = attacker != null ? Formulas.calcSkillProficiency(attacker, effectOrSkillType) : 1.0;
+		double statMod = 1.0;
+		if (target != null && saveVs != null && !saveVs.isBlank()) {
+			CharTemplate tpl = PlayerStats.findTemplate(target.classId());
+			int con = Math.max(1, (tpl != null ? tpl.con() : 43) + PlayerStats.clampHennaBonus(target.hennaCON()) + target.augCON());
+			int men = Math.max(1, (tpl != null ? tpl.men() : 25) + PlayerStats.clampHennaBonus(target.hennaMEN()) + target.augMEN());
+			int dex = Math.max(1, (tpl != null ? tpl.dex() : 30) + PlayerStats.clampHennaBonus(target.hennaDEX()) + target.augDEX());
+			int wit = Math.max(1, (tpl != null ? tpl.wit() : 20) + PlayerStats.clampHennaBonus(target.hennaWIT()) + target.augWIT());
+			statMod = Formulas.calcSkillStatModifier(saveVs, con, men, dex, wit);
+		}
+		double chance = (basePower > 0 ? basePower : 50) * vuln * prof * statMod;
 		int lvl = Config.USE_LEVEL_PENALTY
 				? (magicLevel > 0 ? Math.min(magicLevel, attackerLevel) : attackerLevel)
 				: (magicLevel > 0 ? magicLevel : attackerLevel);
