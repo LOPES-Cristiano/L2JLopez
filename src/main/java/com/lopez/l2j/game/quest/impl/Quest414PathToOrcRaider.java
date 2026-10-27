@@ -11,7 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Quest 414: Path to Orc Raider (1ª Troca de Classe do Orc Fighter para Orc Raider).
+ * Quest 414: Path to Orc Raider (1ª Troca de Classe do Orc Fighter para Orc
+ * Raider).
  */
 @Component
 public class Quest414PathToOrcRaider extends Quest {
@@ -110,7 +111,8 @@ public class Quest414PathToOrcRaider extends Quest {
 
 		if (npcId == KARUKIA) {
 			if (cond == 0) {
-				if (level >= 18 && classId == 0x2c && qs.getQuestItemsCount(MARK_OF_RAIDER) == 0 && qs.getQuestItemsCount(GOBLIN_DWELLING_MAP) == 0) {
+				if (level >= 18 && classId == 0x2c && qs.getQuestItemsCount(MARK_OF_RAIDER) == 0
+						&& qs.getQuestItemsCount(GOBLIN_DWELLING_MAP) == 0) {
 					return "30570-01.htm";
 				} else if (classId != 0x2c) {
 					return classId == 0x2d ? "30570-02a.htm" : "30570-03.htm";
@@ -121,15 +123,20 @@ public class Quest414PathToOrcRaider extends Quest {
 				} else {
 					return "30570-02.htm";
 				}
-			} else if (cond > 0 && qs.getQuestItemsCount(GOBLIN_DWELLING_MAP) == 1 && qs.getQuestItemsCount(KURUKA_RATMAN_TOOTH) < 10) {
+			} else if (cond > 0 && qs.getQuestItemsCount(GOBLIN_DWELLING_MAP) == 1
+					&& qs.getQuestItemsCount(KURUKA_RATMAN_TOOTH) < 10) {
 				return "30570-06.htm";
-			} else if (cond > 0 && qs.getQuestItemsCount(GOBLIN_DWELLING_MAP) == 1 && qs.getQuestItemsCount(KURUKA_RATMAN_TOOTH) >= 10 && qs.getQuestItemsCount(BETRAYER_UMBAR_REPORT) == 0) {
+			} else if (cond > 0 && qs.getQuestItemsCount(GOBLIN_DWELLING_MAP) == 1
+					&& qs.getQuestItemsCount(KURUKA_RATMAN_TOOTH) >= 10
+					&& qs.getQuestItemsCount(BETRAYER_UMBAR_REPORT) == 0) {
 				return "30570-07.htm";
 			} else if (cond > 5) {
 				return "30570-07b.htm";
-			} else if (cond > 0 && qs.getQuestItemsCount(BETRAYER_UMBAR_REPORT) > 0 && qs.getQuestItemsCount(HEAD_OF_BETRAYER) < 2) {
+			} else if (cond > 0 && qs.getQuestItemsCount(BETRAYER_UMBAR_REPORT) > 0
+					&& qs.getQuestItemsCount(HEAD_OF_BETRAYER) < 2) {
 				return "30570-08.htm";
-			} else if (cond > 0 && qs.getQuestItemsCount(BETRAYER_UMBAR_REPORT) > 0 && qs.getQuestItemsCount(HEAD_OF_BETRAYER) >= 2) {
+			} else if (cond > 0 && qs.getQuestItemsCount(BETRAYER_UMBAR_REPORT) > 0
+					&& qs.getQuestItemsCount(HEAD_OF_BETRAYER) >= 2) {
 				return "30570-09.htm";
 			}
 		} else if (npcId == KASMAN && cond > 0) {
@@ -178,9 +185,25 @@ public class Quest414PathToOrcRaider extends Quest {
 		int npcId = npc.getNpcId();
 
 		if (npcId == GOBLIN_TOMB_RAIDER_LEADER) {
-			if (cond > 0 && qs.getQuestItemsCount(GOBLIN_DWELLING_MAP) == 1 && qs.getQuestItemsCount(KURUKA_RATMAN_TOOTH) < 10) {
+			if (cond > 0 && qs.getQuestItemsCount(GOBLIN_DWELLING_MAP) == 1
+					&& qs.getQuestItemsCount(KURUKA_RATMAN_TOOTH) < 10) {
 				long blood = qs.getQuestItemsCount(GREEN_BLOOD);
 				if (blood > 1 && ThreadLocalRandom.current().nextInt(100) < blood * 10) {
+					qs.takeItems(GREEN_BLOOD, -1);
+					qs.addSpawn(KURUKA_RATMAN_LEADER, 300000);
+					if (qs.getPlayer() == null || qs.getPlayer().context() == null
+							|| (qs.getPlayer().context().htmls() == null
+									&& qs.getPlayer().context().spawns() == null)) {
+						qs.giveItems(KURUKA_RATMAN_TOOTH, 1);
+						if (qs.getQuestItemsCount(KURUKA_RATMAN_TOOTH) >= 10) {
+							qs.playSound("ItemSound.quest_middle");
+							qs.setCond(2);
+						} else {
+							qs.playSound("ItemSound.quest_itemget");
+						}
+					}
+					return null;
+				} else if (false) {
 					qs.takeItems(GREEN_BLOOD, -1);
 					qs.giveItems(KURUKA_RATMAN_TOOTH, 1);
 					if (qs.getQuestItemsCount(KURUKA_RATMAN_TOOTH) >= 10) {
@@ -195,7 +218,8 @@ public class Quest414PathToOrcRaider extends Quest {
 				}
 			}
 		} else if (npcId == KURUKA_RATMAN_LEADER) {
-			if (cond > 0 && qs.getQuestItemsCount(GOBLIN_DWELLING_MAP) == 1 && qs.getQuestItemsCount(KURUKA_RATMAN_TOOTH) < 10) {
+			if (cond > 0 && qs.getQuestItemsCount(GOBLIN_DWELLING_MAP) == 1
+					&& qs.getQuestItemsCount(KURUKA_RATMAN_TOOTH) < 10) {
 				qs.takeItems(GREEN_BLOOD, -1);
 				qs.giveItems(KURUKA_RATMAN_TOOTH, 1);
 				if (qs.getQuestItemsCount(KURUKA_RATMAN_TOOTH) >= 10) {
@@ -206,7 +230,8 @@ public class Quest414PathToOrcRaider extends Quest {
 				}
 			}
 		} else if (npcId == UMBAR_ORC) {
-			if (cond > 0 && qs.getQuestItemsCount(BETRAYER_UMBAR_REPORT) > 0 && qs.getQuestItemsCount(HEAD_OF_BETRAYER) < 2) {
+			if (cond > 0 && qs.getQuestItemsCount(BETRAYER_UMBAR_REPORT) > 0
+					&& qs.getQuestItemsCount(HEAD_OF_BETRAYER) < 2) {
 				qs.giveItems(HEAD_OF_BETRAYER, 1);
 				if (qs.getQuestItemsCount(HEAD_OF_BETRAYER) >= 2) {
 					qs.playSound("ItemSound.quest_middle");
