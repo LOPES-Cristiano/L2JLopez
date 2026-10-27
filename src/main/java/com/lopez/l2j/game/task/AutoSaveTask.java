@@ -3,10 +3,14 @@ package com.lopez.l2j.game.task;
 import com.lopez.l2j.game.community.CommunityBoardService;
 import com.lopez.l2j.game.cursed.CursedWeaponsManager;
 import com.lopez.l2j.game.fishing.FishingChampionshipService;
+import com.lopez.l2j.game.item.GroundItemService;
 import com.lopez.l2j.game.manor.CastleManorManager;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.olympiad.OlympiadManager;
 import com.lopez.l2j.game.recipe.RecipeService;
+import com.lopez.l2j.game.service.CharacterService;
 import com.lopez.l2j.game.service.InventoryService;
+import com.lopez.l2j.game.sevensigns.SevenSignsManager;
 import com.lopez.l2j.game.world.GameWorld;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -38,10 +42,30 @@ public class AutoSaveTask {
     private final CursedWeaponsManager cursedWeaponsManager;
     private final FishingChampionshipService fishingChampionshipService;
     private final InventoryService inventoryService;
+    @Autowired(required = false)
+    private CharacterService characterService;
+    @Autowired(required = false)
+    private OlympiadManager olympiadManager;
+    @Autowired(required = false)
+    private SevenSignsManager sevenSignsManager;
+    @Autowired(required = false)
+    private GroundItemService groundItemService;
     private ScheduledExecutorService scheduler;
 
     public AutoSaveTask() {
         this(null, null, null, null, null, null, null);
+    }
+
+    public AutoSaveTask(
+            JdbcClient jdbc,
+            RecipeService recipeService,
+            CommunityBoardService communityBoardService,
+            CastleManorManager castleManorManager,
+            CursedWeaponsManager cursedWeaponsManager,
+            FishingChampionshipService fishingChampionshipService,
+            InventoryService inventoryService) {
+        this(jdbc, recipeService, communityBoardService, castleManorManager, cursedWeaponsManager,
+                fishingChampionshipService, inventoryService, null, null, null, null);
     }
 
     @Autowired
@@ -52,7 +76,11 @@ public class AutoSaveTask {
             @Autowired(required = false) CastleManorManager castleManorManager,
             @Autowired(required = false) CursedWeaponsManager cursedWeaponsManager,
             @Autowired(required = false) FishingChampionshipService fishingChampionshipService,
-            @Autowired(required = false) InventoryService inventoryService) {
+            @Autowired(required = false) InventoryService inventoryService,
+            @Autowired(required = false) CharacterService characterService,
+            @Autowired(required = false) OlympiadManager olympiadManager,
+            @Autowired(required = false) SevenSignsManager sevenSignsManager,
+            @Autowired(required = false) GroundItemService groundItemService) {
         this.jdbc = jdbc;
         this.recipeService = recipeService;
         this.communityBoardService = communityBoardService;
@@ -60,6 +88,10 @@ public class AutoSaveTask {
         this.cursedWeaponsManager = cursedWeaponsManager;
         this.fishingChampionshipService = fishingChampionshipService;
         this.inventoryService = inventoryService;
+        this.characterService = characterService;
+        this.olympiadManager = olympiadManager;
+        this.sevenSignsManager = sevenSignsManager;
+        this.groundItemService = groundItemService;
     }
 
     @PostConstruct
@@ -124,16 +156,16 @@ public class AutoSaveTask {
             """,
             """
             CREATE TABLE IF NOT EXISTS bbs_mail (
-                mailId INT NOT NULL PRIMARY KEY,
-                senderId INT NOT NULL,
-                senderName VARCHAR(35) NOT NULL,
-                receiverId INT NOT NULL,
-                receiverName VARCHAR(35) NOT NULL,
+                letter_id INT NOT NULL PRIMARY KEY,
+                sender_id INT NOT NULL,
+                sender_name VARCHAR(35) NOT NULL,
+                receiver_id INT NOT NULL,
+                receiver_name VARCHAR(35) NOT NULL,
                 subject VARCHAR(128) NOT NULL,
                 content TEXT NOT NULL,
-                sentDate VARCHAR(32) NOT NULL,
-                isRead TINYINT(1) NOT NULL DEFAULT 0,
-                boxType VARCHAR(16) NOT NULL DEFAULT 'INBOX'
+                sent_date BIGINT NOT NULL,
+                unread TINYINT(1) NOT NULL DEFAULT 1,
+                deleted TINYINT(1) NOT NULL DEFAULT 0
             )
             """,
             """
@@ -183,8 +215,9 @@ public class AutoSaveTask {
             """,
             """
             CREATE TABLE IF NOT EXISTS clan_wars (
-                clan1 VARCHAR(35) NOT NULL DEFAULT '',
-                clan2 VARCHAR(35) NOT NULL DEFAULT '',
+                clan1 INT NOT NULL DEFAULT 0,
+                clan2 INT NOT NULL DEFAULT 0,
+                expiry_time BIGINT NOT NULL DEFAULT 0,
                 wantspeace1 DECIMAL(1,0) NOT NULL DEFAULT 0,
                 wantspeace2 DECIMAL(1,0) NOT NULL DEFAULT 0,
                 PRIMARY KEY (clan1, clan2)
@@ -202,6 +235,24 @@ public class AutoSaveTask {
 
     public synchronized void runAutoSave() {
         try {
+            GameWorld world = GameWorld.getInstance();
+            if (characterService != null && world != null) {
+                for (var online : world.onlinePlayers()) {
+                    PlayerCharacter pc = online.character();
+                    if (pc != null) {
+                        characterService.save(pc, true);
+                    }
+                }
+            }
+            if (olympiadManager != null) {
+                olympiadManager.save();
+            }
+            if (sevenSignsManager != null) {
+                sevenSignsManager.persistStatus();
+            }
+            if (groundItemService != null) {
+                groundItemService.saveToDb();
+            }
             if (recipeService != null) {
                 recipeService.saveAllToDb();
             }
