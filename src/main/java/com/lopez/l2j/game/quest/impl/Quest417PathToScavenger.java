@@ -11,7 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Quest 417: Path to Scavenger (1ª Troca de Classe do Dwarf Fighter para Scavenger).
+ * Quest 417: Path to Scavenger (1ª Troca de Classe do Dwarf Fighter para
+ * Scavenger).
  */
 @Component
 public class Quest417PathToScavenger extends Quest {
@@ -101,7 +102,8 @@ public class Quest417PathToScavenger extends Quest {
 				qs.playSound("ItemSound.quest_middle");
 				return "30519-02.htm";
 			}
-		} else if ("30316_1".equalsIgnoreCase(event) || "30316_2".equalsIgnoreCase(event) || "30316-02.htm".equalsIgnoreCase(event)) {
+		} else if ("30316_1".equalsIgnoreCase(event) || "30316_2".equalsIgnoreCase(event)
+				|| "30316-02.htm".equalsIgnoreCase(event)) {
 			if (qs.getQuestItemsCount(BEAD_PARCEL) > 0) {
 				qs.takeItems(BEAD_PARCEL, -1);
 				qs.giveItems(ROUTS_TP_SCROLL, 1);
@@ -153,7 +155,8 @@ public class Quest417PathToScavenger extends Quest {
 		} else if (npcId == MION) {
 			if (cond == 1 && qs.getQuestItemsCount(PIPIS_LETTER) > 0) {
 				return "30519-01.htm";
-			} else if (cond >= 2 && (qs.getQuestItemsCount(CHALIS_PAY) > 0 || qs.getQuestItemsCount(BRONKS_PAY) > 0 || qs.getQuestItemsCount(ZIMENFS_PAY) > 0)) {
+			} else if (cond >= 2 && (qs.getQuestItemsCount(CHALIS_PAY) > 0 || qs.getQuestItemsCount(BRONKS_PAY) > 0
+					|| qs.getQuestItemsCount(ZIMENFS_PAY) > 0)) {
 				qs.takeItems(CHALIS_PAY, -1);
 				qs.takeItems(BRONKS_PAY, -1);
 				qs.takeItems(ZIMENFS_PAY, -1);
@@ -259,6 +262,13 @@ public class Quest417PathToScavenger extends Quest {
 		int cond = qs.getCond();
 
 		if ((cond == 5 || cond == 6) && (npcId == HUNTER_BEAR || npcId == HONEY_BEAR)) {
+			if (npcId == HUNTER_BEAR) {
+				qs.addSpawn(HONEY_BEAR, 300000);
+				if (qs.getPlayer() != null && qs.getPlayer().context() != null
+						&& (qs.getPlayer().context().htmls() != null || qs.getPlayer().context().spawns() != null)) {
+					return null;
+				}
+			}
 			if (qs.getQuestItemsCount(BEAR_PIC) > 0 && qs.getQuestItemsCount(HONEY_JAR) < 5) {
 				qs.giveItems(HONEY_JAR, 1);
 				if (qs.getQuestItemsCount(HONEY_JAR) >= 5) {
