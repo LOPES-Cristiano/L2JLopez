@@ -134,12 +134,12 @@ public class Quest333BlackLionHunt extends Quest {
 
         String string2 = event;
         int n = qs.getInt("hunt_of_blacklion");
-        int n2 = getFirstStartNpc();
+        int n2 = qs.resolveEventNpcId(getFirstStartNpc());
         if (n2 == 30735) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
                 qs.setState(State.STARTED);
-                qs.playSound("QuestState.SOUND_ACCEPT");
+                qs.playSound(QuestState.SOUND_ACCEPT);
                 string2 = "sophia_q0333_04.htm";
             } else if (event.equalsIgnoreCase("menu_select?ask=333&reply=1")) {
                 string2 = "sophia_q0333_05.htm";
@@ -247,7 +247,7 @@ public class Quest333BlackLionHunt extends Quest {
                 qs.giveItems(57, 12400L);
                 qs.takeItems(1369, -1L);
                 string2 = "sophia_q0333_26.htm";
-                qs.playSound("QuestState.SOUND_FINISH");
+                qs.playSound(QuestState.SOUND_FINISH);
                 qs.exitQuest(true);
             }
         } else if (n2 == 30737) {
@@ -604,11 +604,11 @@ public class Quest333BlackLionHunt extends Quest {
             if (qs.getQuestItemsCount(3674) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(100) < 55) {
                     qs.giveItems(3851, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 12) {
                     qs.giveItems(3443, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 2 && qs.getQuestItemsCount(3674) > 0L) {
                     qs.addSpawn(27152);
@@ -618,132 +618,132 @@ public class Quest333BlackLionHunt extends Quest {
             if (qs.getQuestItemsCount(3671) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(2) == 0) {
                     qs.giveItems(3848, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 11) {
                     qs.giveItems(3440, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n == 20171) {
             if (qs.getQuestItemsCount(3671) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(100) < 60) {
                     qs.giveItems(3848, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 8) {
                     qs.giveItems(3440, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n == 20197) {
             if (qs.getQuestItemsCount(3671) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(100) < 60) {
                     qs.giveItems(3848, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 9) {
                     qs.giveItems(3440, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n == 20198) {
             if (qs.getQuestItemsCount(3671) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(2) == 0) {
                     qs.giveItems(3848, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 12) {
                     qs.giveItems(3440, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n == 20200) {
             if (qs.getQuestItemsCount(3671) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(2) == 0) {
                     qs.giveItems(3848, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 13) {
                     qs.giveItems(3440, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n == 20201) {
             if (qs.getQuestItemsCount(3671) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(2) == 0) {
                     qs.giveItems(3848, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 15) {
                     qs.giveItems(3440, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n == 20207) {
             if (qs.getQuestItemsCount(3672) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(2) == 0) {
                     qs.giveItems(3849, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 9) {
                     qs.giveItems(3441, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n == 20208) {
             if (qs.getQuestItemsCount(3672) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(2) == 0) {
                     qs.giveItems(3849, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 10) {
                     qs.giveItems(3441, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n == 20209) {
             if (qs.getQuestItemsCount(3672) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(2) == 0) {
                     qs.giveItems(3849, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 11) {
                     qs.giveItems(3441, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n == 20210) {
             if (qs.getQuestItemsCount(3672) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(2) == 0) {
                     qs.giveItems(3849, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 12) {
                     qs.giveItems(3441, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n == 20211) {
             if (qs.getQuestItemsCount(3672) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(2) == 0) {
                     qs.giveItems(3849, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 13) {
                     qs.giveItems(3441, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n == 20230) {
             if (qs.getQuestItemsCount(3674) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(100) < 60) {
                     qs.giveItems(3851, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 13) {
                     qs.giveItems(3443, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 2 && qs.getQuestItemsCount(3674) > 0L) {
                     qs.addSpawn(27152);
@@ -753,11 +753,11 @@ public class Quest333BlackLionHunt extends Quest {
             if (qs.getQuestItemsCount(3674) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(100) < 56) {
                     qs.giveItems(3851, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 14) {
                     qs.giveItems(3443, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 2 && qs.getQuestItemsCount(3674) > 0L) {
                     qs.addSpawn(27152);
@@ -767,11 +767,11 @@ public class Quest333BlackLionHunt extends Quest {
             if (qs.getQuestItemsCount(3674) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(100) < 60) {
                     qs.giveItems(3851, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 15) {
                     qs.giveItems(3443, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 2 && qs.getQuestItemsCount(3674) > 0L) {
                     qs.addSpawn(27152);
@@ -781,11 +781,11 @@ public class Quest333BlackLionHunt extends Quest {
             if (qs.getQuestItemsCount(3673) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(2) == 0) {
                     qs.giveItems(3850, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 14) {
                     qs.giveItems(3442, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 3 && qs.getQuestItemsCount(3673) > 0L) {
                     qs.addSpawn(27151);
@@ -796,11 +796,11 @@ public class Quest333BlackLionHunt extends Quest {
             if (qs.getQuestItemsCount(3673) >= 1L) {
                 if (ThreadLocalRandom.current().nextInt(2) == 0) {
                     qs.giveItems(3850, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 15) {
                     qs.giveItems(3442, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 if (ThreadLocalRandom.current().nextInt(100) < 3 && qs.getQuestItemsCount(3673) > 0L) {
                     qs.addSpawn(27151);
@@ -810,11 +810,11 @@ public class Quest333BlackLionHunt extends Quest {
         } else if (n == 27151) {
             if (qs.getQuestItemsCount(3673) >= 1L) {
                 qs.giveItems(3850, 4L);
-                qs.playSound("QuestState.SOUND_ITEMGET");
+                qs.playSound(QuestState.SOUND_ITEMGET);
             }
         } else if (n == 27152 && qs.getQuestItemsCount(3674) >= 1L) {
             qs.giveItems(3851, 8L);
-            qs.playSound("QuestState.SOUND_ITEMGET");
+            qs.playSound(QuestState.SOUND_ITEMGET);
         }
         return null;
     
