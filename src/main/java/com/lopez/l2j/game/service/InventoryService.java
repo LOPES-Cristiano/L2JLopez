@@ -170,6 +170,10 @@ public class InventoryService {
 	}
 
 	/** Adiciona (empilhando se stackable). Devolve null se o item nao existe. */
+	public AddResult addItem(int ownerId, Inventory inv, int itemId, int count, String process) {
+		return addItem(inv, itemId, count, process);
+	}
+
 	public AddResult addItem(Inventory inv, int itemId, int count, String process) {
 		var template = templates.get(itemId).orElse(null);
 		if (template == null || count <= 0) {
