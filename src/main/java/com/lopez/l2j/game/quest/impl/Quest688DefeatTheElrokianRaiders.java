@@ -44,7 +44,7 @@ public class Quest688DefeatTheElrokianRaiders extends Quest {
 		String html = event;
 
         String string2 = event;
-        int n = getFirstStartNpc();
+        int n = qs.resolveEventNpcId(getFirstStartNpc());
         if (n == 32105) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
@@ -113,10 +113,10 @@ public class Quest688DefeatTheElrokianRaiders extends Quest {
             case 1: {
                 if (n2 != 32105) break;
                 if (pc.getLevel() < 75) {
+                    qs.exitQuest(true);
                     html = "dindin_q0688_02.htm";
                     break;
                 }
-                qs.exitQuest(true);
                 html = "dindin_q0688_01.htm";
                 break;
             }
