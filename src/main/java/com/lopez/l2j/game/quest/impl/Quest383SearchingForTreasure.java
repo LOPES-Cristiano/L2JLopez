@@ -17,61 +17,61 @@ import org.springframework.stereotype.Component;
 @Component
 public class Quest383SearchingForTreasure extends Quest {
 
-	public static final int bxQ = 30890;
-	public static final int bxR = 31148;
-	public static final int bqR = 5915;
-	public static final int bxS = 1661;
-	public static final int bxT = 2450;
-	public static final int bxU = 2451;
-	public static final int azF = 956;
-	public static final int bxV = 952;
-	public static final int bxW = 4481;
-	public static final int bxX = 4482;
-	public static final int bxY = 4483;
-	public static final int bxZ = 4484;
-	public static final int bya = 4485;
-	public static final int byb = 4486;
-	public static final int byc = 4487;
-	public static final int byd = 4488;
-	public static final int bye = 4489;
-	public static final int byf = 4490;
-	public static final int byg = 4491;
-	public static final int byh = 4492;
-	public static final int byi = 1337;
-	public static final int byj = 1338;
-	public static final int byk = 1339;
-	public static final int biP = 3447;
-	public static final int biS = 3450;
-	public static final int biV = 3453;
-	public static final int biY = 3456;
-	public static final int bka = 4408;
-	public static final int bkb = 4409;
-	public static final int byl = 4418;
-	public static final int bym = 4419;
+    public static final int bxQ = 30890;
+    public static final int bxR = 31148;
+    public static final int bqR = 5915;
+    public static final int bxS = 1661;
+    public static final int bxT = 2450;
+    public static final int bxU = 2451;
+    public static final int azF = 956;
+    public static final int bxV = 952;
+    public static final int bxW = 4481;
+    public static final int bxX = 4482;
+    public static final int bxY = 4483;
+    public static final int bxZ = 4484;
+    public static final int bya = 4485;
+    public static final int byb = 4486;
+    public static final int byc = 4487;
+    public static final int byd = 4488;
+    public static final int bye = 4489;
+    public static final int byf = 4490;
+    public static final int byg = 4491;
+    public static final int byh = 4492;
+    public static final int byi = 1337;
+    public static final int byj = 1338;
+    public static final int byk = 1339;
+    public static final int biP = 3447;
+    public static final int biS = 3450;
+    public static final int biV = 3453;
+    public static final int biY = 3456;
+    public static final int bka = 4408;
+    public static final int bkb = 4409;
+    public static final int byl = 4418;
+    public static final int bym = 4419;
 
-	public Quest383SearchingForTreasure(QuestManager questManager) {
-	super(383, "383_SearchingForTreasure", "383_SearchingForTreasure");
-		this.addStartNpc(30890);
-		this.addTalkId(31148);
-		this.addQuestItem(5915);
-		if (questManager != null) {
-			questManager.registerQuest(this);
-		}
-	}
+    public Quest383SearchingForTreasure(QuestManager questManager) {
+        super(383, "383_SearchingForTreasure", "383_SearchingForTreasure");
+        this.addStartNpc(30890);
+        this.addTalkId(31148);
+        this.addQuestItem(5915);
+        if (questManager != null) {
+            questManager.registerQuest(this);
+        }
+    }
 
-	@Override
-	public String onEvent(String event, QuestState qs) {
-		PlayerCharacter pc = qs.playerChar();
-		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "1".equalsIgnoreCase(event)) {
-			qs.setCond(1);
-			qs.setState(State.STARTED);
-			qs.playSound(QuestState.SOUND_ACCEPT);
-		}
-		String html = event;
+    @Override
+    public String onEvent(String event, QuestState qs) {
+        PlayerCharacter pc = qs.playerChar();
+        if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "1".equalsIgnoreCase(event)) {
+            qs.setCond(1);
+            qs.setState(State.STARTED);
+            qs.playSound(QuestState.SOUND_ACCEPT);
+        }
+        String html = event;
 
         String string2 = event;
         int n = qs.getInt("treasure_hunt");
-        int n2 = getFirstStartNpc();
+        int n2 = qs.resolveEventNpcId(getFirstStartNpc());
         if (n2 == 30890) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
@@ -99,6 +99,10 @@ public class Quest383SearchingForTreasure extends Quest {
                 qs.setCond(2);
                 qs.set("treasure_hunt", String.valueOf(2), true);
                 qs.playSound(QuestState.SOUND_MIDDLE);
+                qs.addSpawn(31148, 106583, 197747, -4209, 900000);
+                qs.addSpawn(20314, 106570, 197740, -4209, 900000);
+                qs.addSpawn(20314, 106580, 197747, -4209, 900000);
+                qs.addSpawn(20314, 106590, 197743, -4209, 900000);
                 string2 = "trader_espen_q0383_12.htm";
             }
         } else if (n2 == 31148 && event.equalsIgnoreCase("reply_1")) {
@@ -185,13 +189,14 @@ public class Quest383SearchingForTreasure extends Quest {
             }
         }
         return string2;
-    
-	}
 
-	@Override
-	public String onTalk(NpcInstance npc, QuestState qs) {
-		PlayerCharacter pc = qs.playerChar();
-		if (pc == null) return "noquest";
+    }
+
+    @Override
+    public String onTalk(NpcInstance npc, QuestState qs) {
+        PlayerCharacter pc = qs.playerChar();
+        if (pc == null)
+            return "noquest";
 
         String html = "noquest";
         int n = qs.getInt("treasure_hunt");
@@ -199,7 +204,8 @@ public class Quest383SearchingForTreasure extends Quest {
         int n3 = qs.getStateId();
         switch (n3) {
             case 1: {
-                if (n2 != 30890) break;
+                if (n2 != 30890)
+                    break;
                 if (pc.getLevel() < 42) {
                     html = "trader_espen_q0383_01.htm";
                     qs.exitQuest(true);
@@ -210,7 +216,8 @@ public class Quest383SearchingForTreasure extends Quest {
                     qs.exitQuest(true);
                     break;
                 }
-                if (pc.getLevel() < 42 || qs.getQuestItemsCount(5915) <= 0L) break;
+                if (pc.getLevel() < 42 || qs.getQuestItemsCount(5915) <= 0L)
+                    break;
                 html = "trader_espen_q0383_03.htm";
                 break;
             }
@@ -220,16 +227,18 @@ public class Quest383SearchingForTreasure extends Quest {
                         html = "trader_espen_q0383_13.htm";
                         break;
                     }
-                    if (n != 2) break;
+                    if (n != 2)
+                        break;
                     html = "trader_espen_q0383_14.htm";
                     break;
                 }
-                if (n2 != 31148 || n != 2) break;
+                if (n2 != 31148 || n != 2)
+                    break;
                 html = "pirates_t_chest_q0383_01.htm";
             }
         }
         return html;
-    
-	}
+
+    }
 
 }
