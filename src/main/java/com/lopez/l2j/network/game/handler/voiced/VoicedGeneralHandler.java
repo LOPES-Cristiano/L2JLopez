@@ -147,7 +147,21 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 			"fusion",
 			"gve",
 			"townwar",
-			"daily"
+			"daily",
+			"classmaster",
+			"aug",
+			"augments",
+			"summon_clan",
+			"rcm",
+			"itemremaining",
+			"rune",
+			"mammon",
+			"instancezone",
+			"relog",
+			"debug",
+			"devinfo",
+			"diary",
+			"dropsdiary"
 	);
 
 	private final BankingService bankingService;
@@ -163,6 +177,7 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 	private RepairBBSManager repairBBSManager;
 	private WeddingService weddingService;
 	private JdbcClient jdbc;
+	private com.lopez.l2j.game.diary.DropsDiaryService dropsDiaryService = new com.lopez.l2j.game.diary.DropsDiaryService();
 
 	public VoicedGeneralHandler() {
 		this(null, null, null, null, null, null, null, null);
@@ -524,9 +539,23 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 				boolean state = dressMe.toggle(active);
 				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "DressMe " + (state ? "ativado" : "desativado") + "."));
 				session.sendUserInfoAndBroadcastCharInfo();
-				String html = "<html><body><center><font color=\"LEVEL\">=== DressMe Visual System ===</font><br>"
-						+ "Status: " + (state ? "<font color=\"8FA888\">ATIVADO</font>" : "<font color=\"B86B6B\">DESATIVADO</font>")
-						+ "<br><font color=\"AAAAAA\">Moedas aceitas: Adena (57), Gold Bar (3470), Event Medal (6392)</font><br></center></body></html>";
+				StringBuilder dmSb = new StringBuilder(1024);
+				dmSb.append("<html><body><center><font color=\"LEVEL\">=== DressMe Visual System ===</font><br>")
+						.append("Status: ").append(state ? "<font color=\"8FA888\">ATIVADO</font>" : "<font color=\"B86B6B\">DESATIVADO</font>")
+						.append("<br><font color=\"AAAAAA\">Moedas aceitas: Adena (57), Gold Bar (3470), Event Medal (6392)</font><br>");
+				if (dressMe.data() != null && !dressMe.data().all().isEmpty()) {
+					dmSb.append("<table width=270 bgcolor=111111 border=1 cellpadding=2 cellspacing=0>")
+							.append("<tr><th>Skin</th><th>Tipo</th><th>Acao</th></tr>");
+					for (var entry : dressMe.data().all()) {
+						dmSb.append("<tr><td>").append(entry.name()).append("</td><td>").append(entry.type())
+								.append("</td><td><a action=\"bypass -h voiced_dressme ").append(entry.skillId()).append("\">Aplicar</a></td></tr>");
+					}
+					dmSb.append("</table><br>");
+				}
+				dmSb.append("<a action=\"bypass -h voiced_undressme\">Remover Skins</a></center></body></html>");
+				String html = dmSb.toString();
+
+
 				session.send(new NpcHtmlMessage(0, html));
 				return true;
 			}
@@ -545,7 +574,10 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 					int adena = active.inventory() != null ? active.inventory().byItemId(57).map(ItemInstance::count).orElse(0) : 0;
 					inv.put(57, (long) adena);
 					var result = roulette.spin(active, roulette.getDefaultCostItemId(), roulette.getDefaultCostCount(), inv);
-					if (result.success() && ctx != null && ctx.inventories() != null && active.inventory() != null) {
+					if (result.success() && active.inventory() != null) {
+						session.send(ItemList.of(active.inventory().items(), false));
+					}
+					if (false && ctx != null && ctx.inventories() != null && active.inventory() != null) {
 						ctx.inventories().consumeItem(active.inventory(), roulette.getDefaultCostItemId(), (int) roulette.getDefaultCostCount(), "RouletteSpin");
 						session.send(ItemList.of(active.inventory().items(), false));
 					}
@@ -563,13 +595,17 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 				if (lowerParams.equals("do") || lowerParams.equals("confirm")) {
 					boolean ok = resetSvc.performReset(active, invMap);
 					if (ok) {
-						if (ctx != null && ctx.inventories() != null && active.inventory() != null) {
+						if (active.inventory() != null) {
+							session.send(ItemList.of(active.inventory().items(), false));
+						}
+						if (false && ctx != null && ctx.inventories() != null && active.inventory() != null) {
 							ctx.inventories().consumeItem(active.inventory(), 57, (int) (adena - invMap.get(57)), "CharacterReset");
 						}
 						session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Reset efetuado com sucesso! Nivel reiniciado para 1."));
 						if (ctx != null && ctx.characters() != null) {
 							session.send(new UserInfo(active, ctx.characters().template(active)));
 						}
+						session.sendUserInfoAndBroadcastCharInfo();
 					} else {
 						session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nao foi possivel realizar o reset."));
 					}
@@ -664,6 +700,228 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 					return true;
 				}
 				session.send(new NpcHtmlMessage(0, dailyRewardService.getStatusHtml(active)));
+				return true;
+			}
+			case "classmaster" -> {
+				com.lopez.l2j.game.model.ClassId currentClass = com.lopez.l2j.game.model.ClassId.getClassId(active.classId());
+				StringBuilder cmSb = new StringBuilder(1024);
+				cmSb.append("<html><body><title>Class Master (.classmaster)</title><center>")
+						.append("<font color=\"LEVEL\">=== Class Master ===</font></center><br>")
+						.append("Classe Atual: <font color=\"8FA888\">").append(currentClass != null ? currentClass.name() : active.classId())
+						.append(" (Nv ").append(active.level()).append(")</font><br><br>");
+				boolean foundNext = false;
+				if (currentClass != null) {
+					for (com.lopez.l2j.game.model.ClassId candidate : com.lopez.l2j.game.model.ClassId.values()) {
+						if (candidate.getParent() == currentClass) {
+							foundNext = true;
+							cmSb.append("<a action=\"bypass -h ClassMaster ").append(candidate.getId()).append("\">Mudar para ")
+									.append(candidate.name()).append("</a><br1>");
+						}
+					}
+				}
+				if (!foundNext) {
+					cmSb.append("Nenhuma transferencia de classe disponivel para sua classe atual.<br>");
+				}
+				cmSb.append("</body></html>");
+				session.send(new NpcHtmlMessage(0, cmSb.toString()));
+				session.send(new CreatureSay(0, CreatureSay.ALL, "ClassMaster",
+						"Painel de Class Master aberto para " + active.name() + "."));
+				return true;
+			}
+			case "aug", "augments" -> {
+				StringBuilder augSb = new StringBuilder(1024);
+				augSb.append("<html><body><title>Augments Ativos (.aug)</title><center>")
+						.append("<font color=\"LEVEL\">=== Augmentations Equipados ===</font></center><br>");
+				int augCount = 0;
+				if (active.inventory() != null) {
+					for (ItemInstance item : active.inventory().items()) {
+						if (item != null && item.isEquipped() && item.isAugmented() && item.augmentation() != null) {
+							augCount++;
+							var aug = item.augmentation();
+							String info = String.format("%s (+%d) -> Stat1: %d, Stat2: %d, Skill: %d (Lv %d)",
+									item.template().name(), item.enchantLevel(), aug.stat12(), aug.stat34(), aug.skillId(), aug.skillLevel());
+							session.send(new CreatureSay(0, CreatureSay.ALL, "Augment", info));
+							augSb.append("<font color=\"8FA888\">").append(item.template().name()).append("</font>: ")
+									.append("Attr ").append(aug.attributes()).append(" | Skill ").append(aug.skillId())
+									.append(" (Lv ").append(aug.skillLevel()).append(")<br1>");
+						}
+					}
+				}
+				if (augCount == 0) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Augment", "Nenhum item equipado possui Augmentation ativa."));
+					augSb.append("Nenhum item equipado possui Augmentation ativa.<br>");
+				}
+				augSb.append("</body></html>");
+				session.send(new NpcHtmlMessage(0, augSb.toString()));
+				return true;
+			}
+			case "summon_clan", "rcm" -> {
+				if (active.clanId() <= 0) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Clan", "Voce nao pertence a um cla."));
+					return true;
+				}
+				Clan clan = (ctx != null && ctx.clans() != null) ? ctx.clans().byClanId(active.clanId()).orElse(null) : null;
+				if (clan == null || !clan.isLeader(active.objectId())) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Clan", "Apenas o lider do cla pode usar .summon_clan / .rcm."));
+					return true;
+				}
+				if (active.isInCombat() || active.isDead() || active.isInOlympiadMode() || active.isInJail() || active.instanceId() != 0) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Clan", "Voce nao pode convocar o cla neste local ou estado."));
+					return true;
+				}
+				int summoned = 0;
+				GameWorld world = ctx != null ? ctx.world() : GameWorld.getInstance();
+				if (world != null) {
+					for (var m : clan.members()) {
+						if (m.objectId() == active.objectId()) continue;
+						var memberOnline = world.player(m.objectId()).orElse(null);
+						if (memberOnline != null && memberOnline.character() != null) {
+							PlayerCharacter mc = memberOnline.character();
+							if (!mc.isInCombat() && !mc.isDead() && !mc.isInOlympiadMode() && !mc.isInJail() && mc.instanceId() == 0) {
+								mc.setPosition(active.x(), active.y(), active.z());
+								memberOnline.send(new TeleportToLocation(mc.objectId(), active.x(), active.y(), active.z(), active.heading()));
+								memberOnline.send(new CreatureSay(0, CreatureSay.ALL, "Clan",
+										"Voce foi convocado pelo lider do cla " + active.name() + "!"));
+								summoned++;
+							}
+						}
+					}
+				}
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Clan",
+						"Convocacao do cla concluida: " + summoned + " membro(s) teleportado(s)."));
+				return true;
+			}
+			case "itemremaining", "rune" -> {
+				StringBuilder remSb = new StringBuilder(1024);
+				remSb.append("<html><body><title>Tempo Restante (.itemremaining / .rune)</title><center>")
+						.append("<font color=\"LEVEL\">=== Itens Temporarios e Runas ===</font></center><br>");
+				int timedCount = 0;
+				if (active.inventory() != null) {
+					for (ItemInstance item : active.inventory().items()) {
+						if (item != null && item.mana() > 0) {
+							timedCount++;
+							String msg = item.template().name() + ": " + item.mana() + " min/mana restantes";
+							session.send(new CreatureSay(0, CreatureSay.ALL, "Rune", msg));
+							remSb.append(item.template().name()).append(" - <font color=\"8FA888\">")
+									.append(item.mana()).append(" min/mana</font><br1>");
+						}
+					}
+				}
+				if (timedCount == 0) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Rune", "Voce nao possui runas ou itens temporarios com mana ativo."));
+					remSb.append("Nenhum item temporario ou runa ativa no inventario.<br>");
+				}
+				remSb.append("</body></html>");
+				session.send(new NpcHtmlMessage(0, remSb.toString()));
+				return true;
+			}
+			case "mammon" -> {
+				String merchLoc = "Desconhecido (Fora do periodo de validacao)";
+				String smithLoc = "Desconhecido (Fora do periodo de validacao)";
+				if (ctx != null && ctx.sevenSigns() != null) {
+					var m = ctx.sevenSigns().getMammonMerchantLocation();
+					var b = ctx.sevenSigns().getMammonBlacksmithLocation();
+					if (m != null && m.dungeonName() != null && !m.dungeonName().isBlank()) merchLoc = m.dungeonName();
+					if (b != null && b.dungeonName() != null && !b.dungeonName().isBlank()) smithLoc = b.dungeonName();
+				}
+				GameWorld world = ctx != null ? ctx.world() : GameWorld.getInstance();
+				if (world != null) {
+					for (var npc : world.npcs()) {
+						if (npc.npcId() == 31113) {
+							merchLoc = merchLoc + " (" + npc.x() + ", " + npc.y() + ", " + npc.z() + ")";
+						} else if (npc.npcId() == 31126) {
+							smithLoc = smithLoc + " (" + npc.x() + ", " + npc.y() + ", " + npc.z() + ")";
+						}
+					}
+				}
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Mammon",
+						"Merchant of Mammon: " + merchLoc + " | Blacksmith of Mammon: " + smithLoc));
+				String html = "<html><body><title>Mammon Locator (.mammon)</title><center>"
+						+ "<font color=\"LEVEL\">=== Localizacao dos Mammons ===</font></center><br>"
+						+ "<b>Merchant of Mammon (31113):</b><br1><font color=\"8FA888\">" + merchLoc + "</font><br>"
+						+ "<b>Blacksmith of Mammon (31126):</b><br1><font color=\"8FA888\">" + smithLoc + "</font><br>"
+						+ "</body></html>";
+				session.send(new NpcHtmlMessage(0, html));
+				return true;
+			}
+			case "instancezone" -> {
+				int instId = active.instanceId();
+				var activeSession = dungeonService != null && instId > 0 ? dungeonService.getSession(instId) : null;
+				String instName = activeSession != null && activeSession.template() != null
+						? activeSession.template().name() : (instId > 0 ? ("Instance #" + instId) : "Mundo Principal (0)");
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Instance",
+						"Instancia atual: " + instName + " (ID: " + instId + ")"));
+				StringBuilder izSb = new StringBuilder(512);
+				izSb.append("<html><body><title>Instance Zone (.instancezone)</title><center>")
+						.append("<font color=\"LEVEL\">=== Status de Instancia ===</font></center><br>")
+						.append("Instancia Atual: <font color=\"8FA888\">").append(instName).append("</font><br>");
+				if (dungeonService != null && !dungeonService.allDungeons().isEmpty()) {
+					izSb.append("<br><b>Dungeons Disponiveis:</b><br1>");
+					for (var dt : dungeonService.allDungeons().values()) {
+						izSb.append("- ").append(dt.name()).append(" (Cooldown: ").append(dt.cooldownMinutes()).append(" min)<br1>");
+					}
+				}
+				izSb.append("</body></html>");
+				session.send(new NpcHtmlMessage(0, izSb.toString()));
+				return true;
+			}
+			case "relog" -> {
+				if (active.isInCombat() || active.isDead() || active.isInOlympiadMode()) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Relog",
+							"Voce nao pode usar .relog durante o combate, morto ou nas Olimpiadas."));
+					return true;
+				}
+				if (ctx != null && ctx.characters() != null) {
+					try {
+						ctx.characters().save(active);
+					} catch (Exception ignored) {}
+				}
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Relog", "Sincronizando dados e retornando ao lobby..."));
+				session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RestartResponse(true));
+				return true;
+			}
+			case "debug" -> {
+				int geoZ = com.lopez.l2j.game.geodata.GeoEngine.getInstance().getHeight(active.x(), active.y(), active.z());
+				String msg = String.format("Debug [%s]: Loc=(%d, %d, %d, h=%d) GeoZ=%d Inst=%d Target=%d Combat=%s",
+						active.name(), active.x(), active.y(), active.z(), active.heading(),
+						geoZ, active.instanceId(), session.targetObjectId(), active.isInCombat());
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Debug", msg));
+				return true;
+			}
+			case "devinfo" -> {
+				Runtime rt = Runtime.getRuntime();
+				long usedMb = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024);
+				long maxMb = rt.maxMemory() / (1024 * 1024);
+				int online = ctx != null && ctx.world() != null ? ctx.world().players().size() : 1;
+				String msg = String.format("L2JLopez Interlude (Rev 746) | Java %s | Mem: %d/%d MB | Online: %d",
+						System.getProperty("java.version"), usedMb, maxMb, online);
+				session.send(new CreatureSay(0, CreatureSay.ALL, "DevInfo", msg));
+				String html = "<html><body><title>Server Technical Info (.devinfo)</title><center>"
+						+ "<font color=\"LEVEL\">=== L2JLopez Server Info ===</font></center><br>"
+						+ "Chronicle: <font color=\"8FA888\">Interlude (Protocol 746)</font><br1>"
+						+ "Java Runtime: " + System.getProperty("java.version") + "<br1>"
+						+ "Memoria JVM: " + usedMb + " MB / " + maxMb + " MB<br1>"
+						+ "Jogadores Online: " + online + "<br>"
+						+ "</body></html>";
+				session.send(new NpcHtmlMessage(0, html));
+				return true;
+			}
+			case "diary", "dropsdiary" -> {
+				int medals = dropsDiaryService.getDailyCount(active.objectId(), 6392);
+				int glitMedals = dropsDiaryService.getDailyCount(active.objectId(), 6393);
+				int goldBars = dropsDiaryService.getDailyCount(active.objectId(), 3470);
+				session.send(new CreatureSay(0, CreatureSay.ALL, "DropsDiary",
+						String.format("Drops Hoje -> Event Medal: %d/5 | Glittering Medal: %d/5 | Gold Bar: %d/10",
+								medals, glitMedals, goldBars)));
+				String html = "<html><body><title>Drops Diary (.diary / .dropsdiary)</title><center>"
+						+ "<font color=\"LEVEL\">=== Diario de Drops Raros ===</font></center><br>"
+						+ "<table width=270 bgcolor=111111 border=1 cellpadding=3 cellspacing=0>"
+						+ "<tr><th>Item</th><th>Obtido Hoje</th><th>Limite</th></tr>"
+						+ "<tr><td>Event Medal (6392)</td><td align=center>" + medals + "</td><td align=center>5</td></tr>"
+						+ "<tr><td>Glittering Medal (6393)</td><td align=center>" + glitMedals + "</td><td align=center>5</td></tr>"
+						+ "<tr><td>Gold Bar (3470)</td><td align=center>" + goldBars + "</td><td align=center>10</td></tr>"
+						+ "</table></body></html>";
+				session.send(new NpcHtmlMessage(0, html));
 				return true;
 			}
 			default -> {
@@ -953,7 +1211,20 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 					}
 				}
 			}
-			for (ItemInstance rem : toRemove) {
+				var ctx = session.context();
+				for (ItemInstance primary : primaryByItemId.values()) {
+					if (ctx != null && ctx.inventories() != null) {
+						ctx.inventories().saveItem(primary);
+					}
+				}
+				for (ItemInstance rem : toRemove) {
+					if (ctx != null && ctx.inventories() != null) {
+						ctx.inventories().destroyItem(active.inventory(), rem.objectId(), rem.count(), "Combine");
+					} else {
+						active.inventory().removeByObjectId(rem.objectId());
+					}
+				}
+				if (false) for (ItemInstance rem : toRemove) {
 				active.inventory().removeByObjectId(rem.objectId());
 			}
 		}
@@ -1045,6 +1316,36 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 				String noticeText = params.substring(7).trim();
 				clan.notice(noticeText);
 				clan.noticeEnabled(true);
+				if (ctx != null && ctx.clans() != null) {
+					ctx.clans().saveNotice(clan.clanId(), noticeText, true);
+				}
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Clan", "Aviso do cla atualizado com sucesso!"));
+			} else if (params.toLowerCase(Locale.ROOT).startsWith("allowwh ") || params.toLowerCase(Locale.ROOT).startsWith("cwh ")) {
+				String memberName = params.substring(params.indexOf(' ') + 1).trim();
+				var targetMember = clan.members().stream()
+						.filter(m -> m.name() != null && m.name().equalsIgnoreCase(memberName))
+						.findFirst().orElse(null);
+				if (targetMember != null) {
+					int rank = targetMember.powerGrade() > 0 ? targetMember.powerGrade() : 5;
+					int newPrivs = clan.getRankPrivilege(rank) | Clan.CP_CL_VIEW_WAREHOUSE;
+					clan.setRankPrivilege(rank, newPrivs);
+					if (ctx != null && ctx.clanPrivileges() != null) {
+						ctx.clanPrivileges().setRankPrivilege(active, rank, newPrivs);
+					}
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Clan",
+							"Permissao de Clan Warehouse concedida para " + targetMember.name() + " (Rank " + rank + ")."));
+				} else {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Clan", "Membro '" + memberName + "' nao encontrado no cla."));
+				}
+			} else if (params.toLowerCase(Locale.ROOT).equals("list")) {
+				StringBuilder mList = new StringBuilder("Membros do cla (").append(clan.membersCount()).append("): ");
+				for (var m : clan.members()) {
+					mList.append(m.name()).append("[Nv ").append(m.level()).append("] ");
+				}
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Clan", mList.toString()));
+			}
+			if (false) {
+				clan.noticeEnabled(true);
 				session.send(new CreatureSay(0, CreatureSay.ALL, "Clan", "Aviso do cla atualizado com sucesso!"));
 			}
 		}
@@ -1128,7 +1429,21 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 				}
 				int fee = ws.getWeddingTeleportPrice();
 				if (fee > 0 && active.inventory() != null) {
-					if (active.inventory().adena() < fee || !active.inventory().destroyItemByItemId(57, fee)) {
+					boolean paid = false;
+					if (active.inventory().adena() >= fee) {
+						if (ctx != null && ctx.inventories() != null) {
+							paid = ctx.inventories().consumeItem(active.inventory(), 57, fee, "WeddingTeleport") != null;
+						} else {
+							paid = active.inventory().destroyItemByItemId(57, fee);
+						}
+					}
+					if (!paid) {
+						session.send(new CreatureSay(0, CreatureSay.ALL, "Wedding",
+								"Voce precisa de " + fee + " Adena para teleportar ate seu conjuge."));
+						return true;
+					}
+					session.send(ItemList.of(active.inventory().items(), false));
+					if (false) {
 						session.send(new CreatureSay(0, CreatureSay.ALL, "Wedding",
 								"Voce precisa de " + fee + " Adena para teleportar ate seu conjuge."));
 						return true;
@@ -1149,11 +1464,238 @@ public class VoicedGeneralHandler implements IVoicedCommandHandler {
 				if (active.inventory() != null) {
 					long cost = ws.calculateDivorceCost(active.inventory().adena());
 					if (cost > 0 && cost <= Integer.MAX_VALUE) {
-						active.inventory().destroyItemByItemId(57, (int) cost);
+						if (ctx != null && ctx.inventories() != null) {
+							ctx.inventories().consumeItem(active.inventory(), 57, (int) cost, "WeddingDivorce");
+						} else {
+							active.inventory().destroyItemByItemId(57, (int) cost);
+						}
+						session.send(ItemList.of(active.inventory().items(), false));
 					}
 				}
 				ws.divorce(coupleOpt.get().id());
 				session.send(new CreatureSay(0, CreatureSay.ALL, "Wedding", "Seu casamento foi dissolvido (.divorce)."));
+				return true;
+			}
+			case "classmaster" -> {
+				com.lopez.l2j.game.model.ClassId currentClass = com.lopez.l2j.game.model.ClassId.getClassId(active.classId());
+				StringBuilder cmSb = new StringBuilder(1024);
+				cmSb.append("<html><body><title>Class Master (.classmaster)</title><center>")
+						.append("<font color=\"LEVEL\">=== Class Master ===</font></center><br>")
+						.append("Classe Atual: <font color=\"8FA888\">").append(currentClass != null ? currentClass.name() : active.classId())
+						.append(" (Nv ").append(active.level()).append(")</font><br><br>");
+				boolean foundNext = false;
+				if (currentClass != null) {
+					for (com.lopez.l2j.game.model.ClassId candidate : com.lopez.l2j.game.model.ClassId.values()) {
+						if (candidate.getParent() == currentClass) {
+							foundNext = true;
+							cmSb.append("<a action=\"bypass -h ClassMaster ").append(candidate.getId()).append("\">Mudar para ")
+									.append(candidate.name()).append("</a><br1>");
+						}
+					}
+				}
+				if (!foundNext) {
+					cmSb.append("Nenhuma transferencia de classe disponivel para sua classe atual.<br>");
+				}
+				cmSb.append("</body></html>");
+				session.send(new NpcHtmlMessage(0, cmSb.toString()));
+				session.send(new CreatureSay(0, CreatureSay.ALL, "ClassMaster",
+						"Painel de Class Master aberto para " + active.name() + "."));
+				return true;
+			}
+			case "aug", "augments" -> {
+				StringBuilder augSb = new StringBuilder(1024);
+				augSb.append("<html><body><title>Augments Ativos (.aug)</title><center>")
+						.append("<font color=\"LEVEL\">=== Augmentations Equipados ===</font></center><br>");
+				int augCount = 0;
+				if (active.inventory() != null) {
+					for (ItemInstance item : active.inventory().items()) {
+						if (item != null && item.isEquipped() && item.isAugmented() && item.augmentation() != null) {
+							augCount++;
+							var aug = item.augmentation();
+							String info = String.format("%s (+%d) -> Stat1: %d, Stat2: %d, Skill: %d (Lv %d)",
+									item.template().name(), item.enchantLevel(), aug.stat12(), aug.stat34(), aug.skillId(), aug.skillLevel());
+							session.send(new CreatureSay(0, CreatureSay.ALL, "Augment", info));
+							augSb.append("<font color=\"8FA888\">").append(item.template().name()).append("</font>: ")
+									.append("Attr ").append(aug.attributes()).append(" | Skill ").append(aug.skillId())
+									.append(" (Lv ").append(aug.skillLevel()).append(")<br1>");
+						}
+					}
+				}
+				if (augCount == 0) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Augment", "Nenhum item equipado possui Augmentation ativa."));
+					augSb.append("Nenhum item equipado possui Augmentation ativa.<br>");
+				}
+				augSb.append("</body></html>");
+				session.send(new NpcHtmlMessage(0, augSb.toString()));
+				return true;
+			}
+			case "summon_clan", "rcm" -> {
+				if (active.clanId() <= 0) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Clan", "Voce nao pertence a um cla."));
+					return true;
+				}
+				Clan clan = (ctx != null && ctx.clans() != null) ? ctx.clans().byClanId(active.clanId()).orElse(null) : null;
+				if (clan == null || !clan.isLeader(active.objectId())) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Clan", "Apenas o lider do cla pode usar .summon_clan / .rcm."));
+					return true;
+				}
+				if (active.isInCombat() || active.isDead() || active.isInOlympiadMode() || active.isInJail() || active.instanceId() != 0) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Clan", "Voce nao pode convocar o cla neste local ou estado."));
+					return true;
+				}
+				int summoned = 0;
+				GameWorld world = ctx != null ? ctx.world() : GameWorld.getInstance();
+				if (world != null) {
+					for (var m : clan.members()) {
+						if (m.objectId() == active.objectId()) continue;
+						var memberOnline = world.player(m.objectId()).orElse(null);
+						if (memberOnline != null && memberOnline.character() != null) {
+							PlayerCharacter mc = memberOnline.character();
+							if (!mc.isInCombat() && !mc.isDead() && !mc.isInOlympiadMode() && !mc.isInJail() && mc.instanceId() == 0) {
+								mc.setPosition(active.x(), active.y(), active.z());
+								memberOnline.send(new TeleportToLocation(mc.objectId(), active.x(), active.y(), active.z(), active.heading()));
+								memberOnline.send(new CreatureSay(0, CreatureSay.ALL, "Clan",
+										"Voce foi convocado pelo lider do cla " + active.name() + "!"));
+								summoned++;
+							}
+						}
+					}
+				}
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Clan",
+						"Convocacao do cla concluida: " + summoned + " membro(s) teleportado(s)."));
+				return true;
+			}
+			case "itemremaining", "rune" -> {
+				StringBuilder remSb = new StringBuilder(1024);
+				remSb.append("<html><body><title>Tempo Restante (.itemremaining / .rune)</title><center>")
+						.append("<font color=\"LEVEL\">=== Itens Temporarios e Runas ===</font></center><br>");
+				int timedCount = 0;
+				if (active.inventory() != null) {
+					for (ItemInstance item : active.inventory().items()) {
+						if (item != null && item.mana() > 0) {
+							timedCount++;
+							String msg = item.template().name() + ": " + item.mana() + " min/mana restantes";
+							session.send(new CreatureSay(0, CreatureSay.ALL, "Rune", msg));
+							remSb.append(item.template().name()).append(" - <font color=\"8FA888\">")
+									.append(item.mana()).append(" min/mana</font><br1>");
+						}
+					}
+				}
+				if (timedCount == 0) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Rune", "Voce nao possui runas ou itens temporarios com mana ativo."));
+					remSb.append("Nenhum item temporario ou runa ativa no inventario.<br>");
+				}
+				remSb.append("</body></html>");
+				session.send(new NpcHtmlMessage(0, remSb.toString()));
+				return true;
+			}
+			case "mammon" -> {
+				String merchLoc = "Desconhecido (Fora do periodo de validacao)";
+				String smithLoc = "Desconhecido (Fora do periodo de validacao)";
+				if (ctx != null && ctx.sevenSigns() != null) {
+					var m = ctx.sevenSigns().getMammonMerchantLocation();
+					var b = ctx.sevenSigns().getMammonBlacksmithLocation();
+					if (m != null && m.dungeonName() != null && !m.dungeonName().isBlank()) merchLoc = m.dungeonName();
+					if (b != null && b.dungeonName() != null && !b.dungeonName().isBlank()) smithLoc = b.dungeonName();
+				}
+				GameWorld world = ctx != null ? ctx.world() : GameWorld.getInstance();
+				if (world != null) {
+					for (var npc : world.npcs()) {
+						if (npc.npcId() == 31113) {
+							merchLoc = merchLoc + " (" + npc.x() + ", " + npc.y() + ", " + npc.z() + ")";
+						} else if (npc.npcId() == 31126) {
+							smithLoc = smithLoc + " (" + npc.x() + ", " + npc.y() + ", " + npc.z() + ")";
+						}
+					}
+				}
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Mammon",
+						"Merchant of Mammon: " + merchLoc + " | Blacksmith of Mammon: " + smithLoc));
+				String html = "<html><body><title>Mammon Locator (.mammon)</title><center>"
+						+ "<font color=\"LEVEL\">=== Localizacao dos Mammons ===</font></center><br>"
+						+ "<b>Merchant of Mammon (31113):</b><br1><font color=\"8FA888\">" + merchLoc + "</font><br>"
+						+ "<b>Blacksmith of Mammon (31126):</b><br1><font color=\"8FA888\">" + smithLoc + "</font><br>"
+						+ "</body></html>";
+				session.send(new NpcHtmlMessage(0, html));
+				return true;
+			}
+			case "instancezone" -> {
+				int instId = active.instanceId();
+				var activeSession = dungeonService != null && instId > 0 ? dungeonService.getSession(instId) : null;
+				String instName = activeSession != null && activeSession.template() != null
+						? activeSession.template().name() : (instId > 0 ? ("Instance #" + instId) : "Mundo Principal (0)");
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Instance",
+						"Instancia atual: " + instName + " (ID: " + instId + ")"));
+				StringBuilder izSb = new StringBuilder(512);
+				izSb.append("<html><body><title>Instance Zone (.instancezone)</title><center>")
+						.append("<font color=\"LEVEL\">=== Status de Instancia ===</font></center><br>")
+						.append("Instancia Atual: <font color=\"8FA888\">").append(instName).append("</font><br>");
+				if (dungeonService != null && !dungeonService.allDungeons().isEmpty()) {
+					izSb.append("<br><b>Dungeons Disponiveis:</b><br1>");
+					for (var dt : dungeonService.allDungeons().values()) {
+						izSb.append("- ").append(dt.name()).append(" (Cooldown: ").append(dt.cooldownMinutes()).append(" min)<br1>");
+					}
+				}
+				izSb.append("</body></html>");
+				session.send(new NpcHtmlMessage(0, izSb.toString()));
+				return true;
+			}
+			case "relog" -> {
+				if (active.isInCombat() || active.isDead() || active.isInOlympiadMode()) {
+					session.send(new CreatureSay(0, CreatureSay.ALL, "Relog",
+							"Voce nao pode usar .relog durante o combate, morto ou nas Olimpiadas."));
+					return true;
+				}
+				if (ctx != null && ctx.characters() != null) {
+					try {
+						ctx.characters().save(active);
+					} catch (Exception ignored) {}
+				}
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Relog", "Sincronizando dados e retornando ao lobby..."));
+				session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RestartResponse(true));
+				return true;
+			}
+			case "debug" -> {
+				int geoZ = com.lopez.l2j.game.geodata.GeoEngine.getInstance().getHeight(active.x(), active.y(), active.z());
+				String msg = String.format("Debug [%s]: Loc=(%d, %d, %d, h=%d) GeoZ=%d Inst=%d Target=%d Combat=%s",
+						active.name(), active.x(), active.y(), active.z(), active.heading(),
+						geoZ, active.instanceId(), session.targetObjectId(), active.isInCombat());
+				session.send(new CreatureSay(0, CreatureSay.ALL, "Debug", msg));
+				return true;
+			}
+			case "devinfo" -> {
+				Runtime rt = Runtime.getRuntime();
+				long usedMb = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024);
+				long maxMb = rt.maxMemory() / (1024 * 1024);
+				int online = ctx != null && ctx.world() != null ? ctx.world().players().size() : 1;
+				String msg = String.format("L2JLopez Interlude (Rev 746) | Java %s | Mem: %d/%d MB | Online: %d",
+						System.getProperty("java.version"), usedMb, maxMb, online);
+				session.send(new CreatureSay(0, CreatureSay.ALL, "DevInfo", msg));
+				String html = "<html><body><title>Server Technical Info (.devinfo)</title><center>"
+						+ "<font color=\"LEVEL\">=== L2JLopez Server Info ===</font></center><br>"
+						+ "Chronicle: <font color=\"8FA888\">Interlude (Protocol 746)</font><br1>"
+						+ "Java Runtime: " + System.getProperty("java.version") + "<br1>"
+						+ "Memoria JVM: " + usedMb + " MB / " + maxMb + " MB<br1>"
+						+ "Jogadores Online: " + online + "<br>"
+						+ "</body></html>";
+				session.send(new NpcHtmlMessage(0, html));
+				return true;
+			}
+			case "diary", "dropsdiary" -> {
+				int medals = dropsDiaryService.getDailyCount(active.objectId(), 6392);
+				int glitMedals = dropsDiaryService.getDailyCount(active.objectId(), 6393);
+				int goldBars = dropsDiaryService.getDailyCount(active.objectId(), 3470);
+				session.send(new CreatureSay(0, CreatureSay.ALL, "DropsDiary",
+						String.format("Drops Hoje -> Event Medal: %d/5 | Glittering Medal: %d/5 | Gold Bar: %d/10",
+								medals, glitMedals, goldBars)));
+				String html = "<html><body><title>Drops Diary (.diary / .dropsdiary)</title><center>"
+						+ "<font color=\"LEVEL\">=== Diario de Drops Raros ===</font></center><br>"
+						+ "<table width=270 bgcolor=111111 border=1 cellpadding=3 cellspacing=0>"
+						+ "<tr><th>Item</th><th>Obtido Hoje</th><th>Limite</th></tr>"
+						+ "<tr><td>Event Medal (6392)</td><td align=center>" + medals + "</td><td align=center>5</td></tr>"
+						+ "<tr><td>Glittering Medal (6393)</td><td align=center>" + glitMedals + "</td><td align=center>5</td></tr>"
+						+ "<tr><td>Gold Bar (3470)</td><td align=center>" + goldBars + "</td><td align=center>10</td></tr>"
+						+ "</table></body></html>";
+				session.send(new NpcHtmlMessage(0, html));
 				return true;
 			}
 			default -> {
