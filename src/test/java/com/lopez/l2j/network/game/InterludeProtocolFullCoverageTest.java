@@ -17,7 +17,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Suite completa de validacao do protocolo Interlude (Revision 746):
- * 1) Correcao dos 4 opcodes criticos (PledgeCrest, SendTradeRequest, RecipeBookItemList, RecipeItemMakeInfo)
+ * 1) Correcao dos 4 opcodes criticos (PledgeCrest, SendTradeRequest,
+ * RecipeBookItemList, RecipeItemMakeInfo)
  * 2) Decodificacao de todos os 77 novos GameClientPackets (1-byte e 0xD0:xx)
  * 3) Codificacao binaria de todos os novos GameServerPackets (1-byte e 0xFE:xx)
  * 4) Integracao ponta a ponta via GameSession e ExtendedProtocolPacketHandler
@@ -38,7 +39,8 @@ class InterludeProtocolFullCoverageTest {
 		byte[] recipeBook = new RecipeBookItemList(true, 500, List.of(10, 20)).encode();
 		assertEquals(0xd6, recipeBook[0] & 0xFF);
 
-		// 4. RecipeItemMakeInfo deve usar 0xD7 (Interlude) e nao 0xDD (MonRaceInfo no C6)
+		// 4. RecipeItemMakeInfo deve usar 0xD7 (Interlude) e nao 0xDD (MonRaceInfo no
+		// C6)
 		byte[] recipeMake = new RecipeItemMakeInfo(10, true, 250, 500, 1).encode();
 		assertEquals(0xd7, recipeMake[0] & 0xFF);
 	}
@@ -47,57 +49,97 @@ class InterludeProtocolFullCoverageTest {
 	void testAllNewClientPacketsDecodeCorrectly() {
 		// GameGuardReply (0xCA) nos 3 estados
 		byte[] gg = new PacketWriter().writeC(0xca).writeD(1).writeD(2).writeD(3).writeD(4).toByteArray();
-		assertInstanceOf(GameClientPacket.GameGuardReply.class, GameClientPacket.decode(State.CONNECTED, gg).orElseThrow());
-		assertInstanceOf(GameClientPacket.GameGuardReply.class, GameClientPacket.decode(State.AUTHED, gg).orElseThrow());
-		assertInstanceOf(GameClientPacket.GameGuardReply.class, GameClientPacket.decode(State.IN_GAME, gg).orElseThrow());
+		assertInstanceOf(GameClientPacket.GameGuardReply.class,
+				GameClientPacket.decode(State.CONNECTED, gg).orElseThrow());
+		assertInstanceOf(GameClientPacket.GameGuardReply.class,
+				GameClientPacket.decode(State.AUTHED, gg).orElseThrow());
+		assertInstanceOf(GameClientPacket.GameGuardReply.class,
+				GameClientPacket.decode(State.IN_GAME, gg).orElseThrow());
 
 		// Movimentacao, Rotacao, Barcos, HTML
 		assertInstanceOf(GameClientPacket.RequestChangeMoveType.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x1c).writeD(1).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x1c).writeD(1).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestChangeWaitType.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x1d).writeD(0).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x1d).writeD(0).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestLinkHtml.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x20).writeS("help.htm").toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x20).writeS("help.htm").toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.CannotMoveAnymore.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x36).writeD(10).writeD(20).writeD(30).writeD(40).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME,
+						new PacketWriter().writeC(0x36).writeD(10).writeD(20).writeD(30).writeD(40).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.MoveWithDelta.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x41).writeD(5).writeD(6).writeD(7).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0x41).writeD(5).writeD(6).writeD(7).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestGetOnVehicle.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x42).writeD(1).writeD(10).writeD(20).writeD(30).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME,
+						new PacketWriter().writeC(0x42).writeD(1).writeD(10).writeD(20).writeD(30).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestGetOffVehicle.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x43).writeD(1).writeD(10).writeD(20).writeD(30).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME,
+						new PacketWriter().writeC(0x43).writeD(1).writeD(10).writeD(20).writeD(30).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestSiegeInfo.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x47).writeD(1).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x47).writeD(1).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.StartRotating.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x4a).writeD(180).writeD(1).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME, new PacketWriter().writeC(0x4a).writeD(180).writeD(1).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.FinishRotating.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x4b).writeD(180).writeD(0).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME, new PacketWriter().writeC(0x4b).writeD(180).writeD(0).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestReplyStartPledgeWar.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x4e).writeS("WarClan").writeD(1).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0x4e).writeS("WarClan").writeD(1).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestReplyStopPledgeWar.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x50).writeS("WarClan").writeD(1).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0x50).writeS("WarClan").writeD(1).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestSurrenderPledgeWar.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x51).writeS("WarClan").toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x51).writeS("WarClan").toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestMoveToLocationInVehicle.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x5c).writeD(1).writeD(10).writeD(20).writeD(30).writeD(1).writeD(2).writeD(3).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x5c).writeD(1).writeD(10).writeD(20)
+						.writeD(30).writeD(1).writeD(2).writeD(3).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.CannotMoveAnymoreInVehicle.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x5d).writeD(1).writeD(10).writeD(20).writeD(30).writeD(40).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x5d).writeD(1).writeD(10).writeD(20)
+						.writeD(30).writeD(40).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestPledgeExtendedInfo.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x67).writeS("MyClan").toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x67).writeS("MyClan").toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestSurrenderPersonally.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x69).writeS("WarClan").toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x69).writeS("WarClan").toByteArray())
+						.orElseThrow());
 
 		// Party Match, Peticoes, Alianca, Pets, Freight, Manufacture, Manor
 		assertInstanceOf(GameClientPacket.RequestPartyMatchConfig.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x6f).writeD(1).writeD(0).writeD(1).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0x6f).writeD(1).writeD(0).writeD(1).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestPartyMatchList.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x70).writeD(1).writeD(8).writeD(1).writeD(80).writeD(0).writeS("Room").toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x70).writeD(1).writeD(8).writeD(1)
+						.writeD(80).writeD(0).writeS("Room").toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestPartyMatchDetail.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x71).writeD(1).writeD(0).writeD(0).writeD(50).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0x71).writeD(1).writeD(0).writeD(0).writeD(50).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestPrivateStoreManageCancel.class,
 				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x75).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestPetition.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x7f).writeS("Help").writeD(1).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME, new PacketWriter().writeC(0x7f).writeS("Help").writeD(1).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestPetitionCancel.class,
 				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x80).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestGmList.class,
@@ -105,113 +147,197 @@ class InterludeProtocolFullCoverageTest {
 		assertInstanceOf(GameClientPacket.AllyLeave.class,
 				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x84).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.AllyDismiss.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x85).writeS("SubClan").toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x85).writeS("SubClan").toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestDismissAlly.class,
 				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x86).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestSetAllyCrest.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x87).writeD(2).writeB(new byte[] { 9, 8 }).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0x87).writeD(2).writeB(new byte[] { 9, 8 }).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestAllyCrest.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x88).writeD(77).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x88).writeD(77).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestChangePetName.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x89).writeS("Wolfie").toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x89).writeS("Wolfie").toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestPetUseItem.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x8a).writeD(500).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x8a).writeD(500).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestGiveItemToPet.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x8b).writeD(500).writeD(10).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME, new PacketWriter().writeC(0x8b).writeD(500).writeD(10).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestGetItemFromPet.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x8c).writeD(500).writeD(5).writeD(0).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0x8c).writeD(500).writeD(5).writeD(0).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestAllyInfo.class,
 				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x8e).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestPetGetItem.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x8f).writeD(600).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x8f).writeD(600).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestPackageSendableItemList.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x9e).writeD(123).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x9e).writeD(123).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestPackageSend.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0x9f).writeD(123).writeD(1).writeD(555).writeD(2).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME,
+						new PacketWriter().writeC(0x9f).writeD(123).writeD(1).writeD(555).writeD(2).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.SnoopQuit.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xab).writeD(1).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xab).writeD(1).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.SnoopQuit.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xb4).writeD(1).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xb4).writeD(1).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestRecipeBookDestroy.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xad).writeD(44).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xad).writeD(44).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestRecipeShopManageList.class,
 				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xb0).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestRecipeShopMessageSet.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xb1).writeS("Craft Shop").toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME, new PacketWriter().writeC(0xb1).writeS("Craft Shop").toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestRecipeShopListSet.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xb2).writeD(1).writeD(10).writeD(5000).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0xb2).writeD(1).writeD(10).writeD(5000).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestRecipeShopManageQuit.class,
 				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xb3).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestRecipeShopMakeInfo.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xb5).writeD(100).writeD(10).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME, new PacketWriter().writeC(0xb5).writeD(100).writeD(10).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestRecipeShopMakeItem.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xb6).writeD(100).writeD(10).writeD(5000).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0xb6).writeD(100).writeD(10).writeD(5000).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestRecipeShopManagePrev.class,
 				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xb7).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.ObserverReturn.class,
 				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xb8).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestBuyProcure.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xc3).writeD(1).writeD(1).writeD(100).writeD(5000).writeD(2).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xc3).writeD(1).writeD(1).writeD(100)
+						.writeD(5000).writeD(2).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestBuySeed.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xc4).writeD(1).writeD(1).writeD(5033).writeD(5).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME,
+						new PacketWriter().writeC(0xc4).writeD(1).writeD(1).writeD(5033).writeD(5).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestPreviewItem.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xc6).writeD(0).writeD(10).writeD(1).writeD(6379).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME,
+						new PacketWriter().writeC(0xc6).writeD(0).writeD(10).writeD(1).writeD(6379).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestSendFriendMsg.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xcc).writeS("Hello").writeS("Friend").toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0xcc).writeS("Hello").writeS("Friend").toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestRecordInfo.class,
 				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xcf).toByteArray()).orElseThrow());
 
 		// 0xD0 Extended ClientPackets
 		assertInstanceOf(GameClientPacket.RequestOustFromPartyRoom.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x01).writeD(200).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x01).writeD(200).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestDismissPartyRoom.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x02).writeD(1).writeD(0).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0xd0).writeH(0x02).writeD(1).writeD(0).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestWithdrawPartyRoom.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x03).writeD(1).writeD(0).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0xd0).writeH(0x03).writeD(1).writeD(0).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestChangePartyLeader.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x04).writeS("NewLead").toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0xd0).writeH(0x04).writeS("NewLead").toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestChangePartyLeader.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0xee).writeS("NewLead").toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0xd0).writeH(0xee).writeS("NewLead").toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestManorList.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x08).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x08).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestProcureCropList.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x09).writeD(1).writeD(101).writeD(5000).writeD(1).writeD(5).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x09).writeD(1)
+						.writeD(101).writeD(5000).writeD(1).writeD(5).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestSetSeed.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x0a).writeD(1).writeD(1).writeD(5033).writeD(100).writeD(20).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x0a).writeD(1).writeD(1)
+						.writeD(5033).writeD(100).writeD(20).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestSetCrop.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x0b).writeD(1).writeD(1).writeD(5000).writeD(100).writeD(50).writeC(1).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x0b).writeD(1).writeD(1)
+						.writeD(5000).writeD(100).writeD(50).writeC(1).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestWriteHeroWords.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x0c).writeS("For Aden!").toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0xd0).writeH(0x0c).writeS("For Aden!").toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestExAskJoinMPCC.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x0d).writeS("Party2Lead").toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0xd0).writeH(0x0d).writeS("Party2Lead").toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestExAcceptJoinMPCC.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x0e).writeD(1).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x0e).writeD(1).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestExOustFromMPCC.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x0f).writeS("Party2Lead").toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0xd0).writeH(0x0f).writeS("Party2Lead").toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestOlympiadObserverEnd.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x12).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x12).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestOlympiadMatchList.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x13).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x13).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestAskJoinPartyRoom.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x14).writeS("Candidate").toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0xd0).writeH(0x14).writeS("Candidate").toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.AnswerJoinPartyRoom.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x15).writeD(1).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x15).writeD(1).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestListPartyMatchingWaitingRoom.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x16).writeD(1).writeD(1).writeD(85).writeD(1).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x16).writeD(1).writeD(1)
+						.writeD(85).writeD(1).toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestExitPartyMatchingWaitingRoom.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x17).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x17).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestPledgeSetAcademyMaster.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x19).writeD(1).writeS("Master").writeS("Apprentice").toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x19).writeD(1)
+						.writeS("Master").writeS("Apprentice").toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestExFishRanking.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x1f).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x1f).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestPCCafeCouponUse.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x20).writeS("COUPON-123").toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME,
+								new PacketWriter().writeC(0xd0).writeH(0x20).writeS("COUPON-123").toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestPledgeReorganizeMember.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x24).writeD(1).writeS("Knight").writeD(100).writeS("Other").toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x24).writeD(1)
+						.writeS("Knight").writeD(100).writeS("Other").toByteArray()).orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestExMPCCShowPartyMembersInfo.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x26).writeD(100).toByteArray()).orElseThrow());
+				GameClientPacket
+						.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x26).writeD(100).toByteArray())
+						.orElseThrow());
 		assertInstanceOf(GameClientPacket.RequestExMagicSkillUseGround.class,
-				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x2f).writeD(10).writeD(20).writeD(30).writeD(1417).writeD(1).writeC(0).toByteArray()).orElseThrow());
+				GameClientPacket.decode(State.IN_GAME, new PacketWriter().writeC(0xd0).writeH(0x2f).writeD(10)
+						.writeD(20).writeD(30).writeD(1417).writeD(1).writeC(0).toByteArray()).orElseThrow());
 	}
 
 	@Test
@@ -246,7 +372,8 @@ class InterludeProtocolFullCoverageTest {
 		assertEquals(0x7f, new AbnormalStatusUpdate(List.of()).encode()[0] & 0xFF);
 		assertEquals(0x82, new PledgeShowMemberListDeleteAll().encode()[0] & 0xFF);
 		assertEquals(0x83, new PledgeInfo(1, "Clan", "Ally").encode()[0] & 0xFF);
-		assertEquals(0x8c, new ServerObjectInfo(1, 30000, "Chair", false, 0, 0, 0, 0, 10, 20, 100, 100).encode()[0] & 0xFF);
+		assertEquals(0x8c,
+				new ServerObjectInfo(1, 30000, "Chair", false, 0, 0, 0, 0, 10, 20, 100, 100).encode()[0] & 0xFF);
 		assertEquals(0x96, new PartyMatchList(List.of()).encode()[0] & 0xFF);
 		assertEquals(0x97, new PartyMatchDetail(1, 8, 1, 85, 0, 1, "Room").encode()[0] & 0xFF);
 		assertEquals(0xa7, new PartyMemberPosition(List.of()).encode()[0] & 0xFF);
@@ -371,39 +498,64 @@ class InterludeProtocolFullCoverageTest {
 		assertTrue(sent.stream().anyMatch(RecipeShopMsg.class::isInstance));
 		sent.clear();
 
+		// Action 37 (Dwarven Manufacture) - valida skill e abre RecipeShopManageList
+		pc.classId(57); // Warsmith (Dwarf)
+		assertTrue(session.handle(new PacketWriter().writeC(0x45).writeD(37).writeD(0).writeC(0).toByteArray()));
+		assertTrue(sent.stream().anyMatch(RecipeShopManageList.class::isInstance));
+		sent.clear();
+
+		// Registra loja de Dwarven Manufacture via 0xB2 (RequestRecipeShopListSet) e
+		// valida sincronizacao com RecipeService
+		assertTrue(session.handle(new PacketWriter().writeC(0xb2).writeD(1).writeD(20).writeD(500).toByteArray()));
+		assertEquals(PlayerCharacter.STORE_TYPE_MANUFACTURE, pc.privateStoreType());
+		assertEquals(500,
+				com.lopez.l2j.game.recipe.RecipeService.getInstance().getManufactureCost(pc.objectId(), 20).orElse(-1));
+		sent.clear();
+
+		// Fecha loja via 0xB3 (RequestRecipeShopManageQuit)
+		assertTrue(session.handle(new PacketWriter().writeC(0xb3).toByteArray()));
+		assertEquals(PlayerCharacter.STORE_TYPE_NONE, pc.privateStoreType());
+		sent.clear();
+
 		// 2. Party Matching Room
 		assertTrue(session.handle(new PacketWriter().writeC(0x6f).writeD(1).writeD(1).writeD(1).toByteArray()));
 		assertTrue(sent.stream().anyMatch(PartyMatchDetail.class::isInstance));
 		assertTrue(sent.stream().anyMatch(ExPartyRoomMember.class::isInstance));
 		sent.clear();
 
-		assertTrue(session.handle(new PacketWriter().writeC(0x70).writeD(0).writeD(8).writeD(1).writeD(85).writeD(0).writeS("All").toByteArray()));
+		assertTrue(session.handle(new PacketWriter().writeC(0x70).writeD(0).writeD(8).writeD(1).writeD(85).writeD(0)
+				.writeS("All").toByteArray()));
 		assertTrue(sent.stream().anyMatch(PartyMatchList.class::isInstance));
 		sent.clear();
 
 		// 3. Vehicles / Boats
-		assertTrue(session.handle(new PacketWriter().writeC(0x42).writeD(1).writeD(100).writeD(200).writeD(-3600).toByteArray()));
+		assertTrue(session
+				.handle(new PacketWriter().writeC(0x42).writeD(1).writeD(100).writeD(200).writeD(-3600).toByteArray()));
 		assertTrue(sent.stream().anyMatch(VehicleInfo.class::isInstance));
 		assertTrue(sent.stream().anyMatch(GetOnVehicle.class::isInstance));
 		sent.clear();
 
-		assertTrue(session.handle(new PacketWriter().writeC(0x43).writeD(1).writeD(150).writeD(250).writeD(-3500).toByteArray()));
+		assertTrue(session
+				.handle(new PacketWriter().writeC(0x43).writeD(1).writeD(150).writeD(250).writeD(-3500).toByteArray()));
 		assertTrue(sent.stream().anyMatch(GetOffVehicle.class::isInstance));
 		sent.clear();
 
 		// 4. Manor Seed/Crop Settings & Shop Preview
-		assertTrue(session.handle(new PacketWriter().writeC(0xd0).writeH(0x0a).writeD(1).writeD(1).writeD(5033).writeD(100).writeD(20).toByteArray()));
+		assertTrue(session.handle(new PacketWriter().writeC(0xd0).writeH(0x0a).writeD(1).writeD(1).writeD(5033)
+				.writeD(100).writeD(20).toByteArray()));
 		assertTrue(sent.stream().anyMatch(ExShowSeedSetting.class::isInstance));
 		assertTrue(sent.stream().anyMatch(ExShowSeedInfo.class::isInstance));
 		sent.clear();
 
-		assertTrue(session.handle(new PacketWriter().writeC(0xd0).writeH(0x0b).writeD(1).writeD(1).writeD(5000).writeD(100).writeD(50).writeC(1).toByteArray()));
+		assertTrue(session.handle(new PacketWriter().writeC(0xd0).writeH(0x0b).writeD(1).writeD(1).writeD(5000)
+				.writeD(100).writeD(50).writeC(1).toByteArray()));
 		assertTrue(sent.stream().anyMatch(ExShowCropSetting.class::isInstance));
 		assertTrue(sent.stream().anyMatch(ExShowCropInfo.class::isInstance));
 		assertTrue(sent.stream().anyMatch(ExShowManorDefaultInfo.class::isInstance));
 		sent.clear();
 
-		assertTrue(session.handle(new PacketWriter().writeC(0xc6).writeD(0).writeD(1).writeD(1).writeD(6379).toByteArray()));
+		assertTrue(session
+				.handle(new PacketWriter().writeC(0xc6).writeD(0).writeD(1).writeD(1).writeD(6379).toByteArray()));
 		assertTrue(sent.stream().anyMatch(ShopPreviewList.class::isInstance));
 		assertTrue(sent.stream().anyMatch(ShopPreviewInfo.class::isInstance));
 		sent.clear();
