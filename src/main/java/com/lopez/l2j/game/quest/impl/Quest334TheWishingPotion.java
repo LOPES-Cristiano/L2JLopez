@@ -6,6 +6,7 @@ import com.lopez.l2j.game.quest.Quest;
 import com.lopez.l2j.game.quest.QuestManager;
 import com.lopez.l2j.game.quest.QuestState;
 import com.lopez.l2j.game.quest.State;
+import com.lopez.l2j.network.game.GameSession;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -103,6 +104,30 @@ public class Quest334TheWishingPotion extends Quest {
 	}
 
 	@Override
+	public String onAdvEvent(String event, NpcInstance npc, GameSession player) {
+		QuestState qs = checkQuestState(player);
+		if (qs == null && player != null) {
+			qs = newQuestState(player);
+		}
+		if (qs == null) {
+			return null;
+		}
+		if (npc != null) {
+			qs.setLastTalkedNpcId(npc.npcId());
+		}
+		if ("2336001".equalsIgnoreCase(event) || "2336007".equalsIgnoreCase(event)
+				|| "2336004".equalsIgnoreCase(event) || "2336107".equalsIgnoreCase(event)
+				|| "2336005".equalsIgnoreCase(event) || "2336006".equalsIgnoreCase(event)) {
+			this.bkf = 0;
+			if (npc != null) {
+				npc.deleteMe();
+			}
+			return null;
+		}
+		return onEvent(event, qs);
+	}
+
+	@Override
 	public String onEvent(String event, QuestState qs) {
 		PlayerCharacter pc = qs.playerChar();
 		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "1".equalsIgnoreCase(event)) {
@@ -115,7 +140,7 @@ public class Quest334TheWishingPotion extends Quest {
 
         String string2 = event;
         NpcInstance npcInstance2 = null;
-        int n = getFirstStartNpc();
+        int n = qs.resolveEventNpcId(getFirstStartNpc());
         if (n == 30738) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
@@ -124,7 +149,7 @@ public class Quest334TheWishingPotion extends Quest {
                     qs.giveItems(3678, 1L);
                 }
                 qs.setState(State.STARTED);
-                qs.playSound("QuestState.SOUND_ACCEPT");
+                qs.playSound(QuestState.SOUND_ACCEPT);
                 string2 = "alchemist_matild_q0334_04.htm";
             } else if (event.equalsIgnoreCase("reply_1")) {
                 string2 = "alchemist_matild_q0334_03.htm";
@@ -135,7 +160,7 @@ public class Quest334TheWishingPotion extends Quest {
                 qs.takeItems(3678, -1L);
                 qs.giveItems(3680, 1L);
                 qs.giveItems(3681, 1L);
-                qs.playSound("QuestState.SOUND_MIDDLE");
+                qs.playSound(QuestState.SOUND_MIDDLE);
                 string2 = "alchemist_matild_q0334_07.htm";
             } else if (event.equalsIgnoreCase("reply_3")) {
                 string2 = "alchemist_matild_q0334_10.htm";
@@ -156,7 +181,7 @@ public class Quest334TheWishingPotion extends Quest {
                 qs.takeItems(3685, 1L);
                 qs.takeItems(3680, -1L);
                 qs.takeItems(3681, -1L);
-                qs.playSound("QuestState.SOUND_ITEMGET");
+                qs.playSound(QuestState.SOUND_ITEMGET);
                 string2 = "alchemist_matild_q0334_11.htm";
             } else if (event.equalsIgnoreCase("reply_5")) {
                 string2 = qs.getQuestItemsCount(3467) > 0L ? "alchemist_matild_q0334_13.htm" : "alchemist_matild_q0334_14.htm";
@@ -264,7 +289,7 @@ public class Quest334TheWishingPotion extends Quest {
                                 break;
                             }
                             if (this.aFa == 3) {
-                                qs.playSound("QuestState.SOUND_ITEMGET");
+                                qs.playSound(QuestState.SOUND_ITEMGET);
                                 qs.giveItems(3469, 1L);
                                 break;
                             }
@@ -288,7 +313,7 @@ public class Quest334TheWishingPotion extends Quest {
                                 break;
                             }
                             if (this.aFa == 2) {
-                                qs.playSound("QuestState.SOUND_ITEMGET");
+                                qs.playSound(QuestState.SOUND_ITEMGET);
                                 qs.giveItems(57, 10000L);
                                 break;
                             }
@@ -308,12 +333,12 @@ public class Quest334TheWishingPotion extends Quest {
                         }
                         case 2: {
                             if (this.aFa == 2) {
-                                qs.playSound("QuestState.SOUND_ITEMGET");
+                                qs.playSound(QuestState.SOUND_ITEMGET);
                                 qs.giveItems(57, 10000L);
                                 break;
                             }
                             if (this.aFa == 3) {
-                                qs.playSound("QuestState.SOUND_ITEMGET");
+                                qs.playSound(QuestState.SOUND_ITEMGET);
                                 qs.giveItems(3468, 1L);
                                 break;
                             }
@@ -337,49 +362,45 @@ public class Quest334TheWishingPotion extends Quest {
             }
         } else {
             if (event.equalsIgnoreCase("2336001")) {
+                this.bkf = 0;
                 if (npc != null) {
-                    this.bkf = 0;
+                    npc.deleteMe();
                 }
-                npc.deleteMe();
                 return null;
             }
             if (event.equalsIgnoreCase("2336007")) {
+                this.bkf = 0;
                 if (npc != null) {
-                    this.bkf = 0;
+                    npc.deleteMe();
                 }
-                npc.deleteMe();
                 return null;
             }
             if (event.equalsIgnoreCase("2336004")) {
+                this.bkf = 0;
                 if (npc != null) {
-                    this.bkf = 0;
+                    npc.deleteMe();
                 }
-                npc.deleteMe();
                 return null;
             }
             if (event.equalsIgnoreCase("2336107")) {
-                if (npc != null) {
-                    // npcSayCustomMessage
-                    // npcSayCustomMessage
-                }
                 this.bkf = 0;
-                npc.deleteMe();
+                if (npc != null) {
+                    npc.deleteMe();
+                }
                 return null;
             }
             if (event.equalsIgnoreCase("2336005")) {
-                if (npc != null) {
-                    // npcSayCustomMessage
-                }
                 this.bkf = 0;
-                npc.deleteMe();
+                if (npc != null) {
+                    npc.deleteMe();
+                }
                 return null;
             }
             if (event.equalsIgnoreCase("2336006")) {
-                if (npc != null) {
-                    // npcSayCustomMessage
-                }
                 this.bkf = 0;
-                npc.deleteMe();
+                if (npc != null) {
+                    npc.deleteMe();
+                }
                 return null;
             }
         }
@@ -438,7 +459,7 @@ public class Quest334TheWishingPotion extends Quest {
                             qs.cancelQuestTimer("2336001");
                         }
                         this.bkf = 0;
-                        npc.deleteMe();
+                        if (npc != null) npc.deleteMe();
                         break;
                     }
                     html = "fairy_rupina_q0334_02.htm";
@@ -457,14 +478,14 @@ public class Quest334TheWishingPotion extends Quest {
                         qs.cancelQuestTimer("2336001");
                     }
                     this.bkf = 0;
-                    npc.deleteMe();
+                    if (npc != null) npc.deleteMe();
                     break;
                 }
                 if (n == 30557) {
                     if (qs.getQuestItemsCount(3683) < 1L) break;
                     qs.giveItems(57, 500000L);
                     qs.takeItems(3683, 1L);
-                    qs.playSound("QuestState.SOUND_MIDDLE");
+                    qs.playSound(QuestState.SOUND_MIDDLE);
                     html = "torai_q0334_01.htm";
                     break;
                 }
@@ -499,7 +520,7 @@ public class Quest334TheWishingPotion extends Quest {
                 if (qs.isRunningQuestTimer("2336007")) {
                     qs.cancelQuestTimer("2336007");
                 }
-                npc.deleteMe();
+                if (npc != null) npc.deleteMe();
             }
         }
         return html;
@@ -518,9 +539,9 @@ public class Quest334TheWishingPotion extends Quest {
                 qs.giveItems(3685, 1L);
                 if (qs.getQuestItemsCount(3684) >= 1L && qs.getQuestItemsCount(3686) >= 1L && qs.getQuestItemsCount(3687) >= 1L && qs.getQuestItemsCount(3688) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3690) >= 1L && qs.getQuestItemsCount(3691) >= 1L) {
                     qs.setCond(4);
-                    qs.playSound("QuestState.SOUND_MIDDLE");
+                    qs.playSound(QuestState.SOUND_MIDDLE);
                 } else {
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n2 == 20087 || n2 == 20088) {
@@ -528,9 +549,9 @@ public class Quest334TheWishingPotion extends Quest {
                 qs.giveItems(3689, 1L);
                 if (qs.getQuestItemsCount(3684) >= 1L && qs.getQuestItemsCount(3685) >= 1L && qs.getQuestItemsCount(3686) >= 1L && qs.getQuestItemsCount(3687) >= 1L && qs.getQuestItemsCount(3688) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3690) >= 1L && qs.getQuestItemsCount(3691) >= 1L) {
                     qs.setCond(4);
-                    qs.playSound("QuestState.SOUND_MIDDLE");
+                    qs.playSound(QuestState.SOUND_MIDDLE);
                 } else {
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n2 == 20168) {
@@ -538,9 +559,9 @@ public class Quest334TheWishingPotion extends Quest {
                 qs.giveItems(3688, 1L);
                 if (qs.getQuestItemsCount(3684) >= 1L && qs.getQuestItemsCount(3685) >= 1L && qs.getQuestItemsCount(3686) >= 1L && qs.getQuestItemsCount(3687) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3690) >= 1L && qs.getQuestItemsCount(3691) >= 1L) {
                     qs.setCond(4);
-                    qs.playSound("QuestState.SOUND_MIDDLE");
+                    qs.playSound(QuestState.SOUND_MIDDLE);
                 } else {
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n2 == 20192 || n2 == 20193) {
@@ -548,9 +569,9 @@ public class Quest334TheWishingPotion extends Quest {
                 qs.giveItems(3690, 1L);
                 if (qs.getQuestItemsCount(3684) >= 1L && qs.getQuestItemsCount(3685) >= 1L && qs.getQuestItemsCount(3686) >= 1L && qs.getQuestItemsCount(3687) >= 1L && qs.getQuestItemsCount(3688) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3691) >= 1L) {
                     qs.setCond(4);
-                    qs.playSound("QuestState.SOUND_MIDDLE");
+                    qs.playSound(QuestState.SOUND_MIDDLE);
                 } else {
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n2 == 20199) {
@@ -558,9 +579,9 @@ public class Quest334TheWishingPotion extends Quest {
                 qs.giveItems(3684, 1L);
                 if (qs.getQuestItemsCount(3685) >= 1L && qs.getQuestItemsCount(3686) >= 1L && qs.getQuestItemsCount(3687) >= 1L && qs.getQuestItemsCount(3688) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3690) >= 1L && qs.getQuestItemsCount(3691) >= 1L) {
                     qs.setCond(4);
-                    qs.playSound("QuestState.SOUND_MIDDLE");
+                    qs.playSound(QuestState.SOUND_MIDDLE);
                 } else {
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n2 == 20227) {
@@ -568,9 +589,9 @@ public class Quest334TheWishingPotion extends Quest {
                 qs.giveItems(3687, 1L);
                 if (qs.getQuestItemsCount(3684) >= 1L && qs.getQuestItemsCount(3685) >= 1L && qs.getQuestItemsCount(3686) >= 1L && qs.getQuestItemsCount(3688) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3690) >= 1L && qs.getQuestItemsCount(3691) >= 1L) {
                     qs.setCond(4);
-                    qs.playSound("QuestState.SOUND_MIDDLE");
+                    qs.playSound(QuestState.SOUND_MIDDLE);
                 } else {
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n2 == 20248 || n2 == 20249) {
@@ -578,9 +599,9 @@ public class Quest334TheWishingPotion extends Quest {
                 qs.giveItems(3691, 1L);
                 if (qs.getQuestItemsCount(3684) >= 1L && qs.getQuestItemsCount(3685) >= 1L && qs.getQuestItemsCount(3686) >= 1L && qs.getQuestItemsCount(3687) >= 1L && qs.getQuestItemsCount(3688) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3690) >= 1L) {
                     qs.setCond(4);
-                    qs.playSound("QuestState.SOUND_MIDDLE");
+                    qs.playSound(QuestState.SOUND_MIDDLE);
                 } else {
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n2 == 20250) {
@@ -588,9 +609,9 @@ public class Quest334TheWishingPotion extends Quest {
                 qs.giveItems(3686, 1L);
                 if (qs.getQuestItemsCount(3684) >= 1L && qs.getQuestItemsCount(3685) >= 1L && qs.getQuestItemsCount(3687) >= 1L && qs.getQuestItemsCount(3688) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3689) >= 1L && qs.getQuestItemsCount(3690) >= 1L && qs.getQuestItemsCount(3691) >= 1L) {
                     qs.setCond(4);
-                    qs.playSound("QuestState.SOUND_MIDDLE");
+                    qs.playSound(QuestState.SOUND_MIDDLE);
                 } else {
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
             }
         } else if (n2 == 27135) {
@@ -602,7 +623,7 @@ public class Quest334TheWishingPotion extends Quest {
                     } else {
                         qs.giveItems(57, 900000L);
                     }
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                 }
                 ++this.bki;
                 if (this.bki == 3) {
@@ -618,7 +639,7 @@ public class Quest334TheWishingPotion extends Quest {
             if (n == 2 && this.bkg == 1 && qs.getQuestItemsCount(3683) == 0L) {
                 if (ThreadLocalRandom.current().nextInt(1000) < 28) {
                     qs.giveItems(3683, 1L);
-                    qs.playSound("QuestState.SOUND_ITEMGET");
+                    qs.playSound(QuestState.SOUND_ITEMGET);
                     this.bkg = 0;
                     this.bkf = 0;
                     this.bkh = 0;
@@ -639,7 +660,7 @@ public class Quest334TheWishingPotion extends Quest {
         } else if (n2 == 27138) {
             if (n == 2 && this.bkg == 3) {
                 qs.giveItems(57, 1406956L);
-                qs.playSound("QuestState.SOUND_ITEMGET");
+                qs.playSound(QuestState.SOUND_ITEMGET);
                 this.bkg = 0;
                 this.bkf = 0;
                 if (qs.isRunningQuestTimer("2336107")) {
@@ -650,7 +671,7 @@ public class Quest334TheWishingPotion extends Quest {
             if (n == 1 && qs.getQuestItemsCount(3679) == 0L) {
                 qs.setCond(2);
                 qs.giveItems(3679, 1L);
-                qs.playSound("QuestState.SOUND_MIDDLE");
+                qs.playSound(QuestState.SOUND_MIDDLE);
             }
         } else if (n2 == 27153) {
             if (n == 2 && this.bkg == 3) {
