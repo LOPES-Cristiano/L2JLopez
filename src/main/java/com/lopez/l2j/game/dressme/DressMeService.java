@@ -16,8 +16,18 @@ public class DressMeService {
 
 	private final DressMeData data;
 
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	private com.lopez.l2j.game.service.CharacterVariablesService variablesService;
+
 	public DressMeService(DressMeData data) {
+		this(data, null);
+	}
+
+	@org.springframework.beans.factory.annotation.Autowired
+	public DressMeService(DressMeData data,
+			@org.springframework.beans.factory.annotation.Autowired(required = false) com.lopez.l2j.game.service.CharacterVariablesService variablesService) {
 		this.data = data;
+		this.variablesService = variablesService;
 	}
 
 	public DressMeData data() {
@@ -40,11 +50,21 @@ public class DressMeService {
 		DressMeEntry entry = entryOpt.get();
 		if (entry.isArmor()) {
 			player.dressMeArmor(entry);
+			if (variablesService != null) {
+				variablesService.setVar(player.objectId(), "DRESSME_ARMOR", String.valueOf(skillId));
+			}
 		} else if (entry.isWeapon()) {
 			player.dressMeWeapon(entry);
+			if (variablesService != null) {
+				variablesService.setVar(player.objectId(), "DRESSME_WEAPON", String.valueOf(skillId));
+			}
 		}
 
 		player.dressMeEnabled(true);
+		if (variablesService != null) {
+			variablesService.setVar(player.objectId(), "DRESSME_ENABLED", "true");
+		}
+		player.sendUserInfoAndBroadcastCharInfo();
 		log.debug("DressMe: Skin '{}' (skillId {}) aplicada a {}", entry.name(), skillId, player.name());
 		return true;
 	}
@@ -57,9 +77,16 @@ public class DressMeService {
 			return;
 		}
 		player.dressMeArmor(null);
+		if (variablesService != null) {
+			variablesService.removeVar(player.objectId(), "DRESSME_ARMOR");
+		}
 		if (player.dressMeWeapon() == null) {
 			player.dressMeEnabled(false);
+			if (variablesService != null) {
+				variablesService.setVar(player.objectId(), "DRESSME_ENABLED", "false");
+			}
 		}
+		player.sendUserInfoAndBroadcastCharInfo();
 	}
 
 	/**
@@ -70,9 +97,16 @@ public class DressMeService {
 			return;
 		}
 		player.dressMeWeapon(null);
+		if (variablesService != null) {
+			variablesService.removeVar(player.objectId(), "DRESSME_WEAPON");
+		}
 		if (player.dressMeArmor() == null) {
 			player.dressMeEnabled(false);
+			if (variablesService != null) {
+				variablesService.setVar(player.objectId(), "DRESSME_ENABLED", "false");
+			}
 		}
+		player.sendUserInfoAndBroadcastCharInfo();
 	}
 
 	/**
@@ -84,6 +118,30 @@ public class DressMeService {
 		}
 		boolean newState = !player.isDressMe();
 		player.dressMeEnabled(newState);
+		if (variablesService != null) {
+			variablesService.setVar(player.objectId(), "DRESSME_ENABLED", String.valueOf(newState));
+		}
+		player.sendUserInfoAndBroadcastCharInfo();
 		return newState;
+	}
+
+	/**
+	 * Restaura as skins salvas de um personagem ao entrar no mundo.
+	 */
+	public void restoreSkins(PlayerCharacter player) {
+		if (player == null || variablesService == null) {
+			return;
+		}
+		int armorSkill = variablesService.getInt(player.objectId(), "DRESSME_ARMOR", 0);
+		if (armorSkill > 0) {
+			data.get(armorSkill).ifPresent(player::dressMeArmor);
+		}
+		int weaponSkill = variablesService.getInt(player.objectId(), "DRESSME_WEAPON", 0);
+		if (weaponSkill > 0) {
+			data.get(weaponSkill).ifPresent(player::dressMeWeapon);
+		}
+		boolean enabled = variablesService.getBoolean(player.objectId(), "DRESSME_ENABLED",
+				player.dressMeArmor() != null || player.dressMeWeapon() != null);
+		player.dressMeEnabled(enabled);
 	}
 }
