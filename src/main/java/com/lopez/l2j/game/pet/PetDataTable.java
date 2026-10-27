@@ -384,7 +384,7 @@ public class PetDataTable {
 	}
 
 	public static boolean isPetWeapon(int itemId) {
-		// Presas de lobo (2500..2505, 3902..3912), chifres/garras de hatchling/strider (3913..3925, 5170..5175), great wolf (9661..9667)
+		// Presas de lobo (2500..2505, 3902..3912), chifres/garras de hatchling/strider (3913..3918, 5170..5175), great wolf (9661..9665)
 		return (itemId >= 2500 && itemId <= 2505)
 				|| (itemId >= 3902 && itemId <= 3918)
 				|| (itemId >= 5170 && itemId <= 5175)
@@ -392,9 +392,10 @@ public class PetDataTable {
 	}
 
 	public static boolean isPetArmor(int itemId) {
-		// Armaduras de lobo, hatchling, strider, baby pet (2506..2514, 3919..3935, 5176..5186, 9666..9667)
-		return (itemId >= 2506 && itemId <= 2514)
-				|| (itemId >= 3919 && itemId <= 3935)
+		// Armaduras de lobo, hatchling, strider, baby pet (2506..2508, 3919..3925, 5176..5186, 9666..9667)
+		// Exclui Spiritshots (2509..2514) e L2Day Scrolls (3926..3935)
+		return (itemId >= 2506 && itemId <= 2508)
+				|| (itemId >= 3919 && itemId <= 3925)
 				|| (itemId >= 5176 && itemId <= 5186)
 				|| (itemId >= 9666 && itemId <= 9667);
 	}
