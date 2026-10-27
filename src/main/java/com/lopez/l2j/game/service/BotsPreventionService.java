@@ -76,6 +76,8 @@ public class BotsPreventionService {
     // Player objectId -> pending challenge
     private final Map<Integer, CaptchaChallenge> pendingChallenges = new ConcurrentHashMap<>();
     private ScheduledExecutorService timeoutMonitor;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.jdbc.core.simple.JdbcClient jdbc;
 
     public BotsPreventionService() {
         if (enabled) {
@@ -112,12 +114,36 @@ public class BotsPreventionService {
                 return;
             }
             switch (type) {
-                case TOWN -> world.teleportPlayer(pc, 83400, 147943, -3404, 0);
+                case TOWN -> {
+                    world.teleportPlayer(pc, 83400, 147943, -3404, 0);
+                    online.send(new com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation(pc.objectId(), 83400, 147943, -3404, pc.heading()));
+                }
                 case JAIL -> {
                     pc.setInJail(true);
                     world.teleportPlayer(pc, -114356, -249645, -2984, 0);
+                    online.send(new com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation(pc.objectId(), -114356, -249645, -2984, pc.heading()));
                 }
-                case KICK, BAN -> world.unregisterPlayer(playerId);
+                case KICK -> {
+                    world.unregisterPlayer(playerId);
+                    if (online instanceof com.lopez.l2j.network.game.GameSession gs) {
+                        gs.close(null);
+                    }
+                }
+                case BAN -> {
+                    pc.accessLevel(-100);
+                    if (jdbc != null) {
+                        try {
+                            jdbc.sql("UPDATE characters SET accesslevel = -100 WHERE charId = :id")
+                                    .param("id", playerId)
+                                    .update();
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    world.unregisterPlayer(playerId);
+                    if (online instanceof com.lopez.l2j.network.game.GameSession gs) {
+                        gs.close(null);
+                    }
+                }
             }
         });
     }
