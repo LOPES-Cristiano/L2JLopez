@@ -65,6 +65,14 @@ public class CharacterVariablesService {
 		set(charId, DEFAULT_TYPE, name, value, 0L);
 	}
 
+	public void setVar(int charId, String name, String value) {
+		set(charId, DEFAULT_TYPE, name, value, 0L);
+	}
+
+	public void removeVar(int charId, String name) {
+		delete(charId, DEFAULT_TYPE, name);
+	}
+
 	public void set(int charId, String name, int value) {
 		set(charId, DEFAULT_TYPE, name, String.valueOf(value), 0L);
 	}
