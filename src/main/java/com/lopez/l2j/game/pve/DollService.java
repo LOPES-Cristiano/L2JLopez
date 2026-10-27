@@ -358,6 +358,14 @@ public class DollService {
 			inv.add(new ItemInstance(objectIdFactory.nextId(), tmpl, player.objectId(), 1));
 		}
 
+		var gw = com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (gw != null) {
+			var online = gw.findPlayer(player.objectId());
+			if (online != null) {
+				online.sendPacket(new com.lopez.l2j.network.game.packet.GameServerPacket.ItemList(player, false));
+			}
+		}
+
 		return Optional.of(nextDoll);
 	}
 
