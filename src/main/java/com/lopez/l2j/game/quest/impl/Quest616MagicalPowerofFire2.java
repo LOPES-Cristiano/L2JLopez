@@ -8,6 +8,7 @@ import com.lopez.l2j.game.quest.Quest;
 import com.lopez.l2j.game.quest.QuestManager;
 import com.lopez.l2j.game.quest.QuestState;
 import com.lopez.l2j.game.quest.State;
+import com.lopez.l2j.network.game.GameSession;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -25,6 +26,7 @@ public class Quest616MagicalPowerofFire2 extends Quest {
 	public static final int bMg = 7243;
 	public static final int bMk = 25306;
 	private NpcInstance bMl = null;
+	private static volatile long lastBossKillTimeMs = 0L;
 
 	public Quest616MagicalPowerofFire2(QuestManager questManager) {
 		super(616, "616_MagicalPowerofFire2", "616_MagicalPowerofFire2");
@@ -53,12 +55,14 @@ public class Quest616MagicalPowerofFire2 extends Quest {
 			qs.setState(State.STARTED);
 			qs.playSound(QuestState.SOUND_ACCEPT);
 		} else if (event.equalsIgnoreCase("616_1")) {
-			if (Math.max(0L, 0L) + 10800000L > System.currentTimeMillis()) {
+			if (lastBossKillTimeMs > 0L && lastBossKillTimeMs + 10800000L > System.currentTimeMillis()) {
 				string2 = "totem_of_ketra_q0616_0204.htm";
 			} else if (qs.getQuestItemsCount(7243) >= 1L && (this.bMl == null || this.bMl.isDead())) {
 				qs.takeItems(7243, 1L);
+				qs.setCond(2);
 				this.bMl = qs.addSpawn(25306, 142528, -82528, -6496);
 				qs.playSound(QuestState.SOUND_MIDDLE);
+				string2 = "totem_of_ketra_q0616_0201.htm";
 			} else {
 				string2 = "totem_of_ketra_q0616_0203.htm";
 			}
@@ -66,6 +70,7 @@ public class Quest616MagicalPowerofFire2 extends Quest {
 			if (qs.getQuestItemsCount(7244) >= 1L) {
 				qs.takeItems(7244, -1L);
 				qs.addExpAndSp(10000L, 0L);
+				qs.giveItems(ThreadLocalRandom.current().nextInt(4589, 4594 + 1), 5L, true);
 				qs.playSound(QuestState.SOUND_FINISH);
 				string2 = "shaman_udan_q0616_0301.htm";
 				qs.exitQuest(true);
@@ -113,7 +118,7 @@ public class Quest616MagicalPowerofFire2 extends Quest {
 				break;
 			}
 			case 31558: {
-				if (Math.max(0L, 0L) + 10800000L > System.currentTimeMillis()) {
+				if (lastBossKillTimeMs > 0L && lastBossKillTimeMs + 10800000L > System.currentTimeMillis()) {
 					html = "totem_of_ketra_q0616_0204.htm";
 					break;
 				}
@@ -142,9 +147,25 @@ public class Quest616MagicalPowerofFire2 extends Quest {
 		PlayerCharacter pc = qs.playerChar();
 		if (pc == null) return null;
 
-		if (qs.getQuestItemsCount(7244) == 0L) {
-			qs.giveItems(7244, 1L);
-			qs.setCond(3);
+		if (npc == null || npc.getNpcId() == 25306) {
+			lastBossKillTimeMs = System.currentTimeMillis();
+			if (qs.getQuestItemsCount(7244) == 0L) {
+				qs.giveItems(7244, 1L);
+				qs.setCond(3);
+				qs.playSound(QuestState.SOUND_MIDDLE);
+			}
+			if (qs.getPlayer() != null && qs.getPlayer().party() != null) {
+				for (GameSession member : qs.getPlayer().party().members()) {
+					if (member == null || member == qs.getPlayer()) continue;
+					QuestState mQs = member.getQuestState(getName());
+					if (mQs != null && mQs.isStarted() && mQs.getCond() >= 1 && mQs.getCond() <= 2
+							&& mQs.getQuestItemsCount(7244) == 0L) {
+						mQs.giveItems(7244, 1L);
+						mQs.setCond(3);
+						mQs.playSound(QuestState.SOUND_MIDDLE);
+					}
+				}
+			}
 			if (this.bMl != null) {
 				this.bMl.deleteMe();
 			}
