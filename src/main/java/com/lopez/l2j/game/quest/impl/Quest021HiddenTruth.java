@@ -11,7 +11,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Quest 021: Hidden Truth
- * Shadow Hardin em Forest of the Dead, Tombstone, Ghost of von Hellmann, Page, Broken Bookshelf,
+ * Shadow Hardin em Forest of the Dead, Tombstone, Ghost of von Hellmann, Page,
+ * Broken Bookshelf,
  * Agripel, Dominic, Benedict e High Priest Innocentin em Rune.
  */
 @Component
@@ -41,7 +42,8 @@ public class Quest021HiddenTruth extends Quest {
 	public Quest021HiddenTruth(QuestManager questManager) {
 		super(QUEST_ID, QUEST_NAME, "Hidden Truth");
 		addStartNpc(HARDIN);
-		addTalkId(HARDIN, TOMBSTONE, VON_HELLMAN_DUKE, VON_HELLMAN_PAGE, BROKEN_BOOKSHELF, AGRIPEL, DOMINIC, BENEDICT, INNOCENTIN);
+		addTalkId(HARDIN, TOMBSTONE, VON_HELLMAN_DUKE, VON_HELLMAN_PAGE, BROKEN_BOOKSHELF, AGRIPEL, DOMINIC, BENEDICT,
+				INNOCENTIN);
 		registerQuestItems(CASKET);
 		if (questManager != null) {
 			questManager.registerQuest(this);
@@ -62,19 +64,24 @@ public class Quest021HiddenTruth extends Quest {
 		} else if ("reply_2".equalsIgnoreCase(event) || "31523-03.htm".equalsIgnoreCase(event)) {
 			qs.setCond(2);
 			qs.playSound(QuestState.SOUND_MIDDLE);
+			qs.addSpawn(VON_HELLMAN_DUKE, 51432, -54570, -3136, 180000);
 			return "31523-03.htm".equalsIgnoreCase(event) ? "31523-03.htm" : "q_forest_stone1_q0021_03.htm";
 		} else if ("31523-01.htm".equalsIgnoreCase(event)) {
 			return "31523-01.htm";
 		} else if ("reply_3".equalsIgnoreCase(event) || "31524-06.htm".equalsIgnoreCase(event)) {
 			qs.setCond(3);
 			qs.playSound(QuestState.SOUND_MIDDLE);
+			qs.addSpawn(VON_HELLMAN_PAGE, 51446, -54514, -3136, 90000);
 			return "31524-06.htm".equalsIgnoreCase(event) ? "31524-06.htm" : "rune_ghost1_q0021_06.htm";
 		} else if ("31524-02.htm".equalsIgnoreCase(event) || "31524-03.htm".equalsIgnoreCase(event)
 				|| "31524-04.htm".equalsIgnoreCase(event) || "31524-05.htm".equalsIgnoreCase(event)
-				|| "rune_ghost1_q0021_02.htm".equalsIgnoreCase(event) || "rune_ghost1_q0021_03.htm".equalsIgnoreCase(event)
-				|| "rune_ghost1_q0021_04.htm".equalsIgnoreCase(event) || "rune_ghost1_q0021_05.htm".equalsIgnoreCase(event)) {
+				|| "rune_ghost1_q0021_02.htm".equalsIgnoreCase(event)
+				|| "rune_ghost1_q0021_03.htm".equalsIgnoreCase(event)
+				|| "rune_ghost1_q0021_04.htm".equalsIgnoreCase(event)
+				|| "rune_ghost1_q0021_05.htm".equalsIgnoreCase(event)) {
 			return event;
-		} else if ("1".equalsIgnoreCase(event) || "2".equalsIgnoreCase(event) || "3".equalsIgnoreCase(event) || "4".equalsIgnoreCase(event) || "despawn".equalsIgnoreCase(event)) {
+		} else if ("1".equalsIgnoreCase(event) || "2".equalsIgnoreCase(event) || "3".equalsIgnoreCase(event)
+				|| "4".equalsIgnoreCase(event) || "despawn".equalsIgnoreCase(event)) {
 			return null;
 		} else if ("reply_4".equalsIgnoreCase(event) || "31526-03.htm".equalsIgnoreCase(event)) {
 			qs.playSound("ItemSound.item_drop_equip_armor_cloth");
@@ -103,7 +110,8 @@ public class Quest021HiddenTruth extends Quest {
 			return "highpriest_innocentin_q0021_02.htm";
 		} else if ("31526-01.htm".equalsIgnoreCase(event) || "31526-02.htm".equalsIgnoreCase(event)
 				|| "31526-06.htm".equalsIgnoreCase(event) || "31526-09.htm".equalsIgnoreCase(event)
-				|| "broken_desk1_q0021_01.htm".equalsIgnoreCase(event) || "broken_desk1_q0021_02.htm".equalsIgnoreCase(event)
+				|| "broken_desk1_q0021_01.htm".equalsIgnoreCase(event)
+				|| "broken_desk1_q0021_02.htm".equalsIgnoreCase(event)
 				|| "broken_desk1_q0021_06.htm".equalsIgnoreCase(event)) {
 			return event;
 		} else if ("reply_12".equalsIgnoreCase(event) || "31328-02.htm".equalsIgnoreCase(event)) {
@@ -128,7 +136,8 @@ public class Quest021HiddenTruth extends Quest {
 	@Override
 	public String onTalk(NpcInstance npc, QuestState qs) {
 		PlayerCharacter pc = qs.playerChar();
-		if (pc == null) return "noquest";
+		if (pc == null)
+			return "noquest";
 
 		if (qs.isCompleted()) {
 			if (npc.getNpcId() == INNOCENTIN) {
@@ -156,6 +165,7 @@ public class Quest021HiddenTruth extends Quest {
 				if (cond == 1) {
 					return "q_forest_stone1_q0021_01.htm";
 				} else if (cond == 2 || cond == 3) {
+					qs.addSpawn(VON_HELLMAN_DUKE, 51432, -54570, -3136, 180000);
 					return "q_forest_stone1_q0021_04.htm";
 				}
 				break;
