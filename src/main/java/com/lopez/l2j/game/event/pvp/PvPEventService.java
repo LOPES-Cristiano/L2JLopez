@@ -136,6 +136,7 @@ public class PvPEventService {
 		private final String name;
 		private final int classId;
 		private final String ipAddress;
+		private final String hwid;
 		private final GameSession session;
 
 		private Team team = Team.NONE;
@@ -154,6 +155,7 @@ public class PvPEventService {
 			this.name = ch != null ? ch.name() : "Player";
 			this.classId = ch != null ? ch.classId() : 0;
 			this.ipAddress = session != null && session.clientIp() != null ? session.clientIp() : "127.0.0.1";
+			this.hwid = resolveSessionHwid(session);
 			if (ch != null) {
 				this.origX = ch.x();
 				this.origY = ch.y();
@@ -162,10 +164,22 @@ public class PvPEventService {
 			}
 		}
 
+		private static String resolveSessionHwid(GameSession s) {
+			if (s == null) return null;
+			try {
+				var m = s.getClass().getMethod("hwid");
+				Object v = m.invoke(s);
+				if (v instanceof String str && !str.isBlank()) return str;
+			} catch (Exception ignored) {
+			}
+			return null;
+		}
+
 		public int charId() { return charId; }
 		public String name() { return name; }
 		public int classId() { return classId; }
 		public String ipAddress() { return ipAddress; }
+		public String hwid() { return hwid; }
 		public GameSession session() { return session; }
 		public Team team() { return team; }
 		public void team(Team team) { this.team = team; }
@@ -279,12 +293,20 @@ public class PvPEventService {
 			return false;
 		}
 
-		// Anti-feed: checa se outro participante ja tem o mesmo IP (exceto localhost)
+		// Anti-feed: checa se outro participante ja tem o mesmo IP/HWID (exceto localhost)
 		String ip = session.clientIp() != null ? session.clientIp() : "127.0.0.1";
 		if (!"127.0.0.1".equals(ip)) {
 			boolean ipExists = participants.values().stream().anyMatch(p -> ip.equals(p.ipAddress()));
 			if (ipExists) {
 				log.warn("Anti-feed: jogador {} recusado por IP duplicado {}", player.name(), ip);
+				return false;
+			}
+		}
+		String hwid = Participant.resolveSessionHwid(session);
+		if (hwid != null && !hwid.isBlank()) {
+			boolean hwidExists = participants.values().stream().anyMatch(p -> hwid.equals(p.hwid()));
+			if (hwidExists) {
+				log.warn("Anti-feed: jogador {} recusado por HWID duplicado {}", player.name(), hwid);
 				return false;
 			}
 		}
