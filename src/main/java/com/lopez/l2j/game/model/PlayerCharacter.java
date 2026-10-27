@@ -1803,6 +1803,18 @@ public final class PlayerCharacter implements Creature {
 		}
 	}
 
+	public void sendUserInfoAndBroadcastCharInfo() {
+		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (world != null) {
+			world.player(objectId).ifPresent(com.lopez.l2j.game.world.GameWorld.OnlinePlayer::sendUserInfoAndBroadcastCharInfo);
+		}
+	}
+
+	public boolean hasSkill(int skillId) {
+		return (skills != null && skills.getOrDefault(skillId, 0) > 0)
+				|| (effects != null && effects.hasSkill(skillId));
+	}
+
 	private volatile int targetObjectId;
 
 	public int targetObjectId() {
