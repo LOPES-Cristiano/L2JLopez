@@ -1,6 +1,7 @@
 package com.lopez.l2j.game.service;
 
 import com.lopez.l2j.game.item.ItemInstance;
+import com.lopez.l2j.game.item.ItemRepository;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,7 @@ public class MonsterRaceService {
     public record RaceOutcome(int raceId, int firstPlaceLane, int secondPlaceLane, int[][] speeds) {}
 
     private InventoryService inventoryService;
+    private ItemRepository itemRepository;
     private JdbcClient jdbc;
     private ScheduledExecutorService scheduler;
 
@@ -51,21 +53,31 @@ public class MonsterRaceService {
     }
 
     public MonsterRaceService(InventoryService inventoryService) {
-        this(inventoryService, null);
+        this(inventoryService, null, null);
+    }
+
+    public MonsterRaceService(InventoryService inventoryService, JdbcClient jdbc) {
+        this(inventoryService, jdbc, null);
     }
 
     @Autowired
     public MonsterRaceService(
             @Autowired(required = false) InventoryService inventoryService,
-            @Autowired(required = false) JdbcClient jdbc) {
+            @Autowired(required = false) JdbcClient jdbc,
+            @Autowired(required = false) ItemRepository itemRepository) {
         this();
         this.inventoryService = inventoryService;
         this.jdbc = jdbc;
+        this.itemRepository = itemRepository;
         loadFromDb();
     }
 
     public void setInventoryService(InventoryService inventoryService) {
         this.inventoryService = inventoryService;
+    }
+
+    public void setItemRepository(ItemRepository itemRepository) {
+        this.itemRepository = itemRepository;
     }
 
     public synchronized void startRaceScheduler() {
@@ -174,14 +186,33 @@ public class MonsterRaceService {
         }
         var inv = player.inventory();
         if (inv != null) {
-            inv.destroyItemByItemId(RACE_TICKET_ITEM_ID, 1);
             if (inventoryService != null) {
+                var consumed = inventoryService.consumeItem(inv, RACE_TICKET_ITEM_ID, 1, "MonsterRaceClaim");
+                if (consumed == null) {
+                    inv.destroyItemByItemId(RACE_TICKET_ITEM_ID, 1);
+                }
                 var added = inventoryService.addItem(inv, ADENA_ITEM_ID, payout, "MonsterRacePayout");
                 if (added == null) {
                     inv.addAdena(payout);
                 }
             } else {
+                var ticketOpt = inv.byItemId(RACE_TICKET_ITEM_ID);
+                inv.destroyItemByItemId(RACE_TICKET_ITEM_ID, 1);
+                if (itemRepository != null && ticketOpt.isPresent()) {
+                    try {
+                        itemRepository.delete(ticketOpt.get().objectId());
+                    } catch (Exception ignored) {
+                    }
+                }
                 inv.addAdena(payout);
+                if (itemRepository != null) {
+                    inv.byItemId(ADENA_ITEM_ID).ifPresent(adenaItem -> {
+                        try {
+                            itemRepository.update(adenaItem);
+                        } catch (Exception ignored) {
+                        }
+                    });
+                }
             }
         }
         log.info("MonsterRace: Jogador {} recebeu {} Adena de prêmio.", player.name(), payout);
@@ -261,6 +292,11 @@ public class MonsterRaceService {
             ticket.enchantLevel(laneFirst * 10 + laneSecond);
             ticket.customType1(currentRaceId);
             ticket.customType2(amount / 100);
+            if (inventoryService != null) {
+                inventoryService.saveItem(ticket);
+            } else if (itemRepository != null) {
+                itemRepository.update(ticket);
+            }
         }
 
         return placeBet(player.objectId(), player.name(), laneFirst, laneSecond, amount).isPresent();
