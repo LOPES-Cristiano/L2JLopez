@@ -219,7 +219,7 @@ public class AutoFarmService {
         int playerId = state.getPlayerId();
         try {
             state.setFarmType(characterVariablesService.getInt(playerId, "farmType", state.getFarmType()));
-            state.setShortcutPage(characterVariablesService.getInt(playerId, "shortcutPage", 10));
+            state.setShortcutPage(characterVariablesService.getInt(playerId, "shortcutPage", 1));
             state.setFarmRadius(characterVariablesService.getInt(playerId, "farmDistance", 1200));
 
             state.setAttackChance(characterVariablesService.getInt(playerId, "farmAttackChance", Config.AUTOFARM_ATTACK_SKILLS_DEFAULT_CHANCE));
@@ -1348,11 +1348,10 @@ public class AutoFarmService {
 
         if (Config.AUTOFARM_MAXIMUM_ACTIVATED_LIMITS > 0) {
             int rem = getRemainingIpSlots(player, state.getClientIp());
-            activateSb.append("<br1><font color=LEVEL>Limits:</font> <font color=FF0000>").append(rem).append("</font>");
             if (Config.AUTOFARM_ALLOW_EXTEND_LIMITS) {
-                int[] price = Config.AUTOFARM_VISIBLE_LIMITS_PRICE;
-                String itemName = resolveItemName(price[0]);
-                activateSb.append(" <a action=\"bypass -h voice_expendLimit ").append(tab).append("\">[Expand]</a>");
+                activateSb.append("<br1><a action=\"bypass -h voice_expendLimit ").append(tab).append("\">Limits: ").append(rem).append(" [Expand]</a>");
+            } else {
+                activateSb.append("<br1><font color=LEVEL>Limits: ").append(rem).append("</font>");
             }
         }
         html = html.replace("%activate%", activateSb.toString());
@@ -1386,31 +1385,31 @@ public class AutoFarmService {
         // Chance e % de MP/HP da aba ativa (suporta ambos os nomes de placeholders dos templates)
         switch (tab) {
             case "chance" -> {
-                String chanceRow = "<td width=28><font color=LEVEL>" + state.getChanceChance() + "%</font></td><td width=30><edit var=\"chance\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " chanceChance $chance\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
-                String pctRow = "<td width=28><font color=LEVEL>" + state.getChancePercent() + "%</font></td><td width=30><edit var=\"percent\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " chancePercent $percent\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String chanceRow = "<td width=34><font color=LEVEL>" + state.getChanceChance() + "%</font></td><td width=28><edit var=\"chance\" width=26 height=12></td><td width=34><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " chanceChance $chance\" width=32 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String pctRow = "<td width=34><font color=LEVEL>" + state.getChancePercent() + "%</font></td><td width=28><edit var=\"percent\" width=26 height=12></td><td width=34><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " chancePercent $percent\" width=32 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
                 html = html.replace("%chanceChance%", chanceRow).replace("%percentChance%", pctRow);
                 html = html.replace("%rndChanceSk_img%", state.isRndChanceSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
                 html = html.replace("%rndChanceSk_bypass%", "bypass -h voice_editFarmOption " + tab + " rndChanceSkills");
             }
             case "self" -> {
-                String chanceRow = "<td width=28><font color=LEVEL>" + state.getSelfChance() + "%</font></td><td width=30><edit var=\"chance\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " selfChance $chance\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
-                String pctRow = "<td width=28><font color=LEVEL>" + state.getSelfPercent() + "%</font></td><td width=30><edit var=\"percent\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " selfPercent $percent\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String chanceRow = "<td width=34><font color=LEVEL>" + state.getSelfChance() + "%</font></td><td width=28><edit var=\"chance\" width=26 height=12></td><td width=34><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " selfChance $chance\" width=32 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String pctRow = "<td width=34><font color=LEVEL>" + state.getSelfPercent() + "%</font></td><td width=28><edit var=\"percent\" width=26 height=12></td><td width=34><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " selfPercent $percent\" width=32 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
                 html = html.replace("%chanceSelf%", chanceRow).replace("%selfChance%", chanceRow);
                 html = html.replace("%percentSelf%", pctRow).replace("%selfPercent%", pctRow);
                 html = html.replace("%rndSelfSk_img%", state.isRndSelfSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
                 html = html.replace("%rndSelfSk_bypass%", "bypass -h voice_editFarmOption " + tab + " rndSelfSkills");
             }
             case "heal" -> {
-                String chanceRow = "<td width=28><font color=LEVEL>" + state.getLifeChance() + "%</font></td><td width=30><edit var=\"chance\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " healChance $chance\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
-                String pctRow = "<td width=28><font color=LEVEL>" + state.getLifePercent() + "%</font></td><td width=30><edit var=\"percent\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " healPercent $percent\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String chanceRow = "<td width=34><font color=LEVEL>" + state.getLifeChance() + "%</font></td><td width=28><edit var=\"chance\" width=26 height=12></td><td width=34><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " healChance $chance\" width=32 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String pctRow = "<td width=34><font color=LEVEL>" + state.getLifePercent() + "%</font></td><td width=28><edit var=\"percent\" width=26 height=12></td><td width=34><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " healPercent $percent\" width=32 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
                 html = html.replace("%chanceLowHeal%", chanceRow).replace("%healChance%", chanceRow);
                 html = html.replace("%percentLowHeal%", pctRow).replace("%healPercent%", pctRow);
                 html = html.replace("%rndLifeSk_img%", state.isRndLifeSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
                 html = html.replace("%rndLifeSk_bypass%", "bypass -h voice_editFarmOption " + tab + " rndLifeSkills");
             }
             default -> {
-                String chanceRow = "<td width=28><font color=LEVEL>" + state.getAttackChance() + "%</font></td><td width=30><edit var=\"chance\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " attackChance $chance\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
-                String pctRow = "<td width=28><font color=LEVEL>" + state.getAttackPercent() + "%</font></td><td width=30><edit var=\"percent\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " attackPercent $percent\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String chanceRow = "<td width=34><font color=LEVEL>" + state.getAttackChance() + "%</font></td><td width=28><edit var=\"chance\" width=26 height=12></td><td width=34><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " attackChance $chance\" width=32 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String pctRow = "<td width=34><font color=LEVEL>" + state.getAttackPercent() + "%</font></td><td width=28><edit var=\"percent\" width=26 height=12></td><td width=34><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " attackPercent $percent\" width=32 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
                 html = html.replace("%chanceAttack%", chanceRow).replace("%attackChance%", chanceRow);
                 html = html.replace("%percentAttack%", pctRow).replace("%attackPercent%", pctRow);
                 html = html.replace("%rndAttackSk_img%", state.isRndAttackSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
@@ -1418,6 +1417,14 @@ public class AutoFarmService {
             }
         }
 
+        int curPage = Math.max(1, Math.min(10, state.getShortcutPage()));
+        StringBuilder scPageSb = new StringBuilder(String.valueOf(curPage));
+        for (int p = 1; p <= 10; p++) {
+            if (p != curPage) {
+                scPageSb.append(";").append(p);
+            }
+        }
+        html = html.replace("%shortcutPage%", scPageSb.toString());
         html = html.replace("%refreshSkills%", "bypass -h voice_refreshSkills " + tab);
         html = html.replace("%distance%", "<td width=42><font color=LEVEL>" + state.getFarmRadius() + "</font></td><td width=42><edit var=\"dist\" width=36 height=12></td><td width=45><button value=\"Set\" action=\"bypass -h voice_editFarmOption " + tab + " distance $dist\" width=40 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>");
 
@@ -1588,24 +1595,24 @@ public class AutoFarmService {
 
         switch (tab) {
             case "self" -> {
-                String chanceRow = "<td width=28><font color=LEVEL>" + state.getSummonSelfChance() + "%</font></td><td width=30><edit var=\"chance\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " selfChance $chance\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
-                String pctRow = "<td width=28><font color=LEVEL>" + state.getSummonSelfPercent() + "%</font></td><td width=30><edit var=\"percent\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " selfPercent $percent\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String chanceRow = "<td width=34><font color=LEVEL>" + state.getSummonSelfChance() + "%</font></td><td width=28><edit var=\"chance\" width=26 height=12></td><td width=34><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " selfChance $chance\" width=32 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String pctRow = "<td width=34><font color=LEVEL>" + state.getSummonSelfPercent() + "%</font></td><td width=28><edit var=\"percent\" width=26 height=12></td><td width=34><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " selfPercent $percent\" width=32 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
                 html = html.replace("%chanceSelf%", chanceRow).replace("%selfChance%", chanceRow);
                 html = html.replace("%percentSelf%", pctRow).replace("%selfPercent%", pctRow);
                 html = html.replace("%rndSelfSk_img%", state.isRndSummonSelfSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
                 html = html.replace("%rndSelfSk_bypass%", "bypass -h voice_editSummonFarmOption " + tab + " rndSelfSkills");
             }
             case "heal" -> {
-                String chanceRow = "<td width=28><font color=LEVEL>" + state.getSummonLifeChance() + "%</font></td><td width=30><edit var=\"chance\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " healChance $chance\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
-                String pctRow = "<td width=28><font color=LEVEL>" + state.getSummonLifePercent() + "%</font></td><td width=30><edit var=\"percent\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " healPercent $percent\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String chanceRow = "<td width=34><font color=LEVEL>" + state.getSummonLifeChance() + "%</font></td><td width=28><edit var=\"chance\" width=26 height=12></td><td width=34><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " healChance $chance\" width=32 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String pctRow = "<td width=34><font color=LEVEL>" + state.getSummonLifePercent() + "%</font></td><td width=28><edit var=\"percent\" width=26 height=12></td><td width=34><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " healPercent $percent\" width=32 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
                 html = html.replace("%chanceLowHeal%", chanceRow).replace("%healChance%", chanceRow);
                 html = html.replace("%percentLowHeal%", pctRow).replace("%healPercent%", pctRow);
                 html = html.replace("%rndLifeSk_img%", state.isRndSummonLifeSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
                 html = html.replace("%rndLifeSk_bypass%", "bypass -h voice_editSummonFarmOption " + tab + " rndLifeSkills");
             }
             default -> {
-                String chanceRow = "<td width=28><font color=LEVEL>" + state.getSummonAttackChance() + "%</font></td><td width=30><edit var=\"chance\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " attackChance $chance\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
-                String pctRow = "<td width=28><font color=LEVEL>" + state.getSummonAttackPercent() + "%</font></td><td width=30><edit var=\"percent\" width=28 height=12></td><td width=38><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " attackPercent $percent\" width=36 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String chanceRow = "<td width=34><font color=LEVEL>" + state.getSummonAttackChance() + "%</font></td><td width=28><edit var=\"chance\" width=26 height=12></td><td width=34><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " attackChance $chance\" width=32 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
+                String pctRow = "<td width=34><font color=LEVEL>" + state.getSummonAttackPercent() + "%</font></td><td width=28><edit var=\"percent\" width=26 height=12></td><td width=34><button value=\"Set\" action=\"bypass -h voice_editSummonFarmOption " + tab + " attackPercent $percent\" width=32 height=18 back=\"L2UI_CH3.bigbutton2_down\" fore=\"L2UI_CH3.bigbutton2\"></td>";
                 html = html.replace("%chanceAttack%", chanceRow).replace("%attackChance%", chanceRow);
                 html = html.replace("%percentAttack%", pctRow).replace("%attackPercent%", pctRow);
                 html = html.replace("%rndAttackSk_img%", state.isRndSummonAttackSkills() ? "L2UI.CheckBox_checked" : "L2UI.CheckBox");
@@ -1792,7 +1799,7 @@ public class AutoFarmService {
                     continue;
                 }
                 if (npc.isDead()) {
-                    if (npc.isMonster() && npc.isSweepable()) {
+                    if (npc.isAttackable() && (npc.isSweepable() || npc.isSpoiled())) {
                         sweepableCorpses.add(npc);
                     }
                 } else if (npc.isMonster()) {
@@ -1817,13 +1824,8 @@ public class AutoFarmService {
         if (session == null || player == null || state == null || sweepableCorpses == null || sweepableCorpses.isEmpty()) {
             return false;
         }
-        boolean configured444 = isSkillConfiguredInAutoFarm(state, 444);
-        boolean configured42 = isSkillConfiguredInAutoFarm(state, 42);
-        if (!configured444 && !configured42) {
-            return false;
-        }
-        SkillTemplate festiveSweeper = configured444 ? getReadySkill(player, 444, session) : null;
-        SkillTemplate singleSweeper = configured42 ? getReadySkill(player, 42, session) : null;
+        SkillTemplate festiveSweeper = getReadySkill(player, 444, session);
+        SkillTemplate singleSweeper = getReadySkill(player, 42, session);
         if (festiveSweeper == null && singleSweeper == null) {
             return false;
         }
@@ -1834,7 +1836,7 @@ public class AutoFarmService {
                 continue;
             }
             double dist = calculateDistance(player.x(), player.y(), corpse.x(), corpse.y());
-            if (dist <= Math.max(300, state.getFarmRadius()) && dist < closestDist) {
+            if (dist <= Math.max(400, state.getFarmRadius()) && dist < closestDist) {
                 closestDist = dist;
                 closestCorpse = corpse;
             }
@@ -1862,7 +1864,7 @@ public class AutoFarmService {
     }
 
     private boolean canSweepCorpse(GameSession session, PlayerCharacter player, NpcInstance corpse) {
-        if (corpse == null || !corpse.isDead() || !corpse.isSweepable()) {
+        if (corpse == null || !corpse.isDead() || (!corpse.isSweepable() && !corpse.isSpoiled())) {
             return false;
         }
         if (corpse.spoilerPlayerId() == 0 || corpse.spoilerPlayerId() == player.objectId()) {
@@ -2005,6 +2007,9 @@ public class AutoFarmService {
         if (summon != null && !summon.isDead()) {
             summon.targetObjectId(target.objectId());
             summon.markCombat();
+            if (state.isUseSummonSkills() || state.getMode() == AutoFarmMode.SUMMON) {
+                tryExecuteSummonSkills(player, summon, state, target, session);
+            }
         }
 
         double targetDist = calculateDistance(player.x(), player.y(), target.x(), target.y());
@@ -2029,7 +2034,7 @@ public class AutoFarmService {
         }
 
         // 10. Skills da aba Attack (ou selectedSkillId legado)
-        SkillTemplate attackSkill = selectAttackSpell(player, state, targetDist, session);
+        SkillTemplate attackSkill = selectAttackSpell(player, state, target, targetDist, session);
         if (attackSkill != null) {
             if (state.isExtraDelaySkill()) {
                 state.setExtraDelayTimerMs(System.currentTimeMillis() + Config.AUTOFARM_EXTRA_DELAY_MS);
@@ -2088,9 +2093,68 @@ public class AutoFarmService {
                         return AutoFarmAction.cast(member.objectId(), sk.id());
                     }
                 }
+                if (state.isTargetRestoreMp() && member.maxMp() > 0 && ((double) member.currentMp() / member.maxMp()) < 0.70) {
+                    SkillTemplate recharge = resolveKnownSkill(player, 1013); // Recharge
+                    if (recharge != null && player.currentMp() >= recharge.mpConsume()) {
+                        session.targetObjectId(member.objectId());
+                        session.castSkill(recharge, false);
+                        return AutoFarmAction.cast(member.objectId(), recharge.id());
+                    }
+                }
+            }
+        }
+        if (state.isTargetRestoreMp() && player.maxMp() > 0 && ((double) player.currentMp() / player.maxMp()) < 0.70) {
+            SkillTemplate recharge = resolveKnownSkill(player, 1013);
+            if (recharge != null && player.currentMp() >= recharge.mpConsume()) {
+                if (session != null) {
+                    executeSkillOrAction(session, player, player.objectId(), null, recharge);
+                }
+                return AutoFarmAction.cast(player.objectId(), recharge.id());
             }
         }
         return null;
+    }
+
+    private void tryExecuteSummonSkills(PlayerCharacter player, SummonInstance summon, AutoFarmState state, NpcInstance target, GameSession session) {
+        if (summon == null || summon.isDead() || state == null) {
+            return;
+        }
+        if (summon.maxHp() > 0 && (summon.currentHp() * 100.0 / summon.maxHp()) <= state.getSummonLifePercent()) {
+            List<Integer> healList = state.getSummonSkillsForType("heal");
+            if (!healList.isEmpty() && ThreadLocalRandom.current().nextInt(100) < state.getSummonLifeChance()) {
+                int skId = state.isRndSummonLifeSkills() ? healList.get(ThreadLocalRandom.current().nextInt(healList.size())) : healList.get(0);
+                SkillTemplate sk = resolveAnySkill(skId, 1);
+                if (sk != null && summon.currentMp() >= sk.mpConsume()) {
+                    summon.currentMp(Math.max(0, summon.currentMp() - sk.mpConsume()));
+                    summon.currentHp(Math.min(summon.maxHp(), summon.currentHp() + Math.max(100, (int) sk.power())));
+                    return;
+                }
+            }
+        }
+        if (summon.maxMp() > 0 && (summon.currentMp() * 100.0 / summon.maxMp()) >= state.getSummonSelfPercent()) {
+            List<Integer> selfList = state.getSummonSkillsForType("self");
+            if (!selfList.isEmpty() && ThreadLocalRandom.current().nextInt(100) < state.getSummonSelfChance()) {
+                int skId = state.isRndSummonSelfSkills() ? selfList.get(ThreadLocalRandom.current().nextInt(selfList.size())) : selfList.get(0);
+                SkillTemplate sk = resolveAnySkill(skId, 1);
+                if (sk != null && summon.currentMp() >= sk.mpConsume()) {
+                    summon.currentMp(Math.max(0, summon.currentMp() - sk.mpConsume()));
+                    return;
+                }
+            }
+        }
+        if (target != null && !target.isDead() && summon.maxMp() > 0 && (summon.currentMp() * 100.0 / summon.maxMp()) >= state.getSummonAttackPercent()) {
+            List<Integer> atkList = state.getSummonSkillsForType("attack");
+            if (!atkList.isEmpty() && ThreadLocalRandom.current().nextInt(100) < state.getSummonAttackChance()) {
+                int skId = state.isRndSummonAttackSkills() ? atkList.get(ThreadLocalRandom.current().nextInt(atkList.size())) : atkList.get(0);
+                SkillTemplate sk = resolveAnySkill(skId, 1);
+                if (sk != null && summon.currentMp() >= sk.mpConsume()) {
+                    summon.currentMp(Math.max(0, summon.currentMp() - sk.mpConsume()));
+                    if (session != null) {
+                        session.castSkill(sk, true);
+                    }
+                }
+            }
+        }
     }
 
     private SkillTemplate selectLowLifeSpell(PlayerCharacter player, AutoFarmState state, GameSession session) {
@@ -2106,12 +2170,24 @@ public class AutoFarmService {
         }
         List<Integer> list = state.getLowLifeSpells();
         if (state.isRndLifeSkills()) {
-            int skId = list.get(ThreadLocalRandom.current().nextInt(list.size()));
-            return getReadySkill(player, skId, session);
+            List<SkillTemplate> ready = new ArrayList<>();
+            for (int skId : list) {
+                SkillTemplate sk = getReadySkill(player, skId, session);
+                if (sk != null && !isSweepSkill(sk)) {
+                    ready.add(sk);
+                }
+            }
+            return ready.isEmpty() ? null : ready.get(ThreadLocalRandom.current().nextInt(ready.size()));
         }
-        for (int skId : list) {
-            SkillTemplate sk = getReadySkill(player, skId, session);
-            if (sk != null) return sk;
+        int size = list.size();
+        int start = Math.max(0, (state.getLastLowLifeSkillIndex() + 1) % size);
+        for (int i = 0; i < size; i++) {
+            int idx = (start + i) % size;
+            SkillTemplate sk = getReadySkill(player, list.get(idx), session);
+            if (sk != null && !isSweepSkill(sk)) {
+                state.setLastLowLifeSkillIndex(idx);
+                return sk;
+            }
         }
         return null;
     }
@@ -2129,16 +2205,22 @@ public class AutoFarmService {
         }
         List<Integer> list = state.getSelfSpells();
         if (state.isRndSelfSkills()) {
-            int skId = list.get(ThreadLocalRandom.current().nextInt(list.size()));
-            SkillTemplate sk = getReadySkill(player, skId, session);
-            if (sk != null && !hasActiveBuffOrToggle(player, sk)) {
-                return sk;
+            List<SkillTemplate> ready = new ArrayList<>();
+            for (int skId : list) {
+                SkillTemplate sk = getReadySkill(player, skId, session);
+                if (sk != null && !isSweepSkill(sk) && !hasActiveBuffOrToggle(player, sk)) {
+                    ready.add(sk);
+                }
             }
-            return null;
+            return ready.isEmpty() ? null : ready.get(ThreadLocalRandom.current().nextInt(ready.size()));
         }
-        for (int skId : list) {
-            SkillTemplate sk = getReadySkill(player, skId, session);
-            if (sk != null && !hasActiveBuffOrToggle(player, sk)) {
+        int size = list.size();
+        int start = Math.max(0, (state.getLastSelfSkillIndex() + 1) % size);
+        for (int i = 0; i < size; i++) {
+            int idx = (start + i) % size;
+            SkillTemplate sk = getReadySkill(player, list.get(idx), session);
+            if (sk != null && !isSweepSkill(sk) && !hasActiveBuffOrToggle(player, sk)) {
+                state.setLastSelfSkillIndex(idx);
                 return sk;
             }
         }
@@ -2160,33 +2242,52 @@ public class AutoFarmService {
             return null;
         }
         List<Integer> list = state.getChanceSpells();
-        if (state.isRndChanceSkills()) {
-            int skId = list.get(ThreadLocalRandom.current().nextInt(list.size()));
-            return getReadyChanceSkillForTarget(player, skId, target, session);
+        int size = list.size();
+        if (!target.isSpoiled()) {
+            int start = Math.max(0, (state.getLastChanceSkillIndex() + 1) % size);
+            for (int i = 0; i < size; i++) {
+                int idx = (start + i) % size;
+                SkillTemplate sk = getReadyChanceSkillForTarget(player, list.get(idx), target, session);
+                if (sk != null && isSpoilSkill(sk)) {
+                    state.setLastChanceSkillIndex(idx);
+                    return sk;
+                }
+            }
         }
-        for (int skId : list) {
-            SkillTemplate sk = getReadyChanceSkillForTarget(player, skId, target, session);
-            if (sk != null) return sk;
+        if (state.isRndChanceSkills()) {
+            List<SkillTemplate> ready = new ArrayList<>();
+            for (int skId : list) {
+                SkillTemplate sk = getReadyChanceSkillForTarget(player, skId, target, session);
+                if (sk != null) {
+                    ready.add(sk);
+                }
+            }
+            return ready.isEmpty() ? null : ready.get(ThreadLocalRandom.current().nextInt(ready.size()));
+        }
+        int start = Math.max(0, (state.getLastChanceSkillIndex() + 1) % size);
+        for (int i = 0; i < size; i++) {
+            int idx = (start + i) % size;
+            SkillTemplate sk = getReadyChanceSkillForTarget(player, list.get(idx), target, session);
+            if (sk != null) {
+                state.setLastChanceSkillIndex(idx);
+                return sk;
+            }
         }
         return null;
     }
 
     private SkillTemplate getReadyChanceSkillForTarget(PlayerCharacter player, int skillId, NpcInstance target, GameSession session) {
         SkillTemplate sk = getReadySkill(player, skillId, session);
-        if (sk == null) return null;
-        String st = sk.skillType() != null ? sk.skillType().toUpperCase(Locale.ROOT) : "";
-        boolean isSpoilSkill = st.contains("SPOIL") || skillId == 254 || skillId == 302 || skillId == 348
-                || sk.effects().stream().anyMatch(e -> "spoil".equalsIgnoreCase(e.name()));
-        if (isSpoilSkill && target.isSpoiled()) {
+        if (sk == null || isSweepSkill(sk)) {
             return null;
         }
-        if (st.contains("SWEEP") || skillId == 42 || skillId == 444) {
+        if (isSpoilSkill(sk) && target != null && target.isSpoiled()) {
             return null;
         }
         return sk;
     }
 
-    private SkillTemplate selectAttackSpell(PlayerCharacter player, AutoFarmState state, double targetDist, GameSession session) {
+    private SkillTemplate selectAttackSpell(PlayerCharacter player, AutoFarmState state, NpcInstance target, double targetDist, GameSession session) {
         if (state.getAttackSpells().isEmpty() || player.maxMp() <= 0) {
             return null;
         }
@@ -2201,15 +2302,84 @@ public class AutoFarmService {
             return null;
         }
         List<Integer> list = state.getAttackSpells();
-        if (state.isRndAttackSkills()) {
-            int skId = list.get(ThreadLocalRandom.current().nextInt(list.size()));
-            return getReadySkill(player, skId, session);
+        int size = list.size();
+
+        // Se o jogador colocou skills de Spoil na aba Attack e o monstro ainda nao esta spoiled, prioriza aplicar o Spoil
+        if (target != null && !target.isSpoiled()) {
+            List<SkillTemplate> readySpoilSkills = new ArrayList<>();
+            int start = Math.max(0, (state.getLastAttackSkillIndex() + 1) % size);
+            for (int i = 0; i < size; i++) {
+                int idx = (start + i) % size;
+                SkillTemplate sk = getReadyAttackSkillForTarget(player, list.get(idx), target, session);
+                if (sk != null && isSpoilSkill(sk)) {
+                    if (!state.isRndAttackSkills()) {
+                        state.setLastAttackSkillIndex(idx);
+                        return sk;
+                    }
+                    readySpoilSkills.add(sk);
+                }
+            }
+            if (!readySpoilSkills.isEmpty()) {
+                return readySpoilSkills.get(ThreadLocalRandom.current().nextInt(readySpoilSkills.size()));
+            }
         }
-        for (int skId : list) {
-            SkillTemplate sk = getReadySkill(player, skId, session);
-            if (sk != null) return sk;
+
+        if (state.isRndAttackSkills()) {
+            List<SkillTemplate> ready = new ArrayList<>();
+            for (int skId : list) {
+                SkillTemplate sk = getReadyAttackSkillForTarget(player, skId, target, session);
+                if (sk != null) {
+                    ready.add(sk);
+                }
+            }
+            return ready.isEmpty() ? null : ready.get(ThreadLocalRandom.current().nextInt(ready.size()));
+        }
+
+        int start = Math.max(0, (state.getLastAttackSkillIndex() + 1) % size);
+        for (int i = 0; i < size; i++) {
+            int idx = (start + i) % size;
+            SkillTemplate sk = getReadyAttackSkillForTarget(player, list.get(idx), target, session);
+            if (sk != null) {
+                state.setLastAttackSkillIndex(idx);
+                return sk;
+            }
         }
         return null;
+    }
+
+    private SkillTemplate getReadyAttackSkillForTarget(PlayerCharacter player, int skillId, NpcInstance target, GameSession session) {
+        SkillTemplate sk = getReadySkill(player, skillId, session);
+        if (sk == null || isSweepSkill(sk)) {
+            return null;
+        }
+        if (target != null && target.isSpoiled() && isPureSpoilSkill(sk)) {
+            return null;
+        }
+        return sk;
+    }
+
+    private boolean isSweepSkill(SkillTemplate sk) {
+        if (sk == null) return false;
+        int id = sk.id();
+        if (id == 42 || id == 444) return true;
+        String st = sk.skillType() != null ? sk.skillType().toUpperCase(Locale.ROOT) : "";
+        return st.contains("SWEEP");
+    }
+
+    private boolean isSpoilSkill(SkillTemplate sk) {
+        if (sk == null) return false;
+        int id = sk.id();
+        if (id == 254 || id == 302 || id == 348) return true;
+        String st = sk.skillType() != null ? sk.skillType().toUpperCase(Locale.ROOT) : "";
+        return st.contains("SPOIL") || sk.effects().stream().anyMatch(e -> "spoil".equalsIgnoreCase(e.name()));
+    }
+
+    private boolean isPureSpoilSkill(SkillTemplate sk) {
+        if (sk == null) return false;
+        int id = sk.id();
+        if (id == 254 || id == 302) return true;
+        String st = sk.skillType() != null ? sk.skillType().toUpperCase(Locale.ROOT) : "";
+        return "SPOIL".equals(st);
     }
 
     private SkillTemplate getReadySkill(PlayerCharacter player, int skillId, GameSession session) {
