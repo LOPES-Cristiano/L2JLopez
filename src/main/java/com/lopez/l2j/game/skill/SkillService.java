@@ -17,7 +17,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * Regras de skills do jogador: carregar/salvar, passivas, recompensas por nivel (rewardSkills/AutoLearnSkills
+ * Regras de skills do jogador: carregar/salvar, passivas, recompensas por nivel
+ * (rewardSkills/AutoLearnSkills
  * do L2JDream) e aprendizado com treinador (RequestAquireSkill).
  */
 @Service
@@ -25,7 +26,10 @@ public class SkillService {
 
 	private static final Logger log = LoggerFactory.getLogger(SkillService.class);
 
-	/** Lucky: sem penalidade de morte ate o nivel 9 (removido no nivel 10, como no L2J). */
+	/**
+	 * Lucky: sem penalidade de morte ate o nivel 9 (removido no nivel 10, como no
+	 * L2J).
+	 */
 	public static final int SKILL_LUCKY = 194;
 
 	private final SkillTable table;
@@ -51,7 +55,6 @@ public class SkillService {
 	public SkillService(SkillTable table, SkillTreeTable trees, SkillRepository repository, boolean autoLearn) {
 		this(table, trees, repository, autoLearn, 0, true);
 	}
-
 
 	public SkillTable table() {
 		return table;
@@ -86,20 +89,25 @@ public class SkillService {
 		refreshPassives(p);
 	}
 
-	/** Junta as funcoes de stat de todas as passivas conhecidas (respeitando DISABLE_SKILLS_ON_LEVEL_LOST). */
+	/**
+	 * Junta as funcoes de stat de todas as passivas conhecidas (respeitando
+	 * DISABLE_SKILLS_ON_LEVEL_LOST).
+	 */
 	public void refreshPassives(PlayerCharacter p) {
 		List<StatFunc> funcs = new ArrayList<>();
 		for (var e : p.skills().entrySet()) {
 			if (isSkillDisabledByLevelLoss(p, e.getKey(), e.getValue())) {
 				continue;
 			}
-			table.get(e.getKey(), e.getValue()).filter(SkillTemplate::isPassive).ifPresent(s -> funcs.addAll(s.funcs()));
+			table.get(e.getKey(), e.getValue()).filter(SkillTemplate::isPassive)
+					.ifPresent(s -> funcs.addAll(s.funcs()));
 		}
 		p.passiveFuncs(funcs);
 	}
 
 	/**
-	 * Verifica se um skill deve ser desativado devido a perda de nivel (DISABLE_SKILLS_ON_LEVEL_LOST).
+	 * Verifica se um skill deve ser desativado devido a perda de nivel
+	 * (DISABLE_SKILLS_ON_LEVEL_LOST).
 	 */
 	public boolean isSkillDisabledByLevelLoss(PlayerCharacter p, int skillId, int skillLevel) {
 		if (!Config.DISABLE_SKILLS_ON_LEVEL_LOST || p == null || trees == null) {
@@ -134,7 +142,10 @@ public class SkillService {
 		return baseMp;
 	}
 
-	/** Lista para o pacote SkillList (ordenada por id), filtrando NOTDONE se SEND_NOT_DONE_SKILLS=false. */
+	/**
+	 * Lista para o pacote SkillList (ordenada por id), filtrando NOTDONE se
+	 * SEND_NOT_DONE_SKILLS=false.
+	 */
 	public List<Skill> skillList(PlayerCharacter p) {
 		List<Skill> out = new ArrayList<>();
 		for (var e : p.skills().entrySet()) {
@@ -152,8 +163,10 @@ public class SkillService {
 	}
 
 	/**
-	 * Recompensas de nivel: skills iniciais (personagem novo), Lucky, entradas gratuitas (Expertise, Common Craft),
-	 * Divine Inspiration (se AUTO_LEARN_DIVINE_INSPIRATION=true) e, com AutoLearnSkills, todos os skills liberados para o nivel.
+	 * Recompensas de nivel: skills iniciais (personagem novo), Lucky, entradas
+	 * gratuitas (Expertise, Common Craft),
+	 * Divine Inspiration (se AUTO_LEARN_DIVINE_INSPIRATION=true) e, com
+	 * AutoLearnSkills, todos os skills liberados para o nivel.
 	 *
 	 * @return true se algum skill mudou
 	 */
@@ -173,17 +186,29 @@ public class SkillService {
 		}
 		if (Config.AUTO_LEARN_DIVINE_INSPIRATION) {
 			int diLevel = 0;
-			if (p.level() >= 78) diLevel = 4;
-			else if (p.level() >= 76) diLevel = 3;
-			else if (p.level() >= 61) diLevel = 2;
-			else if (p.level() >= 52) diLevel = 1;
+			if (p.level() >= 78)
+				diLevel = 4;
+			else if (p.level() >= 76)
+				diLevel = 3;
+			else if (p.level() >= 61)
+				diLevel = 2;
+			else if (p.level() >= 52)
+				diLevel = 1;
 			if (diLevel > 0) {
 				changed |= grant(p, 1405, diLevel);
 			}
 		}
-		boolean auto = autoLearn && Config.AUTO_LEARN_SKILLS && (autoLearnMaxLevel <= 0 || p.level() <= autoLearnMaxLevel);
+		boolean auto = autoLearn && Config.AUTO_LEARN_SKILLS
+				&& (autoLearnMaxLevel <= 0 || p.level() <= autoLearnMaxLevel);
 		for (var e : trees.unlocked(p.classId(), p.level(), !auto).entrySet()) {
 			changed |= grant(p, e.getKey(), e.getValue());
+		}
+		if (p.skillLevel(1322) < 1) {
+			changed |= grant(p, 1322, 1); // Common Craft (active)
+		}
+		if (p.skillLevel(1321) < 1
+				&& (p.canCraft() || p.skillLevel(172) > 0 || com.lopez.l2j.game.craft.DwarfCraftBonus.isDwarf(p))) {
+			changed |= grant(p, 1321, 1); // Dwarven Craft (active)
 		}
 		if (changed) {
 			refreshPassives(p);
@@ -191,7 +216,9 @@ public class SkillService {
 		return changed;
 	}
 
-	/** Skills que o treinador pode ensinar agora (respeitando ALT_GAME_SKILL_LEARN). */
+	/**
+	 * Skills que o treinador pode ensinar agora (respeitando ALT_GAME_SKILL_LEARN).
+	 */
 	public List<SkillLearn> available(PlayerCharacter p) {
 		return available(p, p.classId());
 	}
@@ -211,7 +238,8 @@ public class SkillService {
 	}
 
 	/**
-	 * Livro exigido (SpBookNeeded: so para o nivel 1; DivineInspirationSpBookNeeded para skill 1405;
+	 * Livro exigido (SpBookNeeded: so para o nivel 1; DivineInspirationSpBookNeeded
+	 * para skill 1405;
 	 * LifeCrystalNeeded para skills de cla), ou -1.
 	 */
 	public int requiredBook(int id, int level) {
@@ -225,7 +253,9 @@ public class SkillService {
 		return needBook && level == 1 ? trees.spellbookFor(id) : -1;
 	}
 
-	/** Grava o skill no nivel informado (sem checar custo) e atualiza as passivas. */
+	/**
+	 * Grava o skill no nivel informado (sem checar custo) e atualiza as passivas.
+	 */
 	public void addSkill(PlayerCharacter p, int id, int level) {
 		if (grant(p, id, level)) {
 			refreshPassives(p);
@@ -233,7 +263,8 @@ public class SkillService {
 	}
 
 	/**
-	 * Define o skill exatamente no nivel informado (usado para enchant e downgrade na falha).
+	 * Define o skill exatamente no nivel informado (usado para enchant e downgrade
+	 * na falha).
 	 */
 	public void setSkill(PlayerCharacter p, int id, int level) {
 		var t = table.get(id, level);
@@ -272,8 +303,10 @@ public class SkillService {
 	}
 
 	/**
-	 * Remove habilidades que nao pertencem a arvore da classe atual nem sao habilidades comuns/especiais,
-	 * prevenindo o acúmulo indevido de skills entre classes ao trocar/adicionar subclasses.
+	 * Remove habilidades que nao pertencem a arvore da classe atual nem sao
+	 * habilidades comuns/especiais,
+	 * prevenindo o acúmulo indevido de skills entre classes ao trocar/adicionar
+	 * subclasses.
 	 * Respeita CHECK_SKILLS_ON_ENTER, CHECK_ADDITIONAL_SKILLS e ALLOWED_SKILLS.
 	 */
 	public void cleanInvalidSkills(PlayerCharacter p) {
@@ -330,8 +363,10 @@ public class SkillService {
 	}
 
 	private boolean isCommonOrSpecialSkill(int skillId) {
-		// Lucky (194), Expertise (239), Common Craft / Dwarven Craft / Crystallize (1320-1322, 248), Divine Inspiration (1405)
-		if (skillId == SKILL_LUCKY || skillId == 239 || skillId == 248 || skillId == 1405 || (skillId >= 1320 && skillId <= 1322)) {
+		// Lucky (194), Expertise (239), Common Craft / Dwarven Craft / Crystallize
+		// (1320-1322, 248), Divine Inspiration (1405)
+		if (skillId == SKILL_LUCKY || skillId == 239 || skillId == 248 || skillId == 1405
+				|| (skillId >= 1320 && skillId <= 1322)) {
 			return true;
 		}
 		// Seal of Ruler (246, 247)
@@ -365,4 +400,3 @@ public class SkillService {
 		return false;
 	}
 }
-
