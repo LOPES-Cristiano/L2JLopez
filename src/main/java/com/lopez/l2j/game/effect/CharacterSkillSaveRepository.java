@@ -16,7 +16,10 @@ public class CharacterSkillSaveRepository {
 
 	private static final Logger log = LoggerFactory.getLogger(CharacterSkillSaveRepository.class);
 
-	public record SavedBuff(int skillId, int level, int remainingSeconds, long systime, int buffIndex) {
+	public record SavedBuff(int skillId, int level, int remainingSeconds, int reuseDelay, long systime, int buffIndex) {
+		public SavedBuff(int skillId, int level, int remainingSeconds, long systime, int buffIndex) {
+			this(skillId, level, remainingSeconds, 0, systime, buffIndex);
+		}
 	}
 
 	private final JdbcClient jdbc;
@@ -68,11 +71,13 @@ public class CharacterSkillSaveRepository {
 				if (buffIndex > 1) {
 					sql.append(", ");
 				}
-				sql.append(String.format("(:charId, :sk%d, :lvl%d, 1, :cur%d, 0, :sys%d, 0, :classIndex, %d)",
-						buffIndex, buffIndex, buffIndex, buffIndex, buffIndex));
+				int remSec = b.remainingSeconds(now);
+				sql.append(String.format("(:charId, :sk%d, :lvl%d, 1, :cur%d, :reuse%d, :sys%d, 0, :classIndex, %d)",
+						buffIndex, buffIndex, buffIndex, buffIndex, buffIndex, buffIndex));
 				params.put("sk" + buffIndex, b.skillId());
 				params.put("lvl" + buffIndex, b.level());
-				params.put("cur" + buffIndex, b.remainingSeconds(now));
+				params.put("cur" + buffIndex, remSec);
+				params.put("reuse" + buffIndex, Math.max(0, remSec * 1000));
 				params.put("sys" + buffIndex, b.endTimeMillis());
 			}
 
@@ -96,7 +101,7 @@ public class CharacterSkillSaveRepository {
 		}
 		try {
 			return jdbc.sql("""
-					SELECT skill_id, skill_level, effect_cur_time, systime, buff_index
+					SELECT skill_id, skill_level, effect_cur_time, reuse_delay, systime, buff_index
 					FROM character_skills_save
 					WHERE charId = :charId AND class_index = :classIndex
 					ORDER BY buff_index ASC
@@ -107,6 +112,7 @@ public class CharacterSkillSaveRepository {
 							rs.getInt("skill_id"),
 							rs.getInt("skill_level"),
 							rs.getInt("effect_cur_time"),
+							rs.getInt("reuse_delay"),
 							rs.getLong("systime"),
 							rs.getInt("buff_index")))
 					.list();
