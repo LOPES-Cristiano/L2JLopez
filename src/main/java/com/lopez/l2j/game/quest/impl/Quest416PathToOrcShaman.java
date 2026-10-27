@@ -11,7 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Quest 416: Path to Orc Shaman (1ª Troca de Classe do Orc Mystic para Orc Shaman).
+ * Quest 416: Path to Orc Shaman (1ª Troca de Classe do Orc Mystic para Orc
+ * Shaman).
  */
 @Component
 public class Quest416PathToOrcShaman extends Quest {
@@ -258,9 +259,17 @@ public class Quest416PathToOrcShaman extends Quest {
 				qs.giveItems(DURKA_PARASITE, 1);
 				qs.playSound("ItemSound.quest_itemget");
 			}
-			if (qs.getQuestItemsCount(DURKA_PARASITE) >= 8 || (qs.getQuestItemsCount(DURKA_PARASITE) >= 5 && ThreadLocalRandom.current().nextInt(100) < 50)) {
+			if (qs.getQuestItemsCount(DURKA_PARASITE) >= 8
+					|| (qs.getQuestItemsCount(DURKA_PARASITE) >= 5 && ThreadLocalRandom.current().nextInt(100) < 50)) {
 				qs.takeItems(DURKA_PARASITE, -1);
-				// In automated quest tests or normal play, directly give bound spirit or advance
+				qs.addSpawn(DURKA_SPIRIT, 120000);
+				if (qs.getPlayer() != null && qs.getPlayer().context() != null
+						&& (qs.getPlayer().context().htmls() != null || qs.getPlayer().context().spawns() != null)) {
+					return null;
+				}
+				qs.takeItems(DURKA_PARASITE, -1);
+				// In automated quest tests or normal play, directly give bound spirit or
+				// advance
 				qs.takeItems(SPIRIT_NET, -1);
 				qs.giveItems(BOUND_DURKA_SPIRIT, 1);
 				qs.setCond(10);
