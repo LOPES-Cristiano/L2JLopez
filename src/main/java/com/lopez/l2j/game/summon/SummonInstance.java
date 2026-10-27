@@ -54,7 +54,8 @@ public final class SummonInstance implements Creature {
 	public static final int CRYSTAL_S = 1462;
 	public static final int GEMSTONE_C = 2131;
 	public static final int GEMSTONE_B = 2132;
-	public static final int SIEGE_CANNONBALL_ID = 6037;
+	public static final int SIEGE_CANNONBALL_ID = 8872;
+	public static final int LEGACY_SIEGE_CANNONBALL_ID = 6037;
 
 	// IDs de Siege Summons e Sin Eater
 	public static final int SIN_EATER_ID = 12564;
@@ -1171,10 +1172,13 @@ public final class SummonInstance implements Creature {
 		if (owner == null || owner.inventory() == null) {
 			return false;
 		}
-		if (owner.inventory().getItemCount(SIEGE_CANNONBALL_ID) < 1) {
-			return false;
+		if (owner.inventory().getItemCount(SIEGE_CANNONBALL_ID) >= 1) {
+			return owner.inventory().destroyItemByItemId(SIEGE_CANNONBALL_ID, 1);
 		}
-		return owner.inventory().destroyItemByItemId(SIEGE_CANNONBALL_ID, 1);
+		if (owner.inventory().getItemCount(LEGACY_SIEGE_CANNONBALL_ID) >= 1) {
+			return owner.inventory().destroyItemByItemId(LEGACY_SIEGE_CANNONBALL_ID, 1);
+		}
+		return false;
 	}
 
 	/**
@@ -1403,6 +1407,23 @@ public final class SummonInstance implements Creature {
 			applyDamage(transferred);
 		}
 		return transferred;
+	}
+
+	public int divertTransferPainDamage(int incomingDamage, int transferPercent) {
+		if (incomingDamage <= 0 || transferPercent <= 0 || owner == null || isDead() || !isServitor()) {
+			return incomingDamage;
+		}
+		long dx = (long) owner.x() - this.x;
+		long dy = (long) owner.y() - this.y;
+		if (dx * dx + dy * dy > (long) TRANSFER_PAIN_RANGE * TRANSFER_PAIN_RANGE) {
+			return incomingDamage;
+		}
+		double ratio = Math.clamp(transferPercent / 100.0, 0.0, 0.70);
+		int transferred = (int) Math.min(this.currentHp, Math.round(incomingDamage * ratio));
+		if (transferred > 0) {
+			applyDamage(transferred);
+		}
+		return Math.max(0, incomingDamage - transferred);
 	}
 
 	// ---- HUNGER / FEED TASK (#234, #235) ----
