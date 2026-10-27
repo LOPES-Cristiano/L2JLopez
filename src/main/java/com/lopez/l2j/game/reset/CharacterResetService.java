@@ -155,7 +155,7 @@ public class CharacterResetService {
 		// Award Rebirth reward: 5 Coin of Luck (4037) in both inventory and DB
 		awardRewardToInventoryAndDb(player, 4037, 5);
 
-		saveRankingToDatabase(playerId, daily, monthly);
+		saveRankingToDatabase(playerId, daily, monthly, total);
 
 		log.info("Player {} (ID: {}) successfully performed Reset #{}. Daily: {}, Monthly: {}",
 				player.name(), playerId, total, daily, monthly);
@@ -259,13 +259,40 @@ public class CharacterResetService {
 		List<ResetRankingEntry> list = new ArrayList<>();
 		for (Map.Entry<Integer, Integer> entry : totalResets.entrySet()) {
 			int id = entry.getKey();
-			list.add(new ResetRankingEntry(id, "Player_" + id,
+			String playerName = resolvePlayerName(id);
+			list.add(new ResetRankingEntry(id, playerName,
 					dailyResets.getOrDefault(id, 0),
 					monthlyResets.getOrDefault(id, 0),
 					entry.getValue()));
 		}
 		list.sort((r1, r2) -> Integer.compare(r2.totalCount(), r1.totalCount()));
 		return list.size() > limit ? list.subList(0, limit) : list;
+	}
+
+	private String resolvePlayerName(int playerId) {
+		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (world != null) {
+			var online = world.findPlayer(playerId);
+			if (online != null && online.character() != null && online.character().name() != null) {
+				return online.character().name();
+			}
+		}
+		if (dataSource != null) {
+			try (Connection conn = dataSource.getConnection();
+				 PreparedStatement ps = conn.prepareStatement("SELECT char_name FROM characters WHERE charId = ?")) {
+				ps.setInt(1, playerId);
+				try (ResultSet rs = ps.executeQuery()) {
+					if (rs.next()) {
+						String name = rs.getString("char_name");
+						if (name != null && !name.isBlank()) {
+							return name;
+						}
+					}
+				}
+			} catch (Exception ignored) {
+			}
+		}
+		return "Player_" + playerId;
 	}
 
 	public String generateHtml(PlayerCharacter player) {
@@ -309,6 +336,21 @@ public class CharacterResetService {
 
 	private void loadRankingsFromDatabase() {
 		if (dataSource == null) return;
+		try (Connection conn = dataSource.getConnection();
+			 PreparedStatement ps = conn.prepareStatement("SELECT player_id, daily_count, monthly_count, total_count FROM reset_rankings");
+			 ResultSet rs = ps.executeQuery()) {
+			while (rs.next()) {
+				int playerId = rs.getInt("player_id");
+				int daily = rs.getInt("daily_count");
+				int monthly = rs.getInt("monthly_count");
+				int total = rs.getInt("total_count");
+				dailyResets.put(playerId, daily);
+				monthlyResets.put(playerId, monthly);
+				totalResets.put(playerId, total > 0 ? total : monthly);
+			}
+			return;
+		} catch (SQLException ignored) {
+		}
 		String sql = "SELECT player_id, daily_count, monthly_count FROM reset_rankings";
 		try (Connection conn = dataSource.getConnection();
 			 PreparedStatement ps = conn.prepareStatement(sql);
@@ -326,8 +368,20 @@ public class CharacterResetService {
 		}
 	}
 
-	private void saveRankingToDatabase(int playerId, int daily, int monthly) {
+	private void saveRankingToDatabase(int playerId, int daily, int monthly, int total) {
 		if (dataSource == null) return;
+		String sqlWithTotal = "INSERT INTO reset_rankings (player_id, daily_count, monthly_count, total_count) VALUES (?, ?, ?, ?) " +
+				"ON DUPLICATE KEY UPDATE daily_count = VALUES(daily_count), monthly_count = VALUES(monthly_count), total_count = VALUES(total_count)";
+		try (Connection conn = dataSource.getConnection();
+			 PreparedStatement ps = conn.prepareStatement(sqlWithTotal)) {
+			ps.setInt(1, playerId);
+			ps.setInt(2, daily);
+			ps.setInt(3, monthly);
+			ps.setInt(4, total);
+			ps.executeUpdate();
+			return;
+		} catch (SQLException ignored) {
+		}
 		String sql = "INSERT INTO reset_rankings (player_id, daily_count, monthly_count) VALUES (?, ?, ?) " +
 				"ON DUPLICATE KEY UPDATE daily_count = VALUES(daily_count), monthly_count = VALUES(monthly_count)";
 		try (Connection conn = dataSource.getConnection();
