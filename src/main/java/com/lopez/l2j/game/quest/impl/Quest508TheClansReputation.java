@@ -55,7 +55,7 @@ public class Quest508TheClansReputation extends Quest {
 
         String string2 = event;
         int n = qs.getInt("pledge_gain_fame");
-        int n2 = getFirstStartNpc();
+        int n2 = qs.resolveEventNpcId(getFirstStartNpc());
         if (n2 == 30868) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
