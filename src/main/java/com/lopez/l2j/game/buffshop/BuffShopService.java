@@ -118,6 +118,13 @@ public class BuffShopService {
 		loadOfflineShops();
 	}
 
+	@jakarta.annotation.PostConstruct
+	public void initOfflineShops() {
+		if (activeShops.isEmpty()) {
+			loadOfflineShops();
+		}
+	}
+
 	public static boolean isHotSpringsBuff(int skillId) {
 		return skillId >= 4551 && skillId <= 4554;
 	}
@@ -881,11 +888,20 @@ public class BuffShopService {
 					.update();
 
 			for (BuffShopItem item : shop.items().values()) {
-				jdbc.sql("INSERT INTO character_offline_buffshop_skills (charId, item, price) VALUES (:charId, :item, :price)")
-						.param("charId", shop.sellerId())
-						.param("item", item.skillId())
-						.param("price", item.price())
-						.update();
+				try {
+					jdbc.sql("INSERT INTO character_offline_buffshop_skills (charId, item, level, price) VALUES (:charId, :item, :level, :price)")
+							.param("charId", shop.sellerId())
+							.param("item", item.skillId())
+							.param("level", item.level())
+							.param("price", item.price())
+							.update();
+				} catch (Exception ex) {
+					jdbc.sql("INSERT INTO character_offline_buffshop_skills (charId, item, price) VALUES (:charId, :item, :price)")
+							.param("charId", shop.sellerId())
+							.param("item", item.skillId())
+							.param("price", item.price())
+							.update();
+				}
 			}
 			log.info("BuffShop offline salva para charId {}", shop.sellerId());
 		} catch (Exception e) {
@@ -920,16 +936,25 @@ public class BuffShopService {
 				long time = ((Number) r.get("time")).longValue();
 				String title = (String) r.get("title");
 
-				var skillRows = jdbc.sql("SELECT item, price FROM character_offline_buffshop_skills WHERE charId = :charId")
-						.param("charId", charId)
-						.query()
-						.listOfRows();
+				List<Map<String, Object>> skillRows;
+				try {
+					skillRows = jdbc.sql("SELECT item, level, price FROM character_offline_buffshop_skills WHERE charId = :charId")
+							.param("charId", charId)
+							.query()
+							.listOfRows();
+				} catch (Exception ex) {
+					skillRows = jdbc.sql("SELECT item, price FROM character_offline_buffshop_skills WHERE charId = :charId")
+							.param("charId", charId)
+							.query()
+							.listOfRows();
+				}
 
 				Map<Integer, BuffShopItem> itemMap = new ConcurrentHashMap<>();
 				for (var sr : skillRows) {
 					int skillId = ((Number) sr.get("item")).intValue();
+					int level = sr.get("level") instanceof Number n ? Math.max(1, n.intValue()) : 1;
 					int price = ((Number) sr.get("price")).intValue();
-					itemMap.put(skillId, new BuffShopItem(skillId, 1, price, "Skill #" + skillId));
+					itemMap.put(skillId, new BuffShopItem(skillId, level, price, "Skill #" + skillId));
 				}
 
 				String sellerName = resolveSellerNameAndSpawnOfflineBuffer(charId, title);
