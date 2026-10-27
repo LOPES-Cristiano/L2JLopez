@@ -34,7 +34,8 @@ public class CtfEventService {
         KARMA_NOT_ALLOWED,
         IS_AIO_BLOCKED,
         CURSED_WEAPON_NOT_ALLOWED,
-        MAX_PLAYERS_REACHED
+        MAX_PLAYERS_REACHED,
+        DUALBOX_NOT_ALLOWED
     }
 
     public enum TeamType {
@@ -311,10 +312,31 @@ public class CtfEventService {
         if (player.isAio()) {
             return RegisterResult.IS_AIO_BLOCKED;
         }
+        String ip = resolvePlayerIp(player);
+        if (ip != null && !"127.0.0.1".equals(ip)) {
+            for (Participant existing : participants.values()) {
+                if (existing.getPlayer() != null && ip.equals(resolvePlayerIp(existing.getPlayer()))) {
+                    log.warn("CTF Anti-Dualbox: jogador {} recusado por IP duplicado {}", player.getName(), ip);
+                    return RegisterResult.DUALBOX_NOT_ALLOWED;
+                }
+            }
+        }
 
         Participant p = new Participant(player, player.getX(), player.getY(), player.getZ());
         participants.put(player.getObjectId(), p);
         return RegisterResult.SUCCESS;
+    }
+
+    private String resolvePlayerIp(PlayerCharacter player) {
+        if (player == null) return null;
+        var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+        if (world != null) {
+            var op = world.findPlayer(player.getObjectId());
+            if (op instanceof com.lopez.l2j.network.game.GameSession gs && gs.clientIp() != null && !gs.clientIp().isBlank()) {
+                return gs.clientIp();
+            }
+        }
+        return null;
     }
 
     public boolean unregister(PlayerCharacter player) {
@@ -516,6 +538,7 @@ public class CtfEventService {
                 if (flagItem != null) {
                     flagItem.equipped(true);
                 }
+                pc.sendUserInfoAndBroadcastCharInfo();
             }
             log.info("CTF: Jogador {} pegou a bandeira da equipe {}!", p.getName(), enemyTeam.getTeamName());
             return true;
@@ -538,6 +561,7 @@ public class CtfEventService {
                 Participant p = participants.get(playerId);
                 if (p != null && p.getPlayer() != null && p.getPlayer().inventory() != null) {
                     p.getPlayer().inventory().destroyItemByItemId(CTF_FLAG_ITEM_ID, 1);
+                    p.getPlayer().sendUserInfoAndBroadcastCharInfo();
                 }
                 log.info("CTF: Bandeira {} derrubada no chao!", flagTeam.getTeamName());
                 return true;
@@ -597,6 +621,7 @@ public class CtfEventService {
         flagCarriers.remove(enemyTeam);
         if (p.getPlayer() != null && p.getPlayer().inventory() != null) {
             p.getPlayer().inventory().destroyItemByItemId(CTF_FLAG_ITEM_ID, 1);
+            p.getPlayer().sendUserInfoAndBroadcastCharInfo();
         }
         log.info("CTF: GOAL! {} capturou a bandeira inimiga! Placar: Azul {} x {} Vermelho",
                 p.getName(), teamScores.get(TeamType.BLUE), teamScores.get(TeamType.RED));
