@@ -45,6 +45,7 @@ public class PvPRankService {
     private final Map<Integer, Integer> playerKills = new ConcurrentHashMap<>();
     // KillerId_VictimId -> last kill timestamp (ms)
     private final Map<String, Long> lastKillTimes = new ConcurrentHashMap<>();
+    private java.util.concurrent.ScheduledExecutorService decayScheduler;
 
     public PvPRankService() {
         this(null, null);
@@ -57,6 +58,27 @@ public class PvPRankService {
         this.characterVariables = characterVariables;
         this.inventoryService = inventoryService;
         initDefaultRanks();
+    }
+
+    @jakarta.annotation.PostConstruct
+    public synchronized void startDailyDecayScheduler() {
+        if (decayScheduler != null && !decayScheduler.isShutdown()) {
+            return;
+        }
+        decayScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "PvPRank-DailyDecay");
+            t.setDaemon(true);
+            return t;
+        });
+        decayScheduler.scheduleAtFixedRate(this::applyDailyDecay, 1, 1, java.util.concurrent.TimeUnit.DAYS);
+    }
+
+    @jakarta.annotation.PreDestroy
+    public synchronized void stopDailyDecayScheduler() {
+        if (decayScheduler != null) {
+            decayScheduler.shutdownNow();
+            decayScheduler = null;
+        }
     }
 
     private void initDefaultRanks() {
