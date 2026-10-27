@@ -47,6 +47,10 @@ public class GameWorld {
 		int z();
 
 		void send(GameServerPacket packet);
+
+		default void sendPacket(GameServerPacket packet) {
+			send(packet);
+		}
 		
 		default void sendMessage(String text) {
 			if (text != null && !text.isBlank()) {
@@ -433,6 +437,12 @@ public class GameWorld {
 			if (cell.isEmpty()) {
 				npcsByCell.remove(key, Collections.emptySet());
 			}
+		}
+	}
+
+	public void scheduleRespawn(NpcInstance npc) {
+		if (npc != null) {
+			npc.dead(true);
 		}
 	}
 
