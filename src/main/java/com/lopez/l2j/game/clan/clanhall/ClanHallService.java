@@ -48,11 +48,20 @@ public class ClanHallService {
 	private final Map<Integer, Map<Integer, AuctionBidEntry>> activeAuctionBids = new ConcurrentHashMap<>();
 	private final ClanTable clanTable;
 	private final JdbcClient jdbc;
+	@Autowired(required = false)
+	private com.lopez.l2j.game.service.InventoryService inventoryService;
+
+	public ClanHallService(ClanTable clanTable, JdbcClient jdbc) {
+		this(clanTable, jdbc, null);
+	}
 
 	@Autowired
-	public ClanHallService(ClanTable clanTable, @Autowired(required = false) JdbcClient jdbc) {
+	public ClanHallService(ClanTable clanTable,
+			@Autowired(required = false) JdbcClient jdbc,
+			@Autowired(required = false) com.lopez.l2j.game.service.InventoryService inventoryService) {
 		this.clanTable = clanTable;
 		this.jdbc = jdbc;
+		this.inventoryService = inventoryService;
 		loadClanHalls();
 	}
 
@@ -295,17 +304,50 @@ public class ClanHallService {
 		if (inv == null || inv.getItemCount(57) < bidAmount) {
 			return BidResult.NOT_ENOUGH_ADENA;
 		}
-		inv.destroyItemByItemId(57, (int) Math.min(Integer.MAX_VALUE, bidAmount));
+		int deduct = (int) Math.min(Integer.MAX_VALUE, bidAmount);
+		if (depositSource == null && inventoryService != null) {
+			if (inventoryService.consumeItem(inv, 57, deduct, "ClanHallAuctionBid") == null) {
+				return BidResult.NOT_ENOUGH_ADENA;
+			}
+		} else {
+			inv.destroyItemByItemId(57, deduct);
+		}
 
 		AuctionBidEntry previousOwnBid = bids.get(clan.clanId());
 		if (previousOwnBid != null && previousOwnBid.bidAmount() > 0) {
-			inv.addItem(57, (int) Math.min(Integer.MAX_VALUE, previousOwnBid.bidAmount()));
+			int refund = (int) Math.min(Integer.MAX_VALUE, previousOwnBid.bidAmount());
+			if (depositSource == null && inventoryService != null) {
+				inventoryService.addItem(leader.objectId(), inv, 57, refund, "ClanHallAuctionRefund");
+			} else {
+				inv.addItem(57, refund);
+			}
 		}
 
 		long now = System.currentTimeMillis();
 		AuctionBidEntry entry = new AuctionBidEntry(hallId, clan.clanId(), leader.objectId(), leader.name(), clan.name(), bidAmount, now);
 		bids.put(clan.clanId(), entry);
 		clan.auctionBiddedAt(hallId);
+
+		if (jdbc != null) {
+			try {
+				jdbc.sql("""
+						INSERT INTO auction_bid (id, auctionId, bidderId, bidderName, clan_name, maxBid, time_bid)
+						VALUES (:id, :auc, :bidder, :bname, :cname, :max, :time)
+						ON DUPLICATE KEY UPDATE maxBid = VALUES(maxBid), time_bid = VALUES(time_bid)
+						""")
+						.param("id", hallId)
+						.param("auc", hallId)
+						.param("bidder", leader.objectId())
+						.param("bname", leader.name())
+						.param("cname", clan.name())
+						.param("max", deduct)
+						.param("time", now)
+						.update();
+			} catch (Exception ex) {
+				log.warn("Erro ao salvar auction_bid em placeAuctionBid: {}", ex.getMessage());
+			}
+		}
+
 		return BidResult.SUCCESS;
 	}
 
@@ -325,6 +367,14 @@ public class ClanHallService {
 		}
 		for (AuctionBidEntry b : bids.values()) {
 			clanTable.byClanId(b.clanId()).ifPresent(c -> c.auctionBiddedAt(0));
+		}
+		if (jdbc != null) {
+			try {
+				jdbc.sql("DELETE FROM auction_bid WHERE auctionId = :auc")
+						.param("auc", hallId)
+						.update();
+			} catch (Exception ignored) {
+			}
 		}
 		return winner != null && setOwner(hallId, winner.clanId());
 	}
