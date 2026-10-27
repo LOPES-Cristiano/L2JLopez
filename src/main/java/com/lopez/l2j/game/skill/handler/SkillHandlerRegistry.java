@@ -467,7 +467,9 @@ public class SkillHandlerRegistry {
 						"DRAIN_SOUL", "UNLOCK", "DELUXE_KEY_UNLOCK", "DWARVEN_CRAFT", "COMMON_CRAFT",
 						"FISHING", "PUMPING", "REELING", "SIGNET", "SIGNET_CASTTIME", "FUSION",
 						"BUFF_CHARGER", "SHIFT_TARGET", "EXTRACTABLE", "EXTRACTABLE_FISH",
-						"CHARGE", "CHARGE_EFFECT"
+						"CHARGE", "CHARGE_EFFECT",
+						"INSTANT_JUMP", "GET_PLAYER", "ZAKEN_MOVE", "CANCEL_DEBUFF",
+						"GIVE_SP", "FAKE_DEATH", "DRESSME", "FATAL", "TAKEFORT"
 				);
 			}
 
@@ -870,6 +872,7 @@ public class SkillHandlerRegistry {
 		}
 		for (SiegeRecord siege : ctx.sieges().allSieges()) {
 			if (siege.status() == SiegeStatus.IN_PROGRESS && ctx.sieges().isAttacker(siege.castleId(), active.clanId())) {
+				ctx.sieges().engraveArtifact(siege.castleId(), active.clanId(), 0);
 				boolean ok = ctx.sieges().midVictory(siege.castleId(), active.clanId());
 				if (ok) {
 					caster.send(new CreatureSay(0, CreatureSay.HERO_VOICE, "Siege",
