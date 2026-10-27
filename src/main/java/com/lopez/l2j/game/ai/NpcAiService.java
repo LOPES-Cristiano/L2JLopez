@@ -28,9 +28,12 @@ import org.springframework.stereotype.Service;
 
 /**
  * Servico de IA para NPCs e monstros:
- * - Perseguicao e combate contra jogadores por arquetipo (Fighter, Ranger, Mystic, Priest, Guard)
- * - Faction Social Call (V.07A) para aliados da mesma faccao ou mesmo npcId em raio de 400u
- * - Deteccao de jogadores por monstros agressivos (aggroRange) e Guardas contra PKs (karma > 0)
+ * - Perseguicao e combate contra jogadores por arquetipo (Fighter, Ranger,
+ * Mystic, Priest, Guard)
+ * - Faction Social Call (V.07A) para aliados da mesma faccao ou mesmo npcId em
+ * raio de 400u
+ * - Deteccao de jogadores por monstros agressivos (aggroRange) e Guardas contra
+ * PKs (karma > 0)
  * - Movimentacao aleatoria (roaming) ao redor do ponto de spawn
  * - Despawn/decay de corpos e renascimento (respawn) automatico de monstros
  */
@@ -63,8 +66,8 @@ public class NpcAiService {
 	}
 
 	public AbstractNpcAI getOrAssignAI(NpcInstance npc) {
-		return aiArchetypes.computeIfAbsent(npc.objectId(), id ->
-				NpcAiFactory.createAI(npc, world, combatService, charTemplates, npcSkillTable, skillTable, scheduler(), zones));
+		return aiArchetypes.computeIfAbsent(npc.objectId(), id -> NpcAiFactory.createAI(npc, world, combatService,
+				charTemplates, npcSkillTable, skillTable, scheduler(), zones));
 	}
 
 	@org.springframework.beans.factory.annotation.Autowired
@@ -122,7 +125,8 @@ public class NpcAiService {
 		}
 		String type = npc.template().type();
 		String name = npc.template().name() != null ? npc.template().name().toLowerCase(java.util.Locale.ROOT) : "";
-		return "L2Guard".equalsIgnoreCase(type) || npc.template().isGuard() || name.contains("guard") || name.contains("sentry");
+		return "L2Guard".equalsIgnoreCase(type) || npc.template().isGuard() || name.contains("guard")
+				|| name.contains("sentry");
 	}
 
 	private boolean hasLoS(int x1, int y1, int z1, int x2, int y2, int z2) {
@@ -146,7 +150,8 @@ public class NpcAiService {
 	}
 
 	/**
-	 * Registra ou atualiza um monstro/guarda em estado de combate perseguindo/atacando um jogador.
+	 * Registra ou atualiza um monstro/guarda em estado de combate
+	 * perseguindo/atacando um jogador.
 	 */
 	public void startCombat(NpcInstance npc, int targetPlayerId) {
 		if (npc == null || npc.isDead()) {
@@ -179,13 +184,15 @@ public class NpcAiService {
 		// 1. Notifica lacaios (minions) para atacarem o mesmo alvo
 		if (npc.hasMinions()) {
 			for (NpcInstance minion : npc.minions()) {
-				if (minion != null && !minion.isDead() && (!minion.inCombat() || minion.targetPlayerId() != targetPlayerId)) {
+				if (minion != null && !minion.isDead()
+						&& (!minion.inCombat() || minion.targetPlayerId() != targetPlayerId)) {
 					startCombat(minion, targetPlayerId);
 				}
 			}
 		}
 
-		// 2. Se for lacaio sendo atacado, notifica o mestre e todos os lacaios irmaos do grupo para revidarem juntos (L2JDream)
+		// 2. Se for lacaio sendo atacado, notifica o mestre e todos os lacaios irmaos
+		// do grupo para revidarem juntos (L2JDream)
 		if (npc.isMinion() && npc.masterObjectId() != 0) {
 			world.npc(npc.masterObjectId()).ifPresent(master -> {
 				if (!master.isDead()) {
@@ -204,7 +211,8 @@ public class NpcAiService {
 			});
 		}
 
-		// 3. Faction Social Call (V.07A): Notifica monstros aliados da mesma Faccao ou mesmo npcId em raio de 400u
+		// 3. Faction Social Call (V.07A): Notifica monstros aliados da mesma Faccao ou
+		// mesmo npcId em raio de 400u
 		notifyFactionCall(npc, targetPlayerId);
 	}
 
@@ -227,7 +235,8 @@ public class NpcAiService {
 			if (ally.instanceId() != npc.instanceId()) {
 				continue;
 			}
-			// Aliados da faccao so respondem ao chamado se estiverem no mesmo plano vertical (nao em andares/cavernas)
+			// Aliados da faccao so respondem ao chamado se estiverem no mesmo plano
+			// vertical (nao em andares/cavernas)
 			if (Math.abs(ally.z() - npc.z()) > 150) {
 				continue;
 			}
@@ -266,7 +275,8 @@ public class NpcAiService {
 	}
 
 	/**
-	 * Cancela imediatamente o combate de todos os monstros que tinham este jogador como alvo
+	 * Cancela imediatamente o combate de todos os monstros que tinham este jogador
+	 * como alvo
 	 * (chamado quando o jogador morre, teleporta ou da To Village).
 	 */
 	public void stopCombatForPlayer(int playerId) {
@@ -335,7 +345,8 @@ public class NpcAiService {
 			if (sOpt.isPresent() && !sOpt.get().isDead()) {
 				int ownerId = sOpt.get().ownerId();
 				var ownerOpt = world.player(ownerId);
-				if (ownerOpt.isPresent() && ownerOpt.get().character() != null && !ownerOpt.get().character().isDead()) {
+				if (ownerOpt.isPresent() && ownerOpt.get().character() != null
+						&& !ownerOpt.get().character().isDead()) {
 					return ownerId;
 				}
 			}
@@ -345,13 +356,18 @@ public class NpcAiService {
 	}
 
 	/**
-	 * Agenda o sumico do corpo (decay) e posterior renascimento (respawn) do monstro derrotado.
+	 * Agenda o sumico do corpo (decay) e posterior renascimento (respawn) do
+	 * monstro derrotado.
 	 */
 	public void scheduleDecayAndRespawn(NpcInstance npc) {
 		stopCombat(npc);
-		// Apenas Raid Boss ou Grand Boss despawna seus lacaios ao morrer (regra retail / L2JDream)
-		// Monstros comuns com lacaios mantem seus lacaios vivos lutando individualmente!
-		if (npc.hasMinions() && npc.template() != null && (npc.template().isRaidBoss() || npc.template().isGrandBoss())) {
+		npc.setScriptValue(0);
+		// Apenas Raid Boss ou Grand Boss despawna seus lacaios ao morrer (regra retail
+		// / L2JDream)
+		// Monstros comuns com lacaios mantem seus lacaios vivos lutando
+		// individualmente!
+		if (npc.hasMinions() && npc.template() != null
+				&& (npc.template().isRaidBoss() || npc.template().isGrandBoss())) {
 			onMasterDied(npc);
 		}
 
@@ -359,7 +375,8 @@ public class NpcAiService {
 			return;
 		}
 
-		// 1. Decay: Apos 7s o corpo some do chao dos jogadores proximos (ou 25s retail se estiver spoiled/sweepable)
+		// 1. Decay: Apos 7s o corpo some do chao dos jogadores proximos (ou 25s retail
+		// se estiver spoiled/sweepable)
 		long decayDelayMs = (npc.isSpoiled() || npc.isSweepable()) ? 25000L : 7000L;
 		scheduler.schedule(() -> {
 			try {
@@ -371,12 +388,15 @@ public class NpcAiService {
 			}
 
 			// Se for Raid Boss ou Grand Boss, o respawn NAO e gerido pelo NpcAiService!
-			// O renascimento e controlado pelo RaidBossSpawnManager ou GrandBossManager com horas/dias.
-			if (npc.template() != null && (npc.template().isRaidBoss() || npc.template().isGrandBoss())) {
+			// O renascimento e controlado pelo RaidBossSpawnManager ou GrandBossManager com
+			// horas/dias.
+			if (npc.isQuestSpawn()
+					|| (npc.template() != null && (npc.template().isRaidBoss() || npc.template().isGrandBoss()))) {
 				return;
 			}
 
-			// 2. Respawn: Apos o tempo de renascimento, revive com HP total no spawn original
+			// 2. Respawn: Apos o tempo de renascimento, revive com HP total no spawn
+			// original
 			long respawnDelayMs = resolveRespawnDelayMs(npc);
 			scheduler.schedule(() -> {
 				try {
@@ -390,7 +410,8 @@ public class NpcAiService {
 
 					respawnNpc(npc);
 
-					// Se for mestre renascendo, revive tambem os minions vinculados que estiverem mortos
+					// Se for mestre renascendo, revive tambem os minions vinculados que estiverem
+					// mortos
 					if (npc.hasMinions()) {
 						for (NpcInstance minion : npc.minions()) {
 							if (minion != null && minion.isDead()) {
@@ -444,6 +465,7 @@ public class NpcAiService {
 		npc.overhit(false);
 		npc.overhitDamage(0);
 		npc.overhitAttackerId(0);
+		npc.setScriptValue(0);
 		npc.clearAggro();
 		npc.clearActiveEffects();
 		if (championService != null) {
@@ -505,11 +527,13 @@ public class NpcAiService {
 		world.addNpc(minion);
 		var npcInfo = new NpcInfo(minion);
 		world.broadcastAround(minion.x(), minion.y(), GameWorld.VISIBILITY_RADIUS, npcInfo);
-		log.debug("Minion {} renasceu junto ao mestre {} em ({}, {}, {})", minion.name(), master.name(), targetX, targetY, targetZ);
+		log.debug("Minion {} renasceu junto ao mestre {} em ({}, {}, {})", minion.name(), master.name(), targetX,
+				targetY, targetZ);
 	}
 
 	/**
-	 * Executa um ciclo da IA para monstros em combate, deteccao de aggro, guardas contra PKs e movimentacao.
+	 * Executa um ciclo da IA para monstros em combate, deteccao de aggro, guardas
+	 * contra PKs e movimentacao.
 	 */
 	public void tick() {
 		tickCount++;
@@ -538,7 +562,8 @@ public class NpcAiService {
 		// 3. Suporte de Priests e QueenAntNurses ociosos proximos a aliados feridos
 		processIdlePriests();
 
-		// 4. Roaming aleatorio de monstros pacificos / ociosos (a cada 10 segundos = 40 ticks)
+		// 4. Roaming aleatorio de monstros pacificos / ociosos (a cada 10 segundos = 40
+		// ticks)
 		if (tickCount % 40 == 0) {
 			roamIdleMonsters();
 		}
@@ -574,7 +599,8 @@ public class NpcAiService {
 		for (var player : world.players()) {
 			var character = player.character();
 			if (character == null || character.isDead() || character.isGm()
-					|| (character.effects() != null && (character.effects().hasSkill(221) || character.effects().hasSkill(60)))) {
+					|| (character.effects() != null
+							&& (character.effects().hasSkill(221) || character.effects().hasSkill(60)))) {
 				continue;
 			}
 			boolean inPeaceZone = zones != null && zones.isInsidePeace(player.x(), player.y(), player.z());
@@ -586,7 +612,8 @@ public class NpcAiService {
 				if (npc.instanceId() != character.instanceId()) {
 					continue;
 				}
-				// Diferenca vertical: monstros subterraneos ou em andares diferentes nao agram na superficie
+				// Diferenca vertical: monstros subterraneos ou em andares diferentes nao agram
+				// na superficie
 				int deltaZ = Math.abs(npc.z() - player.z());
 				if (deltaZ > 150) {
 					continue;
@@ -596,8 +623,10 @@ public class NpcAiService {
 				if (isGuardNpc(npc)) {
 					if (character.karma() > 0) {
 						int guardRange = (npc.template() != null && npc.template().aggroRange() > 0)
-								? npc.template().aggroRange() : 1000;
-						double dist3d = Math.sqrt(Math.pow(npc.x() - player.x(), 2) + Math.pow(npc.y() - player.y(), 2) + Math.pow(deltaZ, 2));
+								? npc.template().aggroRange()
+								: 1000;
+						double dist3d = Math.sqrt(Math.pow(npc.x() - player.x(), 2) + Math.pow(npc.y() - player.y(), 2)
+								+ Math.pow(deltaZ, 2));
 						if (dist3d <= guardRange && hasLoS(npc, character)) {
 							startCombat(npc, player.objectId());
 						}
@@ -608,14 +637,16 @@ public class NpcAiService {
 				if ((inPeaceZone && (!Config.ALT_MOB_AGGRO_IN_PEACE_ZONE || zones != null)) || !npc.isMonster()) {
 					continue;
 				}
-				// Regra oficial Lineage II / L2JDream: Friendly Mobs (ex: Pixy, Bloody Pixy, Treant) so agram jogadores PK (Karma > 0)
+				// Regra oficial Lineage II / L2JDream: Friendly Mobs (ex: Pixy, Bloody Pixy,
+				// Treant) so agram jogadores PK (Karma > 0)
 				if (npc.template().isFriendlyMob() && character.karma() <= 0) {
 					continue;
 				}
 				int aggroRange = npc.template().aggroRange();
 				if (aggroRange > 0) {
 					// Regra oficial Lineage II / L2JDream / AltMobNoAttackWithLevelDifference:
-					// Monstros comuns nao agram jogadores alem do diferencial de nivel (com excecao de Raid Bosses e Grand Bosses)
+					// Monstros comuns nao agram jogadores alem do diferencial de nivel (com excecao
+					// de Raid Bosses e Grand Bosses)
 					if (!npc.template().isRaidBoss() && !npc.template().isGrandBoss()) {
 						int diff = Config.ALT_MOB_NO_ATTACK_WITH_LEVEL_DIFFERENCE;
 						int delta = diff >= 0 ? diff : 9;
@@ -624,7 +655,8 @@ public class NpcAiService {
 						}
 					}
 
-					double dist3d = Math.sqrt(Math.pow(npc.x() - player.x(), 2) + Math.pow(npc.y() - player.y(), 2) + Math.pow(deltaZ, 2));
+					double dist3d = Math.sqrt(Math.pow(npc.x() - player.x(), 2) + Math.pow(npc.y() - player.y(), 2)
+							+ Math.pow(deltaZ, 2));
 					if (dist3d <= aggroRange) {
 						// Linha de visao (LoS): monstro precisa ver o jogador
 						if (!hasLoS(npc, character)) {
@@ -654,7 +686,8 @@ public class NpcAiService {
 					continue;
 				}
 				if (npc.isMonster()) {
-					com.lopez.l2j.game.geodata.GeoEngine geo = (combatService != null) ? combatService.geoEngine() : null;
+					com.lopez.l2j.game.geodata.GeoEngine geo = (combatService != null) ? combatService.geoEngine()
+							: null;
 					// Se for lacaio ocioso distante do mestre, aproxima-se do mestre (#312)
 					if (npc.isMinion() && npc.masterObjectId() != 0) {
 						var masterOpt = world.npc(npc.masterObjectId());
@@ -720,7 +753,8 @@ public class NpcAiService {
 						continue;
 					}
 					int chance = Math.clamp(100 - minNpcAnim, 10, 40);
-					// NPCs de cidade / Guardas / Mestres: animacao social (respirar, olhar em volta)
+					// NPCs de cidade / Guardas / Mestres: animacao social (respirar, olhar em
+					// volta)
 					if (rnd.nextInt(100) < chance) {
 						int actionId = rnd.nextInt(2, 4); // SocialAction 2 ou 3
 						var social = new SocialAction(npc.objectId(), actionId);
@@ -756,6 +790,7 @@ public class NpcAiService {
 	private void processCombatNpc(NpcInstance npc) {
 		if (npc.isDead() || npc.targetPlayerId() == 0) {
 			stopCombat(npc);
+			npc.setScriptValue(0);
 			return;
 		}
 
@@ -802,9 +837,11 @@ public class NpcAiService {
 		}
 
 		boolean guardHuntingPk = isGuardNpc(npc) && character.karma() > 0;
-		// Se o jogador ou o monstro estiver em zona de paz (ex: vila/cidade), interrompe combate imediatamente (exceto Guardas contra PK)
+		// Se o jogador ou o monstro estiver em zona de paz (ex: vila/cidade),
+		// interrompe combate imediatamente (exceto Guardas contra PK)
 		if (!guardHuntingPk && zones != null
-				&& (zones.isInsidePeace(player.x(), player.y(), player.z()) || zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
+				&& (zones.isInsidePeace(player.x(), player.y(), player.z())
+						|| zones.isInsidePeace(npc.x(), npc.y(), npc.z()))) {
 			returnToSpawn(npc);
 			var stopAtk = new AutoAttackStop(npc.objectId());
 			player.send(stopAtk);
@@ -819,10 +856,13 @@ public class NpcAiService {
 
 		// Limite maximo de perseguicao em relacao ao spawn original (#314)
 		double driftFromSpawn = Math.hypot(npc.x() - npc.spawnX(), npc.y() - npc.spawnY());
-		double maxPursueDrift = (npc.isRaid() || (npc.template() != null && (npc.template().isRaidBoss() || npc.template().isGrandBoss())))
-				? 3500.0 : 2500.0;
+		double maxPursueDrift = (npc.isRaid()
+				|| (npc.template() != null && (npc.template().isRaidBoss() || npc.template().isGrandBoss())))
+						? 3500.0
+						: 2500.0;
 
-		// Perda de aggro se o jogador fugir muito longe (> 1500), altura excessiva (> 350) ou afastamento excessivo do spawn
+		// Perda de aggro se o jogador fugir muito longe (> 1500), altura excessiva (>
+		// 350) ou afastamento excessivo do spawn
 		if (dist3d > 1500.0 || Math.abs(dz) > 350.0 || driftFromSpawn > maxPursueDrift) {
 			returnToSpawn(npc);
 			var stopAtk = new AutoAttackStop(npc.objectId());
@@ -851,7 +891,16 @@ public class NpcAiService {
 		int skillId = hsSkills[ThreadLocalRandom.current().nextInt(hsSkills.length)];
 		int curLvl = (character.effects() != null) ? character.effects().getSkillLevel(skillId) : 0;
 		int nextLvl = Math.min(10, Math.max(1, curLvl + 1));
-		if (character.effects() != null) {
+		if (player instanceof com.lopez.l2j.network.game.GameSession gs && skillTable != null) {
+			var skOpt = skillTable.get(skillId, nextLvl);
+			if (skOpt.isPresent()) {
+				gs.applySkillEffects(skOpt.get(), false);
+			} else if (character.effects() != null) {
+				character.effects().addEffect(skillId, nextLvl, 600_000L, "hotspring_" + skillId, false);
+				gs.refreshBuffs();
+				gs.saveBuffs();
+			}
+		} else if (character.effects() != null) {
 			character.effects().addEffect(skillId, nextLvl, 600_000L, "hotspring_" + skillId, false);
 		}
 		var msu = new com.lopez.l2j.network.game.packet.GameServerPacket.MagicSkillUse(
@@ -865,8 +914,10 @@ public class NpcAiService {
 		if (master == null || !master.hasMinions()) {
 			return;
 		}
-		// Apenas Raid Boss ou Grand Boss limpa/despawna lacaios ao morrer (Retail L2 / L2JDream)
-		// Monstros comuns com lacaios (ex: Ketra Prophet) mantem seus lacaios vivos lutando individualmente!
+		// Apenas Raid Boss ou Grand Boss limpa/despawna lacaios ao morrer (Retail L2 /
+		// L2JDream)
+		// Monstros comuns com lacaios (ex: Ketra Prophet) mantem seus lacaios vivos
+		// lutando individualmente!
 		if (master.template() != null && (master.template().isRaidBoss() || master.template().isGrandBoss())) {
 			for (NpcInstance minion : master.minions()) {
 				if (minion != null && !minion.isDead()) {
@@ -883,6 +934,7 @@ public class NpcAiService {
 
 	public void returnToSpawn(NpcInstance npc) {
 		stopCombat(npc);
+		npc.setScriptValue(0);
 		if (npc.isDead()) {
 			return;
 		}
@@ -903,7 +955,8 @@ public class NpcAiService {
 			world.broadcastAround(fromX, fromY, GameWorld.VISIBILITY_RADIUS, movePkt);
 			world.broadcastAround(sx, sy, GameWorld.VISIBILITY_RADIUS, movePkt);
 			if (distToSpawn > 500.0) {
-				var telePkt = new com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation(npc.objectId(), sx, sy, sz, sh);
+				var telePkt = new com.lopez.l2j.network.game.packet.GameServerPacket.TeleportToLocation(npc.objectId(),
+						sx, sy, sz, sh);
 				world.broadcastAround(fromX, fromY, GameWorld.VISIBILITY_RADIUS, telePkt);
 				world.broadcastAround(sx, sy, GameWorld.VISIBILITY_RADIUS, new NpcInfo(npc));
 			}
