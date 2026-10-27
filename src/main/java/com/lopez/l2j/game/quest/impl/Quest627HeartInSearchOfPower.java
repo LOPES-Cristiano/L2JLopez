@@ -66,7 +66,10 @@ public class Quest627HeartInSearchOfPower extends Quest {
 
         String string2 = event;
         int n = qs.getInt("temptation_of_power_cookie");
-        int n2 = getFirstStartNpc();
+        int n2 = qs.resolveEventNpcId(getFirstStartNpc());
+        if (n2 == 31518 && event.equalsIgnoreCase("menu_select?ask=627&reply=1") && n == 2) {
+            n2 = 31519;
+        }
         if (n2 == 31518) {
             if (event.equalsIgnoreCase("quest_accept")) {
                 qs.setCond(1);
