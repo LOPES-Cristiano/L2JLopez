@@ -37,6 +37,12 @@ public class DressMeData {
 	public synchronized void load(String filePath) {
 		entriesBySkillId.clear();
 		File f = new File(filePath);
+		if (!f.exists() && DEFAULT_PATH.equals(filePath)) {
+			File alt = new File("L2JLopez/" + filePath);
+			if (alt.exists()) {
+				f = alt;
+			}
+		}
 		if (!f.exists()) {
 			log.warn("Arquivo DressMe nao encontrado em {}", f.getAbsolutePath());
 			return;
