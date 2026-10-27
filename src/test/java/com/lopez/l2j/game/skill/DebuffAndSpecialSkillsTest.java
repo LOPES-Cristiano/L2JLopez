@@ -311,4 +311,31 @@ class DebuffAndSpecialSkillsTest {
 		assertFalse(player.isMuted());
 		assertEquals(0, player.abnormalEffect());
 	}
+
+	@Test
+	void testExpiredDebuffRemoveStillReturnsTrueAfterPurge() {
+		var effects = new PlayerEffects();
+		long expiredTime = System.currentTimeMillis() - 100;
+		var stunBuff = ActiveBuff.ofSkill(4072, 6, "control_stun", 6, expiredTime, List.of(), true, 0x0040, "stun", 0.0,
+				0);
+		// Insere com tempo no futuro primeiro e depois simula expiracao
+		var activeStun = ActiveBuff.ofSkill(4072, 6, "control_stun", 6, System.currentTimeMillis() + 50, List.of(),
+				true, 0x0040, "stun", 0.0, 0);
+		assertTrue(effects.put(activeStun, 0));
+
+		try {
+			Thread.sleep(80);
+		} catch (InterruptedException ignored) {
+		}
+
+		// active() chama purgeExpiredAndRestoreShadowed() antes da task agendada rodar
+		// remove()
+		assertTrue(effects.active().isEmpty(), "Buff expirado nao deve aparecer em active()");
+		// Mesmo apos o purge automatico em active(), remove(activeStun) deve retornar
+		// true na primera chamada
+		// para permitir que a task agendada dispare refreshBuffs() e remova o icone da
+		// UI do cliente
+		assertTrue(effects.remove(activeStun), "remove() deve retornar true para buff recem-purgado por tempo");
+		assertFalse(effects.remove(activeStun), "Segunda chamada a remove() deve retornar false");
+	}
 }
