@@ -10,7 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Quest 409: Path to Elven Oracle (1ª Troca de Classe do Elven Mystic para Elven Oracle).
+ * Quest 409: Path to Elven Oracle (1ª Troca de Classe do Elven Mystic para
+ * Elven Oracle).
  */
 @Component
 public class Quest409PathToOracle extends Quest {
@@ -84,11 +85,19 @@ public class Quest409PathToOracle extends Quest {
 			} else if (qs.getQuestItemsCount(LEAF_OF_ORACLE) > 0) {
 				return "30293-04.htm";
 			}
-		} else if ("30424-08.htm".equalsIgnoreCase(event)) {
+		} else if ("30424-08.htm".equalsIgnoreCase(event) || "30424_1".equalsIgnoreCase(event)) {
 			if (qs.getCond() > 0) {
 				qs.setCond(2);
+				qs.addSpawn(LIZARDMAN_WARRIOR, 180000);
+				qs.addSpawn(LIZARDMAN_SCOUT, 180000);
+				qs.addSpawn(LIZARDMAN, 180000);
 			}
-			return event;
+			if (false) {
+				if (qs.getCond() > 0) {
+					qs.setCond(2);
+				}
+			}
+			return "30424-08.htm";
 		} else if ("30424_1".equalsIgnoreCase(event)) {
 			return "";
 		} else if ("30428_1".equalsIgnoreCase(event)) {
@@ -100,6 +109,10 @@ public class Quest409PathToOracle extends Quest {
 				return "30428-03.htm";
 			}
 		} else if ("30428_3".equalsIgnoreCase(event)) {
+			if (qs.getCond() > 0) {
+				qs.addSpawn(TAMIL, 180000);
+				return "30428-04.htm";
+			}
 			if (qs.getCond() > 0) {
 				return "30428-04.htm";
 			}
@@ -207,7 +220,7 @@ public class Quest409PathToOracle extends Quest {
 		int npcId = npc.getNpcId();
 		int cond = qs.getCond();
 
-		if (npcId == LIZARDMAN_WARRIOR) {
+		if (npcId == LIZARDMAN_WARRIOR || npcId == LIZARDMAN_SCOUT || npcId == LIZARDMAN) {
 			if (cond > 0 && qs.getQuestItemsCount(LIZARD_CAPTAIN_ORDER) == 0) {
 				qs.giveItems(LIZARD_CAPTAIN_ORDER, 1);
 				qs.playSound("ItemSound.quest_middle");
