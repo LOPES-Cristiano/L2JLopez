@@ -49,7 +49,8 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Handler modular para operacoes comerciais, lojas privadas (BuffShop/Personal Store),
+ * Handler modular para operacoes comerciais, lojas privadas (BuffShop/Personal
+ * Store),
  * Warehouse (deposito/retirada), Crafting/Recipes e MultiSell.
  */
 public class TradeStorePacketHandler {
@@ -108,26 +109,31 @@ public class TradeStorePacketHandler {
 		}
 		if (active.isBuffShop() && ctx.buffShop() != null) {
 			var skillTable = ctx.skillService() != null ? ctx.skillService().table() : null;
-			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(0, ctx.buffShop().renderSellerManageHtml(active, skillTable, 1)));
+			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(0,
+					ctx.buffShop().renderSellerManageHtml(active, skillTable, 1)));
 			return;
 		}
 		List<PrivateStoreItem> availableItems = new ArrayList<>();
 		for (var it : active.inventory().items()) {
 			if (!it.isEquipped() && it.template() != null && it.template().type2() != ItemTemplate.TYPE2_QUEST
-					&& it.itemId() != ItemTemplate.ADENA_ID && (it.template().isTradeable() || it.template().price() > 0)) {
-				availableItems.add(new PrivateStoreItem(it.objectId(), it.itemId(), it.count(), it.template().price(), it.template().bodyPart(), it.enchant()));
+					&& it.itemId() != ItemTemplate.ADENA_ID
+					&& (it.template().isTradeable() || it.template().price() > 0)) {
+				availableItems.add(new PrivateStoreItem(it.objectId(), it.itemId(), it.count(), it.template().price(),
+						it.template().bodyPart(), it.enchant()));
 			}
 		}
 		List<PrivateStoreItem> currentItems = new ArrayList<>();
 		SellStoreList existing = resolveOfflineTrade(ctx).getSellStoreList(active.objectId());
 		if (existing != null && existing.items() != null) {
 			for (OfflineShopItem si : existing.items()) {
-				currentItems.add(new PrivateStoreItem(si.objectId(), si.itemId(), si.count(), si.price(), si.bodyPart(), si.enchant()));
+				currentItems.add(new PrivateStoreItem(si.objectId(), si.itemId(), si.count(), si.price(), si.bodyPart(),
+						si.enchant()));
 			}
 		}
 		int currencyId = Config.SELL_BY_ITEM ? Config.SELL_ITEM : ItemTemplate.ADENA_ID;
 		int coinCount = active.inventory().byItemId(currencyId).map(ItemInstance::count).orElse(0);
-		session.send(new PrivateStoreManageListSell(active.objectId(), existing != null && existing.packageSale(), coinCount, availableItems, currentItems));
+		session.send(new PrivateStoreManageListSell(active.objectId(), existing != null && existing.packageSale(),
+				coinCount, availableItems, currentItems));
 	}
 
 	public void handleSetPrivateStoreListSell(SetPrivateStoreListSell p) {
@@ -156,13 +162,15 @@ public class TradeStorePacketHandler {
 				String name = skOpt.map(com.lopez.l2j.game.skill.SkillTemplate::name).orElse("Skill #" + skillId);
 				buffItems.add(new BuffShopItem(skillId, level, price, name));
 			}
-			ctx.buffShop().startShop(active, active.storeTitle() != null ? active.storeTitle() : "Buff Store", buffItems);
+			ctx.buffShop().startShop(active, active.storeTitle() != null ? active.storeTitle() : "Buff Store",
+					buffItems);
 			session.sendUserInfoAndBroadcastCharInfo();
 			if (ctx.world() != null) {
 				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
 						new PrivateStoreMsgSell(active.objectId(), active.storeTitle()), false);
 			}
-			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Buff shop iniciada com " + buffItems.size() + " buffs a venda!"));
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					"Buff shop iniciada com " + buffItems.size() + " buffs a venda!"));
 			return;
 		}
 
@@ -193,7 +201,8 @@ public class TradeStorePacketHandler {
 				return;
 			}
 			int bodyPart = invItem.template() != null ? invItem.template().bodyPart() : 0;
-			sellItems.add(new OfflineShopItem(invItem.objectId(), invItem.itemId(), req.count(), req.price(), invItem.enchant(), bodyPart));
+			sellItems.add(new OfflineShopItem(invItem.objectId(), invItem.itemId(), req.count(), req.price(),
+					invItem.enchant(), bodyPart));
 		}
 
 		if (sellItems.isEmpty()) {
@@ -209,7 +218,9 @@ public class TradeStorePacketHandler {
 		if (ctx.world() != null) {
 			if (p.packageSale()) {
 				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
-						new com.lopez.l2j.network.game.packet.GameServerPacket.ExPrivateStoreSetWholeMsg(active.objectId(), title), false);
+						new com.lopez.l2j.network.game.packet.GameServerPacket.ExPrivateStoreSetWholeMsg(
+								active.objectId(), title),
+						false);
 			} else {
 				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
 						new PrivateStoreMsgSell(active.objectId(), title), false);
@@ -247,7 +258,9 @@ public class TradeStorePacketHandler {
 		if (ctx != null && ctx.world() != null) {
 			if (active.privateStoreType() == PlayerCharacter.STORE_PACKAGE_SELL) {
 				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
-						new com.lopez.l2j.network.game.packet.GameServerPacket.ExPrivateStoreSetWholeMsg(active.objectId(), p.storeMsg()), false);
+						new com.lopez.l2j.network.game.packet.GameServerPacket.ExPrivateStoreSetWholeMsg(
+								active.objectId(), p.storeMsg()),
+						false);
 			} else {
 				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS,
 						new PrivateStoreMsgSell(active.objectId(), p.storeMsg()), false);
@@ -272,12 +285,14 @@ public class TradeStorePacketHandler {
 					ItemInstance invItem = invItemOpt.get();
 					int availableCount = Math.min(si.count(), invItem.count());
 					if (availableCount > 0) {
-						items.add(new PrivateStoreItem(invItem.objectId(), invItem.itemId(), availableCount, si.price(), si.bodyPart(), invItem.enchant()));
+						items.add(new PrivateStoreItem(invItem.objectId(), invItem.itemId(), availableCount, si.price(),
+								si.bodyPart(), invItem.enchant()));
 					}
 				}
 			}
 		}
-		session.send(new PrivateStoreListSell(seller.objectId(), store != null && store.packageSale(), (int) active.inventory().adena(), items));
+		session.send(new PrivateStoreListSell(seller.objectId(), store != null && store.packageSale(),
+				(int) active.inventory().adena(), items));
 	}
 
 	public void showPrivateStoreBuyWindow(PlayerCharacter buyer) {
@@ -295,7 +310,8 @@ public class TradeStorePacketHandler {
 						.filter(i -> !i.isEquipped() && i.itemId() == bi.itemId() && i.enchant() == bi.enchant())
 						.findFirst();
 				int objId = sellerItemOpt.map(ItemInstance::objectId).orElse(bi.objectId());
-				items.add(new PrivateStoreItem(objId, bi.itemId(), bi.count(), bi.price(), bi.bodyPart(), bi.enchant()));
+				items.add(
+						new PrivateStoreItem(objId, bi.itemId(), bi.count(), bi.price(), bi.bodyPart(), bi.enchant()));
 			}
 		}
 		session.send(new PrivateStoreListBuy(buyer.objectId(), (int) active.inventory().adena(), items));
@@ -348,13 +364,15 @@ public class TradeStorePacketHandler {
 			if (result.success()) {
 				for (int skillId : result.appliedSkills()) {
 					int lvl = sellerChar.skillLevel(skillId);
-					if (lvl <= 0) lvl = 1;
+					if (lvl <= 0)
+						lvl = 1;
 					var skOpt = skillTable != null ? skillTable.get(skillId, lvl)
 							: java.util.Optional.<com.lopez.l2j.game.skill.SkillTemplate>empty();
 					if (skOpt.isPresent()) {
 						var sk = skOpt.get();
 						session.applySkillEffects(sk, false);
-						var anim = new MagicSkillUse(sellerChar.objectId(), active.objectId(), sk.id(), sk.level(), 500, 0,
+						var anim = new MagicSkillUse(sellerChar.objectId(), active.objectId(), sk.id(), sk.level(), 500,
+								0,
 								sellerChar.x(), sellerChar.y(), sellerChar.z(), active.x(), active.y(), active.z());
 						session.send(anim);
 						sellerOnline.send(anim);
@@ -363,7 +381,8 @@ public class TradeStorePacketHandler {
 				int currencyId = Config.SELL_BY_ITEM ? Config.SELL_ITEM : ItemTemplate.ADENA_ID;
 				var buyerCur = active.inventory().byItemId(currencyId).orElse(null);
 				if (buyerCur != null) {
-					session.send(new InventoryUpdate(List.of(ItemInfo.of(buyerCur, buyerCur.count() == 0 ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+					session.send(new InventoryUpdate(List
+							.of(ItemInfo.of(buyerCur, buyerCur.count() == 0 ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
 				}
 				session.refreshWeightAndPenalties();
 
@@ -376,7 +395,8 @@ public class TradeStorePacketHandler {
 				}
 
 				String coinName = Config.SELL_BY_ITEM ? Config.COIN_TEXT : "Adena";
-				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Voce comprou buffs por " + result.totalCost() + " " + coinName + "."));
+				session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"Voce comprou buffs por " + result.totalCost() + " " + coinName + "."));
 				sellerOnline.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 						active.name() + " comprou buffs na sua loja por " + result.totalCost() + " " + coinName + "."));
 			} else {
@@ -415,7 +435,8 @@ public class TradeStorePacketHandler {
 					return;
 				}
 				long totalCost = 0L;
-				record ValidatedBuyItem(OfflineShopItem storeEntry, ItemInstance sellerItem, int count, int unitPrice) {}
+				record ValidatedBuyItem(OfflineShopItem storeEntry, ItemInstance sellerItem, int count, int unitPrice) {
+				}
 				List<ValidatedBuyItem> validated = new ArrayList<>();
 
 				for (var req : p.items()) {
@@ -471,13 +492,17 @@ public class TradeStorePacketHandler {
 
 				if (totalCost > 0) {
 					if (ctx.inventories() != null) {
-						var consumedAdena = ctx.inventories().consumeItem(active.inventory(), ItemTemplate.ADENA_ID, (int) totalCost, "PrivateStoreBuy");
+						var consumedAdena = ctx.inventories().consumeItem(active.inventory(), ItemTemplate.ADENA_ID,
+								(int) totalCost, "PrivateStoreBuy");
 						if (consumedAdena != null) {
-							buyerUpdates.add(ItemInfo.of(consumedAdena.item(), consumedAdena.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+							buyerUpdates.add(ItemInfo.of(consumedAdena.item(),
+									consumedAdena.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
 						}
-						var addedAdena = ctx.inventories().addItem(sellerChar.inventory(), ItemTemplate.ADENA_ID, (int) totalCost, "PrivateStoreSell");
+						var addedAdena = ctx.inventories().addItem(sellerChar.inventory(), ItemTemplate.ADENA_ID,
+								(int) totalCost, "PrivateStoreSell");
 						if (addedAdena != null && addedAdena.item() != null) {
-							sellerUpdates.add(ItemInfo.of(addedAdena.item(), addedAdena.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+							sellerUpdates.add(ItemInfo.of(addedAdena.item(),
+									addedAdena.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
 						}
 					} else {
 						active.inventory().destroyItemByItemId(ItemTemplate.ADENA_ID, (int) totalCost);
@@ -489,11 +514,14 @@ public class TradeStorePacketHandler {
 					int itemId = vb.sellerItem().itemId();
 					int enchant = vb.sellerItem().enchant();
 					if (ctx.inventories() != null) {
-						var destroyed = ctx.inventories().destroyItem(sellerChar.inventory(), vb.sellerItem().objectId(), vb.count(), "PrivateStoreSell");
+						var destroyed = ctx.inventories().destroyItem(sellerChar.inventory(),
+								vb.sellerItem().objectId(), vb.count(), "PrivateStoreSell");
 						if (destroyed != null) {
-							sellerUpdates.add(ItemInfo.of(destroyed.item(), destroyed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+							sellerUpdates.add(ItemInfo.of(destroyed.item(),
+									destroyed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
 						}
-						var added = ctx.inventories().addItem(active.inventory(), itemId, vb.count(), "PrivateStoreBuy");
+						var added = ctx.inventories().addItem(active.inventory(), itemId, vb.count(),
+								"PrivateStoreBuy");
 						if (added != null) {
 							List<ItemInstance> createdList = (added.allItems() != null && !added.allItems().isEmpty())
 									? added.allItems()
@@ -503,7 +531,8 @@ public class TradeStorePacketHandler {
 									createdItem.enchant(enchant);
 									ctx.inventories().saveItem(createdItem);
 								}
-								buyerUpdates.add(ItemInfo.of(createdItem, added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+								buyerUpdates.add(
+										ItemInfo.of(createdItem, added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
 							}
 						}
 					} else {
@@ -516,7 +545,8 @@ public class TradeStorePacketHandler {
 					int remaining = oldEntry.count() - vb.count();
 					sellStore.items().remove(oldEntry);
 					if (remaining > 0) {
-						sellStore.items().add(new OfflineShopItem(oldEntry.objectId(), oldEntry.itemId(), remaining, oldEntry.price(), oldEntry.enchant(), oldEntry.bodyPart()));
+						sellStore.items().add(new OfflineShopItem(oldEntry.objectId(), oldEntry.itemId(), remaining,
+								oldEntry.price(), oldEntry.enchant(), oldEntry.bodyPart()));
 					}
 				}
 
@@ -556,7 +586,8 @@ public class TradeStorePacketHandler {
 			session.send(new ActionFailed());
 			return;
 		}
-		if (active.isDead() || active.isOlympiadMode() || active.isStoreOpen() || active.isBuffShop() || active.isInCombat() || active.autoAttacking()) {
+		if (active.isDead() || active.isOlympiadMode() || active.isStoreOpen() || active.isBuffShop()
+				|| active.isInCombat() || active.autoAttacking()) {
 			session.send(new ActionFailed());
 			return;
 		}
@@ -628,7 +659,8 @@ public class TradeStorePacketHandler {
 			session.send(new ActionFailed());
 			return;
 		}
-		if (active.isDead() || active.isOlympiadMode() || active.isStoreOpen() || active.isBuffShop() || active.isInCombat() || active.autoAttacking()) {
+		if (active.isDead() || active.isOlympiadMode() || active.isStoreOpen() || active.isBuffShop()
+				|| active.isInCombat() || active.autoAttacking()) {
 			session.send(new ActionFailed());
 			return;
 		}
@@ -637,11 +669,13 @@ public class TradeStorePacketHandler {
 			return;
 		}
 		var passkeyService = resolveWarehousePasskeyService(ctx);
-		if (passkeyService != null && passkeyService.hasPasskey(active.objectId()) && !passkeyService.isUnlocked(active.objectId())) {
+		if (passkeyService != null && passkeyService.hasPasskey(active.objectId())
+				&& !passkeyService.isUnlocked(active.objectId())) {
 			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay(
 					0, 2, "Warehouse", "Seu armazem esta protegido por Passkey. Desbloqueie antes de retirar itens."));
 			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(
-					0, passkeyService.buildPasskeyHtml(active.objectId(), "unlock", "", "Desbloqueie o armazem para retirar itens.")));
+					0, passkeyService.buildPasskeyHtml(active.objectId(), "unlock", "",
+							"Desbloqueie o armazem para retirar itens.")));
 			session.send(new ActionFailed());
 			return;
 		}
@@ -653,10 +687,12 @@ public class TradeStorePacketHandler {
 			boolean ok = ctx.warehouse().withdrawItem(active.inventory(), active.objectId(), req.objectId(),
 					req.count());
 			if (!ok && active.clanId() > 0 && hasClanWhPriv) {
-				ok = ctx.warehouse().withdrawClanItem(active.inventory(), active.clanId(), true, req.objectId(), req.count());
+				ok = ctx.warehouse().withdrawClanItem(active.inventory(), active.clanId(), true, req.objectId(),
+						req.count());
 			}
 			if (!ok && Config.ALLOW_FREIGHT) {
-				ok = ctx.warehouse().withdrawFreightItem(active.inventory(), active.objectId(), req.objectId(), req.count());
+				ok = ctx.warehouse().withdrawFreightItem(active.inventory(), active.objectId(), req.objectId(),
+						req.count());
 			}
 			if (ok) {
 				var item = active.inventory().byObjectId(req.objectId()).orElse(null);
@@ -702,9 +738,11 @@ public class TradeStorePacketHandler {
 	// ---- Trade (Troca Direta) ----
 
 	private com.lopez.l2j.game.trade.TradeService resolveTradeService(GameSession.Context ctx) {
-		if (ctx == null) return null;
+		if (ctx == null)
+			return null;
 		var bean = ctx.getBean(com.lopez.l2j.game.trade.TradeService.class);
-		return bean != null ? bean : com.lopez.l2j.network.game.GameEngineContext.getBean(com.lopez.l2j.game.trade.TradeService.class);
+		return bean != null ? bean
+				: com.lopez.l2j.network.game.GameEngineContext.getBean(com.lopez.l2j.game.trade.TradeService.class);
 	}
 
 	public void handleTradeRequest(GameClientPacket.TradeRequest p) {
@@ -716,14 +754,16 @@ public class TradeStorePacketHandler {
 			return;
 		}
 		var targetOpt = ctx.world().player(p.objectId());
-		if (targetOpt.isEmpty() || targetOpt.get().character() == null || targetOpt.get().character().instanceId() != active.instanceId()) {
+		if (targetOpt.isEmpty() || targetOpt.get().character() == null
+				|| targetOpt.get().character().instanceId() != active.instanceId()) {
 			session.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
 			session.send(new ActionFailed());
 			return;
 		}
 		PlayerCharacter partner = targetOpt.get().character();
 		if (tradeService.requestTrade(active, partner, session::send)) {
-			targetOpt.get().send(new com.lopez.l2j.network.game.packet.GameServerPacket.SendTradeRequest(active.objectId()));
+			targetOpt.get()
+					.send(new com.lopez.l2j.network.game.packet.GameServerPacket.SendTradeRequest(active.objectId()));
 		} else {
 			session.send(new ActionFailed());
 		}
@@ -757,8 +797,10 @@ public class TradeStorePacketHandler {
 			var reqItems = requester.inventory().items().stream()
 					.filter(i -> !i.isEquipped() && i.template() != null && i.template().isTradeable())
 					.toList();
-			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.TradeStart(requester.objectId(), myItems));
-			reqOnline.send(new com.lopez.l2j.network.game.packet.GameServerPacket.TradeStart(active.objectId(), reqItems));
+			session.send(
+					new com.lopez.l2j.network.game.packet.GameServerPacket.TradeStart(requester.objectId(), myItems));
+			reqOnline.send(
+					new com.lopez.l2j.network.game.packet.GameServerPacket.TradeStart(active.objectId(), reqItems));
 		}
 	}
 
@@ -783,8 +825,8 @@ public class TradeStorePacketHandler {
 			ItemInstance item = itemOpt.get();
 			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.TradeOwnAdd(item, p.count()));
 			PlayerCharacter partner = tradeOpt.get().getPartner(active);
-			ctx.world().player(partner.objectId()).ifPresent(po ->
-					po.send(new com.lopez.l2j.network.game.packet.GameServerPacket.TradeOtherAdd(item, p.count())));
+			ctx.world().player(partner.objectId()).ifPresent(po -> po
+					.send(new com.lopez.l2j.network.game.packet.GameServerPacket.TradeOtherAdd(item, p.count())));
 		}
 	}
 
@@ -803,10 +845,10 @@ public class TradeStorePacketHandler {
 		var trade = tradeOpt.get();
 		PlayerCharacter partner = trade.getPartner(active);
 		var partnerOnline = ctx.world().player(partner.objectId()).orElse(null);
-		java.util.function.Consumer<com.lopez.l2j.network.game.packet.GameServerPacket> p1Sender =
-				trade.player1().objectId() == active.objectId() ? session::send : (partnerOnline != null ? partnerOnline::send : null);
-		java.util.function.Consumer<com.lopez.l2j.network.game.packet.GameServerPacket> p2Sender =
-				trade.player2().objectId() == active.objectId() ? session::send : (partnerOnline != null ? partnerOnline::send : null);
+		java.util.function.Consumer<com.lopez.l2j.network.game.packet.GameServerPacket> p1Sender = trade.player1()
+				.objectId() == active.objectId() ? session::send : (partnerOnline != null ? partnerOnline::send : null);
+		java.util.function.Consumer<com.lopez.l2j.network.game.packet.GameServerPacket> p2Sender = trade.player2()
+				.objectId() == active.objectId() ? session::send : (partnerOnline != null ? partnerOnline::send : null);
 
 		if (p.response() != 1) {
 			tradeService.cancelTrade(active, p1Sender, p2Sender);
@@ -848,15 +890,18 @@ public class TradeStorePacketHandler {
 		}
 		List<PrivateStoreItem> available = new ArrayList<>();
 		for (var it : active.inventory().items()) {
-			if (!it.isEquipped() && it.template() != null && it.template().isTradeable() && it.itemId() != ItemTemplate.ADENA_ID) {
-				available.add(new PrivateStoreItem(it.objectId(), it.itemId(), it.count(), it.template().price(), it.template().bodyPart(), it.enchant()));
+			if (!it.isEquipped() && it.template() != null && it.template().isTradeable()
+					&& it.itemId() != ItemTemplate.ADENA_ID) {
+				available.add(new PrivateStoreItem(it.objectId(), it.itemId(), it.count(), it.template().price(),
+						it.template().bodyPart(), it.enchant()));
 			}
 		}
 		List<PrivateStoreItem> current = new ArrayList<>();
 		BuyStoreList existing = resolveOfflineTrade(ctx).getBuyStoreList(active.objectId());
 		if (existing != null && existing.items() != null) {
 			for (OfflineShopItem bi : existing.items()) {
-				current.add(new PrivateStoreItem(bi.objectId(), bi.itemId(), bi.count(), bi.price(), bi.bodyPart(), bi.enchant()));
+				current.add(new PrivateStoreItem(bi.objectId(), bi.itemId(), bi.count(), bi.price(), bi.bodyPart(),
+						bi.enchant()));
 			}
 		}
 		session.send(new PrivateStoreManageListBuy(
@@ -960,7 +1005,8 @@ public class TradeStorePacketHandler {
 		}
 		var buyerOnline = buyerOpt.get();
 		PlayerCharacter buyerChar = buyerOnline.character();
-		if (buyerChar == active || buyerChar.isDead() || buyerChar.privateStoreType() != PlayerCharacter.STORE_TYPE_BUY) {
+		if (buyerChar == active || buyerChar.isDead()
+				|| buyerChar.privateStoreType() != PlayerCharacter.STORE_TYPE_BUY) {
 			session.send(new ActionFailed());
 			return;
 		}
@@ -983,7 +1029,9 @@ public class TradeStorePacketHandler {
 		synchronized (firstLock) {
 			synchronized (secondLock) {
 				long totalCost = 0L;
-				record ValidatedSellItem(OfflineShopItem storeOrder, ItemInstance sellerItem, int count, int unitPrice) {}
+				record ValidatedSellItem(OfflineShopItem storeOrder, ItemInstance sellerItem, int count,
+						int unitPrice) {
+				}
 				List<ValidatedSellItem> validated = new ArrayList<>();
 
 				for (var req : p.items()) {
@@ -1009,7 +1057,8 @@ public class TradeStorePacketHandler {
 						return;
 					}
 					ItemInstance sellerItem = sellerItemOpt.get();
-					if (sellerItem.isEquipped() || sellerItem.itemId() != req.itemId() || sellerItem.count() < req.count()) {
+					if (sellerItem.isEquipped() || sellerItem.itemId() != req.itemId()
+							|| sellerItem.count() < req.count()) {
 						session.send(new ActionFailed());
 						return;
 					}
@@ -1033,13 +1082,17 @@ public class TradeStorePacketHandler {
 
 				if (totalCost > 0) {
 					if (ctx.inventories() != null) {
-						var consumedAdena = ctx.inventories().consumeItem(buyerChar.inventory(), ItemTemplate.ADENA_ID, (int) totalCost, "PrivateStoreBuy");
+						var consumedAdena = ctx.inventories().consumeItem(buyerChar.inventory(), ItemTemplate.ADENA_ID,
+								(int) totalCost, "PrivateStoreBuy");
 						if (consumedAdena != null) {
-							buyerUpdates.add(ItemInfo.of(consumedAdena.item(), consumedAdena.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+							buyerUpdates.add(ItemInfo.of(consumedAdena.item(),
+									consumedAdena.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
 						}
-						var addedAdena = ctx.inventories().addItem(active.inventory(), ItemTemplate.ADENA_ID, (int) totalCost, "PrivateStoreSell");
+						var addedAdena = ctx.inventories().addItem(active.inventory(), ItemTemplate.ADENA_ID,
+								(int) totalCost, "PrivateStoreSell");
 						if (addedAdena != null && addedAdena.item() != null) {
-							sellerUpdates.add(ItemInfo.of(addedAdena.item(), addedAdena.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+							sellerUpdates.add(ItemInfo.of(addedAdena.item(),
+									addedAdena.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
 						}
 					} else {
 						buyerChar.inventory().destroyItemByItemId(ItemTemplate.ADENA_ID, (int) totalCost);
@@ -1051,11 +1104,14 @@ public class TradeStorePacketHandler {
 					int itemId = vs.sellerItem().itemId();
 					int enchant = vs.sellerItem().enchant();
 					if (ctx.inventories() != null) {
-						var destroyed = ctx.inventories().destroyItem(active.inventory(), vs.sellerItem().objectId(), vs.count(), "PrivateStoreSell");
+						var destroyed = ctx.inventories().destroyItem(active.inventory(), vs.sellerItem().objectId(),
+								vs.count(), "PrivateStoreSell");
 						if (destroyed != null) {
-							sellerUpdates.add(ItemInfo.of(destroyed.item(), destroyed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+							sellerUpdates.add(ItemInfo.of(destroyed.item(),
+									destroyed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
 						}
-						var added = ctx.inventories().addItem(buyerChar.inventory(), itemId, vs.count(), "PrivateStoreBuy");
+						var added = ctx.inventories().addItem(buyerChar.inventory(), itemId, vs.count(),
+								"PrivateStoreBuy");
 						if (added != null) {
 							List<ItemInstance> createdList = (added.allItems() != null && !added.allItems().isEmpty())
 									? added.allItems()
@@ -1065,7 +1121,8 @@ public class TradeStorePacketHandler {
 									createdItem.enchant(enchant);
 									ctx.inventories().saveItem(createdItem);
 								}
-								buyerUpdates.add(ItemInfo.of(createdItem, added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
+								buyerUpdates.add(
+										ItemInfo.of(createdItem, added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
 							}
 						}
 					} else {
@@ -1077,7 +1134,8 @@ public class TradeStorePacketHandler {
 					int remaining = oldOrder.count() - vs.count();
 					buyStore.items().remove(oldOrder);
 					if (remaining > 0) {
-						buyStore.items().add(new OfflineShopItem(oldOrder.objectId(), oldOrder.itemId(), remaining, oldOrder.price(), oldOrder.enchant(), oldOrder.bodyPart()));
+						buyStore.items().add(new OfflineShopItem(oldOrder.objectId(), oldOrder.itemId(), remaining,
+								oldOrder.price(), oldOrder.enchant(), oldOrder.bodyPart()));
 					}
 				}
 
@@ -1147,9 +1205,13 @@ public class TradeStorePacketHandler {
 			return;
 		}
 		int reqSkillId = recipe.isDwarven() ? 172 : 1320;
-		if (!active.isGm() && active.skillLevel(reqSkillId) > 0 && active.skillLevel(reqSkillId) < recipe.level()) {
-			session.send(new ActionFailed());
-			return;
+		if (!active.isGm()) {
+			int skillLvl = active.skillLevel(reqSkillId);
+			if (skillLvl > 0 && skillLvl < recipe.level()) {
+				session.send(SystemMessage.id(SystemMessage.CREATE_LVL_TOO_LOW_TO_REGISTER));
+				session.send(new ActionFailed());
+				return;
+			}
 		}
 		int maxSlots = active.maxInventorySlots() > 0 ? active.maxInventorySlots() : 80;
 		if (active.inventory().byItemId(recipe.productId()).isEmpty() && active.inventory().size() >= maxSlots) {
@@ -1166,15 +1228,22 @@ public class TradeStorePacketHandler {
 			return;
 		}
 
+		boolean missingIngredients = false;
 		for (RecipeEntry.Ingredient ing : recipe.ingredients()) {
 			int reqCount = recipeService.calculateEffectiveIngredientCount(ing);
 			int have = active.inventory().byItemId(ing.itemId()).map(ItemInstance::count).orElse(0);
 			if (have < reqCount) {
-				session.send(new RecipeItemMakeInfo(
-						p.id(), recipe.isDwarven(), (int) active.currentMp(), active.maxMp(), 0));
-				session.send(new ActionFailed());
-				return;
+				session.send(SystemMessage.of(SystemMessage.MISSING_S2_S1_TO_CREATE,
+						new SystemMessage.ItemName(ing.itemId()),
+						new SystemMessage.ItemNumber(reqCount - have)));
+				missingIngredients = true;
 			}
+		}
+		if (missingIngredients) {
+			session.send(new RecipeItemMakeInfo(
+					p.id(), recipe.isDwarven(), (int) active.currentMp(), active.maxMp(), 0));
+			session.send(new ActionFailed());
+			return;
 		}
 
 		active.currentMp(active.currentMp() - recipe.mpCost());
@@ -1185,10 +1254,19 @@ public class TradeStorePacketHandler {
 			if (ctx != null && ctx.inventories() != null) {
 				var consumed = ctx.inventories().consumeItem(active.inventory(), ing.itemId(), reqCount, "Craft");
 				if (consumed != null) {
-					updates.add(ItemInfo.of(consumed.item(), consumed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+					updates.add(
+							ItemInfo.of(consumed.item(), consumed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
 				}
 			} else {
 				active.inventory().destroyItemByItemId(ing.itemId(), reqCount);
+			}
+			if (reqCount > 1) {
+				session.send(SystemMessage.of(SystemMessage.S2_S1_DISAPPEARED,
+						new SystemMessage.ItemName(ing.itemId()),
+						new SystemMessage.ItemNumber(reqCount)));
+			} else {
+				session.send(SystemMessage.of(SystemMessage.S1_DISAPPEARED,
+						new SystemMessage.ItemName(ing.itemId())));
 			}
 		}
 
@@ -1196,7 +1274,8 @@ public class TradeStorePacketHandler {
 		boolean success = ThreadLocalRandom.current().nextInt(100) < effectiveRate;
 		if (success) {
 			if (ctx != null && ctx.inventories() != null) {
-				var added = ctx.inventories().addItem(active.inventory(), recipe.productId(), recipe.productCount(), "Craft");
+				var added = ctx.inventories().addItem(active.inventory(), recipe.productId(), recipe.productCount(),
+						"Craft");
 				if (added != null) {
 					if (added.allItems() != null && !added.allItems().isEmpty()) {
 						for (var it : added.allItems()) {
@@ -1222,11 +1301,13 @@ public class TradeStorePacketHandler {
 			if (recipe.productCount() > 1) {
 				session.send(SystemMessage.of(SystemMessage.EARNED_S2_S1_S,
 						new SystemMessage.ItemName(recipe.productId()),
-						new SystemMessage.Number(recipe.productCount())));
+						new SystemMessage.ItemNumber(recipe.productCount())));
 			} else {
 				session.send(SystemMessage.of(SystemMessage.EARNED_ITEM_S1,
 						new SystemMessage.ItemName(recipe.productId())));
 			}
+		} else {
+			session.send(SystemMessage.id(SystemMessage.ITEM_MIXING_FAILED));
 		}
 
 		if (!updates.isEmpty()) {
@@ -1254,10 +1335,10 @@ public class TradeStorePacketHandler {
 			session.sendUserInfoAndBroadcastCharInfo();
 		}
 		List<Integer> recipes = recipeService.getRecipeBook(active.objectId(), true);
-		List<com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopManageList.ManufactureRecipeEntry> createList = new ArrayList<>();
+		List<com.lopez.l2j.network.game.packet.GameServerPacket.ManufactureRecipeEntry> createList = new ArrayList<>();
 		for (var item : recipeService.getManufactureList(active.objectId())) {
 			if (recipes.contains(item.recipeId())) {
-				createList.add(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopManageList.ManufactureRecipeEntry(
+				createList.add(new com.lopez.l2j.network.game.packet.GameServerPacket.ManufactureRecipeEntry(
 						item.recipeId(), item.cost()));
 			}
 		}
@@ -1334,9 +1415,9 @@ public class TradeStorePacketHandler {
 			return;
 		}
 		RecipeService recipeService = resolveRecipeService(ctx);
-		List<com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopManageList.ManufactureRecipeEntry> entries = new ArrayList<>();
+		List<com.lopez.l2j.network.game.packet.GameServerPacket.ManufactureRecipeEntry> entries = new ArrayList<>();
 		for (var item : recipeService.getManufactureList(manufacturer.objectId())) {
-			entries.add(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopManageList.ManufactureRecipeEntry(
+			entries.add(new com.lopez.l2j.network.game.packet.GameServerPacket.ManufactureRecipeEntry(
 					item.recipeId(), item.cost()));
 		}
 		session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopSellList(
@@ -1370,7 +1451,8 @@ public class TradeStorePacketHandler {
 	public void handleRecipeShopMakeItem(GameClientPacket.RequestRecipeShopMakeItem p) {
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
-		if (!session.inWorld() || active == null || active.isDead() || ctx == null || ctx.world() == null || p == null) {
+		if (!session.inWorld() || active == null || active.isDead() || ctx == null || ctx.world() == null
+				|| p == null) {
 			session.send(new ActionFailed());
 			return;
 		}
@@ -1392,15 +1474,94 @@ public class TradeStorePacketHandler {
 		}
 		RecipeService recipeService = resolveRecipeService(ctx);
 		var priceOpt = recipeService.getManufactureCost(crafter.objectId(), p.recipeId());
+		if (priceOpt.isEmpty() && crafterOnline instanceof GameSession crafterSession
+				&& crafterSession.extendedProtocolHandler() != null) {
+			for (var entry : crafterSession.extendedProtocolHandler().getManufactureList()) {
+				if (entry.recipeId() == p.recipeId()) {
+					priceOpt = java.util.Optional.of(entry.cost());
+					break;
+				}
+			}
+		}
 		if (priceOpt.isEmpty()) {
 			session.send(new ActionFailed());
 			return;
 		}
 		int price = priceOpt.get();
+		var recipeOpt = recipeService.getRecipe(p.recipeId());
+		if (recipeOpt.isPresent()) {
+			RecipeEntry recipe = recipeOpt.get();
+			if (crafter.currentMp() < recipe.mpCost()) {
+				session.send(SystemMessage.id(SystemMessage.NOT_ENOUGH_MP));
+				session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopItemInfo(
+						crafter.objectId(), p.recipeId(), (int) crafter.currentMp(), crafter.maxMp(), 0));
+				session.send(new ActionFailed());
+				return;
+			}
+			if (price > 0 && active.inventory().adena() < price) {
+				session.send(SystemMessage.id(SystemMessage.YOU_NOT_ENOUGH_ADENA));
+				session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopItemInfo(
+						crafter.objectId(), p.recipeId(), (int) crafter.currentMp(), crafter.maxMp(), 0));
+				session.send(new ActionFailed());
+				return;
+			}
+			boolean missing = false;
+			for (RecipeEntry.Ingredient ing : recipe.ingredients()) {
+				int req = recipeService.calculateEffectiveIngredientCount(ing);
+				int have = active.inventory().getItemCount(ing.itemId());
+				if (have < req) {
+					session.send(SystemMessage.of(SystemMessage.MISSING_S2_S1_TO_CREATE,
+							new SystemMessage.ItemName(ing.itemId()),
+							new SystemMessage.ItemNumber(req - have)));
+					missing = true;
+				}
+			}
+			if (missing) {
+				session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopItemInfo(
+						crafter.objectId(), p.recipeId(), (int) crafter.currentMp(), crafter.maxMp(), 0));
+				session.send(new ActionFailed());
+				return;
+			}
+		}
 		var result = recipeService.craftForCustomer(crafter, active, p.recipeId(), price, ctx.inventories());
 		if (!result.attempted()) {
 			session.send(new ActionFailed());
 			return;
+		}
+		if (recipeOpt.isPresent()) {
+			RecipeEntry recipe = recipeOpt.get();
+			if (result.success()) {
+				if (recipe.productCount() > 1) {
+					crafterOnline.send(SystemMessage.of(SystemMessage.S2_S3_S_CREATED_FOR_S1_FOR_S4_ADENA,
+							new SystemMessage.Text(active.name()),
+							new SystemMessage.ItemNumber(recipe.productCount()),
+							new SystemMessage.ItemName(recipe.productId()),
+							new SystemMessage.ItemNumber(price)));
+					session.send(SystemMessage.of(SystemMessage.S1_CREATED_S2_S3_S_FOR_S4_ADENA,
+							new SystemMessage.Text(crafter.name()),
+							new SystemMessage.ItemNumber(recipe.productCount()),
+							new SystemMessage.ItemName(recipe.productId()),
+							new SystemMessage.ItemNumber(price)));
+				} else {
+					crafterOnline.send(SystemMessage.of(SystemMessage.S2_CREATED_FOR_S1_FOR_S3_ADENA,
+							new SystemMessage.Text(active.name()),
+							new SystemMessage.ItemName(recipe.productId()),
+							new SystemMessage.ItemNumber(price)));
+					session.send(SystemMessage.of(SystemMessage.S1_CREATED_S2_FOR_S3_ADENA,
+							new SystemMessage.Text(crafter.name()),
+							new SystemMessage.ItemName(recipe.productId()),
+							new SystemMessage.ItemNumber(price)));
+				}
+			} else {
+				crafterOnline.send(SystemMessage.of(SystemMessage.CREATION_OF_S2_FOR_S1_AT_S3_ADENA_FAILED,
+						new SystemMessage.Text(active.name()),
+						new SystemMessage.ItemName(recipe.productId()),
+						new SystemMessage.ItemNumber(price)));
+				session.send(SystemMessage.of(SystemMessage.S1_FAILED_TO_CREATE_S2_FOR_S3_ADENA,
+						new SystemMessage.Text(crafter.name()),
+						new SystemMessage.ItemName(recipe.productId()),
+						new SystemMessage.ItemNumber(price)));
+			}
 		}
 		crafterOnline.send(StatusUpdate.mp(crafter.objectId(), (int) crafter.currentMp(), crafter.maxMp()));
 		if (crafterOnline instanceof GameSession crafterSession) {
@@ -1411,7 +1572,8 @@ public class TradeStorePacketHandler {
 		session.send(com.lopez.l2j.network.game.packet.GameServerPacket.ItemList.of(
 				active.inventory().items(), false));
 		session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeShopItemInfo(
-				crafter.objectId(), p.recipeId(), (int) crafter.currentMp(), crafter.maxMp(), result.success() ? 1 : 0));
+				crafter.objectId(), p.recipeId(), (int) crafter.currentMp(), crafter.maxMp(),
+				result.success() ? 1 : 0));
 		session.refreshWeightAndPenalties();
 	}
 
