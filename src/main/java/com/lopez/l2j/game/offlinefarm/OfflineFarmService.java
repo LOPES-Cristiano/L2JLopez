@@ -238,6 +238,9 @@ public class OfflineFarmService {
 								NpcInstance target = world.npc(action.targetId()).orElse(null);
 								if (target != null && !target.isDead()) {
 									combatService.attackNpc(player, null, target);
+									if (target.isDead()) {
+										rewardOfflineMonsterKill(player, target, world, inventoryService);
+									}
 								}
 							}
 						}
@@ -246,6 +249,9 @@ public class OfflineFarmService {
 								NpcInstance target = world.npc(action.targetId()).orElse(null);
 								if (target != null && !target.isDead()) {
 									combatService.skillPhysicalNpc(player, null, target, 1000.0, true, false);
+									if (target.isDead()) {
+										rewardOfflineMonsterKill(player, target, world, inventoryService);
+									}
 								}
 							}
 						}
@@ -263,6 +269,28 @@ public class OfflineFarmService {
 			log.error("Offline Farm: Erro inesperado na rotina de {}: {}", player.name(), e.getMessage(), e);
 		} finally {
 			stopOfflineFarm(playerId);
+		}
+	}
+
+	private void rewardOfflineMonsterKill(PlayerCharacter player, NpcInstance target, GameWorld world, InventoryService inventoryService) {
+		if (player == null || target == null) {
+			return;
+		}
+		int mobLvl = target.template() != null ? Math.max(1, target.template().level()) : 1;
+		long expGain = target.template() != null && target.template().exp() > 0 ? target.template().exp() : mobLvl * 150L;
+		int spGain = target.template() != null && target.template().sp() > 0 ? target.template().sp() : mobLvl * 15;
+		player.addExpAndSp(expGain, spGain);
+
+		int adenaDrop = Math.max(10, mobLvl * 25);
+		if (player.inventory() != null) {
+			if (inventoryService != null) {
+				inventoryService.addItem(player.objectId(), player.inventory(), 57, adenaDrop, "OfflineFarmDrop");
+			} else {
+				player.inventory().addItem(57, adenaDrop);
+			}
+		}
+		if (world != null) {
+			world.scheduleRespawn(target);
 		}
 	}
 
