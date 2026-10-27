@@ -2,12 +2,14 @@ package com.lopez.l2j.game.olympiad;
 
 import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.service.HeroService;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ExOlympiadMode;
 import com.lopez.l2j.network.game.packet.GameServerPacket.ExOlympiadUserInfo;
 import com.lopez.l2j.network.game.packet.GameServerPacket.StatusUpdate;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -19,6 +21,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,8 +69,15 @@ public class OlympiadManager {
 	private final Map<OlympiadMode, List<PlayerCharacter>> modeQueues = new ConcurrentHashMap<>();
 	private final Map<Integer, String> registeredIps = new ConcurrentHashMap<>();
 	private final AtomicInteger stadiumInstanceCounter = new AtomicInteger(9300);
+	private final Map<Integer, ScheduledFuture<?>> arenaTimers = new ConcurrentHashMap<>();
+	private final ScheduledExecutorService olympiadScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+		Thread t = new Thread(r, "Olympiad-Manager-Scheduler");
+		t.setDaemon(true);
+		return t;
+	});
 	private final JdbcClient jdbc;
 	private OlyClassDamageManager olyClassDamageManager;
+	private HeroService heroService;
 
 	public record ActiveOlympiadMatch(
 			int instanceId,
@@ -112,6 +125,11 @@ public class OlympiadManager {
 	@Autowired(required = false)
 	public void setOlyClassDamageManager(OlyClassDamageManager olyClassDamageManager) {
 		this.olyClassDamageManager = olyClassDamageManager;
+	}
+
+	@Autowired(required = false)
+	public void setHeroService(HeroService heroService) {
+		this.heroService = heroService;
 	}
 
 	public OlyClassDamageManager olyClassDamageManager() {
@@ -241,6 +259,23 @@ public class OlympiadManager {
 	@PostConstruct
 	public void init() {
 		loadFromDb();
+		olympiadScheduler.scheduleAtFixedRate(this::runScheduledMatchmaking, 30, 30, TimeUnit.SECONDS);
+	}
+
+	@PreDestroy
+	public void shutdown() {
+		olympiadScheduler.shutdownNow();
+	}
+
+	private void runScheduledMatchmaking() {
+		if (!Config.OLYMPIAD_ENABLED || period != PERIOD_COMPETITION) {
+			return;
+		}
+		for (OlympiadMode mode : OlympiadMode.values()) {
+			if (getQueueSize(mode) >= getRequiredParticipants(mode)) {
+				processMatchmaking(mode);
+			}
+		}
 	}
 
 	public int currentCycle() {
@@ -451,6 +486,24 @@ public class OlympiadManager {
 		}
 
 		activeMatches.put(instId, new ActiveOlympiadMatch(instId, p1, p2, orig1, orig2));
+		long durationMs = getBattleDurationMs();
+		if (durationMs > 0) {
+			ScheduledFuture<?> timer = olympiadScheduler.schedule(() -> {
+				ActiveOlympiadMatch active = activeMatches.get(instId);
+				if (active != null && active.playerOne() != null && active.playerTwo() != null) {
+					double hp1 = active.playerOne().currentHp();
+					double hp2 = active.playerTwo().currentHp();
+					if (Math.abs(hp1 - hp2) < 1e-3) {
+						finishArenaMatch(instId, active.playerOne().objectId(), active.playerTwo().objectId(), true);
+					} else if (hp1 > hp2) {
+						finishArenaMatch(instId, active.playerOne().objectId(), active.playerTwo().objectId(), false);
+					} else {
+						finishArenaMatch(instId, active.playerTwo().objectId(), active.playerOne().objectId(), false);
+					}
+				}
+			}, durationMs, TimeUnit.MILLISECONDS);
+			arenaTimers.put(instId, timer);
+		}
 		return instId;
 	}
 
@@ -458,6 +511,10 @@ public class OlympiadManager {
 	 * Finaliza uma partida instanciada das Olimpiadas, computando os pontos e retornando os jogadores.
 	 */
 	public void finishArenaMatch(int instanceId, int winnerId, int loserId, boolean draw) {
+		ScheduledFuture<?> timer = arenaTimers.remove(instanceId);
+		if (timer != null) {
+			timer.cancel(false);
+		}
 		recordMatch(winnerId, loserId, draw);
 		ActiveOlympiadMatch match = activeMatches.remove(instanceId);
 		if (match == null) {
@@ -580,7 +637,50 @@ public class OlympiadManager {
 
 		activeHeroesByClass.clear();
 		activeHeroesByClass.putAll(heroes);
+		persistHeroes(heroes);
 		return Collections.unmodifiableMap(heroes);
+	}
+
+	private void persistHeroes(Map<Integer, OlympiadNoble> heroes) {
+		if (jdbc != null) {
+			try {
+				jdbc.sql("UPDATE heroes SET played = 0").update();
+			} catch (Exception ignored) {
+			}
+		}
+		for (OlympiadNoble h : heroes.values()) {
+			if (jdbc != null) {
+				try {
+					int prevCount = 0;
+					try {
+						var rows = jdbc.sql("SELECT count FROM heroes WHERE charId = :charId")
+								.param("charId", h.charId())
+								.query().listOfRows();
+						if (!rows.isEmpty() && rows.get(0).get("count") instanceof Number num) {
+							prevCount = num.intValue();
+						}
+					} catch (Exception ignored) {
+					}
+					jdbc.sql("""
+							REPLACE INTO heroes (charId, char_name, class_id, count, played)
+							VALUES (:charId, :charName, :classId, :cnt, 1)
+							""")
+							.param("charId", h.charId())
+							.param("charName", h.charName() != null ? h.charName() : "")
+							.param("classId", h.classId())
+							.param("cnt", prevCount + 1)
+							.update();
+				} catch (Exception ex) {
+					log.debug("Aviso ao persistir heroi em heroes: {}", ex.getMessage());
+				}
+			}
+			if (heroService != null) {
+				try {
+					heroService.setHero(h.charId(), 30);
+				} catch (Exception ignored) {
+				}
+			}
+		}
 	}
 
 	/**
@@ -633,6 +733,15 @@ public class OlympiadManager {
 		}
 		int pts = eom.points();
 		eom.points(0);
+		if (jdbc != null) {
+			try {
+				jdbc.sql("UPDATE olympiad_nobles_eom SET olympiad_points = 0 WHERE charId = :charId")
+						.param("charId", charId)
+						.update();
+			} catch (Exception ex) {
+				log.debug("Aviso ao atualizar olympiad_nobles_eom: {}", ex.getMessage());
+			}
+		}
 		return pts * Config.ALT_OLY_GP_PER_POINT;
 	}
 
@@ -745,6 +854,19 @@ public class OlympiadManager {
 		if (jdbc == null) {
 			return;
 		}
+		Map<Integer, String> charNames = new HashMap<>();
+		try {
+			var nameRows = jdbc.sql("SELECT obj_Id, char_name FROM characters").query().listOfRows();
+			for (var r : nameRows) {
+				Object idObj = r.get("obj_Id");
+				Object nameObj = r.get("char_name");
+				if (idObj instanceof Number n && nameObj != null) {
+					charNames.put(n.intValue(), nameObj.toString());
+				}
+			}
+		} catch (Exception ignored) {
+		}
+
 		try {
 			var rows = jdbc.sql("""
 					SELECT charId, class_id, olympiad_points, competitions_done,
@@ -760,12 +882,54 @@ public class OlympiadManager {
 				int won = ((Number) row.get("competitions_won")).intValue();
 				int lost = ((Number) row.get("competitions_lost")).intValue();
 				int drawn = ((Number) row.get("competitions_drawn")).intValue();
+				String charName = charNames.getOrDefault(charId, "");
 
-				nobles.put(charId, new OlympiadNoble(charId, "", classId, points, done, won, lost, drawn));
+				nobles.put(charId, new OlympiadNoble(charId, charName, classId, points, done, won, lost, drawn));
 			}
 			log.info("OlympiadManager carregou {} nobres do banco", rows.size());
 		} catch (Exception ex) {
 			log.warn("Nao foi possivel carregar olympiad_nobles do banco: {}", ex.getMessage());
+		}
+
+		try {
+			var eomRows = jdbc.sql("""
+					SELECT charId, class_id, olympiad_points, competitions_done,
+					       competitions_won, competitions_lost, competitions_drawn
+					FROM olympiad_nobles_eom
+					""").query().listOfRows();
+			for (var row : eomRows) {
+				int charId = ((Number) row.get("charId")).intValue();
+				int classId = ((Number) row.get("class_id")).intValue();
+				int points = ((Number) row.get("olympiad_points")).intValue();
+				int done = ((Number) row.get("competitions_done")).intValue();
+				int won = ((Number) row.get("competitions_won")).intValue();
+				int lost = ((Number) row.get("competitions_lost")).intValue();
+				int drawn = ((Number) row.get("competitions_drawn")).intValue();
+				String charName = charNames.getOrDefault(charId, "");
+
+				previousCycleNoblesEom.put(charId, new OlympiadNoble(charId, charName, classId, points, done, won, lost, drawn));
+			}
+		} catch (Exception ignored) {
+		}
+
+		try {
+			var heroRows = jdbc.sql("""
+					SELECT charId, char_name, class_id, count, played
+					FROM heroes
+					WHERE played = 1
+					""").query().listOfRows();
+			for (var row : heroRows) {
+				int charId = ((Number) row.get("charId")).intValue();
+				int classId = ((Number) row.get("class_id")).intValue();
+				String charName = row.get("char_name") != null ? row.get("char_name").toString() : charNames.getOrDefault(charId, "");
+				OlympiadNoble noble = nobles.getOrDefault(charId,
+						new OlympiadNoble(charId, charName, classId, OlympiadNoble.DEFAULT_POINTS, 0, 0, 0, 0));
+				if (noble.charName() == null || noble.charName().isBlank()) {
+					noble.charName(charName);
+				}
+				activeHeroesByClass.put(classId, noble);
+			}
+		} catch (Exception ignored) {
 		}
 	}
 
