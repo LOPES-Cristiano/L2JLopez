@@ -1,17 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<dressMeList>
-  <dress skillId="9100" name="Draconic Armor" type="ARMOR" isVip="false" >
-    <visualSet chest="6379" legs="0" gloves="6380" feet="6381" helmet="6841" />
-    <visualEffect skillId="445" level="1" recurring="true" interval="35" />
-  </dress>
+<list>
+	<!-- Classic Interlude Armor Visual Skins (100% In-Game: Adena / Gold Bar / Event Medal) -->
+	<dress skillId="9001" name="Draconic Leather Set" type="ARMOR" isVip="false">
+		<visualSet chest="6379" legs="6379" gloves="6380" feet="6381" helmet="6382"/>
+	</dress>
+	<dress skillId="9002" name="Imperial Crusader Set" type="ARMOR" isVip="false">
+		<visualSet chest="6373" legs="6374" gloves="6375" feet="6376" helmet="6378"/>
+	</dress>
+	<dress skillId="9003" name="Major Arcana Robe Set" type="ARMOR" isVip="false">
+		<visualSet chest="6383" legs="6383" gloves="6384" feet="6385" helmet="6386"/>
+	</dress>
+	<dress skillId="9004" name="Formal Wear Suit" type="ARMOR" isVip="false">
+		<visualSet chest="6408" legs="6408" gloves="6408" feet="6408" helmet="0"/>
+	</dress>
+	<dress skillId="9005" name="Apella Heavy Set" type="ARMOR" isVip="true">
+		<visualSet chest="7861" legs="7861" gloves="7862" feet="7863" helmet="7860"/>
+	</dress>
 
-  <dress skillId="9102" name="Cloak Style Armor" type="CLOAK" isVip="false">
-    <visualSet chest="7000" legs="0" gloves="0" feet="0" helmet="0" />
-    <visualEffect skillId="10005" level="1" recurring="false" />
-  </dress>
-  
-   <dress skillId="9103" name="Valakas Style Weapon" type="WEAPON" isVip="false">
-    <visualWep type="bow" rhand="7575" lhand="0" lrhand="0" />
-    <visualEffect skillId="10005" level="1" recurring="false" />
-  </dress>
-</dressMeList>
+	<!-- Classic Interlude Weapon Visual Skins -->
+	<dress skillId="9101" name="Draconic Bow" type="WEAPON" isVip="false">
+		<visualWep type="BOW" rhand="7575" lhand="0" lrhand="7575"/>
+	</dress>
+	<dress skillId="9102" name="Arcana Mace" type="WEAPON" isVip="false">
+		<visualWep type="BLUNT" rhand="6608" lhand="0" lrhand="0"/>
+	</dress>
+	<dress skillId="9103" name="Forgotten Blade" type="WEAPON" isVip="false">
+		<visualWep type="SWORD" rhand="6364" lhand="0" lrhand="0"/>
+	</dress>
+	<dress skillId="9104" name="Tallum*Dark Legion's Edge" type="WEAPON" isVip="false">
+		<visualWep type="DUAL" rhand="6580" lhand="6580" lrhand="6580"/>
+	</dress>
+</list>
