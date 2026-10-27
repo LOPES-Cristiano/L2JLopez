@@ -255,10 +255,16 @@ public class Quest223TestOfChampion extends Quest {
 		int npcId = npc.getNpcId();
 		int cond = qs.getCond();
 
-		if (npcId == HARPY && cond == 6 && ThreadLocalRandom.current().nextBoolean()) {
-			qs.addSpawn(HARPY_MATRIARCH);
-		} else if (npcId == ROAD_RATMAN && cond == 10 && ThreadLocalRandom.current().nextBoolean()) {
-			qs.addSpawn(ROAD_COLLECTOR);
+		if (npcId == HARPY && cond == 6 && npc.isScriptValue(0)) {
+			npc.setScriptValue(1);
+			if (ThreadLocalRandom.current().nextBoolean()) {
+				qs.addSpawn(HARPY_MATRIARCH, 180000);
+			}
+		} else if (npcId == ROAD_RATMAN && cond == 10 && npc.isScriptValue(0)) {
+			npc.setScriptValue(1);
+			if (ThreadLocalRandom.current().nextBoolean()) {
+				qs.addSpawn(ROAD_COLLECTOR, 180000);
+			}
 		}
 
 		return null;
