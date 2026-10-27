@@ -105,4 +105,37 @@ class AdvancedCombatAndBossRewardTest {
 		var packet = firstScene.toPacket();
 		assertThat(packet).isNotNull();
 	}
+
+	@Test
+	@DisplayName("RecipeService deve carregar todas as 865 receitas de data/xml/world/recipes.xml com IDs oficiais do cliente Interlude")
+	void testRecipeCatalogXmlIdsAndSoulshots() {
+		assertThat(recipeService.getAllRecipes().size()).isGreaterThanOrEqualTo(800);
+
+		// Soulshots D/C/B/A/S-Grade devem ter recipeId 20..24 (e nao 18..22 que no
+		// cliente sao Necklace of Anguish/Wisdom)
+		assertThat(recipeService.getRecipeByItemId(1804)).isPresent().get()
+				.extracting(RecipeEntry::id, RecipeEntry::productId, RecipeEntry::level)
+				.containsExactly(20, 1463, 2); // Soulshot: D-Grade
+		assertThat(recipeService.getRecipeByItemId(1805)).isPresent().get()
+				.extracting(RecipeEntry::id, RecipeEntry::productId, RecipeEntry::level)
+				.containsExactly(21, 1464, 4); // Soulshot: C-Grade
+		assertThat(recipeService.getRecipeByItemId(1806)).isPresent().get()
+				.extracting(RecipeEntry::id, RecipeEntry::productId, RecipeEntry::level)
+				.containsExactly(22, 1465, 6); // Soulshot: B-Grade
+		assertThat(recipeService.getRecipeByItemId(1807)).isPresent().get()
+				.extracting(RecipeEntry::id, RecipeEntry::productId, RecipeEntry::level)
+				.containsExactly(23, 1466, 7); // Soulshot: A-Grade
+		assertThat(recipeService.getRecipeByItemId(1808)).isPresent().get()
+				.extracting(RecipeEntry::id, RecipeEntry::productId, RecipeEntry::level)
+				.containsExactly(24, 1467, 8); // Soulshot: S-Grade
+
+		// ID 18 e 19 no cliente sao Necklace of Anguish (1802) e Necklace of Wisdom
+		// (1803)
+		assertThat(recipeService.getRecipe(18)).isPresent().get()
+				.extracting(RecipeEntry::recipeItemId, RecipeEntry::productId)
+				.containsExactly(1802, 907);
+		assertThat(recipeService.getRecipe(19)).isPresent().get()
+				.extracting(RecipeEntry::recipeItemId, RecipeEntry::productId)
+				.containsExactly(1803, 908);
+	}
 }
