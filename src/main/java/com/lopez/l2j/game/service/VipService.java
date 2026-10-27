@@ -3,6 +3,9 @@ package com.lopez.l2j.game.service;
 import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,14 +32,23 @@ public class VipService {
 	public static final int ORGANIC_EVENT_MEDAL_ID = 6392;
 
 	private final JdbcTemplate jdbc;
+	@Autowired(required = false)
+	private InventoryService inventoryService;
 	private ScheduledExecutorService expirationScheduler;
 
 	public VipService() {
-		this(null);
+		this(null, null);
 	}
 
-	public VipService(@Autowired(required = false) DataSource dataSource) {
+	public VipService(DataSource dataSource) {
+		this(dataSource, null);
+	}
+
+	@Autowired
+	public VipService(@Autowired(required = false) DataSource dataSource,
+			@Autowired(required = false) InventoryService inventoryService) {
 		this.jdbc = dataSource != null ? new JdbcTemplate(dataSource) : null;
+		this.inventoryService = inventoryService;
 		startExpirationScheduler();
 	}
 
@@ -85,8 +97,24 @@ public class VipService {
 			case 3 -> 25;
 			default -> 10;
 		};
-		if (!player.inventory().destroyItemByItemId(ORGANIC_GOLD_BAR_ID, costGoldBars)) {
-			return false;
+		if (inventoryService != null) {
+			var cons = inventoryService.consumeItem(player.inventory(), ORGANIC_GOLD_BAR_ID, costGoldBars, "VipActivation");
+			if (cons == null) {
+				return false;
+			}
+			GameWorld gw = GameWorld.getInstance();
+			if (gw != null) {
+				gw.sendPacket(player.objectId(), new InventoryUpdate(List.of(
+						ItemInfo.of(cons.item(), cons.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+			}
+		} else {
+			if (!player.inventory().destroyItemByItemId(ORGANIC_GOLD_BAR_ID, costGoldBars)) {
+				return false;
+			}
+			GameWorld gw = GameWorld.getInstance();
+			if (gw != null) {
+				gw.sendPacket(player.objectId(), ItemList.of(player.inventory().items(), false));
+			}
 		}
 		setVip(player, days);
 		return true;
