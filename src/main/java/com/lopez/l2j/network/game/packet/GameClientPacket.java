@@ -279,8 +279,45 @@ public sealed interface GameClientPacket {
 	record RequestCrystallizeItem(int objectId, int count) implements GameClientPacket {
 	}
 
-	/** 0x9d / 0xa6 - solicitar tempo de recarga das skills (SkillCoolTime). */
+	/** 0x9d - solicitar tempo de recarga das skills (SkillCoolTime). */
 	record RequestSkillCoolTime() implements GameClientPacket {
+	}
+
+	/** 0xa6 - definir horario do cerco do castelo (RequestSetCastleSiegeTime). */
+	record RequestSetCastleSiegeTime(int castleId, int time) implements GameClientPacket {
+		public RequestSetCastleSiegeTime() {
+			this(0, 0);
+		}
+	}
+
+	/** 0xd0:0x93 - verificar se a conta possui senha secundaria (2nd Password). */
+	record RequestEx2ndPasswordCheck() implements GameClientPacket {
+	}
+
+	/** 0xd0:0x94 - verificar/validar a senha secundaria (2nd Password). */
+	record RequestEx2ndPasswordVerify(int mode, String pin) implements GameClientPacket {
+		public RequestEx2ndPasswordVerify(String pin) {
+			this(0, pin != null ? pin : "");
+		}
+
+		public RequestEx2ndPasswordVerify() {
+			this(0, "");
+		}
+	}
+
+	/** 0xd0:0x95 - criar ou alterar a senha secundaria (2nd Password). */
+	record RequestEx2ndPasswordReq(int changePass, String pin, String newPin) implements GameClientPacket {
+		public RequestEx2ndPasswordReq(String pin, String newPin) {
+			this(0, pin != null ? pin : "", newPin != null ? newPin : "");
+		}
+
+		public RequestEx2ndPasswordReq(String pin) {
+			this(0, pin != null ? pin : "", "");
+		}
+
+		public RequestEx2ndPasswordReq() {
+			this(0, "", "");
+		}
 	}
 
 	/** 0xa8 - resposta de latencia (NetPing) do cliente. */
@@ -820,6 +857,7 @@ public sealed interface GameClientPacket {
 					case 0x62 -> new CharacterRestore(r.readD());
 					case 0x0d -> new CharacterSelect(r.readD());
 					case 0x09 -> new Logout();
+					case 0x21 -> new RequestBypassToServer(r.remaining() >= 2 ? r.readS() : "");
 					case 0x68 -> new RequestPledgeCrest(r.readD());
 					case 0xa8 -> readNetPing(r);
 					case 0xca -> readGameGuardReply(r);
@@ -952,7 +990,8 @@ public sealed interface GameClientPacket {
 					case 0x93 -> new RequestPrivateStoreQuitBuy();
 					case 0x94 -> new SetPrivateStoreMsgBuy(r.remaining() >= 2 ? r.readS() : "");
 					case 0x96 -> readRequestPrivateStoreSell(r);
-					case 0x9d, 0xa6 -> new RequestSkillCoolTime();
+					case 0x9d -> new RequestSkillCoolTime();
+					case 0xa6 -> r.remaining() >= 8 ? new RequestSetCastleSiegeTime(r.readD(), r.readD()) : new RequestSetCastleSiegeTime(r.remaining() >= 4 ? r.readD() : 0, 0);
 					case 0x9e -> r.remaining() >= 4 ? new RequestPackageSendableItemList(r.readD()) : new Unknown(op, -1);
 					case 0x9f -> readPackageSend(r);
 					case 0x5e -> new RequestFriendInvite(r.readS());
@@ -1231,6 +1270,18 @@ public sealed interface GameClientPacket {
 			case 0x08 -> new RequestManorList();
 			case 0x21 -> new RequestKeyMapping();
 			case 0x36 -> new GotoLobby();
+			case 0x93 -> new RequestEx2ndPasswordCheck();
+			case 0x94 -> {
+				int mode = r.remaining() >= 1 ? r.readC() : 0;
+				String pin = r.remaining() >= 2 ? r.readS() : "";
+				yield new RequestEx2ndPasswordVerify(mode, pin);
+			}
+			case 0x95 -> {
+				int changePass = r.remaining() >= 1 ? r.readC() : 0;
+				String pin = r.remaining() >= 2 ? r.readS() : "";
+				String newPin = r.remaining() >= 2 ? r.readS() : "";
+				yield new RequestEx2ndPasswordReq(changePass, pin, newPin);
+			}
 			default -> new Unknown(0xd0, sub);
 		};
 	}
@@ -1289,6 +1340,18 @@ public sealed interface GameClientPacket {
 			case 0x2f -> r.remaining() >= 21 ? new RequestExMagicSkillUseGround(r.readD(), r.readD(), r.readD(), r.readD(), r.readD() != 0, r.readC() != 0) : new Unknown(0xd0, sub);
 			case 0x30 -> new RequestDuelSurrender();
 			case 0x36 -> new GotoLobby();
+			case 0x93 -> new RequestEx2ndPasswordCheck();
+			case 0x94 -> {
+				int mode = r.remaining() >= 1 ? r.readC() : 0;
+				String pin = r.remaining() >= 2 ? r.readS() : "";
+				yield new RequestEx2ndPasswordVerify(mode, pin);
+			}
+			case 0x95 -> {
+				int changePass = r.remaining() >= 1 ? r.readC() : 0;
+				String pin = r.remaining() >= 2 ? r.readS() : "";
+				String newPin = r.remaining() >= 2 ? r.readS() : "";
+				yield new RequestEx2ndPasswordReq(changePass, pin, newPin);
+			}
 			default -> new Unknown(0xd0, sub);
 		};
 	}
