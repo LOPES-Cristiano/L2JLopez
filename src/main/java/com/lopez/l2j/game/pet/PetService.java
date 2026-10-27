@@ -4,11 +4,14 @@ import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.item.GroundItemService;
 import com.lopez.l2j.game.item.Inventory;
 import com.lopez.l2j.game.item.ItemInstance;
+import com.lopez.l2j.game.item.ItemRepository;
+import com.lopez.l2j.game.item.ItemRepository.StoredItem;
 import com.lopez.l2j.game.item.ItemTemplate;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.game.summon.SummonInstance;
 import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.network.game.GameSession;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
 import com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate;
@@ -47,6 +50,7 @@ public class PetService {
 	private final PetDataTable petDataTable;
 	private final JdbcClient jdbc;
 	private final InventoryService inventoryService;
+	private ItemRepository itemRepository;
 
 	private final Map<Integer, PetDataRecord> activePets = new ConcurrentHashMap<>();
 	private final Map<Integer, List<ItemInstance>> petInventoriesByCollar = new ConcurrentHashMap<>();
@@ -55,22 +59,45 @@ public class PetService {
 	@Autowired
 	public PetService(PetDataTable petDataTable,
 					  @Autowired(required = false) JdbcClient jdbc,
-					  @Autowired(required = false) InventoryService inventoryService) {
+					  @Autowired(required = false) InventoryService inventoryService,
+					  @Autowired(required = false) ItemRepository itemRepository) {
 		this.petDataTable = petDataTable != null ? petDataTable : PetDataTable.getInstance();
 		this.jdbc = jdbc;
 		this.inventoryService = inventoryService;
+		this.itemRepository = itemRepository;
 		instance = this;
+	}
+
+	public PetService(PetDataTable petDataTable,
+					  JdbcClient jdbc,
+					  InventoryService inventoryService) {
+		this(petDataTable, jdbc, inventoryService, null);
 	}
 
 	public static PetService getInstance() {
 		if (instance == null) {
-			instance = new PetService(PetDataTable.getInstance(), null, null);
+			instance = new PetService(PetDataTable.getInstance(), null, null, null);
 		}
 		return instance;
 	}
 
 	public PetDataTable petDataTable() {
 		return petDataTable != null ? petDataTable : PetDataTable.getInstance();
+	}
+
+	private ItemRepository resolveItemRepository() {
+		if (itemRepository != null) {
+			return itemRepository;
+		}
+		if (inventoryService != null) {
+			try {
+				var field = InventoryService.class.getDeclaredField("repository");
+				field.setAccessible(true);
+				itemRepository = (ItemRepository) field.get(inventoryService);
+			} catch (Exception ignored) {
+			}
+		}
+		return itemRepository;
 	}
 
 	public Optional<PetDataRecord> getPet(int itemObjectId) {
@@ -191,6 +218,7 @@ public class PetService {
 		summon.equippedJewelId(record.jewel());
 
 		loadPetInventory(summon);
+		refreshEquipmentBonuses(summon);
 		return record;
 	}
 
@@ -238,6 +266,9 @@ public class PetService {
 		if (activePet != null && activePet.isPet() && activePet.itemObjectId() == itemObjectId) {
 			if (activePet.petInventory().getItemCount(foodItemId) > 0) {
 				consumedFromPetInv = activePet.petInventory().destroyItemByItemId(foodItemId, 1);
+				if (consumedFromPetInv) {
+					savePetInventory(activePet);
+				}
 			}
 		}
 
@@ -375,6 +406,49 @@ public class PetService {
 			for (ItemInstance it : cached) {
 				pet.petInventory().addItem(it);
 			}
+			return;
+		}
+		if (jdbc != null && pet.itemObjectId() > 0 && inventoryService != null && inventoryService.templates() != null) {
+			try {
+				List<StoredItem> rows = jdbc.sql("""
+						SELECT object_id, item_id, count, enchant_level, loc, loc_data,
+						       custom_type1, custom_type2, mana_left
+						  FROM items
+						 WHERE owner_id = :ownerId
+						   AND loc IN ('PET', 'PET_EQUIP')
+						""")
+						.param("ownerId", pet.itemObjectId())
+						.query((rs, rowNum) -> new StoredItem(
+								rs.getInt("object_id"),
+								rs.getInt("item_id"),
+								rs.getInt("count"),
+								rs.getInt("enchant_level"),
+								rs.getString("loc"),
+								rs.getInt("loc_data"),
+								rs.getInt("custom_type1"),
+								rs.getInt("custom_type2"),
+								rs.getInt("mana_left")))
+						.list();
+				for (StoredItem row : rows) {
+					var tpl = inventoryService.templates().get(row.itemId()).orElse(null);
+					if (tpl == null) {
+						continue;
+					}
+					ItemInstance item = new ItemInstance(row.objectId(), tpl, pet.itemObjectId(), row.count());
+					item.enchant(row.enchant());
+					item.customType1(row.customType1());
+					item.customType2(row.customType2());
+					item.mana(row.mana());
+					ItemInstance.Location loc = "PET_EQUIP".equalsIgnoreCase(row.location())
+							? ItemInstance.Location.PET_EQUIP
+							: ItemInstance.Location.PET;
+					item.location(loc, row.locationData());
+					pet.petInventory().addItem(item);
+				}
+				petInventoriesByCollar.put(pet.itemObjectId(), new ArrayList<>(pet.petInventory().items()));
+			} catch (Exception e) {
+				log.debug("Aviso ao carregar itens de pet {} do banco: {}", pet.itemObjectId(), e.getMessage());
+			}
 		}
 	}
 
@@ -382,7 +456,24 @@ public class PetService {
 		if (pet == null || pet.itemObjectId() <= 0) {
 			return;
 		}
-		petInventoriesByCollar.put(pet.itemObjectId(), new ArrayList<>(pet.petInventory().items()));
+		List<ItemInstance> items = new ArrayList<>(pet.petInventory().items());
+		petInventoriesByCollar.put(pet.itemObjectId(), items);
+
+		ItemRepository repo = resolveItemRepository();
+		if (repo != null) {
+			for (ItemInstance it : items) {
+				if (it == null) {
+					continue;
+				}
+				if (it.location() != ItemInstance.Location.PET && it.location() != ItemInstance.Location.PET_EQUIP) {
+					it.location(ItemInstance.Location.PET, 0);
+				}
+				try {
+					repo.update(it);
+				} catch (Exception ignored) {
+				}
+			}
+		}
 	}
 
 	/**
@@ -422,12 +513,21 @@ public class PetService {
 			return false;
 		}
 
+		ItemRepository repo = resolveItemRepository();
+		int petOwnerId = pet.itemObjectId() > 0 ? pet.itemObjectId() : pet.objectId();
+
 		// Remove do jogador
 		boolean playerRemovedAll = item.count() == count;
 		if (playerRemovedAll) {
 			playerInv.remove(item);
 		} else {
 			item.count(item.count() - count);
+			if (repo != null) {
+				try {
+					repo.update(item);
+				} catch (Exception ignored) {
+				}
+			}
 		}
 
 		// Adiciona ao Pet
@@ -437,16 +537,40 @@ public class PetService {
 			petItem = existingInPet.get();
 			petItem.count(petItem.count() + count);
 			petChange = 2; // MODIFIED
+			if (playerRemovedAll && repo != null) {
+				try {
+					repo.delete(item.objectId());
+				} catch (Exception ignored) {
+				}
+			}
+			if (repo != null) {
+				try {
+					repo.update(petItem);
+				} catch (Exception ignored) {
+				}
+			}
 		} else {
 			if (playerRemovedAll) {
 				petItem = item;
-				petItem.ownerId(pet.objectId());
+				petItem.ownerId(petOwnerId);
 				petItem.location(ItemInstance.Location.PET, 0);
+				if (repo != null) {
+					try {
+						repo.update(petItem);
+					} catch (Exception ignored) {
+					}
+				}
 			} else {
 				int newObjId = fallbackItemObjIdGen.incrementAndGet();
-				petItem = new ItemInstance(newObjId, item.template(), pet.objectId(), count);
+				petItem = new ItemInstance(newObjId, item.template(), petOwnerId, count);
 				petItem.enchant(item.enchant());
 				petItem.location(ItemInstance.Location.PET, 0);
+				if (repo != null) {
+					try {
+						repo.insert(petItem, "PetTransferTo");
+					} catch (Exception ignored) {
+					}
+				}
 			}
 			petInv.addItem(petItem);
 			petChange = 1; // ADDED
@@ -486,15 +610,23 @@ public class PetService {
 			return false;
 		}
 
-		if (petItem.isEquipped()) {
+		if (petItem.isEquipped() || petItem.location() == ItemInstance.Location.PET_EQUIP) {
 			unequipPetItem(pet, petItem);
 		}
+
+		ItemRepository repo = resolveItemRepository();
 
 		boolean petRemovedAll = petItem.count() == count;
 		if (petRemovedAll) {
 			petInv.remove(petItem);
 		} else {
 			petItem.count(petItem.count() - count);
+			if (repo != null) {
+				try {
+					repo.update(petItem);
+				} catch (Exception ignored) {
+				}
+			}
 		}
 
 		boolean stackable = petItem.template() != null && petItem.template().isStackable();
@@ -505,16 +637,40 @@ public class PetService {
 			playerItem = existingInPlayer.get();
 			playerItem.count(playerItem.count() + count);
 			playerChange = ItemInfo.MODIFIED;
+			if (petRemovedAll && repo != null) {
+				try {
+					repo.delete(petItem.objectId());
+				} catch (Exception ignored) {
+				}
+			}
+			if (repo != null) {
+				try {
+					repo.update(playerItem);
+				} catch (Exception ignored) {
+				}
+			}
 		} else {
 			if (petRemovedAll) {
 				playerItem = petItem;
 				playerItem.ownerId(player.objectId());
 				playerItem.location(ItemInstance.Location.INVENTORY, 0);
+				if (repo != null) {
+					try {
+						repo.update(playerItem);
+					} catch (Exception ignored) {
+					}
+				}
 			} else {
 				int newObjId = fallbackItemObjIdGen.incrementAndGet();
 				playerItem = new ItemInstance(newObjId, petItem.template(), player.objectId(), count);
 				playerItem.enchant(petItem.enchant());
 				playerItem.location(ItemInstance.Location.INVENTORY, 0);
+				if (repo != null) {
+					try {
+						repo.insert(playerItem, "PetTransferFrom");
+					} catch (Exception ignored) {
+					}
+				}
 			}
 			playerInv.addItem(playerItem);
 			playerChange = ItemInfo.ADDED;
@@ -578,18 +734,10 @@ public class PetService {
 			item.location(ItemInstance.Location.PET_EQUIP, isWeapon ? 7 : 10);
 			if (isWeapon) {
 				pet.equippedWeaponId(itemId);
-				int wPAtk = tpl != null && tpl.pAtk() > 0 ? tpl.pAtk() : 25;
-				int wMAtk = tpl != null && tpl.mAtk() > 0 ? tpl.mAtk() : 15;
-				int curArmorPDef = pet.equippedArmorId() > 0 ? 20 : 0;
-				pet.setEquipmentBonuses(wPAtk, wMAtk, curArmorPDef, 0);
 			} else {
 				pet.equippedArmorId(itemId);
-				int aPDef = tpl != null && tpl.pDef() > 0 ? tpl.pDef() : 25;
-				int aMDef = tpl != null && tpl.mDef() > 0 ? tpl.mDef() : 15;
-				int curWpnPAtk = pet.equippedWeaponId() > 0 ? 25 : 0;
-				int curWpnMAtk = pet.equippedWeaponId() > 0 ? 15 : 0;
-				pet.setEquipmentBonuses(curWpnPAtk, curWpnMAtk, aPDef, aMDef);
 			}
+			refreshEquipmentBonuses(pet);
 		}
 
 		storePetStatus(pet);
@@ -613,7 +761,52 @@ public class PetService {
 		if (pet.equippedJewelId() == item.itemId()) {
 			pet.equippedJewelId(0);
 		}
-		pet.recalculateStats();
+		refreshEquipmentBonuses(pet);
+	}
+
+	private void refreshEquipmentBonuses(SummonInstance pet) {
+		if (pet == null) {
+			return;
+		}
+		int wPAtk = 0;
+		int wMAtk = 0;
+		int aPDef = 0;
+		int aMDef = 0;
+
+		if (pet.petInventory() != null) {
+			for (ItemInstance equipped : pet.petInventory().items()) {
+				if (equipped == null || equipped.location() != ItemInstance.Location.PET_EQUIP) {
+					continue;
+				}
+				ItemTemplate tpl = equipped.template();
+				boolean isWeapon = PetDataTable.isPetWeapon(equipped.itemId()) || (tpl != null && tpl.isWeapon());
+				boolean isArmor = PetDataTable.isPetArmor(equipped.itemId()) || (tpl != null && tpl.isArmor());
+				if (isWeapon) {
+					wPAtk = (tpl != null && tpl.pAtk() > 0) ? tpl.pAtk() : 25;
+					wMAtk = (tpl != null && tpl.mAtk() > 0) ? tpl.mAtk() : 15;
+				} else if (isArmor) {
+					aPDef = (tpl != null && tpl.pDef() > 0) ? tpl.pDef() : 25;
+					aMDef = (tpl != null && tpl.mDef() > 0) ? tpl.mDef() : 15;
+				}
+			}
+		}
+
+		if (wPAtk == 0 && pet.equippedWeaponId() > 0) {
+			ItemTemplate wTpl = (inventoryService != null && inventoryService.templates() != null)
+					? inventoryService.templates().get(pet.equippedWeaponId()).orElse(null)
+					: null;
+			wPAtk = (wTpl != null && wTpl.pAtk() > 0) ? wTpl.pAtk() : 25;
+			wMAtk = (wTpl != null && wTpl.mAtk() > 0) ? wTpl.mAtk() : 15;
+		}
+		if (aPDef == 0 && pet.equippedArmorId() > 0) {
+			ItemTemplate aTpl = (inventoryService != null && inventoryService.templates() != null)
+					? inventoryService.templates().get(pet.equippedArmorId()).orElse(null)
+					: null;
+			aPDef = (aTpl != null && aTpl.pDef() > 0) ? aTpl.pDef() : 25;
+			aMDef = (aTpl != null && aTpl.mDef() > 0) ? aTpl.mDef() : 15;
+		}
+
+		pet.setEquipmentBonuses(wPAtk, wMAtk, aPDef, aMDef);
 	}
 
 	/**
@@ -655,18 +848,33 @@ public class PetService {
 			return false;
 		}
 
+		ItemRepository repo = resolveItemRepository();
+		int petOwnerId = pet.itemObjectId() > 0 ? pet.itemObjectId() : pet.objectId();
+
 		ItemInstance finalItem;
 		int change;
 		if (existing.isPresent()) {
 			finalItem = existing.get();
 			finalItem.count(finalItem.count() + item.count());
 			change = 2;
+			if (repo != null) {
+				try {
+					repo.update(finalItem);
+				} catch (Exception ignored) {
+				}
+			}
 		} else {
-			item.ownerId(pet.objectId());
+			item.ownerId(petOwnerId);
 			item.location(ItemInstance.Location.PET, 0);
 			petInv.addItem(item);
 			finalItem = item;
 			change = 1;
+			if (repo != null) {
+				try {
+					repo.insert(item, "PetPickUp");
+				} catch (Exception ignored) {
+				}
+			}
 		}
 
 		savePetInventory(pet);
@@ -830,6 +1038,13 @@ public class PetService {
 	}
 
 	/**
+	 * Sobrecarga de conveniencia para montar usando {@link GameSession}.
+	 */
+	public boolean mount(GameSession session, PlayerCharacter player, int petNpcId) {
+		return mount(player, petNpcId, session != null ? session::send : null);
+	}
+
+	/**
 	 * Monta o jogador no pet especificado (se montavel), enviando o pacote {@code Ride} e aplicando skills (#240, #249).
 	 */
 	public boolean mount(PlayerCharacter player, int petNpcId, Consumer<GameServerPacket> clientSender) {
@@ -873,6 +1088,13 @@ public class PetService {
 			world.broadcastAround(player.x(), player.y(), GameWorld.VISIBILITY_RADIUS, player.instanceId(), ridePkt);
 		}
 		return true;
+	}
+
+	/**
+	 * Sobrecarga de conveniencia para desmontar usando {@link GameSession}.
+	 */
+	public boolean dismount(GameSession session, PlayerCharacter player) {
+		return dismount(player, session != null ? session::send : null);
 	}
 
 	/**
