@@ -1442,6 +1442,7 @@ public class AdminPacketHandler {
 				var sess = getTargetOnlinePlayerOrSelf();
 				if (sess != null) {
 					sess.send(new UserInfo(p, ctx.characters().template(p)));
+					sess.sendUserInfoAndBroadcastCharInfo();
 				}
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Karma de " + p.name() + " zerado."));
 			}
@@ -1836,9 +1837,19 @@ public class AdminPacketHandler {
 						}
 						case "clanhallteleportself" -> {
 							if (chOpt.isPresent()) {
-								// Teleporta para a regiao do Clan Hall
-								session.teleportToLocation(active.x(), active.y(), active.z());
-							}
+							String loc = chOpt.map(com.lopez.l2j.game.clan.clanhall.ClanHallRecord::location).orElse("");
+							String lowerLoc = loc != null ? loc.toLowerCase(java.util.Locale.ROOT) : "";
+							int tx = active.x(), ty = active.y(), tz = active.z();
+							if (lowerLoc.contains("gludio")) { tx = -14228; ty = 123640; tz = -3112; }
+							else if (lowerLoc.contains("dion")) { tx = 18680; ty = 145432; tz = -3122; }
+							else if (lowerLoc.contains("giran")) { tx = 82698; ty = 148638; tz = -3468; }
+							else if (lowerLoc.contains("oren")) { tx = 82320; ty = 55140; tz = -1525; }
+							else if (lowerLoc.contains("aden")) { tx = 147450; ty = 27064; tz = -2204; }
+							else if (lowerLoc.contains("goddard")) { tx = 147928; ty = -55273; tz = -2734; }
+							else if (lowerLoc.contains("rune")) { tx = 43799; ty = -47727; tz = -798; }
+							else if (lowerLoc.contains("schuttgart")) { tx = 87386; ty = -143246; tz = -1293; }
+							session.teleportToLocation(tx, ty, tz);
+						}
 						}
 					}
 				}
@@ -2426,6 +2437,7 @@ public class AdminPacketHandler {
 					var sess = getTargetOnlinePlayerOrSelf();
 					if (sess != null) {
 						sess.send(new UserInfo(p, ctx.characters().template(p)));
+						sess.sendUserInfoAndBroadcastCharInfo();
 					}
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Karma de " + p.name() + " alterado para " + val));
 				} catch (Exception e) {
@@ -2440,6 +2452,7 @@ public class AdminPacketHandler {
 					ctx.characters().save(p, true);
 					var sess = getTargetOnlinePlayerOrSelf();
 					sess.send(new UserInfo(p, ctx.characters().template(p)));
+					sess.sendUserInfoAndBroadcastCharInfo();
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 							"PK Kills de " + p.name() + " alterado para " + val));
 				} catch (Exception e) {
@@ -2454,6 +2467,7 @@ public class AdminPacketHandler {
 					ctx.characters().save(p, true);
 					var sess = getTargetOnlinePlayerOrSelf();
 					sess.send(new UserInfo(p, ctx.characters().template(p)));
+					sess.sendUserInfoAndBroadcastCharInfo();
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 							"PvP Kills de " + p.name() + " alterado para " + val));
 				} catch (Exception e) {
@@ -2464,11 +2478,18 @@ public class AdminPacketHandler {
 				if (!args.isBlank() && !args.startsWith("$")) {
 					var p = getTargetPlayerOrActive();
 					String old = p.name();
-					p.name(args.trim());
-					ctx.characters().save(p, true);
 					var sess = getTargetOnlinePlayerOrSelf();
+					if (sess != null && ctx.world() != null) {
+						ctx.world().remove(sess);
+					}
+					p.name(args.trim());
+					if (sess != null && ctx.world() != null) {
+						ctx.world().add(sess);
+					}
+					ctx.characters().save(p, true);
 					if (sess != null) {
 						sess.send(new UserInfo(p, ctx.characters().template(p)));
+						sess.sendUserInfoAndBroadcastCharInfo();
 					}
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Nome de " + old + " alterado para " + p.name()));
 				} else {
@@ -2483,6 +2504,7 @@ public class AdminPacketHandler {
 					var sess = getTargetOnlinePlayerOrSelf();
 					if (sess != null) {
 						sess.send(new UserInfo(p, ctx.characters().template(p)));
+						sess.sendUserInfoAndBroadcastCharInfo();
 					}
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 							"Titulo de " + p.name() + " alterado para " + p.title()));
@@ -2505,6 +2527,7 @@ public class AdminPacketHandler {
 						targetChar.pkKills(Integer.parseInt(parts[5]));
 					ctx.characters().save(targetChar, true);
 					targetPlayer.send(new UserInfo(targetChar, ctx.characters().template(targetChar)));
+					targetPlayer.sendUserInfoAndBroadcastCharInfo();
 					targetPlayer.send(new StatusUpdate(targetChar.objectId(), List.of(
 							new StatusUpdate.Attribute(StatusUpdate.CUR_HP, (int) targetChar.currentHp()),
 							new StatusUpdate.Attribute(StatusUpdate.MAX_HP, targetChar.maxHp()),
@@ -2734,6 +2757,36 @@ public class AdminPacketHandler {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 							"Configuracoes (.properties) recarregadas com sucesso."));
 				} else if (type.contains("skill")) {
+					if (ctx != null && ctx.skillService() != null && active != null) {
+						ctx.skillService().refreshPassives(active);
+					}
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Skills recarregadas com sucesso."));
+				} else if (type.contains("teleport")) {
+					if (ctx != null && ctx.teleports() != null) {
+						ctx.teleports().load("data/xml/world/teleports.xml");
+						ctx.teleports().loadFromDb();
+					}
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "TeleportLocationTable recarregada com sucesso."));
+				} else if (type.contains("shop") || type.contains("buylist") || type.contains("tradelist")) {
+					if (ctx != null && ctx.buylists() != null) {
+						ctx.buylists().load("data/xml/world/buylists.xml");
+					}
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "BuyLists recarregadas com sucesso."));
+				} else if (type.contains("crest")) {
+					if (ctx != null && ctx.clans() != null && ctx.crests() != null) {
+						for (var c : ctx.clans().allClans()) {
+							if (c.crestId() > 0) ctx.crests().getPledgeCrest(c.crestId());
+						}
+					}
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "CrestCache recarregado com sucesso."));
+				} else if (type.contains("door")) {
+					if (ctx != null && ctx.doors() != null) {
+						for (var door : ctx.doors().getDoors()) {
+							door.currentHp(door.maxHp());
+						}
+					}
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "DoorTable recarregada com sucesso."));
+				} else if (false) {
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Skills recarregadas com sucesso."));
 				} else if (type.contains("html") || type.contains("htm")) {
 					if (ctx != null && ctx.htmls() != null) {
@@ -3186,6 +3239,7 @@ public class AdminPacketHandler {
 					}
 					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 							"AccessLevel de " + targetChar.name() + " definido para " + level));
+					var online = ctx.world().byName(targetChar.name()).orElse(null);
 					if (level < 0) {
 						if (Config.BAN_ACCOUNT_LOG || Config.PLAYER_BAN_LOG) {
 							log.info("[BAN-ACCESS] GM {} alterou AccessLevel de {} para {} (ban).", active.name(), targetChar.name(), level);
@@ -3193,17 +3247,24 @@ public class AdminPacketHandler {
 						if (Config.ANNOUNCE_BAN_ACCOUNT || Config.ANNOUNCE_BAN_CHAR) {
 							announcePunishment(ctx, "O jogador " + targetChar.name() + " teve o acesso bloqueado por " + active.name() + ".");
 						}
-						var online = ctx.world().byName(targetChar.name()).orElse(null);
 						if (online != null) {
 							online.send(SystemMessage.of(SystemMessage.DISCONNECTED_FROM_SERVER));
 							online.close(new ServerClose());
 						}
-					} else if (prevLevel < 0) {
-						if (Config.BAN_ACCOUNT_LOG || Config.PLAYER_BAN_LOG) {
-							log.info("[UNBAN-ACCESS] GM {} restaurou AccessLevel de {} para {}.", active.name(), targetChar.name(), level);
+					} else {
+						if (online != null) {
+							online.send(new UserInfo(targetChar, ctx.characters().template(targetChar)));
+							online.sendUserInfoAndBroadcastCharInfo();
+							ctx.world().broadcastAround(online, GameWorld.VISIBILITY_RADIUS,
+									new CharInfo(targetChar, ctx.characters().template(targetChar)), false);
 						}
-						if (Config.ANNOUNCE_UNBAN_ACCOUNT || Config.ANNOUNCE_UNBAN_CHAR) {
-							announcePunishment(ctx, "O jogador " + targetChar.name() + " teve o acesso restaurado por " + active.name() + ".");
+						if (prevLevel < 0) {
+							if (Config.BAN_ACCOUNT_LOG || Config.PLAYER_BAN_LOG) {
+								log.info("[UNBAN-ACCESS] GM {} restaurou AccessLevel de {} para {}.", active.name(), targetChar.name(), level);
+							}
+							if (Config.ANNOUNCE_UNBAN_ACCOUNT || Config.ANNOUNCE_UNBAN_CHAR) {
+								announcePunishment(ctx, "O jogador " + targetChar.name() + " teve o acesso restaurado por " + active.name() + ".");
+							}
 						}
 					}
 				}
@@ -3534,6 +3595,7 @@ public class AdminPacketHandler {
 						ctx.world().broadcastAround(gs, GameWorld.VISIBILITY_RADIUS, social, false);
 					}
 					targetPlayer.send(new UserInfo(targetChar, ctx.characters().template(targetChar)));
+					targetPlayer.sendUserInfoAndBroadcastCharInfo();
 					targetPlayer.send(new StatusUpdate(targetChar.objectId(), List.of(
 							new StatusUpdate.Attribute(StatusUpdate.LEVEL, targetChar.level()),
 							new StatusUpdate.Attribute(StatusUpdate.CUR_HP, (int) targetChar.currentHp()),
@@ -4005,7 +4067,11 @@ public class AdminPacketHandler {
 						destChar.currentCp(destChar.maxCp());
 						ctx.characters().save(destChar, true);
 						var destPlayer = getTargetOnlinePlayerOrSelf();
-						destPlayer.send(new UserInfo(destChar, ctx.characters().template(destChar)));
+						var tpl = ctx.characters().template(destChar);
+						destPlayer.send(new UserInfo(destChar, tpl));
+						if (ctx.world() != null) {
+							ctx.world().broadcastAround(destPlayer, GameWorld.VISIBILITY_RADIUS, new CharInfo(destChar, tpl), false);
+						}
 						destPlayer.send(
 								StatusUpdate.hp(destChar.objectId(), (int) destChar.currentHp(), destChar.maxHp()));
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
@@ -4165,10 +4231,33 @@ public class AdminPacketHandler {
 							"Apenas Master GM (AccessLevel >= 100) pode executar //setadmin."));
 					return;
 				}
-				String[] parts = args.split("\\s+");
-				if (parts.length >= 1 && !parts[0].isEmpty()) {
-					String targetName = parts[0];
-					int level = parts.length >= 2 ? GameSession.parseIntSafe(parts[1], 100) : 100;
+				String[] parts = args.trim().isEmpty() ? new String[0] : args.trim().split("\\s+");
+				String targetName = null;
+				int level = 100;
+				if (parts.length >= 1 && !parts[0].isEmpty() && !parts[0].equalsIgnoreCase("%target")) {
+					try {
+						int parsedFirst = Integer.parseInt(parts[0]);
+						if (parts.length == 1 && targetObjectId != 0 && targetObjectId != active.objectId()) {
+							var sel = ctx.world().player(targetObjectId).orElse(null);
+							if (sel != null && sel.character() != null) {
+								targetName = sel.character().name();
+								level = parsedFirst;
+							}
+						}
+					} catch (NumberFormatException ignored) {
+					}
+					if (targetName == null) {
+						targetName = parts[0];
+						level = parts.length >= 2 ? GameSession.parseIntSafe(parts[1], 100) : 100;
+					}
+				} else if (targetObjectId != 0) {
+					var sel = ctx.world().player(targetObjectId).orElse(null);
+					if (sel != null && sel.character() != null) {
+						targetName = sel.character().name();
+						level = parts.length >= 2 ? GameSession.parseIntSafe(parts[1], 100) : 100;
+					}
+				}
+				if (targetName != null && !targetName.isEmpty()) {
 					if (level > active.accessLevel()) {
 						send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 								"Voce nao pode atribuir um AccessLevel maior que o seu proprio (" + active.accessLevel() + ")."));
@@ -4183,7 +4272,11 @@ public class AdminPacketHandler {
 					ctx.characters().setAccessLevelByName(targetName, level);
 					if (target != null && target.character() != null) {
 						target.character().accessLevel(level);
-						target.send(new UserInfo(target.character(), ctx.characters().template(target.character())));
+						var tpl = ctx.characters().template(target.character());
+						target.send(new UserInfo(target.character(), tpl));
+						target.sendUserInfoAndBroadcastCharInfo();
+						ctx.world().broadcastAround(target, GameWorld.VISIBILITY_RADIUS,
+								new CharInfo(target.character(), tpl), false);
 						target.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 								"Seu nivel de acesso administrativo foi atualizado para: " + level));
 					}
@@ -4217,7 +4310,310 @@ public class AdminPacketHandler {
 				}
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Zonas recarregadas e reindexadas com sucesso."));
 			}
+			case "startfortsiege" -> {
+				String token = args.trim().isEmpty() ? "101" : args.trim().split("\\s+")[0];
+				int fortId = GameSession.parseIntSafe(token, -1);
+				if (fortId <= 0 && ctx.fortresses() != null) {
+					fortId = ctx.fortresses().getFortressByName(token).map(com.lopez.l2j.game.fortress.FortressRecord::id).orElse(101);
+				}
+				boolean ok = ctx.fortressSieges() != null && ctx.fortressSieges().startSiege(fortId);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						ok ? "Siege de Fortaleza iniciada (Fort ID " + fortId + ")."
+								: "Fortaleza nao encontrada ou cerco ja ativo (Fort ID " + fortId + ")."));
+			}
+			case "endfortsiege" -> {
+				String token = args.trim().isEmpty() ? "101" : args.trim().split("\\s+")[0];
+				int fortId = GameSession.parseIntSafe(token, -1);
+				if (fortId <= 0 && ctx.fortresses() != null) {
+					fortId = ctx.fortresses().getFortressByName(token).map(com.lopez.l2j.game.fortress.FortressRecord::id).orElse(101);
+				}
+				var target = getTargetPlayerOrActive();
+				int winnerClanId = target != null && target.clanId() > 0 ? target.clanId() : 0;
+				boolean ok = ctx.fortressSieges() != null && ctx.fortressSieges().endSiege(fortId, winnerClanId);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						ok ? "Siege de Fortaleza encerrada (Fort ID " + fortId + ")."
+								: "Fortaleza nao encontrada (Fort ID " + fortId + ")."));
+			}
+			case "setfort" -> {
+				String token = args.trim().isEmpty() ? "101" : args.trim().split("\\s+")[0];
+				int fortId = GameSession.parseIntSafe(token, -1);
+				if (fortId <= 0 && ctx.fortresses() != null) {
+					fortId = ctx.fortresses().getFortressByName(token).map(com.lopez.l2j.game.fortress.FortressRecord::id).orElse(101);
+				}
+				var target = getTargetPlayerOrActive();
+				int clanId = target != null ? target.clanId() : 0;
+				if (ctx.fortresses() != null && fortId > 0) {
+					ctx.fortresses().setOwner(fortId, clanId);
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Fortaleza ID " + fortId + " atribuida ao Cla #" + clanId + " (" + (target != null ? target.name() : active.name()) + ")."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Fortaleza ou jogador invalido."));
+				}
+			}
+			case "rainbowspring_startsiege" -> {
+				boolean ok = ctx.clanHallSieges() != null && ctx.clanHallSieges().startSiege(62);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						ok ? "Siege de Rainbow Springs Chateau (ID 62) iniciada!" : "Siege de Rainbow Springs Chateau (ID 62) acionada."));
+			}
+			case "devcastle_startsiege" -> {
+				boolean ok = ctx.clanHallSieges() != null && ctx.clanHallSieges().startSiege(34);
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						ok ? "Siege de Devastated Castle (ID 34) iniciada!" : "Siege de Devastated Castle (ID 34) acionada."));
+			}
+			case "addolypoints" -> {
+				var target = getTargetPlayerOrActive();
+				int pts = GameSession.parseIntSafe(args.trim().isEmpty() ? "10" : args.trim().split("\\s+")[0], 10);
+				if (target != null && ctx.olympiad() != null) {
+					var noble = ctx.olympiad().registerNoble(target.objectId(), target.name(), target.classId());
+					noble.points(Math.max(0, noble.points() + pts));
+					ctx.olympiad().save();
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Pontos de Olimpiada de " + target.name() + " aumentados em +" + pts + " (Total: " + noble.points() + ")."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pontos de Olimpiada adicionados: " + pts));
+				}
+			}
+			case "removeolypoints" -> {
+				var target = getTargetPlayerOrActive();
+				int pts = GameSession.parseIntSafe(args.trim().isEmpty() ? "10" : args.trim().split("\\s+")[0], 10);
+				if (target != null && ctx.olympiad() != null) {
+					var noble = ctx.olympiad().registerNoble(target.objectId(), target.name(), target.classId());
+					noble.points(Math.max(0, noble.points() - pts));
+					ctx.olympiad().save();
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Pontos de Olimpiada de " + target.name() + " reduzidos em -" + pts + " (Total: " + noble.points() + ")."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pontos de Olimpiada removidos: " + pts));
+				}
+			}
+			case "setolypoints" -> {
+				var target = getTargetPlayerOrActive();
+				int pts = GameSession.parseIntSafe(args.trim().isEmpty() ? "18" : args.trim().split("\\s+")[0], 18);
+				if (target != null && ctx.olympiad() != null) {
+					var noble = ctx.olympiad().registerNoble(target.objectId(), target.name(), target.classId());
+					noble.points(Math.max(0, pts));
+					ctx.olympiad().save();
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Pontos de Olimpiada de " + target.name() + " definidos para " + noble.points() + "."));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pontos de Olimpiada definidos: " + pts));
+				}
+			}
+			case "getolypoints" -> {
+				var target = getTargetPlayerOrActive();
+				if (target != null && ctx.olympiad() != null) {
+					int pts = ctx.olympiad().getNoble(target.objectId())
+							.map(com.lopez.l2j.game.olympiad.OlympiadNoble::points)
+							.orElse(0);
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Pontos de Olimpiada de " + target.name() + ": " + pts));
+				} else {
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Pontos de Olimpiada: 0"));
+				}
+			}
+			case "manor_reset" -> {
+				if (ctx.manor() != null) {
+					ctx.manor().approveNextPeriod();
+					ctx.manor().saveAllToDb();
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Manor resetado e periodo seguinte aprovado com sucesso."));
+			}
+			case "manor_save" -> {
+				int saved = ctx.manor() != null ? ctx.manor().saveAllToDb() : 0;
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Dados de Manor salvos no banco de dados (" + saved + " registros)."));
+			}
+			case "cw_info" -> {
+				if (ctx.cursedWeapons() != null) {
+					StringBuilder sb = new StringBuilder("Cursed Weapons: ");
+					for (var cw : ctx.cursedWeapons().allWeapons()) {
+						sb.append(cw.name()).append(" [ID=").append(cw.itemId())
+								.append(", Active=").append(cw.isActive())
+								.append(", Dropped=").append(cw.isDropped())
+								.append(", Stage=").append(cw.stage())
+								.append(", Kills=").append(cw.kills())
+								.append(", Holder=").append(cw.playerName().isEmpty() ? "None" : cw.playerName())
+								.append("] ");
+					}
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", sb.toString()));
+				}
+				showAdminHtml("cwinfo.htm");
+			}
+			case "cw_goto" -> {
+				int cwId = GameSession.parseIntSafe(args.trim().isEmpty() ? "8190" : args.trim().split("\\s+")[0], 8190);
+				if (args.toLowerCase(java.util.Locale.ROOT).contains("akamanah")) {
+					cwId = 8689;
+				}
+				if (ctx.cursedWeapons() != null) {
+					var cwOpt = ctx.cursedWeapons().getCursedWeapon(cwId);
+					if (cwOpt.isPresent()) {
+						var cw = cwOpt.get();
+						if (cw.isActive() && cw.playerId() > 0 && ctx.world() != null) {
+							var holder = ctx.world().player(cw.playerId()).orElse(null);
+							if (holder != null) {
+								session.teleportToLocation(holder.x(), holder.y(), holder.z());
+								send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Teleportado para o portador de " + cw.name() + " (" + holder.name() + ")."));
+								break;
+							}
+						}
+						if (cw.isDropped() || cw.x() != 0 || cw.y() != 0) {
+							session.teleportToLocation(cw.x(), cw.y(), cw.z());
+							send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Teleportado para " + cw.name() + " em (" + cw.x() + ", " + cw.y() + ", " + cw.z() + ")."));
+							break;
+						}
+					}
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Cursed Weapon " + cwId + " nao esta ativa ou dropada no mundo."));
+			}
+			case "cw_drop" -> {
+				int cwId = GameSession.parseIntSafe(args.trim().isEmpty() ? "8190" : args.trim().split("\\s+")[0], 8190);
+				if (args.toLowerCase(java.util.Locale.ROOT).contains("akamanah")) {
+					cwId = 8689;
+				}
+				boolean dropped = ctx.cursedWeapons() != null && ctx.cursedWeapons().forceDrop(cwId, active.x(), active.y(), active.z());
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						dropped ? "Cursed Weapon " + cwId + " dropada em (" + active.x() + ", " + active.y() + ", " + active.z() + ")."
+								: "Nao foi possivel dropar a Cursed Weapon " + cwId + " (pode ja estar ativa)."));
+			}
+			case "find_mammon" -> handleAdminCommand("mammon_find " + args);
+			case "freelook" -> {
+				int mode = GameSession.parseIntSafe(args.trim().isEmpty() ? "1" : args.trim().split("\\s+")[0], 1);
+				send(new CameraMode(mode));
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Camera FreeLook modo " + mode + " ativado."));
+			}
+			case "cinematic" -> {
+				String[] parts = args.trim().isEmpty() ? new String[0] : args.trim().split("\\s+");
+				if (parts.length > 0 && ("stop".equalsIgnoreCase(parts[0]) || "off".equalsIgnoreCase(parts[0]) || "normal".equalsIgnoreCase(parts[0]))) {
+					send(new NormalCamera());
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Camera cinematica encerrada (NormalCamera)."));
+				} else {
+					int targetId = targetObjectId != 0 ? targetObjectId : active.objectId();
+					int dist = parts.length >= 1 ? GameSession.parseIntSafe(parts[0], 400) : 400;
+					int yaw = parts.length >= 2 ? GameSession.parseIntSafe(parts[1], 180) : 180;
+					int pitch = parts.length >= 3 ? GameSession.parseIntSafe(parts[2], 10) : 10;
+					int time = parts.length >= 4 ? GameSession.parseIntSafe(parts[3], 1000) : 1000;
+					int duration = parts.length >= 5 ? GameSession.parseIntSafe(parts[4], 5000) : 5000;
+					send(new SpecialCamera(targetId, dist, yaw, pitch, time, duration));
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS", "SpecialCamera disparada no objeto " + targetId + " (dist=" + dist + ", dur=" + duration + "ms)."));
+				}
+			}
+			case "setcp", "sethp", "setmp" -> {
+				int val = GameSession.parseIntSafe(args.trim().isEmpty() ? "1000" : args.trim().split("\\s+")[0], 1000);
+				var targetChar = getTargetPlayerOrActive();
+				var targetPlayer = getTargetOnlinePlayerOrSelf();
+				if (targetChar != null) {
+					if ("setcp".equals(cmd)) {
+						if (val > targetChar.maxCp()) targetChar.maxCp(val);
+						targetChar.currentCp(Math.max(0, val));
+					} else if ("sethp".equals(cmd)) {
+						if (val > targetChar.maxHp()) targetChar.maxHp(val);
+						targetChar.currentHp(Math.max(1, val));
+					} else {
+						if (val > targetChar.maxMp()) targetChar.maxMp(val);
+						targetChar.currentMp(Math.max(0, val));
+					}
+					if (targetPlayer != null) {
+						targetPlayer.send(new StatusUpdate(targetChar.objectId(), List.of(
+								new StatusUpdate.Attribute(StatusUpdate.CUR_HP, (int) targetChar.currentHp()),
+								new StatusUpdate.Attribute(StatusUpdate.MAX_HP, targetChar.maxHp()),
+								new StatusUpdate.Attribute(StatusUpdate.CUR_MP, (int) targetChar.currentMp()),
+								new StatusUpdate.Attribute(StatusUpdate.MAX_MP, targetChar.maxMp()),
+								new StatusUpdate.Attribute(StatusUpdate.CUR_CP, (int) targetChar.currentCp()),
+								new StatusUpdate.Attribute(StatusUpdate.MAX_CP, targetChar.maxCp()))));
+					}
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							cmd.toUpperCase(java.util.Locale.ROOT) + " de " + targetChar.name() + " definido para " + val + "."));
+				}
+			}
+			case "gmcancel" -> handleAdminCommand("cancel " + args);
+			case "remclanwait" -> {
+				var targetChar = getTargetPlayerOrActive();
+				if (targetChar != null) {
+					targetChar.clanJoinExpiryTime(0L);
+					targetChar.clanCreateExpiryTime(0L);
+					if (targetChar.clanId() > 0 && ctx.clans() != null) {
+						ctx.clans().byClanId(targetChar.clanId()).ifPresent(clan -> {
+							clan.charPenaltyExpiryTime(0L);
+							clan.setAllyPenalty(0L, 0);
+							clan.dissolvingExpiryTime(0L);
+						});
+					}
+					if (ctx.characters() != null) {
+						ctx.characters().save(targetChar, true);
+					}
+					send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+							"Penalidades de espera de cla/alianca removidas para " + targetChar.name() + "."));
+				}
+			}
+			case "give_all", "give_all_by_ip", "give_all_by_hwid", "give_all_radius" -> {
+				String[] parts = args.trim().isEmpty() ? new String[0] : args.trim().split("\\s+");
+				int itemId = parts.length >= 1 ? GameSession.parseIntSafe(parts[0], 57) : 57;
+				int count = parts.length >= 2 ? Math.max(1, GameSession.parseIntSafe(parts[1], 1)) : 1;
+				int radius = (cmd.equals("give_all_radius") && parts.length >= 3)
+						? Math.max(1, GameSession.parseIntSafe(parts[2], 1000))
+						: 1000;
+				long rSq = (long) radius * radius;
+				Set<String> seenKeys = new HashSet<>();
+				int rewarded = 0;
+				if (ctx.world() != null && ctx.inventories() != null) {
+					for (var p : ctx.world().players()) {
+						if (p.character() == null) continue;
+						if (cmd.equals("give_all_by_ip")) {
+							String ip = (p instanceof GameSession gs && gs.ip() != null) ? gs.ip() : ("ip_" + p.objectId());
+							if (!seenKeys.add(ip)) continue;
+						} else if (cmd.equals("give_all_by_hwid")) {
+							String hwid = p.character().account() != null && !p.character().account().isBlank()
+									? p.character().account()
+									: ((p instanceof GameSession gs && gs.ip() != null) ? gs.ip() : ("hwid_" + p.objectId()));
+							if (!seenKeys.add(hwid)) continue;
+						} else if (cmd.equals("give_all_radius")) {
+							long dx = p.character().x() - active.x();
+							long dy = p.character().y() - active.y();
+							if (dx * dx + dy * dy > rSq) continue;
+						}
+						var added = ctx.inventories().addItem(p.character().inventory(), itemId, count, "AdminGiveAll");
+						if (added != null) {
+							p.send(new InventoryUpdate(List.of(ItemInfo.of(added.item(),
+									added.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
+							if (p instanceof GameSession gs) {
+								gs.refreshWeightAndPenalties();
+							}
+							rewarded++;
+						}
+					}
+				}
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						cmd + ": Item " + itemId + " x" + count + " entregue para " + rewarded + " jogador(es)."));
+			}
 			case "geo_z", "geo_type", "geo_nswe", "geo_los", "geo_position" -> {
+				var geo = com.lopez.l2j.game.geodata.GeoEngine.getInstance();
+				int packed = geo != null ? geo.getHeightAndNSWE(active.x(), active.y(), active.z()) : (((short) active.z()) << 16) | 0x0F;
+				short geoZ = com.lopez.l2j.game.geodata.GeoEngine.unpackHeight(packed);
+				byte nswe = com.lopez.l2j.game.geodata.GeoEngine.unpackNSWE(packed);
+				String nsweStr = ((nswe & com.lopez.l2j.game.geodata.GeoEngine.NORTH) != 0 ? "N" : "")
+						+ ((nswe & com.lopez.l2j.game.geodata.GeoEngine.SOUTH) != 0 ? "S" : "")
+						+ ((nswe & com.lopez.l2j.game.geodata.GeoEngine.WEST) != 0 ? "W" : "")
+						+ ((nswe & com.lopez.l2j.game.geodata.GeoEngine.EAST) != 0 ? "E" : "");
+				if (nsweStr.isEmpty()) nsweStr = "NONE";
+				boolean los = true;
+				if (targetObjectId != 0 && targetObjectId != active.objectId() && ctx.world() != null && geo != null) {
+					var tPlayer = ctx.world().player(targetObjectId).orElse(null);
+					if (tPlayer != null && tPlayer.character() != null) {
+						los = geo.canSeeTarget(active.x(), active.y(), active.z(),
+								tPlayer.character().x(), tPlayer.character().y(), tPlayer.character().z());
+					} else {
+						var tNpc = ctx.world().npc(targetObjectId).orElse(null);
+						if (tNpc != null) {
+							los = geo.canSeeTarget(active.x(), active.y(), active.z(), tNpc.x(), tNpc.y(), tNpc.z());
+						}
+					}
+				}
+				int regX = ((active.x() - (-327680)) >> 15) + 10;
+				int regY = ((active.y() - (-262144)) >> 15) + 10;
+				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+						"GeoData [" + cmd + "] Pos=(" + active.x() + ", " + active.y() + ", " + active.z()
+								+ ") GeoZ=" + geoZ + " NSWE=" + nsweStr + "(0x" + Integer.toHexString(nswe & 0xFF)
+								+ ") LoS=" + los + " Region=" + regX + "_" + regY + " GeoEnabled=" + Config.ENABLE_GEODATA));
+				if (false)
 				send(new CreatureSay(0, CreatureSay.ALL, "SYS",
 						"GeoData [" + cmd + "] Pos=(" + active.x() + ", " + active.y() + ", " + active.z() + ") GeoEnabled=" + Config.ENABLE_GEODATA));
 			}
