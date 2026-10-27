@@ -3,6 +3,7 @@ package com.lopez.l2j.game.service;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.world.GameWorld;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,10 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Sistema de Veículos e Barcos Retail (BoatManager / BoatService).
@@ -69,6 +74,12 @@ public class BoatService {
     private InventoryService inventoryService;
 
     private final Map<Integer, BoatRoute> boats = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService boatScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "BoatService-Scheduler");
+        t.setDaemon(true);
+        return t;
+    });
+    private ScheduledFuture<?> sailingTask;
 
     public BoatService() {
         initDefaultRoutes();
@@ -125,6 +136,32 @@ public class BoatService {
                 new BoatWaypoint(15000, 180000, -3610, 450),
                 new BoatWaypoint(-90015, 150000, -3600, 350)
         )));
+
+        startBoatSchedule();
+    }
+
+    public synchronized void startBoatSchedule() {
+        if (sailingTask == null || sailingTask.isCancelled()) {
+            sailingTask = boatScheduler.scheduleAtFixedRate(this::tickBoats, 60L, 60L, TimeUnit.SECONDS);
+        }
+    }
+
+    public synchronized void tickBoats() {
+        for (Integer boatId : boats.keySet()) {
+            try {
+                advanceWaypoint(boatId);
+            } catch (Exception ex) {
+                log.debug("Erro no ciclo de navegacao do barco #{}: {}", boatId, ex.getMessage());
+            }
+        }
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        if (sailingTask != null) {
+            sailingTask.cancel(false);
+        }
+        boatScheduler.shutdownNow();
     }
 
     /**
