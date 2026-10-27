@@ -49,6 +49,22 @@ public record PlayerStats(
 	public static final int RETAIL_MAX_MATK_SPD = 3333;
 	public static final int MAX_HENNA_STAT_BONUS = 5;
 
+	private static volatile com.lopez.l2j.game.template.CharTemplateTable cachedTemplateTable;
+
+	public static CharTemplate findTemplate(int classId) {
+		com.lopez.l2j.game.template.CharTemplateTable tbl = cachedTemplateTable;
+		if (tbl == null) {
+			synchronized (PlayerStats.class) {
+				tbl = cachedTemplateTable;
+				if (tbl == null) {
+					tbl = new com.lopez.l2j.game.template.CharTemplateTable();
+					cachedTemplateTable = tbl;
+				}
+			}
+		}
+		return tbl.get(classId).orElse(null);
+	}
+
 	public PlayerStats(int pAtk, int pDef, int mAtk, int mDef, int pAtkSpd, int mAtkSpd,
 			int critical, int accuracy, int evasion, int runSpeed) {
 		this(pAtk, pDef, mAtk, mDef, pAtkSpd, mAtkSpd, critical, accuracy, evasion, runSpeed, 69000, 0, 0, 40, 30, 43, 21, 20, 25);
@@ -674,6 +690,15 @@ public record PlayerStats(
 						equipFuncs = new ArrayList<>();
 					}
 					equipFuncs.addAll(item.template().statFuncs());
+				}
+			}
+			if (com.lopez.l2j.config.Config.getBoolean("EnchantArmorBonusHp", true)) {
+				int armorHpBonus = calcArmorEnchantHpBonus(player.inventory());
+				if (armorHpBonus > 0) {
+					if (equipFuncs.isEmpty()) {
+						equipFuncs = new ArrayList<>();
+					}
+					equipFuncs.add(new StatFunc("maxHp", StatFunc.Op.ADD, 0x40, armorHpBonus));
 				}
 			}
 		}
