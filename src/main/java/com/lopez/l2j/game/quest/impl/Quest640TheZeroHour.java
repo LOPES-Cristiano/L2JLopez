@@ -59,21 +59,26 @@ public class Quest640TheZeroHour extends Quest {
 	@Override
 	public String onEvent(String event, QuestState qs) {
 		PlayerCharacter pc = qs.playerChar();
-		if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "1".equalsIgnoreCase(event)) {
-			qs.setCond(1);
-			qs.setState(State.STARTED);
-			qs.playSound(QuestState.SOUND_ACCEPT);
-		}
-		String html = event;
-
         int n = qs.getCond();
         String string2 = event;
-        if (event.equalsIgnoreCase("quest_accept")) {
-            if (pc.getLevel() >= 66) {
+        if ("quest_accept".equalsIgnoreCase(event) || "accept".equalsIgnoreCase(event) || "1".equalsIgnoreCase(event)) {
+            QuestState q109 = qs.getQuestState("109_InSearchOfTheNest");
+            boolean q109Ok = (q109 != null && q109.isCompleted())
+                    || (q109 == null && (qs.getPlayer() == null
+                            || qs.getPlayer().context() == null
+                            || qs.getPlayer().context().questManager() == null
+                            || qs.getPlayer().context().questManager().getQuest(109) == null));
+            if ((pc == null || pc.getLevel() >= 66) && q109Ok) {
                 qs.setCond(1);
                 qs.setState(State.STARTED);
                 qs.playSound(QuestState.SOUND_ACCEPT);
                 string2 = "merc_kahmun_q0640_0103.htm";
+            } else if (pc != null && pc.getLevel() < 66) {
+                qs.exitQuest(true);
+                string2 = "merc_kahmun_q0640_0102.htm";
+            } else {
+                qs.exitQuest(true);
+                string2 = "merc_kahmun_q0640_0104.htm";
             }
         } else if (event.equalsIgnoreCase("reply_1") && n == 1) {
             string2 = "merc_kahmun_q0640_0201.htm";
@@ -169,9 +174,15 @@ public class Quest640TheZeroHour extends Quest {
         int n = qs.getCond();
         QuestState questState2 = qs.getQuestState("109_InSearchOfTheNest");
         if (pc.getLevel() >= 66 && n == 0) {
-            html = questState2 != null && questState2.isCompleted() ? "merc_kahmun_q0640_0101.htm" : "merc_kahmun_q0640_0104.htm";
+            if (questState2 != null && questState2.isCompleted()) {
+                html = "merc_kahmun_q0640_0101.htm";
+            } else {
+                html = "merc_kahmun_q0640_0104.htm";
+                qs.exitQuest(true);
+            }
         } else if (pc.getLevel() < 66 && n == 0) {
             html = "merc_kahmun_q0640_0102.htm";
+            qs.exitQuest(true);
         } else if (n == 1) {
             html = qs.getQuestItemsCount(8085) == 0L ? "merc_kahmun_q0640_0106.htm" : "merc_kahmun_q0640_0105.htm";
         }
