@@ -66,8 +66,29 @@ public class LastManStandingService {
         if (participants.containsKey(player.objectId())) {
             return false;
         }
+        String ip = resolvePlayerIp(player);
+        if (ip != null && !"127.0.0.1".equals(ip)) {
+            for (LmsParticipant existing : participants.values()) {
+                if (existing.player() != null && ip.equals(resolvePlayerIp(existing.player()))) {
+                    log.warn("LMS Anti-Dualbox: jogador {} recusado por IP duplicado {}", player.name(), ip);
+                    return false;
+                }
+            }
+        }
         participants.put(player.objectId(), new LmsParticipant(player, player.x(), player.y(), player.z()));
         return true;
+    }
+
+    private String resolvePlayerIp(PlayerCharacter player) {
+        if (player == null) return null;
+        GameWorld world = GameWorld.getInstance();
+        if (world != null) {
+            var op = world.findPlayer(player.objectId());
+            if (op instanceof com.lopez.l2j.network.game.GameSession gs && gs.clientIp() != null && !gs.clientIp().isBlank()) {
+                return gs.clientIp();
+            }
+        }
+        return null;
     }
 
     public synchronized boolean startFight() {
@@ -215,4 +236,5 @@ public class LastManStandingService {
 
     public EventState getState() { return state; }
     public int getAliveCount() { return aliveIds.size(); }
+    public boolean isParticipant(int playerId) { return participants.containsKey(playerId); }
 }
