@@ -3,8 +3,12 @@ package com.lopez.l2j.game.social;
 import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.item.ItemInstance;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
+import com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -32,16 +36,24 @@ public class WeddingService {
 	public record WeddingGift(int itemId, int count) {}
 
 	private final JdbcClient jdbc;
+	@Autowired(required = false)
+	private InventoryService inventoryService;
 	private final Map<Integer, Couple> couplesById = new ConcurrentHashMap<>();
 	private final Map<Integer, Integer> coupleIdByPlayer = new ConcurrentHashMap<>();
 
 	public WeddingService() {
-		this(null);
+		this(null, null);
+	}
+
+	public WeddingService(JdbcClient jdbc) {
+		this(jdbc, null);
 	}
 
 	@Autowired
-	public WeddingService(@Autowired(required = false) JdbcClient jdbc) {
+	public WeddingService(@Autowired(required = false) JdbcClient jdbc,
+			@Autowired(required = false) InventoryService inventoryService) {
 		this.jdbc = jdbc;
+		this.inventoryService = inventoryService;
 		load();
 	}
 
@@ -315,13 +327,34 @@ public class WeddingService {
 			if (p == null || p.inventory() == null) continue;
 			for (WeddingGift gift : getCeremonyGiftsForPlayer(p)) {
 				if (p.inventory().byItemId(gift.itemId()).isEmpty()) {
-					p.inventory().addItem(gift.itemId(), gift.count());
+					if (inventoryService != null) {
+						var res = inventoryService.addItem(p.inventory(), gift.itemId(), gift.count(), "WeddingGift");
+						if (res == null) {
+							p.inventory().addItem(gift.itemId(), gift.count());
+						} else if (res.item() != null) {
+							GameWorld gw = GameWorld.getInstance();
+							if (gw != null) {
+								gw.sendPacket(p.objectId(), new InventoryUpdate(List.of(
+										ItemInfo.of(res.item(), res.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
+							}
+						}
+					} else {
+						p.inventory().addItem(gift.itemId(), gift.count());
+						GameWorld gw = GameWorld.getInstance();
+						if (gw != null) {
+							gw.sendPacket(p.objectId(), ItemList.of(p.inventory().items(), false));
+						}
+					}
 				}
 			}
 			if (isHoneyMoonEnabled()) {
 				int[] loc = getHoneyMoonTeleportLoc();
 				if (loc[0] != 0 || loc[1] != 0) {
 					p.teleport(loc[0], loc[1], loc[2]);
+					GameWorld gw = GameWorld.getInstance();
+					if (gw != null) {
+						gw.teleportPlayer(p, loc[0], loc[1], loc[2], p.instanceId());
+					}
 				}
 			}
 		}
