@@ -232,6 +232,14 @@ public abstract class Quest {
 			qs = newQuestState(player);
 		}
 		if (qs != null) {
+			if (npc != null) {
+				qs.setLastTalkedNpcId(npc.npcId());
+			} else if (qs.getLastTalkedNpcId() == 0 && player != null) {
+				int resolved = qs.resolveEventNpcId(0);
+				if (resolved > 0) {
+					qs.setLastTalkedNpcId(resolved);
+				}
+			}
 			return onEvent(event, qs);
 		}
 		return null;
@@ -247,6 +255,9 @@ public abstract class Quest {
 			qs = newQuestState(player);
 		}
 		if (qs != null) {
+			if (npc != null) {
+				qs.setLastTalkedNpcId(npc.npcId());
+			}
 			return onTalk(npc, qs);
 		}
 		return null;
@@ -262,6 +273,9 @@ public abstract class Quest {
 			qs = newQuestState(player);
 		}
 		if (qs != null) {
+			if (npc != null) {
+				qs.setLastTalkedNpcId(npc.npcId());
+			}
 			return onFirstTalk(npc, qs);
 		}
 		return null;
