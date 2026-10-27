@@ -14,7 +14,8 @@ import org.springframework.stereotype.Component;
 /**
  * Quest 503: Pursuit of Clan Ambition (Elevação de Clã para Nível 5).
  * Exige líder de clã de nível 4.
- * Concede o Seal of Aspiration (3870) / Scepter of Judgement (3838/3869) e 250.000 SP.
+ * Concede o Seal of Aspiration (3870) / Scepter of Judgement (3838/3869) e
+ * 250.000 SP.
  */
 @Component
 public class Quest503PursuitOfClanAmbition extends Quest {
@@ -99,9 +100,9 @@ public class Quest503PursuitOfClanAmbition extends Quest {
 				IMPERIAL_COFFER,
 				CLEO,
 				SIR_ERIC_RODEMAI,
-				RODEMAI
-		);
+				RODEMAI);
 
+		addAttackId(IMPERIAL_GRAVEKEEPER);
 		addKillId(
 				DRAKE,
 				THUNDER_WYRM_HOLD,
@@ -114,8 +115,7 @@ public class Quest503PursuitOfClanAmbition extends Quest {
 				BLITZ_WYRM,
 				GRAVE_KEYMASTER,
 				IMPERIAL_SLAVE,
-				IMPERIAL_GRAVEKEEPER
-		);
+				IMPERIAL_GRAVEKEEPER);
 
 		registerQuestItems(
 				GUSTAF_INSTRUCTION,
@@ -134,8 +134,7 @@ public class Quest503PursuitOfClanAmbition extends Quest {
 				G_LET_BALTHAZAR,
 				G_LET_RODEMAI,
 				SCEPTER_JUDGEMENT,
-				BLACK_ANVIL_COIN
-		);
+				BLACK_ANVIL_COIN);
 
 		if (questManager != null) {
 			questManager.registerQuest(this);
@@ -505,6 +504,20 @@ public class Quest503PursuitOfClanAmbition extends Quest {
 	}
 
 	@Override
+	public String onAttack(NpcInstance npc, QuestState qs) {
+		if (qs == null || !qs.isStarted()) {
+			return null;
+		}
+		if (npc != null && npc.npcId() == IMPERIAL_GRAVEKEEPER && qs.getCond() == 10 && npc.isScriptValue(0)) {
+			npc.setScriptValue(1);
+			for (int i = 0; i < 4; i++) {
+				qs.addSpawn(IMPERIAL_SLAVE, 180000);
+			}
+		}
+		return null;
+	}
+
+	@Override
 	public String onKill(NpcInstance npc, GameSession player, boolean isPet) {
 		QuestState qs = checkQuestState(player);
 		if (qs == null) {
@@ -547,7 +560,8 @@ public class Quest503PursuitOfClanAmbition extends Quest {
 				case BLITZ_WYRM -> giveItemUpTo(qs, BLITZ_WYRM_EGG, 10);
 			}
 		} else if (cond == 5) {
-			int chance = (npcId == GIANT_SOLDIER) ? 25 : (npcId == GIANT_SCOUT || npcId == SPITEFUL_SOUL_LEADER ? 35 : 0);
+			int chance = (npcId == GIANT_SOLDIER) ? 25
+					: (npcId == GIANT_SCOUT || npcId == SPITEFUL_SOUL_LEADER ? 35 : 0);
 			if (chance > 0 && ThreadLocalRandom.current().nextInt(100) < chance) {
 				int roll = ThreadLocalRandom.current().nextInt(3);
 				if (roll == 0) {
@@ -563,8 +577,8 @@ public class Quest503PursuitOfClanAmbition extends Quest {
 		} else if (cond == 10) {
 			switch (npcId) {
 				case GRAVE_GUARD -> {
-					if (ThreadLocalRandom.current().nextInt(100) < 15) {
-						qs.addSpawn(GRAVE_KEYMASTER);
+					if (ThreadLocalRandom.current().nextInt(100) < 25) {
+						qs.addSpawn(GRAVE_KEYMASTER, 180000);
 					}
 				}
 				case GRAVE_KEYMASTER, IMPERIAL_SLAVE -> {
@@ -573,7 +587,7 @@ public class Quest503PursuitOfClanAmbition extends Quest {
 					}
 				}
 				case IMPERIAL_GRAVEKEEPER -> {
-					qs.addSpawn(IMPERIAL_COFFER);
+					qs.addSpawn(IMPERIAL_COFFER, 180000);
 					qs.set("ImpGraveKeeper", 3);
 					qs.playSound(QuestState.SOUND_MIDDLE);
 				}
