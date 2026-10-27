@@ -12,7 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Quest 234: Fate's Whisper (1º Passo Obrigatório para Subclasse no Lineage II Interlude).
+ * Quest 234: Fate's Whisper (1º Passo Obrigatório para Subclasse no Lineage II
+ * Interlude).
  * Concede a lendária Star of Destiny (5011).
  */
 @Component
@@ -56,8 +57,7 @@ public class Quest234FatesWhisper extends Quest {
 			CABRIO, CABRIO_COFFER,
 			KERNON, KERNON_CHEST,
 			GOLKONDA, GOLKONDA_CHEST,
-			HALLATE, HALLATE_CHEST
-	);
+			HALLATE, HALLATE_CHEST);
 
 	@Autowired
 	public Quest234FatesWhisper(QuestManager questManager) {
@@ -81,6 +81,20 @@ public class Quest234FatesWhisper extends Quest {
 	@Override
 	public String onAdvEvent(String event, NpcInstance npc, GameSession player) {
 		QuestState qs = checkQuestState(player);
+		if (qs == null && player != null) {
+			qs = newQuestState(player);
+		}
+		if (qs == null) {
+			return null;
+		}
+		if (npc != null) {
+			qs.setLastTalkedNpcId(npc.npcId());
+		}
+		return onEvent(event, qs);
+	}
+
+	@Override
+	public String onEvent(String event, QuestState qs) {
 		if (qs == null) {
 			return null;
 		}
@@ -143,6 +157,9 @@ public class Quest234FatesWhisper extends Quest {
 		QuestState qs = player.getQuestState(QUEST_NAME);
 		if (qs == null) {
 			qs = newQuestState(player);
+		}
+		if (qs != null && npc != null) {
+			qs.setLastTalkedNpcId(npc.npcId());
 		}
 
 		PlayerCharacter c = player.activeChar();
@@ -302,10 +319,12 @@ public class Quest234FatesWhisper extends Quest {
 			return null;
 		}
 
-		if (npc.npcId() == BAIUM && qs.getCond() == 7 && qs.hasQuestItems(PIPETTE_KNIFE) && !qs.hasQuestItems(RED_PIPETTE_KNIFE)) {
+		if (npc.npcId() == BAIUM && qs.getCond() == 7 && qs.hasQuestItems(PIPETTE_KNIFE)
+				&& !qs.hasQuestItems(RED_PIPETTE_KNIFE)) {
 			qs.takeItems(PIPETTE_KNIFE, 1);
 			qs.giveItems(RED_PIPETTE_KNIFE, 1);
-			qs.playSound(QuestState.SOUND_ITEMGET);
+			qs.setCond(8);
+			qs.playSound(QuestState.SOUND_MIDDLE);
 		}
 		return null;
 	}
