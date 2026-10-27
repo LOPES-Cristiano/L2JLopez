@@ -245,4 +245,19 @@ public class CubicService {
 		}
 		return triggered;
 	}
+
+	/**
+	 * Gatilho chamado quando o dono ataca um alvo (PvE/PvP), atualizando o alvo dos Cubics ativos
+	 * e disparando sua avaliacao de acao (#551-#595).
+	 */
+	public int onOwnerAttack(PlayerCharacter owner, Creature combatTarget) {
+		return triggerCombatAction(owner, combatTarget, owner != null ? List.of(owner) : List.of());
+	}
+
+	public int onOwnerAttack(
+			PlayerCharacter owner,
+			Creature combatTarget,
+			Collection<PlayerCharacter> partyMembers) {
+		return triggerCombatAction(owner, combatTarget, partyMembers);
+	}
 }
