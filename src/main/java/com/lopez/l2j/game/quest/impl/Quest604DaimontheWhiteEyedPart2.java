@@ -52,7 +52,21 @@ public class Quest604DaimontheWhiteEyedPart2 extends Quest {
 		if (qs == null) {
 			return null;
 		}
+		if (npc != null) {
+			qs.setLastTalkedNpcId(npc.npcId());
+		}
+		return handleEvent(event, npc, qs);
+	}
 
+	@Override
+	public String onEvent(String event, QuestState qs) {
+		if (qs == null) {
+			return null;
+		}
+		return handleEvent(event, null, qs);
+	}
+
+	private String handleEvent(String event, NpcInstance npc, QuestState qs) {
 		if ("60401".equalsIgnoreCase(event)) {
 			// npcSay
 			qs.set("spawned_daemon_of_hundred_eyes", String.valueOf(0), true);
@@ -65,9 +79,12 @@ public class Quest604DaimontheWhiteEyedPart2 extends Quest {
 		String string2 = event;
 		int n = qs.getInt("spawned_daemon_of_hundred_eyes");
 		int n2 = qs.getInt("daemon_of_hundred_eyes_second_cookie");
-		int n3 = npc != null ? npc.getNpcId() : 0;
+		int n3 = npc != null ? npc.getNpcId() : qs.resolveEventNpcId(getFirstStartNpc());
+		if (n3 == 31683 && "reply_1".equalsIgnoreCase(event) && n2 == 1) {
+			n3 = 31541;
+		}
 		if (n3 == 31683) {
-			if (event.equalsIgnoreCase("quest_accept")) {
+			if (event.equalsIgnoreCase("quest_accept") || event.equalsIgnoreCase("accept") || event.equalsIgnoreCase("1")) {
 				qs.setCond(1);
 				qs.set("daemon_of_hundred_eyes_second", String.valueOf(11), true);
 				qs.set("spawned_daemon_of_hundred_eyes", String.valueOf(0), true);
@@ -125,11 +142,6 @@ public class Quest604DaimontheWhiteEyedPart2 extends Quest {
 			}
 		}
 		return string2;
-	}
-
-	@Override
-	public String onEvent(String event, QuestState qs) {
-		return onAdvEvent(event, null, qs != null ? qs.getPlayer() : null);
 	}
 
 	@Override
