@@ -102,6 +102,8 @@ public class DimensionalRiftService {
     private final Map<Integer, List<NpcInstance>> spawnedMonstersByLeader = new ConcurrentHashMap<>();
     // Tarefas de salto automatico por sessao (PartyLeaderId -> ScheduledFuture)
     private final Map<Integer, ScheduledFuture<?>> autoJumpTasks = new ConcurrentHashMap<>();
+    // Tarefas de respawn periodico de monstros por sessao (PartyLeaderId -> ScheduledFuture)
+    private final Map<Integer, ScheduledFuture<?>> respawnTasks = new ConcurrentHashMap<>();
     // Cache das referencias de PlayerCharacter da party para saltos automaticos
     private final Map<Integer, List<PlayerCharacter>> partyMembersByLeader = new ConcurrentHashMap<>();
 
@@ -149,6 +151,10 @@ public class DimensionalRiftService {
             f.cancel(false);
         }
         autoJumpTasks.clear();
+        for (ScheduledFuture<?> f : respawnTasks.values()) {
+            f.cancel(false);
+        }
+        respawnTasks.clear();
         autoJumpScheduler.shutdownNow();
     }
 
@@ -233,6 +239,54 @@ public class DimensionalRiftService {
         ScheduledFuture<?> prev = autoJumpTasks.remove(leaderId);
         if (prev != null) {
             prev.cancel(false);
+        }
+        ScheduledFuture<?> resp = respawnTasks.remove(leaderId);
+        if (resp != null) {
+            resp.cancel(false);
+        }
+    }
+
+    private void scheduleMonsterRespawn(RiftSession session, int centerX, int centerY, int centerZ) {
+        if (session == null || session.isBossRoom() || session.getCurrentRoom() == 9) {
+            return;
+        }
+        int leaderId = session.getPartyLeaderId();
+        ScheduledFuture<?> prev = respawnTasks.remove(leaderId);
+        if (prev != null) {
+            prev.cancel(false);
+        }
+        long delayMs = Math.max(10_000L, getSpawnDelayMillis() > 0 ? getSpawnDelayMillis() : 30_000L);
+        ScheduledFuture<?> future = autoJumpScheduler.scheduleAtFixedRate(() -> {
+            respawnDeadMonsters(leaderId, centerX, centerY, centerZ);
+        }, delayMs, delayMs, TimeUnit.MILLISECONDS);
+        respawnTasks.put(leaderId, future);
+    }
+
+    public synchronized void respawnDeadMonsters(int leaderId, int centerX, int centerY, int centerZ) {
+        RiftSession session = activeSessions.get(leaderId);
+        if (session == null || session.isCompleted() || session.isBossRoom() || gameWorld == null || npcTemplateData == null) {
+            return;
+        }
+        List<NpcInstance> roomMonsters = spawnedMonstersByLeader.get(leaderId);
+        if (roomMonsters == null) {
+            return;
+        }
+        int[] mobIds = TIER_MONSTER_IDS.getOrDefault(session.getTier(), TIER_MONSTER_IDS.get(RiftTier.RECRUIT));
+        int[][] offsets = {{-120, -120}, {120, -120}, {-120, 120}, {120, 120}};
+        for (int i = 0; i < roomMonsters.size(); i++) {
+            NpcInstance existing = roomMonsters.get(i);
+            if (existing == null || existing.isDead() || existing.isDeleted()) {
+                int mobId = mobIds[i % mobIds.length];
+                NpcTemplate tpl = npcTemplateData.get(mobId)
+                        .orElseGet(() -> NpcTemplate.fallback(mobId, "Rift Invader", "L2Monster"));
+                int sx = centerX + offsets[i % offsets.length][0];
+                int sy = centerY + offsets[i % offsets.length][1];
+                NpcInstance mob = new NpcInstance(idFactory.nextId(), tpl, sx, sy, centerZ, 0);
+                gameWorld.addNpc(mob);
+                gameWorld.broadcastAround(sx, sy, GameWorld.VISIBILITY_RADIUS, mob.instanceId(),
+                        new GameServerPacket.NpcInfo(mob));
+                roomMonsters.set(i, mob);
+            }
         }
     }
 
@@ -451,12 +505,27 @@ public class DimensionalRiftService {
 
     /**
      * Abandona o Dimensional Rift a partir de qualquer membro do grupo.
+     * Se for um membro nao-lider saindo individualmente enquanto o restante da party permanece,
+     * apenas esse membro retorna a Waiting Room sem encerrar a sessao da party.
      */
     public synchronized void leaveRift(PlayerCharacter player, List<PlayerCharacter> members) {
         if (player == null) {
             return;
         }
-        int leaderId = playerToLeaderMap.getOrDefault(player.objectId(), player.objectId());
+        int playerId = player.objectId();
+        int leaderId = playerToLeaderMap.getOrDefault(playerId, playerId);
+        RiftSession session = activeSessions.get(leaderId);
+        if (session != null && playerId != leaderId) {
+            List<PlayerCharacter> cached = partyMembersByLeader.get(leaderId);
+            boolean individualExit = (members == null || members.size() <= 1);
+            if (individualExit && cached != null && cached.size() > 1) {
+                playerToLeaderMap.remove(playerId);
+                cached.removeIf(m -> m != null && m.objectId() == playerId);
+                teleportMember(player, WAITING_ROOM_X, WAITING_ROOM_Y, WAITING_ROOM_Z);
+                log.info("Dimensional Rift: Membro {} abandonou individualmente a sessao do lider {}", player.name(), leaderId);
+                return;
+            }
+        }
         exitRift(leaderId, members);
     }
 
@@ -602,6 +671,9 @@ public class DimensionalRiftService {
         }
 
         spawnedMonstersByLeader.put(leaderId, roomMonsters);
+        if (!session.isBossRoom() && session.getCurrentRoom() != 9) {
+            scheduleMonsterRespawn(session, centerX, centerY, centerZ);
+        }
     }
 
     private void despawnRoomMonsters(int leaderId) {
