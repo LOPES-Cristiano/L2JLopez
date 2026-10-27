@@ -32,7 +32,11 @@ public class AutoFarmState {
 
     // Distance & Tactical options
     private volatile int farmRadius = 1200;
-    private volatile int shortcutPage = 10; // 1..10
+    private volatile int shortcutPage = 1; // 1..10
+    private volatile int lastAttackSkillIndex = -1;
+    private volatile int lastChanceSkillIndex = -1;
+    private volatile int lastSelfSkillIndex = -1;
+    private volatile int lastLowLifeSkillIndex = -1;
     private volatile boolean leaderAssist = false;
     private volatile boolean assistMonsterAttack = false;
     private volatile boolean keepLocation = false;
@@ -587,6 +591,38 @@ public class AutoFarmState {
 
     public void setCurrentTargetId(int currentTargetId) {
         this.currentTargetId = currentTargetId;
+    }
+
+    public int getLastAttackSkillIndex() {
+        return lastAttackSkillIndex;
+    }
+
+    public void setLastAttackSkillIndex(int lastAttackSkillIndex) {
+        this.lastAttackSkillIndex = lastAttackSkillIndex;
+    }
+
+    public int getLastChanceSkillIndex() {
+        return lastChanceSkillIndex;
+    }
+
+    public void setLastChanceSkillIndex(int lastChanceSkillIndex) {
+        this.lastChanceSkillIndex = lastChanceSkillIndex;
+    }
+
+    public int getLastSelfSkillIndex() {
+        return lastSelfSkillIndex;
+    }
+
+    public void setLastSelfSkillIndex(int lastSelfSkillIndex) {
+        this.lastSelfSkillIndex = lastSelfSkillIndex;
+    }
+
+    public int getLastLowLifeSkillIndex() {
+        return lastLowLifeSkillIndex;
+    }
+
+    public void setLastLowLifeSkillIndex(int lastLowLifeSkillIndex) {
+        this.lastLowLifeSkillIndex = lastLowLifeSkillIndex;
     }
 
     public long getExtraDelayTimerMs() {
