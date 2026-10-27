@@ -12,7 +12,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Quest 220: Testimony of Glory
- * 2º Passo de 2ª Classe para todas as classes da raça Orc (Orc Raider, Orc Monk, Orc Shaman).
+ * 2º Passo de 2ª Classe para todas as classes da raça Orc (Orc Raider, Orc
+ * Monk, Orc Shaman).
  */
 @Component
 public class Quest220TestimonyOfGlory extends Quest {
@@ -104,7 +105,8 @@ public class Quest220TestimonyOfGlory extends Quest {
 		addKillId(TYRANT, MARSH_STAKATO_DRONE, GUARDIAN_BASILISK, MANASHEN_GARGOYLE,
 				TIMAK_ORC, TIMAK_ORC_ARCHER, TIMAK_ORC_SOLDIER, TIMAK_ORC_WARRIOR, TIMAK_ORC_SHAMAN, TIMAK_ORC_OVERLORD,
 				TAMLIN_ORC, TAMLIN_ORC_ARCHER, RAGNA_ORC_OVERLORD, RAGNA_ORC_SEER,
-				PASHIKA_SON_OF_VOLTAR, VULTUS_SON_OF_VOLTAR, ENKU_ORC_OVERLORD, MAKUM_BUGBEAR_THUG, REVENANT_OF_TANTOS_CHIEF);
+				PASHIKA_SON_OF_VOLTAR, VULTUS_SON_OF_VOLTAR, ENKU_ORC_OVERLORD, MAKUM_BUGBEAR_THUG,
+				REVENANT_OF_TANTOS_CHIEF);
 
 		registerQuestItems(VOKIYANS_ORDER1, MANASHEN_SHARD, TYRANT_TALON, GUARDIAN_BASILISK_FANG,
 				VOKIYANS_ORDER2, NECKLACE_OF_AUTHORITY, CHIANTAS_ORDER1, SCEPTER_OF_BREKA, SCEPTER_OF_ENKU,
@@ -210,12 +212,16 @@ public class Quest220TestimonyOfGlory extends Quest {
 			qs.giveItems(GLOVE_OF_KEPRA, 1);
 			qs.playSound(QuestState.SOUND_ITEMGET);
 			qs.addSpawn(ENKU_ORC_OVERLORD, 19894, 189743, -3074, 200000);
+			qs.addSpawn(ENKU_ORC_OVERLORD, 19869, 189800, -3059, 200000);
+			qs.addSpawn(ENKU_ORC_OVERLORD, 19818, 189818, -3047, 200000);
+			qs.addSpawn(ENKU_ORC_OVERLORD, 19753, 189837, -3027, 200000);
 			return "30616-05.htm";
 		} else if ("30617-04.htm".equalsIgnoreCase(event)) {
 			qs.takeItems(KASMAN_LETTER_2, -1);
 			qs.giveItems(GLOVE_OF_BURAI, 1);
 			qs.playSound(QuestState.SOUND_ITEMGET);
 			qs.addSpawn(MAKUM_BUGBEAR_THUG, -94292, 110781, -3701, 200000);
+			qs.addSpawn(MAKUM_BUGBEAR_THUG, -94293, 110861, -3701, 200000);
 			return "30617-04.htm";
 		} else if ("30618-03.htm".equalsIgnoreCase(event)) {
 			qs.takeItems(KASMAN_LETTER_3, -1);
@@ -348,6 +354,8 @@ public class Quest220TestimonyOfGlory extends Quest {
 					qs.removeRadar(80100, 119991, -2264);
 					return "30615-02.htm";
 				} else if (qs.hasQuestItems(GLOVE_OF_VOLTAR)) {
+					qs.addSpawn(PASHIKA_SON_OF_VOLTAR, 80117, 120039, -2259, 200000);
+					qs.addSpawn(VULTUS_SON_OF_VOLTAR, 80058, 120038, -2259, 200000);
 					return "30615-05.htm";
 				} else if (qs.hasQuestItems(PASHIKA_HEAD) && qs.hasQuestItems(VULTUS_HEAD)) {
 					qs.takeItems(PASHIKA_HEAD, -1);
@@ -369,6 +377,10 @@ public class Quest220TestimonyOfGlory extends Quest {
 					qs.removeRadar(19815, 189703, -3032);
 					return "30616-02.htm";
 				} else if (qs.hasQuestItems(GLOVE_OF_KEPRA)) {
+					qs.addSpawn(ENKU_ORC_OVERLORD, 19894, 189743, -3074, 200000);
+					qs.addSpawn(ENKU_ORC_OVERLORD, 19869, 189800, -3059, 200000);
+					qs.addSpawn(ENKU_ORC_OVERLORD, 19818, 189818, -3047, 200000);
+					qs.addSpawn(ENKU_ORC_OVERLORD, 19753, 189837, -3027, 200000);
 					return "30616-05.htm";
 				} else if (qs.getQuestItemsCount(ENKU_OVERLORD_HEAD) >= 4) {
 					qs.takeItems(ENKU_OVERLORD_HEAD, -1);
@@ -389,6 +401,8 @@ public class Quest220TestimonyOfGlory extends Quest {
 					qs.removeRadar(-94294, 110818, -3563);
 					return "30617-02.htm";
 				} else if (qs.hasQuestItems(GLOVE_OF_BURAI)) {
+					qs.addSpawn(MAKUM_BUGBEAR_THUG, -94292, 110781, -3701, 200000);
+					qs.addSpawn(MAKUM_BUGBEAR_THUG, -94293, 110861, -3701, 200000);
 					return "30617-04.htm";
 				} else if (qs.getQuestItemsCount(MAKUM_BUGBEAR_HEAD) >= 2) {
 					qs.takeItems(MAKUM_BUGBEAR_HEAD, -1);
@@ -501,9 +515,11 @@ public class Quest220TestimonyOfGlory extends Quest {
 		} else if (npcId == MARSH_STAKATO_DRONE && qs.hasQuestItems(DRIKO_CONTRACT)) {
 			if (qs.getQuestItemsCount(STAKATO_DRONE_HUSK) < 30) {
 				qs.giveItems(STAKATO_DRONE_HUSK, 1);
-				qs.playSound(qs.getQuestItemsCount(STAKATO_DRONE_HUSK) >= 30 ? QuestState.SOUND_MIDDLE : QuestState.SOUND_ITEMGET);
+				qs.playSound(qs.getQuestItemsCount(STAKATO_DRONE_HUSK) >= 30 ? QuestState.SOUND_MIDDLE
+						: QuestState.SOUND_ITEMGET);
 			}
-		} else if (npcId == PASHIKA_SON_OF_VOLTAR && qs.hasQuestItems(GLOVE_OF_VOLTAR) && !qs.hasQuestItems(PASHIKA_HEAD)) {
+		} else if (npcId == PASHIKA_SON_OF_VOLTAR && qs.hasQuestItems(GLOVE_OF_VOLTAR)
+				&& !qs.hasQuestItems(PASHIKA_HEAD)) {
 			qs.giveItems(PASHIKA_HEAD, 1);
 			if (qs.hasQuestItems(VULTUS_HEAD)) {
 				qs.takeItems(GLOVE_OF_VOLTAR, -1);
@@ -511,7 +527,8 @@ public class Quest220TestimonyOfGlory extends Quest {
 			} else {
 				qs.playSound(QuestState.SOUND_ITEMGET);
 			}
-		} else if (npcId == VULTUS_SON_OF_VOLTAR && qs.hasQuestItems(GLOVE_OF_VOLTAR) && !qs.hasQuestItems(VULTUS_HEAD)) {
+		} else if (npcId == VULTUS_SON_OF_VOLTAR && qs.hasQuestItems(GLOVE_OF_VOLTAR)
+				&& !qs.hasQuestItems(VULTUS_HEAD)) {
 			qs.giveItems(VULTUS_HEAD, 1);
 			if (qs.hasQuestItems(PASHIKA_HEAD)) {
 				qs.takeItems(GLOVE_OF_VOLTAR, -1);
@@ -542,7 +559,8 @@ public class Quest220TestimonyOfGlory extends Quest {
 		} else if (cond == 6) {
 			if (npcId >= TIMAK_ORC && npcId <= TIMAK_ORC_OVERLORD && qs.getQuestItemsCount(TIMAK_ORC_HEAD) < 20) {
 				qs.giveItems(TIMAK_ORC_HEAD, 1);
-			} else if ((npcId == TAMLIN_ORC || npcId == TAMLIN_ORC_ARCHER) && qs.getQuestItemsCount(TAMLIN_ORC_SKULL) < 20) {
+			} else if ((npcId == TAMLIN_ORC || npcId == TAMLIN_ORC_ARCHER)
+					&& qs.getQuestItemsCount(TAMLIN_ORC_SKULL) < 20) {
 				qs.giveItems(TAMLIN_ORC_SKULL, 1);
 			}
 
