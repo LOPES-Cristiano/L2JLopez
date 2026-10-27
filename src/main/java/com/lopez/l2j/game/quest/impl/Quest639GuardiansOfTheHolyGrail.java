@@ -111,8 +111,12 @@ public class Quest639GuardiansOfTheHolyGrail extends Quest {
         int n3 = qs.getCond();
         if (n == 31350) {
             if (n2 == 1) {
-                html = pc.getLevel() >= 73 ? "falsepriest_dominic_q0639_01.htm" : "falsepriest_dominic_q0639_02.htm";
-                qs.exitQuest(true);
+                if (pc.getLevel() >= 73) {
+                    html = "falsepriest_dominic_q0639_01.htm";
+                } else {
+                    html = "falsepriest_dominic_q0639_02.htm";
+                    qs.exitQuest(true);
+                }
             } else {
                 html = qs.getQuestItemsCount(8069) >= 1L ? "falsepriest_dominic_q0639_05.htm" : "falsepriest_dominic_q0639_06.htm";
             }
