@@ -12,7 +12,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Quest 225: Test of the Searcher
- * 3º Passo de 2ª Classe para Treasure Hunter, Plains Walker, Abyss Walker, Bounty Hunter.
+ * 3º Passo de 2ª Classe para Treasure Hunter, Plains Walker, Abyss Walker,
+ * Bounty Hunter.
  */
 @Component
 public class Quest225TestOfSearcher extends Quest {
@@ -312,8 +313,9 @@ public class Quest225TestOfSearcher extends Quest {
 			return null;
 		}
 
-		if (npc.getNpcId() == DELU_LIZARDMAN && qs.hasQuestItems(LEIRYNNS_ORDER1)) {
-			qs.addSpawn(NEER_BODYGUARD);
+		if (npc.getNpcId() == DELU_LIZARDMAN && qs.hasQuestItems(LEIRYNNS_ORDER1) && npc.isScriptValue(0)) {
+			npc.setScriptValue(1);
+			qs.addSpawn(NEER_BODYGUARD, 200000);
 		}
 
 		return null;
@@ -329,7 +331,7 @@ public class Quest225TestOfSearcher extends Quest {
 		int cond = qs.getCond();
 
 		switch (npcId) {
-			case DELU_LIZARDMAN -> {
+			case DELU_LIZARDMAN, NEER_BODYGUARD -> {
 				if (cond == 3 && qs.getQuestItemsCount(DELU_TOTEM) < 10) {
 					qs.giveItems(DELU_TOTEM, 1);
 					if (qs.getQuestItemsCount(DELU_TOTEM) >= 10) {
@@ -338,6 +340,8 @@ public class Quest225TestOfSearcher extends Quest {
 					} else {
 						qs.playSound(QuestState.SOUND_ITEMGET);
 					}
+				} else if (cond == 5) {
+					qs.addSpawn(CHIEF_KALKIS, 200000);
 				}
 			}
 			case CHIEF_KALKIS -> {
