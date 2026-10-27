@@ -11,6 +11,7 @@ import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
 import com.lopez.l2j.network.game.packet.GameServerPacket.DeleteObject;
 import com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo;
+import jakarta.annotation.PreDestroy;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -19,6 +20,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +60,11 @@ public class SiegeService {
 	private final CastleManager castleManager;
 	private final ClanTable clanTable;
 	private final JdbcClient jdbc;
+	private final ScheduledExecutorService siegeScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+		Thread t = new Thread(r, "SiegeService-Scheduler");
+		t.setDaemon(true);
+		return t;
+	});
 
 	@Autowired
 	public SiegeService(CastleManager castleManager,
@@ -67,6 +76,48 @@ public class SiegeService {
 		loadTowerAndArtefactSpawns();
 		initSieges();
 		loadSiegeClans();
+		this.siegeScheduler.scheduleAtFixedRate(this::checkScheduledSieges, 60L, 60L, TimeUnit.SECONDS);
+	}
+
+	@PreDestroy
+	public void shutdown() {
+		siegeScheduler.shutdownNow();
+	}
+
+	/**
+	 * Verifica periodicamente cercos agendados para iniciar ou encerrar automaticamente.
+	 */
+	public void checkScheduledSieges() {
+		long now = System.currentTimeMillis();
+		for (SiegeRecord siege : sieges.values()) {
+			try {
+				if (siege.status() == SiegeStatus.IN_PROGRESS) {
+					if (siege.siegeEndDate() > 0L && now >= siege.siegeEndDate()) {
+						Castle castle = castleManager.getCastleById(siege.castleId()).orElse(null);
+						int currentOwner = castle != null ? castle.ownerClanId() : 0;
+						endSiege(siege.castleId(), currentOwner);
+					}
+				} else if (siege.siegeDate() > 0L && now >= siege.siegeDate()) {
+					startSiege(siege.castleId());
+				}
+			} catch (Exception ex) {
+				log.warn("Erro ao verificar ciclo de cerco do castelo {}: {}", siege.castleId(), ex.getMessage());
+			}
+		}
+	}
+
+	private void persistCastleSiegeDate(int castleId, long siegeDate) {
+		if (jdbc == null) {
+			return;
+		}
+		try {
+			jdbc.sql("UPDATE castle SET siegeDate = :sDate WHERE id = :id")
+					.param("sDate", siegeDate)
+					.param("id", castleId)
+					.update();
+		} catch (Exception ex) {
+			log.warn("Erro ao persistir siegeDate do castelo {}: {}", castleId, ex.getMessage());
+		}
 	}
 
 	private void initSieges() {
@@ -285,6 +336,7 @@ public class SiegeService {
 		}
 		siege.siegeDate(cal.getTimeInMillis());
 		castle.siegeDate(cal.getTimeInMillis());
+		persistCastleSiegeDate(castleId, cal.getTimeInMillis());
 		return true;
 	}
 
@@ -422,7 +474,10 @@ public class SiegeService {
 			return false;
 		}
 
+		long now = System.currentTimeMillis();
+		long duration = Config.SIEGE_LENGTH > 0 ? (long) Config.SIEGE_LENGTH * 60 * 1000L : SIEGE_DURATION_MILLIS;
 		siege.status(SiegeStatus.IN_PROGRESS);
+		siege.siegeEndDate(now + duration);
 		siege.registrationOver(true);
 		List<SiegeSpawn> cts = controlTowerSpawns.get(castleId);
 		siege.controlTowersActive(cts != null && !cts.isEmpty() ? cts.size() : 3);
@@ -547,6 +602,7 @@ public class SiegeService {
 		if (castle != null) {
 			castle.siegeDate(nextSiege);
 		}
+		persistCastleSiegeDate(castleId, nextSiege);
 
 		clearSiegeClans(castleId);
 		log.info("Cerco ao Castelo {} finalizado! Vencedor: Cla {}", castleId, winnerClanId);
