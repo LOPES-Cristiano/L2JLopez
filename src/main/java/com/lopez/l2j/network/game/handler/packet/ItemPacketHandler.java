@@ -58,7 +58,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Handler modular para itens, equipamentos, consumiveis, soulshots e encantamento.
+ * Handler modular para itens, equipamentos, consumiveis, soulshots e
+ * encantamento.
  */
 public class ItemPacketHandler {
 
@@ -77,6 +78,10 @@ public class ItemPacketHandler {
 
 	public static Map<Integer, Integer> getSoulCrystalAbsorbers(int npcObjectId) {
 		return SOUL_CRYSTAL_ABSORBERS.getOrDefault(npcObjectId, Map.of());
+	}
+
+	public static void clearSoulCrystalAbsorbers(int npcObjectId) {
+		SOUL_CRYSTAL_ABSORBERS.remove(npcObjectId);
 	}
 
 	private final GameSession session;
@@ -163,7 +168,8 @@ public class ItemPacketHandler {
 						|| (ctx != null && ((ctx.tvt() != null && ctx.tvt().isPlayerInEvent(active.objectId()))
 								|| (ctx.ctf() != null && ctx.ctf().isPlayerInEvent(active.objectId()))
 								|| (ctx.dm() != null && ctx.dm().isPlayerInEvent(active.objectId()))))) {
-					session.send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(item.itemId())));
+					session.send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED,
+							new SystemMessage.ItemName(item.itemId())));
 					session.send(new ActionFailed());
 					return;
 				}
@@ -232,25 +238,102 @@ public class ItemPacketHandler {
 				session.send(new ActionFailed());
 				return;
 			}
-			var recipeOpt = com.lopez.l2j.game.recipe.RecipeService.getInstance().getRecipeByItemId(item.itemId());
+			var recipeService = (ctx != null && ctx.recipes() != null)
+					? ctx.recipes()
+					: com.lopez.l2j.game.recipe.RecipeService.getInstance();
+			var recipeOpt = recipeService.getRecipeByItemId(item.itemId());
 			if (recipeOpt.isPresent()) {
 				var recipe = recipeOpt.get();
-				if (com.lopez.l2j.game.recipe.RecipeService.getInstance().hasRecipe(active.objectId(), recipe.id())) {
-					session.send(SystemMessage.id(SystemMessage.RECIPES_CANT_BE_REGISTERED));
+				if (!recipeService.isCraftingEnabled()) {
+					session.send(SystemMessage.id(SystemMessage.CANT_CRAFT_DURING_COMBAT));
 					session.send(new ActionFailed());
 					return;
 				}
-				if (ctx != null && ctx.inventories() != null) {
-					var consumed = ctx.inventories().consumeItem(active.inventory(), item.itemId(), 1, "RegisterRecipe");
-					if (consumed != null) {
-						session.send(new InventoryUpdate(List.of(ItemInfo.of(consumed.item(), consumed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
-						session.refreshWeightAndPenalties();
+				if (active.privateStoreType() == PlayerCharacter.STORE_MANUFACTURE) {
+					session.send(SystemMessage.id(SystemMessage.CANT_ALTER_RECIPEBOOK_WHILE_CRAFTING));
+					session.send(new ActionFailed());
+					return;
+				}
+				if (recipeService.hasRecipe(active.objectId(), recipe.id())) {
+					session.send(SystemMessage.id(SystemMessage.RECIPE_ALREADY_REGISTERED));
+					session.send(new ActionFailed());
+					return;
+				}
+				if (!active.isGm()) {
+					if (recipe.isDwarven()) {
+						int dwarfCraftLvl = active.skillLevel(172);
+						if (dwarfCraftLvl <= 0
+								&& (active.canCraft() || com.lopez.l2j.game.craft.DwarfCraftBonus.isDwarf(active))
+								&& active.skills().isEmpty()) {
+							dwarfCraftLvl = getFallbackDwarfCraftLevel(active.level());
+						}
+						if (dwarfCraftLvl <= 0) {
+							session.send(SystemMessage.id(SystemMessage.CANT_REGISTER_NO_ABILITY_TO_CRAFT));
+							session.send(new ActionFailed());
+							return;
+						}
+						if (recipe.level() > dwarfCraftLvl) {
+							session.send(SystemMessage.id(SystemMessage.CREATE_LVL_TOO_LOW_TO_REGISTER));
+							session.send(new ActionFailed());
+							return;
+						}
+						int maxDwarfRecipes = (int) Math.round(com.lopez.l2j.game.model.PlayerStats.applyStat(
+								active, "DwarfRecipeLimit", Config.DWARF_RECIPE_LIMIT));
+						var currentBook = recipeService.getRecipeBook(active.objectId(), true);
+						if (currentBook.size() >= maxDwarfRecipes) {
+							session.send(SystemMessage.of(SystemMessage.UP_TO_S1_RECIPES_CAN_REGISTER,
+									new SystemMessage.Number(maxDwarfRecipes)));
+							session.send(new ActionFailed());
+							return;
+						}
+					} else {
+						int commonCraftLvl = active.skillLevel(1320);
+						if (commonCraftLvl <= 0 && active.skills().isEmpty()) {
+							commonCraftLvl = getFallbackCommonCraftLevel(active.level());
+						}
+						if (commonCraftLvl <= 0) {
+							session.send(SystemMessage.id(SystemMessage.CANT_REGISTER_NO_ABILITY_TO_CRAFT));
+							session.send(new ActionFailed());
+							return;
+						}
+						if (recipe.level() > commonCraftLvl) {
+							session.send(SystemMessage.id(SystemMessage.CREATE_LVL_TOO_LOW_TO_REGISTER));
+							session.send(new ActionFailed());
+							return;
+						}
+						int maxCommonRecipes = (int) Math.round(com.lopez.l2j.game.model.PlayerStats.applyStat(
+								active, "CommonRecipeLimit", Config.COMMON_RECIPE_LIMIT));
+						var currentBook = recipeService.getRecipeBook(active.objectId(), false);
+						if (currentBook.size() >= maxCommonRecipes) {
+							session.send(SystemMessage.of(SystemMessage.UP_TO_S1_RECIPES_CAN_REGISTER,
+									new SystemMessage.Number(maxCommonRecipes)));
+							session.send(new ActionFailed());
+							return;
+						}
 					}
 				}
-				com.lopez.l2j.game.recipe.RecipeService.getInstance().registerRecipe(active.objectId(), recipe.id());
-				var book = com.lopez.l2j.game.recipe.RecipeService.getInstance().getRecipeBook(active.objectId(), recipe.isDwarven());
-				session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeBookItemList(recipe.isDwarven(), active.maxMp(), book));
+				if (ctx != null && ctx.inventories() != null) {
+					var consumed = ctx.inventories().consumeItem(active.inventory(), item.itemId(), 1,
+							"RegisterRecipe");
+					if (consumed != null) {
+						session.send(new InventoryUpdate(List.of(ItemInfo.of(consumed.item(),
+								consumed.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+						session.refreshWeightAndPenalties();
+					}
+				} else {
+					active.inventory().destroyItemByItemId(item.itemId(), 1);
+				}
+				recipeService.registerRecipe(active.objectId(), recipe.id());
+				var book = recipeService.getRecipeBook(active.objectId(), recipe.isDwarven());
+				session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.RecipeBookItemList(
+						recipe.isDwarven(), active.maxMp(), book));
 				session.send(SystemMessage.of(SystemMessage.S1_ADDED, new SystemMessage.ItemName(item.itemId())));
+				session.send(new ActionFailed());
+				return;
+			}
+			if ("recipe".equalsIgnoreCase(item.template().subType())
+					|| (item.template().name() != null && item.template().name().startsWith("Recipe:"))) {
+				session.send(SystemMessage.id(SystemMessage.RECIPE_INCORRECT));
 				session.send(new ActionFailed());
 				return;
 			}
@@ -258,7 +341,8 @@ public class ItemPacketHandler {
 			if (consumable.isPresent()) {
 				useConsumable(consumable.get());
 			} else {
-				session.send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(item.itemId())));
+				session.send(
+						SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(item.itemId())));
 			}
 			session.send(new ActionFailed());
 			return;
@@ -267,18 +351,62 @@ public class ItemPacketHandler {
 			session.send(new ActionFailed());
 			return;
 		}
-		if (!item.isEquipped() && (!EquipmentRestrictionService.canEquip(active, item) || !canEquipSpecialItem(active, item, ctx))) {
+		if (!item.isEquipped()
+				&& (!EquipmentRestrictionService.canEquip(active, item) || !canEquipSpecialItem(active, item, ctx))) {
 			session.send(SystemMessage.of(SystemMessage.S1_CANNOT_BE_USED, new SystemMessage.ItemName(item.itemId())));
 			session.send(new ActionFailed());
 			return;
 		}
-		if (Config.BLOCK_CHANGE_WEAPON_WHILE_ATTACKING && item.template().type2() == ItemTemplate.TYPE2_WEAPON && session.isAutoAttacking()) {
+		if (Config.BLOCK_CHANGE_WEAPON_WHILE_ATTACKING && item.template().type2() == ItemTemplate.TYPE2_WEAPON
+				&& session.isAutoAttacking()) {
 			session.send(new ActionFailed());
 			return;
 		}
 		if (ctx != null && ctx.inventories() != null) {
 			afterEquipChange(ctx.inventories().toggleEquip(active.inventory(), item.objectId()));
 		}
+	}
+
+	private static int getFallbackDwarfCraftLevel(int playerLevel) {
+		if (playerLevel >= 70)
+			return 9;
+		if (playerLevel >= 62)
+			return 8;
+		if (playerLevel >= 55)
+			return 7;
+		if (playerLevel >= 49)
+			return 6;
+		if (playerLevel >= 43)
+			return 5;
+		if (playerLevel >= 36)
+			return 4;
+		if (playerLevel >= 28)
+			return 3;
+		if (playerLevel >= 20)
+			return 2;
+		if (playerLevel >= 5)
+			return 1;
+		return 0;
+	}
+
+	private static int getFallbackCommonCraftLevel(int playerLevel) {
+		if (playerLevel >= 70)
+			return 9;
+		if (playerLevel >= 62)
+			return 8;
+		if (playerLevel >= 55)
+			return 7;
+		if (playerLevel >= 49)
+			return 6;
+		if (playerLevel >= 43)
+			return 5;
+		if (playerLevel >= 36)
+			return 4;
+		if (playerLevel >= 28)
+			return 3;
+		if (playerLevel >= 20)
+			return 2;
+		return playerLevel >= 1 ? 1 : 0;
 	}
 
 	private boolean canEquipSpecialItem(PlayerCharacter active, ItemInstance item, GameSession.Context ctx) {
@@ -316,10 +444,12 @@ public class ItemPacketHandler {
 	}
 
 	public static boolean isMercenaryTicket(int itemId) {
-		return (itemId >= 3960 && itemId <= 4038)
+		return (itemId >= 3960 && itemId <= 4037)
 				|| (itemId >= 5205 && itemId <= 5217)
-				|| (itemId >= 6019 && itemId <= 6032)
-				|| (itemId >= 6779 && itemId <= 6811);
+				|| (itemId >= 6019 && itemId <= 6040)
+				|| (itemId >= 6301 && itemId <= 6312)
+				|| (itemId >= 6779 && itemId <= 6811)
+				|| (itemId >= 7998 && itemId <= 8029);
 	}
 
 	public void handleUnEquip(RequestUnEquipItem p) {
@@ -328,7 +458,9 @@ public class ItemPacketHandler {
 		if (!session.inWorld() || active == null || ctx == null || ctx.inventories() == null) {
 			return;
 		}
-		if (Config.BLOCK_CHANGE_WEAPON_WHILE_ATTACKING && (p.bodyPart() == ItemSlots.SLOT_R_HAND || p.bodyPart() == ItemSlots.SLOT_LR_HAND) && session.isAutoAttacking()) {
+		if (Config.BLOCK_CHANGE_WEAPON_WHILE_ATTACKING
+				&& (p.bodyPart() == ItemSlots.SLOT_R_HAND || p.bodyPart() == ItemSlots.SLOT_LR_HAND)
+				&& session.isAutoAttacking()) {
 			session.send(new ActionFailed());
 			return;
 		}
@@ -338,7 +470,8 @@ public class ItemPacketHandler {
 	public void handleDestroyItem(RequestDestroyItem p) {
 		PlayerCharacter active = session.activeChar();
 		var ctx = session.context();
-		if (!session.inWorld() || active == null || active.isDead() || active.isStoreOpen() || active.isBuffShop() || ctx == null || ctx.inventories() == null) {
+		if (!session.inWorld() || active == null || active.isDead() || active.isStoreOpen() || active.isBuffShop()
+				|| ctx == null || ctx.inventories() == null) {
 			session.send(new ActionFailed());
 			return;
 		}
@@ -391,8 +524,12 @@ public class ItemPacketHandler {
 			boolean hasMercPriv = active.isClanLeader()
 					|| (active.clanPrivileges() & com.lopez.l2j.game.clan.Clan.CP_CS_MERCENARIES) != 0;
 			if (clan != null && clan.castleId() > 0 && hasMercPriv) {
+				if (ctx.sevenSigns() != null) {
+					ctx.mercenaries().setSevenSignsManager(ctx.sevenSigns());
+				}
 				int prevCount = item.count();
-				if (ctx.mercenaries().dropMercenaryTicket(active, clan, item.itemId(), p.x(), p.y(), p.z(), active.heading())) {
+				if (ctx.mercenaries().dropMercenaryTicket(active, clan, item.itemId(), p.x(), p.y(), p.z(),
+						active.heading())) {
 					var remaining = active.inventory().byObjectId(item.objectId()).orElse(null);
 					session.send(new InventoryUpdate(List.of(
 							ItemInfo.of(remaining != null ? remaining : item,
@@ -402,6 +539,9 @@ public class ItemPacketHandler {
 					return;
 				}
 			}
+			session.send(SystemMessage.id(SystemMessage.CANNOT_DISCARD_THIS_ITEM));
+			session.send(new ActionFailed());
+			return;
 		}
 		var result = ctx.inventories().destroyItem(active.inventory(), p.objectId(), p.count(), "Drop");
 		if (result == null) {
@@ -488,7 +628,8 @@ public class ItemPacketHandler {
 			return;
 		}
 
-		if (!Config.HERO_WEAPONS_CAN_BE_ENCHANTED && ((targetItemId >= 6611 && targetItemId <= 6621) || targetItemId == 6842)) {
+		if (!Config.HERO_WEAPONS_CAN_BE_ENCHANTED
+				&& ((targetItemId >= 6611 && targetItemId <= 6621) || targetItemId == 6842)) {
 			session.send(SystemMessage.id(SystemMessage.INAPPROPRIATE_ENCHANT_CONDITION));
 			session.send(EnchantResult.CANCEL);
 			return;
@@ -565,14 +706,17 @@ public class ItemPacketHandler {
 				int crystalId = EnchantTableService.getCrystalId(target.template().crystalType());
 				int crystalCount = EnchantTableService.calculateCrystalsOnBreak(target);
 				if (crystalId > 0 && crystalCount > 0) {
-					var addedCrystals = ctx.inventories().addItem(active.inventory(), crystalId, crystalCount, "EnchantBreak");
+					var addedCrystals = ctx.inventories().addItem(active.inventory(), crystalId, crystalCount,
+							"EnchantBreak");
 					if (addedCrystals != null) {
 						session.send(new InventoryUpdate(List.of(
-								ItemInfo.of(addedCrystals.item(), addedCrystals.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
+								ItemInfo.of(addedCrystals.item(),
+										addedCrystals.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
 					}
 					session.send(SystemMessage.of(SystemMessage.EARNED_S2_S1_S,
-							new SystemMessage.ItemName(crystalId), new SystemMessage.Number(crystalCount)));
+							new SystemMessage.ItemName(crystalId), new SystemMessage.ItemNumber(crystalCount)));
 				}
+				session.refreshWeightAndPenalties();
 				session.broadcastAppearance();
 			}
 		}
@@ -673,7 +817,8 @@ public class ItemPacketHandler {
 
 		List<ItemInfo> updates = new ArrayList<>();
 		if (totalCost > 0) {
-			var consumed = ctx.inventories().consumeItem(active.inventory(), ItemTemplate.ADENA_ID, (int) totalCost, "Buy");
+			var consumed = ctx.inventories().consumeItem(active.inventory(), ItemTemplate.ADENA_ID, (int) totalCost,
+					"Buy");
 			if (consumed != null) {
 				updates.add(consumed.removed()
 						? ItemInfo.of(consumed.item(), ItemInfo.REMOVED)
@@ -751,7 +896,8 @@ public class ItemPacketHandler {
 			}
 		}
 		if (totalEarned > 0) {
-			var adenaUpd = ctx.inventories().addItem(active.inventory(), ItemTemplate.ADENA_ID, (int) totalEarned, "SellReward");
+			var adenaUpd = ctx.inventories().addItem(active.inventory(), ItemTemplate.ADENA_ID, (int) totalEarned,
+					"SellReward");
 			if (adenaUpd != null) {
 				updates.add(ItemInfo.of(adenaUpd.item(), adenaUpd.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED));
 			}
@@ -799,10 +945,12 @@ public class ItemPacketHandler {
 					: SystemMessage.of(SystemMessage.S1_EQUIPPED, name));
 		} else {
 			session.send(item.enchant() > 0
-					? SystemMessage.of(SystemMessage.EQUIPMENT_S1_S2_REMOVED, new SystemMessage.Number(item.enchant()), name)
+					? SystemMessage.of(SystemMessage.EQUIPMENT_S1_S2_REMOVED, new SystemMessage.Number(item.enchant()),
+							name)
 					: SystemMessage.of(SystemMessage.S1_DISARMED, name));
 		}
-		// #225 - Ao equipar um BOW, localiza e equipa automaticamente flechas da mesma grade na mao esquerda
+		// #225 - Ao equipar um BOW, localiza e equipa automaticamente flechas da mesma
+		// grade na mao esquerda
 		List<ItemInstance> modifiedItems = new ArrayList<>(r.changed());
 		if (r.equipped() && item.template() != null && "bow".equalsIgnoreCase(item.template().weaponType())
 				&& ctx != null && ctx.inventories() != null) {
@@ -1120,16 +1268,19 @@ public class ItemPacketHandler {
 		if (c.type() == ConsumableTable.Type.RESURRECT_SCROLL && resPetTarget != null) {
 			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.SetupGauge(
 					com.lopez.l2j.network.game.packet.GameServerPacket.SetupGauge.BLUE, 2000));
-			var msu = new MagicSkillUse(active.objectId(), resPetTarget.objectId(), c.skillId(), c.level(), 2000, c.reuseMs(),
+			var msu = new MagicSkillUse(active.objectId(), resPetTarget.objectId(), c.skillId(), c.level(), 2000,
+					c.reuseMs(),
 					active.x(), active.y(), active.z(), resPetTarget.x(), resPetTarget.y(), resPetTarget.z());
 			session.send(msu);
 			if (session.context() != null && session.context().world() != null) {
 				session.context().world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msu, false);
 			}
 			double expRestore = c.itemId() == 3936 || c.itemId() == 6387 ? 100.0 : 0.0;
-			com.lopez.l2j.game.pet.PetService.getInstance().resurrectPet(active, resPetTarget, expRestore, session::send);
+			com.lopez.l2j.game.pet.PetService.getInstance().resurrectPet(active, resPetTarget, expRestore,
+					session::send);
 			return;
-		} else if (c.type() == ConsumableTable.Type.RESURRECT_SCROLL && resTarget != null && resTarget.active() != null) {
+		} else if (c.type() == ConsumableTable.Type.RESURRECT_SCROLL && resTarget != null
+				&& resTarget.active() != null) {
 			var tgt = resTarget.active();
 			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.SetupGauge(
 					com.lopez.l2j.network.game.packet.GameServerPacket.SetupGauge.BLUE, 2000));
@@ -1205,8 +1356,16 @@ public class ItemPacketHandler {
 		if (active == null) {
 			return;
 		}
-		boolean curePoison = c.itemId() == 1831 || c.itemId() == 1832 || c.itemId() == 3889;
-		boolean cureBleed = c.itemId() == 1833 || c.itemId() == 1834 || c.itemId() == 3889;
+		int itemId = c.itemId();
+		// 1831/1832 (Antidote / Advanced Antidote) -> Poison
+		// 1833/1834 (Bandage / Emergency Dressing) -> Bleed
+		// 6037 (Scroll of Waking) -> Sleep
+		// 3889 (Potion of Recovery) -> Poison, Bleed & Hold/Root
+		boolean curePoison = itemId == 1831 || itemId == 1832 || itemId == 3889;
+		boolean cureBleed = itemId == 1833 || itemId == 1834 || itemId == 3889;
+		boolean cureSleep = itemId == 6037;
+		boolean cureHold = itemId == 3889;
+
 		if (curePoison) {
 			active.effects().removeDebuffsByStackOrName("poison");
 			active.stopAbnormalEffect(0x0002);
@@ -1217,6 +1376,18 @@ public class ItemPacketHandler {
 			active.stopAbnormalEffect(0x0001);
 			cancelDotTasks("bleed");
 		}
+		if (cureSleep) {
+			active.effects().removeDebuffsByStackOrName("sleep");
+			active.stopAbnormalEffect(0x0080);
+			active.onDamaged(); // acorda caso esteja em estado sleeping
+		}
+		if (cureHold) {
+			active.effects().removeDebuffsByStackOrName("root");
+			active.effects().removeDebuffsByStackOrName("hold");
+			active.stopAbnormalEffect(0x0200);
+			active.root(0L);
+		}
+		session.refreshBuffs();
 		session.sendMagicEffectIcons();
 		session.broadcastAppearance();
 	}
@@ -1308,7 +1479,8 @@ public class ItemPacketHandler {
 		var buff = ActiveBuff.ofSkill(c.skillId(), c.level(), stackType, System.currentTimeMillis() + durationMs,
 				List.of(func));
 		owner.effects().put(buff, PlayerEffects.getExtraBuffSlots(owner));
-		session.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT, new SystemMessage.SkillName(c.skillId(), c.level())));
+		session.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT,
+				new SystemMessage.SkillName(c.skillId(), c.level())));
 		session.refreshBuffs();
 		session.sendVitals();
 		session.saveBuffs();
@@ -1383,7 +1555,8 @@ public class ItemPacketHandler {
 			previous.cancel(false);
 		}
 		owner.startAbnormalEffect(ConsumableTable.ABNORMAL_BIG_HEAD);
-		session.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT, new SystemMessage.SkillName(c.skillId(), c.level())));
+		session.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT,
+				new SystemMessage.SkillName(c.skillId(), c.level())));
 		session.broadcastAppearance();
 		AtomicReference<ScheduledFuture<?>> self = new AtomicReference<>();
 		ScheduledFuture<?> task = session.autoAttackScheduler().schedule(() -> {
@@ -1411,7 +1584,8 @@ public class ItemPacketHandler {
 		if (r == null) {
 			return false;
 		}
-		session.send(new InventoryUpdate(List.of(ItemInfo.of(r.item(), r.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+		session.send(new InventoryUpdate(
+				List.of(ItemInfo.of(r.item(), r.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
 		session.refreshWeightAndPenalties();
 		return true;
 	}
@@ -1470,7 +1644,8 @@ public class ItemPacketHandler {
 		var buff = new ActiveBuff(c.skillId(), c.level(), d.stackType(), System.currentTimeMillis() + durationMs,
 				d.runSpdAdd(), d.pAtkSpdMul(), d.mAtkSpdMul(), d.accuracyAdd());
 		owner.effects().put(buff, PlayerEffects.getExtraBuffSlots(owner));
-		session.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT, new SystemMessage.SkillName(c.skillId(), c.level())));
+		session.send(SystemMessage.of(SystemMessage.YOU_FEEL_S1_EFFECT,
+				new SystemMessage.SkillName(c.skillId(), c.level())));
 		session.refreshBuffs();
 		session.saveBuffs();
 		session.autoAttackScheduler().schedule(() -> {
@@ -1510,7 +1685,8 @@ public class ItemPacketHandler {
 			if (!consumeItem(itemId, count)) {
 				if (session.autoSoulShots().remove(itemId)) {
 					session.send(new ExAutoSoulShot(itemId, 0));
-					session.send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, new SystemMessage.ItemName(itemId)));
+					session.send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED,
+							new SystemMessage.ItemName(itemId)));
 				} else {
 					session.send(SystemMessage.id(SystemMessage.NOT_ENOUGH_SOULSHOTS));
 				}
@@ -1552,7 +1728,8 @@ public class ItemPacketHandler {
 		if (!consumeItem(itemId, count)) {
 			if (session.autoSoulShots().remove(itemId)) {
 				session.send(new ExAutoSoulShot(itemId, 0));
-				session.send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, new SystemMessage.ItemName(itemId)));
+				session.send(
+						SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, new SystemMessage.ItemName(itemId)));
 			} else {
 				session.send(SystemMessage.id(SystemMessage.NOT_ENOUGH_SOULSHOTS));
 			}
@@ -1577,7 +1754,8 @@ public class ItemPacketHandler {
 					// soulshot carregado
 				}
 			} else if (ConsumableTable.isSpiritshot(itemId)) {
-				if (!session.spiritshotCharged() && chargeSpiritShot(itemId, true, ConsumableTable.isBlessedSpiritshot(itemId))) {
+				if (!session.spiritshotCharged()
+						&& chargeSpiritShot(itemId, true, ConsumableTable.isBlessedSpiritshot(itemId))) {
 					// spiritshot carregado
 				}
 			}
@@ -1646,7 +1824,8 @@ public class ItemPacketHandler {
 		if (sk != null) {
 			session.castSkill(sk, true);
 		} else {
-			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS", "Thief Key e consumida pela habilidade Unlock (ladinos)."));
+			session.send(new CreatureSay(0, CreatureSay.ALL, "SYS",
+					"Thief Key e consumida pela habilidade Unlock (ladinos)."));
 			session.send(new ActionFailed());
 		}
 	}
@@ -1685,7 +1864,8 @@ public class ItemPacketHandler {
 			return;
 		}
 
-		var npcTarget = ctx.world().npc(session.targetObjectId()).filter(n -> !n.isDead() && isChestNpc(n)).orElse(null);
+		var npcTarget = ctx.world().npc(session.targetObjectId()).filter(n -> !n.isDead() && isChestNpc(n))
+				.orElse(null);
 		var doorTarget = (npcTarget == null && ctx.doors() != null) ? ctx.doors().door(session.targetObjectId()) : null;
 		if (npcTarget == null && doorTarget == null) {
 			session.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
@@ -1715,11 +1895,13 @@ public class ItemPacketHandler {
 		}
 		var sum = active.activeSummon();
 		if (itemId == 6645) {
-			if (sum.soulshotCharged()) return true;
+			if (sum.soulshotCharged())
+				return true;
 			if (!consumeItem(itemId, 1)) {
 				if (session.autoSoulShots().remove(itemId)) {
 					session.send(new ExAutoSoulShot(itemId, 0));
-					session.send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, new SystemMessage.ItemName(itemId)));
+					session.send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED,
+							new SystemMessage.ItemName(itemId)));
 				}
 				return false;
 			}
@@ -1728,11 +1910,13 @@ public class ItemPacketHandler {
 			return true;
 		}
 		if (itemId == 6646 || itemId == 6647) {
-			if (sum.spiritshotCharged() > 0) return true;
+			if (sum.spiritshotCharged() > 0)
+				return true;
 			if (!consumeItem(itemId, 1)) {
 				if (session.autoSoulShots().remove(itemId)) {
 					session.send(new ExAutoSoulShot(itemId, 0));
-					session.send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED, new SystemMessage.ItemName(itemId)));
+					session.send(SystemMessage.of(SystemMessage.AUTO_USE_OF_S1_CANCELLED,
+							new SystemMessage.ItemName(itemId)));
 				}
 				return false;
 			}
@@ -1783,6 +1967,63 @@ public class ItemPacketHandler {
 			chargeBeastShot(itemId, false);
 			return true;
 		}
+		// Lottery Ticket (4442) - exibe numeros apostados e rodada
+		if (itemId == com.lopez.l2j.game.service.LotteryService.LOTTERY_TICKET_ITEM_ID) {
+			int round = item.enchant() > 0 ? item.enchant()
+					: (ctx != null && ctx.lottery() != null ? ctx.lottery().getCurrentLotteryId() : 1);
+			Set<Integer> numbers = com.lopez.l2j.game.service.LotteryService.decodeNumbersBitmask(item.customType1(),
+					item.customType2());
+			String numStr = numbers.isEmpty() ? "N/A" : numbers.toString();
+			session.send(new CreatureSay(0, CreatureSay.ALL, "Lottery",
+					"Bilhete da Loteria de Aden #" + round + " | Numeros escolhidos: " + numStr));
+			String html = "<html><body><title>Lottery Ticket #" + round + "</title><br>"
+					+ "<b>Rodada da Loteria:</b> #" + round + "<br>"
+					+ "<b>Numeros Apostados:</b> " + numStr + "<br></body></html>";
+			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(0, html));
+			return true;
+		}
+		// Monster Race Ticket (4443) - exibe raia, corrida e valor apostado
+		if (itemId == com.lopez.l2j.game.service.MonsterRaceService.RACE_TICKET_ITEM_ID) {
+			int enc = item.enchant();
+			int laneFirst = enc >= 10 ? (enc / 10) : Math.max(1, enc);
+			int laneSecond = enc >= 10 ? (enc % 10) : 0;
+			int raceId = item.customType1() > 0 ? item.customType1()
+					: (ctx != null && ctx.monsterRace() != null ? ctx.monsterRace().getCurrentRaceId() : 1);
+			int betAmount = Math.max(100, item.customType2() * 100);
+			String laneDesc = laneSecond > 0 ? ("1o Raia " + laneFirst + " / 2o Raia " + laneSecond)
+					: ("Raia " + laneFirst);
+			session.send(new CreatureSay(0, CreatureSay.ALL, "MonsterTrack",
+					"Bilhete Monster Derby #" + raceId + " | " + laneDesc + " | Aposta: " + betAmount + " Adena"));
+			String html = "<html><body><title>Monster Race Ticket #" + raceId + "</title><br>"
+					+ "<b>Corrida:</b> #" + raceId + "<br>"
+					+ "<b>Aposta:</b> " + laneDesc + "<br>"
+					+ "<b>Valor:</b> " + betAmount + " Adena<br></body></html>";
+			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(0, html));
+			return true;
+		}
+		// Beast Spice: Golden Spice (6643) & Crystal Spice (6644) para Beast Farm (NPCs
+		// 21451..21507)
+		if (itemId == 6643 || itemId == 6644) {
+			if (ctx == null || ctx.world() == null || session.targetObjectId() == 0) {
+				session.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+				return true;
+			}
+			var npcTarget = ctx.world().npc(session.targetObjectId()).filter(n -> !n.isDead()).orElse(null);
+			if (npcTarget == null || npcTarget.npcId() < 21451 || npcTarget.npcId() > 21507) {
+				session.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
+				return true;
+			}
+			if (!consumeItem(itemId, 1)) {
+				return true;
+			}
+			int skillId = (itemId == 6643) ? 2188 : 2189;
+			var msu = new MagicSkillUse(active.objectId(), npcTarget.objectId(), skillId, 1, 500, 1000,
+					active.x(), active.y(), active.z(), npcTarget.x(), npcTarget.y(), npcTarget.z());
+			session.send(msu);
+			ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, msu, false);
+			handleBeastSpiceFeed(active, npcTarget, itemId == 6644, ctx);
+			return true;
+		}
 		// #211, #213 - FishShots (6535-6540) - valida vara de pescar equipada
 		if (itemId >= 6535 && itemId <= 6540) {
 			var weapon = activeWeapon();
@@ -1804,8 +2045,10 @@ public class ItemPacketHandler {
 			}
 			return true;
 		}
-		// #212, #235 - PetFood (2515 Wolf, 4038 Hatchling, 5168/5169 Strider, 6316 Wyvern, 7582 Baby, 9668 Great Wolf)
-		if (itemId == 2515 || itemId == 4038 || itemId == 5168 || itemId == 5169 || itemId == 6316 || itemId == 7582 || itemId == 9668) {
+		// #212, #235 - PetFood (2515 Wolf, 4038 Hatchling, 5168/5169 Strider, 6316
+		// Wyvern, 7582 Baby, 9668 Great Wolf, 10425 Improved Baby)
+		if (itemId == 2515 || itemId == 4038 || itemId == 5168 || itemId == 5169 || itemId == 6316 || itemId == 7582
+				|| itemId == 9668 || itemId == 10425) {
 			var sum = active.activeSummon();
 			if (sum != null && !sum.isDead()) {
 				if (sum.isPet() && sum.itemObjectId() > 0) {
@@ -1841,7 +2084,8 @@ public class ItemPacketHandler {
 				session.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
 				return true;
 			}
-			var npcTarget = ctx.world().npc(session.targetObjectId()).filter(n -> !n.isDead() && n.isMonster()).orElse(null);
+			var npcTarget = ctx.world().npc(session.targetObjectId()).filter(n -> !n.isDead() && n.isMonster())
+					.orElse(null);
 			if (npcTarget == null) {
 				session.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
 				return true;
@@ -1861,7 +2105,8 @@ public class ItemPacketHandler {
 				session.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
 				return true;
 			}
-			var npcTarget = ctx.world().npc(session.targetObjectId()).filter(n -> !n.isDead() && n.isMonster()).orElse(null);
+			var npcTarget = ctx.world().npc(session.targetObjectId()).filter(n -> !n.isDead() && n.isMonster())
+					.orElse(null);
 			if (npcTarget == null) {
 				session.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
 				return true;
@@ -1874,7 +2119,9 @@ public class ItemPacketHandler {
 				return true;
 			}
 			var manor = ctx.manor() != null ? ctx.manor() : com.lopez.l2j.game.manor.CastleManorManager.getInstance();
-			int cropId = (manor != null ? manor.getSeed(itemId).map(com.lopez.l2j.game.manor.SeedTemplate::cropId).orElse(0) : 0);
+			int cropId = (manor != null
+					? manor.getSeed(itemId).map(com.lopez.l2j.game.manor.SeedTemplate::cropId).orElse(0)
+					: 0);
 			if (cropId <= 0) {
 				cropId = itemId + 52;
 			}
@@ -1917,18 +2164,23 @@ public class ItemPacketHandler {
 					session.refreshWeightAndPenalties();
 				}
 				session.send(SystemMessage.of(SystemMessage.EARNED_S2_S1_S,
-						new SystemMessage.ItemName(seeded.cropItemId()), new SystemMessage.Number(cropCount)));
+						new SystemMessage.ItemName(seeded.cropItemId()), new SystemMessage.ItemNumber(cropCount)));
 			}
 			return true;
 		}
-		// #206 - Mercenary Ticket via UseItem (posiciona na coordenada atual do jogador)
+		// #206 - Mercenary Ticket via UseItem (posiciona na coordenada atual do
+		// jogador)
 		if (isMercenaryTicket(itemId) && ctx != null && ctx.mercenaries() != null && active.clanId() > 0) {
 			var clan = ctx.clans() != null ? ctx.clans().byClanId(active.clanId()).orElse(null) : null;
 			boolean hasMercPriv = active.isClanLeader()
 					|| (active.clanPrivileges() & com.lopez.l2j.game.clan.Clan.CP_CS_MERCENARIES) != 0;
 			if (clan != null && clan.castleId() > 0 && hasMercPriv) {
+				if (ctx.sevenSigns() != null) {
+					ctx.mercenaries().setSevenSignsManager(ctx.sevenSigns());
+				}
 				int prevCount = item.count();
-				if (ctx.mercenaries().hireMercenary(active, clan, itemId, active.x(), active.y(), active.z(), active.heading())) {
+				if (ctx.mercenaries().hireMercenary(active, clan, itemId, active.x(), active.y(), active.z(),
+						active.heading())) {
 					var remaining = active.inventory().byObjectId(item.objectId()).orElse(null);
 					session.send(new InventoryUpdate(List.of(
 							ItemInfo.of(remaining != null ? remaining : item,
@@ -1942,7 +2194,8 @@ public class ItemPacketHandler {
 		if (isHelpBook(itemId)) {
 			String html = (ctx != null && ctx.htmls() != null) ? ctx.htmls().get("help/" + itemId + ".htm") : null;
 			if (html == null || html.isBlank()) {
-				html = "<html><body><title>Book #" + itemId + "</title><br>Reading " + item.template().name() + ".</body></html>";
+				html = "<html><body><title>Book #" + itemId + "</title><br>Reading " + item.template().name()
+						+ ".</body></html>";
 			}
 			session.send(new com.lopez.l2j.network.game.packet.GameServerPacket.NpcHtmlMessage(0, html));
 			return true;
@@ -2027,11 +2280,13 @@ public class ItemPacketHandler {
 			if (ctx != null && ctx.world() != null) {
 				ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, dice, false);
 			}
-			session.send(SystemMessage.of(834, new SystemMessage.Text(active.name()), new SystemMessage.Number(number)));
+			session.send(
+					SystemMessage.of(834, new SystemMessage.Text(active.name()), new SystemMessage.Number(number)));
 			return true;
 		}
-		// #221, #223 - Pagan / Chapel Keys (8056, 8273, 8274, 8275, 7260)
-		if (itemId == 8056 || itemId == 8273 || itemId == 8274 || itemId == 8275 || itemId == 7260) {
+		// #221, #223 - Pagan / Chapel / Splendor / Enigma Keys (8056, 8060, 8273, 8274,
+		// 8275, 7260)
+		if (itemId == 8056 || itemId == 8060 || itemId == 8273 || itemId == 8274 || itemId == 8275 || itemId == 7260) {
 			if (ctx != null && ctx.doors() != null && session.targetObjectId() != 0) {
 				var door = ctx.doors().door(session.targetObjectId());
 				if (door != null && consumeItem(itemId, 1)) {
@@ -2049,7 +2304,8 @@ public class ItemPacketHandler {
 			session.send(SystemMessage.id(SystemMessage.TARGET_IS_INCORRECT));
 			return true;
 		}
-		// #213-#214, #225 - Fireworks & Crystal Carols (6403, 6406, 6407, 4410-4417, 4420-4421, 5062, 5562-5566, 5583-5587, 6903, 7061, 7062, 8555)
+		// #213-#214, #225 - Fireworks & Crystal Carols (6403, 6406, 6407, 4410-4417,
+		// 4420-4421, 5062, 5562-5566, 5583-5587, 6903, 7061, 7062, 8555)
 		if (isCrystalCarolOrFirework(itemId)) {
 			long now = System.currentTimeMillis();
 			Long readyAt = session.consumableReuse().get(itemId);
@@ -2080,7 +2336,8 @@ public class ItemPacketHandler {
 			}
 			return true;
 		}
-		// #215 - Herbs (8600-8614: HP, MP, Power, Magic, Atk.Spd, Casting Spd, Critical, Speed, Superior)
+		// #215 - Herbs (8600-8614: HP, MP, Power, Magic, Atk.Spd, Casting Spd,
+		// Critical, Speed, Superior)
 		if (itemId >= 8600 && itemId <= 8614) {
 			if (consumeItem(itemId, 1)) {
 				int skillId = 2278;
@@ -2109,19 +2366,23 @@ public class ItemPacketHandler {
 						skillId = 2281;
 					}
 					case 8608 -> {
-						applyHerbStatBuff(active, 2282, "attack_time_down", new StatFunc("pAtkSpd", StatFunc.Op.MUL, 0x30, 1.33));
+						applyHerbStatBuff(active, 2282, "attack_time_down",
+								new StatFunc("pAtkSpd", StatFunc.Op.MUL, 0x30, 1.33));
 						skillId = 2282;
 					}
 					case 8609 -> {
-						applyHerbStatBuff(active, 2283, "casting_time_down", new StatFunc("mAtkSpd", StatFunc.Op.MUL, 0x30, 1.30));
+						applyHerbStatBuff(active, 2283, "casting_time_down",
+								new StatFunc("mAtkSpd", StatFunc.Op.MUL, 0x30, 1.30));
 						skillId = 2283;
 					}
 					case 8610 -> {
-						applyHerbStatBuff(active, 2284, "critical_prob_up", new StatFunc("rCrit", StatFunc.Op.MUL, 0x30, 1.30));
+						applyHerbStatBuff(active, 2284, "critical_prob_up",
+								new StatFunc("rCrit", StatFunc.Op.MUL, 0x30, 1.30));
 						skillId = 2284;
 					}
 					case 8611 -> {
-						applyHerbStatBuff(active, 2285, "speed_up", new StatFunc("runSpd", StatFunc.Op.ADD, 0x40, 33.0));
+						applyHerbStatBuff(active, 2285, "speed_up",
+								new StatFunc("runSpd", StatFunc.Op.ADD, 0x40, 33.0));
 						skillId = 2285;
 					}
 					default -> {
@@ -2141,7 +2402,7 @@ public class ItemPacketHandler {
 					case 8030 -> 4551; // Rheumatism
 					case 8031 -> 4552; // Cholera
 					case 8032 -> 4553; // Flu
-					default -> 4554;   // Malaria
+					default -> 4554; // Malaria
 				};
 				active.effects().removeSkill(debuffSkillId);
 				session.refreshBuffs();
@@ -2150,6 +2411,66 @@ public class ItemPacketHandler {
 			return true;
 		}
 		return false;
+	}
+
+	private void handleBeastSpiceFeed(PlayerCharacter active, NpcInstance npc, boolean crystalSpice,
+			GameSession.Context ctx) {
+		String curTitle = npc.championTitle() != null ? npc.championTitle() : "";
+		int nextStage;
+		if (curTitle.contains("x2") || curTitle.contains("Stage 3")) {
+			nextStage = 4;
+		} else if (curTitle.contains("x1") || curTitle.contains("Stage 2")) {
+			nextStage = 3;
+		} else if (curTitle.contains("x1/2") || curTitle.contains("Stage 1")) {
+			nextStage = 2;
+		} else {
+			nextStage = 1;
+		}
+
+		// No ultimo estagio (ou com 25% de chance no Stage 3), pode ser domesticado
+		// como Tamed Beast
+		boolean tamed = nextStage >= 4 && java.util.concurrent.ThreadLocalRandom.current().nextInt(100) < 35;
+		if (tamed) {
+			npc.champion(true);
+			npc.championTitle("Tamed Beast (" + active.name() + ")");
+			npc.currentHp(npc.maxHp());
+			active.currentHp(Math.min(active.maxHp(), active.currentHp() + active.maxHp() * 0.25));
+			active.currentMp(Math.min(active.maxMp(), active.currentMp() + active.maxMp() * 0.20));
+			if (crystalSpice) {
+				applyHerbStatBuff(active, 2283, "casting_time_down",
+						new StatFunc("mAtkSpd", StatFunc.Op.MUL, 0x30, 1.30));
+			} else {
+				applyHerbStatBuff(active, 2280, "pa_up", new StatFunc("pAtk", StatFunc.Op.MUL, 0x30, 1.15));
+			}
+			session.send(new CreatureSay(npc.objectId(), CreatureSay.ALL, npc.name(),
+					"Mestre " + active.name() + ", estou ao seu dispor!"));
+		} else {
+			String stageLabel = switch (nextStage) {
+				case 1 -> "Feed x1";
+				case 2 -> "Feed x2";
+				default -> "Feed x4";
+			};
+			double statMult = switch (nextStage) {
+				case 1 -> 1.25;
+				case 2 -> 1.60;
+				default -> 2.20;
+			};
+			npc.champion(true);
+			npc.championTitle(stageLabel + (crystalSpice ? " (Crystal)" : " (Golden)"));
+			npc.maxHpMul(statMult);
+			npc.pAtkMul(statMult);
+			npc.mAtkMul(statMult);
+			npc.currentHp(npc.maxHp());
+			session.send(new CreatureSay(0, CreatureSay.ALL, "BeastFarm",
+					npc.name() + " se alimentou de " + (crystalSpice ? "Crystal Spice" : "Golden Spice")
+							+ " e evoluiu para " + stageLabel + "!"));
+		}
+
+		var info = new com.lopez.l2j.network.game.packet.GameServerPacket.NpcInfo(npc);
+		session.send(info);
+		if (ctx != null && ctx.world() != null) {
+			ctx.world().broadcastAround(session, GameWorld.VISIBILITY_RADIUS, info, false);
+		}
 	}
 
 	private void applyHerbStatBuff(PlayerCharacter owner, int skillId, String stackType, StatFunc func) {
@@ -2250,11 +2571,11 @@ public class ItemPacketHandler {
 		active.setNoble(true);
 		session.send(SystemMessage.id(SystemMessage.YOU_HAVE_BECOME_A_NOBLESSE));
 		session.send(new SocialAction(active.objectId(), 16));
+		session.send(new ActionFailed());
 		session.sendUserInfoAndBroadcastCharInfo();
 		var ctx = session.context();
 		if (ctx != null && ctx.characters() != null) {
 			ctx.characters().save(active, true);
 		}
-		session.send(new ActionFailed());
 	}
 }
