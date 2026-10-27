@@ -2,10 +2,16 @@ package com.lopez.l2j.game.upgrade;
 
 import com.lopez.l2j.game.item.Inventory;
 import com.lopez.l2j.game.item.ItemInstance;
+import com.lopez.l2j.game.item.ItemRepository;
 import com.lopez.l2j.game.item.ItemTemplate;
 import com.lopez.l2j.game.item.ItemTemplateTable;
 import com.lopez.l2j.game.model.ObjectIdFactory;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.service.InventoryService;
+import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,14 +57,30 @@ public class UpgradeItemService {
 	@Autowired(required = false)
 	private ObjectIdFactory objectIdFactory;
 
+	@Autowired(required = false)
+	private InventoryService inventoryService;
+
+	@Autowired(required = false)
+	private ItemRepository itemRepository;
+
 	public UpgradeItemService() {
 		loadRecipes();
 	}
 
-	@Autowired
 	public UpgradeItemService(ItemTemplateTable itemTemplateTable, ObjectIdFactory objectIdFactory) {
+		this(itemTemplateTable, objectIdFactory, null, null);
+	}
+
+	@Autowired
+	public UpgradeItemService(
+			@Autowired(required = false) ItemTemplateTable itemTemplateTable,
+			@Autowired(required = false) ObjectIdFactory objectIdFactory,
+			@Autowired(required = false) InventoryService inventoryService,
+			@Autowired(required = false) ItemRepository itemRepository) {
 		this.itemTemplateTable = itemTemplateTable;
 		this.objectIdFactory = objectIdFactory;
+		this.inventoryService = inventoryService;
+		this.itemRepository = itemRepository;
 		loadRecipes();
 	}
 
@@ -133,20 +155,38 @@ public class UpgradeItemService {
 
 		ItemInstance sourceItem = sourceOpt.get();
 		int originalEnchant = sourceItem.enchant();
+		List<ItemInfo> changes = new ArrayList<>();
 
 		// Valida e consome taxa de materiais / Adena
 		if (recipe.reqCount() > 0) {
+			int reqCnt = (int) recipe.reqCount();
 			if (inv.count(recipe.reqItemId()) < recipe.reqCount()) {
 				return UpgradeResult.fail("Materiais ou Adena insuficientes para o upgrade.");
 			}
-			inv.destroyItemByItemId(recipe.reqItemId(), (int) recipe.reqCount());
+			if (inventoryService != null) {
+				var cons = inventoryService.consumeItem(inv, recipe.reqItemId(), reqCnt, "UpgradeItemFee");
+				if (cons == null) {
+					return UpgradeResult.fail("Materiais ou Adena insuficientes para o upgrade.");
+				}
+				changes.add(ItemInfo.of(cons.item(), cons.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+			} else {
+				inv.destroyItemByItemId(recipe.reqItemId(), reqCnt);
+			}
 		}
 
 		// Rola chance de sucesso
 		int roll = random.nextInt(100) + 1;
 		if (roll <= recipe.chance()) {
 			// Remove item base
-			inv.remove(sourceItem);
+			if (inventoryService != null) {
+				inventoryService.destroyItem(inv, sourceItem.objectId(), 1, "UpgradeItemConsume");
+			} else {
+				inv.remove(sourceItem);
+				if (itemRepository != null) {
+					itemRepository.delete(sourceItem.objectId());
+				}
+			}
+			changes.add(ItemInfo.of(sourceItem, ItemInfo.REMOVED));
 
 			// Cria novo item melhorado preservando o encantamento!
 			int nextId = (objectIdFactory != null) ? objectIdFactory.nextId() : objIdGen.incrementAndGet();
@@ -154,10 +194,32 @@ public class UpgradeItemService {
 			ItemInstance newItem = new ItemInstance(nextId, tmpl, player.objectId(), 1);
 			newItem.enchant(originalEnchant);
 			inv.addItem(newItem);
+			if (itemRepository != null) {
+				itemRepository.insert(newItem, "UpgradeItemResult");
+			} else if (inventoryService != null) {
+				try {
+					inventoryService.saveItem(newItem);
+				} catch (Exception ignored) {
+				}
+			}
+			changes.add(ItemInfo.of(newItem, ItemInfo.ADDED));
+
+			GameWorld gw = GameWorld.getInstance();
+			if (gw != null) {
+				gw.sendPacket(player.objectId(), inventoryService != null
+						? new InventoryUpdate(changes)
+						: ItemList.of(inv.items(), false));
+			}
 
 			return UpgradeResult.ok(recipe.newItemId(), originalEnchant,
 					"Upgrade concluido com sucesso! O novo item herdou encantamento +" + originalEnchant + ".");
 		} else {
+			GameWorld gw = GameWorld.getInstance();
+			if (gw != null && !changes.isEmpty()) {
+				gw.sendPacket(player.objectId(), new InventoryUpdate(changes));
+			} else if (gw != null) {
+				gw.sendPacket(player.objectId(), ItemList.of(inv.items(), false));
+			}
 			return UpgradeResult.fail("O upgrade falhou. Seus materiais foram consumidos.");
 		}
 	}
