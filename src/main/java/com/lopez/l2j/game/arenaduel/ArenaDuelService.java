@@ -207,6 +207,15 @@ public class ArenaDuelService {
 			log.info("Player {} blocked from Arena Duel due to restricted item or S-grade restriction.", player.name());
 			return false;
 		}
+		String ip = resolvePlayerIp(player);
+		if (ip != null && !"127.0.0.1".equals(ip)) {
+			for (QueuedPlayer qp : waitingQueue) {
+				if (qp.player() != null && ip.equals(resolvePlayerIp(qp.player()))) {
+					log.info("Player {} blocked from Arena Duel due to duplicate IP {}.", player.name(), ip);
+					return false;
+				}
+			}
+		}
 
 		ArenaLoc loc = new ArenaLoc(player.x(), player.y(), player.z());
 		waitingQueue.add(new QueuedPlayer(player, loc));
@@ -215,6 +224,18 @@ public class ArenaDuelService {
 
 		processQueue();
 		return true;
+	}
+
+	private String resolvePlayerIp(PlayerCharacter player) {
+		if (player == null) return null;
+		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (world != null) {
+			var op = world.findPlayer(player.objectId());
+			if (op instanceof com.lopez.l2j.network.game.GameSession gs && gs.clientIp() != null && !gs.clientIp().isBlank()) {
+				return gs.clientIp();
+			}
+		}
+		return null;
 	}
 
 	public synchronized boolean unregister(PlayerCharacter player) {
@@ -545,6 +566,13 @@ public class ArenaDuelService {
 		} else if (winner.inventory() != null) {
 			winner.inventory().addItem(57, 1_000_000);
 			winner.inventory().addItem(6673, 5);
+		}
+		var world = com.lopez.l2j.game.world.GameWorld.getInstance();
+		if (world != null) {
+			var online = world.findPlayer(winner.objectId());
+			if (online != null) {
+				online.sendPacket(new com.lopez.l2j.network.game.packet.GameServerPacket.ItemList(winner, false));
+			}
 		}
 	}
 }
