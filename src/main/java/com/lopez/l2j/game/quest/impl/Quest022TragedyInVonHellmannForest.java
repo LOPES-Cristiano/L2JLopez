@@ -11,7 +11,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Quest 022: Tragedy in von Hellmann Forest
- * High Priest Tifaren e Innocentin em Rune, Ghost of Priest, Ghost of Adventurer e Well em Forest of the Dead.
+ * High Priest Tifaren e Innocentin em Rune, Ghost of Priest, Ghost of
+ * Adventurer e Well em Forest of the Dead.
  */
 @Component
 public class Quest022TragedyInVonHellmannForest extends Quest {
@@ -37,7 +38,7 @@ public class Quest022TragedyInVonHellmannForest extends Quest {
 
 	public static final int SOUL_OF_WELL = 27217;
 	public static final int WELL_TIMER_DELAY = 20000;
-	public static final int[] MOBS = {21553, 21554, 21555, 21556, 21561};
+	public static final int[] MOBS = { 21553, 21554, 21555, 21556, 21561 };
 
 	@Autowired
 	public Quest022TragedyInVonHellmannForest(QuestManager questManager) {
@@ -47,7 +48,8 @@ public class Quest022TragedyInVonHellmannForest extends Quest {
 		addAttackId(SOUL_OF_WELL);
 		addKillId(SOUL_OF_WELL);
 		addKillId(MOBS);
-		registerQuestItems(LOST_SKULL_OF_ELF, LETTER_OF_INNOCENTIN, GREEN_JEWEL_OF_ADVENTURER, RED_JEWEL_OF_ADVENTURER, SEALED_REPORT_BOX, REPORT_BOX);
+		registerQuestItems(LOST_SKULL_OF_ELF, LETTER_OF_INNOCENTIN, GREEN_JEWEL_OF_ADVENTURER, RED_JEWEL_OF_ADVENTURER,
+				SEALED_REPORT_BOX, REPORT_BOX);
 		if (questManager != null) {
 			questManager.registerQuest(this);
 		}
@@ -60,7 +62,8 @@ public class Quest022TragedyInVonHellmannForest extends Quest {
 			qs.setState(State.STARTED);
 			qs.playSound(QuestState.SOUND_ACCEPT);
 			return "31334-04.htm".equalsIgnoreCase(event) ? "31334-04.htm" : "grandmagister_tifaren_q0022_04.htm";
-		} else if ("31334-02.htm".equalsIgnoreCase(event) || "grandmagister_tifaren_q0022_02.htm".equalsIgnoreCase(event)) {
+		} else if ("31334-02.htm".equalsIgnoreCase(event)
+				|| "grandmagister_tifaren_q0022_02.htm".equalsIgnoreCase(event)) {
 			if (qs.hasQuestItems(CROSS_OF_EINHASAD)) {
 				return event;
 			}
@@ -85,21 +88,25 @@ public class Quest022TragedyInVonHellmannForest extends Quest {
 			qs.setCond(2);
 			qs.playSound(QuestState.SOUND_MIDDLE);
 			return "grandmagister_tifaren_q0022_07.htm";
-		} else if ("31334-12.htm".equalsIgnoreCase(event) || "grandmagister_tifaren_q0022_12.htm".equalsIgnoreCase(event)) {
+		} else if ("31334-12.htm".equalsIgnoreCase(event)
+				|| "grandmagister_tifaren_q0022_12.htm".equalsIgnoreCase(event)) {
 			return event;
 		} else if ("reply_5".equalsIgnoreCase(event) || "31334-13.htm".equalsIgnoreCase(event)) {
 			if (qs.hasQuestItems(CROSS_OF_EINHASAD) && qs.hasQuestItems(LOST_SKULL_OF_ELF)) {
 				qs.setCond(4);
 				qs.takeItems(LOST_SKULL_OF_ELF, 1);
 				qs.playSound(QuestState.SOUND_MIDDLE);
+				qs.addSpawn(GHOST_OF_PRIEST, 38354, -49777, -1128, 120000);
 				return "31334-13.htm".equalsIgnoreCase(event) ? "31334-13.htm" : "grandmagister_tifaren_q0022_13.htm";
 			}
 			return "grandmagister_tifaren_q0022_16.htm";
 		} else if ("31528-02.htm".equalsIgnoreCase(event) || "31528-03.htm".equalsIgnoreCase(event)
 				|| "31528-04.htm".equalsIgnoreCase(event) || "31528-05.htm".equalsIgnoreCase(event)
 				|| "31528-06.htm".equalsIgnoreCase(event) || "31528-07.htm".equalsIgnoreCase(event)
-				|| "rune_ghost2_q0022_02.htm".equalsIgnoreCase(event) || "rune_ghost2_q0022_03.htm".equalsIgnoreCase(event)
-				|| "rune_ghost2_q0022_05.htm".equalsIgnoreCase(event) || "rune_ghost2_q0022_06.htm".equalsIgnoreCase(event)
+				|| "rune_ghost2_q0022_02.htm".equalsIgnoreCase(event)
+				|| "rune_ghost2_q0022_03.htm".equalsIgnoreCase(event)
+				|| "rune_ghost2_q0022_05.htm".equalsIgnoreCase(event)
+				|| "rune_ghost2_q0022_06.htm".equalsIgnoreCase(event)
 				|| "rune_ghost2_q0022_07.htm".equalsIgnoreCase(event)) {
 			return event;
 		} else if ("reply_6".equalsIgnoreCase(event)) {
@@ -119,8 +126,10 @@ public class Quest022TragedyInVonHellmannForest extends Quest {
 			return "31328-04.htm".equalsIgnoreCase(event) ? "31328-04.htm" : "highpriest_innocentin_q0022_03.htm";
 		} else if ("31328-06.htm".equalsIgnoreCase(event) || "31328-07.htm".equalsIgnoreCase(event)
 				|| "31328-08.htm".equalsIgnoreCase(event) || "31328-09.htm".equalsIgnoreCase(event)
-				|| "highpriest_innocentin_q0022_05.htm".equalsIgnoreCase(event) || "highpriest_innocentin_q0022_06.htm".equalsIgnoreCase(event)
-				|| "highpriest_innocentin_q0022_07.htm".equalsIgnoreCase(event) || "highpriest_innocentin_q0022_08.htm".equalsIgnoreCase(event)) {
+				|| "highpriest_innocentin_q0022_05.htm".equalsIgnoreCase(event)
+				|| "highpriest_innocentin_q0022_06.htm".equalsIgnoreCase(event)
+				|| "highpriest_innocentin_q0022_07.htm".equalsIgnoreCase(event)
+				|| "highpriest_innocentin_q0022_08.htm".equalsIgnoreCase(event)) {
 			return event;
 		} else if ("reply_10".equalsIgnoreCase(event) || "31328-10.htm".equalsIgnoreCase(event)) {
 			qs.setCond(7);
@@ -138,9 +147,12 @@ public class Quest022TragedyInVonHellmannForest extends Quest {
 		} else if ("31529-05.htm".equalsIgnoreCase(event) || "31529-06.htm".equalsIgnoreCase(event)
 				|| "31529-07.htm".equalsIgnoreCase(event) || "31529-08.htm".equalsIgnoreCase(event)
 				|| "31529-09.htm".equalsIgnoreCase(event) || "31529-10.htm".equalsIgnoreCase(event)
-				|| "rune_ghost3_q0022_04.htm".equalsIgnoreCase(event) || "rune_ghost3_q0022_05.htm".equalsIgnoreCase(event)
-				|| "rune_ghost3_q0022_06.htm".equalsIgnoreCase(event) || "rune_ghost3_q0022_07.htm".equalsIgnoreCase(event)
-				|| "rune_ghost3_q0022_09.htm".equalsIgnoreCase(event) || "rune_ghost3_q0022_13.htm".equalsIgnoreCase(event)
+				|| "rune_ghost3_q0022_04.htm".equalsIgnoreCase(event)
+				|| "rune_ghost3_q0022_05.htm".equalsIgnoreCase(event)
+				|| "rune_ghost3_q0022_06.htm".equalsIgnoreCase(event)
+				|| "rune_ghost3_q0022_07.htm".equalsIgnoreCase(event)
+				|| "rune_ghost3_q0022_09.htm".equalsIgnoreCase(event)
+				|| "rune_ghost3_q0022_13.htm".equalsIgnoreCase(event)
 				|| "rune_ghost3_q0022_13a.htm".equalsIgnoreCase(event) || "31529-14.htm".equalsIgnoreCase(event)
 				|| "31529-15.htm".equalsIgnoreCase(event)) {
 			return event;
@@ -156,6 +168,7 @@ public class Quest022TragedyInVonHellmannForest extends Quest {
 			qs.takeItems(GREEN_JEWEL_OF_ADVENTURER, 1);
 			qs.giveItems(RED_JEWEL_OF_ADVENTURER, 1);
 			qs.playSound(QuestState.SOUND_ITEMGET);
+			qs.addSpawn(SOUL_OF_WELL, 34706, -54590, -2054, 120000);
 			return "31527-02.htm".equalsIgnoreCase(event) ? "31527-02.htm" : "umul_q0022_02.htm";
 		} else if ("reply_17".equalsIgnoreCase(event) || "31328-13.htm".equalsIgnoreCase(event)) {
 			qs.setCond(15);
@@ -166,9 +179,12 @@ public class Quest022TragedyInVonHellmannForest extends Quest {
 		} else if ("31328-15.htm".equalsIgnoreCase(event) || "31328-16.htm".equalsIgnoreCase(event)
 				|| "31328-17.htm".equalsIgnoreCase(event) || "31328-18.htm".equalsIgnoreCase(event)
 				|| "31328-19.htm".equalsIgnoreCase(event) || "31328-20.htm".equalsIgnoreCase(event)
-				|| "highpriest_innocentin_q0022_13.htm".equalsIgnoreCase(event) || "highpriest_innocentin_q0022_14.htm".equalsIgnoreCase(event)
-				|| "highpriest_innocentin_q0022_15.htm".equalsIgnoreCase(event) || "highpriest_innocentin_q0022_16.htm".equalsIgnoreCase(event)
-				|| "highpriest_innocentin_q0022_17.htm".equalsIgnoreCase(event) || "highpriest_innocentin_q0022_18.htm".equalsIgnoreCase(event)) {
+				|| "highpriest_innocentin_q0022_13.htm".equalsIgnoreCase(event)
+				|| "highpriest_innocentin_q0022_14.htm".equalsIgnoreCase(event)
+				|| "highpriest_innocentin_q0022_15.htm".equalsIgnoreCase(event)
+				|| "highpriest_innocentin_q0022_16.htm".equalsIgnoreCase(event)
+				|| "highpriest_innocentin_q0022_17.htm".equalsIgnoreCase(event)
+				|| "highpriest_innocentin_q0022_18.htm".equalsIgnoreCase(event)) {
 			return event;
 		} else if ("reply_19".equalsIgnoreCase(event) || "31328-21.htm".equalsIgnoreCase(event)) {
 			qs.setCond(16);
@@ -181,7 +197,8 @@ public class Quest022TragedyInVonHellmannForest extends Quest {
 	@Override
 	public String onTalk(NpcInstance npc, QuestState qs) {
 		PlayerCharacter pc = qs.playerChar();
-		if (pc == null) return "noquest";
+		if (pc == null)
+			return "noquest";
 
 		if (qs.isCompleted()) {
 			return getAlreadyCompletedMsg();
@@ -201,10 +218,12 @@ public class Quest022TragedyInVonHellmannForest extends Quest {
 				} else if (cond == 1) {
 					return "grandmagister_tifaren_q0022_05.htm";
 				} else if (cond == 2) {
-					return qs.hasQuestItems(LOST_SKULL_OF_ELF) ? "grandmagister_tifaren_q0022_10.htm" : "grandmagister_tifaren_q0022_09.htm";
+					return qs.hasQuestItems(LOST_SKULL_OF_ELF) ? "grandmagister_tifaren_q0022_10.htm"
+							: "grandmagister_tifaren_q0022_09.htm";
 				} else if (cond == 3 && qs.hasQuestItems(LOST_SKULL_OF_ELF)) {
 					return "grandmagister_tifaren_q0022_11.htm";
 				} else if (cond == 4) {
+					qs.addSpawn(GHOST_OF_PRIEST, 38354, -49777, -1128, 120000);
 					return "grandmagister_tifaren_q0022_17.htm";
 				} else if (cond == 5) {
 					return "grandmagister_tifaren_q0022_19.htm";
@@ -240,7 +259,8 @@ public class Quest022TragedyInVonHellmannForest extends Quest {
 					qs.addExpAndSp(345966, 31578);
 					qs.playSound(QuestState.SOUND_FINISH);
 					qs.exitQuest(false);
-					return pc.level() >= 64 ? "highpriest_innocentin_q0022_20.htm" : "highpriest_innocentin_q0022_21.htm";
+					return pc.level() >= 64 ? "highpriest_innocentin_q0022_20.htm"
+							: "highpriest_innocentin_q0022_21.htm";
 				}
 				break;
 			case GHOST_OF_ADVENTURER:
@@ -256,7 +276,8 @@ public class Quest022TragedyInVonHellmannForest extends Quest {
 					return "rune_ghost3_q0022_14.htm";
 				} else if (cond == 12 && qs.hasQuestItems(RED_JEWEL_OF_ADVENTURER)) {
 					return "rune_ghost3_q0022_15.htm";
-				} else if (cond == 13 && qs.hasQuestItems(RED_JEWEL_OF_ADVENTURER) && qs.hasQuestItems(SEALED_REPORT_BOX)) {
+				} else if (cond == 13 && qs.hasQuestItems(RED_JEWEL_OF_ADVENTURER)
+						&& qs.hasQuestItems(SEALED_REPORT_BOX)) {
 					qs.setCond(14);
 					qs.takeItems(RED_JEWEL_OF_ADVENTURER, 1);
 					qs.playSound(QuestState.SOUND_MIDDLE);
