@@ -15,6 +15,7 @@ import com.lopez.l2j.game.npc.NpcInstance;
 import com.lopez.l2j.game.npc.NpcTemplate;
 import com.lopez.l2j.game.npc.NpcTemplateTable;
 import com.lopez.l2j.game.service.InventoryService;
+import com.lopez.l2j.game.sevensigns.SevenSignsManager;
 import com.lopez.l2j.game.world.GameWorld;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,6 +40,7 @@ public class MercenaryService {
 	private static final Logger log = LoggerFactory.getLogger(MercenaryService.class);
 
 	public static final long DEFAULT_TICKET_BASE_PRICE = 10_000L;
+	public static final int MIN_MERCENARY_DISTANCE = 50;
 
 	private final CastleManager castleManager;
 	private final SiegeService siegeService;
@@ -47,6 +49,7 @@ public class MercenaryService {
 	private GameWorld gameWorld;
 	private NpcTemplateTable npcTemplates;
 	private ObjectIdFactory idFactory;
+	private SevenSignsManager sevenSignsManager;
 	private final AtomicInteger idCounter = new AtomicInteger(1000);
 
 	// castleId -> Lista de MercenaryRecord contratados
@@ -57,7 +60,17 @@ public class MercenaryService {
 	public MercenaryService(CastleManager castleManager,
 							SiegeService siegeService,
 							JdbcClient jdbc) {
-		this(castleManager, siegeService, jdbc, null, null, null, null);
+		this(castleManager, siegeService, jdbc, null, null, null, null, null);
+	}
+
+	public MercenaryService(CastleManager castleManager,
+							SiegeService siegeService,
+							JdbcClient jdbc,
+							InventoryService inventoryService,
+							GameWorld gameWorld,
+							NpcTemplateTable npcTemplates,
+							ObjectIdFactory idFactory) {
+		this(castleManager, siegeService, jdbc, inventoryService, gameWorld, npcTemplates, idFactory, null);
 	}
 
 	@Autowired
@@ -67,7 +80,8 @@ public class MercenaryService {
 							@Autowired(required = false) InventoryService inventoryService,
 							@Autowired(required = false) GameWorld gameWorld,
 							@Autowired(required = false) NpcTemplateTable npcTemplates,
-							@Autowired(required = false) ObjectIdFactory idFactory) {
+							@Autowired(required = false) ObjectIdFactory idFactory,
+							@Autowired(required = false) SevenSignsManager sevenSignsManager) {
 		this.castleManager = castleManager;
 		this.siegeService = siegeService;
 		this.jdbc = jdbc;
@@ -75,7 +89,12 @@ public class MercenaryService {
 		this.gameWorld = gameWorld;
 		this.npcTemplates = npcTemplates;
 		this.idFactory = idFactory != null ? idFactory : ObjectIdFactory.sequential(0x56000000);
+		this.sevenSignsManager = sevenSignsManager;
 		loadHiredMercenaries();
+	}
+
+	public void setSevenSignsManager(SevenSignsManager sevenSignsManager) {
+		this.sevenSignsManager = sevenSignsManager;
 	}
 
 	/**
@@ -169,6 +188,89 @@ public class MercenaryService {
 	}
 
 	/**
+	 * Valida se o bilhete pertence ao castelo especificado.
+	 * Bilhetes especiais dos Sete Selos (Dawn/Dusk 6038..6040, 6779..6811, 7998..8029) retornam 0 (qualquer castelo).
+	 */
+	public int resolveCastleIdFromTicket(int ticketItemId) {
+		if (ticketItemId >= 3960 && ticketItemId <= 3972) {
+			return CastleManager.GLUDIO;
+		}
+		if (ticketItemId >= 3973 && ticketItemId <= 3985) {
+			return CastleManager.DION;
+		}
+		if (ticketItemId >= 3986 && ticketItemId <= 3998) {
+			return CastleManager.GIRAN;
+		}
+		if (ticketItemId >= 3999 && ticketItemId <= 4011) {
+			return CastleManager.OREN;
+		}
+		if (ticketItemId >= 4012 && ticketItemId <= 4026) {
+			return CastleManager.ADEN;
+		}
+		if (ticketItemId >= 5205 && ticketItemId <= 5217) {
+			return CastleManager.INNADRIL;
+		}
+		if (ticketItemId >= 6019 && ticketItemId <= 6032) {
+			return CastleManager.GODDARD;
+		}
+		if (ticketItemId >= 6301 && ticketItemId <= 6312) {
+			return CastleManager.RUNE;
+		}
+		if (ticketItemId >= 6779 && ticketItemId <= 6791) {
+			return CastleManager.RUNE;
+		}
+		if (ticketItemId >= 7998 && ticketItemId <= 8010) {
+			return CastleManager.SCHUTTGART;
+		}
+		return 0;
+	}
+
+	/**
+	 * Valida se o periodo dos Sete Selos e o Selo da Luta (Seal of Strife) permitem posicionar o bilhete.
+	 */
+	public boolean isAllowedBySevenSigns(int ticketItemId) {
+		if (sevenSignsManager == null) {
+			return true;
+		}
+		int strifeOwner = sevenSignsManager.getSealOwner(SevenSignsManager.SEAL_STRIFE);
+		// Se Dusk detem o Selo da Luta na validacao, mercenarios de elite (Dawn) nao podem ser posicionados
+		if (sevenSignsManager.isSealValidationPeriod() && strifeOwner == SevenSignsManager.CABAL_DUSK) {
+			if (isDawnOnlyTicket(ticketItemId)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static boolean isDawnOnlyTicket(int ticketItemId) {
+		return (ticketItemId >= 6038 && ticketItemId <= 6040)
+				|| (ticketItemId >= 8011 && ticketItemId <= 8029);
+	}
+
+	/**
+	 * Verifica se a posicao (x, y) respeita a distancia minima em relacao aos guardas ja posicionados no castelo.
+	 */
+	public boolean isTooCloseToOtherMercenary(int castleId, int x, int y) {
+		if (x == 0 && y == 0) {
+			return false;
+		}
+		List<MercenaryRecord> list = hiredMercs.get(castleId);
+		if (list == null || list.isEmpty()) {
+			return false;
+		}
+		for (MercenaryRecord existing : list) {
+			if (existing == null || (existing.x() == 0 && existing.y() == 0)) {
+				continue;
+			}
+			double dist = Math.hypot(existing.x() - x, existing.y() - y);
+			if (dist < MIN_MERCENARY_DISTANCE) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Contrata e posiciona um mercenario na muralha do castelo atraves de um bilhete.
 	 */
 	public boolean hireMercenary(PlayerCharacter player, Clan clan, int ticketItemId, int x, int y, int z, int heading) {
@@ -182,6 +284,19 @@ public class MercenaryService {
 			return false;
 		}
 
+		// Valida se o bilhete pertence ao castelo do Lorde
+		int ticketCastleId = resolveCastleIdFromTicket(ticketItemId);
+		if (ticketCastleId > 0 && ticketCastleId != castleId) {
+			log.warn("Bilhete {} pertence ao castelo {} mas o clã possui o castelo {}", ticketItemId, ticketCastleId, castleId);
+			return false;
+		}
+
+		// Valida periodo dos Sete Selos (Seal of Strife)
+		if (!isAllowedBySevenSigns(ticketItemId)) {
+			log.warn("Posicionamento do bilhete {} bloqueado pelas regras do Seven Signs (Seal of Strife)", ticketItemId);
+			return false;
+		}
+
 		// Valida se o cerco esta em andamento
 		if (siegeService != null) {
 			var siegeOpt = siegeService.getSiege(castleId);
@@ -189,6 +304,12 @@ public class MercenaryService {
 				log.warn("Nao e permitido contratar mercenarios durante a batalha de cerco");
 				return false;
 			}
+		}
+
+		// Valida distancia minima entre guardas
+		if (isTooCloseToOtherMercenary(castleId, x, y)) {
+			log.warn("Mercenario muito proximo de outro guarda em ({}, {}) no castelo {}", x, y, castleId);
+			return false;
 		}
 
 		List<MercenaryRecord> list = hiredMercs.computeIfAbsent(castleId, k -> new CopyOnWriteArrayList<>());
@@ -301,6 +422,9 @@ public class MercenaryService {
 		}
 		if (ticketItemId >= 6301 && ticketItemId <= 6312) {
 			return 35095 + (ticketItemId - 6301); // Rune
+		}
+		if (ticketItemId >= 6779 && ticketItemId <= 6811) {
+			return 35095 + (ticketItemId - 6779); // Rune / Dawn Mercenaries
 		}
 		if (ticketItemId >= 7998 && ticketItemId <= 8029) {
 			return 35500 + (ticketItemId - 7998); // Schuttgart / Dawn / Dusk Mercenaries
