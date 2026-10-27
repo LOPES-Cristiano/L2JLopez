@@ -127,6 +127,8 @@ public class SchemeBufferService {
 	private final CharacterVariablesService variablesService;
 	private final SkillService skillService;
 	private final org.springframework.jdbc.core.simple.JdbcClient jdbc;
+	@Autowired(required = false)
+	private InventoryService inventoryService;
 	private final Map<Integer, BuffTemplate> luceraTemplates = new ConcurrentHashMap<>();
 	private final Map<Integer, List<Integer>> recordingProfiles = new ConcurrentHashMap<>();
 	private final Map<Integer, Set<Integer>> activePetBuffs = new ConcurrentHashMap<>();
@@ -134,17 +136,26 @@ public class SchemeBufferService {
 	public SchemeBufferService(
 			CharacterVariablesService variablesService,
 			SkillService skillService) {
-		this(variablesService, skillService, null);
+		this(variablesService, skillService, null, null);
+	}
+
+	public SchemeBufferService(
+			CharacterVariablesService variablesService,
+			SkillService skillService,
+			org.springframework.jdbc.core.simple.JdbcClient jdbc) {
+		this(variablesService, skillService, jdbc, null);
 	}
 
 	@Autowired
 	public SchemeBufferService(
 			@Autowired(required = false) CharacterVariablesService variablesService,
 			@Autowired(required = false) SkillService skillService,
-			@Autowired(required = false) org.springframework.jdbc.core.simple.JdbcClient jdbc) {
+			@Autowired(required = false) org.springframework.jdbc.core.simple.JdbcClient jdbc,
+			@Autowired(required = false) InventoryService inventoryService) {
 		this.variablesService = variablesService;
 		this.skillService = skillService;
 		this.jdbc = jdbc;
+		this.inventoryService = inventoryService;
 		loadLuceraBuffTemplates();
 		loadBufferSkillsFromDb();
 	}
@@ -812,7 +823,7 @@ public class SchemeBufferService {
 		BuffTemplate tpl = luceraTemplates.get(menuId);
 		if (tpl != null) {
 			if (tpl.consumeAmount() > 0 && player.level() > 40) {
-				if (player.inventory() == null || !player.inventory().destroyItemByItemId(tpl.consumeItemId(), (int) tpl.consumeAmount())) {
+				if (!consumeItem(player, session, tpl.consumeItemId(), tpl.consumeAmount())) {
 					if (session != null) {
 						session.send(new CreatureSay(0, CreatureSay.ALL, "Buffer", "Itens insuficientes para receber este buff!"));
 					}
@@ -1001,8 +1012,45 @@ public class SchemeBufferService {
 	}
 
 	private boolean consumeAdena(PlayerCharacter player, long amount) {
+		return consumeItem(player, null, ADENA_ID, amount);
+	}
+
+	private boolean consumeItem(PlayerCharacter player, GameSession session, int itemId, long amount) {
 		if (player == null || player.inventory() == null) return false;
-		return player.inventory().destroyItemByItemId(ADENA_ID, (int) amount);
+		int count = (int) amount;
+		if (count <= 0) return true;
+		if (inventoryService != null) {
+			var res = inventoryService.consumeItem(player.inventory(), itemId, count, "SchemeBuffer");
+			if (res == null) {
+				return false;
+			}
+			var pkt = new com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate(
+					List.of(com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.of(res.item(),
+							res.removed() ? com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.REMOVED
+									: com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo.MODIFIED)));
+			if (session != null) {
+				session.send(pkt);
+			} else {
+				GameWorld gw = GameWorld.getInstance();
+				if (gw != null) {
+					gw.sendPacket(player.objectId(), pkt);
+				}
+			}
+			return true;
+		}
+		boolean ok = player.inventory().destroyItemByItemId(itemId, count);
+		if (ok) {
+			var pkt = com.lopez.l2j.network.game.packet.GameServerPacket.ItemList.of(player.inventory().items(), false);
+			if (session != null) {
+				session.send(pkt);
+			} else {
+				GameWorld gw = GameWorld.getInstance();
+				if (gw != null) {
+					gw.sendPacket(player.objectId(), pkt);
+				}
+			}
+		}
+		return ok;
 	}
 
 	public String renderSchemeEditHtml(PlayerCharacter player, int schemeIdx) {
