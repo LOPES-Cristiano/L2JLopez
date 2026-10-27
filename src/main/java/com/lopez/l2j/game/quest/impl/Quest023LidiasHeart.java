@@ -11,7 +11,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Quest 023: Lidia's Heart
- * High Priest Innocentin em Rune, Broken Bookshelf, Tombstone, Ghost of von Hellmann,
+ * High Priest Innocentin em Rune, Broken Bookshelf, Tombstone, Ghost of von
+ * Hellmann,
  * Violet e Box em Forest of the Dead.
  */
 @Component
@@ -103,7 +104,8 @@ public class Quest023LidiasHeart extends Quest {
 				qs.playSound(QuestState.SOUND_ITEMGET);
 			}
 			return "31526-11.htm".equalsIgnoreCase(event) ? "31526-11.htm" : "broken_desk1_q0023_11.htm";
-		} else if ("highpriest_innocentin_q0023_10.htm".equalsIgnoreCase(event) || "31328-09.htm".equalsIgnoreCase(event) || "31328-10.htm".equalsIgnoreCase(event)) {
+		} else if ("highpriest_innocentin_q0023_10.htm".equalsIgnoreCase(event)
+				|| "31328-09.htm".equalsIgnoreCase(event) || "31328-10.htm".equalsIgnoreCase(event)) {
 			return event;
 		} else if ("reply_13".equalsIgnoreCase(event) || "31328-11.htm".equalsIgnoreCase(event)) {
 			qs.setCond(5);
@@ -133,6 +135,7 @@ public class Quest023LidiasHeart extends Quest {
 			return "31328-20.htm".equalsIgnoreCase(event) ? "31328-20.htm" : "highpriest_innocentin_q0023_20.htm";
 		} else if ("reply_22".equalsIgnoreCase(event) || "31523-02.htm".equalsIgnoreCase(event)) {
 			qs.playSound("SkillSound5.horror_02");
+			qs.addSpawn(GHOST_OF_VON_HELLMANN, 51432, -54570, -3136, 300000);
 			return "31523-02.htm".equalsIgnoreCase(event) ? "31523-02.htm" : "q_forest_stone1_q0023_02.htm";
 		} else if ("reply_23".equalsIgnoreCase(event) || "31524-02.htm".equalsIgnoreCase(event)) {
 			return "31524-02.htm".equalsIgnoreCase(event) ? "31524-02.htm" : "rune_ghost1_q0023_02.htm";
@@ -161,7 +164,8 @@ public class Quest023LidiasHeart extends Quest {
 	@Override
 	public String onTalk(NpcInstance npc, QuestState qs) {
 		PlayerCharacter pc = qs.playerChar();
-		if (pc == null) return "noquest";
+		if (pc == null)
+			return "noquest";
 
 		if (qs.isCompleted()) {
 			return getAlreadyCompletedMsg();
