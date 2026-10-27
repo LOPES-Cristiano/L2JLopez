@@ -3,6 +3,9 @@ package com.lopez.l2j.game.service;
 import com.lopez.l2j.config.Config;
 import com.lopez.l2j.game.model.PlayerCharacter;
 import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +38,8 @@ public class AioService {
     private final JdbcTemplate jdbc;
     private final com.lopez.l2j.game.skill.SkillService skillService;
     private final com.lopez.l2j.game.skill.SkillTable skillTable;
+    @Autowired(required = false)
+    private InventoryService inventoryService;
     private final Set<Integer> aioPlayers = ConcurrentHashMap.newKeySet();
     private final List<AioBuff> aioBuffs = new ArrayList<>();
     private ScheduledExecutorService scheduler;
@@ -44,19 +49,28 @@ public class AioService {
     private final List<ConsumableReward> aioGoods = new ArrayList<>();
 
     public AioService() {
-        this(null, null, null);
+        this(null, null, null, null);
     }
 
-    public AioService(@Autowired(required = false) DataSource dataSource) {
-        this(dataSource, null, null);
+    public AioService(DataSource dataSource) {
+        this(dataSource, null, null, null);
     }
 
+    public AioService(DataSource dataSource,
+                      com.lopez.l2j.game.skill.SkillService skillService,
+                      com.lopez.l2j.game.skill.SkillTable skillTable) {
+        this(dataSource, skillService, skillTable, null);
+    }
+
+    @Autowired
     public AioService(@Autowired(required = false) DataSource dataSource,
                       @Autowired(required = false) com.lopez.l2j.game.skill.SkillService skillService,
-                      @Autowired(required = false) com.lopez.l2j.game.skill.SkillTable skillTable) {
+                      @Autowired(required = false) com.lopez.l2j.game.skill.SkillTable skillTable,
+                      @Autowired(required = false) InventoryService inventoryService) {
         this.jdbc = dataSource != null ? new JdbcTemplate(dataSource) : null;
         this.skillService = skillService;
         this.skillTable = skillTable;
+        this.inventoryService = inventoryService;
         initDefaultBuffs();
         initDefaultGoods();
         if (Config.ENABLE_AIO_SYSTEM) {
@@ -300,7 +314,24 @@ public class AioService {
             return;
         }
         if (player.inventory().byItemId(AIO_DUAL_ITEM_ID).isEmpty()) {
-            player.inventory().addItem(AIO_DUAL_ITEM_ID, 1);
+            if (inventoryService != null) {
+                var res = inventoryService.addItem(player.inventory(), AIO_DUAL_ITEM_ID, 1, "AioDualGrant");
+                if (res == null) {
+                    player.inventory().addItem(AIO_DUAL_ITEM_ID, 1);
+                } else if (res.item() != null) {
+                    GameWorld gw = GameWorld.getInstance();
+                    if (gw != null) {
+                        gw.sendPacket(player.objectId(), new InventoryUpdate(List.of(
+                                ItemInfo.of(res.item(), res.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
+                    }
+                }
+            } else {
+                player.inventory().addItem(AIO_DUAL_ITEM_ID, 1);
+                GameWorld gw = GameWorld.getInstance();
+                if (gw != null) {
+                    gw.sendPacket(player.objectId(), ItemList.of(player.inventory().items(), false));
+                }
+            }
         }
     }
 
@@ -308,8 +339,30 @@ public class AioService {
         if (player == null || player.inventory() == null) {
             return;
         }
-        player.inventory().destroyItemByItemId(AIO_DUAL_ITEM_ID, 1);
-        player.inventory().destroyItemByItemId(AIO_ROD_ALT_ID, 1);
+        if (inventoryService != null) {
+            var c1 = inventoryService.consumeItem(player.inventory(), AIO_DUAL_ITEM_ID, 1, "AioDualRevoke");
+            var c2 = inventoryService.consumeItem(player.inventory(), AIO_ROD_ALT_ID, 1, "AioDualRevoke");
+            List<ItemInfo> changes = new ArrayList<>();
+            if (c1 != null && c1.item() != null) {
+                changes.add(ItemInfo.of(c1.item(), c1.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+            }
+            if (c2 != null && c2.item() != null) {
+                changes.add(ItemInfo.of(c2.item(), c2.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED));
+            }
+            if (c1 == null) player.inventory().destroyItemByItemId(AIO_DUAL_ITEM_ID, 1);
+            if (c2 == null) player.inventory().destroyItemByItemId(AIO_ROD_ALT_ID, 1);
+            GameWorld gw = GameWorld.getInstance();
+            if (gw != null && !changes.isEmpty()) {
+                gw.sendPacket(player.objectId(), new InventoryUpdate(changes));
+            }
+        } else {
+            player.inventory().destroyItemByItemId(AIO_DUAL_ITEM_ID, 1);
+            player.inventory().destroyItemByItemId(AIO_ROD_ALT_ID, 1);
+            GameWorld gw = GameWorld.getInstance();
+            if (gw != null) {
+                gw.sendPacket(player.objectId(), ItemList.of(player.inventory().items(), false));
+            }
+        }
     }
 
     /**
@@ -657,18 +710,37 @@ public class AioService {
             if (currency == null || currency.count() < cost) {
                 return false;
             }
-            if (!inv.destroyItemByItemId(itemId, cost)) {
-                return false;
+            if (inventoryService != null) {
+                var cons = inventoryService.consumeItem(inv, itemId, cost, "AioPackagePurchase");
+                if (cons == null) {
+                    return false;
+                }
+                GameWorld gw = GameWorld.getInstance();
+                if (gw != null) {
+                    gw.sendPacket(player.objectId(), new InventoryUpdate(List.of(
+                            ItemInfo.of(cons.item(), cons.removed() ? ItemInfo.REMOVED : ItemInfo.MODIFIED))));
+                }
+            } else {
+                if (!inv.destroyItemByItemId(itemId, cost)) {
+                    return false;
+                }
+                GameWorld gw = GameWorld.getInstance();
+                if (gw != null) {
+                    gw.sendPacket(player.objectId(), ItemList.of(inv.items(), false));
+                }
             }
         }
 
         long now = System.currentTimeMillis();
         long baseTime = (player.isAio() && player.aioExpiration() > now) ? player.aioExpiration() : now;
         long newExpiration = baseTime + (days * 86_400_000L);
+        aioPlayers.add(player.objectId());
         player.setAio(true);
         player.aioExpiration(newExpiration);
         player.rewardAioSkills();
+        rewardAioSkills(player);
         grantAioDualWeapon(player);
+        saveAio(player.objectId(), 1, newExpiration);
 
         if (Config.ALLOW_AIO_NAME_COLOR && Config.AIO_NAME_COLOR != null && !Config.AIO_NAME_COLOR.isBlank()) {
             try {
