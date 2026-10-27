@@ -61,12 +61,21 @@ public class Quest247PossessorOfAPreciousSoul4 extends Quest {
 			qs.playSound("ItemSound.quest_middle");
 			return event;
 		} else if ("31745-05.htm".equalsIgnoreCase(event)) {
+			qs.set("noble", "1");
 			if (player != null) {
 				player.setNoble(true);
 				for (int skillId : NOBLESSE_SKILLS) {
 					player.skills().put(skillId, 1);
 				}
 				if (qs.getPlayer() != null) {
+					if (qs.getPlayer().context() != null) {
+						try {
+							if (qs.getPlayer().context().characters() != null) {
+								qs.getPlayer().context().characters().save(player);
+							}
+						} catch (Exception ignored) {
+						}
+					}
 					qs.getPlayer().sendSkillList();
 					qs.getPlayer().sendUserInfoAndBroadcastCharInfo();
 				}
