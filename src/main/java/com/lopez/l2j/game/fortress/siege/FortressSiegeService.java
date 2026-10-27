@@ -16,6 +16,7 @@ import com.lopez.l2j.game.service.InventoryService;
 import com.lopez.l2j.game.world.GameWorld;
 import com.lopez.l2j.network.game.packet.GameServerPacket;
 import com.lopez.l2j.network.game.packet.GameServerPacket.CreatureSay;
+import jakarta.annotation.PreDestroy;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -24,6 +25,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +66,11 @@ public class FortressSiegeService {
 	private GameWorld world;
 	private NpcTemplateTable npcTemplates;
 	private ObjectIdFactory objectIds;
+	private final ScheduledExecutorService fortSiegeScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+		Thread t = new Thread(r, "FortressSiegeService-Scheduler");
+		t.setDaemon(true);
+		return t;
+	});
 
 	public FortressSiegeService(FortressService fortressService,
 								JdbcClient jdbc) {
@@ -84,6 +93,35 @@ public class FortressSiegeService {
 		loadCommandersAndFlags();
 		initSieges();
 		loadFortSiegeClans();
+		this.fortSiegeScheduler.scheduleAtFixedRate(this::checkScheduledSieges, 60L, 60L, TimeUnit.SECONDS);
+	}
+
+	@PreDestroy
+	public void shutdown() {
+		fortSiegeScheduler.shutdownNow();
+	}
+
+	/**
+	 * Verifica periodicamente cercos de fortaleza em andamento (expiracao de tempo) ou agendados.
+	 */
+	public void checkScheduledSieges() {
+		long now = System.currentTimeMillis();
+		for (FortressSiegeRecord siege : sieges.values()) {
+			try {
+				if (siege.status() == SiegeStatus.IN_PROGRESS) {
+					if (siege.siegeEndDate() > 0L && now >= siege.siegeEndDate()) {
+						endSiege(siege.fortId(), siege.victoriousClanId());
+					}
+				} else if (siege.status() == SiegeStatus.REGISTRATION
+						&& !siege.attackerClans().isEmpty()
+						&& siege.siegeDate() > 0L
+						&& now >= siege.siegeDate()) {
+					startSiege(siege.fortId());
+				}
+			} catch (Exception ex) {
+				log.warn("Erro ao verificar ciclo de cerco da fortaleza {}: {}", siege.fortId(), ex.getMessage());
+			}
+		}
 	}
 
 	private void initSieges() {
@@ -373,7 +411,20 @@ public class FortressSiegeService {
 		// Reagenda cerco para 7 dias no futuro
 		long nextSiege = System.currentTimeMillis() + SIEGE_CYCLE_MILLIS;
 		siege.siegeDate(nextSiege);
-		fortressService.getFortressById(fortId).ifPresent(f -> f.siegeDate(nextSiege));
+		fortressService.getFortressById(fortId).ifPresent(f -> {
+			f.siegeDate(nextSiege);
+			fortressService.setFortState(fortId, f.state());
+			if (jdbc != null) {
+				try {
+					jdbc.sql("UPDATE fort SET siegeDate = :sDate WHERE id = :id")
+							.param("sDate", nextSiege)
+							.param("id", fortId)
+							.update();
+				} catch (Exception ex) {
+					log.warn("Erro ao persistir siegeDate da fortaleza {}: {}", fortId, ex.getMessage());
+				}
+			}
+		});
 
 		clearSiegeClans(fortId);
 		log.info("Cerco da Fortaleza {} encerrado! Vencedor: Cla {}", fortId, winnerClanId);
