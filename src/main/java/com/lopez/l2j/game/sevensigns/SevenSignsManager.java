@@ -196,6 +196,7 @@ public class SevenSignsManager implements AutoCloseable {
 	});
 	private ScheduledFuture<?> periodTimer;
 	private ScheduledFuture<?> mammonTimer;
+	private ScheduledFuture<?> auraTimer;
 
 	@Autowired
 	public SevenSignsManager(@Autowired(required = false) JdbcClient jdbc,
@@ -223,6 +224,7 @@ public class SevenSignsManager implements AutoCloseable {
 		}
 		scheduleNextPeriodChange();
 		scheduleMammonRelocation();
+		scheduleOratorPreacherAuras();
 	}
 
 	@PreDestroy
@@ -233,6 +235,9 @@ public class SevenSignsManager implements AutoCloseable {
 		}
 		if (mammonTimer != null) {
 			mammonTimer.cancel(false);
+		}
+		if (auraTimer != null) {
+			auraTimer.cancel(false);
 		}
 		scheduler.shutdownNow();
 		persistStatus();
@@ -874,6 +879,13 @@ public class SevenSignsManager implements AutoCloseable {
 		mammonTimer = scheduler.scheduleAtFixedRate(this::relocateMammons, 30, 30, TimeUnit.MINUTES);
 	}
 
+	private void scheduleOratorPreacherAuras() {
+		if (auraTimer != null) {
+			auraTimer.cancel(false);
+		}
+		auraTimer = scheduler.scheduleAtFixedRate(this::pulseOratorAndPreacherAuras, 60, 60, TimeUnit.SECONDS);
+	}
+
 	public synchronized void spawnMammons() {
 		relocateMammons();
 	}
@@ -1162,9 +1174,19 @@ public class SevenSignsManager implements AutoCloseable {
 			int pCabal = getPlayerCabal(ch.objectId());
 			if (pCabal == CABAL_NULL) continue;
 			if (pCabal == gnosisOwner) {
+				ch.skills().remove(4361);
 				ch.skills().put(4364, 1); // Orator Blessing
+				if (ch.effects() != null) {
+					ch.effects().removeSkill(4361);
+					ch.effects().addBuff(4364, 1, 300_000L);
+				}
 			} else {
+				ch.skills().remove(4364);
 				ch.skills().put(4361, 1); // Preacher Curse
+				if (ch.effects() != null) {
+					ch.effects().removeSkill(4364);
+					ch.effects().addBuff(4361, 1, 300_000L);
+				}
 			}
 		}
 	}
