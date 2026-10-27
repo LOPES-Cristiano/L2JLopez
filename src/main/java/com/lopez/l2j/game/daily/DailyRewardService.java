@@ -2,13 +2,21 @@ package com.lopez.l2j.game.daily;
 
 import com.lopez.l2j.game.item.Inventory;
 import com.lopez.l2j.game.item.ItemInstance;
+import com.lopez.l2j.game.item.ItemRepository;
 import com.lopez.l2j.game.item.ItemTemplate;
 import com.lopez.l2j.game.item.ItemTemplateTable;
 import com.lopez.l2j.game.model.ObjectIdFactory;
 import com.lopez.l2j.game.model.PlayerCharacter;
+import com.lopez.l2j.game.service.CharacterVariablesService;
+import com.lopez.l2j.game.service.InventoryService;
+import com.lopez.l2j.game.world.GameWorld;
+import com.lopez.l2j.network.game.packet.GameServerPacket.InventoryUpdate;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemInfo;
+import com.lopez.l2j.network.game.packet.GameServerPacket.ItemList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -18,6 +26,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.io.InputStream;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -44,6 +53,8 @@ public class DailyRewardService {
 
 	private final Map<Integer, DailyReward> rewards = new ConcurrentHashMap<>();
 	private final Map<Integer, PlayerDailyStatus> playerStatus = new ConcurrentHashMap<>();
+	private final Map<String, LocalDate> claimedIpDate = new ConcurrentHashMap<>();
+	private final Map<String, LocalDate> claimedHwidDate = new ConcurrentHashMap<>();
 	private final AtomicInteger objIdGen = new AtomicInteger(910000);
 
 	@Autowired(required = false)
@@ -51,6 +62,18 @@ public class DailyRewardService {
 
 	@Autowired(required = false)
 	private ObjectIdFactory objectIdFactory;
+
+	@Autowired(required = false)
+	private InventoryService inventoryService;
+
+	@Autowired(required = false)
+	private ItemRepository itemRepository;
+
+	@Autowired(required = false)
+	private CharacterVariablesService variablesService;
+
+	@Autowired(required = false)
+	private JdbcClient jdbc;
 
 	public DailyRewardService() {
 		loadRewards();
@@ -90,17 +113,122 @@ public class DailyRewardService {
 
 	public boolean canClaimToday(PlayerCharacter player) {
 		if (player == null) return false;
-		PlayerDailyStatus status = playerStatus.get(player.objectId());
-		if (status == null) return true;
-		return !LocalDate.now().equals(status.lastClaimDate());
+		PlayerDailyStatus status = resolvePlayerStatus(player.objectId());
+		if (status != null && LocalDate.now().equals(status.lastClaimDate())) {
+			return false;
+		}
+		LocalDate today = LocalDate.now();
+		String ip = resolveClientIp(player);
+		if (ip != null && today.equals(claimedIpDate.get(ip))) {
+			return false;
+		}
+		String hwid = resolveClientHwid(player);
+		if (hwid != null && today.equals(claimedHwidDate.get(hwid))) {
+			return false;
+		}
+		return true;
 	}
 
 	public int getCurrentStreakDay(PlayerCharacter player) {
 		if (player == null) return 1;
-		PlayerDailyStatus status = playerStatus.get(player.objectId());
+		PlayerDailyStatus status = resolvePlayerStatus(player.objectId());
 		if (status == null) return 1;
 		int total = Math.max(1, rewards.size());
 		return (status.claimedDays() % total) + 1;
+	}
+
+	private PlayerDailyStatus resolvePlayerStatus(int playerId) {
+		PlayerDailyStatus status = playerStatus.get(playerId);
+		if (status != null) {
+			return status;
+		}
+		if (variablesService != null) {
+			String dateStr = variablesService.getVariable(playerId, "daily_reward_last_date", null);
+			int days = variablesService.getInt(playerId, "daily_reward_claimed_days", 0);
+			if (dateStr != null && !dateStr.isBlank()) {
+				try {
+					PlayerDailyStatus loaded = new PlayerDailyStatus(LocalDate.parse(dateStr.trim()), days);
+					playerStatus.put(playerId, loaded);
+					return loaded;
+				} catch (Exception ignored) {
+				}
+			}
+		}
+		if (jdbc != null) {
+			try {
+				var rows = jdbc.sql("SELECT last_claim_date, claimed_days FROM character_daily_rewards WHERE charId = :cid")
+						.param("cid", playerId)
+						.query().listOfRows();
+				if (!rows.isEmpty()) {
+					var r = rows.getFirst();
+					String dStr = String.valueOf(r.get("last_claim_date"));
+					int days = r.get("claimed_days") instanceof Number n ? n.intValue() : 0;
+					PlayerDailyStatus loaded = new PlayerDailyStatus(LocalDate.parse(dStr), days);
+					playerStatus.put(playerId, loaded);
+					return loaded;
+				}
+			} catch (Exception ignored) {
+			}
+		}
+		return null;
+	}
+
+	private void persistPlayerStatus(int playerId, PlayerDailyStatus status, String ip, String hwid) {
+		if (variablesService != null) {
+			variablesService.setVariable(playerId, "daily_reward_last_date", status.lastClaimDate().toString());
+			variablesService.setVariable(playerId, "daily_reward_claimed_days", String.valueOf(status.claimedDays()));
+		}
+		if (jdbc != null) {
+			try {
+				jdbc.sql("""
+						CREATE TABLE IF NOT EXISTS character_daily_rewards (
+						    charId INT NOT NULL PRIMARY KEY,
+						    last_claim_date VARCHAR(16) NOT NULL,
+						    claimed_days INT NOT NULL DEFAULT 0,
+						    last_ip VARCHAR(64) DEFAULT '',
+						    last_hwid VARCHAR(128) DEFAULT ''
+						)
+						""").update();
+				jdbc.sql("""
+						INSERT INTO character_daily_rewards (charId, last_claim_date, claimed_days, last_ip, last_hwid)
+						VALUES (:cid, :dt, :days, :ip, :hwid)
+						ON DUPLICATE KEY UPDATE last_claim_date = :dt, claimed_days = :days, last_ip = :ip, last_hwid = :hwid
+						""")
+						.param("cid", playerId)
+						.param("dt", status.lastClaimDate().toString())
+						.param("days", status.claimedDays())
+						.param("ip", ip != null ? ip : "")
+						.param("hwid", hwid != null ? hwid : "")
+						.update();
+			} catch (Exception ignored) {
+			}
+		}
+	}
+
+	private static String resolveClientIp(PlayerCharacter player) {
+		if (player == null) return null;
+		try {
+			var m = player.getClass().getMethod("lastKnownIp");
+			Object v = m.invoke(player);
+			if (v instanceof String s && !s.isBlank() && !"127.0.0.1".equals(s.trim()) && !"0.0.0.0".equals(s.trim())) {
+				return s.trim();
+			}
+		} catch (Exception ignored) {
+		}
+		return null;
+	}
+
+	private static String resolveClientHwid(PlayerCharacter player) {
+		if (player == null) return null;
+		try {
+			var m = player.getClass().getMethod("lastKnownHwid");
+			Object v = m.invoke(player);
+			if (v instanceof String s && !s.isBlank()) {
+				return s.trim();
+			}
+		} catch (Exception ignored) {
+		}
+		return null;
 	}
 
 	public synchronized ClaimResult claimReward(PlayerCharacter player) {
@@ -119,14 +247,57 @@ public class DailyRewardService {
 		}
 
 		Inventory inv = player.inventory();
-		int nextId = (objectIdFactory != null) ? objectIdFactory.nextId() : objIdGen.incrementAndGet();
-		ItemTemplate tmpl = resolveTemplate(reward.itemId(), reward.name());
-		ItemInstance item = new ItemInstance(nextId, tmpl, player.objectId(), (int) Math.min(Integer.MAX_VALUE, reward.count()));
-		inv.addItem(item);
+		int count = (int) Math.min(Integer.MAX_VALUE, reward.count());
+		if (inventoryService != null) {
+			var addRes = inventoryService.addItem(inv, reward.itemId(), count, "DailyReward");
+			if (addRes == null) {
+				int nextId = (objectIdFactory != null) ? objectIdFactory.nextId() : objIdGen.incrementAndGet();
+				ItemTemplate tmpl = resolveTemplate(reward.itemId(), reward.name());
+				ItemInstance item = new ItemInstance(nextId, tmpl, player.objectId(), count);
+				inv.addItem(item);
+				if (itemRepository != null) {
+					itemRepository.insert(item, "DailyReward");
+				}
+				GameWorld gw = GameWorld.getInstance();
+				if (gw != null) {
+					gw.sendPacket(player.objectId(), new InventoryUpdate(List.of(ItemInfo.of(item, ItemInfo.ADDED))));
+				}
+			} else {
+				GameWorld gw = GameWorld.getInstance();
+				if (gw != null && addRes.item() != null) {
+					gw.sendPacket(player.objectId(), new InventoryUpdate(List.of(
+							ItemInfo.of(addRes.item(), addRes.created() ? ItemInfo.ADDED : ItemInfo.MODIFIED))));
+				}
+			}
+		} else {
+			int nextId = (objectIdFactory != null) ? objectIdFactory.nextId() : objIdGen.incrementAndGet();
+			ItemTemplate tmpl = resolveTemplate(reward.itemId(), reward.name());
+			ItemInstance item = new ItemInstance(nextId, tmpl, player.objectId(), count);
+			inv.addItem(item);
+			if (itemRepository != null) {
+				itemRepository.insert(item, "DailyReward");
+			}
+			GameWorld gw = GameWorld.getInstance();
+			if (gw != null) {
+				gw.sendPacket(player.objectId(), ItemList.of(inv.items(), false));
+			}
+		}
 
-		PlayerDailyStatus oldStatus = playerStatus.get(player.objectId());
+		PlayerDailyStatus oldStatus = resolvePlayerStatus(player.objectId());
 		int newCount = (oldStatus != null) ? oldStatus.claimedDays() + 1 : 1;
-		playerStatus.put(player.objectId(), new PlayerDailyStatus(LocalDate.now(), newCount));
+		LocalDate today = LocalDate.now();
+		PlayerDailyStatus newStatus = new PlayerDailyStatus(today, newCount);
+		playerStatus.put(player.objectId(), newStatus);
+
+		String ip = resolveClientIp(player);
+		if (ip != null) {
+			claimedIpDate.put(ip, today);
+		}
+		String hwid = resolveClientHwid(player);
+		if (hwid != null) {
+			claimedHwidDate.put(hwid, today);
+		}
+		persistPlayerStatus(player.objectId(), newStatus, ip, hwid);
 
 		return ClaimResult.ok(nextDay, reward.itemId(), reward.count(),
 				"Recompensa do Dia " + nextDay + " resgatada com sucesso: " + reward.count() + "x " + reward.name() + "!");
